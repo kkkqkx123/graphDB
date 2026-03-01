@@ -96,7 +96,7 @@ impl GroupByValidator {
     }
 
     fn validate_group_key(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.validate_group_key_internal(&e)
         } else {
             Err(ValidationError::new(
@@ -153,7 +153,7 @@ impl GroupByValidator {
     fn validate_having(&self, having: &ContextualExpression) -> Result<(), ValidationError> {
         // HAVING 子句中的表达式必须是有效的布尔表达式
         // 且可以包含聚合函数
-        if let Some(e) = having.expression() {
+        if let Some(e) = having.get_expression() {
             self.validate_having_expr_internal(&e)
         } else {
             Err(ValidationError::new(
@@ -243,7 +243,7 @@ impl GroupByValidator {
     }
 
     fn contains_aggregate(expr: &ContextualExpression) -> bool {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             Self::contains_aggregate_internal(&e)
         } else {
             false
@@ -275,7 +275,7 @@ impl GroupByValidator {
     }
 
     fn expr_to_string(expr: &ContextualExpression) -> String {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             format!("{:?}", e)
         } else {
             "InvalidExpression".to_string()

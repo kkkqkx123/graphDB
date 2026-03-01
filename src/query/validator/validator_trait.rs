@@ -29,6 +29,7 @@ pub struct ColumnDef {
 /// 值类型枚举
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueType {
+    Any,
     Unknown,
     Bool,
     Int,
@@ -44,6 +45,53 @@ pub enum ValueType {
     Map,
     Set,
     Null,
+}
+
+impl ValueType {
+    /// 从 DataType 转换为 ValueType
+    pub fn from_data_type(data_type: &crate::core::DataType) -> Self {
+        use crate::core::DataType;
+        match data_type {
+            DataType::Bool => ValueType::Bool,
+            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => ValueType::Int,
+            DataType::Float | DataType::Double => ValueType::Float,
+            DataType::String | DataType::FixedString(_) => ValueType::String,
+            DataType::Date => ValueType::Date,
+            DataType::Time => ValueType::Time,
+            DataType::DateTime => ValueType::DateTime,
+            DataType::Null => ValueType::Null,
+            DataType::Vertex => ValueType::Vertex,
+            DataType::Edge => ValueType::Edge,
+            DataType::Path => ValueType::Path,
+            DataType::List => ValueType::List,
+            DataType::Map => ValueType::Map,
+            DataType::Set => ValueType::Set,
+            _ => ValueType::Unknown,
+        }
+    }
+
+    /// 转换为 DataType
+    pub fn to_data_type(&self) -> crate::core::DataType {
+        use crate::core::DataType;
+        match self {
+            ValueType::Any => DataType::Empty,
+            ValueType::Unknown => DataType::Empty,
+            ValueType::Bool => DataType::Bool,
+            ValueType::Int => DataType::Int,
+            ValueType::Float => DataType::Float,
+            ValueType::String => DataType::String,
+            ValueType::Date => DataType::Date,
+            ValueType::Time => DataType::Time,
+            ValueType::DateTime => DataType::DateTime,
+            ValueType::Vertex => DataType::Vertex,
+            ValueType::Edge => DataType::Edge,
+            ValueType::Path => DataType::Path,
+            ValueType::List => DataType::List,
+            ValueType::Map => DataType::Map,
+            ValueType::Set => DataType::Set,
+            ValueType::Null => DataType::Null,
+        }
+    }
 }
 
 /// 表达式属性
@@ -251,6 +299,10 @@ impl StatementType {
             StatementType::Remove => "REMOVE",
             StatementType::UpdateConfigs => "UPDATE_CONFIGS",
         }
+    }
+
+    pub fn is_global_statement(&self) -> bool {
+        is_global_statement_type(self.clone())
     }
 
     pub fn is_ddl(&self) -> bool {

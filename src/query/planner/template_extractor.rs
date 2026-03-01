@@ -3,7 +3,7 @@
 //! 本模块提供查询参数化和模板提取功能，用于计划缓存。
 //! 将具体参数值替换为占位符，使语义等价的查询共享缓存。
 
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::{NullType, Value};
 use crate::query::parser::ast::{
     DeleteStmt, FetchStmt, FromClause, GoStmt, InsertStmt, LookupStmt,
@@ -53,8 +53,22 @@ impl ParameterizingTransformer {
         Self
     }
 
-    /// 参数化单个表达式
-    pub fn parameterize(&mut self, expr: &Expression) -> ParameterizedResult {
+    /// 参数化单个 ContextualExpression
+    pub fn parameterize(&mut self, expr: &ContextualExpression) -> ParameterizedResult {
+        let inner_expr = match expr.get_expression() {
+            Some(e) => e,
+            None => {
+                return ParameterizedResult::new();
+            }
+        };
+        let mut result = ParameterizedResult::new();
+        let new_expr = self.transform_with_params(&inner_expr, &mut result);
+        result.expression = new_expr;
+        result
+    }
+
+    /// 参数化单个 Expression（兼容旧接口）
+    pub fn parameterize_expression(&mut self, expr: &Expression) -> ParameterizedResult {
         let mut result = ParameterizedResult::new();
         let new_expr = self.transform_with_params(expr, &mut result);
         result.expression = new_expr;
@@ -62,7 +76,7 @@ impl ParameterizingTransformer {
     }
 
     /// 参数化多个表达式
-    pub fn parameterize_many(&mut self, exprs: &[Expression]) -> Vec<ParameterizedResult> {
+    pub fn parameterize_many(&mut self, exprs: &[ContextualExpression]) -> Vec<ParameterizedResult> {
         exprs
             .iter()
             .map(|expr| self.parameterize(expr))
@@ -1106,7 +1120,7 @@ mod tests {
     fn test_parameterize_literal() {
         let mut transformer = ParameterizingTransformer::new();
         let expr = Expression::Literal(Value::Int(42));
-        let result = transformer.parameterize(&expr);
+        let result = transformer.parameterize_expression(&expr);
 
         assert_eq!(result.parameters.len(), 1);
         assert_eq!(result.parameters[0], Value::Int(42));
@@ -1123,7 +1137,7 @@ mod tests {
             op: BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(Value::Int(18))),
         };
-        let result = transformer.parameterize(&expr);
+        let result = transformer.parameterize_expression(&expr);
 
         assert_eq!(result.parameters.len(), 1);
         assert_eq!(result.parameters[0], Value::Int(18));

@@ -6,7 +6,7 @@ use super::pattern::*;
 use super::types::*;
 use crate::core::types::PropertyDef;
 use crate::core::types::expression::ContextualExpression;
-use crate::core::types::expression::utils::collect_variables;
+use crate::core::types::expression::utils::collect_variables_from_contextual;
 
 /// 语句枚举 - 所有图数据库操作语句
 #[derive(Debug, Clone, PartialEq)]
@@ -903,13 +903,13 @@ impl StmtUtils {
                     variables.extend(PatternUtils::find_variables(pattern));
                 }
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(collect_variables(where_clause));
+                    variables.extend(collect_variables_from_contextual(where_clause));
                 }
             }
             Stmt::Create(s) => match &s.target {
                 CreateTarget::Node { properties, .. } => {
                     if let Some(props) = properties {
-                        variables.extend(collect_variables(props));
+                        variables.extend(collect_variables_from_contextual(props));
                     }
                 }
                 CreateTarget::Edge {
@@ -918,10 +918,10 @@ impl StmtUtils {
                     properties,
                     ..
                 } => {
-                    variables.extend(collect_variables(src));
-                    variables.extend(collect_variables(dst));
+                    variables.extend(collect_variables_from_contextual(src));
+                    variables.extend(collect_variables_from_contextual(dst));
                     if let Some(props) = properties {
-                        variables.extend(collect_variables(props));
+                        variables.extend(collect_variables_from_contextual(props));
                     }
                 }
                 _ => {}
@@ -930,87 +930,87 @@ impl StmtUtils {
                 match &s.target {
                     DeleteTarget::Vertices(vertices) => {
                         for vertex in vertices {
-                            variables.extend(collect_variables(vertex));
+                            variables.extend(collect_variables_from_contextual(vertex));
                         }
                     }
                     DeleteTarget::Edges { edges, .. } => {
                         for (src, dst, rank) in edges {
-                            variables.extend(collect_variables(src));
-                            variables.extend(collect_variables(dst));
+                            variables.extend(collect_variables_from_contextual(src));
+                            variables.extend(collect_variables_from_contextual(dst));
                             if let Some(ref rank) = rank {
-                                variables.extend(collect_variables(rank));
+                                variables.extend(collect_variables_from_contextual(rank));
                             }
                         }
                     }
                     _ => {}
                 }
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(collect_variables(where_clause));
+                    variables.extend(collect_variables_from_contextual(where_clause));
                 }
             }
             Stmt::Update(s) => {
                 match &s.target {
                     UpdateTarget::Vertex(vertex) => {
-                        variables.extend(collect_variables(vertex));
+                        variables.extend(collect_variables_from_contextual(vertex));
                     }
                     UpdateTarget::Edge { src, dst, rank, .. } => {
-                        variables.extend(collect_variables(src));
-                        variables.extend(collect_variables(dst));
+                        variables.extend(collect_variables_from_contextual(src));
+                        variables.extend(collect_variables_from_contextual(dst));
                         if let Some(ref rank) = rank {
-                            variables.extend(collect_variables(rank));
+                            variables.extend(collect_variables_from_contextual(rank));
                         }
                     }
                     _ => {}
                 }
                 for assignment in &s.set_clause.assignments {
-                    variables.extend(collect_variables(&assignment.value));
+                    variables.extend(collect_variables_from_contextual(&assignment.value));
                 }
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(collect_variables(where_clause));
+                    variables.extend(collect_variables_from_contextual(where_clause));
                 }
             }
             Stmt::Go(s) => {
                 for vertex in &s.from.vertices {
-                    variables.extend(collect_variables(vertex));
+                    variables.extend(collect_variables_from_contextual(vertex));
                 }
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(collect_variables(where_clause));
+                    variables.extend(collect_variables_from_contextual(where_clause));
                 }
             }
             Stmt::Fetch(s) => match &s.target {
                 FetchTarget::Vertices { ids, .. } => {
                     for id in ids {
-                        variables.extend(collect_variables(id));
+                        variables.extend(collect_variables_from_contextual(id));
                     }
                 }
                 FetchTarget::Edges { src, dst, rank, .. } => {
-                    variables.extend(collect_variables(src));
-                    variables.extend(collect_variables(dst));
+                    variables.extend(collect_variables_from_contextual(src));
+                    variables.extend(collect_variables_from_contextual(dst));
                     if let Some(ref rank) = rank {
-                        variables.extend(collect_variables(rank));
+                        variables.extend(collect_variables_from_contextual(rank));
                     }
                 }
             },
             Stmt::Lookup(s) => {
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(collect_variables(where_clause));
+                    variables.extend(collect_variables_from_contextual(where_clause));
                 }
             }
             Stmt::Subgraph(s) => {
                 for vertex in &s.from.vertices {
-                    variables.extend(collect_variables(vertex));
+                    variables.extend(collect_variables_from_contextual(vertex));
                 }
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(collect_variables(where_clause));
+                    variables.extend(collect_variables_from_contextual(where_clause));
                 }
             }
             Stmt::FindPath(s) => {
                 for vertex in &s.from.vertices {
-                    variables.extend(collect_variables(vertex));
+                    variables.extend(collect_variables_from_contextual(vertex));
                 }
-                variables.extend(collect_variables(&s.to));
+                variables.extend(collect_variables_from_contextual(&s.to));
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(collect_variables(where_clause));
+                    variables.extend(collect_variables_from_contextual(where_clause));
                 }
             }
             _ => {}

@@ -39,7 +39,7 @@ impl ExpressionId {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(from = "ExpressionMetaSerde", into = "ExpressionMetaSerde")]
 pub struct ExpressionMeta {
-    inner: Arc<Expression>,
+    pub(crate) inner: Arc<Expression>,
     span: Option<Span>,
     id: Option<ExpressionId>,
 }
@@ -181,6 +181,11 @@ impl ExpressionMeta {
     pub fn contains_aggregate(&self) -> bool {
         self.inner.as_ref().contains_aggregate()
     }
+
+    /// 获取内部表达式的引用
+    pub fn expression(&self) -> &Expression {
+        &self.inner
+    }
 }
 
 /// 从 ExpressionMeta 提取核心表达式
@@ -194,6 +199,13 @@ impl From<ExpressionMeta> for Expression {
 impl From<Expression> for ExpressionMeta {
     fn from(expr: Expression) -> Self {
         ExpressionMeta::new(expr)
+    }
+}
+
+/// 从 Arc<ExpressionMeta> 提取核心表达式
+impl From<Arc<ExpressionMeta>> for Expression {
+    fn from(meta: Arc<ExpressionMeta>) -> Self {
+        meta.inner().clone()
     }
 }
 

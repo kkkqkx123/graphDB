@@ -15,7 +15,8 @@ use crate::query::planner::plan::core::{
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::YieldColumn;
-use crate::core::Expression;
+use crate::query::parser::ast::utils::ExprFactory;
+use crate::core::types::expression::contextual::ContextualExpression;
 
 /// 插入操作规划器
 /// 负责将 INSERT 语句转换为执行计划
@@ -62,7 +63,7 @@ impl InsertPlanner {
 
         // 将 VertexRow 转换为 (vid, Vec<Vec<Expression>>) 格式
         // 每个标签对应一个属性值列表
-        let converted_values: Vec<(Expression, Vec<Vec<Expression>>)> = values
+        let converted_values: Vec<(ContextualExpression, Vec<Vec<ContextualExpression>>)> = values
             .into_iter()
             .map(|row| {
                 (row.vid, row.tag_values)
@@ -82,7 +83,7 @@ impl InsertPlanner {
         space_name: String,
         edge_name: String,
         prop_names: Vec<String>,
-        edges: Vec<(Expression, Expression, Option<Expression>, Vec<Expression>)>,
+        edges: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>, Vec<ContextualExpression>)>,
     ) -> EdgeInsertInfo {
         EdgeInsertInfo {
             space_name,
@@ -93,12 +94,12 @@ impl InsertPlanner {
     }
 
     /// 创建插入结果投影列
-    fn create_yield_columns(&self, count: usize) -> Vec<YieldColumn> {
-        vec![YieldColumn {
-            expression: Expression::literal(crate::core::Value::Int(count as i64)),
-            alias: "inserted_count".to_string(),
-            is_matched: false,
-        }]
+    fn create_yield_columns(&self, count: usize, qctx: Arc<QueryContext>) -> Vec<YieldColumn> {
+        let expr = ExprFactory::constant(
+            crate::core::Value::Int(count as i64),
+            qctx.expr_context_clone(),
+        );
+        vec![YieldColumn::new(expr, "inserted_count".to_string())]
     }
 }
 
@@ -152,7 +153,7 @@ impl Planner for InsertPlanner {
         };
 
         // 创建投影节点来返回插入结果
-        let yield_columns = self.create_yield_columns(inserted_count);
+        let yield_columns = self.create_yield_columns(inserted_count, qctx.clone());
 
         let project_node = ProjectNode::new(insert_node, yield_columns).map_err(|e| {
             PlannerError::PlanGenerationFailed(format!("创建 ProjectNode 失败: {}", e))
@@ -186,11 +187,8 @@ mod tests {
     use crate::query::parser::ast::{InsertStmt, InsertTarget, Span, TagInsertSpec, VertexRow, Stmt};
     use crate::query::planner::planner::{Planner, ValidatedStatement};
     use crate::query::validator::ValidationInfo;
-
-    // 辅助函数：创建常量表达式
-    fn lit(val: Value) -> Expression {
-        Expression::literal(val)
-    }
+    use crate::query::parser::ast::utils::ExprFactory;
+    use crate::core::types::expression::contextual::ContextualExpression;
 
     fn create_test_span() -> Span {
         use crate::core::types::span::Position;
@@ -208,6 +206,12 @@ mod tests {
 
     fn create_test_qctx() -> Arc<QueryContext> {
         Arc::new(QueryContext::default())
+    }
+
+    // 辅助函数：创建常量表达式
+    fn lit(val: Value) -> ContextualExpression {
+        let qctx = create_test_qctx();
+        ExprFactory::constant(val, qctx.expr_context_clone())
     }
 
     #[test]

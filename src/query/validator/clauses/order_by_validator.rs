@@ -184,7 +184,7 @@ impl OrderByValidator {
     }
 
     fn expression_is_empty(&self, expression: &ContextualExpression) -> bool {
-        if let Some(e) = expression.expression() {
+        if let Some(e) = expression.get_expression() {
             self.expression_is_empty_internal(&e)
         } else {
             true
@@ -224,7 +224,7 @@ impl OrderByValidator {
     }
 
     fn deduce_expr_type(&self, expression: &ContextualExpression) -> Result<ValueType, ValidationError> {
-        if let Some(e) = expression.expression() {
+        if let Some(e) = expression.get_expression() {
             self.deduce_expr_type_internal(&e)
         } else {
             Ok(ValueType::Unknown)
@@ -393,7 +393,7 @@ impl OrderByValidator {
     }
 
     fn get_expression_references(&self, expression: &ContextualExpression) -> Vec<String> {
-        if let Some(e) = expression.expression() {
+        if let Some(e) = expression.get_expression() {
             let mut refs = Vec::new();
             self.collect_refs_internal(&e, &mut refs);
             refs
@@ -573,9 +573,17 @@ mod tests {
 
     #[test]
     fn test_add_order_column() {
+        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use std::sync::Arc;
+
         let mut validator = OrderByValidator::new();
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Literal(Value::Int(1));
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
         let col = OrderColumn {
-            expression: Expression::Literal(Value::Int(1)),
+            expression: ctx_expr,
             alias: Some("col1".to_string()),
             direction: OrderDirection::Asc,
         };
@@ -592,13 +600,21 @@ mod tests {
 
     #[test]
     fn test_validate_valid_column() {
+        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use std::sync::Arc;
+
         let mut validator = OrderByValidator::new();
         let mut input_cols = HashMap::new();
         input_cols.insert("name".to_string(), ValueType::String);
         validator.set_input_columns(input_cols);
 
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("name".to_string());
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
         let col = OrderColumn {
-            expression: Expression::Variable("name".to_string()),
+            expression: ctx_expr,
             alias: None,
             direction: OrderDirection::Asc,
         };

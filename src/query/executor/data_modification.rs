@@ -306,7 +306,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
         let mut results = Vec::new();
 
         let condition_expression = if let Some(ref condition_str) = self.condition {
-            Some(parse_expression_meta_from_string(condition_str).map(|meta| meta.into()).map_err(|e| {
+            Some(parse_expression_meta_from_string(condition_str).map(|ctx_expr| ctx_expr.into_expression()).map_err(|e| {
                 crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
                     format!("条件解析失败: {}", e),
                 ))
@@ -535,7 +535,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
         let mut total_deleted = 0;
 
         let condition_expression = if let Some(ref condition_str) = self.condition {
-            Some(parse_expression_meta_from_string(condition_str).map(|meta| meta.into()).map_err(|e| {
+            Some(parse_expression_meta_from_string(condition_str).map(|ctx_expr| ctx_expr.into_expression()).map_err(|e| {
                 crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
                     format!("条件解析失败: {}", e),
                 ))

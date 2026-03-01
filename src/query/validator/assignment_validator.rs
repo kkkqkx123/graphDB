@@ -16,7 +16,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef,
     ExpressionProps,
 };
-use crate::query::validator::validator_enum::Validator;
+use crate::query::validator::validator_enum::{Validator};
 
 /// 验证后的赋值信息
 #[derive(Debug, Clone)]
@@ -55,7 +55,7 @@ impl AssignmentValidator {
 
         // 创建内部语句验证器
         self.inner_validator = Some(Box::new(
-            Validator::from_stmt(&stmt.statement)
+            Validator::create_from_stmt(&stmt.statement)
                 .ok_or_else(|| ValidationError::new(
                     "Failed to create validator for inner statement".to_string(),
                     ValidationErrorType::SemanticError,
@@ -110,7 +110,7 @@ impl AssignmentValidator {
         ValidatedAssignment {
             variable: self.variable.clone(),
             inner_statement_type: self.inner_validator.as_ref()
-                .map(|v| v.as_ref().statement_type().as_str().to_string())
+                .map(|v| v.get_type().as_str().to_string())
                 .unwrap_or_default(),
         }
     }
@@ -141,15 +141,24 @@ impl StatementValidator for AssignmentValidator {
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            let result = inner.validate(&assignment_stmt.statement, qctx)?;
+            let result = inner.validate(&assignment_stmt.statement, qctx);
 
-            // 赋值语句的输出与内部语句相同
-            self.inputs = result.inputs.clone();
-            self.outputs = result.outputs.clone();
+            if result.success {
+                // 赋值语句的输出与内部语句相同
+                self.inputs = result.inputs.clone();
+                self.outputs = result.outputs.clone();
 
-            // 添加变量到用户定义变量列表
-            if !self.user_defined_vars.contains(&self.variable) {
-                self.user_defined_vars.push(self.variable.clone());
+                // 添加变量到用户定义变量列表
+                if !self.user_defined_vars.contains(&self.variable) {
+                    self.user_defined_vars.push(self.variable.clone());
+                }
+            } else {
+                return Err(result.errors.first().cloned().unwrap_or_else(|| {
+                    ValidationError::new(
+                        "Internal statement validation failed".to_string(),
+                        ValidationErrorType::SemanticError,
+                    )
+                }));
             }
         }
 
@@ -173,7 +182,7 @@ impl StatementValidator for AssignmentValidator {
 
     fn is_global_statement(&self) -> bool {
         self.inner_validator.as_ref()
-            .map(|v| v.as_ref().is_global_statement())
+            .map(|v| v.get_type().is_global_statement())
             .unwrap_or(false)
     }
 

@@ -76,7 +76,7 @@ impl WithValidator {
         &self,
         expr: &ContextualExpression,
     ) -> Result<(), ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.validate_expression_internal(&e)
         } else {
             Err(ValidationError::new(
@@ -177,7 +177,7 @@ impl WithValidator {
         self.validate_expression(where_clause)?;
 
         // WHERE 子句必须是布尔类型或可转换为布尔类型
-        if let Some(e) = where_clause.expression() {
+        if let Some(e) = where_clause.get_expression() {
             use crate::core::types::expression::Expression;
             match e {
                 Expression::Literal(_) |
@@ -203,7 +203,7 @@ impl WithValidator {
         &self,
         expr: &ContextualExpression,
     ) -> Option<String> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.infer_column_name_internal(&e)
         } else {
             None
@@ -230,7 +230,7 @@ impl WithValidator {
         &self,
         expr: &ContextualExpression,
     ) -> ValueType {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.infer_expression_type_internal(&e)
         } else {
             ValueType::Unknown
@@ -434,18 +434,29 @@ mod tests {
 
     #[test]
     fn test_validate_where_clause() {
+        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use std::sync::Arc;
+
         let validator = WithValidator::new();
 
         // 有效的 WHERE 子句
-        let where_expr = Expression::Literal(Value::Bool(true));
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Literal(Value::Bool(true));
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        let where_expr = ContextualExpression::new(id, expr_ctx);
         assert!(validator.validate_where_clause(&where_expr).is_ok());
 
         // 二元操作符
-        let _where_expr = Expression::Binary {
+        let _expr_ctx = Arc::new(ExpressionContext::new());
+        let _expr = Expression::Binary {
             left: Box::new(Expression::Variable("n".to_string())),
             op: crate::core::types::operators::BinaryOperator::Equal,
             right: Box::new(Expression::Literal(Value::Int(1))),
         };
+        let _meta = ExpressionMeta::new(_expr);
+        let _id = _expr_ctx.register_expression(_meta);
+        let _where_expr = ContextualExpression::new(_id, _expr_ctx);
         // 这会失败，因为变量 n 不在输入中
         // assert!(validator.validate_where_clause(&_where_expr).is_err());
     }

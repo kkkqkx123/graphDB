@@ -18,8 +18,8 @@ impl VariableChecker {
         expression: &ContextualExpression,
         available_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
+        if let Some(expr_meta) = expression.get_expression() {
+            if let Some(expr) = expr_meta.inner().get_expression() {
                 let variables = self.extract_variables_internal(&expr);
                 
                 for var in &variables {
@@ -97,8 +97,8 @@ impl VariableChecker {
     }
 
     pub fn extract_variables(&self, expression: &ContextualExpression) -> Vec<String> {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
+        if let Some(expr_meta) = expression.get_expression() {
+            if let Some(expr) = expr_meta.inner().get_expression() {
                 return self.extract_variables_internal(&expr);
             }
         }
@@ -171,8 +171,8 @@ impl VariableChecker {
     }
 
     pub fn contains_variable(&self, expression: &ContextualExpression, var: &str) -> bool {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
+        if let Some(expr_meta) = expression.get_expression() {
+            if let Some(expr) = expr_meta.inner().get_expression() {
                 return self.contains_variable_internal(&expr, var);
             }
         }
@@ -237,8 +237,8 @@ impl VariableChecker {
     }
 
     pub fn is_arithmetic_expression(&self, expression: &ContextualExpression, var: &str) -> bool {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
+        if let Some(expr_meta) = expression.get_expression() {
+            if let Some(expr) = expr_meta.inner().get_expression() {
                 return self.is_arithmetic_expression_internal(&expr, var);
             }
         }

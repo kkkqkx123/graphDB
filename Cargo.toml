@@ -48,6 +48,7 @@ redb = ["dep:redb"]
 embedded = []
 server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http"]
 system_monitor = []
+executor_internal = []
 
 [dev-dependencies]
 tokio-test = "0.4.4"

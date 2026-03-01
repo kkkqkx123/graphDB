@@ -12,6 +12,7 @@ use crate::query::planner::plan::ExecutionPlan;
 use crate::query::validator::ValidationInfo;
 use crate::utils::{ObjectPool, IdGenerator};
 use crate::core::types::CharsetInfo;
+use crate::core::types::expression::ExpressionContext;
 
 /// 查询上下文
 ///
@@ -24,11 +25,13 @@ use crate::core::types::CharsetInfo;
 /// - 持有执行计划
 /// - 持有工具（对象池、ID 生成器、符号表）
 /// - 持有当前空间信息
+/// - 持有表达式上下文（跨阶段共享）
 ///
 /// # 设计变更
 ///
 /// - 使用 Arc<RwLock<SymbolTable>> 替代直接的 SymbolTable，支持并发访问
 /// - 添加 space_info 字段，替代 AstContext 中的 space 字段
+/// - 添加 expr_context 字段，持有跨阶段共享的表达式上下文
 /// - 删除 Clone 实现，强制使用 Arc<QueryContext>
 pub struct QueryContext {
     /// 查询请求上下文
@@ -57,6 +60,9 @@ pub struct QueryContext {
 
     /// 验证结果缓存
     validation_info: RwLock<Option<ValidationInfo>>,
+
+    /// 表达式上下文 - 跨阶段共享
+    expr_context: Arc<ExpressionContext>,
 }
 
 impl QueryContext {
@@ -72,6 +78,23 @@ impl QueryContext {
             space_info: RwLock::new(None),
             killed: AtomicBool::new(false),
             validation_info: RwLock::new(None),
+            expr_context: Arc::new(ExpressionContext::new()),
+        }
+    }
+
+    /// 使用指定的表达式上下文创建查询上下文
+    pub fn with_expr_context(rctx: Arc<QueryRequestContext>, expr_context: Arc<ExpressionContext>) -> Self {
+        Self {
+            rctx,
+            plan: RwLock::new(None),
+            charset_info: None,
+            obj_pool: ObjectPool::new(1000),
+            id_gen: IdGenerator::new(0),
+            sym_table: Arc::new(SymbolTable::new()),
+            space_info: RwLock::new(None),
+            killed: AtomicBool::new(false),
+            validation_info: RwLock::new(None),
+            expr_context,
         }
     }
 
@@ -210,6 +233,16 @@ impl QueryContext {
     /// 获取参数
     pub fn parameters(&self) -> &std::collections::HashMap<String, crate::core::Value> {
         &self.rctx.parameters
+    }
+
+    /// 获取表达式上下文
+    pub fn expr_context(&self) -> &Arc<ExpressionContext> {
+        &self.expr_context
+    }
+
+    /// 获取表达式上下文的克隆
+    pub fn expr_context_clone(&self) -> Arc<ExpressionContext> {
+        self.expr_context.clone()
     }
 
     /// 重置查询上下文

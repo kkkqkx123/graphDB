@@ -84,7 +84,6 @@ pub use validator_trait::{
 };
 pub use validator_enum::{
     Validator,
-    ValidatorFactory,
     ValidatorCollection,
 };
 

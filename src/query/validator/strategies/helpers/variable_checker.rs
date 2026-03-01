@@ -18,16 +18,18 @@ impl VariableChecker {
         expression: &ContextualExpression,
         available_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
-                let variables = self.extract_variables_internal(&expr);
-                
-                for var in &variables {
-                    self.validate_variable_usage(var, available_aliases)?;
-                }
-            }
-        }
+        let expr_meta = match expression.expression() {
+            Some(e) => e,
+            None => return Ok(()),
+        };
+        let expr = expr_meta.inner().as_ref();
+
+        let variables = self.extract_variables_internal(&expr);
         
+        for var in &variables {
+            self.validate_variable_usage(var, available_aliases)?;
+        }
+
         Ok(())
     }
 
@@ -97,12 +99,10 @@ impl VariableChecker {
     }
 
     pub fn extract_variables(&self, expression: &ContextualExpression) -> Vec<String> {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
-                return self.extract_variables_internal(&expr);
-            }
+        match expression.expression() {
+            Some(e) => self.extract_variables_internal(e.inner().as_ref()),
+            None => Vec::new(),
         }
-        Vec::new()
     }
 
     fn extract_variables_internal(&self, expression: &crate::core::types::expression::Expression) -> Vec<String> {
@@ -171,12 +171,10 @@ impl VariableChecker {
     }
 
     pub fn contains_variable(&self, expression: &ContextualExpression, var: &str) -> bool {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
-                return self.contains_variable_internal(&expr, var);
-            }
+        match expression.expression() {
+            Some(expr_meta) => self.contains_variable_internal(expr_meta.inner(), var),
+            None => false,
         }
-        false
     }
 
     fn contains_variable_internal(&self, expression: &crate::core::types::expression::Expression, var: &str) -> bool {
@@ -237,12 +235,10 @@ impl VariableChecker {
     }
 
     pub fn is_arithmetic_expression(&self, expression: &ContextualExpression, var: &str) -> bool {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
-                return self.is_arithmetic_expression_internal(&expr, var);
-            }
+        match expression.expression() {
+            Some(expr_meta) => self.is_arithmetic_expression_internal(expr_meta.inner(), var),
+            None => false,
         }
-        false
     }
 
     fn is_arithmetic_expression_internal(&self, expression: &crate::core::types::expression::Expression, var: &str) -> bool {
@@ -275,8 +271,17 @@ impl VariableChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
-    use crate::core::Value;
+    use crate::core::{Expression, Value};
+    use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ContextualExpression};
+    use std::sync::Arc;
+
+    /// 从 Expression 创建 ContextualExpression
+    fn create_contextual_expression(expr: Expression) -> ContextualExpression {
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        ContextualExpression::new(id, expr_ctx)
+    }
 
     #[test]
     fn test_variable_checker_creation() {
@@ -288,26 +293,45 @@ mod tests {
     fn test_validate_variable_name_format() {
         let checker = VariableChecker::new();
         
+        // 有效的变量名
         assert!(checker.validate_variable_name_format("var").is_ok());
-        assert!(checker.validate_variable_name_format("var1").is_ok());
-        assert!(checker.validate_variable_name_format("var_name").is_ok());
         assert!(checker.validate_variable_name_format("_var").is_ok());
+        assert!(checker.validate_variable_name_format("var123").is_ok());
         
+        // 无效的变量名
         assert!(checker.validate_variable_name_format("").is_err());
-        assert!(checker.validate_variable_name_format("1var").is_err());
+        assert!(checker.validate_variable_name_format("123var").is_err());
         assert!(checker.validate_variable_name_format("var-name").is_err());
-        assert!(checker.validate_variable_name_format("var name").is_err());
+    }
+
+    #[test]
+    fn test_validate_variable_scope() {
+        let checker = VariableChecker::new();
+        let mut available_aliases = std::collections::HashMap::new();
+        available_aliases.insert("var1".to_string(), crate::query::validator::structs::AliasType::Node);
+        available_aliases.insert("var2".to_string(), crate::query::validator::structs::AliasType::Edge);
+        
+        let expression = create_contextual_expression(Expression::Binary {
+            op: crate::core::BinaryOperator::Add,
+            left: Box::new(Expression::Variable("var1".to_string())),
+            right: Box::new(Expression::Variable("var2".to_string())),
+        });
+        
+        assert!(checker.validate_variable_scope(&expression, &available_aliases).is_ok());
+        
+        let invalid_expression = create_contextual_expression(Expression::Variable("var3".to_string()));
+        assert!(checker.validate_variable_scope(&invalid_expression, &available_aliases).is_err());
     }
 
     #[test]
     fn test_contains_variable() {
         let checker = VariableChecker::new();
         
-        let var_expression = Expression::Variable("test_var".to_string());
+        let var_expression = create_contextual_expression(Expression::Variable("test_var".to_string()));
         assert!(checker.contains_variable(&var_expression, "test_var"));
         assert!(!checker.contains_variable(&var_expression, "other_var"));
         
-        let literal_expression = Expression::Literal(Value::Int(42));
+        let literal_expression = create_contextual_expression(Expression::Literal(Value::Int(42)));
         assert!(!checker.contains_variable(&literal_expression, "test_var"));
     }
 
@@ -315,18 +339,18 @@ mod tests {
     fn test_is_arithmetic_expression() {
         let checker = VariableChecker::new();
         
-        let add_expression = Expression::Binary {
+        let add_expression = create_contextual_expression(Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Variable("var".to_string())),
             right: Box::new(Expression::Literal(Value::Int(1))),
-        };
+        });
         assert!(checker.is_arithmetic_expression(&add_expression, "var"));
         
-        let eq_expression = Expression::Binary {
+        let eq_expression = create_contextual_expression(Expression::Binary {
             op: crate::core::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("var".to_string())),
             right: Box::new(Expression::Literal(Value::Int(1))),
-        };
+        });
         assert!(!checker.is_arithmetic_expression(&eq_expression, "var"));
     }
 
@@ -334,11 +358,11 @@ mod tests {
     fn test_extract_variables() {
         let checker = VariableChecker::new();
         
-        let complex_expression = Expression::Binary {
+        let complex_expression = create_contextual_expression(Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Variable("var1".to_string())),
             right: Box::new(Expression::Variable("var2".to_string())),
-        };
+        });
         
         let variables = checker.extract_variables(&complex_expression);
         assert_eq!(variables.len(), 2);

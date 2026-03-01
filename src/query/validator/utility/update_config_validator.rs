@@ -76,7 +76,7 @@ impl UpdateConfigsValidator {
         &self,
         value: &ContextualExpression,
     ) -> Result<(), ValidationError> {
-        if let Some(e) = value.expression() {
+        if let Some(e) = value.get_expression() {
             self.validate_config_value_internal(&e)
         } else {
             Err(ValidationError::new(

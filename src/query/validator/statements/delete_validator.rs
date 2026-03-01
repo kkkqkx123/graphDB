@@ -270,14 +270,14 @@ impl DeleteValidator {
 
     /// 验证表达式
     fn validate_expression(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
-        if let Some(e) = expr.expression() {
-            self.validate_expression_internal(&e)
-        } else {
-            Err(ValidationError::new(
+        let expr_meta = match expr.expression() {
+            Some(e) => e,
+            None => return Err(ValidationError::new(
                 "表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
-            ))
-        }
+            )),
+        };
+        self.validate_expression_internal(expr_meta.inner().as_ref())
     }
 
     /// 内部方法：验证表达式
@@ -382,13 +382,22 @@ impl DeleteValidator {
     /// 评估 VID 表达式
     fn evaluate_vid(
         &self,
-        vid_expr: &Expression,
+        vid_expr: &ContextualExpression,
         idx: usize,
     ) -> Result<Value, ValidationError> {
-        match vid_expr {
+        let inner_expr = match vid_expr.get_expression() {
+            Some(e) => e,
+            None => {
+                return Err(ValidationError::new(
+                    format!("Failed to evaluate vertex ID at position {}", idx),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+        
+        match inner_expr {
             Expression::Literal(v) => Ok(v.clone()),
             Expression::Variable(name) => {
-                // 变量需要在执行时解析
                 Ok(Value::String(format!("${}", name)))
             }
             _ => Err(ValidationError::new(
@@ -399,10 +408,20 @@ impl DeleteValidator {
     }
 
     /// 评估 rank 表达式
-    fn evaluate_rank(&self, expr: &Expression) -> Result<i64, ValidationError> {
-        match expr {
+    fn evaluate_rank(&self, expr: &ContextualExpression) -> Result<i64, ValidationError> {
+        let inner_expr = match expr.get_expression() {
+            Some(e) => e,
+            None => {
+                return Err(ValidationError::new(
+                    "Failed to evaluate rank".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+        
+        match inner_expr {
             Expression::Literal(Value::Int(i)) => Ok(*i),
-            Expression::Variable(_) => Ok(0), // 变量在执行时解析
+            Expression::Variable(_) => Ok(0),
             _ => Err(ValidationError::new(
                 "Rank must be an integer".to_string(),
                 ValidationErrorType::TypeMismatch,

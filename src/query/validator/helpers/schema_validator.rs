@@ -300,7 +300,7 @@ impl SchemaValidator {
         vid_type: &DataType,
         role: &str,
     ) -> Result<(), CoreValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.validate_vid_expr_internal(&e, vid_type, role)
         } else {
             Err(CoreValidationError::new(
@@ -405,7 +405,7 @@ impl SchemaValidator {
     /// 验证表达式是否为可计算的值
     /// 用于检查 VID 和属性值表达式
     pub fn is_evaluable_expr(&self, expr: &ContextualExpression) -> bool {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.is_evaluable_expr_internal(&e)
         } else {
             false
@@ -432,7 +432,7 @@ impl SchemaValidator {
         &self,
         expr: &ContextualExpression,
     ) -> Result<Value, CoreValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.evaluate_expression_internal(&e)
         } else {
             Err(CoreValidationError::new(

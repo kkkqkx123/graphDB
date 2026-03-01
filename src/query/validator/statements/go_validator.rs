@@ -437,7 +437,7 @@ impl StatementValidator for GoValidator {
         let yield_items: Vec<(Expression, Option<String>)> = go_stmt.yield_clause.as_ref()
             .map(|yield_clause| {
                 yield_clause.items.iter()
-                    .map(|item| (item.expression.clone(), item.alias.clone()))
+                    .map(|item| (item.expression.clone().into_expression(), item.alias.clone()))
                     .collect()
             })
             .unwrap_or_default();

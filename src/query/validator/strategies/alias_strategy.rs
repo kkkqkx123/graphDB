@@ -33,31 +33,35 @@ impl AliasValidationStrategy {
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         // 从 ContextualExpression 获取 Expression
-        if let Some(expr) = expression.expression() {
-            // 首先检查表达式本身是否引用了一个别名
-            if let Some(alias_name) = self.extract_alias_name_internal(&expr) {
-                if !aliases.contains_key(&alias_name) {
-                    return Err(ValidationError::new(
-                        format!("未定义的变量别名: {}", alias_name),
-                        ValidationErrorType::AliasError,
-                    ));
-                }
-            }
+        let expr_meta = match expression.expression() {
+            Some(e) => e,
+            None => return Ok(()),
+        };
+        let expr = expr_meta.inner().as_ref();
 
-            // 递归验证子表达式
-            self.validate_subexpressions_aliases_internal(&expr, aliases)?;
+        // 首先检查表达式本身是否引用了一个别名
+        if let Some(alias_name) = self.extract_alias_name_internal(&expr) {
+            if !aliases.contains_key(&alias_name) {
+                return Err(ValidationError::new(
+                    format!("未定义的变量别名: {}", alias_name),
+                    ValidationErrorType::AliasError,
+                ));
+            }
         }
+
+        // 递归验证子表达式
+        self.validate_subexpressions_aliases_internal(&expr, aliases)?;
 
         Ok(())
     }
 
     /// 从表达式中提取别名名称
     pub fn extract_alias_name(&self, expression: &ContextualExpression) -> Option<String> {
-        if let Some(expr) = expression.expression() {
-            self.extract_alias_name_internal(&expr)
-        } else {
-            None
-        }
+        let expr_meta = match expression.expression() {
+            Some(e) => e,
+            None => return None,
+        };
+        self.extract_alias_name_internal(expr_meta.inner().as_ref())
     }
 
     /// 内部方法：从表达式中提取别名名称
@@ -79,11 +83,11 @@ impl AliasValidationStrategy {
         expression: &ContextualExpression,
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        if let Some(expr) = expression.expression() {
-            self.validate_subexpressions_aliases_internal(&expr, aliases)
-        } else {
-            Ok(())
-        }
+        let expr_meta = match expression.expression() {
+            Some(e) => e,
+            None => return Ok(()),
+        };
+        self.validate_subexpressions_aliases_internal(expr_meta.inner().as_ref(), aliases)
     }
 
     /// 内部方法：递归验证子表达式中的别名

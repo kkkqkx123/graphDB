@@ -4,7 +4,7 @@
 //!
 //! 这些函数使用递归和模式匹配，比访问者模式更简洁直观。
 
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::types::operators::AggregateFunction;
 use crate::expression::evaluator::ExpressionEvaluator;
 
@@ -282,6 +282,20 @@ pub fn collect_variables(expression: &Expression) -> Vec<String> {
     variables
 }
 
+/// 收集 ContextualExpression 中所有的变量
+///
+/// # 参数
+/// - `expression`: 要分析的上下文表达式
+///
+/// # 返回
+/// 所有变量名称的列表
+pub fn collect_variables_from_contextual(expression: &ContextualExpression) -> Vec<String> {
+    match expression.get_expression() {
+        Some(expr) => collect_variables(&expr),
+        None => Vec::new(),
+    }
+}
+
 /// 递归收集变量的辅助函数
 fn collect_variables_recursive(expression: &Expression, variables: &mut Vec<String>) {
     match expression {
@@ -542,5 +556,20 @@ fn extract_aggregate_functions_recursive(
             extract_aggregate_functions_recursive(object, functions);
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod test_helpers {
+    use super::*;
+    use crate::core::types::expression::ContextualExpression;
+    use std::sync::Arc;
+    use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ExpressionId};
+    
+    pub fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {
+        let ctx = Arc::new(ExpressionContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 }

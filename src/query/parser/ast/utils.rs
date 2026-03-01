@@ -29,7 +29,7 @@ impl ExprFactory {
 
     /// 创建二元表达式
     pub fn binary(left: ContextualExpression, op: crate::core::types::operators::BinaryOperator, right: ContextualExpression) -> ContextualExpression {
-        let ctx = left.context.clone();
+        let ctx = left.context().clone();
         let left_expr = left.expression().expect("Left expression should exist").expression().clone();
         let right_expr = right.expression().expect("Right expression should exist").expression().clone();
         let expr = Expression::Binary { left: Box::new(left_expr), op, right: Box::new(right_expr) };
@@ -40,7 +40,7 @@ impl ExprFactory {
 
     /// 创建一元表达式
     pub fn unary(op: crate::core::types::operators::UnaryOperator, operand: ContextualExpression) -> ContextualExpression {
-        let ctx = operand.context.clone();
+        let ctx = operand.context().clone();
         let operand_expr = operand.expression().expect("Operand expression should exist").expression().clone();
         let expr = Expression::Unary { op, operand: Box::new(operand_expr) };
         let meta = ExpressionMeta::new(expr);
@@ -53,7 +53,7 @@ impl ExprFactory {
         let ctx = if args.is_empty() {
             Arc::new(ExpressionContext::new())
         } else {
-            args[0].context.clone()
+            args[0].context().clone()
         };
         let arg_exprs: Vec<Expression> = args.iter()
             .map(|arg| arg.expression().expect("Arg expression should exist").expression().clone())
@@ -66,7 +66,7 @@ impl ExprFactory {
 
     /// 创建属性访问表达式
     pub fn property_access(object: ContextualExpression, property: String) -> ContextualExpression {
-        let ctx = object.context.clone();
+        let ctx = object.context().clone();
         let object_expr = object.expression().expect("Object expression should exist").expression().clone();
         let expr = Expression::Property { object: Box::new(object_expr), property };
         let meta = ExpressionMeta::new(expr);
@@ -79,7 +79,7 @@ impl ExprFactory {
         let ctx = if elements.is_empty() {
             Arc::new(ExpressionContext::new())
         } else {
-            elements[0].context.clone()
+            elements[0].context().clone()
         };
         let element_exprs: Vec<Expression> = elements.iter()
             .map(|elem| elem.expression().expect("Element expression should exist").expression().clone())
@@ -95,7 +95,7 @@ impl ExprFactory {
         let ctx = if pairs.is_empty() {
             Arc::new(ExpressionContext::new())
         } else {
-            pairs[0].1.context.clone()
+            pairs[0].1.context().clone()
         };
         let value_exprs: Vec<(String, Expression)> = pairs.iter()
             .map(|(key, value)| (key.clone(), value.expression().expect("Value expression should exist").expression().clone()))
@@ -112,9 +112,9 @@ impl ExprFactory {
         when_then_pairs: Vec<(ContextualExpression, ContextualExpression)>,
         default: Option<ContextualExpression>,
     ) -> ContextualExpression {
-        let ctx = match_expression.as_ref().map(|e| e.context.clone())
-            .or_else(|| when_then_pairs.first().map(|(w, _)| w.context.clone()))
-            .or_else(|| default.as_ref().map(|d| d.context.clone()))
+        let ctx = match_expression.as_ref().map(|e| e.context().clone())
+            .or_else(|| when_then_pairs.first().map(|(w, _)| w.context().clone()))
+            .or_else(|| default.as_ref().map(|d| d.context().clone()))
             .unwrap_or_else(|| Arc::new(ExpressionContext::new()));
 
         let test_expr = match_expression.map(|e| {
@@ -138,7 +138,7 @@ impl ExprFactory {
 
     /// 创建下标表达式
     pub fn subscript(collection: ContextualExpression, index: ContextualExpression) -> ContextualExpression {
-        let ctx = collection.context.clone();
+        let ctx = collection.context().clone();
         let collection_expr = collection.expression().expect("Collection expression should exist").expression().clone();
         let index_expr = index.expression().expect("Index expression should exist").expression().clone();
         let expr = Expression::Subscript { collection: Box::new(collection_expr), index: Box::new(index_expr) };

@@ -155,7 +155,7 @@ impl UnwindValidator {
 
     /// 验证表达式
     fn validate_expression(&self) -> Result<(), ValidationError> {
-        if let Some(expr) = self.unwind_expression.expression() {
+        if let Some(expr) = self.unwind_expression.get_expression() {
             self.validate_expression_internal(&expr)
         } else {
             Err(ValidationError::new(
@@ -232,7 +232,7 @@ impl UnwindValidator {
 
     /// 验证类型
     fn validate_type(&mut self) -> Result<(), ValidationError> {
-        if let Some(expr) = self.unwind_expression.expression() {
+        if let Some(expr) = self.unwind_expression.get_expression() {
             let list_type = self.deduce_list_element_type(&expr)?;
             if list_type == ValueType::Unknown {
                 // 类型推导失败，添加警告但不报错
@@ -244,7 +244,7 @@ impl UnwindValidator {
 
     /// 验证别名引用
     fn validate_aliases(&self) -> Result<(), ValidationError> {
-        if let Some(expr) = self.unwind_expression.expression() {
+        if let Some(expr) = self.unwind_expression.get_expression() {
             let refs = self.get_expression_references(&expr);
             for ref_name in refs {
                 if !self.aliases_available.contains_key(&ref_name) && ref_name != "$" && ref_name != "$$" {

@@ -225,7 +225,7 @@ impl YieldValidator {
 
     /// 推导表达式类型
     fn deduce_expr_type(&self, expression: &crate::core::types::expression::contextual::ContextualExpression) -> Result<ValueType, ValidationError> {
-        if let Some(e) = expression.expression() {
+        if let Some(e) = expression.get_expression() {
             self.deduce_expr_type_internal(&e)
         } else {
             Ok(ValueType::Unknown)
@@ -426,11 +426,19 @@ mod tests {
 
     #[test]
     fn test_yield_with_distinct() {
+        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use std::sync::Arc;
+
         let mut validator = YieldValidator::new();
 
         // 添加一列并设置 DISTINCT
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Literal(Value::Int(42));
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
         let col = YieldColumn::new(
-            Expression::Literal(Value::Int(42)),
+            ctx_expr,
             "result".to_string(),
         );
         validator.add_yield_column(col);

@@ -250,7 +250,7 @@ impl MatchValidator {
     }
 
     /// 验证 WHERE 子句
-    fn validate_where_clause(&mut self, where_expr: &Expression) -> Result<(), ValidationError> {
+    fn validate_where_clause(&mut self, where_expr: &ContextualExpression) -> Result<(), ValidationError> {
         // 使用表达式验证策略进行验证
         let strategy = ExpressionValidationStrategy::new();
         let context = WhereClauseContext {
@@ -417,7 +417,7 @@ impl MatchValidator {
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         for (idx, expr) in exprs.iter().enumerate() {
-            if let Some(e) = expr.expression() {
+            if let Some(e) = expr.get_expression() {
                 match e {
                     crate::core::types::expression::Expression::Variable(var_name) => {
                         if !aliases.contains_key(var_name) {
@@ -436,7 +436,7 @@ impl MatchValidator {
 
     /// 检查表达式是否包含聚合函数
     pub fn has_aggregate_expression(&self, expression: &ContextualExpression) -> bool {
-        if let Some(expr) = expression.expression() {
+        if let Some(expr) = expression.get_expression() {
             self.has_aggregate_expression_internal(&expr)
         } else {
             false
@@ -521,7 +521,7 @@ impl MatchValidator {
         filter: &ContextualExpression,
         _context: &WhereClauseContext,
     ) -> Result<(), ValidationError> {
-        if let Some(expr) = filter.expression() {
+        if let Some(expr) = filter.get_expression() {
             self.validate_where_clause(&expr)
         } else {
             Err(ValidationError::new(
@@ -569,7 +569,7 @@ impl MatchValidator {
         unwind_expression: &ContextualExpression,
         context: &UnwindClauseContext,
     ) -> Result<(), ValidationError> {
-        if let Some(expr) = unwind_expression.expression() {
+        if let Some(expr) = unwind_expression.get_expression() {
             self.validate_unwind_expression(&expr, context)
         } else {
             Err(ValidationError::new(
@@ -684,7 +684,7 @@ impl MatchValidator {
         ref_expression: &ContextualExpression,
         aliases_available: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        if let Some(expr) = ref_expression.expression() {
+        if let Some(expr) = ref_expression.get_expression() {
             self.check_alias_internal(&expr, aliases_available)
         } else {
             Err(ValidationError::new(

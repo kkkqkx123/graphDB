@@ -15,11 +15,11 @@ impl AggregateValidationStrategy {
 
     /// 检查表达式是否包含聚合函数
     pub fn has_aggregate_expression(&self, expression: &ContextualExpression) -> bool {
-        if let Some(expr) = expression.expression() {
-            self.has_aggregate_expression_internal(&expr)
-        } else {
-            false
-        }
+        let expr_meta = match expression.expression() {
+            Some(e) => e,
+            None => return false,
+        };
+        self.has_aggregate_expression_internal(expr_meta.inner().as_ref())
     }
 
     /// 内部方法：检查 Expression 是否包含聚合函数
@@ -79,11 +79,11 @@ impl AggregateValidationStrategy {
     /// 3. 特殊属性（*）是否只用于COUNT
     /// 4. 参数表达式是否合法
     pub fn validate_aggregate_expression(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
-        if let Some(expr) = expression.expression() {
-            self.validate_aggregate_expression_internal(&expr)
-        } else {
-            Ok(())
-        }
+        let expr_meta = match expression.expression() {
+            Some(e) => e,
+            None => return Ok(()),
+        };
+        self.validate_aggregate_expression_internal(expr_meta.inner().as_ref())
     }
 
     /// 内部方法：验证聚合表达式的合法性
@@ -252,6 +252,8 @@ mod tests {
     use crate::core::types::DataType;
     use crate::core::types::operators::{AggregateFunction, BinaryOperator};
     use crate::core::Expression;
+    use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ContextualExpression};
+    use std::sync::Arc;
 
     #[test]
     fn test_aggregate_validation_strategy_creation() {
@@ -262,25 +264,36 @@ mod tests {
     #[test]
     fn test_has_aggregate_expression() {
         let strategy = AggregateValidationStrategy::new();
+        let expr_ctx = Arc::new(ExpressionContext::new());
 
         // 测试没有聚合函数的表达式
-        let non_agg_expression = Expression::Literal(crate::core::Value::Int(1));
+        let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
+        let non_agg_meta = ExpressionMeta::new(non_agg_expr);
+        let non_agg_id = expr_ctx.register_expression(non_agg_meta);
+        let non_agg_expression = ContextualExpression::new(non_agg_id, expr_ctx.clone());
         assert_eq!(strategy.has_aggregate_expression(&non_agg_expression), false);
 
-        let binary_expression = Expression::Binary {
+        let binary_expr = Expression::Binary {
             left: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             op: BinaryOperator::Add,
             right: Box::new(Expression::Literal(crate::core::Value::Int(2))),
         };
+        let binary_meta = ExpressionMeta::new(binary_expr);
+        let binary_id = expr_ctx.register_expression(binary_meta);
+        let binary_expression = ContextualExpression::new(binary_id, expr_ctx);
         assert_eq!(strategy.has_aggregate_expression(&binary_expression), false);
     }
 
     #[test]
     fn test_validate_unwind_aggregate() {
         let strategy = AggregateValidationStrategy::new();
+        let expr_ctx = Arc::new(ExpressionContext::new());
 
         // 测试没有聚合函数的UNWIND表达式
-        let non_agg_expression = Expression::Literal(crate::core::Value::Int(1));
+        let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
+        let non_agg_meta = ExpressionMeta::new(non_agg_expr);
+        let non_agg_id = expr_ctx.register_expression(non_agg_meta);
+        let non_agg_expression = ContextualExpression::new(non_agg_id, expr_ctx);
         assert!(strategy.validate_unwind_aggregate(&non_agg_expression).is_ok());
 
         // 测试包含聚合函数的UNWIND表达式
@@ -291,9 +304,10 @@ mod tests {
     #[test]
     fn test_nested_expressions() {
         let strategy = AggregateValidationStrategy::new();
+        let expr_ctx = Arc::new(ExpressionContext::new());
 
         // 测试嵌套表达式
-        let nested_expression = Expression::Binary {
+        let nested_expr = Expression::Binary {
             left: Box::new(Expression::Unary {
                 op: crate::core::types::operators::UnaryOperator::Minus,
                 operand: Box::new(Expression::Literal(crate::core::Value::Int(5))),
@@ -301,6 +315,9 @@ mod tests {
             op: crate::core::types::operators::BinaryOperator::Add,
             right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
         };
+        let nested_meta = ExpressionMeta::new(nested_expr);
+        let nested_id = expr_ctx.register_expression(nested_meta);
+        let nested_expression = ContextualExpression::new(nested_id, expr_ctx);
 
         assert_eq!(strategy.has_aggregate_expression(&nested_expression), false);
     }
@@ -308,14 +325,18 @@ mod tests {
     #[test]
     fn test_validate_invalid_aggregate_function() {
         let strategy = AggregateValidationStrategy::new();
+        let expr_ctx = Arc::new(ExpressionContext::new());
         // Count(None) 是有效的，表示 COUNT(*)
         let expression = Expression::Aggregate {
             func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
+        let meta = ExpressionMeta::new(expression);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
 
-        let result = strategy.validate_aggregate_expression(&expression);
+        let result = strategy.validate_aggregate_expression(&ctx_expr);
         // Count(None) 应该被接受
         assert!(result.is_ok());
     }
@@ -323,6 +344,7 @@ mod tests {
     #[test]
     fn test_validate_nested_aggregates() {
         let strategy = AggregateValidationStrategy::new();
+        let expr_ctx = Arc::new(ExpressionContext::new());
         let inner_agg = Expression::Aggregate {
             func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
@@ -333,8 +355,11 @@ mod tests {
             arg: Box::new(inner_agg),
             distinct: false,
         };
+        let meta = ExpressionMeta::new(outer_agg);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
 
-        let result = strategy.validate_aggregate_expression(&outer_agg);
+        let result = strategy.validate_aggregate_expression(&ctx_expr);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("不允许聚合函数嵌套"));

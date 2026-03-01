@@ -71,7 +71,9 @@ impl Planner for SubgraphPlanner {
             let get_vertices_node = GetVerticesNode::new(1, var_name);
             current_node = PlanNodeEnum::GetVertices(get_vertices_node);
 
-            let filters: Vec<Expression> = where_clause.into_iter().collect();
+            let filters: Vec<Expression> = where_clause.into_iter()
+                .map(|expr| expr.into_expression())
+                .collect();
             current_node = self.apply_filters(current_node, &filters)?;
 
             let project_node = match Project::new(current_node.clone(), vec![]) {
@@ -116,7 +118,9 @@ impl Planner for SubgraphPlanner {
             }
         }
 
-        let filters: Vec<Expression> = where_clause.into_iter().collect();
+        let filters: Vec<Expression> = where_clause.into_iter()
+            .map(|expr| expr.into_expression())
+            .collect();
         current_node = self.apply_filters(current_node, &filters)?;
 
         let project_node = match Project::new(current_node.clone(), vec![]) {

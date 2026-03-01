@@ -475,7 +475,7 @@ impl CreateValidator {
         &self,
         expr: &ContextualExpression,
     ) -> Result<Vec<(String, Value)>, ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.extract_properties_internal(&e)
         } else {
             Err(ValidationError::new(
@@ -513,7 +513,7 @@ impl CreateValidator {
         &self,
         expr: &ContextualExpression,
     ) -> Result<Value, ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.evaluate_expression_internal(&e)
         } else {
             Err(ValidationError::new(

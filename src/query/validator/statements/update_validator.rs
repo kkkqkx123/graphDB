@@ -310,16 +310,24 @@ impl UpdateValidator {
 
     /// 验证顶点 ID
     /// 优先使用 SchemaValidator 的统一验证方法
-    fn validate_vertex_id(&self, expr: &Expression, role: &str) -> Result<(), CoreValidationError> {
-        // 如果有 schema_validator，使用统一的验证方法
+    fn validate_vertex_id(&self, expr: &ContextualExpression, role: &str) -> Result<(), CoreValidationError> {
+        let expr_meta = match expr.expression() {
+            Some(e) => e,
+            None => {
+                return Err(CoreValidationError::new(
+                    format!("{} vertex ID is invalid", role),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+        let inner_expr = expr_meta.inner().as_ref();
+        
         if let Some(ref schema_validator) = self.schema_validator {
-            // 获取 space 的 vid_type，默认为 String
             let vid_type = crate::core::types::DataType::String;
-            return schema_validator.validate_vid_expr(expr, &vid_type, role);
+            return schema_validator.validate_vid_expr(&inner_expr, &vid_type, role);
         }
         
-        // 没有 schema_validator 时进行基本验证
-        Self::basic_validate_vertex_id(expr, role)
+        Self::basic_validate_vertex_id(&inner_expr, role)
     }
     
     /// 基本顶点 ID 验证（无 SchemaValidator 时）
@@ -346,13 +354,24 @@ impl UpdateValidator {
     /// 验证并评估 VID
     fn validate_and_evaluate_vid(
         &self,
-        vid_expr: &Expression,
+        vid_expr: &ContextualExpression,
         vid_type: &crate::core::types::DataType,
         schema_validator: &SchemaValidator,
         role: &str,
     ) -> Result<Value, CoreValidationError> {
+        let expr_meta = match vid_expr.expression() {
+            Some(e) => e,
+            None => {
+                return Err(CoreValidationError::new(
+                    format!("{} vertex ID is invalid", role),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+        let inner_expr = expr_meta.inner().as_ref();
+        
         let vid = schema_validator
-            .evaluate_expression(vid_expr)
+            .evaluate_expression(&inner_expr)
             .map_err(|e| {
                 CoreValidationError::new(
                     format!("Failed to evaluate {} vertex ID: {}", role, e.message),
@@ -372,8 +391,19 @@ impl UpdateValidator {
         Ok(vid)
     }
 
-    fn validate_rank(&self, expr: &Expression) -> Result<(), CoreValidationError> {
-        match expr {
+    fn validate_rank(&self, expr: &ContextualExpression) -> Result<(), CoreValidationError> {
+        let expr_meta = match expr.expression() {
+            Some(e) => e,
+            None => {
+                return Err(CoreValidationError::new(
+                    "Rank expression is invalid".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+        let inner_expr = expr_meta.inner().as_ref();
+        
+        match inner_expr {
             Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
             Expression::Variable(_) => Ok(()),
             _ => Err(CoreValidationError::new(
@@ -484,6 +514,7 @@ impl UpdateValidator {
                 property: assignment.property.clone(),
                 value,
                 prop_id: None, // 可以后续填充
+                expression: Some(assignment.value.clone()),
             });
         }
 
@@ -516,14 +547,30 @@ impl UpdateValidator {
                 property: assignment.property.clone(),
                 value,
                 prop_id: None,
+                expression: Some(assignment.value.clone()),
             });
         }
 
         Ok(result)
     }
 
-    fn validate_property_value(&self, value: &Expression) -> Result<(), CoreValidationError> {
-        match value {
+    fn validate_property_value(&self, value: &ContextualExpression) -> Result<(), CoreValidationError> {
+        let expr_meta = match value.expression() {
+            Some(e) => e,
+            None => {
+                return Err(CoreValidationError::new(
+                    "Property value is invalid".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+        let inner_expr = expr_meta.inner().as_ref();
+        
+        self.validate_expression_recursive(&inner_expr)
+    }
+
+    fn validate_expression_recursive(&self, expr: &Expression) -> Result<(), CoreValidationError> {
+        match expr {
             Expression::Literal(_) => Ok(()),
             Expression::Variable(_) => Ok(()),
             Expression::Function { args, .. } => {
@@ -533,27 +580,22 @@ impl UpdateValidator {
                         ValidationErrorType::SemanticError,
                     ));
                 }
-                self.validate_function_args(args)?;
+                for arg in args.iter() {
+                    self.validate_expression_recursive(arg)?;
+                }
                 Ok(())
             }
             Expression::Unary { op: _, operand } => {
-                self.validate_property_value(operand)?;
+                self.validate_expression_recursive(operand)?;
                 Ok(())
             }
             Expression::Binary { left, right, .. } => {
-                self.validate_property_value(left)?;
-                self.validate_property_value(right)?;
+                self.validate_expression_recursive(left)?;
+                self.validate_expression_recursive(right)?;
                 Ok(())
             }
             _ => Ok(()),
         }
-    }
-
-    fn validate_function_args(&self, args: &[Expression]) -> Result<(), CoreValidationError> {
-        for arg in args {
-            self.validate_property_value(arg)?;
-        }
-        Ok(())
     }
 
     fn validate_where_clause(

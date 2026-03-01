@@ -188,7 +188,7 @@ impl MergeValidator {
         &self,
         props: &ContextualExpression,
     ) -> Result<(), ValidationError> {
-        if let Some(e) = props.expression() {
+        if let Some(e) = props.get_expression() {
             self.validate_properties_internal(&e)
         } else {
             Err(ValidationError::new(
@@ -218,7 +218,7 @@ impl MergeValidator {
         &self,
         value: &ContextualExpression,
     ) -> Result<(), ValidationError> {
-        if let Some(e) = value.expression() {
+        if let Some(e) = value.get_expression() {
             self.validate_property_value_internal(&e)
         } else {
             Err(ValidationError::new(

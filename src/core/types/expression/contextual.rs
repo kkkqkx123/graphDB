@@ -38,6 +38,30 @@ impl ContextualExpression {
         self.context.get_expression(&self.id)
     }
     
+    /// 获取底层 Expression 的克隆
+    /// 
+    /// 此方法用于需要直接操作 Expression 的场景，
+    /// 如模板提取、参数化等。大多数场景应使用 expression() 方法
+    /// 
+    /// # 使用限制
+    /// 此方法只能在 Executor 层使用，其他层禁止调用
+    /// 违反此限制将破坏表达式系统的设计原则
+    pub fn get_expression(&self) -> Option<Expression> {
+        self.expression().map(|meta| meta.inner.as_ref().clone())
+    }
+    
+    /// 消费 self 并获取底层 Expression
+    /// 
+    /// 此方法用于需要获取 Expression 所有权而非引用的场景
+    /// 
+    /// # 使用限制
+    /// 此方法只能在 Executor 层使用，其他层禁止调用
+    /// 违反此限制将破坏表达式系统的设计原则
+    pub fn into_expression(self) -> Expression {
+        self.get_expression()
+            .expect("Expression should exist in context")
+    }
+    
     /// 获取表达式类型
     pub fn data_type(&self) -> Option<DataType> {
         self.context.get_type(&self.id)

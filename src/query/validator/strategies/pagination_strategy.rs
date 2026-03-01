@@ -55,14 +55,16 @@ impl PaginationValidationStrategy {
         expression: &ContextualExpression,
         clause_name: &str,
     ) -> Result<(), ValidationError> {
-        if let Some(expr) = expression.expression() {
-            self.validate_pagination_expression_internal(&expr, clause_name)
-        } else {
-            Err(ValidationError::new(
+        let expr_meta = match expression.expression() {
+            Some(e) => e,
+            None => return Err(ValidationError::new(
                 format!("{}表达式无效", clause_name),
                 ValidationErrorType::PaginationError,
-            ))
-        }
+            )),
+        };
+        let expr = expr_meta.inner().as_ref();
+
+        self.validate_pagination_expression_internal(&expr, clause_name)
     }
 
     /// 内部方法：验证分页表达式
@@ -168,6 +170,16 @@ impl PaginationValidationStrategy {
 mod tests {
     use super::*;
     use crate::core::Expression;
+    use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ContextualExpression};
+    use std::sync::Arc;
+
+    /// 从 Expression 创建 ContextualExpression
+    fn create_contextual_expression(expr: Expression) -> ContextualExpression {
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        ContextualExpression::new(id, expr_ctx)
+    }
 
     #[test]
     fn test_pagination_validation_strategy_creation() {
@@ -180,8 +192,8 @@ mod tests {
         let strategy = PaginationValidationStrategy::new();
 
         // 测试有效的分页表达式
-        let skip_expression = Expression::Literal(crate::core::Value::Int(1));
-        let limit_expression = Expression::Literal(crate::core::Value::Int(10));
+        let skip_expression = create_contextual_expression(Expression::Literal(crate::core::Value::Int(1)));
+        let limit_expression = create_contextual_expression(Expression::Literal(crate::core::Value::Int(10)));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(strategy
@@ -223,11 +235,11 @@ mod tests {
         // 创建测试数据
         let yield_columns = vec![
             YieldColumn::new(
-                Expression::Literal(crate::core::Value::Int(1)),
+                create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
                 "col1".to_string(),
             ),
             YieldColumn::new(
-                Expression::Literal(crate::core::Value::Int(2)),
+                create_contextual_expression(Expression::Literal(crate::core::Value::Int(2))),
                 "col2".to_string(),
             ),
         ];
@@ -255,12 +267,12 @@ mod tests {
         let strategy = PaginationValidationStrategy::new();
 
         // 测试有效的整数表达式
-        let int_expression = Expression::Literal(crate::core::Value::Int(10));
+        let int_expression = create_contextual_expression(Expression::Literal(crate::core::Value::Int(10)));
         assert!(strategy
             .validate_pagination_expression(&int_expression, "LIMIT")
             .is_ok());
 
-        let string_expression = Expression::Literal(crate::core::Value::String("invalid".to_string()));
+        let string_expression = create_contextual_expression(Expression::Literal(crate::core::Value::String("invalid".to_string())));
         assert!(strategy
             .validate_pagination_expression(&string_expression, "LIMIT")
             .is_err());

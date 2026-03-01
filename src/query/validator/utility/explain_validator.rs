@@ -59,7 +59,7 @@ impl ExplainValidator {
 
         // 验证内部语句
         self.inner_validator = Some(Box::new(
-            Validator::from_stmt(&stmt.statement)
+            Validator::create_from_stmt(&stmt.statement)
                 .ok_or_else(|| ValidationError::new(
                     "Failed to create validator for inner statement".to_string(),
                     ValidationErrorType::SemanticError,
@@ -114,7 +114,15 @@ impl StatementValidator for ExplainValidator {
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            inner.validate(&explain_stmt.statement, qctx)?;
+            let result = inner.validate(&explain_stmt.statement, qctx);
+            if !result.success {
+                return Err(result.errors.first().cloned().unwrap_or_else(|| {
+                    ValidationError::new(
+                        "Internal statement validation failed".to_string(),
+                        ValidationErrorType::SemanticError,
+                    )
+                }));
+            }
         }
 
         Ok(ValidationResult::success(
@@ -137,7 +145,7 @@ impl StatementValidator for ExplainValidator {
 
     fn is_global_statement(&self) -> bool {
         self.inner_validator.as_ref()
-            .map(|v| v.as_ref().is_global_statement())
+            .map(|v| v.get_type().is_global_statement())
             .unwrap_or(false)
     }
 
@@ -191,7 +199,7 @@ impl ProfileValidator {
 
         // 验证内部语句
         self.inner_validator = Some(Box::new(
-            Validator::from_stmt(&stmt.statement)
+            Validator::create_from_stmt(&stmt.statement)
                 .ok_or_else(|| ValidationError::new(
                     "Failed to create validator for inner statement".to_string(),
                     ValidationErrorType::SemanticError,
@@ -246,7 +254,15 @@ impl StatementValidator for ProfileValidator {
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            inner.validate(&profile_stmt.statement, qctx)?;
+            let result = inner.validate(&profile_stmt.statement, qctx);
+            if !result.success {
+                return Err(result.errors.first().cloned().unwrap_or_else(|| {
+                    ValidationError::new(
+                        "Internal statement validation failed".to_string(),
+                        ValidationErrorType::SemanticError,
+                    )
+                }));
+            }
         }
 
         Ok(ValidationResult::success(
@@ -269,7 +285,7 @@ impl StatementValidator for ProfileValidator {
 
     fn is_global_statement(&self) -> bool {
         self.inner_validator.as_ref()
-            .map(|v| v.as_ref().is_global_statement())
+            .map(|v| v.get_type().is_global_statement())
             .unwrap_or(false)
     }
 

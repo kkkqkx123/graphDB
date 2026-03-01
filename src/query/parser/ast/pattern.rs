@@ -4,7 +4,7 @@
 
 use super::types::*;
 use crate::core::types::expression::ContextualExpression;
-use crate::core::types::expression::utils::collect_variables;
+use crate::core::types::expression::utils::collect_variables_from_contextual;
 
 /// 模式枚举 - 图模式匹配
 #[derive(Debug, Clone, PartialEq)]
@@ -201,10 +201,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(collect_variables(props));
+                    variables.extend(collect_variables_from_contextual(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(collect_variables(predicate));
+                    variables.extend(collect_variables_from_contextual(predicate));
                 }
             }
             Pattern::Edge(p) => {
@@ -212,10 +212,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(collect_variables(props));
+                    variables.extend(collect_variables_from_contextual(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(collect_variables(predicate));
+                    variables.extend(collect_variables_from_contextual(predicate));
                 }
             }
             Pattern::Path(p) => {
@@ -236,10 +236,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(collect_variables(props));
+                    variables.extend(collect_variables_from_contextual(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(collect_variables(predicate));
+                    variables.extend(collect_variables_from_contextual(predicate));
                 }
             }
             PathElement::Edge(p) => {
@@ -247,10 +247,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(collect_variables(props));
+                    variables.extend(collect_variables_from_contextual(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(collect_variables(predicate));
+                    variables.extend(collect_variables_from_contextual(predicate));
                 }
             }
             PathElement::Alternative(patterns) => {

@@ -15,8 +15,8 @@ impl ExpressionChecker {
     }
 
     pub fn validate_expression_operations(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
+        if let Some(expr_meta) = expression.get_expression() {
+            if let Some(expr) = expr_meta.inner().get_expression() {
                 self.check_expression_depth_bfs(expression, 100)?;
                 self.validate_expression_operations_recursive(&expr, 0)
             } else {
@@ -330,8 +330,8 @@ impl ExpressionChecker {
     }
 
     pub fn validate_expression_cycles(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
+        if let Some(expr_meta) = expression.get_expression() {
+            if let Some(expr) = expr_meta.inner().get_expression() {
                 let mut visited = HashSet::new();
                 return self.check_expression_cycles(&expr, &mut visited, 0);
             }
@@ -387,8 +387,8 @@ impl ExpressionChecker {
     }
 
     pub fn calculate_expression_depth(&self, expression: &ContextualExpression) -> usize {
-        if let Some(expr_meta) = expression.expression() {
-            if let Some(expr) = expr_meta.inner().expression() {
+        if let Some(expr_meta) = expression.get_expression() {
+            if let Some(expr) = expr_meta.inner().get_expression() {
                 return self.calculate_expression_depth_internal(&expr);
             }
         }

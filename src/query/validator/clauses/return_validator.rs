@@ -73,7 +73,7 @@ impl ReturnValidator {
         &self,
         expr: &crate::core::types::expression::contextual::ContextualExpression,
     ) -> Result<(), ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.validate_expression_internal(&e)
         } else {
             Err(ValidationError::new(
@@ -175,7 +175,7 @@ impl ReturnValidator {
         &self,
         expr: &crate::core::types::expression::contextual::ContextualExpression,
     ) -> Option<String> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.infer_column_name_internal(&e)
         } else {
             None
@@ -202,7 +202,7 @@ impl ReturnValidator {
         &self,
         expr: &crate::core::types::expression::contextual::ContextualExpression,
     ) -> ValueType {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.infer_expression_type_internal(&e)
         } else {
             ValueType::Unknown
@@ -396,11 +396,19 @@ mod tests {
 
     #[test]
     fn test_validate_return_item_expression() {
+        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use std::sync::Arc;
+
         let mut validator = ReturnValidator::new();
         validator.user_defined_vars.push("n".to_string());
         
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("n".to_string());
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
         let item = ReturnItem::Expression {
-            expression: Expression::Variable("n".to_string()),
+            expression: ctx_expr,
             alias: Some("node".to_string()),
         };
         let col = validator.validate_return_item(&item).expect("Failed to validate return item");

@@ -94,7 +94,7 @@ impl InsertEdgesValidator {
         expr: &ContextualExpression,
         role: &str,
     ) -> Result<(), ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.validate_vertex_id_format_internal(&e, role)
         } else {
             Err(ValidationError::new(
@@ -161,7 +161,7 @@ impl InsertEdgesValidator {
     /// 验证 rank
     fn validate_rank(&self, rank: &Option<ContextualExpression>) -> Result<(), ValidationError> {
         if let Some(rank_expr) = rank {
-            if let Some(e) = rank_expr.expression() {
+            if let Some(e) = rank_expr.get_expression() {
                 self.validate_rank_internal(&e)
             } else {
                 Err(ValidationError::new(
@@ -235,7 +235,7 @@ impl InsertEdgesValidator {
         _prop_name: &str,
         value: &ContextualExpression,
     ) -> Result<(), ValidationError> {
-        if let Some(e) = value.expression() {
+        if let Some(e) = value.get_expression() {
             self.validate_property_value_internal(&e)
         } else {
             Err(ValidationError::new(
@@ -279,7 +279,7 @@ impl InsertEdgesValidator {
 
     /// 评估表达式为值
     fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.evaluate_expression_internal(&e)
         } else {
             Ok(Value::Null(NullType::Null))

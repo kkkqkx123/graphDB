@@ -26,7 +26,7 @@ impl TypeDeduceValidator {
     }
 
     pub fn deduce_type(&self, expression: &crate::core::types::expression::contextual::ContextualExpression) -> DataType {
-        if let Some(expr) = expression.expression() {
+        if let Some(expr) = expression.get_expression() {
             expr.deduce_type()
         } else {
             DataType::Empty

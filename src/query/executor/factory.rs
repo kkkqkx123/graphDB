@@ -73,17 +73,6 @@ fn extract_vertex_ids_from_node(node: &PlanNodeEnum) -> Vec<Value> {
     }
 }
 
-/// 解析表达式字符串为 Graph 表达式
-/// 安全版本：解析失败时记录日志并返回 None
-fn parse_expression_safe(expr_str: &str) -> Option<crate::core::Expression> {
-    crate::query::parser::parser::parse_expression_meta_from_string(expr_str)
-        .map(|meta| meta.into())
-        .inspect_err(|e| {
-            log::warn!("Failed to parse expression: {}, error: {:?}", expr_str, e);
-        })
-        .ok()
-}
-
 /// 解析顶点ID字符串为 Value 列表
 /// 支持逗号分隔的多个ID
 fn parse_vertex_ids(src_vids: &str) -> Vec<Value> {
@@ -975,11 +964,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 数据转换执行器
             PlanNodeEnum::Unwind(node) => {
-                let unwind_expression = crate::query::parser::parser::parse_expression_meta_from_string(
-                    node.list_expression(),
-                )
-                .map(|meta| meta.into())
-                .map_err(|e| QueryError::ExecutionError(format!("解析表达式失败: {}", e)))?;
+                let unwind_expression = node.list_expression()
+                    .expression()
+                    .map(|meta| meta.inner().clone())
+                    .ok_or_else(|| QueryError::ExecutionError("表达式不存在于上下文中".to_string()))?;
                 let executor = UnwindExecutor::new(
                     node.id(),
                     storage,
@@ -992,13 +980,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
             PlanNodeEnum::Assign(node) => {
                 let mut parsed_assignments = Vec::new();
-                for (var_name, expr_str) in node.assignments() {
-                    let expression =
-                        crate::query::parser::parser::parse_expression_meta_from_string(expr_str)
-                            .map(|meta| meta.into())
-                            .map_err(|e| {
-                            QueryError::ExecutionError(format!("解析表达式失败: {}", e))
-                        })?;
+                for (var_name, ctx_expr) in node.assignments() {
+                    let expression = ctx_expr.expression()
+                        .map(|meta| meta.inner().clone())
+                        .ok_or_else(|| QueryError::ExecutionError("表达式不存在于上下文中".to_string()))?;
                     parsed_assignments.push((var_name.clone(), expression));
                 }
                 let executor = AssignExecutor::new(node.id(), storage, parsed_assignments);
@@ -1043,7 +1028,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .iter()
                     .map(|col| {
                         crate::query::parser::parser::parse_expression_meta_from_string(col)
-                            .map(|meta| meta.into())
+                            .map(|ctx_expr| ctx_expr.into_expression())
                             .unwrap_or_else(|_| crate::core::Expression::Variable(col.clone()))
                     })
                     .collect();
@@ -1077,7 +1062,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .iter()
                     .map(|col| {
                         crate::query::parser::parser::parse_expression_meta_from_string(col)
-                            .map(|meta| meta.into())
+                            .map(|ctx_expr| ctx_expr.into_expression())
                             .unwrap_or_else(|_| crate::core::Expression::Variable(col.clone()))
                     })
                     .collect();

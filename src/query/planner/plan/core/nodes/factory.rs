@@ -263,7 +263,7 @@ impl PlanNodeFactory {
     pub fn create_unwind(
         input: PlanNodeEnum,
         alias: &str,
-        list_expression: &str,
+        list_expression: crate::core::types::expression::contextual::ContextualExpression,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         let unwind_node = UnwindNode::new(input, alias, list_expression)?;
         Ok(PlanNodeEnum::Unwind(unwind_node))

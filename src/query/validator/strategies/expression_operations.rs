@@ -18,16 +18,18 @@ impl ExpressionOperationsValidator {
 
     /// 验证表达式操作的合法性
     pub fn validate_expression_operations(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
-        if let Some(expr) = expression.expression() {
-            // 使用 BFS 方式检查表达式深度（防止 OOM）
-            self.check_expression_depth_bfs(expression, 100)?;
-            self.validate_expression_operations_recursive(&expr, 0)
-        } else {
-            Err(ValidationError::new(
+        let expr_meta = match expression.expression() {
+            Some(e) => e,
+            None => return Err(ValidationError::new(
                 "表达式无效".to_string(),
-                ValidationErrorType::ExpressionError,
-            ))
-        }
+                ValidationErrorType::SemanticError,
+            )),
+        };
+        let expr = expr_meta.inner().as_ref();
+
+        // 使用 BFS 方式检查表达式深度（防止 OOM）
+        self.check_expression_depth_bfs(expression, 100)?;
+        self.validate_expression_operations_recursive(&expr, 0)
     }
 
     /// 递归验证表达式操作
@@ -382,15 +384,17 @@ impl ExpressionOperationsValidator {
 
     /// 验证表达式循环依赖
     pub fn validate_expression_cycles(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
-        if let Some(expr) = expression.expression() {
-            let mut visited = HashSet::new();
-            self.check_expression_cycles(&expr, &mut visited, 0)
-        } else {
-            Err(ValidationError::new(
+        let expr_meta = match expression.expression() {
+            Some(e) => e,
+            None => return Err(ValidationError::new(
                 "表达式无效".to_string(),
-                ValidationErrorType::ExpressionError,
-            ))
-        }
+                ValidationErrorType::SemanticError,
+            )),
+        };
+        let expr = expr_meta.inner();
+
+        let mut visited = HashSet::new();
+        self.check_expression_cycles(expr, &mut visited, 0)
     }
 
     /// 检查表达式循环依赖
@@ -441,10 +445,9 @@ impl ExpressionOperationsValidator {
 
     /// 计算表达式深度
     pub fn calculate_expression_depth(&self, expression: &ContextualExpression) -> usize {
-        if let Some(expr) = expression.expression() {
-            self.calculate_expression_depth_internal(&expr)
-        } else {
-            0
+        match expression.expression() {
+            Some(e) => self.calculate_expression_depth_internal(e.inner()),
+            None => 0,
         }
     }
 
@@ -518,14 +521,16 @@ impl ExpressionOperationsValidator {
     /// 类似于 nebula-graph 的 ExpressionUtils::checkExprDepth
     /// 使用广度优先遍历检查表达式深度，防止 OOM
     pub fn check_expression_depth_bfs(&self, expression: &ContextualExpression, max_depth: usize) -> Result<(), ValidationError> {
-        if let Some(expr) = expression.expression() {
-            self.check_expression_depth_bfs_internal(&expr, max_depth)
-        } else {
-            Err(ValidationError::new(
+        let expr_meta = match expression.expression() {
+            Some(e) => e,
+            None => return Err(ValidationError::new(
                 "表达式无效".to_string(),
-                ValidationErrorType::ExpressionError,
-            ))
-        }
+                ValidationErrorType::SemanticError,
+            )),
+        };
+        let expr = expr_meta.inner();
+
+        self.check_expression_depth_bfs_internal(expr, max_depth)
     }
 
     /// 内部方法：使用 BFS 方式检查表达式深度
@@ -556,6 +561,16 @@ impl ExpressionOperationsValidator {
 mod tests {
     use super::*;
     use crate::core::{Expression, Value};
+    use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ContextualExpression};
+    use std::sync::Arc;
+
+    /// 从 Expression 创建 ContextualExpression
+    fn create_contextual_expression(expr: Expression) -> ContextualExpression {
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        ContextualExpression::new(id, expr_ctx)
+    }
 
     #[test]
     fn test_expression_operations_validator_creation() {
@@ -568,23 +583,23 @@ mod tests {
         let validator = ExpressionOperationsValidator::new();
         
         // 简单的字面量表达式
-        let literal_expression = Expression::Literal(Value::Int(42));
+        let literal_expression = create_contextual_expression(Expression::Literal(Value::Int(42)));
         assert!(validator.validate_expression_operations(&literal_expression).is_ok());
         
         // 简单的二元表达式
-        let binary_expression = Expression::Binary {
+        let binary_expression = create_contextual_expression(Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Literal(Value::Int(1))),
             right: Box::new(Expression::Literal(Value::Int(2))),
-        };
+        });
         assert!(validator.validate_expression_operations(&binary_expression).is_ok());
         
         // 除零检测
-        let divide_by_zero = Expression::Binary {
+        let divide_by_zero = create_contextual_expression(Expression::Binary {
             op: crate::core::BinaryOperator::Divide,
             left: Box::new(Expression::Literal(Value::Int(10))),
             right: Box::new(Expression::Literal(Value::Int(0))),
-        };
+        });
         assert!(validator.validate_expression_operations(&divide_by_zero).is_err());
     }
 
@@ -593,17 +608,17 @@ mod tests {
         let validator = ExpressionOperationsValidator::new();
         
         // 有效的函数调用
-        let valid_function = Expression::Function {
+        let valid_function = create_contextual_expression(Expression::Function {
             name: "length".to_string(),
             args: vec![Expression::Literal(Value::String("test".to_string()))],
-        };
+        });
         assert!(validator.validate_expression_operations(&valid_function).is_ok());
         
         // 空函数名
-        let empty_function_name = Expression::Function {
+        let empty_function_name = create_contextual_expression(Expression::Function {
             name: "".to_string(),
             args: vec![Expression::Literal(Value::Int(1))],
-        };
+        });
         assert!(validator.validate_expression_operations(&empty_function_name).is_err());
     }
 
@@ -612,11 +627,11 @@ mod tests {
         let validator = ExpressionOperationsValidator::new();
         
         // 简单表达式
-        let literal_expression = Expression::Literal(Value::Int(42));
+        let literal_expression = create_contextual_expression(Expression::Literal(Value::Int(42)));
         assert_eq!(validator.calculate_expression_depth(&literal_expression), 1);
         
         // 嵌套表达式
-        let nested_expression = Expression::Binary {
+        let nested_expression = create_contextual_expression(Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Literal(Value::Int(1))),
             right: Box::new(Expression::Binary {
@@ -624,7 +639,7 @@ mod tests {
                 left: Box::new(Expression::Literal(Value::Int(2))),
                 right: Box::new(Expression::Literal(Value::Int(3))),
             }),
-        };
+        });
         assert_eq!(validator.calculate_expression_depth(&nested_expression), 3);
     }
 }

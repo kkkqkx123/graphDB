@@ -149,7 +149,7 @@ impl LimitValidator {
 
     /// 检查表达式是否为整数类型
     fn is_integer_expression(&self, expr: &ContextualExpression) -> bool {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.is_integer_expression_internal(&e)
         } else {
             false
@@ -169,7 +169,7 @@ impl LimitValidator {
 
     /// 评估表达式
     fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<i64, ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.evaluate_expression_internal(&e)
         } else {
             Err(ValidationError::new(

@@ -92,8 +92,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_text: &str,
         _space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
-        let query_context = Arc::new(self.create_query_context(query_text)?);
         let parser_result = self.parse_into_context(query_text)?;
+
+        // 使用 Parser 的 ExpressionContext 创建 QueryContext
+        let query_context = Arc::new(QueryContext::with_expr_context(
+            Arc::new(QueryRequestContext::new(query_text.to_string())),
+            parser_result.expr_context.clone(),
+        ));
 
         // 验证查询并获取验证信息
         let validation_info = self.validate_query(query_context.clone(), &parser_result.stmt)?;
@@ -300,7 +305,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_context: Arc<QueryContext>,
         stmt: &crate::query::parser::ast::Stmt,
     ) -> DBResult<ValidationInfo> {
-        let mut validator = crate::query::validator::Validator::from_stmt(stmt)
+        let mut validator = crate::query::validator::Validator::create_from_stmt(stmt)
             .ok_or_else(|| {
                 DBError::from(QueryError::InvalidQuery(format!(
                     "不支持的语句类型: {:?}",

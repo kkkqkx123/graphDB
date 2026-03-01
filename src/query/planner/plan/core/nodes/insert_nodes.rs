@@ -2,7 +2,7 @@
 //!
 //! 提供顶点插入和边插入的计划节点定义
 
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::define_plan_node;
 
 /// 标签插入规范
@@ -18,7 +18,7 @@ pub struct TagInsertSpec {
 pub struct VertexInsertInfo {
     pub space_name: String,
     pub tags: Vec<TagInsertSpec>,
-    pub values: Vec<(Expression, Vec<Vec<Expression>>)>,
+    pub values: Vec<(ContextualExpression, Vec<Vec<ContextualExpression>>)>,
 }
 
 /// 边插入信息
@@ -27,7 +27,7 @@ pub struct EdgeInsertInfo {
     pub space_name: String,
     pub edge_name: String,
     pub prop_names: Vec<String>,
-    pub edges: Vec<(Expression, Expression, Option<Expression>, Vec<Expression>)>,
+    pub edges: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>, Vec<ContextualExpression>)>,
 }
 
 define_plan_node! {
@@ -76,7 +76,7 @@ impl InsertVerticesNode {
         self.info.tags.first().map(|t| t.prop_names.as_slice())
     }
 
-    pub fn values(&self) -> &[(Expression, Vec<Vec<Expression>>)] {
+    pub fn values(&self) -> &[(ContextualExpression, Vec<Vec<ContextualExpression>>)] {
         &self.info.values
     }
 }
@@ -115,7 +115,7 @@ impl InsertEdgesNode {
         &self.info.prop_names
     }
 
-    pub fn edges(&self) -> &[(Expression, Expression, Option<Expression>, Vec<Expression>)] {
+    pub fn edges(&self) -> &[(ContextualExpression, ContextualExpression, Option<ContextualExpression>, Vec<ContextualExpression>)] {
         &self.info.edges
     }
 }
@@ -124,10 +124,16 @@ impl InsertEdgesNode {
 mod tests {
     use super::*;
     use crate::core::{Expression, Value};
+    use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ContextualExpression};
+    use std::sync::Arc;
 
     // 辅助函数：创建常量表达式
-    fn lit(val: Value) -> Expression {
-        Expression::literal(val)
+    fn lit(val: Value) -> ContextualExpression {
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::literal(val);
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        ContextualExpression::new(id, expr_ctx)
     }
 
     #[test]

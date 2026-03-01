@@ -142,7 +142,7 @@ impl InsertVerticesValidator {
         vid_expr: &ContextualExpression,
         idx: usize,
     ) -> Result<(), ValidationError> {
-        if let Some(e) = vid_expr.expression() {
+        if let Some(e) = vid_expr.get_expression() {
             self.validate_vid_expression_internal(&e, idx)
         } else {
             Err(ValidationError::new(
@@ -184,7 +184,7 @@ impl InsertVerticesValidator {
 
     /// 评估表达式为值
     fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             self.evaluate_expression_internal(&e)
         } else {
             Ok(Value::Null(crate::core::NullType::Null))

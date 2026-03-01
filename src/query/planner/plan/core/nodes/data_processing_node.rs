@@ -3,6 +3,7 @@
 //! 包含Union、Unwind、Dedup等数据处理相关的计划节点
 
 use crate::define_plan_node_with_deps;
+use crate::core::types::expression::contextual::ContextualExpression;
 
 define_plan_node_with_deps! {
     pub struct UnionNode {
@@ -37,7 +38,7 @@ impl UnionNode {
 define_plan_node_with_deps! {
     pub struct UnwindNode {
         alias: String,
-        list_expression: String,
+        list_expression: ContextualExpression,
     }
     enum: Unwind
     input: SingleInputNode
@@ -47,7 +48,7 @@ impl UnwindNode {
     pub fn new(
         input: super::plan_node_enum::PlanNodeEnum,
         alias: &str,
-        list_expression: &str,
+        list_expression: ContextualExpression,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = input.col_names().to_vec();
         col_names.push(alias.to_string());
@@ -57,7 +58,7 @@ impl UnwindNode {
             input: Some(Box::new(input.clone())),
             deps: vec![Box::new(input)],
             alias: alias.to_string(),
-            list_expression: list_expression.to_string(),
+            list_expression,
             output_var: None,
             col_names,
         })
@@ -67,7 +68,7 @@ impl UnwindNode {
         &self.alias
     }
 
-    pub fn list_expression(&self) -> &str {
+    pub fn list_expression(&self) -> &ContextualExpression {
         &self.list_expression
     }
 }
@@ -127,7 +128,7 @@ impl DataCollectNode {
 
 define_plan_node_with_deps! {
     pub struct AssignNode {
-        assignments: Vec<(String, String)>,
+        assignments: Vec<(String, ContextualExpression)>,
     }
     enum: Assign
     input: SingleInputNode
@@ -136,7 +137,7 @@ define_plan_node_with_deps! {
 impl AssignNode {
     pub fn new(
         input: super::plan_node_enum::PlanNodeEnum,
-        assignments: Vec<(String, String)>,
+        assignments: Vec<(String, ContextualExpression)>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
@@ -150,7 +151,7 @@ impl AssignNode {
         })
     }
 
-    pub fn assignments(&self) -> &[(String, String)] {
+    pub fn assignments(&self) -> &[(String, ContextualExpression)] {
         &self.assignments
     }
 }
@@ -572,13 +573,21 @@ mod tests {
                 StartNode::new(),
             );
 
-        let unwind_node = UnwindNode::new(start_node, "item", "list")
+        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use std::sync::Arc;
+
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let list_expr = Expression::Variable("list".to_string());
+        let list_meta = ExpressionMeta::new(list_expr);
+        let list_id = expr_ctx.register_expression(list_meta);
+        let list_contextual = ContextualExpression::new(list_id, expr_ctx);
+
+        let unwind_node = UnwindNode::new(start_node, "item", list_contextual)
             .expect("Unwind node should be created successfully");
 
         assert_eq!(unwind_node.type_name(), "UnwindNode");
         assert_eq!(unwind_node.dependencies().len(), 1);
         assert_eq!(unwind_node.alias(), "item");
-        assert_eq!(unwind_node.list_expression(), "list");
     }
 
     #[test]

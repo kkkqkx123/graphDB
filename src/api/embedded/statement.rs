@@ -5,7 +5,7 @@
 use crate::api::core::{CoreError, CoreResult, QueryContext, QueryApi};
 use crate::api::embedded::result::QueryResult;
 use crate::core::{DataType, Value};
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::query::parser::ast::stmt::{Stmt, MatchStmt, GoStmt, InsertStmt, UpdateStmt, DeleteStmt};
 use crate::query::parser::ast::pattern::{Pattern, PathElement};
 use crate::query::parser::parser::Parser;
@@ -423,98 +423,234 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
     }
 
     /// 从表达式中递归提取参数
-    fn extract_params_from_expr(expr: &Expression, params: &mut HashMap<String, DataType>) {
-        match expr {
+    fn extract_params_from_expr(expr: &ContextualExpression, params: &mut HashMap<String, DataType>) {
+        let expr_meta = match expr.expression() {
+            Some(e) => e,
+            None => return,
+        };
+        let inner_expr = expr_meta.inner().as_ref();
+        match inner_expr {
             Expression::Parameter(name) => {
                 // 找到参数，插入到参数列表中
-                if !params.contains_key(name) {
-                    params.insert(name.clone(), DataType::String);
+                // 使用 Unknown 类型作为占位符，在绑定时进行类型推断
+                if !params.contains_key(&name) {
+                    params.insert(name.clone(), DataType::Empty);
                 }
             }
             Expression::Variable(name) => {
                 // 变量引用（可能以 $ 开头）
                 // 移除 $ 前缀（如果存在）
                 let param_name = if name.starts_with('$') {
-                    name.trim_start_matches('$')
+                    name.trim_start_matches('$').to_string()
                 } else {
-                    name
+                    name.clone()
                 };
                 // 只添加看起来像参数的变量（避免添加普通变量名）
                 if !param_name.is_empty() && (param_name.chars().next().map_or(false, |c| c.is_lowercase()) || param_name.contains('_')) {
-                    if !params.contains_key(param_name) {
-                        params.insert(param_name.to_string(), DataType::String);
+                    if !params.contains_key(&param_name) {
+                        params.insert(param_name, DataType::String);
                     }
                 }
             }
             Expression::Binary { left, right, .. } => {
-                Self::extract_params_from_expr(left, params);
-                Self::extract_params_from_expr(right, params);
+                if let Some(ref left_expr) = *left {
+                    Self::extract_params_from_expr_from_expression(left_expr, params);
+                }
+                if let Some(ref right_expr) = *right {
+                    Self::extract_params_from_expr_from_expression(right_expr, params);
+                }
             }
             Expression::Unary { operand, .. } => {
-                Self::extract_params_from_expr(operand, params);
+                if let Some(ref operand_expr) = *operand {
+                    Self::extract_params_from_expr_from_expression(operand_expr, params);
+                }
             }
             Expression::Function { args, .. } => {
                 for arg in args {
-                    Self::extract_params_from_expr(arg, params);
+                    Self::extract_params_from_expr_from_expression(arg, params);
                 }
             }
             Expression::Aggregate { arg, .. } => {
-                Self::extract_params_from_expr(arg, params);
+                if let Some(ref arg_expr) = *arg {
+                    Self::extract_params_from_expr_from_expression(arg_expr, params);
+                }
             }
             Expression::List(items) => {
                 for item in items {
-                    Self::extract_params_from_expr(item, params);
+                    Self::extract_params_from_expr_from_expression(item, params);
                 }
             }
             Expression::Map(pairs) => {
                 for (_, value) in pairs {
-                    Self::extract_params_from_expr(value, params);
+                    Self::extract_params_from_expr_from_expression(value, params);
                 }
             }
             Expression::Case { test_expr, conditions, default } => {
                 if let Some(test) = test_expr {
-                    Self::extract_params_from_expr(test, params);
+                    Self::extract_params_from_expr_from_expression(test, params);
                 }
                 for (cond, value) in conditions {
-                    Self::extract_params_from_expr(cond, params);
-                    Self::extract_params_from_expr(value, params);
+                    Self::extract_params_from_expr_from_expression(cond, params);
+                    Self::extract_params_from_expr_from_expression(value, params);
                 }
                 if let Some(def) = default {
-                    Self::extract_params_from_expr(def, params);
+                    Self::extract_params_from_expr_from_expression(def, params);
                 }
             }
             Expression::TypeCast { expression, .. } => {
-                Self::extract_params_from_expr(expression, params);
+                if let Some(ref expr) = *expression {
+                    Self::extract_params_from_expr_from_expression(expr, params);
+                }
             }
             Expression::Subscript { collection, index } => {
-                Self::extract_params_from_expr(collection, params);
-                Self::extract_params_from_expr(index, params);
+                if let Some(ref coll) = *collection {
+                    Self::extract_params_from_expr_from_expression(coll, params);
+                }
+                if let Some(ref idx) = *index {
+                    Self::extract_params_from_expr_from_expression(idx, params);
+                }
             }
             Expression::Range { collection, start, end } => {
-                Self::extract_params_from_expr(collection, params);
+                if let Some(ref coll) = *collection {
+                    Self::extract_params_from_expr_from_expression(coll, params);
+                }
                 if let Some(s) = start {
-                    Self::extract_params_from_expr(s, params);
+                    Self::extract_params_from_expr_from_expression(s, params);
                 }
                 if let Some(e) = end {
-                    Self::extract_params_from_expr(e, params);
+                    Self::extract_params_from_expr_from_expression(e, params);
                 }
             }
             Expression::Path(items) => {
                 for item in items {
-                    Self::extract_params_from_expr(item, params);
+                    Self::extract_params_from_expr_from_expression(item, params);
                 }
             }
             Expression::ListComprehension { source, filter, map, .. } => {
-                Self::extract_params_from_expr(source, params);
+                Self::extract_params_from_expr_from_expression(source, params);
                 if let Some(f) = filter {
-                    Self::extract_params_from_expr(f, params);
+                    Self::extract_params_from_expr_from_expression(f, params);
                 }
                 if let Some(m) = map {
-                    Self::extract_params_from_expr(m, params);
+                    Self::extract_params_from_expr_from_expression(m, params);
                 }
             }
             Expression::Property { object, .. } => {
-                Self::extract_params_from_expr(object, params);
+                if let Some(ref obj) = *object {
+                    Self::extract_params_from_expr_from_expression(obj, params);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// 从 Expression 提取参数（辅助方法）
+    fn extract_params_from_expr_from_expression(expr: &Expression, params: &mut HashMap<String, DataType>) {
+        match expr {
+            Expression::Parameter(name) => {
+                if !params.contains_key(name.as_str()) {
+                    params.insert(name.clone(), DataType::Empty);
+                }
+            }
+            Expression::Variable(name) => {
+                let param_name = if name.starts_with('$') {
+                    name.trim_start_matches('$').to_string()
+                } else {
+                    name.clone()
+                };
+                if !param_name.is_empty() && (param_name.chars().next().map_or(false, |c| c.is_lowercase()) || param_name.contains('_')) {
+                    if !params.contains_key(&param_name) {
+                        params.insert(param_name, DataType::Empty);
+                    }
+                }
+            }
+            Expression::Binary { left, right, .. } => {
+                if let Some(ref left_expr) = *left {
+                    Self::extract_params_from_expr_from_expression(left_expr, params);
+                }
+                if let Some(ref right_expr) = *right {
+                    Self::extract_params_from_expr_from_expression(right_expr, params);
+                }
+            }
+            Expression::Unary { operand, .. } => {
+                if let Some(ref operand_expr) = *operand {
+                    Self::extract_params_from_expr_from_expression(operand_expr, params);
+                }
+            }
+            Expression::Function { args, .. } => {
+                for arg in args {
+                    Self::extract_params_from_expr_from_expression(arg, params);
+                }
+            }
+            Expression::Aggregate { arg, .. } => {
+                if let Some(ref arg_expr) = *arg {
+                    Self::extract_params_from_expr_from_expression(arg_expr, params);
+                }
+            }
+            Expression::List(items) => {
+                for item in items {
+                    Self::extract_params_from_expr_from_expression(item, params);
+                }
+            }
+            Expression::Map(pairs) => {
+                for (_, value) in pairs {
+                    Self::extract_params_from_expr_from_expression(value, params);
+                }
+            }
+            Expression::Case { test_expr, conditions, default } => {
+                if let Some(test) = test_expr {
+                    Self::extract_params_from_expr_from_expression(test, params);
+                }
+                for (cond, value) in conditions {
+                    Self::extract_params_from_expr_from_expression(cond, params);
+                    Self::extract_params_from_expr_from_expression(value, params);
+                }
+                if let Some(def) = default {
+                    Self::extract_params_from_expr_from_expression(def, params);
+                }
+            }
+            Expression::TypeCast { expression, .. } => {
+                if let Some(ref expr) = *expression {
+                    Self::extract_params_from_expr_from_expression(expr, params);
+                }
+            }
+            Expression::Subscript { collection, index } => {
+                if let Some(ref coll) = *collection {
+                    Self::extract_params_from_expr_from_expression(coll, params);
+                }
+                if let Some(ref idx) = *index {
+                    Self::extract_params_from_expr_from_expression(idx, params);
+                }
+            }
+            Expression::Range { collection, start, end } => {
+                if let Some(ref coll) = *collection {
+                    Self::extract_params_from_expr_from_expression(coll, params);
+                }
+                if let Some(s) = start {
+                    Self::extract_params_from_expr_from_expression(s, params);
+                }
+                if let Some(e) = end {
+                    Self::extract_params_from_expr_from_expression(e, params);
+                }
+            }
+            Expression::Path(items) => {
+                for item in items {
+                    Self::extract_params_from_expr_from_expression(item, params);
+                }
+            }
+            Expression::ListComprehension { source, filter, map, .. } => {
+                Self::extract_params_from_expr_from_expression(source, params);
+                if let Some(f) = filter {
+                    Self::extract_params_from_expr_from_expression(f, params);
+                }
+                if let Some(m) = map {
+                    Self::extract_params_from_expr_from_expression(m, params);
+                }
+            }
+            Expression::Property { object, .. } => {
+                if let Some(ref obj) = *object {
+                    Self::extract_params_from_expr_from_expression(obj, params);
+                }
             }
             _ => {}
         }

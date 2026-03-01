@@ -56,7 +56,7 @@ impl SetOperationValidator {
 
         // 创建左子查询验证器
         self.left_validator = Some(Box::new(
-            Validator::from_stmt(&stmt.left)
+            Validator::create_from_stmt(&stmt.left)
                 .ok_or_else(|| ValidationError::new(
                     "Failed to create validator for left statement".to_string(),
                     ValidationErrorType::SemanticError,
@@ -65,7 +65,7 @@ impl SetOperationValidator {
 
         // 创建右子查询验证器
         self.right_validator = Some(Box::new(
-            Validator::from_stmt(&stmt.right)
+            Validator::create_from_stmt(&stmt.right)
                 .ok_or_else(|| ValidationError::new(
                     "Failed to create validator for right statement".to_string(),
                     ValidationErrorType::SemanticError,
@@ -193,10 +193,10 @@ impl SetOperationValidator {
         ValidatedSetOperation {
             op_type: self.op_type.clone(),
             left_outputs: self.left_validator.as_ref()
-                .map(|v| v.as_ref().outputs().to_vec())
+                .map(|v| v.get_outputs().to_vec())
                 .unwrap_or_default(),
             right_outputs: self.right_validator.as_ref()
-                .map(|v| v.as_ref().outputs().to_vec())
+                .map(|v| v.get_outputs().to_vec())
                 .unwrap_or_default(),
             output_col_names: self.outputs.iter().map(|c| c.name.clone()).collect(),
         }
@@ -227,15 +227,33 @@ impl StatementValidator for SetOperationValidator {
         
         // 验证左右子查询
         let left_outputs = if let Some(ref mut left) = self.left_validator {
-            let result = left.validate(&set_op_stmt.left, qctx.clone())?;
-            result.outputs
+            let result = left.validate(&set_op_stmt.left, qctx.clone());
+            if result.success {
+                result.outputs
+            } else {
+                return Err(result.errors.first().cloned().unwrap_or_else(|| {
+                    ValidationError::new(
+                        "Left subquery validation failed".to_string(),
+                        ValidationErrorType::SemanticError,
+                    )
+                }));
+            }
         } else {
             Vec::new()
         };
 
         let right_outputs = if let Some(ref mut right) = self.right_validator {
-            let result = right.validate(&set_op_stmt.right, qctx.clone())?;
-            result.outputs
+            let result = right.validate(&set_op_stmt.right, qctx.clone());
+            if result.success {
+                result.outputs
+            } else {
+                return Err(result.errors.first().cloned().unwrap_or_else(|| {
+                    ValidationError::new(
+                        "Right subquery validation failed".to_string(),
+                        ValidationErrorType::SemanticError,
+                    )
+                }));
+            }
         } else {
             Vec::new()
         };
@@ -248,14 +266,14 @@ impl StatementValidator for SetOperationValidator {
 
         // 收集用户定义变量
         if let Some(ref left) = self.left_validator {
-            for var in left.user_defined_vars() {
+            for var in left.get_user_defined_vars() {
                 if !self.user_defined_vars.contains(&var.to_string()) {
                     self.user_defined_vars.push(var.to_string());
                 }
             }
         }
         if let Some(ref right) = self.right_validator {
-            for var in right.user_defined_vars() {
+            for var in right.get_user_defined_vars() {
                 if !self.user_defined_vars.contains(&var.to_string()) {
                     self.user_defined_vars.push(var.to_string());
                 }
@@ -283,10 +301,10 @@ impl StatementValidator for SetOperationValidator {
     fn is_global_statement(&self) -> bool {
         // 集合操作是否为全局语句取决于左右子查询
         let left_global = self.left_validator.as_ref()
-            .map(|v| v.as_ref().is_global_statement())
+            .map(|v| v.get_type().is_global_statement())
             .unwrap_or(false);
         let right_global = self.right_validator.as_ref()
-            .map(|v| v.as_ref().is_global_statement())
+            .map(|v| v.get_type().is_global_statement())
             .unwrap_or(false);
         left_global && right_global
     }
