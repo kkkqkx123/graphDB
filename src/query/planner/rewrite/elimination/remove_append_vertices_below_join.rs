@@ -33,6 +33,9 @@
 //! - Join 的 hash keys 匹配 id() 或 _joinkey() 模式
 
 use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::ExpressionContext;
 use crate::core::types::YieldColumn;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{SingleInputNode, MultipleInputNode};
@@ -42,6 +45,7 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult, RewriteError};
 use crate::query::planner::rewrite::rule::RewriteRule;
+use std::sync::Arc;
 
 /// 移除连接下方的添加顶点操作的规则
 ///
@@ -96,23 +100,37 @@ impl RemoveAppendVerticesBelowJoinRule {
     }
 
     /// 检查表达式是否为 id() 或 _joinkey() 函数调用，返回参数表达式
-    fn is_id_or_joinkey_function(&self, expr: &Expression) -> Option<Expression> {
-        match expr {
-            Expression::Function { name, args } if (name == "id" || name == "_joinkey") && args.len() == 1 => {
-                Some(args[0].clone())
+    fn is_id_or_joinkey_function(&self, expr: &ContextualExpression) -> Option<ContextualExpression> {
+        if let Some(expr_meta) = expr.expression() {
+            let inner_expr = expr_meta.inner();
+            match inner_expr {
+                Expression::Function { name, args } if (name == "id" || name == "_joinkey") && args.len() == 1 => {
+                    // 创建新的 ContextualExpression 包装参数
+                    let ctx = expr.context().clone();
+                    let meta = ExpressionMeta::new(args[0].clone());
+                    let id = ctx.register_expression(meta);
+                    Some(ContextualExpression::new(id, ctx))
+                }
+                _ => None,
             }
-            _ => None,
+        } else {
+            None
         }
     }
 
     /// 检查表达式是否引用指定属性
-    fn expr_references_alias(&self, expr: &Expression, alias: &str) -> bool {
-        let properties = self.collect_all_property_names(expr);
-        properties.iter().any(|p| p == alias)
+    fn expr_references_alias(&self, expr: &ContextualExpression, alias: &str) -> bool {
+        if let Some(expr_meta) = expr.expression() {
+            let inner_expr = expr_meta.inner();
+            let properties = self.collect_all_property_names(inner_expr);
+            properties.iter().any(|p| p == alias)
+        } else {
+            false
+        }
     }
 
     /// 计算 avNodeAlias 在表达式列表中的引用次数
-    fn count_alias_references(&self, exprs: &[Expression], alias: &str) -> usize {
+    fn count_alias_references(&self, exprs: &[ContextualExpression], alias: &str) -> usize {
         exprs.iter().filter(|e| self.expr_references_alias(e, alias)).count()
     }
 
@@ -124,9 +142,11 @@ impl RemoveAppendVerticesBelowJoinRule {
     /// 查找包含指定别名的列索引
     fn find_column_with_alias(&self, columns: &[YieldColumn], alias: &str) -> Option<usize> {
         for (idx, col) in columns.iter().enumerate() {
-            if let Expression::Variable(var_name) = &col.expression {
-                if var_name == alias {
-                    return Some(idx);
+            if let Some(expr_meta) = col.expression.expression() {
+                if let Expression::Variable(var_name) = expr_meta.inner() {
+                    if var_name == alias {
+                        return Some(idx);
+                    }
                 }
             }
         }
@@ -134,7 +154,7 @@ impl RemoveAppendVerticesBelowJoinRule {
     }
 
     /// 查找 probe keys 中匹配 id()/_joinkey() 模式的索引
-    fn find_matching_probe_key(&self, probe_keys: &[Expression], av_node_alias: &str) -> Option<usize> {
+    fn find_matching_probe_key(&self, probe_keys: &[ContextualExpression], av_node_alias: &str) -> Option<usize> {
         for (idx, expr) in probe_keys.iter().enumerate() {
             if let Some(arg) = self.is_id_or_joinkey_function(expr) {
                 if self.expr_contains_variable(&arg, av_node_alias) {
@@ -146,35 +166,76 @@ impl RemoveAppendVerticesBelowJoinRule {
     }
 
     /// 检查表达式是否包含指定变量引用
-    fn expr_contains_variable(&self, expr: &Expression, var_name: &str) -> bool {
-        match expr {
-            Expression::Variable(name) => name == var_name,
-            Expression::Property { object, .. } => self.expr_contains_variable(object, var_name),
-            Expression::Binary { left, right, .. } => {
-                self.expr_contains_variable(left, var_name) || self.expr_contains_variable(right, var_name)
+    fn expr_contains_variable(&self, expr: &ContextualExpression, var_name: &str) -> bool {
+        if let Some(expr_meta) = expr.expression() {
+            let inner_expr = expr_meta.inner();
+            match inner_expr {
+                Expression::Variable(name) => name == var_name,
+                Expression::Property { object, .. } => {
+                    // 将 object 包装为 ContextualExpression
+                    let ctx = expr.context().clone();
+                    let meta = ExpressionMeta::new(*object.clone());
+                    let id = ctx.register_expression(meta);
+                    let obj_expr = ContextualExpression::new(id, ctx);
+                    self.expr_contains_variable(&obj_expr, var_name)
+                }
+                Expression::Binary { left, right, .. } => {
+                    let ctx = expr.context().clone();
+                    let left_meta = ExpressionMeta::new(*left.clone());
+                    let left_id = ctx.register_expression(left_meta);
+                    let left_expr = ContextualExpression::new(left_id, ctx.clone());
+                    
+                    let right_meta = ExpressionMeta::new(*right.clone());
+                    let right_id = ctx.register_expression(right_meta);
+                    let right_expr = ContextualExpression::new(right_id, ctx);
+                    
+                    self.expr_contains_variable(&left_expr, var_name) || self.expr_contains_variable(&right_expr, var_name)
+                }
+                Expression::Unary { operand, .. } => {
+                    let ctx = expr.context().clone();
+                    let operand_meta = ExpressionMeta::new(*operand.clone());
+                    let operand_id = ctx.register_expression(operand_meta);
+                    let operand_expr = ContextualExpression::new(operand_id, ctx);
+                    self.expr_contains_variable(&operand_expr, var_name)
+                }
+                Expression::Function { args, .. } => {
+                    let ctx = expr.context().clone();
+                    args.iter().any(|arg| {
+                        let arg_meta = ExpressionMeta::new(arg.clone());
+                        let arg_id = ctx.register_expression(arg_meta);
+                        let arg_expr = ContextualExpression::new(arg_id, ctx.clone());
+                        self.expr_contains_variable(&arg_expr, var_name)
+                    })
+                }
+                _ => false,
             }
-            Expression::Unary { operand, .. } => self.expr_contains_variable(operand, var_name),
-            Expression::Function { args, .. } => {
-                args.iter().any(|arg| self.expr_contains_variable(arg, var_name))
-            }
-            _ => false,
+        } else {
+            false
         }
     }
 
     /// 创建 none_direct_dst 函数调用表达式
-    fn create_none_direct_dst_expr(&self, edge_alias: &str, vertex_alias: &str) -> Expression {
-        Expression::Function {
+    fn create_none_direct_dst_expr(&self, edge_alias: &str, vertex_alias: &str) -> ContextualExpression {
+        let expr = Expression::Function {
             name: "none_direct_dst".to_string(),
             args: vec![
                 Expression::Variable(edge_alias.to_string()),
                 Expression::Variable(vertex_alias.to_string()),
             ],
-        }
+        };
+        let ctx = Arc::new(ExpressionContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建变量引用表达式
-    fn create_variable_expr(&self, var_name: &str) -> Expression {
-        Expression::Variable(var_name.to_string())
+    fn create_variable_expr(&self, var_name: &str) -> ContextualExpression {
+        let expr = Expression::Variable(var_name.to_string());
+        let ctx = Arc::new(ExpressionContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 }
 
@@ -305,7 +366,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
         ).map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?;
 
         // 创建新的 probe keys
-        let mut new_probe_keys: Vec<Expression> = probe_keys.clone();
+        let mut new_probe_keys: Vec<ContextualExpression> = probe_keys.clone();
         new_probe_keys[probe_key_idx] = self.create_variable_expr(av_node_alias);
 
         // 创建新的 Join 节点

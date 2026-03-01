@@ -219,7 +219,11 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_with_scan_vertices() {
+    fn test_apply_with_pushable_target() {
+        use std::sync::Arc;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expression::ExpressionContext;
+        
         let rule = ProjectionPushDownRule::new();
         let mut ctx = RewriteContext::new();
 
@@ -227,15 +231,28 @@ mod tests {
         let scan_node = ScanVerticesNode::new(1);
         let scan = PlanNodeEnum::ScanVertices(scan_node);
 
+        // 创建表达式上下文
+        let expr_ctx = Arc::new(ExpressionContext::new());
+
         // 创建 Project 节点
+        let name_expr = Expression::Variable("name".to_string());
+        let name_meta = ExpressionMeta::new(name_expr);
+        let name_id = expr_ctx.register_expression(name_meta);
+        let name_ctx_expr = ContextualExpression::new(name_id, expr_ctx.clone());
+        
+        let age_expr = Expression::Variable("age".to_string());
+        let age_meta = ExpressionMeta::new(age_expr);
+        let age_id = expr_ctx.register_expression(age_meta);
+        let age_ctx_expr = ContextualExpression::new(age_id, expr_ctx);
+        
         let columns = vec![
             YieldColumn {
-                expression: Expression::Variable("name".to_string()),
+                expression: name_ctx_expr,
                 alias: "name".to_string(),
                 is_matched: false,
             },
             YieldColumn {
-                expression: Expression::Variable("age".to_string()),
+                expression: age_ctx_expr,
                 alias: "age".to_string(),
                 is_matched: false,
             },
@@ -262,6 +279,10 @@ mod tests {
 
     #[test]
     fn test_apply_with_non_pushable_target() {
+        use std::sync::Arc;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expression::ExpressionContext;
+        
         let rule = ProjectionPushDownRule::new();
         let mut ctx = RewriteContext::new();
 
@@ -269,9 +290,17 @@ mod tests {
         let start_node = StartNode::new();
         let start = PlanNodeEnum::Start(start_node);
 
+        // 创建表达式上下文
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        
         // 创建 Project 节点
+        let test_expr = Expression::Variable("test".to_string());
+        let test_meta = ExpressionMeta::new(test_expr);
+        let test_id = expr_ctx.register_expression(test_meta);
+        let test_ctx_expr = ContextualExpression::new(test_id, expr_ctx);
+        
         let columns = vec![YieldColumn {
-            expression: Expression::Variable("test".to_string()),
+            expression: test_ctx_expr,
             alias: "test".to_string(),
             is_matched: false,
         }];
@@ -287,11 +316,24 @@ mod tests {
 
     #[test]
     fn test_push_down_rule_trait() {
+        use std::sync::Arc;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expression::ExpressionContext;
+        
         let rule = ProjectionPushDownRule::new();
+        
+        // 创建表达式上下文
+        let expr_ctx = Arc::new(ExpressionContext::new());
 
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        
+        let test_expr = Expression::Variable("test".to_string());
+        let test_meta = ExpressionMeta::new(test_expr);
+        let test_id = expr_ctx.register_expression(test_meta);
+        let test_ctx_expr = ContextualExpression::new(test_id, expr_ctx.clone());
+        
         let columns = vec![YieldColumn {
-            expression: Expression::Variable("test".to_string()),
+            expression: test_ctx_expr,
             alias: "test".to_string(),
             is_matched: false,
         }];

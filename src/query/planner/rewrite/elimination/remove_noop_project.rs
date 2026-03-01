@@ -103,23 +103,28 @@ impl RemoveNoopProjectRule {
             let expr = &col.expression;
             
             // 表达式必须是简单的属性引用
-            match expr {
-                Expression::Variable(var_name) => {
-                    // 变量名必须与 Project 的列名匹配
-                    if var_name != &proj_col_names[i] {
+            if let Some(expr_meta) = expr.expression() {
+                let inner_expr = expr_meta.inner();
+                match inner_expr {
+                    Expression::Variable(var_name) => {
+                        // 变量名必须与 Project 的列名匹配
+                        if var_name != &proj_col_names[i] {
+                            return false;
+                        }
+                    }
+                    Expression::Property { property, .. } => {
+                        // 属性名必须与 Project 的列名匹配
+                        if property != &proj_col_names[i] {
+                            return false;
+                        }
+                    }
+                    _ => {
+                        // 其他表达式类型，不是无操作投影
                         return false;
                     }
                 }
-                Expression::Property { property, .. } => {
-                    // 属性名必须与 Project 的列名匹配
-                    if property != &proj_col_names[i] {
-                        return false;
-                    }
-                }
-                _ => {
-                    // 其他表达式类型，不是无操作投影
-                    return false;
-                }
+            } else {
+                return false;
             }
             
             // 检查列名是否与输入列名匹配

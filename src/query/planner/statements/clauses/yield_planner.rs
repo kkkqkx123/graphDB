@@ -182,11 +182,16 @@ impl YieldClausePlanner {
         let yield_columns: Vec<YieldColumn> = items
             .iter()
             .map(|item| {
+                let alias = item.alias.clone().or_else(|| {
+                    if let Some(expr_meta) = item.expression.expression() {
+                        Some(Self::generate_default_alias(expr_meta.inner()))
+                    } else {
+                        Some("expr".to_string())
+                    }
+                });
                 YieldColumn {
                     expression: item.expression.clone(),
-                    alias: item.alias.clone().unwrap_or_else(|| {
-                        Self::generate_default_alias(&item.expression)
-                    }),
+                    alias: alias.unwrap_or_else(|| "expr".to_string()),
                     is_matched: false,
                 }
             })

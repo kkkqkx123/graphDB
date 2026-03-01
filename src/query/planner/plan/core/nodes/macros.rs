@@ -587,8 +587,8 @@ macro_rules! define_join_node {
             id: i64,
             left: Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>,
             right: Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>,
-            hash_keys: Vec<crate::core::Expression>,
-            probe_keys: Vec<crate::core::Expression>,
+            hash_keys: Vec<crate::core::types::expression::contextual::ContextualExpression>,
+            probe_keys: Vec<crate::core::types::expression::contextual::ContextualExpression>,
             deps: Vec<Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>>,
             $($field: $type,)*
             output_var: Option<String>,
@@ -641,11 +641,11 @@ macro_rules! define_join_node {
                 &self.deps
             }
 
-            pub fn hash_keys(&self) -> &[crate::core::Expression] {
+            pub fn hash_keys(&self) -> &[crate::core::types::expression::contextual::ContextualExpression] {
                 &self.hash_keys
             }
 
-            pub fn probe_keys(&self) -> &[crate::core::Expression] {
+            pub fn probe_keys(&self) -> &[crate::core::types::expression::contextual::ContextualExpression] {
                 &self.probe_keys
             }
 
@@ -766,11 +766,11 @@ macro_rules! define_join_node {
         }
 
         impl crate::query::planner::plan::core::nodes::plan_node_traits::JoinNode for $name {
-            fn hash_keys(&self) -> &[crate::core::Expression] {
+            fn hash_keys(&self) -> &[crate::core::types::expression::contextual::ContextualExpression] {
                 &self.hash_keys
             }
 
-            fn probe_keys(&self) -> &[crate::core::Expression] {
+            fn probe_keys(&self) -> &[crate::core::types::expression::contextual::ContextualExpression] {
                 &self.probe_keys
             }
         }

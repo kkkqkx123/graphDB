@@ -94,7 +94,9 @@ impl RewriteRule for MergeGetVerticesAndProjectRule {
 
         // 更新源引用为Project列的表达式
         let src_expr = columns[0].expression.clone();
-        new_get_vertices.set_src_ref(src_expr);
+        if let Some(expr_meta) = src_expr.expression() {
+            new_get_vertices.set_src_ref(expr_meta.inner().clone());
+        }
 
         // 清除原有依赖并设置新的输入
         new_get_vertices.deps_mut().clear();
@@ -146,12 +148,24 @@ mod tests {
 
     #[test]
     fn test_merge_get_vertices_and_project() {
+        use std::sync::Arc;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expression::ExpressionContext;
+        
         // 创建起始节点
         let start = PlanNodeEnum::Start(StartNode::new());
 
+        // 创建表达式上下文
+        let expr_ctx = Arc::new(ExpressionContext::new());
+
         // 创建Project节点，投影一列
+        let vid_expr = Expression::Variable("vid".to_string());
+        let vid_meta = ExpressionMeta::new(vid_expr);
+        let vid_id = expr_ctx.register_expression(vid_meta);
+        let vid_ctx_expr = ContextualExpression::new(vid_id, expr_ctx);
+        
         let columns = vec![YieldColumn {
-            expression: Expression::Variable("vid".to_string()),
+            expression: vid_ctx_expr,
             alias: "v".to_string(),
             is_matched: false,
         }];

@@ -4,6 +4,11 @@
 
 use crate::core::Expression;
 use crate::core::types::operators::BinaryOperator;
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionId;
+use std::sync::Arc;
 
 /// 检查表达式是否包含指定的属性名
 ///
@@ -34,6 +39,150 @@ pub fn check_col_name(property_names: &[String], expr: &Expression) -> bool {
             has_in_conditions || has_in_default
         }
         _ => false,
+    }
+}
+
+/// 重写上下文表达式
+///
+/// 根据 rewrite_map 重写 ContextualExpression，并将结果注册到 ExpressionContext
+///
+/// # 参数
+/// - `expr`: 要重写的 ContextualExpression
+/// - `rewrite_map`: 重写映射表，键为变量名，值为要替换的 ContextualExpression
+/// - `expr_context`: 表达式上下文，用于注册新的表达式
+///
+/// # 返回
+/// 重写后的 ContextualExpression
+pub fn rewrite_contextual_expression(
+    expr: &ContextualExpression,
+    rewrite_map: &std::collections::HashMap<String, ContextualExpression>,
+    expr_context: Arc<ExpressionContext>,
+) -> ContextualExpression {
+    let expr_meta = match expr.expression() {
+        Some(e) => e,
+        None => return expr.clone(),
+    };
+    let inner_expr = expr_meta.inner();
+
+    let rewritten_expr = rewrite_expression_with_map(inner_expr, rewrite_map, expr_context.clone());
+    let meta = ExpressionMeta::new(rewritten_expr);
+    let id = expr_context.register_expression(meta);
+    ContextualExpression::new(id, expr_context)
+}
+
+/// 使用 ContextualExpression 映射表重写表达式
+///
+/// # 参数
+/// - `expr`: 要重写的 Expression
+/// - `rewrite_map`: 重写映射表，键为变量名，值为要替换的 ContextualExpression
+/// - `expr_context`: 表达式上下文，用于注册新的表达式
+///
+/// # 返回
+/// 重写后的 Expression
+fn rewrite_expression_with_map(
+    expr: &Expression,
+    rewrite_map: &std::collections::HashMap<String, ContextualExpression>,
+    expr_context: Arc<ExpressionContext>,
+) -> Expression {
+    match expr {
+        Expression::Variable(name) => {
+            if let Some(new_ctx_expr) = rewrite_map.get(name) {
+                let new_expr_meta = match new_ctx_expr.expression() {
+                    Some(e) => e,
+                    None => return expr.clone(),
+                };
+                new_expr_meta.inner().clone()
+            } else {
+                expr.clone()
+            }
+        }
+        Expression::Property { object, property } => {
+            if let Expression::Variable(obj_name) = object.as_ref() {
+                let full_name = format!("{}.{}", obj_name, property);
+                if let Some(new_ctx_expr) = rewrite_map.get(&full_name) {
+                    let new_expr_meta = match new_ctx_expr.expression() {
+                        Some(e) => e,
+                        None => return expr.clone(),
+                    };
+                    return new_expr_meta.inner().clone();
+                }
+                if let Some(new_ctx_expr) = rewrite_map.get(property) {
+                    let new_expr_meta = match new_ctx_expr.expression() {
+                        Some(e) => e,
+                        None => return expr.clone(),
+                    };
+                    return Expression::Property {
+                        object: Box::new(new_expr_meta.inner().clone()),
+                        property: property.clone(),
+                    };
+                }
+            }
+            Expression::Property {
+                object: Box::new(rewrite_expression_with_map(object, rewrite_map, expr_context)),
+                property: property.clone(),
+            }
+        }
+        Expression::Binary { left, op, right } => Expression::Binary {
+            left: Box::new(rewrite_expression_with_map(left, rewrite_map, expr_context.clone())),
+            op: *op,
+            right: Box::new(rewrite_expression_with_map(right, rewrite_map, expr_context)),
+        },
+        Expression::Unary { op, operand } => Expression::Unary {
+            op: *op,
+            operand: Box::new(rewrite_expression_with_map(operand, rewrite_map, expr_context)),
+        },
+        Expression::Function { name, args } => Expression::Function {
+            name: name.clone(),
+            args: args
+                .iter()
+                .map(|arg| rewrite_expression_with_map(arg, rewrite_map, expr_context.clone()))
+                .collect(),
+        },
+        Expression::Aggregate { func, arg, distinct } => Expression::Aggregate {
+            func: func.clone(),
+            arg: Box::new(rewrite_expression_with_map(arg, rewrite_map, expr_context)),
+            distinct: *distinct,
+        },
+        Expression::List(list) => Expression::List(
+            list.iter()
+                .map(|item| rewrite_expression_with_map(item, rewrite_map, expr_context.clone()))
+                .collect(),
+        ),
+        Expression::Map(map) => Expression::Map(
+            map.iter()
+                .map(|(k, v)| (k.clone(), rewrite_expression_with_map(v, rewrite_map, expr_context.clone())))
+                .collect(),
+        ),
+        Expression::Case {
+            test_expr,
+            conditions,
+            default,
+        } => Expression::Case {
+            test_expr: test_expr
+                .as_ref()
+                .map(|e| Box::new(rewrite_expression_with_map(e, rewrite_map, expr_context.clone()))),
+            conditions: conditions
+                .iter()
+                .map(|(w, t)| {
+                    (
+                        rewrite_expression_with_map(w, rewrite_map, expr_context.clone()),
+                        rewrite_expression_with_map(t, rewrite_map, expr_context),
+                    )
+                })
+                .collect(),
+            default: default
+                .as_ref()
+                .map(|e| Box::new(rewrite_expression_with_map(e, rewrite_map, expr_context))),
+        },
+        Expression::TypeCast { expression, target_type } => Expression::TypeCast {
+            expression: Box::new(rewrite_expression_with_map(expression, rewrite_map, expr_context)),
+            target_type: target_type.clone(),
+        },
+        Expression::Subscript { collection, index } => Expression::Subscript {
+            collection: Box::new(rewrite_expression_with_map(collection, rewrite_map, expr_context.clone())),
+            index: Box::new(rewrite_expression_with_map(index, rewrite_map, expr_context)),
+        },
+        _ => expr.clone(),
     }
 }
 
@@ -193,122 +342,6 @@ pub fn and_condition(left: Option<Expression>, right: Option<Expression>) -> Opt
 /// 合并后的条件
 pub fn and_conditions(conditions: Vec<Option<Expression>>) -> Option<Expression> {
     conditions.into_iter().fold(None, and_condition)
-}
-
-/// 重写表达式，将变量引用替换为实际表达式
-///
-/// # 参数
-/// - `expr`: 要重写的表达式
-/// - `rewrite_map`: 重写映射表，键为变量名，值为要替换的表达式
-///
-/// # 返回
-/// 重写后的表达式
-///
-/// # 示例
-///
-/// ```rust
-/// use crate::core::Expression;
-/// use std::collections::HashMap;
-///
-/// let mut map = HashMap::new();
-/// map.insert("a".to_string(), Expression::Literal(Value::Int(1)));
-///
-/// let expr = Expression::Variable("a".to_string());
-/// let rewritten = rewrite_expression(&expr, &map);
-/// // rewritten 现在是 Expression::Literal(Value::Int(1))
-/// ```
-pub fn rewrite_expression(
-    expr: &Expression,
-    rewrite_map: &std::collections::HashMap<String, Expression>,
-) -> Expression {
-    match expr {
-        Expression::Variable(name) => {
-            if let Some(new_expr) = rewrite_map.get(name) {
-                new_expr.clone()
-            } else {
-                expr.clone()
-            }
-        }
-        Expression::Property { object, property } => {
-            if let Expression::Variable(obj_name) = object.as_ref() {
-                let full_name = format!("{}.{}", obj_name, property);
-                if let Some(new_expr) = rewrite_map.get(&full_name) {
-                    return new_expr.clone();
-                }
-                if let Some(new_expr) = rewrite_map.get(property) {
-                    return Expression::Property {
-                        object: Box::new(new_expr.clone()),
-                        property: property.clone(),
-                    };
-                }
-            }
-            Expression::Property {
-                object: Box::new(rewrite_expression(object, rewrite_map)),
-                property: property.clone(),
-            }
-        }
-        Expression::Binary { left, op, right } => Expression::Binary {
-            left: Box::new(rewrite_expression(left, rewrite_map)),
-            op: *op,
-            right: Box::new(rewrite_expression(right, rewrite_map)),
-        },
-        Expression::Unary { op, operand } => Expression::Unary {
-            op: *op,
-            operand: Box::new(rewrite_expression(operand, rewrite_map)),
-        },
-        Expression::Function { name, args } => Expression::Function {
-            name: name.clone(),
-            args: args
-                .iter()
-                .map(|arg| rewrite_expression(arg, rewrite_map))
-                .collect(),
-        },
-        Expression::Aggregate { func, arg, distinct } => Expression::Aggregate {
-            func: func.clone(),
-            arg: Box::new(rewrite_expression(arg, rewrite_map)),
-            distinct: *distinct,
-        },
-        Expression::List(list) => Expression::List(
-            list.iter()
-                .map(|item| rewrite_expression(item, rewrite_map))
-                .collect(),
-        ),
-        Expression::Map(map) => Expression::Map(
-            map.iter()
-                .map(|(k, v)| (k.clone(), rewrite_expression(v, rewrite_map)))
-                .collect(),
-        ),
-        Expression::Case {
-            test_expr,
-            conditions,
-            default,
-        } => Expression::Case {
-            test_expr: test_expr
-                .as_ref()
-                .map(|e| Box::new(rewrite_expression(e, rewrite_map))),
-            conditions: conditions
-                .iter()
-                .map(|(w, t)| {
-                    (
-                        rewrite_expression(w, rewrite_map),
-                        rewrite_expression(t, rewrite_map),
-                    )
-                })
-                .collect(),
-            default: default
-                .as_ref()
-                .map(|e| Box::new(rewrite_expression(e, rewrite_map))),
-        },
-        Expression::TypeCast { expression, target_type } => Expression::TypeCast {
-            expression: Box::new(rewrite_expression(expression, rewrite_map)),
-            target_type: target_type.clone(),
-        },
-        Expression::Subscript { collection, index } => Expression::Subscript {
-            collection: Box::new(rewrite_expression(collection, rewrite_map)),
-            index: Box::new(rewrite_expression(index, rewrite_map)),
-        },
-        _ => expr.clone(),
-    }
 }
 
 #[cfg(test)]

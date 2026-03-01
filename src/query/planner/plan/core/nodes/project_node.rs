@@ -80,7 +80,11 @@ impl ProjectNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expression::ExpressionContext;
+    use crate::core::types::expression::ExpressionId;
     use crate::core::Expression;
+    use std::sync::Arc;
 
     #[test]
     fn test_project_node_creation() {
@@ -89,8 +93,14 @@ mod tests {
                 crate::query::planner::plan::core::nodes::start_node::StartNode::new(),
             );
 
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("test".to_string());
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+
         let columns = vec![YieldColumn {
-            expression: Expression::Variable("test".to_string()),
+            expression: ctx_expr,
             alias: "test".to_string(),
             is_matched: false,
         }];
@@ -110,14 +120,26 @@ mod tests {
                 crate::query::planner::plan::core::nodes::start_node::StartNode::new(),
             );
 
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        
+        let name_expr = Expression::Variable("name".to_string());
+        let name_meta = ExpressionMeta::new(name_expr);
+        let name_id = expr_ctx.register_expression(name_meta);
+        let name_ctx_expr = ContextualExpression::new(name_id, expr_ctx.clone());
+        
+        let age_expr = Expression::Variable("age".to_string());
+        let age_meta = ExpressionMeta::new(age_expr);
+        let age_id = expr_ctx.register_expression(age_meta);
+        let age_ctx_expr = ContextualExpression::new(age_id, expr_ctx);
+
         let columns = vec![
             YieldColumn {
-                expression: Expression::Variable("name".to_string()),
+                expression: name_ctx_expr,
                 alias: "name".to_string(),
                 is_matched: false,
             },
             YieldColumn {
-                expression: Expression::Variable("age".to_string()),
+                expression: age_ctx_expr,
                 alias: "age".to_string(),
                 is_matched: false,
             },

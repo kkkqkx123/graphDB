@@ -20,7 +20,7 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
-use crate::query::planner::rewrite::expression_utils::rewrite_expression;
+use crate::query::planner::rewrite::expression_utils::rewrite_contextual_expression;
 use std::collections::HashMap;
 
 /// 合并连续投影规则
@@ -63,6 +63,7 @@ impl CollapseConsecutiveProjectRule {
         &self,
         parent_proj: &ProjectNode,
         child_proj: &ProjectNode,
+        ctx: &RewriteContext,
     ) -> Option<ProjectNode> {
         // 构建列名到表达式的映射（从子Project）
         let mut rewrite_map = HashMap::new();
@@ -72,12 +73,14 @@ impl CollapseConsecutiveProjectRule {
             }
         }
 
+        let expr_context = ctx.expr_context();
+
         // 重写父Project的列表达式
         let new_columns: Vec<YieldColumn> = parent_proj
             .columns()
             .iter()
             .map(|col| YieldColumn {
-                expression: rewrite_expression(&col.expression, &rewrite_map),
+                expression: rewrite_contextual_expression(&col.expression, &rewrite_map, expr_context.clone()),
                 alias: col.alias.clone(),
                 is_matched: col.is_matched,
             })
@@ -170,18 +173,36 @@ mod tests {
 
     #[test]
     fn test_collapse_consecutive_projects() {
+        use std::sync::Arc;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionId;
+        
         // 创建起始节点
         let start = PlanNodeEnum::Start(StartNode::new());
 
+        // 创建表达式上下文
+        let expr_ctx = Arc::new(ExpressionContext::new());
+
         // 创建下层Project节点
+        let a_expr = Expression::Variable("a".to_string());
+        let a_meta = ExpressionMeta::new(a_expr);
+        let a_id = expr_ctx.register_expression(a_meta);
+        let a_ctx_expr = ContextualExpression::new(a_id, expr_ctx.clone());
+        
+        let b_expr = Expression::Variable("b".to_string());
+        let b_meta = ExpressionMeta::new(b_expr);
+        let b_id = expr_ctx.register_expression(b_meta);
+        let b_ctx_expr = ContextualExpression::new(b_id, expr_ctx.clone());
+        
         let child_columns = vec![
             YieldColumn {
-                expression: Expression::Variable("a".to_string()),
+                expression: a_ctx_expr,
                 alias: "col_a".to_string(),
                 is_matched: false,
             },
             YieldColumn {
-                expression: Expression::Variable("b".to_string()),
+                expression: b_ctx_expr,
                 alias: "col_b".to_string(),
                 is_matched: false,
             },
@@ -190,8 +211,13 @@ mod tests {
         let child_node = PlanNodeEnum::Project(child_proj);
 
         // 创建上层Project节点，引用下层Project的别名
+        let col_a_expr = Expression::Variable("col_a".to_string());
+        let col_a_meta = ExpressionMeta::new(col_a_expr);
+        let col_a_id = expr_ctx.register_expression(col_a_meta);
+        let col_a_ctx_expr = ContextualExpression::new(col_a_id, expr_ctx);
+        
         let parent_columns = vec![YieldColumn {
-            expression: Expression::Variable("col_a".to_string()),
+            expression: col_a_ctx_expr,
             alias: "result".to_string(),
             is_matched: false,
         }];
@@ -219,10 +245,14 @@ mod tests {
             assert_eq!(columns.len(), 1);
             assert_eq!(columns[0].alias, "result");
             // 验证表达式已被重写为原始引用
-            if let Expression::Variable(name) = &columns[0].expression {
-                assert_eq!(name, "a");
+            if let Some(expr_meta) = columns[0].expression.expression() {
+                if let Expression::Variable(name) = expr_meta.inner() {
+                    assert_eq!(name, "a");
+                } else {
+                    panic!("表达式应该是Variable");
+                }
             } else {
-                panic!("表达式应该是Variable");
+                panic!("表达式应该存在");
             }
         } else {
             panic!("转换结果应该是Project节点");

@@ -6,8 +6,10 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::core::types::expression::ExpressionContext;
 
 /// 重写上下文
 ///
@@ -22,6 +24,8 @@ pub struct RewriteContext {
     plan_node_to_id: RefCell<HashMap<usize, usize>>,
     /// ID到计划节点的映射
     nodes_by_id: RefCell<HashMap<usize, Rc<RefCell<PlanNodeWrapper>>>>,
+    /// 表达式上下文
+    expr_context: Arc<ExpressionContext>,
 }
 
 /// 计划节点包装器
@@ -45,12 +49,23 @@ impl PlanNodeWrapper {
 }
 
 impl RewriteContext {
-    /// 创建新的重写上下文
+    /// 创建新的重写上下文（使用默认的 ExpressionContext）
     pub fn new() -> Self {
         Self {
             node_id_counter: 0,
             plan_node_to_id: RefCell::new(HashMap::new()),
             nodes_by_id: RefCell::new(HashMap::new()),
+            expr_context: Arc::new(ExpressionContext::new()),
+        }
+    }
+
+    /// 创建新的重写上下文（使用指定的 ExpressionContext）
+    pub fn with_expr_context(expr_context: Arc<ExpressionContext>) -> Self {
+        Self {
+            node_id_counter: 0,
+            plan_node_to_id: RefCell::new(HashMap::new()),
+            nodes_by_id: RefCell::new(HashMap::new()),
+            expr_context,
         }
     }
 
@@ -87,11 +102,10 @@ impl RewriteContext {
     pub fn node_count(&self) -> usize {
         self.node_id_counter
     }
-}
 
-impl Default for RewriteContext {
-    fn default() -> Self {
-        Self::new()
+    /// 获取表达式上下文
+    pub fn expr_context(&self) -> Arc<ExpressionContext> {
+        self.expr_context.clone()
     }
 }
 

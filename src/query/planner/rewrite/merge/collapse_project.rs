@@ -1,6 +1,10 @@
 //! 折叠多个投影操作的规则
 
-use crate::core::{Expression, YieldColumn};
+use crate::core::YieldColumn;
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::Expression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
@@ -8,7 +12,8 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
-use crate::query::planner::rewrite::expression_utils::rewrite_expression;
+use crate::query::planner::rewrite::expression_utils::rewrite_contextual_expression;
+use std::sync::Arc;
 
 /// 折叠多个投影操作的规则
 ///
@@ -45,13 +50,24 @@ impl CollapseProjectRule {
     }
 
     /// 检查表达式是否为简单的属性引用
-    fn is_property_expr(expr: &Expression) -> bool {
-        matches!(expr, Expression::Variable(_) | Expression::Property { .. })
+    fn is_property_expr(expr: &ContextualExpression) -> bool {
+        let expr_meta = match expr.expression() {
+            Some(e) => e,
+            None => return false,
+        };
+        let inner_expr = expr_meta.inner();
+        matches!(inner_expr, Expression::Variable(_) | Expression::Property { .. })
     }
 
     /// 收集表达式中所有的属性引用
-    fn collect_property_refs(expr: &Expression, refs: &mut Vec<String>) {
-        match expr {
+    fn collect_property_refs(expr: &ContextualExpression, refs: &mut Vec<String>) {
+        let expr_meta = match expr.expression() {
+            Some(e) => e,
+            None => return,
+        };
+        let inner_expr = expr_meta.inner();
+        
+        match inner_expr {
             Expression::Variable(name) => refs.push(name.clone()),
             Expression::Property { object, property } => {
                 if let Expression::Variable(obj_name) = object.as_ref() {
@@ -61,28 +77,56 @@ impl CollapseProjectRule {
                 }
             }
             Expression::Binary { left, right, .. } => {
-                Self::collect_property_refs(left, refs);
-                Self::collect_property_refs(right, refs);
+                // 需要创建 ContextualExpression 来递归
+                let left_meta = ExpressionMeta::new((**left).clone());
+                let right_meta = ExpressionMeta::new((**right).clone());
+                let left_ctx = Arc::new(ExpressionContext::new());
+                let left_id = left_ctx.register_expression(left_meta);
+                let right_id = left_ctx.register_expression(right_meta);
+                let left_expr = ContextualExpression::new(left_id, left_ctx.clone());
+                let right_expr = ContextualExpression::new(right_id, left_ctx);
+                Self::collect_property_refs(&left_expr, refs);
+                Self::collect_property_refs(&right_expr, refs);
             }
             Expression::Unary { operand, .. } => {
-                Self::collect_property_refs(operand, refs);
+                let operand_meta = ExpressionMeta::new((**operand).clone());
+                let ctx = Arc::new(ExpressionContext::new());
+                let id = ctx.register_expression(operand_meta);
+                let operand_expr = ContextualExpression::new(id, ctx);
+                Self::collect_property_refs(&operand_expr, refs);
             }
             Expression::Function { args, .. } => {
+                let ctx = Arc::new(ExpressionContext::new());
                 for arg in args {
-                    Self::collect_property_refs(arg, refs);
+                    let arg_meta = ExpressionMeta::new(arg.clone());
+                    let id = ctx.register_expression(arg_meta);
+                    let arg_expr = ContextualExpression::new(id, ctx.clone());
+                    Self::collect_property_refs(&arg_expr, refs);
                 }
             }
             Expression::Aggregate { arg, .. } => {
-                Self::collect_property_refs(arg, refs);
+                let arg_meta = ExpressionMeta::new((**arg).clone());
+                let ctx = Arc::new(ExpressionContext::new());
+                let id = ctx.register_expression(arg_meta);
+                let arg_expr = ContextualExpression::new(id, ctx);
+                Self::collect_property_refs(&arg_expr, refs);
             }
             Expression::List(list) => {
+                let ctx = Arc::new(ExpressionContext::new());
                 for item in list {
-                    Self::collect_property_refs(item, refs);
+                    let item_meta = ExpressionMeta::new(item.clone());
+                    let id = ctx.register_expression(item_meta);
+                    let item_expr = ContextualExpression::new(id, ctx.clone());
+                    Self::collect_property_refs(&item_expr, refs);
                 }
             }
             Expression::Map(map) => {
+                let ctx = Arc::new(ExpressionContext::new());
                 for (_, value) in map {
-                    Self::collect_property_refs(value, refs);
+                    let value_meta = ExpressionMeta::new(value.clone());
+                    let id = ctx.register_expression(value_meta);
+                    let value_expr = ContextualExpression::new(id, ctx.clone());
+                    Self::collect_property_refs(&value_expr, refs);
                 }
             }
             Expression::Case {
@@ -90,15 +134,28 @@ impl CollapseProjectRule {
                 conditions,
                 default,
             } => {
+                let ctx = Arc::new(ExpressionContext::new());
                 if let Some(test) = test_expr {
-                    Self::collect_property_refs(test, refs);
+                    let test_meta = ExpressionMeta::new((**test).clone());
+                    let id = ctx.register_expression(test_meta);
+                    let test_expr = ContextualExpression::new(id, ctx.clone());
+                    Self::collect_property_refs(&test_expr, refs);
                 }
                 for (when, then) in conditions {
-                    Self::collect_property_refs(when, refs);
-                    Self::collect_property_refs(then, refs);
+                    let when_meta = ExpressionMeta::new(when.clone());
+                    let then_meta = ExpressionMeta::new(then.clone());
+                    let when_id = ctx.register_expression(when_meta);
+                    let then_id = ctx.register_expression(then_meta);
+                    let when_expr = ContextualExpression::new(when_id, ctx.clone());
+                    let then_expr = ContextualExpression::new(then_id, ctx.clone());
+                    Self::collect_property_refs(&when_expr, refs);
+                    Self::collect_property_refs(&then_expr, refs);
                 }
                 if let Some(else_e) = default {
-                    Self::collect_property_refs(else_e, refs);
+                    let else_meta = ExpressionMeta::new((**else_e).clone());
+                    let id = ctx.register_expression(else_meta);
+                    let else_expr = ContextualExpression::new(id, ctx);
+                    Self::collect_property_refs(&else_expr, refs);
                 }
             }
             _ => {}
@@ -124,7 +181,7 @@ impl RewriteRule for CollapseProjectRule {
 
     fn apply(
         &self,
-        _ctx: &mut RewriteContext,
+        ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
         let parent_proj = match node {
@@ -156,7 +213,7 @@ impl RewriteRule for CollapseProjectRule {
             }
         }
 
-        // 构建重写映射：列名 -> 表达式
+        // 构建重写映射：列名 -> ContextualExpression
         let mut rewrite_map = std::collections::HashMap::new();
         let child_col_names = child_proj.col_names();
 
@@ -171,11 +228,13 @@ impl RewriteRule for CollapseProjectRule {
             }
         }
 
+        let expr_context = ctx.expr_context();
+
         // 重写上层Project的列
         let new_columns: Vec<YieldColumn> = parent_cols
             .iter()
             .map(|col| YieldColumn {
-                expression: rewrite_expression(&col.expression, &rewrite_map),
+                expression: rewrite_contextual_expression(&col.expression, &rewrite_map, expr_context.clone()),
                 alias: col.alias.clone(),
                 is_matched: col.is_matched,
             })
@@ -216,6 +275,10 @@ mod tests {
     use super::*;
     use crate::core::YieldColumn;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expression::ExpressionContext;
+    use crate::core::types::expression::ExpressionId;
+    use std::sync::Arc;
 
     #[test]
     fn test_rule_name() {
@@ -233,10 +296,16 @@ mod tests {
     #[test]
     fn test_collapse_simple_project() {
         let start = PlanNodeEnum::Start(StartNode::new());
+        let expr_ctx = Arc::new(ExpressionContext::new());
 
         // 下层Project: col1
+        let child_expr = Expression::Variable("a".to_string());
+        let child_meta = ExpressionMeta::new(child_expr);
+        let child_id = expr_ctx.register_expression(child_meta);
+        let child_ctx_expr = ContextualExpression::new(child_id, expr_ctx.clone());
+        
         let child_columns = vec![YieldColumn {
-            expression: Expression::Variable("a".to_string()),
+            expression: child_ctx_expr,
             alias: "col1".to_string(),
             is_matched: false,
         }];
@@ -244,8 +313,13 @@ mod tests {
         let child_node = PlanNodeEnum::Project(child_proj);
 
         // 上层Project: col2 = col1
+        let parent_expr = Expression::Variable("col1".to_string());
+        let parent_meta = ExpressionMeta::new(parent_expr);
+        let parent_id = expr_ctx.register_expression(parent_meta);
+        let parent_ctx_expr = ContextualExpression::new(parent_id, expr_ctx);
+        
         let parent_columns = vec![YieldColumn {
-            expression: Expression::Variable("col1".to_string()),
+            expression: parent_ctx_expr,
             alias: "col2".to_string(),
             is_matched: false,
         }];

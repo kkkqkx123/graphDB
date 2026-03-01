@@ -142,19 +142,19 @@ impl<T: BinaryInputNode + ?Sized> BinaryInputNode for &T {
 /// 统一了连接节点的接口，便于在执行器工厂中统一处理
 pub trait JoinNode: BinaryInputNode {
     /// 获取哈希键（用于构建哈希表）
-    fn hash_keys(&self) -> &[Expression];
+    fn hash_keys(&self) -> &[crate::core::types::expression::contextual::ContextualExpression];
 
     /// 获取探测键（用于探测哈希表）
-    fn probe_keys(&self) -> &[Expression];
+    fn probe_keys(&self) -> &[crate::core::types::expression::contextual::ContextualExpression];
 }
 
 /// 为引用类型实现 JoinNode trait
 impl<T: JoinNode + ?Sized> JoinNode for &T {
-    fn hash_keys(&self) -> &[Expression] {
+    fn hash_keys(&self) -> &[crate::core::types::expression::contextual::ContextualExpression] {
         (**self).hash_keys()
     }
 
-    fn probe_keys(&self) -> &[Expression] {
+    fn probe_keys(&self) -> &[crate::core::types::expression::contextual::ContextualExpression] {
         (**self).probe_keys()
     }
 }

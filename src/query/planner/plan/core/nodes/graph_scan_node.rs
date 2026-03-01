@@ -3,7 +3,7 @@
 //! 包含获取顶点、边和邻居节点的计划节点
 
 use super::super::common::{EdgeProp, TagProp};
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::define_plan_node;
 use crate::query::planner::plan::core::node_id_generator::next_node_id;
 use crate::query::planner::plan::algorithms::{IndexLimit, ScanType};
@@ -12,7 +12,7 @@ use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 define_plan_node! {
     pub struct GetVerticesNode {
         space_id: u64,
-        src_ref: Expression,
+        src_ref: ContextualExpression,
         src_vids: String,
         tag_props: Vec<TagProp>,
         expression: Option<String>,
@@ -25,11 +25,22 @@ define_plan_node! {
 
 impl GetVerticesNode {
     pub fn new(space_id: u64, src_vids: &str) -> Self {
+        use crate::core::Expression;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expression::ExpressionContext;
+        use std::sync::Arc;
+        
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let src_expr = Expression::Variable(src_vids.to_string());
+        let src_meta = ExpressionMeta::new(src_expr);
+        let src_id = expr_ctx.register_expression(src_meta);
+        let src_ctx_expr = ContextualExpression::new(src_id, expr_ctx);
+        
         Self {
             id: next_node_id(),
             deps: Vec::new(),
             space_id,
-            src_ref: Expression::Variable(src_vids.to_string()),
+            src_ref: src_ctx_expr,
             src_vids: src_vids.to_string(),
             tag_props: Vec::new(),
             expression: None,
@@ -77,15 +88,26 @@ impl GetVerticesNode {
     }
 
     pub fn set_src_vids(&mut self, src_vids: String) {
-        self.src_ref = Expression::Variable(src_vids.clone());
+        use crate::core::Expression;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expression::ExpressionContext;
+        use std::sync::Arc;
+        
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let src_expr = Expression::Variable(src_vids.clone());
+        let src_meta = ExpressionMeta::new(src_expr);
+        let src_id = expr_ctx.register_expression(src_meta);
+        let src_ctx_expr = ContextualExpression::new(src_id, expr_ctx);
+        
+        self.src_ref = src_ctx_expr;
         self.src_vids = src_vids;
     }
 
-    pub fn src_ref(&self) -> &Expression {
+    pub fn src_ref(&self) -> &ContextualExpression {
         &self.src_ref
     }
 
-    pub fn set_src_ref(&mut self, src_ref: Expression) {
+    pub fn set_src_ref(&mut self, src_ref: ContextualExpression) {
         self.src_ref = src_ref;
     }
 
@@ -186,7 +208,7 @@ impl EdgeIndexScanNode {
 define_plan_node! {
     pub struct GetEdgesNode {
         space_id: u64,
-        edge_ref: Expression,
+        edge_ref: ContextualExpression,
         src: String,
         edge_type: String,
         rank: String,
@@ -202,10 +224,21 @@ define_plan_node! {
 
 impl GetEdgesNode {
     pub fn new(space_id: u64, src: &str, edge_type: &str, rank: &str, dst: &str) -> Self {
+        use crate::core::Expression;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expression::ExpressionContext;
+        use std::sync::Arc;
+        
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let edge_expr = Expression::Variable(format!("{}->{}@{}", src, dst, edge_type));
+        let edge_meta = ExpressionMeta::new(edge_expr);
+        let edge_id = expr_ctx.register_expression(edge_meta);
+        let edge_ctx_expr = ContextualExpression::new(edge_id, expr_ctx);
+        
         Self {
             id: next_node_id(),
             space_id,
-            edge_ref: Expression::Variable(format!("{}->{}@{}", src, dst, edge_type)),
+            edge_ref: edge_ctx_expr,
             src: src.to_string(),
             edge_type: edge_type.to_string(),
             rank: rank.to_string(),

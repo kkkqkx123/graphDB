@@ -365,26 +365,55 @@ impl WithClausePlanner {
     /// 提取分组信息
     ///
     /// 从 YieldColumn 列表中提取分组键和聚合项
-    fn extract_group_info(yield_columns: &[YieldColumn]) -> (Vec<Expression>, Vec<Expression>) {
+    fn extract_group_info(yield_columns: &[YieldColumn]) -> (Vec<crate::core::types::expression::contextual::ContextualExpression>, Vec<crate::core::types::expression::contextual::ContextualExpression>) {
         let mut group_keys = Vec::new();
         let mut group_items = Vec::new();
 
         for column in yield_columns {
-            if let Ok(suite) = extract_group_suite(&column.expression) {
-                // 非聚合表达式作为分组键
-                if !suite.group_keys.is_empty() {
-                    group_keys.extend(suite.group_keys);
-                }
-                // 聚合表达式作为分组项
-                if !suite.aggregates.is_empty() {
-                    group_items.extend(suite.aggregates);
+            if let Some(expr_meta) = column.expression.expression() {
+                let inner_expr = expr_meta.inner();
+                if let Ok(suite) = crate::core::types::expression::utils::extract_group_suite(inner_expr) {
+                    // 非聚合表达式作为分组键
+                    if !suite.group_keys.is_empty() {
+                        // 将 Expression 转换为 ContextualExpression
+                        let ctx = std::sync::Arc::new(crate::core::types::expression::ExpressionContext::new());
+                        for key in suite.group_keys {
+                            let meta = crate::core::types::expression::ExpressionMeta::new(key);
+                            let id = ctx.register_expression(meta);
+                            let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, ctx.clone());
+                            group_keys.push(ctx_expr);
+                        }
+                    }
+                    // 聚合表达式作为分组项
+                    if !suite.aggregates.is_empty() {
+                        // 将 Expression 转换为 ContextualExpression
+                        let ctx = std::sync::Arc::new(crate::core::types::expression::ExpressionContext::new());
+                        for item in suite.aggregates {
+                            let meta = crate::core::types::expression::ExpressionMeta::new(item);
+                            let id = ctx.register_expression(meta);
+                            let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, ctx.clone());
+                            group_items.push(ctx_expr);
+                        }
+                    }
                 }
             }
         }
 
         // 去重
-        group_keys.dedup_by(|a, b| a == b);
-        group_items.dedup_by(|a, b| a == b);
+        group_keys.dedup_by(|a, b| {
+            if let (Some(a_meta), Some(b_meta)) = (a.expression(), b.expression()) {
+                a_meta.inner() == b_meta.inner()
+            } else {
+                false
+            }
+        });
+        group_items.dedup_by(|a, b| {
+            if let (Some(a_meta), Some(b_meta)) = (a.expression(), b.expression()) {
+                a_meta.inner() == b_meta.inner()
+            } else {
+                false
+            }
+        });
 
         (group_keys, group_items)
     }
@@ -396,7 +425,8 @@ impl WithClausePlanner {
     fn deduce_alias_type(expression: &crate::core::types::expression::contextual::ContextualExpression) -> AliasType {
         use crate::core::Expression;
 
-        if let Some(e) = expression.get_expression() {
+        if let Some(expr_meta) = expression.expression() {
+            let e = expr_meta.inner();
             match e {
                 // 大多数表达式无法推断类型，默认返回 Runtime
                 Expression::Literal(_)
