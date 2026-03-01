@@ -29,6 +29,7 @@ use crate::query::executor::base::ExecutionResult;
 use crate::query::parser::Parser;
 use crate::query::optimizer::OptimizerEngine;
 use crate::query::validator::{ValidatedStatement, ValidationInfo};
+use crate::query::query_request_context::QueryRequestContext;
 use crate::storage::StorageClient;
 use std::sync::Arc;
 use parking_lot::Mutex;

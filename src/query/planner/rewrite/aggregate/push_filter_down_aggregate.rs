@@ -38,7 +38,7 @@ use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::core::Expression;
-use crate::core::types::ExpressionContext;
+use crate::core::types::{ContextualExpression, ExpressionContext};
 use crate::core::types::operators::AggregateFunction;
 
 /// 将过滤下推到聚合之前的规则
@@ -197,8 +197,13 @@ impl RewriteRule for PushFilterDownAggregateRule {
         // 重写过滤条件（将输出列引用转换为输入列引用）
         let rewritten_condition = Self::rewrite_filter_condition(&filter_expr, group_keys);
 
+        // 创建合并后的表达式元数据
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(rewritten_condition);
+        let id = ctx.register_expression(expr_meta);
+        let rewritten_ctx_expr = ContextualExpression::new(id, ctx);
+
         // 创建新的 Filter 节点，放在 Aggregate 之前
-        let new_filter = FilterNode::from_expression(agg_input.clone(), rewritten_condition, ctx.clone())
+        let new_filter = FilterNode::new(agg_input.clone(), rewritten_ctx_expr)
             .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
                 format!("创建 FilterNode 失败: {:?}", e)
             ))?;

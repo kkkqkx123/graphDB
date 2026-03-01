@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::core::Expression;
-use crate::core::types::ExpressionContext;
+use crate::core::types::{ContextualExpression, ExpressionContext};
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
@@ -112,11 +112,16 @@ impl RewriteRule for CombineFilterRule {
         // 获取上下文
         let ctx = top_condition.context().clone();
 
+        // 创建合并后的表达式元数据
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(combined_condition);
+        let id = ctx.register_expression(expr_meta);
+        let combined_ctx_expr = ContextualExpression::new(id, ctx);
+
         // 获取子 Filter 的输入
         let child_input = child_filter.input().clone();
 
         // 创建合并后的 Filter 节点
-        let combined_filter_node = match FilterNode::from_expression(child_input, combined_condition, ctx) {
+        let combined_filter_node = match FilterNode::new(child_input, combined_ctx_expr) {
             Ok(node) => node,
             Err(_) => return Ok(None),
         };

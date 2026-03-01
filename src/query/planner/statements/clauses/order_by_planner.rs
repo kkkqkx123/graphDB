@@ -2,6 +2,7 @@
 //!
 //! 负责规划 ORDER BY 子句的执行，对结果进行排序。
 
+use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
@@ -38,8 +39,12 @@ fn extract_order_by_items(stmt: &Stmt) -> Vec<OrderByItem> {
 /// 将表达式转换为字符串表示
 /// 
 /// 使用 Expression::to_expression_string() 方法
-fn expression_to_string(expr: &Expression) -> String {
-    expr.to_expression_string()
+fn expression_to_string(expr: &ContextualExpression) -> String {
+    if let Some(expr_meta) = expr.expression() {
+        expr_meta.inner().to_expression_string()
+    } else {
+        String::new()
+    }
 }
 
 impl ClausePlanner for OrderByClausePlanner {

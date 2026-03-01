@@ -345,12 +345,24 @@ impl PushDownRule for PushProjectDownRule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::{ContextualExpression, ExpressionContext};
     use crate::core::{Expression, YieldColumn};
-    use crate::core::types::ExpressionContext;
     use crate::query::planner::plan::core::nodes::{
         DedupNode, FilterNode, GetVerticesNode, LimitNode, ProjectNode, ScanVerticesNode, StartNode,
     };
     use std::sync::Arc;
+
+    fn create_yield_column(expr: Expression, alias: &str) -> YieldColumn {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
+        YieldColumn {
+            expression: ctx_expr,
+            alias: alias.to_string(),
+            is_matched: false,
+        }
+    }
 
     #[test]
     fn test_rule_name() {
@@ -378,10 +390,14 @@ mod tests {
     fn test_is_intermediate_node() {
         let scan = ScanVerticesNode::new(1);
         let ctx = Arc::new(ExpressionContext::new());
-        let filter = FilterNode::from_expression(
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            crate::core::Expression::literal(true)
+        );
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
+        let filter = FilterNode::new(
             PlanNodeEnum::ScanVertices(scan.clone()),
-            crate::core::Expression::literal(true),
-            ctx,
+            ctx_expr
         )
         .expect("创建 FilterNode 失败");
         assert!(PushProjectDownRule::is_intermediate_node(&PlanNodeEnum::Filter(filter)));
@@ -400,16 +416,8 @@ mod tests {
 
         // 创建 Project 节点
         let columns = vec![
-            YieldColumn {
-                expression: Expression::Variable("id".to_string()),
-                alias: "id".to_string(),
-                is_matched: false,
-            },
-            YieldColumn {
-                expression: Expression::Variable("name".to_string()),
-                alias: "name".to_string(),
-                is_matched: false,
-            },
+            create_yield_column(Expression::Variable("id".to_string()), "id"),
+            create_yield_column(Expression::Variable("name".to_string()), "name"),
         ];
         let project = ProjectNode::new(scan.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
@@ -441,11 +449,7 @@ mod tests {
         let get_vertices_enum = PlanNodeEnum::GetVertices(get_vertices);
 
         // 创建 Project 节点
-        let columns = vec![YieldColumn {
-            expression: Expression::Variable("vertex".to_string()),
-            alias: "vertex".to_string(),
-            is_matched: false,
-        }];
+        let columns = vec![create_yield_column(Expression::Variable("vertex".to_string()), "vertex")];
         let project =
             ProjectNode::new(get_vertices_enum.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
@@ -476,11 +480,7 @@ mod tests {
         let start = PlanNodeEnum::Start(start_node);
 
         // 创建 Project 节点
-        let columns = vec![YieldColumn {
-            expression: Expression::Variable("test".to_string()),
-            alias: "test".to_string(),
-            is_matched: false,
-        }];
+        let columns = vec![create_yield_column(Expression::Variable("test".to_string()), "test")];
         let project = ProjectNode::new(start.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
 
@@ -496,11 +496,7 @@ mod tests {
         let rule = PushProjectDownRule::new();
 
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
-        let columns = vec![YieldColumn {
-            expression: Expression::Variable("test".to_string()),
-            alias: "test".to_string(),
-            is_matched: false,
-        }];
+        let columns = vec![create_yield_column(Expression::Variable("test".to_string()), "test")];
         let project = ProjectNode::new(scan.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
 
@@ -582,16 +578,8 @@ mod tests {
 
         // 创建 Project 节点
         let columns = vec![
-            YieldColumn {
-                expression: Expression::Variable("id".to_string()),
-                alias: "id".to_string(),
-                is_matched: false,
-            },
-            YieldColumn {
-                expression: Expression::Variable("name".to_string()),
-                alias: "name".to_string(),
-                is_matched: false,
-            },
+            create_yield_column(Expression::Variable("id".to_string()), "id"),
+            create_yield_column(Expression::Variable("name".to_string()), "name"),
         ];
         let project =
             ProjectNode::new(filter_enum.clone(), columns).expect("创建 ProjectNode 失败");
@@ -633,11 +621,7 @@ mod tests {
         let dedup_enum = PlanNodeEnum::Dedup(dedup);
 
         // 创建 Project 节点
-        let columns = vec![YieldColumn {
-            expression: Expression::Variable("id".to_string()),
-            alias: "id".to_string(),
-            is_matched: false,
-        }];
+        let columns = vec![create_yield_column(Expression::Variable("id".to_string()), "id")];
         let project =
             ProjectNode::new(dedup_enum.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
@@ -677,11 +661,7 @@ mod tests {
         let limit_enum = PlanNodeEnum::Limit(limit);
 
         // 创建 Project 节点
-        let columns = vec![YieldColumn {
-            expression: Expression::Variable("id".to_string()),
-            alias: "id".to_string(),
-            is_matched: false,
-        }];
+        let columns = vec![create_yield_column(Expression::Variable("id".to_string()), "id")];
         let project =
             ProjectNode::new(limit_enum.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
@@ -718,10 +698,14 @@ mod tests {
         let scan = PlanNodeEnum::ScanVertices(scan_node);
 
         // 创建 Filter 节点
-        let filter = FilterNode::from_expression(
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            crate::core::Expression::literal(true)
+        );
+        let id = expr_ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx.clone());
+        let filter = FilterNode::new(
             scan.clone(),
-            crate::core::Expression::literal(true),
-            expr_ctx.clone(),
+            ctx_expr
         )
         .expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
@@ -731,11 +715,7 @@ mod tests {
         let limit_enum = PlanNodeEnum::Limit(limit);
 
         // 创建 Project 节点
-        let columns = vec![YieldColumn {
-            expression: Expression::Variable("id".to_string()),
-            alias: "id".to_string(),
-            is_matched: false,
-        }];
+        let columns = vec![create_yield_column(Expression::Variable("id".to_string()), "id")];
         let project =
             ProjectNode::new(limit_enum.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);

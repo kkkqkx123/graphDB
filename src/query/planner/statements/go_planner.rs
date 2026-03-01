@@ -7,7 +7,7 @@
 //! - 改进 JOIN 键处理
 //! - 添加属性投影支持
 
-use crate::core::types::EdgeDirection;
+use crate::core::types::{ContextualExpression, EdgeDirection};
 use crate::query::QueryContext;
 use crate::query::parser::ast::{GoStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
@@ -71,9 +71,7 @@ impl Planner for GoPlanner {
         let input_for_join = PlanNodeEnum::ExpandAll(expand_all_node);
 
         let filter_node = if let Some(ref condition) = go_stmt.where_clause {
-            use std::sync::Arc;
-            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
-            match FilterNode::from_expression(input_for_join, condition.clone(), ctx) {
+            match FilterNode::new(input_for_join, condition.clone()) {
                 Ok(filter) => PlanNodeEnum::Filter(filter),
                 Err(e) => {
                     return Err(PlannerError::PlanGenerationFailed(format!(
@@ -126,22 +124,40 @@ impl GoPlanner {
                 });
             }
         } else {
+            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+            
+            let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                crate::core::Expression::Variable("_expandall_dst".to_string())
+            );
+            let id = ctx.register_expression(expr_meta);
+            let ctx_expr = ContextualExpression::new(id, ctx.clone());
             columns.push(crate::core::YieldColumn {
-                expression: crate::core::Expression::Variable("_expandall_dst".to_string()),
+                expression: ctx_expr,
                 alias: "dst".to_string(),
                 is_matched: false,
             });
 
+            let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                crate::core::Expression::Variable("_expandall_props".to_string())
+            );
+            let id = ctx.register_expression(expr_meta);
+            let ctx_expr = ContextualExpression::new(id, ctx);
             columns.push(crate::core::YieldColumn {
-                expression: crate::core::Expression::Variable("_expandall_props".to_string()),
+                expression: ctx_expr,
                 alias: "properties".to_string(),
                 is_matched: false,
             });
         }
 
         if columns.is_empty() {
+            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+            let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                crate::core::Expression::Variable("*".to_string())
+            );
+            let id = ctx.register_expression(expr_meta);
+            let ctx_expr = ContextualExpression::new(id, ctx);
             columns.push(crate::core::YieldColumn {
-                expression: crate::core::Expression::Variable("*".to_string()),
+                expression: ctx_expr,
                 alias: "result".to_string(),
                 is_matched: false,
             });

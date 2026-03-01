@@ -12,7 +12,8 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::core::{Expression, YieldColumn};
+use crate::core::YieldColumn;
+use crate::core::types::{ContextualExpression, ExpressionContext};
 use std::sync::Arc;
 
 /// 删除操作规划器
@@ -50,31 +51,52 @@ impl Planner for DeletePlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
         // 根据删除目标类型构建不同的计划
+        let ctx = Arc::new(ExpressionContext::new());
         let yield_columns = match &delete_stmt.target {
             DeleteTarget::Vertices(..) => {
+                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                    crate::core::Expression::Variable("deleted_vertices".to_string())
+                );
+                let id = ctx.register_expression(expr_meta);
+                let ctx_expr = ContextualExpression::new(id, ctx.clone());
                 vec![YieldColumn {
-                    expression: Expression::Variable("deleted_vertices".to_string()),
+                    expression: ctx_expr,
                     alias: "deleted_count".to_string(),
                     is_matched: false,
                 }]
             }
             DeleteTarget::Edges { .. } => {
+                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                    crate::core::Expression::Variable("deleted_edges".to_string())
+                );
+                let id = ctx.register_expression(expr_meta);
+                let ctx_expr = ContextualExpression::new(id, ctx.clone());
                 vec![YieldColumn {
-                    expression: Expression::Variable("deleted_edges".to_string()),
+                    expression: ctx_expr,
                     alias: "deleted_count".to_string(),
                     is_matched: false,
                 }]
             }
             DeleteTarget::Tags { .. } => {
+                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                    crate::core::Expression::Variable("deleted_tags".to_string())
+                );
+                let id = ctx.register_expression(expr_meta);
+                let ctx_expr = ContextualExpression::new(id, ctx.clone());
                 vec![YieldColumn {
-                    expression: Expression::Variable("deleted_tags".to_string()),
+                    expression: ctx_expr,
                     alias: "deleted_count".to_string(),
                     is_matched: false,
                 }]
             }
             DeleteTarget::Index(..) => {
+                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                    crate::core::Expression::Variable("deleted_index".to_string())
+                );
+                let id = ctx.register_expression(expr_meta);
+                let ctx_expr = ContextualExpression::new(id, ctx);
                 vec![YieldColumn {
-                    expression: Expression::Variable("deleted_index".to_string()),
+                    expression: ctx_expr,
                     alias: "deleted_count".to_string(),
                     is_matched: false,
                 }]

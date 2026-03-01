@@ -2,6 +2,7 @@
 //!
 //! 负责规划 RETURN 子句的执行，实现结果投影。
 
+use crate::core::types::{ContextualExpression, ExpressionContext};
 use crate::core::Expression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
@@ -73,8 +74,14 @@ fn extract_return_columns(stmt: &Stmt) -> Vec<YieldColumn> {
                         });
                     }
                     crate::query::parser::ast::stmt::ReturnItem::All => {
+                        let ctx = Arc::new(ExpressionContext::new());
+                        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                            crate::core::Expression::Variable("*".to_string())
+                        );
+                        let id = ctx.register_expression(expr_meta);
+                        let ctx_expr = ContextualExpression::new(id, ctx);
                         columns.push(YieldColumn {
-                            expression: Expression::Variable("*".to_string()),
+                            expression: ctx_expr,
                             alias: "*".to_string(),
                             is_matched: false,
                         });
@@ -85,8 +92,14 @@ fn extract_return_columns(stmt: &Stmt) -> Vec<YieldColumn> {
     }
 
     if columns.is_empty() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            crate::core::Expression::Variable("*".to_string())
+        );
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
         columns.push(YieldColumn {
-            expression: Expression::Variable("*".to_string()),
+            expression: ctx_expr,
             alias: "*".to_string(),
             is_matched: false,
         });

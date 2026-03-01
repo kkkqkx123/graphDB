@@ -3,7 +3,7 @@
 //! 负责规划 WHERE 子句的执行，过滤输入数据。
 //! 实现了 ClausePlanner 接口，提供完整的过滤功能。
 
-use crate::core::Expression;
+use crate::core::types::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
@@ -19,7 +19,7 @@ use std::sync::Arc;
 /// 负责规划 WHERE 子句的执行，过滤输入数据。
 #[derive(Debug)]
 pub struct WhereClausePlanner {
-    filter_expression: Option<Expression>,
+    filter_expression: Option<ContextualExpression>,
 }
 
 impl WhereClausePlanner {
@@ -29,7 +29,7 @@ impl WhereClausePlanner {
         }
     }
 
-    pub fn with_filter(filter_expression: Expression) -> Self {
+    pub fn with_filter(filter_expression: ContextualExpression) -> Self {
         Self {
             filter_expression: Some(filter_expression),
         }
@@ -41,13 +41,18 @@ impl WhereClausePlanner {
     }
 }
 
-fn extract_where_condition(stmt: &Stmt) -> Expression {
+fn extract_where_condition(stmt: &Stmt) -> ContextualExpression {
     if let Stmt::Match(match_stmt) = stmt {
-        if let Some(where_expr) = &match_stmt.where_clause {
+        if let Some(ref where_expr) = match_stmt.where_clause {
             return where_expr.clone();
         }
     }
-    Expression::Variable("true".to_string())
+    let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+    let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+        crate::core::Expression::Variable("true".to_string())
+    );
+    let id = ctx.register_expression(expr_meta);
+    ContextualExpression::new(id, ctx)
 }
 
 impl ClausePlanner for WhereClausePlanner {
@@ -63,15 +68,20 @@ impl ClausePlanner for WhereClausePlanner {
     ) -> Result<SubPlan, PlannerError> {
         let condition = self.filter_expression.clone()
             .or_else(|| Some(extract_where_condition(stmt)))
-            .unwrap_or_else(|| Expression::Variable("true".to_string()));
+            .unwrap_or_else(|| {
+                let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                    crate::core::Expression::Variable("true".to_string())
+                );
+                let id = ctx.register_expression(expr_meta);
+                ContextualExpression::new(id, ctx)
+            });
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("WHERE 子句需要输入计划".to_string())
         })?;
 
-        use std::sync::Arc;
-        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
-        let filter_node = FilterNode::from_expression(input_node.clone(), condition, ctx)?;
+        let filter_node = FilterNode::new(input_node.clone(), condition)?;
         Ok(SubPlan::new(Some(filter_node.into_enum()), input_plan.tail))
     }
 }

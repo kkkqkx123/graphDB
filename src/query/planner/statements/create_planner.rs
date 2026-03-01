@@ -15,7 +15,8 @@ use crate::query::planner::plan::core::{
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::YieldColumn;
-use crate::core::{Expression, Value};
+use crate::core::types::{ContextualExpression, ExpressionContext};
+use crate::core::Value;
 use std::sync::Arc;
 
 /// CREATE 数据语句规划器
@@ -53,7 +54,7 @@ impl CreatePlanner {
         &self,
         space_name: String,
         labels: &[String],
-        properties: &[(String, Expression)],
+        properties: &[(String, ContextualExpression)],
     ) -> Result<VertexInsertInfo, PlannerError> {
         if labels.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
@@ -61,7 +62,8 @@ impl CreatePlanner {
             ));
         }
 
-        // 转换标签规范
+        let ctx = Arc::new(ExpressionContext::new());
+
         let tag_specs: Vec<TagInsertSpec> = labels
             .iter()
             .map(|label| TagInsertSpec {
@@ -70,16 +72,18 @@ impl CreatePlanner {
             })
             .collect();
 
-        // 属性值
-        let prop_values: Vec<Expression> = properties
+        let prop_values: Vec<ContextualExpression> = properties
             .iter()
             .map(|(_, v)| v.clone())
             .collect();
 
-        // 注意：这里需要 VID，但在 Cypher 语法中通常不直接指定
-        // 我们需要生成一个 VID 或使用变量引用
-        // 暂时使用一个占位符，实际执行时会处理
-        let vid_expr = Expression::literal(Value::Null(crate::core::NullType::default()));
+        let vid_expr = {
+            let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                crate::core::Expression::literal(Value::Null(crate::core::NullType::default()))
+            );
+            let id = ctx.register_expression(expr_meta);
+            ContextualExpression::new(id, ctx)
+        };
 
         Ok(VertexInsertInfo {
             space_name,
@@ -93,12 +97,12 @@ impl CreatePlanner {
         &self,
         space_name: String,
         edge_type: String,
-        src_vid: Expression,
-        dst_vid: Expression,
-        properties: &[(String, Expression)],
+        src_vid: ContextualExpression,
+        dst_vid: ContextualExpression,
+        properties: &[(String, ContextualExpression)],
     ) -> EdgeInsertInfo {
         let prop_names: Vec<String> = properties.iter().map(|(k, _)| k.clone()).collect();
-        let prop_values: Vec<Expression> = properties.iter().map(|(_, v)| v.clone()).collect();
+        let prop_values: Vec<ContextualExpression> = properties.iter().map(|(_, v)| v.clone()).collect();
 
         EdgeInsertInfo {
             space_name,
@@ -110,8 +114,15 @@ impl CreatePlanner {
 
     /// 创建结果投影列
     fn create_yield_columns(&self, count: usize) -> Vec<YieldColumn> {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            crate::core::Expression::literal(Value::Int(count as i64))
+        );
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
+        
         vec![YieldColumn {
-            expression: Expression::literal(Value::Int(count as i64)),
+            expression: ctx_expr,
             alias: "created_count".to_string(),
             is_matched: false,
         }]
@@ -260,18 +271,27 @@ impl Planner for CreatePlanner {
 
 impl CreatePlanner {
     /// 从表达式中提取属性键值对
-    fn extract_properties(expr: &Expression) -> Result<Vec<(String, Expression)>, PlannerError> {
-        match expr {
-            Expression::Map(map) => {
+    fn extract_properties(expr: &ContextualExpression) -> Result<Vec<(String, ContextualExpression)>, PlannerError> {
+        if let Some(expr_meta) = expr.expression() {
+            if let crate::core::Expression::Map(map) = expr_meta.inner() {
                 let mut result = Vec::new();
-                for (key, value) in map {
-                    result.push((key.clone(), value.clone()));
+                for (key, value_expr) in map {
+                    let ctx = Arc::new(ExpressionContext::new());
+                    let value_meta = crate::core::types::expression::ExpressionMeta::new(value_expr.clone());
+                    let id = ctx.register_expression(value_meta);
+                    let ctx_expr = ContextualExpression::new(id, ctx);
+                    result.push((key.clone(), ctx_expr));
                 }
                 Ok(result)
+            } else {
+                Err(PlannerError::PlanGenerationFailed(
+                    "属性必须是 Map 表达式".to_string()
+                ))
             }
-            _ => Err(PlannerError::PlanGenerationFailed(
-                "属性必须是 Map 表达式".to_string()
-            )),
+        } else {
+            Err(PlannerError::PlanGenerationFailed(
+                "表达式无效".to_string()
+            ))
         }
     }
 
@@ -281,7 +301,7 @@ impl CreatePlanner {
         node: &crate::query::parser::ast::pattern::NodePattern,
         space_name: &str,
     ) -> Result<VertexInsertInfo, PlannerError> {
-        let props = if let Some(expr) = &node.properties {
+        let props = if let Some(ref expr) = node.properties {
             Self::extract_properties(expr)?
         } else {
             vec![]
@@ -318,7 +338,7 @@ impl CreatePlanner {
                         ));
                     }
 
-                    let props = if let Some(expr) = &edge.properties {
+                    let props = if let Some(ref expr) = edge.properties {
                         Self::extract_properties(expr)?
                     } else {
                         vec![]
@@ -332,8 +352,21 @@ impl CreatePlanner {
 
                     let edge_type = edge.edge_types[0].clone();
 
-                    let src_vid = Expression::literal(Value::Null(crate::core::NullType::default()));
-                    let dst_vid = Expression::literal(Value::Null(crate::core::NullType::default()));
+                    let ctx = Arc::new(ExpressionContext::new());
+                    let src_vid = {
+                        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                            crate::core::Expression::literal(Value::Null(crate::core::NullType::default()))
+                        );
+                        let id = ctx.register_expression(expr_meta);
+                        ContextualExpression::new(id, ctx.clone())
+                    };
+                    let dst_vid = {
+                        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                            crate::core::Expression::literal(Value::Null(crate::core::NullType::default()))
+                        );
+                        let id = ctx.register_expression(expr_meta);
+                        ContextualExpression::new(id, ctx)
+                    };
 
                     let edge_info = EdgeInsertInfo {
                         space_name: space_name.to_string(),

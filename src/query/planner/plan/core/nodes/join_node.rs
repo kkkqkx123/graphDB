@@ -2,7 +2,7 @@
 //!
 //! 包含各种连接节点类型，如内连接、左连接等
 
-use crate::core::Expression;
+use crate::core::types::ContextualExpression;
 use crate::define_join_node;
 use crate::define_binary_input_node;
 
@@ -16,8 +16,8 @@ impl InnerJoinNode {
     pub fn new(
         left: super::plan_node_enum::PlanNodeEnum,
         right: super::plan_node_enum::PlanNodeEnum,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
+        hash_keys: Vec<ContextualExpression>,
+        probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
@@ -47,8 +47,8 @@ impl LeftJoinNode {
     pub fn new(
         left: super::plan_node_enum::PlanNodeEnum,
         right: super::plan_node_enum::PlanNodeEnum,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
+        hash_keys: Vec<ContextualExpression>,
+        probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
@@ -106,8 +106,8 @@ impl HashInnerJoinNode {
     pub fn new(
         left: super::plan_node_enum::PlanNodeEnum,
         right: super::plan_node_enum::PlanNodeEnum,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
+        hash_keys: Vec<ContextualExpression>,
+        probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
@@ -137,8 +137,8 @@ impl HashLeftJoinNode {
     pub fn new(
         left: super::plan_node_enum::PlanNodeEnum,
         right: super::plan_node_enum::PlanNodeEnum,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
+        hash_keys: Vec<ContextualExpression>,
+        probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
@@ -168,8 +168,8 @@ impl FullOuterJoinNode {
     pub fn new(
         left: super::plan_node_enum::PlanNodeEnum,
         right: super::plan_node_enum::PlanNodeEnum,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
+        hash_keys: Vec<ContextualExpression>,
+        probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());

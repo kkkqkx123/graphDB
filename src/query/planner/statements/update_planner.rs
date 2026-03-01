@@ -12,7 +12,8 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::core::{Expression, YieldColumn};
+use crate::core::YieldColumn;
+use crate::core::types::{ContextualExpression, ExpressionContext};
 use std::sync::Arc;
 
 /// 更新操作规划器
@@ -57,9 +58,16 @@ impl Planner for UpdatePlanner {
             UpdateTarget::TagOnVertex { .. } => "vertex_tag",
         };
 
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            crate::core::Expression::Variable(format!("updated_{}", target_name))
+        );
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
+
         let yield_columns = vec![
             YieldColumn {
-                expression: Expression::Variable(format!("updated_{}", target_name)),
+                expression: ctx_expr,
                 alias: "updated_count".to_string(),
                 is_matched: false,
             }

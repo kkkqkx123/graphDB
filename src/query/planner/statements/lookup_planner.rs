@@ -8,7 +8,8 @@
 //! - 添加属性索引选择逻辑
 //! - 使用 IndexSelector 自动选择最优索引
 
-use crate::core::types::expression::Expression;
+use crate::core::types::{ContextualExpression, ExpressionContext};
+use crate::core::Expression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::{LookupStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
@@ -88,9 +89,7 @@ impl Planner for LookupPlanner {
         let mut current_node: PlanNodeEnum = PlanNodeEnum::IndexScan(index_scan_node);
 
         if let Some(ref condition) = lookup_stmt.where_clause {
-            use std::sync::Arc;
-            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
-            let filter_node = FilterNode::from_expression(current_node, condition.clone(), ctx).map_err(|e| {
+            let filter_node = FilterNode::new(current_node, condition.clone()).map_err(|e| {
                 PlannerError::PlanGenerationFailed(format!("Failed to create FilterNode: {}", e))
             })?;
             current_node = PlanNodeEnum::Filter(filter_node);

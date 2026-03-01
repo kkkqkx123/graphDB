@@ -9,9 +9,8 @@
 //! - LIMIT/SKIP 分页
 //! - 智能扫描策略选择（索引扫描、属性扫描、全表扫描）
 
-use crate::core::Expression;
+use crate::core::types::{ContextualExpression, ExpressionContext};
 use crate::core::SymbolTable;
-use crate::core::types::ExpressionContext;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::ast::pattern::{Pattern, PathElement, RepetitionType};
@@ -438,13 +437,21 @@ impl MatchStatementPlanner {
             None => return Ok(left),
         };
 
+        let ctx = Arc::new(ExpressionContext::new());
+
         // 构建哈希键和探测键表达式
         // 左表使用已存在的别名作为哈希键
-        let hash_keys = vec![Expression::variable(left_alias)];
+        let hash_key_expr = crate::core::Expression::variable(left_alias);
+        let hash_key_meta = crate::core::types::expression::ExpressionMeta::new(hash_key_expr);
+        let hash_key_id = ctx.register_expression(hash_key_meta);
+        let hash_keys = vec![ContextualExpression::new(hash_key_id, ctx.clone())];
 
         // 右表使用新节点的变量名或默认名称作为探测键
         let probe_alias = right_alias.as_deref().unwrap_or("n");
-        let probe_keys = vec![Expression::variable(probe_alias)];
+        let probe_key_expr = crate::core::Expression::variable(probe_alias);
+        let probe_key_meta = crate::core::types::expression::ExpressionMeta::new(probe_key_expr);
+        let probe_key_id = ctx.register_expression(probe_key_meta);
+        let probe_keys = vec![ContextualExpression::new(probe_key_id, ctx)];
 
         // 创建哈希内连接节点
         let join_node = HashInnerJoinNode::new(
@@ -468,15 +475,14 @@ impl MatchStatementPlanner {
     fn plan_filter(
         &self,
         input_plan: SubPlan,
-        condition: Expression,
+        condition: ContextualExpression,
         _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())
         })?;
 
-        let ctx = Arc::new(ExpressionContext::new());
-        let filter_node = FilterNode::from_expression(input_node.clone(), condition, ctx)?;
+        let filter_node = FilterNode::new(input_node.clone(), condition)?;
         Ok(SubPlan::new(Some(filter_node.into_enum()), input_plan.tail))
     }
 
@@ -507,7 +513,7 @@ impl MatchStatementPlanner {
         let sort_items: Vec<SortItem> = order_by
             .into_iter()
             .map(|item| {
-                let column = self.expression_to_string(&item.expression);
+                let column = self.contextual_expression_to_string(&item.expression);
                 SortItem::new(column, item.direction)
             })
             .collect();
@@ -516,8 +522,12 @@ impl MatchStatementPlanner {
         Ok(SubPlan::new(Some(sort_node.into_enum()), input_plan.tail))
     }
 
-    fn expression_to_string(&self, expr: &Expression) -> String {
-        expr.to_expression_string()
+    fn contextual_expression_to_string(&self, expr: &ContextualExpression) -> String {
+        if let Some(expr_meta) = expr.expression() {
+            expr_meta.inner().to_expression_string()
+        } else {
+            String::new()
+        }
     }
 
     fn plan_limit(
@@ -537,7 +547,7 @@ impl MatchStatementPlanner {
     fn extract_where_condition(
         &self,
         stmt: &crate::query::parser::ast::Stmt,
-    ) -> Result<Option<Expression>, PlannerError> {
+    ) -> Result<Option<ContextualExpression>, PlannerError> {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
                 Ok(match_stmt.where_clause.clone())
@@ -564,8 +574,14 @@ impl MatchStatementPlanner {
                                 });
                             }
                             crate::query::parser::ast::stmt::ReturnItem::All => {
+                                let ctx = Arc::new(ExpressionContext::new());
+                                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                                    crate::core::Expression::Variable("*".to_string())
+                                );
+                                let id = ctx.register_expression(expr_meta);
+                                let ctx_expr = ContextualExpression::new(id, ctx);
                                 columns.push(YieldColumn {
-                                    expression: crate::core::Expression::Variable("*".to_string()),
+                                    expression: ctx_expr,
                                     alias: "*".to_string(),
                                     is_matched: false,
                                 });
@@ -573,8 +589,14 @@ impl MatchStatementPlanner {
                         }
                     }
                     if columns.is_empty() {
+                        let ctx = Arc::new(ExpressionContext::new());
+                        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                            crate::core::Expression::Variable("*".to_string())
+                        );
+                        let id = ctx.register_expression(expr_meta);
+                        let ctx_expr = ContextualExpression::new(id, ctx);
                         columns.push(YieldColumn {
-                            expression: crate::core::Expression::Variable("*".to_string()),
+                            expression: ctx_expr,
                             alias: "*".to_string(),
                             is_matched: false,
                         });
@@ -845,27 +867,33 @@ impl MatchStatementPlanner {
     fn build_label_filter_expression(
         variable: &Option<String>,
         labels: &[String],
-    ) -> Expression {
+    ) -> ContextualExpression {
         let var_name = variable.as_deref().unwrap_or("n");
-        let var_expr = Expression::variable(var_name);
+        let var_expr = crate::core::Expression::variable(var_name);
+
+        let ctx = Arc::new(ExpressionContext::new());
 
         // 创建 labels() 函数调用表达式
-        let labels_func = Expression::function("labels", vec![var_expr]);
+        let labels_func = crate::core::Expression::function("labels", vec![var_expr]);
 
-        if labels.len() == 1 {
+        let expr = if labels.len() == 1 {
             // 单个标签: labels(n) CONTAINS "label"
-            let label_literal = Expression::literal(labels[0].clone());
-            Expression::function("contains", vec![labels_func, label_literal])
+            let label_literal = crate::core::Expression::literal(labels[0].clone());
+            crate::core::Expression::function("contains", vec![labels_func, label_literal])
         } else {
             // 多个标签: labels(n) CONTAINS "label1" AND labels(n) CONTAINS "label2" AND ...
-            let first_label = Expression::literal(labels[0].clone());
-            let first_condition = Expression::function("contains", vec![labels_func.clone(), first_label]);
+            let first_label = crate::core::Expression::literal(labels[0].clone());
+            let first_condition = crate::core::Expression::function("contains", vec![labels_func.clone(), first_label]);
 
             labels.iter().skip(1).fold(first_condition, |acc, label| {
-                let label_literal = Expression::literal(label.clone());
-                let condition = Expression::function("contains", vec![labels_func.clone(), label_literal]);
-                Expression::binary(acc, crate::core::types::operators::BinaryOperator::And, condition)
+                let label_literal = crate::core::Expression::literal(label.clone());
+                let condition = crate::core::Expression::function("contains", vec![labels_func.clone(), label_literal]);
+                crate::core::Expression::binary(acc, crate::core::types::operators::BinaryOperator::And, condition)
             })
-        }
+        };
+
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        ContextualExpression::new(id, ctx)
     }
 }

@@ -131,7 +131,10 @@ impl RewriteRule for PushFilterDownHashInnerJoinRule {
         // 处理左侧下推
         let left_pushed = left_picked.is_some();
         if let Some(left_filter) = left_picked {
-            let left_filter_node = FilterNode::from_expression(new_left, left_filter, ctx.clone())
+            let left_expr_meta = crate::core::types::expression::ExpressionMeta::new(left_filter);
+            let left_id = ctx.register_expression(left_expr_meta);
+            let left_ctx_expr = ContextualExpression::new(left_id, ctx.clone());
+            let left_filter_node = FilterNode::new(new_left, left_ctx_expr)
                 .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
                     format!("创建FilterNode失败: {:?}", e)
                 ))?;
@@ -141,7 +144,10 @@ impl RewriteRule for PushFilterDownHashInnerJoinRule {
         // 处理右侧下推
         let right_pushed = right_picked.is_some();
         if let Some(right_filter) = right_picked {
-            let right_filter_node = FilterNode::from_expression(new_right, right_filter, ctx.clone())
+            let right_expr_meta = crate::core::types::expression::ExpressionMeta::new(right_filter);
+            let right_id = ctx.register_expression(right_expr_meta);
+            let right_ctx_expr = ContextualExpression::new(right_id, ctx.clone());
+            let right_filter_node = FilterNode::new(new_right, right_ctx_expr)
                 .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
                     format!("创建FilterNode失败: {:?}", e)
                 ))?;

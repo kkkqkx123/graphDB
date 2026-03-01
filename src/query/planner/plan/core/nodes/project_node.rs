@@ -36,37 +36,6 @@ impl ProjectNode {
             col_names,
         })
     }
-    
-    /// 创建新的投影节点（使用ContextualExpression）
-    pub fn with_contextual_columns(
-        input: super::plan_node_enum::PlanNodeEnum,
-        columns: Vec<(ContextualExpression, String)>,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
-        let col_names: Vec<String> = columns.iter().map(|(_, alias)| alias.clone()).collect();
-        let yield_columns: Vec<YieldColumn> = columns
-            .into_iter()
-            .map(|(ctx_expr, alias)| {
-                let expr = ctx_expr.expression()
-                    .map(|meta| meta.inner().clone())
-                    .unwrap_or_else(|| Expression::Variable(alias.clone()));
-                YieldColumn {
-                    expression: expr,
-                    alias,
-                    is_matched: false,
-                }
-            })
-            .collect();
-
-        Ok(Self {
-            id: -1,
-            input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
-            columns: yield_columns,
-            columns_serializable: None,
-            output_var: None,
-            col_names,
-        })
-    }
 
     /// 获取投影列
     pub fn columns(&self) -> &[YieldColumn] {
@@ -79,15 +48,12 @@ impl ProjectNode {
         self.col_names = self.columns.iter().map(|col| col.alias.clone()).collect();
     }
     
-    pub fn prepare_for_serialization(&mut self, ctx: Arc<ExpressionContext>) {
+    pub fn prepare_for_serialization(&mut self, _ctx: Arc<ExpressionContext>) {
         self.columns_serializable = Some(
             self.columns
                 .iter()
                 .map(|col| {
-                    let expr_meta = ExpressionMeta::new(col.expression.clone());
-                    let id = ctx.register_expression(expr_meta);
-                    let ctx_expr = ContextualExpression::new(id, ctx.clone());
-                    SerializableExpression::from_contextual(&ctx_expr)
+                    SerializableExpression::from_contextual(&col.expression)
                 })
                 .collect()
         );
@@ -99,11 +65,8 @@ impl ProjectNode {
                 .iter()
                 .map(|ser_expr| {
                     let ctx_expr = ser_expr.clone().to_contextual(ctx.clone());
-                    let expr = ctx_expr.expression()
-                        .map(|meta| meta.inner().clone())
-                        .unwrap_or_else(|| Expression::Variable("".to_string()));
                     YieldColumn {
-                        expression: expr,
+                        expression: ctx_expr,
                         alias: ser_expr.expression.to_expression_string(),
                         is_matched: false,
                     }
