@@ -106,10 +106,15 @@ impl Planner for FetchEdgesPlanner {
 }
 
 /// 从表达式中提取字符串值
-fn extract_string_from_expr(expr: &crate::core::Expression) -> Result<String, PlannerError> {
-    match expr {
-        crate::core::Expression::Variable(s) => Ok(s.clone()),
-        crate::core::Expression::Literal(v) => {
+fn extract_string_from_expr(expr: &crate::core::types::expression::contextual::ContextualExpression) -> Result<String, PlannerError> {
+    let expr_meta = match expr.expression() {
+        Some(e) => e,
+        None => return Err(PlannerError::InvalidOperation("表达式无效".to_string())),
+    };
+    let inner_expr = expr_meta.inner();
+    match inner_expr {
+        crate::core::types::expression::Expression::Variable(s) => Ok(s.clone()),
+        crate::core::types::expression::Expression::Literal(v) => {
             match v {
                 crate::core::Value::String(s) => Ok(s.clone()),
                 crate::core::Value::Int(i) => Ok(i.to_string()),
@@ -118,7 +123,7 @@ fn extract_string_from_expr(expr: &crate::core::Expression) -> Result<String, Pl
                 _ => Err(PlannerError::InvalidOperation(format!("无法从字面量提取字符串: {:?}", v))),
             }
         }
-        _ => Err(PlannerError::InvalidOperation(format!("无法从表达式提取字符串: {:?}", expr))),
+        _ => Err(PlannerError::InvalidOperation(format!("无法从表达式提取字符串: {:?}", inner_expr))),
     }
 }
 

@@ -194,7 +194,7 @@ impl DeleteValidator {
             if let Some(e) = expr.expression() {
                 let schema_validator = crate::query::validator::SchemaValidator::new(schema_manager.clone());
                 let vid_type = crate::core::types::DataType::String;
-                schema_validator.validate_vid_expr(&e, &vid_type, role)
+                schema_validator.validate_vid_expr(e, &vid_type, role)
                     .map_err(|e| ValidationError::new(e.message, e.error_type))
             } else {
                 Err(ValidationError::new(
@@ -277,7 +277,7 @@ impl DeleteValidator {
                 ValidationErrorType::SemanticError,
             )),
         };
-        self.validate_expression_internal(expr_meta.inner().as_ref())
+        self.validate_expression_internal(expr_meta.inner())
     }
 
     /// 内部方法：验证表达式

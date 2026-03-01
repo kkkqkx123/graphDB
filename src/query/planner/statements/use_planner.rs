@@ -12,7 +12,12 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::core::{Expression, YieldColumn};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::Expression;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::ExpressionId;
+use crate::core::YieldColumn;
 use std::sync::Arc;
 
 /// USE 语句规划器
@@ -50,9 +55,15 @@ impl Planner for UsePlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
         // 构建输出列，显示切换的空间名
+        let expr = Expression::string(use_stmt.space.clone());
+        let meta = ExpressionMeta::new(expr);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        
         let yield_columns = vec![
             YieldColumn {
-                expression: Expression::string(use_stmt.space.clone()),
+                expression: ctx_expr,
                 alias: "space_name".to_string(),
                 is_matched: false,
             }

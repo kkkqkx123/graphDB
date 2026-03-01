@@ -2,9 +2,13 @@
 //! 负责验证变量的作用域、命名格式和使用
 
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionId;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 pub struct VariableChecker;
 
@@ -18,13 +22,12 @@ impl VariableChecker {
         expression: &ContextualExpression,
         available_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        if let Some(expr_meta) = expression.get_expression() {
-            if let Some(expr) = expr_meta.inner().get_expression() {
-                let variables = self.extract_variables_internal(&expr);
-                
-                for var in &variables {
-                    self.validate_variable_usage(var, available_aliases)?;
-                }
+        if let Some(expr_meta) = expression.expression() {
+            let expr = expr_meta.inner();
+            let variables = self.extract_variables_internal(expr);
+            
+            for var in &variables {
+                self.validate_variable_usage(var, available_aliases)?;
             }
         }
         
@@ -97,10 +100,9 @@ impl VariableChecker {
     }
 
     pub fn extract_variables(&self, expression: &ContextualExpression) -> Vec<String> {
-        if let Some(expr_meta) = expression.get_expression() {
-            if let Some(expr) = expr_meta.inner().get_expression() {
-                return self.extract_variables_internal(&expr);
-            }
+        if let Some(expr_meta) = expression.expression() {
+            let expr = expr_meta.inner();
+            return self.extract_variables_internal(expr);
         }
         Vec::new()
     }
@@ -171,10 +173,9 @@ impl VariableChecker {
     }
 
     pub fn contains_variable(&self, expression: &ContextualExpression, var: &str) -> bool {
-        if let Some(expr_meta) = expression.get_expression() {
-            if let Some(expr) = expr_meta.inner().get_expression() {
-                return self.contains_variable_internal(&expr, var);
-            }
+        if let Some(expr_meta) = expression.expression() {
+            let expr = expr_meta.inner();
+            return self.contains_variable_internal(expr, var);
         }
         false
     }
@@ -237,10 +238,9 @@ impl VariableChecker {
     }
 
     pub fn is_arithmetic_expression(&self, expression: &ContextualExpression, var: &str) -> bool {
-        if let Some(expr_meta) = expression.get_expression() {
-            if let Some(expr) = expr_meta.inner().get_expression() {
-                return self.is_arithmetic_expression_internal(&expr, var);
-            }
+        if let Some(expr_meta) = expression.expression() {
+            let expr = expr_meta.inner();
+            return self.is_arithmetic_expression_internal(expr, var);
         }
         false
     }
@@ -304,11 +304,19 @@ mod tests {
         let checker = VariableChecker::new();
         
         let var_expression = Expression::Variable("test_var".to_string());
-        assert!(checker.contains_variable(&var_expression, "test_var"));
-        assert!(!checker.contains_variable(&var_expression, "other_var"));
+        let meta = ExpressionMeta::new(var_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        assert!(checker.contains_variable(&ctx_expr, "test_var"));
+        assert!(!checker.contains_variable(&ctx_expr, "other_var"));
         
         let literal_expression = Expression::Literal(Value::Int(42));
-        assert!(!checker.contains_variable(&literal_expression, "test_var"));
+        let meta = ExpressionMeta::new(literal_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        assert!(!checker.contains_variable(&ctx_expr, "test_var"));
     }
 
     #[test]
@@ -320,14 +328,22 @@ mod tests {
             left: Box::new(Expression::Variable("var".to_string())),
             right: Box::new(Expression::Literal(Value::Int(1))),
         };
-        assert!(checker.is_arithmetic_expression(&add_expression, "var"));
+        let meta = ExpressionMeta::new(add_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        assert!(checker.is_arithmetic_expression(&ctx_expr, "var"));
         
         let eq_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("var".to_string())),
             right: Box::new(Expression::Literal(Value::Int(1))),
         };
-        assert!(!checker.is_arithmetic_expression(&eq_expression, "var"));
+        let meta = ExpressionMeta::new(eq_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        assert!(!checker.is_arithmetic_expression(&ctx_expr, "var"));
     }
 
     #[test]
@@ -339,8 +355,12 @@ mod tests {
             left: Box::new(Expression::Variable("var1".to_string())),
             right: Box::new(Expression::Variable("var2".to_string())),
         };
+        let meta = ExpressionMeta::new(complex_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         
-        let variables = checker.extract_variables(&complex_expression);
+        let variables = checker.extract_variables(&ctx_expr);
         assert_eq!(variables.len(), 2);
         assert!(variables.contains(&"var1".to_string()));
         assert!(variables.contains(&"var2".to_string()));

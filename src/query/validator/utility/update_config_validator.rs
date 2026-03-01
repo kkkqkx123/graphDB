@@ -6,6 +6,10 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::Expression;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::Value;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::UpdateConfigsStmt;
 use crate::query::validator::validator_trait::{
@@ -252,17 +256,20 @@ mod tests {
         let mut expr_context = ExpressionContext::new();
 
         // 有效配置值
-        let int_expr_id = expr_context.add_expression(Expression::Literal(Value::Int(100)));
-        let int_expr = ContextualExpression::new(int_expr_id, expr_context.clone());
+        let int_meta = ExpressionMeta::new(Expression::Literal(Value::Int(100)));
+        let int_expr_id = expr_context.register_expression(int_meta);
+        let int_expr = ContextualExpression::new(int_expr_id, Arc::new(expr_context.clone()));
         assert!(validator.validate_config_value(&int_expr).is_ok());
 
-        let bool_expr_id = expr_context.add_expression(Expression::Literal(Value::Bool(true)));
-        let bool_expr = ContextualExpression::new(bool_expr_id, expr_context.clone());
+        let bool_meta = ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
+        let bool_expr_id = expr_context.register_expression(bool_meta);
+        let bool_expr = ContextualExpression::new(bool_expr_id, Arc::new(expr_context.clone()));
         assert!(validator.validate_config_value(&bool_expr).is_ok());
 
         // 无效配置值（非常量）
-        let var_expr_id = expr_context.add_expression(Expression::Variable("var".to_string()));
-        let var_expr = ContextualExpression::new(var_expr_id, expr_context);
+        let var_meta = ExpressionMeta::new(Expression::Variable("var".to_string()));
+        let var_expr_id = expr_context.register_expression(var_meta);
+        let var_expr = ContextualExpression::new(var_expr_id, Arc::new(expr_context));
         assert!(validator.validate_config_value(&var_expr).is_err());
     }
 }

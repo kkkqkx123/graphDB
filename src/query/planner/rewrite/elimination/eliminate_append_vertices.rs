@@ -28,7 +28,8 @@
 //! - AppendVertices 的输出列为匿名变量
 //! - Project 的列表达式中不包含 PathBuild 表达式
 
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::Expression;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{SingleInputNode, MultipleInputNode};
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
@@ -56,15 +57,24 @@ impl EliminateAppendVerticesRule {
     }
 
     /// 检查表达式中是否包含 PathBuild
-    fn contains_path_build(&self, expr: &Expression) -> bool {
+    fn contains_path_build(&self, expr: &ContextualExpression) -> bool {
+        let expr_meta = match expr.expression() {
+            Some(e) => e,
+            None => return false,
+        };
+        self.contains_path_build_internal(expr_meta.inner())
+    }
+
+    /// 内部方法：检查 Expression 中是否包含 PathBuild
+    fn contains_path_build_internal(&self, expr: &Expression) -> bool {
         match expr {
             Expression::Path(_) => true,
             Expression::Binary { left, right, .. } => {
-                self.contains_path_build(left) || self.contains_path_build(right)
+                self.contains_path_build_internal(left) || self.contains_path_build_internal(right)
             }
-            Expression::Unary { operand, .. } => self.contains_path_build(operand),
+            Expression::Unary { operand, .. } => self.contains_path_build_internal(operand),
             Expression::Function { args, .. } => {
-                args.iter().any(|arg| self.contains_path_build(arg))
+                args.iter().any(|arg| self.contains_path_build_internal(arg))
             }
             _ => false,
         }

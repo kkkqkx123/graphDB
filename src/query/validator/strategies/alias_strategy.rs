@@ -2,9 +2,13 @@
 //! 负责验证表达式中的别名引用和可用性
 
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionId;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// 别名验证策略
 pub struct AliasValidationStrategy;
@@ -37,7 +41,7 @@ impl AliasValidationStrategy {
             Some(e) => e,
             None => return Ok(()),
         };
-        let expr = expr_meta.inner().as_ref();
+        let expr = expr_meta.inner();
 
         // 首先检查表达式本身是否引用了一个别名
         if let Some(alias_name) = self.extract_alias_name_internal(&expr) {
@@ -61,7 +65,7 @@ impl AliasValidationStrategy {
             Some(e) => e,
             None => return None,
         };
-        self.extract_alias_name_internal(expr_meta.inner().as_ref())
+        self.extract_alias_name_internal(expr_meta.inner())
     }
 
     /// 内部方法：从表达式中提取别名名称
@@ -87,7 +91,7 @@ impl AliasValidationStrategy {
             Some(e) => e,
             None => return Ok(()),
         };
-        self.validate_subexpressions_aliases_internal(expr_meta.inner().as_ref(), aliases)
+        self.validate_subexpressions_aliases_internal(expr_meta.inner(), aliases)
     }
 
     /// 内部方法：递归验证子表达式中的别名
@@ -274,13 +278,21 @@ mod tests {
 
         // 测试从变量表达式中提取别名
         let var_expression = Expression::Variable("test_var".to_string());
+        let meta = ExpressionMeta::new(var_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert_eq!(
-            strategy.extract_alias_name(&var_expression),
+            strategy.extract_alias_name(&ctx_expr),
             Some("test_var".to_string())
         );
 
         // 测试从常量表达式中提取别名（应该返回None）
         let const_expression = Expression::Literal(crate::core::Value::Int(42));
-        assert_eq!(strategy.extract_alias_name(&const_expression), None);
+        let meta = ExpressionMeta::new(const_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        assert_eq!(strategy.extract_alias_name(&ctx_expr), None);
     }
 }

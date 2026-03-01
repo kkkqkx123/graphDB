@@ -12,7 +12,8 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::Expression;
 use crate::core::types::operators::AggregateFunction;
 use std::sync::Arc;
 
@@ -31,9 +32,14 @@ impl GroupByPlanner {
     /// 
     /// 递归遍历表达式树，收集所有聚合函数。
     /// 参考 nebula-graph 的 ExpressionUtils::collectAll 实现。
-    fn extract_aggregate_functions(&self, expr: &Expression) -> Vec<AggregateFunction> {
+    fn extract_aggregate_functions(&self, expr: &ContextualExpression) -> Vec<AggregateFunction> {
+        let expr_meta = match expr.expression() {
+            Some(e) => e,
+            None => return Vec::new(),
+        };
+        let inner_expr = expr_meta.inner();
         let mut functions = Vec::new();
-        self.collect_aggregate_functions_recursive(expr, &mut functions);
+        self.collect_aggregate_functions_recursive(inner_expr, &mut functions);
         functions
     }
 
@@ -197,12 +203,9 @@ impl Planner for GroupByPlanner {
 
         // 如果有 HAVING 子句，添加 FilterNode
         if let Some(ref having_expr) = group_by_stmt.having_clause {
-            use std::sync::Arc;
-            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
-            let filter_node = FilterNode::from_expression(
+            let filter_node = FilterNode::new(
                 final_node.clone(),
                 having_expr.clone(),
-                ctx,
             ).map_err(|e| PlannerError::PlanGenerationFailed(format!(
                 "Failed to create FilterNode: {}",
                 e

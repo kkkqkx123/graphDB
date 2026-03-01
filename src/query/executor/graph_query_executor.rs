@@ -314,10 +314,10 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 let mut vertex_ids = Vec::new();
                 for ctx_expr in vertex_exprs {
                     let expr = ctx_expr.expression()
-                        .and_then(|meta| meta.inner().get_expression())
+                        .map(|meta| meta.inner())
                         .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                     let mut context = DefaultExpressionContext::new();
-                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context)
+                    let vid = ExpressionEvaluator::evaluate(expr, &mut context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
                     vertex_ids.push(vid);
                 }
@@ -336,26 +336,26 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 let mut edge_ids = Vec::new();
                 for (src_ctx_expr, dst_ctx_expr, rank_ctx_expr) in edges {
                     let src_expr = src_ctx_expr.expression()
-                        .and_then(|meta| meta.inner().get_expression())
+                        .map(|meta| meta.inner())
                         .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                     let mut src_context = DefaultExpressionContext::new();
-                    let src = ExpressionEvaluator::evaluate(&src_expr, &mut src_context)
+                    let src = ExpressionEvaluator::evaluate(src_expr, &mut src_context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("源顶点ID求值失败: {}", e))))?;
 
                     let dst_expr = dst_ctx_expr.expression()
-                        .and_then(|meta| meta.inner().get_expression())
+                        .map(|meta| meta.inner())
                         .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                     let mut dst_context = DefaultExpressionContext::new();
-                    let dst = ExpressionEvaluator::evaluate(&dst_expr, &mut dst_context)
+                    let dst = ExpressionEvaluator::evaluate(dst_expr, &mut dst_context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("目标顶点ID求值失败: {}", e))))?;
 
                     let _rank = match rank_ctx_expr {
                         Some(ref r) => {
                             let rank_expr = r.expression()
-                                .and_then(|meta| meta.inner().get_expression())
+                                .map(|meta| meta.inner())
                                 .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                             let mut rank_context = DefaultExpressionContext::new();
-                            let rank_val = ExpressionEvaluator::evaluate(&rank_expr, &mut rank_context)
+                            let rank_val = ExpressionEvaluator::evaluate(rank_expr, &mut rank_context)
                                 .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("rank求值失败: {}", e))))?;
                             match rank_val {
                                 crate::core::Value::Int(i) => Some(i),
@@ -385,10 +385,10 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 let mut vertex_ids = Vec::new();
                 for ctx_expr in vertex_id_exprs {
                     let expr = ctx_expr.expression()
-                        .and_then(|meta| meta.inner().get_expression())
+                        .map(|meta| meta.inner())
                         .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                     let mut context = DefaultExpressionContext::new();
-                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context)
+                    let vid = ExpressionEvaluator::evaluate(expr, &mut context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
                     vertex_ids.push(vid);
                 }
@@ -428,13 +428,17 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         match clause.target {
             UpdateTarget::Vertex(vid_expr) => {
                 let mut context = DefaultExpressionContext::new();
-                let vid = ExpressionEvaluator::evaluate(&vid_expr, &mut context)
+                let vid_expr_inner = vid_expr.expression()
+                    .ok_or_else(|| DBError::Query(QueryError::ExecutionError("顶点ID表达式无效".to_string())))?;
+                let vid = ExpressionEvaluator::evaluate(vid_expr_inner.inner(), &mut context)
                     .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
 
                 let mut properties = std::collections::HashMap::new();
                 for assignment in &clause.set_clause.assignments {
                     let mut prop_context = DefaultExpressionContext::new();
-                    let value = ExpressionEvaluator::evaluate(&assignment.value, &mut prop_context)
+                    let value_expr_inner = assignment.value.expression()
+                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("属性值表达式无效".to_string())))?;
+                    let value = ExpressionEvaluator::evaluate(value_expr_inner.inner(), &mut prop_context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("属性值求值失败: {}", e))))?;
                     properties.insert(assignment.property.clone(), value);
                 }
@@ -461,17 +465,23 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             }
             UpdateTarget::Edge { src, dst, edge_type, rank } => {
                 let mut src_context = DefaultExpressionContext::new();
-                let src_val = ExpressionEvaluator::evaluate(&src, &mut src_context)
+                let src_expr_inner = src.expression()
+                    .ok_or_else(|| DBError::Query(QueryError::ExecutionError("源顶点ID表达式无效".to_string())))?;
+                let src_val = ExpressionEvaluator::evaluate(src_expr_inner.inner(), &mut src_context)
                     .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("源顶点ID求值失败: {}", e))))?;
 
                 let mut dst_context = DefaultExpressionContext::new();
-                let dst_val = ExpressionEvaluator::evaluate(&dst, &mut dst_context)
+                let dst_expr_inner = dst.expression()
+                    .ok_or_else(|| DBError::Query(QueryError::ExecutionError("目标顶点ID表达式无效".to_string())))?;
+                let dst_val = ExpressionEvaluator::evaluate(dst_expr_inner.inner(), &mut dst_context)
                     .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("目标顶点ID求值失败: {}", e))))?;
 
                 let rank_val = match rank {
                     Some(ref r) => {
                         let mut rank_context = DefaultExpressionContext::new();
-                        let rank_val = ExpressionEvaluator::evaluate(r, &mut rank_context)
+                        let rank_expr_inner = r.expression()
+                            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("rank表达式无效".to_string())))?;
+                        let rank_val = ExpressionEvaluator::evaluate(rank_expr_inner.inner(), &mut rank_context)
                             .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("rank求值失败: {}", e))))?;
                         match rank_val {
                             crate::core::Value::Int(i) => Some(i),
@@ -484,7 +494,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 let mut properties = std::collections::HashMap::new();
                 for assignment in &clause.set_clause.assignments {
                     let mut prop_context = DefaultExpressionContext::new();
-                    let value = ExpressionEvaluator::evaluate(&assignment.value, &mut prop_context)
+                    let value_expr_inner = assignment.value.expression()
+                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("属性值表达式无效".to_string())))?;
+                    let value = ExpressionEvaluator::evaluate(value_expr_inner.inner(), &mut prop_context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("属性值求值失败: {}", e))))?;
                     properties.insert(assignment.property.clone(), value);
                 }

@@ -593,7 +593,25 @@ mod tests {
     fn test_deduce_literal_type() {
         let expr = Expression::int(42);
         let validator = TypeDeduceValidator::new();
-        let ctx = crate::query::validator::structs::YieldClauseContext::default();
+        let ctx = crate::query::validator::structs::YieldClauseContext {
+            yield_columns: vec![],
+            aliases_available: std::collections::HashMap::new(),
+            aliases_generated: std::collections::HashMap::new(),
+            distinct: false,
+            has_agg: false,
+            group_keys: vec![],
+            group_items: vec![],
+            need_gen_project: false,
+            agg_output_column_names: vec![],
+            proj_output_column_names: vec![],
+            proj_cols: vec![],
+            paths: vec![],
+            query_parts: vec![],
+            errors: vec![],
+            filter_condition: None,
+            skip: None,
+            limit: None,
+        };
         let data_type = validator.deduce_type(&crate::core::types::expression::contextual::ContextualExpression::new(expr));
         assert_eq!(data_type, DataType::Int);
     }

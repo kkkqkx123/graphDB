@@ -276,7 +276,7 @@ impl UpdateValidator {
                 let src_vid = self.validate_and_evaluate_vid(src, vid_type, schema_validator, "source")?;
                 let dst_vid = self.validate_and_evaluate_vid(dst, vid_type, schema_validator, "destination")?;
                 let rank_val = if let Some(rank_expr) = rank {
-                    self.evaluate_rank(rank_expr, schema_validator)?
+                    self.evaluate_rank_contextual(rank_expr, schema_validator)?
                 } else {
                     0
                 };
@@ -320,14 +320,14 @@ impl UpdateValidator {
                 ));
             }
         };
-        let inner_expr = expr_meta.inner().as_ref();
+        let inner_expr = expr_meta.inner();
         
         if let Some(ref schema_validator) = self.schema_validator {
             let vid_type = crate::core::types::DataType::String;
-            return schema_validator.validate_vid_expr(&inner_expr, &vid_type, role);
+            return schema_validator.validate_vid_expr(inner_expr, &vid_type, role);
         }
         
-        Self::basic_validate_vertex_id(&inner_expr, role)
+        Self::basic_validate_vertex_id(inner_expr, role)
     }
     
     /// 基本顶点 ID 验证（无 SchemaValidator 时）
@@ -368,10 +368,10 @@ impl UpdateValidator {
                 ));
             }
         };
-        let inner_expr = expr_meta.inner().as_ref();
+        let inner_expr = expr_meta.inner();
         
         let vid = schema_validator
-            .evaluate_expression(&inner_expr)
+            .evaluate_expression(inner_expr)
             .map_err(|e| {
                 CoreValidationError::new(
                     format!("Failed to evaluate {} vertex ID: {}", role, e.message),
@@ -401,7 +401,7 @@ impl UpdateValidator {
                 ));
             }
         };
-        let inner_expr = expr_meta.inner().as_ref();
+        let inner_expr = expr_meta.inner();
         
         match inner_expr {
             Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
@@ -411,6 +411,24 @@ impl UpdateValidator {
                 ValidationErrorType::SemanticError,
             )),
         }
+    }
+
+    /// 评估 rank 表达式
+    fn evaluate_rank_contextual(
+        &self,
+        expr: &ContextualExpression,
+        schema_validator: &SchemaValidator,
+    ) -> Result<i64, CoreValidationError> {
+        let expr_meta = match expr.expression() {
+            Some(e) => e,
+            None => {
+                return Err(CoreValidationError::new(
+                    "Rank expression is invalid".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+        self.evaluate_rank(expr_meta.inner(), schema_validator)
     }
 
     /// 评估 rank 表达式
@@ -564,9 +582,9 @@ impl UpdateValidator {
                 ));
             }
         };
-        let inner_expr = expr_meta.inner().as_ref();
+        let inner_expr = expr_meta.inner();
         
-        self.validate_expression_recursive(&inner_expr)
+        self.validate_expression_recursive(inner_expr)
     }
 
     fn validate_expression_recursive(&self, expr: &Expression) -> Result<(), CoreValidationError> {

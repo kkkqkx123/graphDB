@@ -62,9 +62,9 @@ impl PaginationValidationStrategy {
                 ValidationErrorType::PaginationError,
             )),
         };
-        let expr = expr_meta.inner().as_ref();
+        let expr = expr_meta.inner();
 
-        self.validate_pagination_expression_internal(&expr, clause_name)
+        self.validate_pagination_expression_internal(expr, clause_name)
     }
 
     /// 内部方法：验证分页表达式

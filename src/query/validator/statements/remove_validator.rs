@@ -45,8 +45,8 @@ impl RemoveValidator {
                 "移除项表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
             ))?;
-        let expr = expr_meta.inner().as_ref();
-        self.validate_remove_item_internal(&expr)
+        let expr = expr_meta.inner();
+        self.validate_remove_item_internal(expr)
     }
 
     /// 内部方法：验证移除项
@@ -83,8 +83,8 @@ impl RemoveValidator {
                 "属性访问对象表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
             ))?;
-        let expr = expr_meta.inner().as_ref();
-        self.validate_property_access_internal(&expr, property)
+        let expr = expr_meta.inner();
+        self.validate_property_access_internal(expr, property)
     }
 
     /// 内部方法：验证属性访问移除

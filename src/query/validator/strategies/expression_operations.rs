@@ -25,11 +25,11 @@ impl ExpressionOperationsValidator {
                 ValidationErrorType::SemanticError,
             )),
         };
-        let expr = expr_meta.inner().as_ref();
+        let expr = expr_meta.inner();
 
         // 使用 BFS 方式检查表达式深度（防止 OOM）
         self.check_expression_depth_bfs(expression, 100)?;
-        self.validate_expression_operations_recursive(&expr, 0)
+        self.validate_expression_operations_recursive(expr, 0)
     }
 
     /// 递归验证表达式操作

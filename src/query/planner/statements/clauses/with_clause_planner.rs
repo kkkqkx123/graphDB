@@ -257,8 +257,14 @@ impl WithClausePlanner {
                 crate::query::parser::ast::stmt::ReturnItem::All => {
                     // WITH * 表示保留所有列
                     // 使用通配符表达式表示保留所有列
+                    let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+                    let expr = Expression::Variable("*".to_string());
+                    let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+                    let id = expr_ctx.register_expression(meta);
+                    let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, expr_ctx);
+                    
                     yield_columns.push(YieldColumn {
-                        expression: Expression::Variable("*".to_string()),
+                        expression: ctx_expr,
                         alias: "*".to_string(),
                         is_matched: false,
                     });
@@ -387,113 +393,149 @@ impl WithClausePlanner {
     ///
     /// 根据表达式推断别名类型
     /// 参考 NebulaGraph 的 DeduceAliasTypeVisitor 实现
-    fn deduce_alias_type(expression: &Expression) -> AliasType {
+    fn deduce_alias_type(expression: &crate::core::types::expression::contextual::ContextualExpression) -> AliasType {
         use crate::core::Expression;
 
-        match expression {
-            // 大多数表达式无法推断类型，默认返回 Runtime
-            Expression::Literal(_)
-            | Expression::Unary { .. }
-            | Expression::TypeCast { .. }
-            | Expression::Label(_)
-            | Expression::Binary { .. }
-            | Expression::Aggregate { .. }
-            | Expression::List(_)
-            | Expression::Map(_)
-            | Expression::Case { .. }
-            | Expression::LabelTagProperty { .. }
-            | Expression::TagProperty { .. }
-            | Expression::EdgeProperty { .. }
-            | Expression::Predicate { .. }
-            | Expression::Reduce { .. }
-            | Expression::Parameter(_)
-            | Expression::ListComprehension { .. } => AliasType::Runtime,
+        if let Some(e) = expression.get_expression() {
+            match e {
+                // 大多数表达式无法推断类型，默认返回 Runtime
+                Expression::Literal(_)
+                | Expression::Unary { .. }
+                | Expression::TypeCast { .. }
+                | Expression::Label(_)
+                | Expression::Binary { .. }
+                | Expression::Aggregate { .. }
+                | Expression::List(_)
+                | Expression::Map(_)
+                | Expression::Case { .. }
+                | Expression::LabelTagProperty { .. }
+                | Expression::TagProperty { .. }
+                | Expression::EdgeProperty { .. }
+                | Expression::Predicate { .. }
+                | Expression::Reduce { .. }
+                | Expression::Parameter(_)
+                | Expression::ListComprehension { .. } => AliasType::Runtime,
 
-            // 变量引用 - 默认返回 Variable，实际类型需要从 aliases_available 中获取
-            Expression::Variable(_) => AliasType::Variable,
+                // 变量引用 - 默认返回 Variable，实际类型需要从 aliases_available 中获取
+                Expression::Variable(_) => AliasType::Variable,
 
-            // 属性访问 - 尝试从对象推断类型
-            Expression::Property { object, .. } => {
-                Self::deduce_alias_type(object)
-            }
+                // 属性访问 - 尝试从对象推断类型
+                Expression::Property { object, .. } => {
+                    let obj_expr = crate::core::types::expression::contextual::ContextualExpression::new(
+                        crate::core::types::expression::ExpressionId::new(0),
+                        expression.context().clone()
+                    );
+                    Self::deduce_alias_type(&obj_expr)
+                }
 
-            // 路径构建表达式
-            Expression::PathBuild(_) => AliasType::Path,
+                // 路径构建表达式
+                Expression::PathBuild(_) => AliasType::Path,
 
-            // 路径表达式
-            Expression::Path(_) => AliasType::Path,
+                // 路径表达式
+                Expression::Path(_) => AliasType::Path,
 
-            // 函数调用 - 根据函数名推断类型
-            Expression::Function { name, .. } => {
-                let name_lower = name.to_lowercase();
-                match name_lower.as_str() {
-                    "nodes" => AliasType::NodeList,
-                    "relationships" => AliasType::EdgeList,
-                    "reversepath" => AliasType::Path,
-                    "startnode" | "endnode" => AliasType::Node,
-                    // 其他函数返回 Runtime
-                    _ => AliasType::Runtime,
+                // 函数调用 - 根据函数名推断类型
+                Expression::Function { name, .. } => {
+                    let name_lower = name.to_lowercase();
+                    match name_lower.as_str() {
+                        "nodes" => AliasType::NodeList,
+                        "relationships" => AliasType::EdgeList,
+                        "reversepath" => AliasType::Path,
+                        "startnode" | "endnode" => AliasType::Node,
+                        // 其他函数返回 Runtime
+                        _ => AliasType::Runtime,
+                    }
+                }
+
+                // 下标访问 - 递归推断集合类型
+                Expression::Subscript { collection, .. } => {
+                    let coll_expr = crate::core::types::expression::contextual::ContextualExpression::new(
+                        crate::core::types::expression::ExpressionId::new(0),
+                        expression.context().clone()
+                    );
+                    let collection_type = Self::deduce_alias_type(&coll_expr);
+                    match collection_type {
+                        AliasType::EdgeList => AliasType::Edge,
+                        AliasType::NodeList => AliasType::Node,
+                        _ => collection_type,
+                    }
+                }
+
+                // 范围表达式 - 递归推断集合类型
+                Expression::Range { collection, .. } => {
+                    let coll_expr = crate::core::types::expression::contextual::ContextualExpression::new(
+                        crate::core::types::expression::ExpressionId::new(0),
+                        expression.context().clone()
+                    );
+                    let collection_type = Self::deduce_alias_type(&coll_expr);
+                    match collection_type {
+                        AliasType::EdgeList => AliasType::EdgeList,
+                        AliasType::NodeList => AliasType::NodeList,
+                        _ => collection_type,
+                    }
                 }
             }
-
-            // 下标访问 - 递归推断集合类型
-            Expression::Subscript { collection, .. } => {
-                let collection_type = Self::deduce_alias_type(collection);
-                match collection_type {
-                    AliasType::EdgeList => AliasType::Edge,
-                    AliasType::NodeList => AliasType::Node,
-                    _ => collection_type,
-                }
-            }
-
-            // 范围表达式 - 递归推断集合类型
-            Expression::Range { collection, .. } => {
-                let collection_type = Self::deduce_alias_type(collection);
-                match collection_type {
-                    AliasType::EdgeList => AliasType::EdgeList,
-                    AliasType::NodeList => AliasType::NodeList,
-                    _ => collection_type,
-                }
-            }
+        } else {
+            AliasType::Runtime
         }
     }
 
     /// 生成默认别名
-    fn generate_default_alias(expression: &crate::core::Expression) -> String {
+    fn generate_default_alias(expression: &crate::core::types::expression::contextual::ContextualExpression) -> String {
         use crate::core::Expression;
         
-        match expression {
-            Expression::Variable(name) => name.clone(),
-            Expression::Property { object, property } => {
-                if let Expression::Variable(name) = object.as_ref() {
-                    format!("{}.{}", name, property)
-                } else {
-                    "expr".to_string()
+        if let Some(e) = expression.get_expression() {
+            match e {
+                Expression::Variable(name) => name.clone(),
+                Expression::Property { object, property } => {
+                    if let Expression::Variable(name) = object.as_ref() {
+                        format!("{}.{}", name, property)
+                    } else {
+                        "expr".to_string()
+                    }
                 }
+                Expression::Function { name, .. } => name.clone(),
+                Expression::Aggregate { func, .. } => format!("{:?}", func).to_lowercase(),
+                _ => "expr".to_string(),
             }
-            Expression::Function { name, .. } => name.clone(),
-            Expression::Aggregate { func, .. } => format!("{:?}", func).to_lowercase(),
-            _ => "expr".to_string(),
+        } else {
+            "expr".to_string()
         }
     }
 
     /// 检查表达式是否包含聚合函数
-    fn has_aggregate_expression(expression: &crate::core::Expression) -> bool {
+    fn has_aggregate_expression(expression: &crate::core::types::expression::contextual::ContextualExpression) -> bool {
         use crate::core::Expression;
         
-        match expression {
-            Expression::Function { name, .. } => {
-                let agg_functions = ["count", "sum", "avg", "min", "max", "collect"];
-                agg_functions.contains(&name.to_lowercase().as_str())
+        if let Some(e) = expression.get_expression() {
+            match e {
+                Expression::Function { name, .. } => {
+                    let agg_functions = ["count", "sum", "avg", "min", "max", "collect"];
+                    agg_functions.contains(&name.to_lowercase().as_str())
+                }
+                Expression::Aggregate { .. } => true,
+                Expression::Binary { left, right, .. } => {
+                    let left_expr = crate::core::types::expression::contextual::ContextualExpression::new(
+                        crate::core::types::expression::ExpressionId::new(0),
+                        expression.context().clone()
+                    );
+                    let right_expr = crate::core::types::expression::contextual::ContextualExpression::new(
+                        crate::core::types::expression::ExpressionId::new(0),
+                        expression.context().clone()
+                    );
+                    Self::has_aggregate_expression(&left_expr) || Self::has_aggregate_expression(&right_expr)
+                }
+                Expression::Unary { operand, .. } => {
+                    let operand_expr = crate::core::types::expression::contextual::ContextualExpression::new(
+                        crate::core::types::expression::ExpressionId::new(0),
+                        expression.context().clone()
+                    );
+                    Self::has_aggregate_expression(&operand_expr)
+                }
+                _ => false,
             }
-            Expression::Aggregate { .. } => true,
-            Expression::Binary { left, right, .. } => {
-                Self::has_aggregate_expression(left) || Self::has_aggregate_expression(right)
-            }
-            Expression::Unary { operand, .. } => {
-                Self::has_aggregate_expression(operand)
-            }
-            _ => false,
+        } else {
+            false
         }
     }
 }

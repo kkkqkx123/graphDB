@@ -310,22 +310,13 @@ impl MatchValidator {
     /// 验证返回表达式
     fn validate_return_expression(
         &mut self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &ContextualExpression,
         idx: usize,
     ) -> Result<(), ValidationError> {
-        match expr {
-            crate::core::types::expression::Expression::Variable(var_name) => {
-                // 检查变量是否在上下文中定义
-                if !self.aliases.contains_key(var_name) {
-                    return Err(ValidationError::new(
-                        format!("第 {} 个返回项引用了未定义的变量 '{}'", idx + 1, var_name),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
-            }
-            crate::core::types::expression::Expression::Property { object, property: _ } => {
-                // 验证属性访问
-                if let crate::core::types::expression::Expression::Variable(var_name) = object.as_ref() {
+        if let Some(e) = expr.get_expression() {
+            match e {
+                crate::core::types::expression::Expression::Variable(var_name) => {
+                    // 检查变量是否在上下文中定义
                     if !self.aliases.contains_key(var_name) {
                         return Err(ValidationError::new(
                             format!("第 {} 个返回项引用了未定义的变量 '{}'", idx + 1, var_name),
@@ -333,39 +324,58 @@ impl MatchValidator {
                         ));
                     }
                 }
-            }
-            crate::core::types::expression::Expression::Function { name, args } => {
-                // 验证函数调用
-                for (arg_idx, arg) in args.iter().enumerate() {
-                    if let Err(e) = self.validate_return_expression(arg, arg_idx) {
+                crate::core::types::expression::Expression::Property { object, property: _ } => {
+                    // 验证属性访问
+                    if let crate::core::types::expression::Expression::Variable(var_name) = object.as_ref() {
+                        if !self.aliases.contains_key(var_name) {
+                            return Err(ValidationError::new(
+                                format!("第 {} 个返回项引用了未定义的变量 '{}'", idx + 1, var_name),
+                                ValidationErrorType::SemanticError,
+                            ));
+                        }
+                    }
+                }
+                crate::core::types::expression::Expression::Function { name, args } => {
+                    // 验证函数调用
+                    for (arg_idx, arg) in args.iter().enumerate() {
+                        if let Err(e) = self.validate_return_expression(&ContextualExpression::new(crate::core::types::expression::ExpressionId::new(0), expr.context().clone()), arg_idx) {
+                            return Err(e);
+                        }
+                    }
+                    // 验证函数名是否有效（普通函数或聚合函数）
+                    let registry = global_registry();
+                    if !registry.contains(name) && !self.is_valid_aggregate_function(name) {
+                        return Err(ValidationError::new(
+                            format!("第 {} 个返回项引用了未定义的函数 '{}'", idx + 1, name),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
+                crate::core::types::expression::Expression::Binary { left, right, .. } => {
+                    // 验证二元表达式
+                    if let Err(e) = self.validate_return_expression(&ContextualExpression::new(crate::core::types::expression::ExpressionId::new(0), expr.context().clone()), idx) {
+                        return Err(e);
+                    }
+                    if let Err(e) = self.validate_return_expression(&ContextualExpression::new(crate::core::types::expression::ExpressionId::new(0), expr.context().clone()), idx) {
                         return Err(e);
                     }
                 }
-                // 验证函数名是否有效（普通函数或聚合函数）
-                let registry = global_registry();
-                if !registry.contains(name) && !self.is_valid_aggregate_function(name) {
-                    return Err(ValidationError::new(
-                        format!("第 {} 个返回项引用了未定义的函数 '{}'", idx + 1, name),
-                        ValidationErrorType::SemanticError,
-                    ));
+                crate::core::types::expression::Expression::Unary { operand, .. } => {
+                    // 验证一元表达式
+                    if let Err(e) = self.validate_return_expression(&ContextualExpression::new(crate::core::types::expression::ExpressionId::new(0), expr.context().clone()), idx) {
+                        return Err(e);
+                    }
+                }
+                crate::core::types::expression::Expression::Aggregate { .. } => {
+                    // 聚合表达式在 RETURN 子句中是有效的
+                }
+                crate::core::types::expression::Expression::Literal(_) => {
+                    // 字面量总是有效的
+                }
+                crate::core::types::expression::Expression::Parameter(_) => {
+                    // 参数总是有效的
                 }
             }
-            crate::core::types::expression::Expression::Binary { left, right, .. } => {
-                // 验证二元表达式
-                if let Err(e) = self.validate_return_expression(left, idx) {
-                    return Err(e);
-                }
-                if let Err(e) = self.validate_return_expression(right, idx) {
-                    return Err(e);
-                }
-            }
-            crate::core::types::expression::Expression::Unary { operand, .. } => {
-                // 验证一元表达式
-                if let Err(e) = self.validate_return_expression(operand, idx) {
-                    return Err(e);
-                }
-            }
-            _ => {}
         }
         Ok(())
     }

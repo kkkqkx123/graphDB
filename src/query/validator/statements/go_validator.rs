@@ -201,12 +201,14 @@ impl GoValidator {
     }
 
     /// 验证 YIELD 子句
-    fn validate_yield_clause(&mut self, items: &[(Expression, Option<String>)]) -> Result<Vec<GoYieldColumn>, ValidationError> {
+    fn validate_yield_clause(&mut self, items: &[(ContextualExpression, Option<String>)]) -> Result<Vec<GoYieldColumn>, ValidationError> {
         let mut column_names = HashMap::new();
         let mut yield_columns = Vec::new();
 
         for (i, (expr, alias)) in items.iter().enumerate() {
-            self.validate_expression(expr)?;
+            if let Some(e) = expr.expression() {
+                self.validate_expression(&e)?;
+            }
 
             let col_alias = alias.clone().unwrap_or_else(|| format!("column_{}", i));
             
@@ -434,10 +436,10 @@ impl StatementValidator for GoValidator {
         let where_filter = self.validate_where_clause(&go_stmt.where_clause)?;
 
         // 6. 验证 YIELD 子句
-        let yield_items: Vec<(Expression, Option<String>)> = go_stmt.yield_clause.as_ref()
+        let yield_items: Vec<(ContextualExpression, Option<String>)> = go_stmt.yield_clause.as_ref()
             .map(|yield_clause| {
                 yield_clause.items.iter()
-                    .map(|item| (item.expression.clone().into_expression(), item.alias.clone()))
+                    .map(|item| (item.expression.clone(), item.alias.clone()))
                     .collect()
             })
             .unwrap_or_default();

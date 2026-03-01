@@ -93,6 +93,14 @@ fn parse_edge_direction(direction_str: &str) -> crate::core::EdgeDirection {
     }
 }
 
+/// 安全解析表达式字符串
+/// 如果解析失败，返回 None
+fn parse_expression_safe(expr_str: &str) -> Option<crate::core::Expression> {
+    crate::query::parser::parser::parse_expression_meta_from_string(expr_str)
+        .ok()
+        .map(|ctx_expr| ctx_expr.into_expression())
+}
+
 /// 执行器工厂
 ///
 /// 负责根据计划节点类型创建对应的执行器实例

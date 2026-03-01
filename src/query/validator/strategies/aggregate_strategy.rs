@@ -3,7 +3,11 @@
 
 use crate::core::types::operators::AggregateFunction;
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionId;
 use crate::core::error::{ValidationError, ValidationErrorType};
+use std::sync::Arc;
 
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;
@@ -19,7 +23,7 @@ impl AggregateValidationStrategy {
             Some(e) => e,
             None => return false,
         };
-        self.has_aggregate_expression_internal(expr_meta.inner().as_ref())
+        self.has_aggregate_expression_internal(expr_meta.inner())
     }
 
     /// 内部方法：检查 Expression 是否包含聚合函数
@@ -27,11 +31,11 @@ impl AggregateValidationStrategy {
         match expression {
             crate::core::types::expression::Expression::Aggregate { .. } => true,
             crate::core::types::expression::Expression::Unary { operand, .. } => {
-                self.has_aggregate_expression_internal(operand.as_ref())
+                self.has_aggregate_expression_internal(operand)
             }
             crate::core::types::expression::Expression::Binary { left, right, .. } => {
-                self.has_aggregate_expression_internal(left.as_ref())
-                    || self.has_aggregate_expression_internal(right.as_ref())
+                self.has_aggregate_expression_internal(left)
+                    || self.has_aggregate_expression_internal(right)
             }
             crate::core::types::expression::Expression::Function { args, .. } => {
                 args.iter().any(|arg| self.has_aggregate_expression_internal(arg))
@@ -83,7 +87,7 @@ impl AggregateValidationStrategy {
             Some(e) => e,
             None => return Ok(()),
         };
-        self.validate_aggregate_expression_internal(expr_meta.inner().as_ref())
+        self.validate_aggregate_expression_internal(expr_meta.inner())
     }
 
     /// 内部方法：验证聚合表达式的合法性
@@ -377,8 +381,13 @@ mod tests {
             distinct: false,
         };
 
+        let meta = ExpressionMeta::new(expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+
         // COUNT 允许通配符属性
-        assert!(strategy.validate_aggregate_expression(&expression).is_ok());
+        assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
     }
 
     #[test]
@@ -393,8 +402,13 @@ mod tests {
             distinct: false,
         };
 
+        let meta = ExpressionMeta::new(expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+
         // SUM 不允许通配符属性
-        let result = strategy.validate_aggregate_expression(&expression);
+        let result = strategy.validate_aggregate_expression(&ctx_expr);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("SUM"));
@@ -436,8 +450,13 @@ mod tests {
                 distinct: false,
             };
 
+            let meta = ExpressionMeta::new(expression);
+            let expr_ctx = ExpressionContext::new();
+            let id = expr_ctx.register_expression(meta);
+            let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+
             assert!(
-                strategy.validate_aggregate_expression(&expression).is_ok(),
+                strategy.validate_aggregate_expression(&ctx_expr).is_ok(),
                 "聚合函数应该是有效的"
             );
         }
@@ -452,8 +471,13 @@ mod tests {
             distinct: true,
         };
 
+        let meta = ExpressionMeta::new(expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+
         // DISTINCT 聚合应该被接受
-        assert!(strategy.validate_aggregate_expression(&expression).is_ok());
+        assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
     }
 
     #[test]
@@ -469,7 +493,11 @@ mod tests {
             }),
             distinct: false,
         };
-        assert!(strategy.validate_aggregate_expression(&count_input_wildcard).is_ok());
+        let meta = ExpressionMeta::new(count_input_wildcard);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
 
         // SUM($-.*) 不应该被允许
         let sum_input_wildcard = Expression::Aggregate {
@@ -480,7 +508,11 @@ mod tests {
             }),
             distinct: false,
         };
-        let result = strategy.validate_aggregate_expression(&sum_input_wildcard);
+        let meta = ExpressionMeta::new(sum_input_wildcard);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        let result = strategy.validate_aggregate_expression(&ctx_expr);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("输入属性"));
@@ -500,7 +532,11 @@ mod tests {
             }),
             distinct: false,
         };
-        assert!(strategy.validate_aggregate_expression(&count_var_wildcard).is_ok());
+        let meta = ExpressionMeta::new(count_var_wildcard);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
 
         // AVG($var.*) 不应该被允许
         let avg_var_wildcard = Expression::Aggregate {
@@ -511,7 +547,11 @@ mod tests {
             }),
             distinct: false,
         };
-        let result = strategy.validate_aggregate_expression(&avg_var_wildcard);
+        let meta = ExpressionMeta::new(avg_var_wildcard);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        let result = strategy.validate_aggregate_expression(&ctx_expr);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("变量属性"));
@@ -536,8 +576,12 @@ mod tests {
             }),
             distinct: false,
         };
+        let meta = ExpressionMeta::new(nested_wildcard);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         // 由于通配符在嵌套表达式中，不是直接参数，所以应该通过验证
-        assert!(strategy.validate_aggregate_expression(&nested_wildcard).is_ok());
+        assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
     }
 
     #[test]
@@ -647,7 +691,11 @@ mod tests {
             distinct: false,
         };
 
-        assert!(strategy.validate_aggregate_expression(&expression).is_ok());
+        let meta = ExpressionMeta::new(expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
     }
 
     #[test]
@@ -661,7 +709,11 @@ mod tests {
             distinct: false,
         };
 
-        assert!(strategy.validate_aggregate_expression(&expression).is_ok());
+        let meta = ExpressionMeta::new(expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
     }
 
     #[test]
@@ -676,6 +728,11 @@ mod tests {
             }),
             distinct: false,
         };
+        let meta = ExpressionMeta::new(min_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        
         let max_expression = Expression::Aggregate {
             func: AggregateFunction::Max("".to_string()),
             arg: Box::new(Expression::Property {
@@ -684,8 +741,12 @@ mod tests {
             }),
             distinct: false,
         };
+        let meta = ExpressionMeta::new(max_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr2 = ContextualExpression::new(id, Arc::new(expr_ctx));
 
-        assert!(strategy.validate_aggregate_expression(&min_expression).is_ok());
-        assert!(strategy.validate_aggregate_expression(&max_expression).is_ok());
+        assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
+        assert!(strategy.validate_aggregate_expression(&ctx_expr2).is_ok());
     }
 }

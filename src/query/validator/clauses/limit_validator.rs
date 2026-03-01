@@ -309,8 +309,14 @@ mod tests {
 
     #[test]
     fn test_limit_validator_basic() {
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let limit_expr = Expression::literal(10);
+        let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+        
         let mut validator = LimitValidator::new()
-            .set_limit(Expression::literal(10));
+            .set_limit(ctx_expr);
 
         let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
@@ -326,9 +332,20 @@ mod tests {
 
     #[test]
     fn test_limit_validator_with_skip() {
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let skip_expr = Expression::literal(5);
+        let skip_meta = crate::core::types::expression::ExpressionMeta::new(skip_expr);
+        let skip_id = expr_ctx.register_expression(skip_meta);
+        let skip_ctx_expr = ContextualExpression::new(skip_id, expr_ctx.clone());
+        
+        let limit_expr = Expression::literal(10);
+        let limit_meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
+        let limit_id = expr_ctx.register_expression(limit_meta);
+        let limit_ctx_expr = ContextualExpression::new(limit_id, expr_ctx);
+        
         let mut validator = LimitValidator::new()
-            .set_skip(Expression::literal(5))
-            .set_limit(Expression::literal(10));
+            .set_skip(skip_ctx_expr)
+            .set_limit(limit_ctx_expr);
 
         let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
@@ -345,8 +362,14 @@ mod tests {
 
     #[test]
     fn test_limit_validator_negative_skip() {
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let skip_expr = Expression::literal(-1);
+        let meta = crate::core::types::expression::ExpressionMeta::new(skip_expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+        
         let mut validator = LimitValidator::new()
-            .set_skip(Expression::literal(-1));
+            .set_skip(ctx_expr);
 
         let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
@@ -361,8 +384,14 @@ mod tests {
 
     #[test]
     fn test_limit_validator_negative_limit() {
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let limit_expr = Expression::literal(-5);
+        let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+        
         let mut validator = LimitValidator::new()
-            .set_limit(Expression::literal(-5));
+            .set_limit(ctx_expr);
 
         let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
@@ -377,9 +406,20 @@ mod tests {
 
     #[test]
     fn test_limit_validator_zero_skip_and_limit() {
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let skip_expr = Expression::literal(0);
+        let skip_meta = crate::core::types::expression::ExpressionMeta::new(skip_expr);
+        let skip_id = expr_ctx.register_expression(skip_meta);
+        let skip_ctx_expr = ContextualExpression::new(skip_id, expr_ctx.clone());
+        
+        let limit_expr = Expression::literal(0);
+        let limit_meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
+        let limit_id = expr_ctx.register_expression(limit_meta);
+        let limit_ctx_expr = ContextualExpression::new(limit_id, expr_ctx);
+        
         let mut validator = LimitValidator::new()
-            .set_skip(Expression::literal(0))
-            .set_limit(Expression::literal(0));
+            .set_skip(skip_ctx_expr)
+            .set_limit(limit_ctx_expr);
 
         let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
@@ -394,8 +434,14 @@ mod tests {
 
     #[test]
     fn test_limit_validator_non_integer() {
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let limit_expr = Expression::literal("invalid");
+        let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+        
         let mut validator = LimitValidator::new()
-            .set_limit(Expression::literal("invalid"));
+            .set_limit(ctx_expr);
 
         let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {

@@ -2,10 +2,14 @@
 //! 负责验证表达式的操作合法性和结构完整性
 
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionId;
 use crate::core::types::DataType;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::strategies::helpers::type_checker::TypeDeduceValidator;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 pub struct ExpressionChecker;
 
@@ -15,16 +19,10 @@ impl ExpressionChecker {
     }
 
     pub fn validate_expression_operations(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
-        if let Some(expr_meta) = expression.get_expression() {
-            if let Some(expr) = expr_meta.inner().get_expression() {
-                self.check_expression_depth_bfs(expression, 100)?;
-                self.validate_expression_operations_recursive(&expr, 0)
-            } else {
-                Err(ValidationError::new(
-                    "表达式无效".to_string(),
-                    ValidationErrorType::SemanticError,
-                ))
-            }
+        if let Some(expr_meta) = expression.expression() {
+            let expr = expr_meta.inner();
+            self.check_expression_depth_bfs(expression, 100)?;
+            self.validate_expression_operations_recursive(expr, 0)
         } else {
             Err(ValidationError::new(
                 "表达式无效".to_string(),
@@ -330,11 +328,10 @@ impl ExpressionChecker {
     }
 
     pub fn validate_expression_cycles(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
-        if let Some(expr_meta) = expression.get_expression() {
-            if let Some(expr) = expr_meta.inner().get_expression() {
-                let mut visited = HashSet::new();
-                return self.check_expression_cycles(&expr, &mut visited, 0);
-            }
+        if let Some(expr_meta) = expression.expression() {
+            let expr = expr_meta.inner();
+            let mut visited = HashSet::new();
+            return self.check_expression_cycles(expr, &mut visited, 0);
         }
         Err(ValidationError::new(
             "表达式无效".to_string(),
@@ -387,10 +384,9 @@ impl ExpressionChecker {
     }
 
     pub fn calculate_expression_depth(&self, expression: &ContextualExpression) -> usize {
-        if let Some(expr_meta) = expression.get_expression() {
-            if let Some(expr) = expr_meta.inner().get_expression() {
-                return self.calculate_expression_depth_internal(&expr);
-            }
+        if let Some(expr_meta) = expression.expression() {
+            let expr = expr_meta.inner();
+            return self.calculate_expression_depth_internal(expr);
         }
         0
     }
@@ -492,8 +488,12 @@ mod tests {
             left: Box::new(Expression::Literal(Value::Int(1))),
             right: Box::new(Expression::Literal(Value::Int(2))),
         };
+        let meta = ExpressionMeta::new(valid_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         
-        assert!(checker.validate_expression_operations(&valid_expression).is_ok());
+        assert!(checker.validate_expression_operations(&ctx_expr).is_ok());
     }
 
     #[test]
@@ -505,8 +505,12 @@ mod tests {
             left: Box::new(Expression::Literal(Value::Int(1))),
             right: Box::new(Expression::Literal(Value::Int(0))),
         };
+        let meta = ExpressionMeta::new(invalid_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         
-        assert!(checker.validate_expression_operations(&invalid_expression).is_err());
+        assert!(checker.validate_expression_operations(&ctx_expr).is_err());
     }
 
     #[test]
@@ -514,7 +518,11 @@ mod tests {
         let checker = ExpressionChecker::new();
         
         let simple_expression = Expression::Literal(Value::Int(1));
-        assert_eq!(checker.calculate_expression_depth(&simple_expression), 1);
+        let meta = ExpressionMeta::new(simple_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        assert_eq!(checker.calculate_expression_depth(&ctx_expr), 1);
         
         let nested_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
@@ -525,7 +533,11 @@ mod tests {
             }),
             right: Box::new(Expression::Literal(Value::Int(3))),
         };
+        let meta = ExpressionMeta::new(nested_expression);
+        let expr_ctx = ExpressionContext::new();
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         
-        assert_eq!(checker.calculate_expression_depth(&nested_expression), 3);
+        assert_eq!(checker.calculate_expression_depth(&ctx_expr), 3);
     }
 }

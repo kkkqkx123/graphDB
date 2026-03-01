@@ -22,9 +22,9 @@ impl VariableChecker {
             Some(e) => e,
             None => return Ok(()),
         };
-        let expr = expr_meta.inner().as_ref();
+        let expr = expr_meta.inner();
 
-        let variables = self.extract_variables_internal(&expr);
+        let variables = self.extract_variables_internal(expr);
         
         for var in &variables {
             self.validate_variable_usage(var, available_aliases)?;
@@ -100,7 +100,7 @@ impl VariableChecker {
 
     pub fn extract_variables(&self, expression: &ContextualExpression) -> Vec<String> {
         match expression.expression() {
-            Some(e) => self.extract_variables_internal(e.inner().as_ref()),
+            Some(e) => self.extract_variables_internal(e.inner()),
             None => Vec::new(),
         }
     }
