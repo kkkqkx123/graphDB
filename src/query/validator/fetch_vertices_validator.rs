@@ -17,7 +17,8 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::{Expression, Value};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::Value;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
@@ -41,7 +42,7 @@ pub struct ValidatedFetchVertices {
 /// 验证后的 YIELD 列
 #[derive(Debug, Clone)]
 pub struct ValidatedYieldColumn {
-    pub expression: Expression,
+    pub expression: ContextualExpression,
     pub alias: String,
     pub tag_name: Option<String>,
     pub prop_name: Option<String>,

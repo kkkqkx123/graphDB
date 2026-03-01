@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{MergeStmt, SetClause};
 use crate::query::parser::ast::Pattern;
@@ -184,6 +185,21 @@ impl MergeValidator {
     /// 验证属性表达式
     fn validate_properties(
         &self,
+        props: &ContextualExpression,
+    ) -> Result<(), ValidationError> {
+        if let Some(e) = props.expression() {
+            self.validate_properties_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "属性表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证属性表达式
+    fn validate_properties_internal(
+        &self,
         props: &crate::core::types::expression::Expression,
     ) -> Result<(), ValidationError> {
         use crate::core::types::expression::Expression;
@@ -198,6 +214,21 @@ impl MergeValidator {
 
     /// 验证属性值
     fn validate_property_value(
+        &self,
+        value: &ContextualExpression,
+    ) -> Result<(), ValidationError> {
+        if let Some(e) = value.expression() {
+            self.validate_property_value_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "属性值表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证属性值
+    fn validate_property_value_internal(
         &self,
         value: &crate::core::types::expression::Expression,
     ) -> Result<(), ValidationError> {

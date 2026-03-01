@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{WithStmt, ReturnItem};
 use crate::query::validator::validator_trait::{
@@ -14,7 +15,7 @@ use crate::query::validator::validator_trait::{
 #[derive(Debug)]
 pub struct WithValidator {
     items: Vec<ReturnItem>,
-    where_clause: Option<crate::core::types::expression::Expression>,
+    where_clause: Option<ContextualExpression>,
     distinct: bool,
     order_by: Option<crate::query::parser::ast::stmt::OrderByClause>,
     skip: Option<usize>,
@@ -72,6 +73,21 @@ impl WithValidator {
     /// 验证表达式
     fn validate_expression(
         &self,
+        expr: &ContextualExpression,
+    ) -> Result<(), ValidationError> {
+        if let Some(e) = expr.expression() {
+            self.validate_expression_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证表达式
+    fn validate_expression_internal(
+        &self,
         expr: &crate::core::types::expression::Expression,
     ) -> Result<(), ValidationError> {
         use crate::core::types::expression::Expression;
@@ -89,7 +105,7 @@ impl WithValidator {
                 Ok(())
             }
             Expression::Property { object, property } => {
-                self.validate_expression(object)?;
+                self.validate_expression_internal(object)?;
                 if property.is_empty() {
                     return Err(ValidationError::new(
                         "Property name cannot be empty".to_string(),
@@ -99,14 +115,14 @@ impl WithValidator {
                 Ok(())
             }
             Expression::Function { name, args } => {
-                self.validate_function_call(name, args)
+                self.validate_function_call_internal(name, args)
             }
             Expression::Binary { left, right, .. } => {
-                self.validate_expression(left)?;
-                self.validate_expression(right)
+                self.validate_expression_internal(left)?;
+                self.validate_expression_internal(right)
             }
             Expression::Unary { operand, .. } => {
-                self.validate_expression(operand)
+                self.validate_expression_internal(operand)
             }
             _ => Ok(()),
         }
@@ -116,7 +132,7 @@ impl WithValidator {
     fn validate_function_call(
         &self,
         name: &str,
-        args: &[crate::core::types::expression::Expression],
+        args: &[ContextualExpression],
     ) -> Result<(), ValidationError> {
         if name.is_empty() {
             return Err(ValidationError::new(
@@ -132,30 +148,69 @@ impl WithValidator {
         Ok(())
     }
 
+    /// 内部方法：验证函数调用
+    fn validate_function_call_internal(
+        &self,
+        name: &str,
+        args: &[crate::core::types::expression::Expression],
+    ) -> Result<(), ValidationError> {
+        if name.is_empty() {
+            return Err(ValidationError::new(
+                "Function name cannot be empty".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        for arg in args {
+            self.validate_expression_internal(arg)?;
+        }
+
+        Ok(())
+    }
+
     /// 验证 WHERE 子句
     fn validate_where_clause(
         &self,
-        where_clause: &crate::core::types::expression::Expression,
+        where_clause: &ContextualExpression,
     ) -> Result<(), ValidationError> {
         self.validate_expression(where_clause)?;
 
         // WHERE 子句必须是布尔类型或可转换为布尔类型
-        use crate::core::types::expression::Expression;
-        match where_clause {
-            Expression::Literal(_) |
-            Expression::Variable(_) |
-            Expression::Binary { .. } |
-            Expression::Unary { .. } |
-            Expression::Function { .. } => Ok(()),
-            _ => Err(ValidationError::new(
-                "WHERE clause must be a boolean expression".to_string(),
-                ValidationErrorType::TypeError,
-            )),
+        if let Some(e) = where_clause.expression() {
+            use crate::core::types::expression::Expression;
+            match e {
+                Expression::Literal(_) |
+                Expression::Variable(_) |
+                Expression::Binary { .. } |
+                Expression::Unary { .. } |
+                Expression::Function { .. } => Ok(()),
+                _ => Err(ValidationError::new(
+                    "WHERE clause must be a boolean expression".to_string(),
+                    ValidationErrorType::TypeError,
+                )),
+            }
+        } else {
+            Err(ValidationError::new(
+                "WHERE 表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
         }
     }
 
     /// 推断列名
     fn infer_column_name(
+        &self,
+        expr: &ContextualExpression,
+    ) -> Option<String> {
+        if let Some(e) = expr.expression() {
+            self.infer_column_name_internal(&e)
+        } else {
+            None
+        }
+    }
+
+    /// 内部方法：推断列名
+    fn infer_column_name_internal(
         &self,
         expr: &crate::core::types::expression::Expression,
     ) -> Option<String> {
@@ -171,6 +226,18 @@ impl WithValidator {
 
     /// 推断表达式类型
     fn infer_expression_type(
+        &self,
+        expr: &ContextualExpression,
+    ) -> ValueType {
+        if let Some(e) = expr.expression() {
+            self.infer_expression_type_internal(&e)
+        } else {
+            ValueType::Unknown
+        }
+    }
+
+    /// 内部方法：推断表达式类型
+    fn infer_expression_type_internal(
         &self,
         expr: &crate::core::types::expression::Expression,
     ) -> ValueType {

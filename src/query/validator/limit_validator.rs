@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -28,8 +28,8 @@ pub struct LimitValidator {
     user_defined_vars: Vec<String>,
     validated_result: Option<ValidatedLimit>,
     schema_manager: Option<Arc<RedbSchemaManager>>,
-    skip_expr: Option<Expression>,
-    limit_expr: Option<Expression>,
+    skip_expr: Option<ContextualExpression>,
+    limit_expr: Option<ContextualExpression>,
     count: Option<u64>,
 }
 
@@ -53,12 +53,12 @@ impl LimitValidator {
         self
     }
 
-    pub fn set_skip(mut self, skip: Expression) -> Self {
+    pub fn set_skip(mut self, skip: ContextualExpression) -> Self {
         self.skip_expr = Some(skip);
         self
     }
 
-    pub fn set_limit(mut self, limit: Expression) -> Self {
+    pub fn set_limit(mut self, limit: ContextualExpression) -> Self {
         self.limit_expr = Some(limit);
         self
     }
@@ -69,7 +69,7 @@ impl LimitValidator {
     }
 
     /// 验证 SKIP 表达式
-    fn validate_skip(&self, skip: &Option<Expression>) -> Result<Option<u64>, ValidationError> {
+    fn validate_skip(&self, skip: &Option<ContextualExpression>) -> Result<Option<u64>, ValidationError> {
         if let Some(skip_expr) = skip {
             // 验证类型是否为整数
             if !self.is_integer_expression(skip_expr) {
@@ -94,7 +94,7 @@ impl LimitValidator {
     }
 
     /// 验证 LIMIT 表达式
-    fn validate_limit(&self, limit: &Option<Expression>) -> Result<Option<u64>, ValidationError> {
+    fn validate_limit(&self, limit: &Option<ContextualExpression>) -> Result<Option<u64>, ValidationError> {
         if let Some(limit_expr) = limit {
             // 验证类型是否为整数
             if !self.is_integer_expression(limit_expr) {
@@ -147,7 +147,18 @@ impl LimitValidator {
     }
 
     /// 检查表达式是否为整数类型
-    fn is_integer_expression(&self, expr: &Expression) -> bool {
+    fn is_integer_expression(&self, expr: &ContextualExpression) -> bool {
+        if let Some(e) = expr.expression() {
+            self.is_integer_expression_internal(&e)
+        } else {
+            false
+        }
+    }
+
+    /// 内部方法：检查表达式是否为整数类型
+    fn is_integer_expression_internal(&self, expr: &crate::core::types::expression::Expression) -> bool {
+        use crate::core::types::expression::Expression;
+
         match expr {
             Expression::Literal(val) => matches!(val, crate::core::Value::Int(_)),
             Expression::Variable(_) => true, // 变量在运行时检查
@@ -156,7 +167,21 @@ impl LimitValidator {
     }
 
     /// 评估表达式
-    fn evaluate_expression(&self, expr: &Expression) -> Result<i64, ValidationError> {
+    fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<i64, ValidationError> {
+        if let Some(e) = expr.expression() {
+            self.evaluate_expression_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "无法评估表达式".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：评估表达式
+    fn evaluate_expression_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<i64, ValidationError> {
+        use crate::core::types::expression::Expression;
+
         match expr {
             Expression::Literal(crate::core::Value::Int(n)) => Ok(*n),
             Expression::Variable(_) => Ok(0), // 变量在运行时解析

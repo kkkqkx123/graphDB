@@ -17,7 +17,8 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::{Expression, Value};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::Value;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
 use crate::query::validator::validator_trait::{
@@ -32,7 +33,7 @@ pub struct ValidatedDelete {
     pub space_id: u64,
     pub target_type: DeleteTargetType,
     pub with_edge: bool,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
 }
 
 /// 删除目标类型
@@ -185,59 +186,80 @@ impl DeleteValidator {
 
     /// 验证顶点 ID
     /// 使用 SchemaValidator 的统一验证方法
-    fn validate_vertex_id(&self, expr: &Expression, idx: usize) -> Result<(), ValidationError> {
+    fn validate_vertex_id(&self, expr: &ContextualExpression, idx: usize) -> Result<(), ValidationError> {
         let role = &format!("vertex {}", idx);
         
         if let Some(ref schema_manager) = self.schema_manager {
-            let schema_validator = crate::query::validator::SchemaValidator::new(schema_manager.clone());
-            let vid_type = crate::core::types::DataType::String;
-            schema_validator.validate_vid_expr(expr, &vid_type, role)
-                .map_err(|e| ValidationError::new(e.message, e.error_type))
+            if let Some(e) = expr.expression() {
+                let schema_validator = crate::query::validator::SchemaValidator::new(schema_manager.clone());
+                let vid_type = crate::core::types::DataType::String;
+                schema_validator.validate_vid_expr(&e, &vid_type, role)
+                    .map_err(|e| ValidationError::new(e.message, e.error_type))
+            } else {
+                Err(ValidationError::new(
+                    "顶点 ID 表达式无效".to_string(),
+                    ValidationErrorType::SemanticError,
+                ))
+            }
         } else {
             Self::basic_validate_vertex_id(expr, idx)
         }
     }
     
     /// 基本顶点 ID 验证（无 SchemaManager 时）
-    fn basic_validate_vertex_id(expr: &Expression, idx: usize) -> Result<(), ValidationError> {
-        match expr {
-            Expression::Literal(Value::String(s)) => {
-                if s.is_empty() {
-                    return Err(ValidationError::new(
-                        format!("Vertex ID at position {} cannot be empty", idx),
-                        ValidationErrorType::SemanticError,
-                    ));
+    fn basic_validate_vertex_id(expr: &ContextualExpression, idx: usize) -> Result<(), ValidationError> {
+        if let Some(e) = expr.expression() {
+            match e {
+                crate::core::types::expression::Expression::Literal(Value::String(s)) => {
+                    if s.is_empty() {
+                        return Err(ValidationError::new(
+                            format!("Vertex ID at position {} cannot be empty", idx),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                    Ok(())
                 }
-                Ok(())
+                crate::core::types::expression::Expression::Literal(Value::Int(_)) => Ok(()),
+                crate::core::types::expression::Expression::Variable(_) => Ok(()),
+                _ => Err(ValidationError::new(
+                    format!(
+                        "Vertex ID at position {} must be a string constant or variable",
+                        idx
+                    ),
+                    ValidationErrorType::SemanticError,
+                )),
             }
-            Expression::Literal(Value::Int(_)) => Ok(()),
-            Expression::Variable(_) => Ok(()),
-            _ => Err(ValidationError::new(
-                format!(
-                    "Vertex ID at position {} must be a string constant or variable",
-                    idx
-                ),
+        } else {
+            Err(ValidationError::new(
+                "顶点 ID 表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
-            )),
+            ))
         }
     }
 
     /// 验证 rank
-    fn validate_rank(&self, expr: &Expression) -> Result<(), ValidationError> {
-        match expr {
-            Expression::Literal(Value::Int(_)) => Ok(()),
-            Expression::Variable(_) => Ok(()),
-            _ => Err(ValidationError::new(
-                "Rank must be an integer constant or variable".to_string(),
+    fn validate_rank(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
+        if let Some(e) = expr.expression() {
+            match e {
+                crate::core::types::expression::Expression::Literal(Value::Int(_)) => Ok(()),
+                crate::core::types::expression::Expression::Variable(_) => Ok(()),
+                _ => Err(ValidationError::new(
+                    "Rank must be an integer constant or variable".to_string(),
+                    ValidationErrorType::SemanticError,
+                )),
+            }
+        } else {
+            Err(ValidationError::new(
+                "Rank 表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
-            )),
+            ))
         }
     }
 
     /// 验证 WHERE 子句
     fn validate_where_clause(
         &self,
-        where_clause: Option<&Expression>,
+        where_clause: Option<&ContextualExpression>,
     ) -> Result<(), ValidationError> {
         if let Some(where_expr) = where_clause {
             self.validate_expression(where_expr)?;
@@ -246,21 +268,33 @@ impl DeleteValidator {
     }
 
     /// 验证表达式
-    fn validate_expression(&self, expr: &Expression) -> Result<(), ValidationError> {
+    fn validate_expression(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
+        if let Some(e) = expr.expression() {
+            self.validate_expression_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证表达式
+    fn validate_expression_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
         match expr {
-            Expression::Literal(_) => Ok(()),
-            Expression::Variable(_) => Ok(()),
-            Expression::Property { .. } => Ok(()),
-            Expression::Function { args, .. } => {
+            crate::core::types::expression::Expression::Literal(_) => Ok(()),
+            crate::core::types::expression::Expression::Variable(_) => Ok(()),
+            crate::core::types::expression::Expression::Property { .. } => Ok(()),
+            crate::core::types::expression::Expression::Function { args, .. } => {
                 for arg in args {
-                    self.validate_expression(arg)?;
+                    self.validate_expression_internal(arg)?;
                 }
                 Ok(())
             }
-            Expression::Unary { operand, .. } => self.validate_expression(operand),
-            Expression::Binary { left, right, .. } => {
-                self.validate_expression(left)?;
-                self.validate_expression(right)?;
+            crate::core::types::expression::Expression::Unary { operand, .. } => self.validate_expression_internal(operand),
+            crate::core::types::expression::Expression::Binary { left, right, .. } => {
+                self.validate_expression_internal(left)?;
+                self.validate_expression_internal(right)?;
                 Ok(())
             }
             _ => Ok(()),

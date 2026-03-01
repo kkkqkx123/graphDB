@@ -17,7 +17,8 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::{Expression, Value};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::Value;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
 use crate::query::validator::validator_trait::{
@@ -48,7 +49,7 @@ pub struct ValidatedEdgeKey {
 /// 验证后的 YIELD 列
 #[derive(Debug, Clone)]
 pub struct ValidatedYieldColumn {
-    pub expression: Expression,
+    pub expression: ContextualExpression,
     pub alias: Option<String>,
     pub prop_name: Option<String>,
 }
@@ -103,7 +104,7 @@ impl FetchEdgesValidator {
     /// 验证 YIELD 子句（检查重复别名）
     pub fn validate_yield_clause(
         &self,
-        yield_columns: &[(Expression, Option<String>)],
+        yield_columns: &[(ContextualExpression, Option<String>)],
     ) -> Result<(), ValidationError> {
         let mut seen_aliases = std::collections::HashSet::new();
         

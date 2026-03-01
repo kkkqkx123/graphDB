@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{SubgraphStmt, Steps, FromClause, OverClause, YieldClause};
 use crate::query::validator::validator_trait::{
@@ -33,7 +33,7 @@ pub struct ValidatedGetSubgraph {
     pub steps: Steps,
     pub from: FromClause,
     pub over: Option<OverClause>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub yield_clause: Option<YieldClause>,
 }
 

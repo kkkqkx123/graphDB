@@ -6,9 +6,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::{
-    DataType, Expression,
-};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::DataType;
 use crate::core::types::EdgeDirection;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
@@ -23,17 +22,17 @@ pub struct ValidatedGo {
     pub space_id: u64,
     pub from_source: Option<GoSource>,
     pub over_edges: Vec<OverEdge>,
-    pub where_filter: Option<Expression>,
+    pub where_filter: Option<ContextualExpression>,
     pub yield_columns: Vec<GoYieldColumn>,
     pub step_range: Option<StepRange>,
     pub is_truncate: bool,
-    pub truncate_columns: Vec<Expression>,
+    pub truncate_columns: Vec<ContextualExpression>,
 }
 
 #[derive(Debug, Clone)]
 pub struct GoSource {
     pub source_type: GoSourceType,
-    pub expression: Expression,
+    pub expression: ContextualExpression,
     pub is_variable: bool,
     pub variable_name: Option<String>,
 }
@@ -65,7 +64,7 @@ pub struct EdgeProperty {
 
 #[derive(Debug, Clone)]
 pub struct GoYieldColumn {
-    pub expression: Expression,
+    pub expression: ContextualExpression,
     pub alias: String,
     pub is_distinct: bool,
 }

@@ -223,7 +223,16 @@ impl YieldValidator {
     }
 
     /// 推导表达式类型
-    fn deduce_expr_type(&self, _expression: &crate::core::Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_expr_type(&self, expression: &crate::core::types::expression::contextual::ContextualExpression) -> Result<ValueType, ValidationError> {
+        if let Some(e) = expression.expression() {
+            self.deduce_expr_type_internal(&e)
+        } else {
+            Ok(ValueType::Unknown)
+        }
+    }
+
+    /// 内部方法：推导表达式类型
+    fn deduce_expr_type_internal(&self, _expression: &crate::core::types::expression::Expression) -> Result<ValueType, ValidationError> {
         // 简化实现，实际应该根据表达式推导类型
         Ok(ValueType::Unknown)
     }
@@ -317,6 +326,17 @@ impl StatementValidator for YieldValidator {
 mod tests {
     use super::*;
     use crate::core::{Expression, Value};
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::{ExpressionContext, ExpressionMeta, ExpressionId};
+    use std::sync::Arc;
+
+    /// 测试辅助函数：创建简单的 ContextualExpression
+    fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {
+        let context = Arc::new(ExpressionContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = context.register_expression(meta);
+        ContextualExpression::new(id, context)
+    }
 
     #[test]
     fn test_yield_validator_new() {
@@ -346,7 +366,7 @@ mod tests {
 
         // 添加一列
         let col = YieldColumn::new(
-            Expression::Literal(Value::Int(42)),
+            create_test_contextual_expression(Expression::Literal(Value::Int(42))),
             "result".to_string(),
         );
         validator.add_yield_column(col);
@@ -374,11 +394,11 @@ mod tests {
 
         // 添加两列同名
         let col1 = YieldColumn::new(
-            Expression::Literal(Value::Int(1)),
+            create_test_contextual_expression(Expression::Literal(Value::Int(1))),
             "result".to_string(),
         );
         let col2 = YieldColumn::new(
-            Expression::Literal(Value::Int(2)),
+            create_test_contextual_expression(Expression::Literal(Value::Int(2))),
             "result".to_string(),
         );
         validator.add_yield_column(col1);
@@ -394,7 +414,7 @@ mod tests {
 
         // 添加以数字开头的别名
         let col = YieldColumn::new(
-            Expression::Literal(Value::Int(42)),
+            create_test_contextual_expression(Expression::Literal(Value::Int(42))),
             "1result".to_string(),
         );
         validator.add_yield_column(col);

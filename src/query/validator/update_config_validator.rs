@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::UpdateConfigsStmt;
 use crate::query::validator::validator_trait::{
@@ -72,6 +73,21 @@ impl UpdateConfigsValidator {
 
     /// 验证配置值
     fn validate_config_value(
+        &self,
+        value: &ContextualExpression,
+    ) -> Result<(), ValidationError> {
+        if let Some(e) = value.expression() {
+            self.validate_config_value_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "配置值表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证配置值
+    fn validate_config_value_internal(
         &self,
         value: &crate::core::types::expression::Expression,
     ) -> Result<(), ValidationError> {
@@ -189,8 +205,10 @@ impl StatementValidator for UpdateConfigsValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::Expression;
     use crate::core::Value;
+    use crate::core::types::expression::ExpressionContext;
 
     #[test]
     fn test_update_configs_validator_new() {
@@ -231,12 +249,20 @@ mod tests {
     #[test]
     fn test_validate_config_value() {
         let validator = UpdateConfigsValidator::new();
+        let mut expr_context = ExpressionContext::new();
 
         // 有效配置值
-        assert!(validator.validate_config_value(&Expression::Literal(Value::Int(100))).is_ok());
-        assert!(validator.validate_config_value(&Expression::Literal(Value::Bool(true))).is_ok());
+        let int_expr_id = expr_context.add_expression(Expression::Literal(Value::Int(100)));
+        let int_expr = ContextualExpression::new(int_expr_id, expr_context.clone());
+        assert!(validator.validate_config_value(&int_expr).is_ok());
+
+        let bool_expr_id = expr_context.add_expression(Expression::Literal(Value::Bool(true)));
+        let bool_expr = ContextualExpression::new(bool_expr_id, expr_context.clone());
+        assert!(validator.validate_config_value(&bool_expr).is_ok());
 
         // 无效配置值（非常量）
-        assert!(validator.validate_config_value(&Expression::Variable("var".to_string())).is_err());
+        let var_expr_id = expr_context.add_expression(Expression::Variable("var".to_string()));
+        let var_expr = ContextualExpression::new(var_expr_id, expr_context);
+        assert!(validator.validate_config_value(&var_expr).is_err());
     }
 }

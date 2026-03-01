@@ -18,6 +18,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError as CoreValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::{DataType, EdgeTypeInfo, PropertyDef, TagInfo};
 use crate::core::Value;
 use crate::storage::metadata::schema_manager::SchemaManager;
@@ -295,11 +296,28 @@ impl SchemaValidator {
     /// - Err(ValidationError) 验证失败
     pub fn validate_vid_expr(
         &self,
-        expr: &crate::core::Expression,
+        expr: &ContextualExpression,
         vid_type: &DataType,
         role: &str,
     ) -> Result<(), CoreValidationError> {
-        use crate::core::Expression;
+        if let Some(e) = expr.expression() {
+            self.validate_vid_expr_internal(&e, vid_type, role)
+        } else {
+            Err(CoreValidationError::new(
+                format!("{} vertex ID 表达式无效", role),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证 VID 表达式
+    fn validate_vid_expr_internal(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+        vid_type: &DataType,
+        role: &str,
+    ) -> Result<(), CoreValidationError> {
+        use crate::core::types::expression::Expression;
         
         match expr {
             Expression::Literal(value) => {
@@ -386,13 +404,22 @@ impl SchemaValidator {
 
     /// 验证表达式是否为可计算的值
     /// 用于检查 VID 和属性值表达式
-    pub fn is_evaluable_expr(&self, expr: &crate::core::Expression) -> bool {
-        use crate::core::Expression;
+    pub fn is_evaluable_expr(&self, expr: &ContextualExpression) -> bool {
+        if let Some(e) = expr.expression() {
+            self.is_evaluable_expr_internal(&e)
+        } else {
+            false
+        }
+    }
+
+    /// 内部方法：验证表达式是否为可计算的值
+    fn is_evaluable_expr_internal(&self, expr: &crate::core::types::expression::Expression) -> bool {
+        use crate::core::types::expression::Expression;
         match expr {
             Expression::Literal(_) => true,
             Expression::Variable(_) => true,
-            Expression::List(list) => list.iter().all(|e| self.is_evaluable_expr(e)),
-            Expression::Map(map) => map.iter().all(|(_, e)| self.is_evaluable_expr(e)),
+            Expression::List(list) => list.iter().all(|e| self.is_evaluable_expr_internal(e)),
+            Expression::Map(map) => map.iter().all(|(_, e)| self.is_evaluable_expr_internal(e)),
             // 函数调用如果是确定性的也可以接受
             Expression::Function { .. } => true,
             _ => false,
@@ -403,9 +430,24 @@ impl SchemaValidator {
     /// 仅支持常量表达式
     pub fn evaluate_expression(
         &self,
-        expr: &crate::core::Expression,
+        expr: &ContextualExpression,
     ) -> Result<Value, CoreValidationError> {
-        use crate::core::Expression;
+        if let Some(e) = expr.expression() {
+            self.evaluate_expression_internal(&e)
+        } else {
+            Err(CoreValidationError::new(
+                "表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：评估表达式为值
+    fn evaluate_expression_internal(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> Result<Value, CoreValidationError> {
+        use crate::core::types::expression::Expression;
         match expr {
             Expression::Literal(value) => Ok(value.clone()),
             Expression::Variable(name) => {
@@ -415,14 +457,14 @@ impl SchemaValidator {
             Expression::List(list) => {
                 let values: Result<Vec<_>, _> = list
                     .iter()
-                    .map(|e| self.evaluate_expression(e))
+                    .map(|e| self.evaluate_expression_internal(e))
                     .collect();
                 Ok(Value::List(crate::core::value::List { values: values? }))
             }
             Expression::Map(map) => {
                 let mut result = std::collections::HashMap::new();
                 for (k, v) in map {
-                    result.insert(k.clone(), self.evaluate_expression(v)?);
+                    result.insert(k.clone(), self.evaluate_expression_internal(v)?);
                 }
                 Ok(Value::Map(result))
             }

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::{Stmt, YieldItem};
 use crate::query::validator::validator_trait::{
@@ -22,7 +22,7 @@ pub struct ValidatedLookup {
     pub label: String,
     pub is_edge: bool,
     pub index_type: LookupIndexType,
-    pub filter_expression: Option<Expression>,
+    pub filter_expression: Option<ContextualExpression>,
     pub yield_columns: Vec<LookupYieldColumn>,
     pub is_yield_all: bool,
 }
@@ -31,7 +31,7 @@ pub struct ValidatedLookup {
 pub struct LookupYieldColumn {
     pub name: String,
     pub alias: Option<String>,
-    pub expression: Option<Expression>,
+    pub expression: Option<ContextualExpression>,
 }
 
 #[derive(Debug, Clone)]

@@ -3,7 +3,8 @@
 //! 验证 INSERT EDGES 语句的语义正确性
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::{Expression, Value, NullType};
+use crate::core::{Value, NullType};
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::InsertTarget;
 use crate::query::parser::ast::Stmt;
@@ -89,9 +90,27 @@ impl InsertEdgesValidator {
     /// 使用 SchemaValidator 的统一验证方法
     fn validate_vertex_id_format(
         &self,
-        expr: &Expression,
+        expr: &ContextualExpression,
         role: &str,
     ) -> Result<(), ValidationError> {
+        if let Some(e) = expr.expression() {
+            self.validate_vertex_id_format_internal(&e, role)
+        } else {
+            Err(ValidationError::new(
+                format!("{} 顶点 ID 表达式无效", role),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证顶点 ID 格式
+    fn validate_vertex_id_format_internal(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+        role: &str,
+    ) -> Result<(), ValidationError> {
+        use crate::core::types::expression::Expression;
+
         // 使用 SchemaValidator 进行统一验证
         // INSERT EDGES 默认使用 String 类型的 VID
         let vid_type = crate::core::types::DataType::String;
@@ -102,15 +121,17 @@ impl InsertEdgesValidator {
                 .map_err(|e| ValidationError::new(e.message, e.error_type))
         } else {
             // 没有 schema_manager 时进行基本验证
-            Self::basic_validate_vertex_id_format(expr, role)
+            Self::basic_validate_vertex_id_format_internal(expr, role)
         }
     }
     
     /// 基本顶点 ID 验证（无 SchemaManager 时）
-    fn basic_validate_vertex_id_format(
-        expr: &Expression,
+    fn basic_validate_vertex_id_format_internal(
+        expr: &crate::core::types::expression::Expression,
         role: &str,
     ) -> Result<(), ValidationError> {
+        use crate::core::types::expression::Expression;
+
         match expr {
             Expression::Literal(Value::String(s)) => {
                 if s.is_empty() {
@@ -137,18 +158,32 @@ impl InsertEdgesValidator {
     }
 
     /// 验证 rank
-    fn validate_rank(&self, rank: &Option<Expression>) -> Result<(), ValidationError> {
+    fn validate_rank(&self, rank: &Option<ContextualExpression>) -> Result<(), ValidationError> {
         if let Some(rank_expr) = rank {
-            match rank_expr {
-                Expression::Literal(Value::Int(_)) => Ok(()),
-                Expression::Variable(_) => Ok(()),
-                _ => Err(ValidationError::new(
-                    "Rank must be an integer constant or variable".to_string(),
+            if let Some(e) = rank_expr.expression() {
+                self.validate_rank_internal(&e)
+            } else {
+                Err(ValidationError::new(
+                    "Rank 表达式无效".to_string(),
                     ValidationErrorType::SemanticError,
-                )),
+                ))
             }
         } else {
             Ok(())
+        }
+    }
+
+    /// 内部方法：验证 rank
+    fn validate_rank_internal(&self, rank_expr: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
+        use crate::core::types::expression::Expression;
+
+        match rank_expr {
+            Expression::Literal(Value::Int(_)) => Ok(()),
+            Expression::Variable(_) => Ok(()),
+            _ => Err(ValidationError::new(
+                "Rank must be an integer constant or variable".to_string(),
+                ValidationErrorType::SemanticError,
+            )),
         }
     }
 
@@ -156,7 +191,7 @@ impl InsertEdgesValidator {
     fn validate_values_count(
         &self,
         prop_names: &[String],
-        values: &[Expression],
+        values: &[ContextualExpression],
     ) -> Result<(), ValidationError> {
         if values.len() != prop_names.len() {
             return Err(ValidationError::new(
@@ -176,7 +211,7 @@ impl InsertEdgesValidator {
         &self,
         _edge_name: &str,
         prop_names: &[String],
-        values: &[Expression],
+        values: &[ContextualExpression],
     ) -> Result<(), ValidationError> {
         for (prop_idx, value) in values.iter().enumerate() {
             if let Err(e) = self.validate_property_value(&prop_names[prop_idx], value) {
@@ -197,8 +232,25 @@ impl InsertEdgesValidator {
     fn validate_property_value(
         &self,
         _prop_name: &str,
-        value: &Expression,
+        value: &ContextualExpression,
     ) -> Result<(), ValidationError> {
+        if let Some(e) = value.expression() {
+            self.validate_property_value_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "属性值表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证单个属性值
+    fn validate_property_value_internal(
+        &self,
+        value: &crate::core::types::expression::Expression,
+    ) -> Result<(), ValidationError> {
+        use crate::core::types::expression::Expression;
+
         match value {
             Expression::Literal(_) => Ok(()),
             Expression::Variable(_) => Ok(()),
@@ -225,7 +277,18 @@ impl InsertEdgesValidator {
     }
 
     /// 评估表达式为值
-    fn evaluate_expression(&self, expr: &Expression) -> Result<Value, ValidationError> {
+    fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
+        if let Some(e) = expr.expression() {
+            self.evaluate_expression_internal(&e)
+        } else {
+            Ok(Value::Null(NullType::Null))
+        }
+    }
+
+    /// 内部方法：评估表达式为值
+    fn evaluate_expression_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<Value, ValidationError> {
+        use crate::core::types::expression::Expression;
+
         match expr {
             Expression::Literal(val) => Ok(val.clone()),
             Expression::Variable(name) => {

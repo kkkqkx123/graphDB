@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
@@ -35,13 +35,13 @@ pub enum SetStatementType {
 #[derive(Debug, Clone)]
 pub struct SetItem {
     pub statement_type: SetStatementType,
-    pub target: Expression,
-    pub value: Expression,
+    pub target: ContextualExpression,
+    pub value: ContextualExpression,
 }
 
 impl SetItem {
     /// 创建新的 SET 项
-    pub fn new(statement_type: SetStatementType, target: Expression, value: Expression) -> Self {
+    pub fn new(statement_type: SetStatementType, target: ContextualExpression, value: ContextualExpression) -> Self {
         Self {
             statement_type,
             target,
@@ -54,15 +54,15 @@ impl SetItem {
 #[derive(Debug, Clone)]
 pub struct ValidatedSet {
     pub items: Vec<ValidatedSetItem>,
-    pub variables: HashMap<String, Expression>,
+    pub variables: HashMap<String, ContextualExpression>,
 }
 
 /// 验证后的 SET 项
 #[derive(Debug, Clone)]
 pub struct ValidatedSetItem {
     pub statement_type: SetStatementType,
-    pub target: Expression,
-    pub value: Expression,
+    pub target: ContextualExpression,
+    pub value: ContextualExpression,
 }
 
 /// SET 验证器 - 新体系实现
@@ -77,7 +77,7 @@ pub struct SetValidator {
     // SET 项列表
     set_items: Vec<SetItem>,
     // 变量映射
-    variables: HashMap<String, Expression>,
+    variables: HashMap<String, ContextualExpression>,
     // 输入列定义
     inputs: Vec<ColumnDef>,
     // 输出列定义
@@ -138,7 +138,7 @@ impl SetValidator {
     }
 
     /// 设置变量
-    pub fn set_variable(&mut self, name: String, value: Expression) {
+    pub fn set_variable(&mut self, name: String, value: ContextualExpression) {
         self.variables.insert(name.clone(), value);
         if !self.user_defined_vars.contains(&name) {
             self.user_defined_vars.push(name);
@@ -151,7 +151,7 @@ impl SetValidator {
     }
 
     /// 获取变量映射
-    pub fn variables(&self) -> &HashMap<String, Expression> {
+    pub fn variables(&self) -> &HashMap<String, ContextualExpression> {
         &self.variables
     }
 

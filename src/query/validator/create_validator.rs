@@ -17,6 +17,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::EdgeDirection;
 use crate::core::Value;
 use crate::query::QueryContext;
@@ -391,7 +392,7 @@ impl CreateValidator {
         &self,
         variable: &Option<String>,
         labels: &[String],
-        properties: &Option<crate::core::types::expression::Expression>,
+        properties: &Option<ContextualExpression>,
         space_name: &str,
         schema_manager: &RedbSchemaManager,
         missing_tags: &mut Vec<String>,
@@ -430,9 +431,9 @@ impl CreateValidator {
         &self,
         variable: &Option<String>,
         edge_type: &str,
-        _src: &crate::core::types::expression::Expression,
-        _dst: &crate::core::types::expression::Expression,
-        properties: &Option<crate::core::types::expression::Expression>,
+        _src: &ContextualExpression,
+        _dst: &ContextualExpression,
+        properties: &Option<ContextualExpression>,
         direction: &EdgeDirection,
         space_name: &str,
         schema_manager: &RedbSchemaManager,
@@ -471,6 +472,21 @@ impl CreateValidator {
     /// 从表达式中提取属性键值对
     fn extract_properties(
         &self,
+        expr: &ContextualExpression,
+    ) -> Result<Vec<(String, Value)>, ValidationError> {
+        if let Some(e) = expr.expression() {
+            self.extract_properties_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "属性表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：从表达式中提取属性键值对
+    fn extract_properties_internal(
+        &self,
         expr: &crate::core::types::expression::Expression,
     ) -> Result<Vec<(String, Value)>, ValidationError> {
         use crate::core::types::expression::Expression;
@@ -479,7 +495,7 @@ impl CreateValidator {
             Expression::Map(entries) => {
                 let mut props = Vec::new();
                 for (key, value_expr) in entries {
-                    let value = self.evaluate_expression(value_expr)?;
+                    let value = self.evaluate_expression_internal(value_expr)?;
                     props.push((key.clone(), value));
                 }
                 Ok(props)
@@ -493,6 +509,21 @@ impl CreateValidator {
 
     /// 求值表达式（简化版）
     fn evaluate_expression(
+        &self,
+        expr: &ContextualExpression,
+    ) -> Result<Value, ValidationError> {
+        if let Some(e) = expr.expression() {
+            self.evaluate_expression_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：求值表达式（简化版）
+    fn evaluate_expression_internal(
         &self,
         expr: &crate::core::types::expression::Expression,
     ) -> Result<Value, ValidationError> {

@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::RemoveStmt;
 use crate::query::validator::validator_trait::{
@@ -14,7 +15,7 @@ use crate::query::validator::validator_trait::{
 /// Remove 语句验证器
 #[derive(Debug)]
 pub struct RemoveValidator {
-    items: Vec<crate::core::types::expression::Expression>,
+    items: Vec<ContextualExpression>,
     inputs: Vec<ColumnDef>,
     outputs: Vec<ColumnDef>,
     expr_props: ExpressionProps,
@@ -36,6 +37,21 @@ impl RemoveValidator {
     /// 验证移除项
     fn validate_remove_item(
         &self,
+        item: &ContextualExpression,
+    ) -> Result<(), ValidationError> {
+        if let Some(e) = item.expression() {
+            self.validate_remove_item_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "移除项表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证移除项
+    fn validate_remove_item_internal(
+        &self,
         item: &crate::core::types::expression::Expression,
     ) -> Result<(), ValidationError> {
         use crate::core::types::expression::Expression;
@@ -43,7 +59,7 @@ impl RemoveValidator {
         match item {
             // 移除属性: REMOVE n.property
             Expression::Property { object, property } => {
-                self.validate_property_access(object, property)
+                self.validate_property_access_internal(object, property)
             }
             // 变量本身: REMOVE n (移除节点)
             Expression::Variable(var) => {
@@ -58,6 +74,22 @@ impl RemoveValidator {
 
     /// 验证属性访问移除
     fn validate_property_access(
+        &self,
+        object: &ContextualExpression,
+        property: &str,
+    ) -> Result<(), ValidationError> {
+        if let Some(e) = object.expression() {
+            self.validate_property_access_internal(&e, property)
+        } else {
+            Err(ValidationError::new(
+                "属性访问对象表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证属性访问移除
+    fn validate_property_access_internal(
         &self,
         object: &crate::core::types::expression::Expression,
         property: &str,

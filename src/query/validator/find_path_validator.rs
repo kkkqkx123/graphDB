@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::FindPathStmt;
 use crate::query::validator::validator_trait::{
@@ -18,9 +19,9 @@ use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 pub struct ValidatedFindPath {
     pub space_id: u64,
     pub from: crate::query::parser::ast::stmt::FromClause,
-    pub to: crate::core::Expression,
+    pub to: ContextualExpression,
     pub over: Option<crate::query::parser::ast::stmt::OverClause>,
-    pub where_clause: Option<crate::core::Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub shortest: bool,
     pub max_steps: Option<usize>,
     pub limit: Option<usize>,

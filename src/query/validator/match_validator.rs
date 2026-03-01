@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::YieldColumn;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::Expression;
 use crate::expression::functions::global_registry;
 use crate::query::QueryContext;
 use crate::query::parser::ast::{Stmt, Pattern};
@@ -27,7 +27,7 @@ use super::strategies::ExpressionValidationStrategy;
 pub struct ValidatedMatch {
     pub space_id: u64,
     pub patterns: Vec<Pattern>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub return_clause: Option<ReturnClause>,
     pub order_by: Option<OrderByClause>,
     pub limit: Option<usize>,
@@ -308,11 +308,11 @@ impl MatchValidator {
     /// 验证返回表达式
     fn validate_return_expression(
         &mut self,
-        expr: &Expression,
+        expr: &crate::core::types::expression::Expression,
         idx: usize,
     ) -> Result<(), ValidationError> {
         match expr {
-            Expression::Variable(var_name) => {
+            crate::core::types::expression::Expression::Variable(var_name) => {
                 // 检查变量是否在上下文中定义
                 if !self.aliases.contains_key(var_name) {
                     return Err(ValidationError::new(
@@ -321,9 +321,9 @@ impl MatchValidator {
                     ));
                 }
             }
-            Expression::Property { object, property: _ } => {
+            crate::core::types::expression::Expression::Property { object, property: _ } => {
                 // 验证属性访问
-                if let Expression::Variable(var_name) = object.as_ref() {
+                if let crate::core::types::expression::Expression::Variable(var_name) = object.as_ref() {
                     if !self.aliases.contains_key(var_name) {
                         return Err(ValidationError::new(
                             format!("第 {} 个返回项引用了未定义的变量 '{}'", idx + 1, var_name),
@@ -332,7 +332,7 @@ impl MatchValidator {
                     }
                 }
             }
-            Expression::Function { name, args } => {
+            crate::core::types::expression::Expression::Function { name, args } => {
                 // 验证函数调用
                 for (arg_idx, arg) in args.iter().enumerate() {
                     if let Err(e) = self.validate_return_expression(arg, arg_idx) {
@@ -348,7 +348,7 @@ impl MatchValidator {
                     ));
                 }
             }
-            Expression::Binary { left, right, .. } => {
+            crate::core::types::expression::Expression::Binary { left, right, .. } => {
                 // 验证二元表达式
                 if let Err(e) = self.validate_return_expression(left, idx) {
                     return Err(e);
@@ -357,7 +357,7 @@ impl MatchValidator {
                     return Err(e);
                 }
             }
-            Expression::Unary { operand, .. } => {
+            crate::core::types::expression::Expression::Unary { operand, .. } => {
                 // 验证一元表达式
                 if let Err(e) = self.validate_return_expression(operand, idx) {
                     return Err(e);
@@ -383,7 +383,7 @@ impl MatchValidator {
         for (idx, item) in order_by.items.iter().enumerate() {
             // 验证排序表达式
             match &item.expression {
-                Expression::Variable(var_name) => {
+                crate::core::types::expression::Expression::Variable(var_name) => {
                     if !self.aliases.contains_key(var_name) {
                         return Err(ValidationError::new(
                             format!("第 {} 个排序项引用了未定义的变量 '{}'", idx + 1, var_name),
@@ -391,8 +391,8 @@ impl MatchValidator {
                         ));
                     }
                 }
-                Expression::Property { object, .. } => {
-                    if let Expression::Variable(var_name) = object.as_ref() {
+                crate::core::types::expression::Expression::Property { object, .. } => {
+                    if let crate::core::types::expression::Expression::Variable(var_name) = object.as_ref() {
                         if !self.aliases.contains_key(var_name) {
                             return Err(ValidationError::new(
                                 format!("第 {} 个排序项引用了未定义的变量 '{}'", idx + 1, var_name),
@@ -411,36 +411,47 @@ impl MatchValidator {
     /// 验证别名
     pub fn validate_aliases(
         &mut self,
-        exprs: &[Expression],
+        exprs: &[ContextualExpression],
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         for (idx, expr) in exprs.iter().enumerate() {
-            match expr {
-                Expression::Variable(var_name) => {
-                    if !aliases.contains_key(var_name) {
-                        return Err(ValidationError::new(
-                            format!("第 {} 个表达式引用了未定义的别名 '{}'", idx + 1, var_name),
-                            ValidationErrorType::SemanticError,
-                        ));
+            if let Some(e) = expr.expression() {
+                match e {
+                    crate::core::types::expression::Expression::Variable(var_name) => {
+                        if !aliases.contains_key(var_name) {
+                            return Err(ValidationError::new(
+                                format!("第 {} 个表达式引用了未定义的别名 '{}'", idx + 1, var_name),
+                                ValidationErrorType::SemanticError,
+                            ));
+                        }
                     }
+                    _ => {}
                 }
-                _ => {}
             }
         }
         Ok(())
     }
 
     /// 检查表达式是否包含聚合函数
-    pub fn has_aggregate_expression(&self, expression: &Expression) -> bool {
+    pub fn has_aggregate_expression(&self, expression: &ContextualExpression) -> bool {
+        if let Some(expr) = expression.expression() {
+            self.has_aggregate_expression_internal(&expr)
+        } else {
+            false
+        }
+    }
+
+    /// 内部方法：检查表达式是否包含聚合函数
+    fn has_aggregate_expression_internal(&self, expression: &crate::core::types::expression::Expression) -> bool {
         match expression {
-            Expression::Function { name, .. } => {
+            crate::core::types::expression::Expression::Function { name, .. } => {
                 self.is_valid_aggregate_function(name)
             }
-            Expression::Binary { left, right, .. } => {
-                self.has_aggregate_expression(left) || self.has_aggregate_expression(right)
+            crate::core::types::expression::Expression::Binary { left, right, .. } => {
+                self.has_aggregate_expression_internal(left) || self.has_aggregate_expression_internal(right)
             }
-            Expression::Unary { operand, .. } => {
-                self.has_aggregate_expression(operand)
+            crate::core::types::expression::Expression::Unary { operand, .. } => {
+                self.has_aggregate_expression_internal(operand)
             }
             _ => false,
         }
@@ -459,8 +470,8 @@ impl MatchValidator {
     /// 验证分页
     pub fn validate_pagination(
         &mut self,
-        _skip_expression: Option<&Expression>,
-        _limit_expression: Option<&Expression>,
+        _skip_expression: Option<&ContextualExpression>,
+        _limit_expression: Option<&ContextualExpression>,
         context: &PaginationContext,
     ) -> Result<(), ValidationError> {
         // 验证 skip 值
@@ -505,17 +516,23 @@ impl MatchValidator {
     /// 验证过滤条件
     pub fn validate_filter(
         &mut self,
-        filter: &Expression,
+        filter: &ContextualExpression,
         _context: &WhereClauseContext,
     ) -> Result<(), ValidationError> {
-        // 复用 WHERE 子句验证逻辑
-        self.validate_where_clause(filter)
+        if let Some(expr) = filter.expression() {
+            self.validate_where_clause(&expr)
+        } else {
+            Err(ValidationError::new(
+                "过滤条件表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
     }
 
     /// 验证Return子句（完整上下文版本）
     pub fn validate_return(
         &mut self,
-        _return_expression: &Expression,
+        _return_expression: &ContextualExpression,
         return_items: &[YieldColumn],
         _context: &ReturnClauseContext,
     ) -> Result<(), ValidationError> {
@@ -531,7 +548,7 @@ impl MatchValidator {
     /// 验证With子句
     pub fn validate_with(
         &mut self,
-        _with_expression: &Expression,
+        _with_expression: &ContextualExpression,
         with_items: &[YieldColumn],
         _context: &WithClauseContext,
     ) -> Result<(), ValidationError> {
@@ -547,12 +564,27 @@ impl MatchValidator {
     /// 验证Unwind子句
     pub fn validate_unwind(
         &mut self,
-        unwind_expression: &Expression,
+        unwind_expression: &ContextualExpression,
         context: &UnwindClauseContext,
     ) -> Result<(), ValidationError> {
-        // 验证 unwind 表达式
+        if let Some(expr) = unwind_expression.expression() {
+            self.validate_unwind_expression(&expr, context)
+        } else {
+            Err(ValidationError::new(
+                "UNWIND 表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证 unwind 表达式
+    fn validate_unwind_expression(
+        &mut self,
+        unwind_expression: &crate::core::types::expression::Expression,
+        context: &UnwindClauseContext,
+    ) -> Result<(), ValidationError> {
         match unwind_expression {
-            Expression::Variable(var_name) => {
+            crate::core::types::expression::Expression::Variable(var_name) => {
                 if !self.aliases.contains_key(var_name) {
                     return Err(ValidationError::new(
                         format!("UNWIND 引用了未定义的变量 '{}'", var_name),
@@ -647,11 +679,27 @@ impl MatchValidator {
     /// 检查别名
     pub fn check_alias(
         &mut self,
-        ref_expression: &Expression,
+        ref_expression: &ContextualExpression,
+        aliases_available: &HashMap<String, AliasType>,
+    ) -> Result<(), ValidationError> {
+        if let Some(expr) = ref_expression.expression() {
+            self.check_alias_internal(&expr, aliases_available)
+        } else {
+            Err(ValidationError::new(
+                "引用表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：检查别名
+    fn check_alias_internal(
+        &mut self,
+        ref_expression: &crate::core::types::expression::Expression,
         aliases_available: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         match ref_expression {
-            Expression::Variable(var_name) => {
+            crate::core::types::expression::Expression::Variable(var_name) => {
                 if !aliases_available.contains_key(var_name) {
                     return Err(ValidationError::new(
                         format!("引用了未定义的别名 '{}'", var_name),
@@ -685,7 +733,7 @@ impl MatchValidator {
                         let name = alias.clone().unwrap_or_else(|| {
                             // 生成默认名称
                             match expression {
-                                Expression::Variable(v) => v.clone(),
+                                crate::core::types::expression::Expression::Variable(v) => v.clone(),
                                 _ => format!("col_{}", self.outputs.len()),
                             }
                         });

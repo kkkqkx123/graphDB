@@ -6,7 +6,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::{Expression, Value};
+use crate::core::Value;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{InsertTarget, TagInsertSpec, VertexRow};
 use crate::query::parser::ast::Stmt;
@@ -137,9 +138,27 @@ impl InsertVerticesValidator {
     /// 验证 VID 表达式
     fn validate_vid_expression(
         &self,
-        vid_expr: &Expression,
+        vid_expr: &ContextualExpression,
         idx: usize,
     ) -> Result<(), ValidationError> {
+        if let Some(e) = vid_expr.expression() {
+            self.validate_vid_expression_internal(&e, idx)
+        } else {
+            Err(ValidationError::new(
+                format!("顶点 ID 表达式无效，顶点 {}", idx + 1),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证 VID 表达式
+    fn validate_vid_expression_internal(
+        &self,
+        vid_expr: &crate::core::types::expression::Expression,
+        idx: usize,
+    ) -> Result<(), ValidationError> {
+        use crate::core::types::expression::Expression;
+
         match vid_expr {
             Expression::Literal(Value::String(s)) => {
                 if s.is_empty() {
@@ -163,7 +182,18 @@ impl InsertVerticesValidator {
     }
 
     /// 评估表达式为值
-    fn evaluate_expression(&self, expr: &Expression) -> Result<Value, ValidationError> {
+    fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
+        if let Some(e) = expr.expression() {
+            self.evaluate_expression_internal(&e)
+        } else {
+            Ok(Value::Null(crate::core::NullType::Null))
+        }
+    }
+
+    /// 内部方法：评估表达式为值
+    fn evaluate_expression_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<Value, ValidationError> {
+        use crate::core::types::expression::Expression;
+
         match expr {
             Expression::Literal(val) => Ok(val.clone()),
             Expression::Variable(name) => {

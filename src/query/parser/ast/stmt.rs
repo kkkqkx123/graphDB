@@ -775,7 +775,7 @@ pub struct UpdateConfigsStmt {
     pub span: Span,
     pub module: Option<String>,  // 可选的模块名
     pub config_name: String,
-    pub config_value: crate::core::types::expression::Expression,
+    pub config_value: ContextualExpression,
 }
 
 /// 变量赋值语句

@@ -5,7 +5,8 @@
 use std::sync::Arc;
 
 use crate::core::error::{DBResult, ValidationError, ValidationError as CoreValidationError, ValidationErrorType};
-use crate::core::{Expression, Value};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::Value;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{SetClause, UpdateStmt, UpdateTarget};
 use crate::query::validator::validator_trait::{StatementValidator, StatementType, ValidationResult, ColumnDef, ExpressionProps, ValueType};
@@ -21,7 +22,7 @@ pub struct ValidatedUpdate {
     pub tag_or_edge_id: Option<i32>,
     pub tag_or_edge_name: Option<String>,
     pub assignments: Vec<ValidatedAssignment>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub is_upsert: bool,
     pub yield_columns: Option<Vec<String>>,
 }
@@ -45,6 +46,7 @@ pub struct ValidatedAssignment {
     pub property: String,
     pub value: Value,
     pub prop_id: Option<i32>,
+    pub expression: Option<ContextualExpression>,
 }
 
 #[derive(Debug)]
@@ -555,7 +557,7 @@ impl UpdateValidator {
 
     fn validate_where_clause(
         &self,
-        where_clause: Option<&Expression>,
+        where_clause: Option<&ContextualExpression>,
     ) -> Result<(), CoreValidationError> {
         if let Some(where_expr) = where_clause {
             self.validate_expression(where_expr)?;
@@ -563,21 +565,33 @@ impl UpdateValidator {
         Ok(())
     }
 
-    fn validate_expression(&self, expr: &Expression) -> Result<(), CoreValidationError> {
+    fn validate_expression(&self, expr: &ContextualExpression) -> Result<(), CoreValidationError> {
+        if let Some(e) = expr.expression() {
+            self.validate_expression_internal(&e)
+        } else {
+            Err(CoreValidationError::new(
+                "表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证表达式
+    fn validate_expression_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<(), CoreValidationError> {
         match expr {
-            Expression::Literal(_) => Ok(()),
-            Expression::Variable(_) => Ok(()),
-            Expression::Property { .. } => Ok(()),
-            Expression::Function { args, .. } => {
+            crate::core::types::expression::Expression::Literal(_) => Ok(()),
+            crate::core::types::expression::Expression::Variable(_) => Ok(()),
+            crate::core::types::expression::Expression::Property { .. } => Ok(()),
+            crate::core::types::expression::Expression::Function { args, .. } => {
                 for arg in args {
-                    self.validate_expression(arg)?;
+                    self.validate_expression_internal(arg)?;
                 }
                 Ok(())
             }
-            Expression::Unary { operand, .. } => self.validate_expression(operand),
-            Expression::Binary { left, right, .. } => {
-                self.validate_expression(left)?;
-                self.validate_expression(right)?;
+            crate::core::types::expression::Expression::Unary { operand, .. } => self.validate_expression_internal(operand),
+            crate::core::types::expression::Expression::Binary { left, right, .. } => {
+                self.validate_expression_internal(left)?;
+                self.validate_expression_internal(right)?;
                 Ok(())
             }
             _ => Ok(()),

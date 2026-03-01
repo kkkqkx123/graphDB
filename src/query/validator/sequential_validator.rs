@@ -14,6 +14,7 @@
 use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::DataType;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef,
@@ -25,7 +26,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct SequentialStatement {
     pub statement: String,
-    pub parameters: HashMap<String, crate::core::Expression>,
+    pub parameters: HashMap<String, ContextualExpression>,
 }
 
 impl SequentialStatement {
@@ -38,7 +39,7 @@ impl SequentialStatement {
     }
 
     /// 添加参数
-    pub fn with_parameter(mut self, name: String, expr: crate::core::Expression) -> Self {
+    pub fn with_parameter(mut self, name: String, expr: ContextualExpression) -> Self {
         self.parameters.insert(name, expr);
         self
     }

@@ -13,7 +13,8 @@
 
 use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::{Expression, Value, NullType};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::{Value, NullType};
 use crate::query::QueryContext;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
@@ -24,7 +25,7 @@ use std::collections::HashMap;
 /// 验证后的 UNWIND 信息
 #[derive(Debug, Clone)]
 pub struct ValidatedUnwind {
-    pub expression: Expression,
+    pub expression: ContextualExpression,
     pub variable_name: String,
     pub element_type: ValueType,
 }
@@ -39,7 +40,7 @@ pub struct ValidatedUnwind {
 #[derive(Debug)]
 pub struct UnwindValidator {
     // UNWIND 表达式
-    unwind_expression: Expression,
+    unwind_expression: ContextualExpression,
     // 变量名
     variable_name: String,
     // 可用别名映射
@@ -62,7 +63,7 @@ impl UnwindValidator {
     /// 创建新的验证器实例
     pub fn new() -> Self {
         Self {
-            unwind_expression: Expression::Literal(Value::Null(NullType::Null)),
+            unwind_expression: ContextualExpression::new(0, None),
             variable_name: String::new(),
             aliases_available: HashMap::new(),
             inputs: Vec::new(),
@@ -100,7 +101,7 @@ impl UnwindValidator {
     }
 
     /// 设置 UNWIND 表达式
-    pub fn set_unwind_expression(&mut self, expression: Expression) {
+    pub fn set_unwind_expression(&mut self, expression: ContextualExpression) {
         self.unwind_expression = expression;
     }
 
@@ -118,7 +119,7 @@ impl UnwindValidator {
     }
 
     /// 获取 UNWIND 表达式
-    pub fn unwind_expression(&self) -> &Expression {
+    pub fn unwind_expression(&self) -> &ContextualExpression {
         &self.unwind_expression
     }
 
@@ -153,14 +154,26 @@ impl UnwindValidator {
 
     /// 验证表达式
     fn validate_expression(&self) -> Result<(), ValidationError> {
-        if self.expression_is_empty(&self.unwind_expression) {
+        if let Some(expr) = self.unwind_expression.expression() {
+            self.validate_expression_internal(&expr)
+        } else {
+            Err(ValidationError::new(
+                "UNWIND 表达式无效".to_string(),
+                ValidationErrorType::SyntaxError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证表达式
+    fn validate_expression_internal(&self, expression: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
+        if self.expression_is_empty(expression) {
             return Err(ValidationError::new(
                 "UNWIND 表达式不能为空".to_string(),
                 ValidationErrorType::SyntaxError,
             ));
         }
 
-        let expr_type = self.deduce_expr_type(&self.unwind_expression)?;
+        let expr_type = self.deduce_expr_type(expression)?;
         if expr_type != ValueType::List && expr_type != ValueType::Set {
             return Err(ValidationError::new(
                 format!(
@@ -218,51 +231,55 @@ impl UnwindValidator {
 
     /// 验证类型
     fn validate_type(&mut self) -> Result<(), ValidationError> {
-        let list_type = self.deduce_list_element_type(&self.unwind_expression)?;
-        if list_type == ValueType::Unknown {
-            // 类型推导失败，添加警告但不报错
-            // 在实际实现中可能需要更严格的处理
+        if let Some(expr) = self.unwind_expression.expression() {
+            let list_type = self.deduce_list_element_type(&expr)?;
+            if list_type == ValueType::Unknown {
+                // 类型推导失败，添加警告但不报错
+                // 在实际实现中可能需要更严格的处理
+            }
         }
         Ok(())
     }
 
     /// 验证别名引用
     fn validate_aliases(&self) -> Result<(), ValidationError> {
-        let refs = self.get_expression_references(&self.unwind_expression);
-        for ref_name in refs {
-            if !self.aliases_available.contains_key(&ref_name) && ref_name != "$" && ref_name != "$$" {
-                return Err(ValidationError::new(
-                    format!(
-                        "UNWIND 表达式引用了未定义的变量 '{}'",
-                        ref_name
-                    ),
-                    ValidationErrorType::SemanticError,
-                ));
+        if let Some(expr) = self.unwind_expression.expression() {
+            let refs = self.get_expression_references(&expr);
+            for ref_name in refs {
+                if !self.aliases_available.contains_key(&ref_name) && ref_name != "$" && ref_name != "$$" {
+                    return Err(ValidationError::new(
+                        format!(
+                            "UNWIND 表达式引用了未定义的变量 '{}'",
+                            ref_name
+                        ),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
             }
         }
         Ok(())
     }
 
     /// 检查表达式是否为空
-    fn expression_is_empty(&self, _expression: &Expression) -> bool {
+    fn expression_is_empty(&self, _expression: &crate::core::types::expression::Expression) -> bool {
         // 简化实现，实际应该检查表达式是否为空
         false
     }
 
     /// 推导表达式类型
-    fn deduce_expr_type(&self, _expression: &Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_expr_type(&self, _expression: &crate::core::types::expression::Expression) -> Result<ValueType, ValidationError> {
         // 简化实现，实际应该根据表达式推导类型
         Ok(ValueType::List)
     }
 
     /// 推导列表元素类型
-    fn deduce_list_element_type(&self, _expression: &Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_list_element_type(&self, _expression: &crate::core::types::expression::Expression) -> Result<ValueType, ValidationError> {
         // 简化实现，实际应该根据表达式推导元素类型
         Ok(ValueType::Unknown)
     }
 
     /// 获取表达式引用的变量
-    fn get_expression_references(&self, _expression: &Expression) -> Vec<String> {
+    fn get_expression_references(&self, _expression: &crate::core::types::expression::Expression) -> Vec<String> {
         // 简化实现，实际应该分析表达式获取引用
         Vec::new()
     }

@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::GroupByStmt;
 use crate::query::validator::validator_trait::{
@@ -20,8 +20,8 @@ use crate::query::validator::validator_trait::{
 /// 验证后的 GroupBy 信息
 #[derive(Debug, Clone)]
 pub struct ValidatedGroupBy {
-    pub group_keys: Vec<Expression>,
-    pub group_items: Vec<Expression>,
+    pub group_keys: Vec<ContextualExpression>,
+    pub group_items: Vec<ContextualExpression>,
     pub output_col_names: Vec<String>,
     pub need_gen_project: bool,
 }
@@ -29,13 +29,13 @@ pub struct ValidatedGroupBy {
 /// GroupBy 验证器
 #[derive(Debug)]
 pub struct GroupByValidator {
-    group_keys: Vec<Expression>,
-    group_items: Vec<Expression>,
+    group_keys: Vec<ContextualExpression>,
+    group_items: Vec<ContextualExpression>,
     agg_output_col_names: Vec<String>,
     need_gen_project: bool,
     #[allow(dead_code)]
-    proj_cols: Vec<Expression>,
-    yield_cols: Vec<Expression>,
+    proj_cols: Vec<ContextualExpression>,
+    yield_cols: Vec<ContextualExpression>,
     inputs: Vec<ColumnDef>,
     outputs: Vec<ColumnDef>,
     expr_props: ExpressionProps,
@@ -77,7 +77,7 @@ impl GroupByValidator {
         Ok(())
     }
 
-    fn validate_group_keys(&mut self, group_items: &[Expression]) -> Result<(), ValidationError> {
+    fn validate_group_keys(&mut self, group_items: &[ContextualExpression]) -> Result<(), ValidationError> {
         if group_items.is_empty() {
             return Err(ValidationError::new(
                 "GROUP BY clause must have at least one key".to_string(),
@@ -94,7 +94,19 @@ impl GroupByValidator {
         Ok(())
     }
 
-    fn validate_group_key(&self, expr: &Expression) -> Result<(), ValidationError> {
+    fn validate_group_key(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
+        if let Some(e) = expr.expression() {
+            self.validate_group_key_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "分组键表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证分组键
+    fn validate_group_key_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
         // 分组键可以是：
         // 1. 列引用
         // 2. 属性访问
@@ -137,17 +149,25 @@ impl GroupByValidator {
         Ok(())
     }
 
-    fn validate_having(&self, having: &Expression) -> Result<(), ValidationError> {
+    fn validate_having(&self, having: &ContextualExpression) -> Result<(), ValidationError> {
         // HAVING 子句中的表达式必须是有效的布尔表达式
         // 且可以包含聚合函数
-        self.validate_having_expr(having)
+        if let Some(e) = having.expression() {
+            self.validate_having_expr_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "HAVING 表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
     }
 
-    fn validate_having_expr(&self, expr: &Expression) -> Result<(), ValidationError> {
+    /// 内部方法：验证 HAVING 表达式
+    fn validate_having_expr_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
         match expr {
             Expression::Binary { op, left, right } => {
-                self.validate_having_expr(left)?;
-                self.validate_having_expr(right)?;
+                self.validate_having_expr_internal(left)?;
+                self.validate_having_expr_internal(right)?;
                 
                 // 验证比较操作符
                 match op {
@@ -166,7 +186,7 @@ impl GroupByValidator {
                 }
             }
             Expression::Unary { op, operand } => {
-                self.validate_having_expr(operand)?;
+                self.validate_having_expr_internal(operand)?;
                 match op {
                     crate::core::types::operators::UnaryOperator::Not => Ok(()),
                     _ => Err(ValidationError::new(
@@ -221,7 +241,16 @@ impl GroupByValidator {
         )
     }
 
-    fn contains_aggregate(expr: &Expression) -> bool {
+    fn contains_aggregate(expr: &ContextualExpression) -> bool {
+        if let Some(e) = expr.expression() {
+            Self::contains_aggregate_internal(&e)
+        } else {
+            false
+        }
+    }
+
+    /// 内部方法：检查表达式是否包含聚合函数
+    fn contains_aggregate_internal(expr: &crate::core::types::expression::Expression) -> bool {
         match expr {
             Expression::Function { name, .. } => {
                 if Self::is_aggregate_function(name) {
@@ -230,22 +259,26 @@ impl GroupByValidator {
                 false
             }
             Expression::Binary { left, right, .. } => {
-                Self::contains_aggregate(left) || Self::contains_aggregate(right)
+                Self::contains_aggregate_internal(left) || Self::contains_aggregate_internal(right)
             }
             Expression::Unary { operand, .. } => {
-                Self::contains_aggregate(operand)
+                Self::contains_aggregate_internal(operand)
             }
             _ => false,
         }
     }
 
-    fn expr_equivalent(a: &Expression, b: &Expression) -> bool {
+    fn expr_equivalent(a: &ContextualExpression, b: &ContextualExpression) -> bool {
         // 简化实现：比较字符串表示
         Self::expr_to_string(a) == Self::expr_to_string(b)
     }
 
-    fn expr_to_string(expr: &Expression) -> String {
-        format!("{:?}", expr)
+    fn expr_to_string(expr: &ContextualExpression) -> String {
+        if let Some(e) = expr.expression() {
+            format!("{:?}", e)
+        } else {
+            "InvalidExpression".to_string()
+        }
     }
 
     pub fn validated_result(&self) -> ValidatedGroupBy {
@@ -257,11 +290,11 @@ impl GroupByValidator {
         }
     }
 
-    pub fn group_keys(&self) -> &[Expression] {
+    pub fn group_keys(&self) -> &[ContextualExpression] {
         &self.group_keys
     }
 
-    pub fn group_items(&self) -> &[Expression] {
+    pub fn group_items(&self) -> &[ContextualExpression] {
         &self.group_items
     }
 

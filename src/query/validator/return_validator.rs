@@ -70,6 +70,21 @@ impl ReturnValidator {
     /// 验证表达式
     fn validate_expression(
         &self,
+        expr: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> Result<(), ValidationError> {
+        if let Some(e) = expr.expression() {
+            self.validate_expression_internal(&e)
+        } else {
+            Err(ValidationError::new(
+                "表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证表达式
+    fn validate_expression_internal(
+        &self,
         expr: &crate::core::types::expression::Expression,
     ) -> Result<(), ValidationError> {
         use crate::core::types::expression::Expression;
@@ -87,7 +102,7 @@ impl ReturnValidator {
                 Ok(())
             }
             Expression::Property { object, property } => {
-                self.validate_expression(object)?;
+                self.validate_expression_internal(object)?;
                 if property.is_empty() {
                     return Err(ValidationError::new(
                         "Property name cannot be empty".to_string(),
@@ -97,14 +112,14 @@ impl ReturnValidator {
                 Ok(())
             }
             Expression::Function { name, args } => {
-                self.validate_function_call(name, args)
+                self.validate_function_call_internal(name, args)
             }
             Expression::Binary { left, right, .. } => {
-                self.validate_expression(left)?;
-                self.validate_expression(right)
+                self.validate_expression_internal(left)?;
+                self.validate_expression_internal(right)
             }
             Expression::Unary { operand, .. } => {
-                self.validate_expression(operand)
+                self.validate_expression_internal(operand)
             }
             _ => Ok(()),
         }
@@ -114,7 +129,7 @@ impl ReturnValidator {
     fn validate_function_call(
         &self,
         name: &str,
-        args: &[crate::core::types::expression::Expression],
+        args: &[crate::core::types::expression::contextual::ContextualExpression],
     ) -> Result<(), ValidationError> {
         // 验证函数名
         if name.is_empty() {
@@ -132,8 +147,42 @@ impl ReturnValidator {
         Ok(())
     }
 
+    /// 内部方法：验证函数调用
+    fn validate_function_call_internal(
+        &self,
+        name: &str,
+        args: &[crate::core::types::expression::Expression],
+    ) -> Result<(), ValidationError> {
+        // 验证函数名
+        if name.is_empty() {
+            return Err(ValidationError::new(
+                "Function name cannot be empty".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        // 验证参数
+        for arg in args {
+            self.validate_expression_internal(arg)?;
+        }
+
+        Ok(())
+    }
+
     /// 推断列名
     fn infer_column_name(
+        &self,
+        expr: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> Option<String> {
+        if let Some(e) = expr.expression() {
+            self.infer_column_name_internal(&e)
+        } else {
+            None
+        }
+    }
+
+    /// 内部方法：推断列名
+    fn infer_column_name_internal(
         &self,
         expr: &crate::core::types::expression::Expression,
     ) -> Option<String> {
@@ -149,6 +198,18 @@ impl ReturnValidator {
 
     /// 推断表达式类型
     fn infer_expression_type(
+        &self,
+        expr: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> ValueType {
+        if let Some(e) = expr.expression() {
+            self.infer_expression_type_internal(&e)
+        } else {
+            ValueType::Unknown
+        }
+    }
+
+    /// 内部方法：推断表达式类型
+    fn infer_expression_type_internal(
         &self,
         expr: &crate::core::types::expression::Expression,
     ) -> ValueType {
