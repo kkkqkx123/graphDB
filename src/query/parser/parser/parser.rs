@@ -66,18 +66,6 @@ impl<'a> Parser<'a> {
         stmt_parser.parse_statement(&mut self.ctx)
     }
 
-    pub fn parse_expression(&mut self) -> Result<Expression, crate::query::parser::core::error::ParseError> {
-        let mut expr_parser = ExprParser::new(&self.ctx);
-        let result = expr_parser.parse_expression(&mut self.ctx)?;
-        Ok(result.expr)
-    }
-
-    pub fn parse_expression_with_span(&mut self) -> Result<ExpressionMeta, crate::query::parser::core::error::ParseError> {
-        let mut expr_parser = ExprParser::new(&self.ctx);
-        let result = expr_parser.parse_expression(&mut self.ctx)?;
-        Ok(ExpressionMeta::with_span(result.expr, result.span))
-    }
-
     /// 解析表达式并返回 ContextualExpression
     pub fn parse_expression_contextual(&mut self) -> Result<ContextualExpression, crate::query::parser::core::error::ParseError> {
         let mut expr_parser = ExprParser::new(&self.ctx);
@@ -105,36 +93,4 @@ impl<'a> Parser<'a> {
     pub fn take_errors(&mut self) -> crate::query::parser::ParseErrors {
         self.ctx.take_errors()
     }
-}
-
-/// 从字符串解析表达式元数据（带缓存）
-pub fn parse_expression_meta_from_string(condition: &str) -> Result<ExpressionMeta, String> {
-    parse_expression_meta_from_string_with_cache(condition, None)
-}
-
-/// 从字符串解析表达式元数据（支持外部缓存）
-pub fn parse_expression_meta_from_string_with_cache(
-    condition: &str,
-    cache: Option<&mut crate::expression::context::CacheManager>,
-) -> Result<ExpressionMeta, String> {
-    // 尝试从缓存获取
-    if let Some(ref cache_mgr) = cache {
-        if let Some(cached) = cache_mgr.get_expression(condition) {
-            return Ok(cached.clone());
-        }
-    }
-
-    // 解析表达式
-    let mut parser = Parser::new(condition);
-    let core_expression = parser
-        .parse_expression()
-        .map_err(|e| format!("语法分析错误: {:?}", e))?;
-    let result = ExpressionMeta::new(core_expression);
-
-    // 存入缓存
-    if let Some(cache_mgr) = cache {
-        cache_mgr.set_expression(condition.to_string(), result.clone());
-    }
-
-    Ok(result)
 }

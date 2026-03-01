@@ -6,7 +6,6 @@ use super::pattern::*;
 use super::types::*;
 use crate::core::types::PropertyDef;
 use crate::core::types::expression::ContextualExpression;
-use crate::core::Expression;
 use crate::core::types::expression::utils::collect_variables;
 
 /// 语句枚举 - 所有图数据库操作语句
@@ -322,7 +321,7 @@ pub enum CreateTarget {
     Node {
         variable: Option<String>,
         labels: Vec<String>,
-        properties: Option<Expression>,
+        properties: Option<ContextualExpression>,
     },
     /// Cypher 风格的边创建: CREATE ()-[:Type {props}]->()
     Edge {
@@ -438,15 +437,15 @@ impl DeleteStmt {
 /// 删除目标
 #[derive(Debug, Clone, PartialEq)]
 pub enum DeleteTarget {
-    Vertices(Vec<Expression>),
+    Vertices(Vec<ContextualExpression>),
     Edges {
         edge_type: Option<String>,
-        edges: Vec<(Expression, Expression, Option<Expression>)>,
+        edges: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>)>,
     },
     /// 删除标签 - 包含标签名列表和顶点ID列表
     Tags {
         tag_names: Vec<String>,
-        vertex_ids: Vec<Expression>,
+        vertex_ids: Vec<ContextualExpression>,
         is_all_tags: bool,
     },
     Index(String),
@@ -646,9 +645,9 @@ pub struct ProfileStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct GroupByStmt {
     pub span: Span,
-    pub group_items: Vec<Expression>,
+    pub group_items: Vec<ContextualExpression>,
     pub yield_clause: YieldClause,
-    pub having_clause: Option<Expression>,
+    pub having_clause: Option<ContextualExpression>,
 }
 
 /// LOOKUP 语句（新增）
@@ -656,7 +655,7 @@ pub struct GroupByStmt {
 pub struct LookupStmt {
     pub span: Span,
     pub target: LookupTarget,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub yield_clause: Option<YieldClause>,
 }
 
@@ -674,7 +673,7 @@ pub struct SubgraphStmt {
     pub steps: Steps,
     pub from: FromClause,
     pub over: Option<OverClause>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub yield_clause: Option<YieldClause>,
 }
 
@@ -859,7 +858,7 @@ pub struct SetStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RemoveStmt {
     pub span: Span,
-    pub items: Vec<Expression>,
+    pub items: Vec<ContextualExpression>,
 }
 
 /// PIPE 语句
@@ -883,7 +882,7 @@ pub struct MatchClause {
 pub struct WithClause {
     pub span: Span,
     pub items: Vec<ReturnItem>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
 }
 
 // 语句工具函数
@@ -1294,11 +1293,10 @@ mod tests {
 
     #[test]
     fn test_find_path_stmt() {
-        use crate::core::types::expression::Expression;
         use std::sync::Arc;
         
         let expr_context = Arc::new(crate::core::types::expression::ExpressionContext::new());
-        let expr = Expression::Variable("target".to_string());
+        let expr = crate::core::types::expression::Expression::Variable("target".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let expr_id = expr_context.register_expression(expr_meta);
         let to_expr = crate::core::types::expression::ContextualExpression::new(expr_id, expr_context);

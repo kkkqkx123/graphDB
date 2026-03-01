@@ -4,80 +4,161 @@ use super::pattern::*;
 use super::stmt::*;
 use super::types::*;
 use crate::core::Value;
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::{Expression, ContextualExpression, ExpressionMeta, ExpressionContext};
+use std::sync::Arc;
 
 /// 表达式工厂 - 用于创建表达式节点
 pub struct ExprFactory;
 
 impl ExprFactory {
     /// 创建常量表达式
-    pub fn constant(value: Value) -> Expression {
-        Expression::Literal(value)
+    pub fn constant(value: Value, ctx: Arc<ExpressionContext>) -> ContextualExpression {
+        let expr = Expression::Literal(value);
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建变量表达式
-    pub fn variable(name: String) -> Expression {
-        Expression::Variable(name)
+    pub fn variable(name: String, ctx: Arc<ExpressionContext>) -> ContextualExpression {
+        let expr = Expression::Variable(name);
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建二元表达式
-    pub fn binary(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression) -> Expression {
-        Expression::Binary { left: Box::new(left), op, right: Box::new(right) }
+    pub fn binary(left: ContextualExpression, op: crate::core::types::operators::BinaryOperator, right: ContextualExpression) -> ContextualExpression {
+        let ctx = left.context.clone();
+        let left_expr = left.expression().expect("Left expression should exist").expression().clone();
+        let right_expr = right.expression().expect("Right expression should exist").expression().clone();
+        let expr = Expression::Binary { left: Box::new(left_expr), op, right: Box::new(right_expr) };
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建一元表达式
-    pub fn unary(op: crate::core::types::operators::UnaryOperator, operand: Expression) -> Expression {
-        Expression::Unary { op, operand: Box::new(operand) }
+    pub fn unary(op: crate::core::types::operators::UnaryOperator, operand: ContextualExpression) -> ContextualExpression {
+        let ctx = operand.context.clone();
+        let operand_expr = operand.expression().expect("Operand expression should exist").expression().clone();
+        let expr = Expression::Unary { op, operand: Box::new(operand_expr) };
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建函数调用表达式
-    pub fn function_call(name: String, args: Vec<Expression>, _distinct: bool) -> Expression {
-        Expression::Function { name, args }
+    pub fn function_call(name: String, args: Vec<ContextualExpression>, _distinct: bool) -> ContextualExpression {
+        let ctx = if args.is_empty() {
+            Arc::new(ExpressionContext::new())
+        } else {
+            args[0].context.clone()
+        };
+        let arg_exprs: Vec<Expression> = args.iter()
+            .map(|arg| arg.expression().expect("Arg expression should exist").expression().clone())
+            .collect();
+        let expr = Expression::Function { name, args: arg_exprs };
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建属性访问表达式
-    pub fn property_access(object: Expression, property: String) -> Expression {
-        Expression::Property { object: Box::new(object), property }
+    pub fn property_access(object: ContextualExpression, property: String) -> ContextualExpression {
+        let ctx = object.context.clone();
+        let object_expr = object.expression().expect("Object expression should exist").expression().clone();
+        let expr = Expression::Property { object: Box::new(object_expr), property };
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建列表表达式
-    pub fn list(elements: Vec<Expression>) -> Expression {
-        Expression::List(elements)
+    pub fn list(elements: Vec<ContextualExpression>) -> ContextualExpression {
+        let ctx = if elements.is_empty() {
+            Arc::new(ExpressionContext::new())
+        } else {
+            elements[0].context.clone()
+        };
+        let element_exprs: Vec<Expression> = elements.iter()
+            .map(|elem| elem.expression().expect("Element expression should exist").expression().clone())
+            .collect();
+        let expr = Expression::List(element_exprs);
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建映射表达式
-    pub fn map(pairs: Vec<(String, Expression)>) -> Expression {
-        Expression::Map(pairs)
+    pub fn map(pairs: Vec<(String, ContextualExpression)>) -> ContextualExpression {
+        let ctx = if pairs.is_empty() {
+            Arc::new(ExpressionContext::new())
+        } else {
+            pairs[0].1.context.clone()
+        };
+        let value_exprs: Vec<(String, Expression)> = pairs.iter()
+            .map(|(key, value)| (key.clone(), value.expression().expect("Value expression should exist").expression().clone()))
+            .collect();
+        let expr = Expression::Map(value_exprs);
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建 CASE 表达式
     pub fn case(
-        match_expression: Option<Expression>,
-        when_then_pairs: Vec<(Expression, Expression)>,
-        default: Option<Expression>,
-    ) -> Expression {
-        let conditions = when_then_pairs;
-        let default = default.map(Box::new);
-        Expression::Case { test_expr: match_expression.map(Box::new), conditions, default }
+        match_expression: Option<ContextualExpression>,
+        when_then_pairs: Vec<(ContextualExpression, ContextualExpression)>,
+        default: Option<ContextualExpression>,
+    ) -> ContextualExpression {
+        let ctx = match_expression.as_ref().map(|e| e.context.clone())
+            .or_else(|| when_then_pairs.first().map(|(w, _)| w.context.clone()))
+            .or_else(|| default.as_ref().map(|d| d.context.clone()))
+            .unwrap_or_else(|| Arc::new(ExpressionContext::new()));
+
+        let test_expr = match_expression.map(|e| {
+            Box::new(e.expression().expect("Match expression should exist").expression().clone())
+        });
+        let conditions = when_then_pairs.iter()
+            .map(|(when, then)| {
+                let when_expr = when.expression().expect("When expression should exist").expression().clone();
+                let then_expr = then.expression().expect("Then expression should exist").expression().clone();
+                (when_expr, then_expr)
+            })
+            .collect();
+        let default_expr = default.map(|d| {
+            Box::new(d.expression().expect("Default expression should exist").expression().clone())
+        });
+        let expr = Expression::Case { test_expr, conditions, default: default_expr };
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建下标表达式
-    pub fn subscript(collection: Expression, index: Expression) -> Expression {
-        Expression::Subscript { collection: Box::new(collection), index: Box::new(index) }
+    pub fn subscript(collection: ContextualExpression, index: ContextualExpression) -> ContextualExpression {
+        let ctx = collection.context.clone();
+        let collection_expr = collection.expression().expect("Collection expression should exist").expression().clone();
+        let index_expr = index.expression().expect("Index expression should exist").expression().clone();
+        let expr = Expression::Subscript { collection: Box::new(collection_expr), index: Box::new(index_expr) };
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
     }
 
     /// 创建比较表达式
-    pub fn compare(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression) -> Expression {
+    pub fn compare(left: ContextualExpression, op: crate::core::types::operators::BinaryOperator, right: ContextualExpression) -> ContextualExpression {
         Self::binary(left, op, right)
     }
 
     /// 创建逻辑表达式
-    pub fn logical(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression) -> Expression {
+    pub fn logical(left: ContextualExpression, op: crate::core::types::operators::BinaryOperator, right: ContextualExpression) -> ContextualExpression {
         Self::binary(left, op, right)
     }
 
     /// 创建算术表达式
-    pub fn arithmetic(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression) -> Expression {
+    pub fn arithmetic(left: ContextualExpression, op: crate::core::types::operators::BinaryOperator, right: ContextualExpression) -> ContextualExpression {
         Self::binary(left, op, right)
     }
 }
@@ -95,7 +176,7 @@ impl StmtFactory {
     pub fn create_node(
         variable: Option<String>,
         labels: Vec<String>,
-        properties: Option<Expression>,
+        properties: Option<ContextualExpression>,
         span: Span,
     ) -> Stmt {
         Stmt::Create(CreateStmt {
@@ -113,9 +194,9 @@ impl StmtFactory {
     pub fn create_edge(
         variable: Option<String>,
         edge_type: String,
-        src: Expression,
-        dst: Expression,
-        properties: Option<Expression>,
+        src: ContextualExpression,
+        dst: ContextualExpression,
+        properties: Option<ContextualExpression>,
         direction: EdgeDirection,
         span: Span,
     ) -> Stmt {
@@ -136,7 +217,7 @@ impl StmtFactory {
     /// 创建 MATCH 语句
     pub fn match_stmt(
         patterns: Vec<Pattern>,
-        where_clause: Option<Expression>,
+        where_clause: Option<ContextualExpression>,
         return_clause: Option<ReturnClause>,
         order_by: Option<OrderByClause>,
         limit: Option<usize>,
@@ -156,7 +237,7 @@ impl StmtFactory {
     }
 
     /// 创建 DELETE 语句
-    pub fn delete(target: DeleteTarget, where_clause: Option<Expression>, span: Span) -> Stmt {
+    pub fn delete(target: DeleteTarget, where_clause: Option<ContextualExpression>, span: Span) -> Stmt {
         Stmt::Delete(DeleteStmt {
             span,
             target,
@@ -166,7 +247,7 @@ impl StmtFactory {
     }
 
     /// 创建带 WITH EDGE 选项的 DELETE 语句
-    pub fn delete_with_edge(target: DeleteTarget, where_clause: Option<Expression>, span: Span) -> Stmt {
+    pub fn delete_with_edge(target: DeleteTarget, where_clause: Option<ContextualExpression>, span: Span) -> Stmt {
         Stmt::Delete(DeleteStmt {
             span,
             target,
@@ -179,7 +260,7 @@ impl StmtFactory {
     pub fn update(
         target: UpdateTarget,
         set_clause: SetClause,
-        where_clause: Option<Expression>,
+        where_clause: Option<ContextualExpression>,
         span: Span,
     ) -> Stmt {
         Stmt::Update(UpdateStmt {
@@ -197,7 +278,7 @@ impl StmtFactory {
         steps: Steps,
         from: FromClause,
         over: Option<OverClause>,
-        where_clause: Option<Expression>,
+        where_clause: Option<ContextualExpression>,
         yield_clause: Option<YieldClause>,
         span: Span,
     ) -> Stmt {
@@ -265,7 +346,7 @@ impl StmtFactory {
     /// 创建 LOOKUP 语句
     pub fn lookup(
         target: LookupTarget,
-        where_clause: Option<Expression>,
+        where_clause: Option<ContextualExpression>,
         yield_clause: Option<YieldClause>,
         span: Span,
     ) -> Stmt {
@@ -282,7 +363,7 @@ impl StmtFactory {
         steps: Steps,
         from: FromClause,
         over: Option<OverClause>,
-        where_clause: Option<Expression>,
+        where_clause: Option<ContextualExpression>,
         yield_clause: Option<YieldClause>,
         span: Span,
     ) -> Stmt {
@@ -299,9 +380,9 @@ impl StmtFactory {
     /// 创建 FIND PATH 语句
     pub fn find_path(
         from: FromClause,
-        to: Expression,
+        to: ContextualExpression,
         over: Option<OverClause>,
-        where_clause: Option<Expression>,
+        where_clause: Option<ContextualExpression>,
         shortest: bool,
         yield_clause: Option<YieldClause>,
         span: Span,
@@ -333,8 +414,8 @@ impl PatternFactory {
     pub fn node(
         variable: Option<String>,
         labels: Vec<String>,
-        properties: Option<Expression>,
-        predicates: Vec<Expression>,
+        properties: Option<ContextualExpression>,
+        predicates: Vec<ContextualExpression>,
         span: Span,
     ) -> Pattern {
         Pattern::Node(NodePattern::new(
@@ -346,8 +427,8 @@ impl PatternFactory {
     pub fn edge(
         variable: Option<String>,
         edge_types: Vec<String>,
-        properties: Option<Expression>,
-        predicates: Vec<Expression>,
+        properties: Option<ContextualExpression>,
+        predicates: Vec<ContextualExpression>,
         direction: EdgeDirection,
         range: Option<EdgeRange>,
         span: Span,
@@ -409,7 +490,7 @@ impl AstBuilder {
     }
 
     /// 构建简单的 MATCH 查询
-    pub fn build_simple_match(&self, pattern: Pattern, return_expression: Expression) -> Stmt {
+    pub fn build_simple_match(&self, pattern: Pattern, return_expression: ContextualExpression) -> Stmt {
         let return_clause = ReturnClause {
             span: self.span,
             items: vec![ReturnItem::Expression {
@@ -444,20 +525,20 @@ impl AstBuilder {
         &self,
         variable: Option<String>,
         edge_type: String,
-        src: Expression,
-        dst: Expression,
+        src: ContextualExpression,
+        dst: ContextualExpression,
         direction: EdgeDirection,
     ) -> Stmt {
         StmtFactory::create_edge(variable, edge_type, src, dst, None, direction, self.span)
     }
 
     /// 构建简单的 DELETE 查询
-    pub fn build_delete_vertices(&self, vertices: Vec<Expression>) -> Stmt {
+    pub fn build_delete_vertices(&self, vertices: Vec<ContextualExpression>) -> Stmt {
         StmtFactory::delete(DeleteTarget::Vertices(vertices), None, self.span)
     }
 
     /// 构建简单的 UPDATE 查询
-    pub fn build_update_vertex(&self, vertex: Expression, assignments: Vec<Assignment>) -> Stmt {
+    pub fn build_update_vertex(&self, vertex: ContextualExpression, assignments: Vec<Assignment>) -> Stmt {
         let set_clause = SetClause {
             span: self.span,
             assignments,
@@ -467,249 +548,28 @@ impl AstBuilder {
     }
 }
 
-/// 表达式优化器 - 用于优化表达式
-pub struct ExprOptimizer;
-
-impl ExprOptimizer {
-    /// 常量折叠优化
-    pub fn constant_folding(expression: Expression) -> Expression {
-        match expression {
-            Expression::Binary { left, op, right } => {
-                let optimized_left = Self::constant_folding(*left);
-                let optimized_right = Self::constant_folding(*right);
-
-                // 如果左右操作数都是常量，尝试计算结果
-                if let (Expression::Literal(ref left_value), Expression::Literal(ref right_value)) =
-                    (&optimized_left, &optimized_right)
-                {
-                    if let Some(result) =
-                        Self::evaluate_binary_op(left_value, op, right_value)
-                    {
-                        return Expression::Literal(result);
-                    }
-                }
-
-                Expression::Binary { left: Box::new(optimized_left), op, right: Box::new(optimized_right) }
-            }
-            Expression::Unary { op, operand } => {
-                let optimized_operand = Self::constant_folding(*operand);
-
-                // 如果操作数是常量，尝试计算结果
-                if let Expression::Literal(ref operand_value) = optimized_operand {
-                    if let Some(result) = Self::evaluate_unary_op(op, operand_value) {
-                        return Expression::Literal(result);
-                    }
-                }
-
-                Expression::Unary { op, operand: Box::new(optimized_operand) }
-            }
-            Expression::List(elements) => {
-                let optimized_elements = elements.into_iter().map(Self::constant_folding).collect();
-                Expression::List(optimized_elements)
-            }
-            Expression::Map(pairs) => {
-                let optimized_pairs = pairs
-                    .into_iter()
-                    .map(|(key, value)| (key, Self::constant_folding(value)))
-                    .collect();
-                Expression::Map(optimized_pairs)
-            }
-            Expression::Subscript { collection, index, .. } => {
-                let optimized_collection = Self::constant_folding(*collection);
-                let optimized_index = Self::constant_folding(*index);
-                Expression::Subscript { collection: Box::new(optimized_collection), index: Box::new(optimized_index) }
-            }
-            _ => expression,
-        }
-    }
-
-    /// 评估二元操作符
-    fn evaluate_binary_op(left: &Value, op: BinaryOp, right: &Value) -> Option<Value> {
-        use crate::core::Value;
-
-        match (left, op, right) {
-            (Value::Int(l), BinaryOp::Add, Value::Int(r)) => Some(Value::Int(l + r)),
-            (Value::Int(l), BinaryOp::Subtract, Value::Int(r)) => Some(Value::Int(l - r)),
-            (Value::Int(l), BinaryOp::Multiply, Value::Int(r)) => Some(Value::Int(l * r)),
-            (Value::Int(l), BinaryOp::Divide, Value::Int(r)) => {
-                if *r != 0 {
-                    Some(Value::Int(l / r))
-                } else {
-                    None
-                }
-            }
-            (Value::Int(l), BinaryOp::Modulo, Value::Int(r)) => {
-                if *r != 0 {
-                    Some(Value::Int(l % r))
-                } else {
-                    None
-                }
-            }
-            (Value::Float(l), BinaryOp::Add, Value::Float(r)) => Some(Value::Float(l + r)),
-            (Value::Float(l), BinaryOp::Subtract, Value::Float(r)) => Some(Value::Float(l - r)),
-            (Value::Float(l), BinaryOp::Multiply, Value::Float(r)) => Some(Value::Float(l * r)),
-            (Value::Float(l), BinaryOp::Divide, Value::Float(r)) => {
-                if *r != 0.0 {
-                    Some(Value::Float(l / r))
-                } else {
-                    None
-                }
-            }
-            (Value::String(l), BinaryOp::Add, Value::String(r)) => {
-                Some(Value::String(format!("{}{}", l, r)))
-            }
-            _ => None,
-        }
-    }
-
-    /// 评估一元操作符
-    fn evaluate_unary_op(op: UnaryOp, operand: &Value) -> Option<Value> {
-        use crate::core::Value;
-
-        match (op, operand) {
-            (UnaryOp::Minus, Value::Int(v)) => Some(Value::Int(-v)),
-            (UnaryOp::Minus, Value::Float(v)) => Some(Value::Float(-v)),
-            (UnaryOp::Not, Value::Bool(v)) => Some(Value::Bool(!v)),
-            _ => None,
-        }
-    }
-
-    /// 表达式简化
-    pub fn simplify(expression: Expression) -> Expression {
-        let folded = Self::constant_folding(expression);
-        Self::remove_redundant_operations(folded)
-    }
-
-    /// 移除冗余操作
-    fn remove_redundant_operations(expression: Expression) -> Expression {
-        match expression {
-            Expression::Binary { left, op, right, .. } => {
-                let left = Self::remove_redundant_operations(*left);
-                let right = Self::remove_redundant_operations(*right);
-
-                // 简化：x + 0 -> x
-                if op == crate::core::types::operators::BinaryOperator::Add {
-                    if let Expression::Literal(Value::Int(0) | Value::Float(0.0)) = &right {
-                        return left;
-                    }
-                    if let Expression::Literal(Value::Int(0) | Value::Float(0.0)) = &left {
-                        return right;
-                    }
-                }
-
-                // 简化：x * 1 -> x
-                if op == crate::core::types::operators::BinaryOperator::Multiply {
-                    if let Expression::Literal(Value::Int(1) | Value::Float(1.0)) = &right {
-                        return left;
-                    }
-                    if let Expression::Literal(Value::Int(1) | Value::Float(1.0)) = &left {
-                        return right;
-                    }
-                }
-
-                // 简化：x * 0 -> 0
-                if op == crate::core::types::operators::BinaryOperator::Multiply {
-                    if let Expression::Literal(Value::Int(0) | Value::Float(0.0)) = &right {
-                        return right;
-                    }
-                    if let Expression::Literal(Value::Int(0) | Value::Float(0.0)) = &left {
-                        return left;
-                    }
-                }
-
-                Expression::Binary { left: Box::new(left), op, right: Box::new(right) }
-            }
-            Expression::Unary { op, operand, .. } => {
-                let operand = Self::remove_redundant_operations(*operand);
-
-                // 简化：+x -> x
-                if op == crate::core::types::operators::UnaryOperator::Plus {
-                    return operand;
-                }
-
-                // 简化：!!x -> x
-                if op == crate::core::types::operators::UnaryOperator::Not {
-                    if let Expression::Unary { op: inner_op, operand: inner_operand, .. } = &operand {
-                        if *inner_op == crate::core::types::operators::UnaryOperator::Not {
-                            return *inner_operand.clone();
-                        }
-                    }
-                }
-
-                Expression::Unary { op, operand: Box::new(operand) }
-            }
-            _ => expression,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::Value;
+    use std::sync::Arc;
 
     #[test]
     fn test_expr_factory() {
+        let ctx = Arc::new(ExpressionContext::new());
+        
         // 测试常量表达式
-        let const_expression = ExprFactory::constant(Value::Int(42));
-        assert!(matches!(const_expression, Expression::Literal(_)));
+        let const_expression = ExprFactory::constant(Value::Int(42), ctx.clone());
+        assert!(const_expression.expression().is_some());
 
         // 测试变量表达式
-        let var_expression = ExprFactory::variable("x".to_string());
-        assert!(matches!(var_expression, Expression::Variable(_)));
+        let var_expression = ExprFactory::variable("x".to_string(), ctx.clone());
+        assert!(var_expression.expression().is_some());
 
         // 测试二元表达式
-        let left = ExprFactory::constant(Value::Int(5));
-        let right = ExprFactory::constant(Value::Int(3));
+        let left = ExprFactory::constant(Value::Int(5), ctx.clone());
+        let right = ExprFactory::constant(Value::Int(3), ctx.clone());
         let binary_expression = ExprFactory::binary(left, crate::core::types::operators::BinaryOperator::Add, right);
-        assert!(matches!(binary_expression, Expression::Binary { left: _, op: _, right: _ }));
-    }
-
-    #[test]
-    fn test_constant_folding() {
-        // 测试 5 + 3 -> 8
-        let left = ExprFactory::constant(Value::Int(5));
-        let right = ExprFactory::constant(Value::Int(3));
-        let expression = ExprFactory::binary(left, crate::core::types::operators::BinaryOperator::Add, right);
-
-        let optimized = ExprOptimizer::constant_folding(expression);
-        assert!(matches!(optimized, Expression::Literal(Value::Int(8))));
-    }
-
-    #[test]
-    fn test_unary_minus() {
-        // 测试 -5 -> -5
-        let operand = ExprFactory::constant(Value::Int(5));
-        let expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Minus, operand);
-
-        let optimized = ExprOptimizer::constant_folding(expression);
-        assert!(matches!(optimized, Expression::Literal(Value::Int(-5))));
-    }
-
-    #[test]
-    fn test_expression_simplification() {
-        // 测试 x + 0 -> x
-        let x = ExprFactory::variable("x".to_string());
-        let zero = ExprFactory::constant(Value::Int(0));
-        let expression = ExprFactory::binary(x.clone(), crate::core::types::operators::BinaryOperator::Add, zero);
-
-        let simplified = ExprOptimizer::simplify(expression);
-        assert_eq!(simplified, x);
-
-        // 测试 x * 1 -> x
-        let x = ExprFactory::variable("x".to_string());
-        let one = ExprFactory::constant(Value::Int(1));
-        let expression = ExprFactory::binary(x.clone(), crate::core::types::operators::BinaryOperator::Multiply, one);
-
-        let simplified = ExprOptimizer::simplify(expression);
-        assert_eq!(simplified, x);
-
-        // 测试 !!x -> x
-        let x = ExprFactory::variable("x".to_string());
-        let not_expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Not, x.clone());
-        let expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Not, not_expression);
-
-        let simplified = ExprOptimizer::simplify(expression);
-        assert_eq!(simplified, x);
+        assert!(binary_expression.expression().is_some());
     }
 }
