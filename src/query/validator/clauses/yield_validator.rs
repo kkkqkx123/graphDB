@@ -15,6 +15,7 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::QueryContext;
 use crate::core::YieldColumn;
+use crate::core::Expression;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,

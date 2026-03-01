@@ -6,6 +6,7 @@ use super::pattern::*;
 use super::types::*;
 use crate::core::types::PropertyDef;
 use crate::core::types::expression::ContextualExpression;
+use crate::core::Expression;
 use crate::core::types::expression::utils::collect_variables;
 
 /// 语句枚举 - 所有图数据库操作语句

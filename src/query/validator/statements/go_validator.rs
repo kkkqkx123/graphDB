@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::Expression;
 use crate::core::DataType;
 use crate::core::types::EdgeDirection;
 use crate::query::QueryContext;

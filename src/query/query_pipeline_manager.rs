@@ -288,7 +288,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     fn parse_into_context(
         &mut self,
         query_text: &str,
-    ) -> DBResult<crate::query::parser::parser::ParserResult> {
+    ) -> DBResult<crate::query::parser::ParserResult> {
         let mut parser = Parser::new(query_text);
         parser.parse()
             .map_err(|e| DBError::from(QueryError::pipeline_parse_error(e)))

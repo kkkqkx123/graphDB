@@ -3,6 +3,7 @@
 use super::alias_structs::AliasType;
 use super::path_structs::Path;
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::Expression;
 use crate::core::YieldColumn;
 use crate::core::DataType;
 use crate::core::error::ValidationError;

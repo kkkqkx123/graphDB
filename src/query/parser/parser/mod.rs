@@ -21,7 +21,7 @@ mod tests;
 pub use expr_parser::ExprParser;
 pub use stmt_parser::StmtParser;
 pub use parse_context::ParseContext;
-pub use parser::{Parser, parse_expression_meta_from_string, parse_expression_meta_from_string_with_cache};
+pub use parser::{Parser, parse_expression_meta_from_string, parse_expression_meta_from_string_with_cache, ParserResult};
 
 // 导出子模块解析器
 pub use clause_parser::ClauseParser;

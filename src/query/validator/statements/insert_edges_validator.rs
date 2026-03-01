@@ -5,6 +5,7 @@
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{Value, NullType};
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::Expression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::InsertTarget;
 use crate::query::parser::ast::Stmt;

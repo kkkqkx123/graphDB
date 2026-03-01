@@ -16,7 +16,7 @@ use std::sync::Arc;
 use crate::core::error::ValidationError;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
-use crate::query::validator::validation_info::ValidationInfo;
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 
 /// 列定义

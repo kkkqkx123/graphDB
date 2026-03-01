@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::Span;
 
-use super::structs::AliasType;
-use super::validator_trait::ValueType;
+use crate::query::validator::structs::AliasType;
+use crate::query::validator::validator_trait::ValueType;
 
 /// 验证后的语句包装器
 /// 包含原始语句和验证信息

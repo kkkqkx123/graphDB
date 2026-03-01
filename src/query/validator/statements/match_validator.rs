@@ -12,15 +12,17 @@ use crate::query::QueryContext;
 use crate::query::parser::ast::{Stmt, Pattern};
 use crate::query::parser::ast::stmt::{MatchStmt, ReturnClause, ReturnItem, OrderByClause};
 
-use super::structs::{
+use crate::query::validator::structs::{
     AliasType, MatchStepRange, PaginationContext, Path, QueryPart, ReturnClauseContext,
     UnwindClauseContext, WhereClauseContext, WithClauseContext, YieldClauseContext,
 };
-use super::{
+use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
-    ValidationInfo, PathAnalysis,
+    ValueType,
 };
-use super::strategies::ExpressionValidationStrategy;
+use crate::query::validator::structs::validation_info::{ValidationInfo, PathAnalysis};
+use crate::query::validator::strategies::ExpressionValidationStrategy;
+use crate::core::Expression;
 
 /// 验证后的MATCH信息
 #[derive(Debug, Clone)]
@@ -658,7 +660,7 @@ impl MatchValidator {
                 if !node_info.alias.is_empty() {
                     let col = ColumnDef {
                         name: node_info.alias.clone(),
-                        type_: super::ValueType::Vertex,
+                        type_: ValueType::Vertex,
                     };
                     self.outputs.push(col);
                 }
@@ -667,7 +669,7 @@ impl MatchValidator {
                 if !edge_info.alias.is_empty() {
                     let col = ColumnDef {
                         name: edge_info.alias.clone(),
-                        type_: super::ValueType::Edge,
+                        type_: ValueType::Edge,
                     };
                     self.outputs.push(col);
                 }
@@ -724,7 +726,7 @@ impl MatchValidator {
                         for (alias, _) in &self.aliases {
                             let col = ColumnDef {
                                 name: alias.clone(),
-                                type_: super::ValueType::Unknown,
+                                type_: ValueType::Unknown,
                             };
                             self.outputs.push(col);
                         }
@@ -739,7 +741,7 @@ impl MatchValidator {
                         });
                         let col = ColumnDef {
                             name,
-                            type_: super::ValueType::Unknown,
+                            type_: ValueType::Unknown,
                         };
                         self.outputs.push(col);
                     }

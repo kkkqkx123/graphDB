@@ -6,11 +6,12 @@ use std::sync::Arc;
 
 use crate::core::error::{DBResult, ValidationError, ValidationError as CoreValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::Expression;
 use crate::core::Value;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{SetClause, UpdateStmt, UpdateTarget};
 use crate::query::validator::validator_trait::{StatementValidator, StatementType, ValidationResult, ColumnDef, ExpressionProps, ValueType};
-use crate::query::validator::schema_validator::SchemaValidator;
+use crate::query::validator::helpers::schema_validator::SchemaValidator;
 use crate::storage::metadata::schema_manager::SchemaManager;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 

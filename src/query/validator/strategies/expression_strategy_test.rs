@@ -443,10 +443,6 @@ mod expression_strategy_tests {
     }
     
     #[test]
-    fn test_validate_expression_type_mismatch() {
-        let type_validator = crate::query::validator::strategies::helpers::TypeValidator::new();
-
-    #[test]
     fn test_validate_aggregate_expression() {
         let type_validator = crate::query::validator::strategies::helpers::TypeValidator::new();
         let context = YieldClauseContext {

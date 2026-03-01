@@ -1,6 +1,7 @@
 //! 路径相关数据结构
 
 use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 
 /// 路径信息
 #[derive(Debug, Clone)]
