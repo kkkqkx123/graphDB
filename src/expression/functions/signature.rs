@@ -1,6 +1,6 @@
 //! 类型签名系统
 //!
-//! 定义函数的类型签名，用于类型检查和函数重载解析
+//! 定义函数签名中使用的值类型枚举，用于类型检查和函数重载解析
 
 use crate::core::Value;
 use std::fmt;
@@ -25,7 +25,7 @@ pub enum ValueType {
     Geography,
     Duration,
     DataSet,
-    Any,
+    Empty,
 }
 
 impl ValueType {
@@ -48,7 +48,7 @@ impl ValueType {
             Value::Geography(_) => ValueType::Geography,
             Value::Duration(_) => ValueType::Duration,
             Value::DataSet(_) => ValueType::DataSet,
-            Value::Empty => ValueType::Any,
+            Value::Empty => ValueType::Empty,
         }
     }
 
@@ -65,7 +65,7 @@ impl ValueType {
     }
 
     pub fn compatible_with(&self, other: &ValueType) -> bool {
-        self == &ValueType::Any || other == &ValueType::Any || self == other
+        self == &ValueType::Empty || other == &ValueType::Empty || self == other
     }
 }
 
@@ -89,115 +89,7 @@ impl fmt::Display for ValueType {
             ValueType::Geography => write!(f, "GEOGRAPHY"),
             ValueType::Duration => write!(f, "DURATION"),
             ValueType::DataSet => write!(f, "DATASET"),
-            ValueType::Any => write!(f, "ANY"),
+            ValueType::Empty => write!(f, "EMPTY"),
         }
-    }
-}
-
-/// 函数签名定义
-#[derive(Debug, Clone)]
-pub struct FunctionSignature {
-    pub name: String,
-    pub arg_types: Vec<ValueType>,
-    pub return_type: ValueType,
-    pub min_arity: usize,
-    pub max_arity: usize,
-    pub is_pure: bool,
-    pub description: String,
-}
-
-impl FunctionSignature {
-    pub fn new(
-        name: &str,
-        arg_types: Vec<ValueType>,
-        return_type: ValueType,
-        min_arity: usize,
-        max_arity: usize,
-        is_pure: bool,
-        description: &str,
-    ) -> Self {
-        Self {
-            name: name.to_string(),
-            arg_types,
-            return_type,
-            min_arity,
-            max_arity,
-            is_pure,
-            description: description.to_string(),
-        }
-    }
-
-    pub fn is_variadic(&self) -> bool {
-        self.max_arity == usize::MAX
-    }
-
-    pub fn check_arity(&self, arity: usize) -> bool {
-        arity >= self.min_arity && (self.is_variadic() || arity <= self.max_arity)
-    }
-
-    pub fn check_exact_types(&self, args: &[Value]) -> bool {
-        if args.len() != self.arg_types.len() {
-            return false;
-        }
-        args.iter().zip(&self.arg_types).all(|(arg, expected)| {
-            let actual = ValueType::from_value(arg);
-            actual == *expected
-        })
-    }
-
-    pub fn check_compatible_types(&self, args: &[Value]) -> bool {
-        if !self.is_variadic() && args.len() != self.arg_types.len() {
-            return false;
-        }
-        args.iter().zip(&self.arg_types).all(|(arg, expected)| {
-            if expected == &ValueType::Any {
-                return true;
-            }
-            let actual = ValueType::from_value(arg);
-            actual.compatible_with(expected)
-        })
-    }
-
-    pub fn type_matching_score(&self, args: &[Value]) -> i32 {
-        if !self.check_arity(args.len()) {
-            return i32::MIN;
-        }
-        let mut score = 0;
-        for (arg, expected) in args.iter().zip(&self.arg_types) {
-            let actual = ValueType::from_value(arg);
-            if actual == *expected {
-                score += 10;
-            } else if *expected == ValueType::Any {
-                score += 1;
-            } else if actual.compatible_with(expected) {
-                score += 5;
-            } else {
-                return i32::MIN;
-            }
-        }
-        score
-    }
-}
-
-/// 函数调用主体
-pub type FunctionBody = dyn Fn(&[Value]) -> Result<Value, crate::core::error::ExpressionError> + Send + Sync;
-
-/// 注册的函数信息
-pub struct RegisteredFunction {
-    pub signature: FunctionSignature,
-    pub body: Box<FunctionBody>,
-}
-
-impl RegisteredFunction {
-    pub fn new(signature: FunctionSignature, body: Box<FunctionBody>) -> Self {
-        Self { signature, body }
-    }
-}
-
-impl std::fmt::Debug for RegisteredFunction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RegisteredFunction")
-            .field("signature", &self.signature)
-            .finish()
     }
 }

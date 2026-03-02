@@ -17,6 +17,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 
 /// 验证后的 GroupBy 信息
 #[derive(Debug, Clone)]
@@ -326,10 +327,17 @@ impl StatementValidator for GroupByValidator {
         
         self.validate_impl(group_by_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        for key in &self.group_keys {
+            info.semantic_info.grouping_keys.push(format!("{:?}", key));
+        }
+
+        for item in &self.group_items {
+            info.semantic_info.aggregate_functions.push(format!("{:?}", item));
+        }
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

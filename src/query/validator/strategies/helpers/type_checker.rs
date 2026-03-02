@@ -500,7 +500,7 @@ impl TypeValidator {
 
     fn are_types_compatible_enhanced(&self, left: &DataType, right: &ValueType) -> bool {
         match (left, right) {
-            (DataType::Empty, _) | (_, ValueType::Any) => true,
+            (DataType::Empty, _) | (_, ValueType::Empty) => true,
             _ => self.are_types_compatible(left, &right.to_data_type()),
         }
     }

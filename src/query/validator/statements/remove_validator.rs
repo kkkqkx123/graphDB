@@ -11,6 +11,8 @@ use crate::query::parser::ast::stmt::RemoveStmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 
 /// Remove 语句验证器
 #[derive(Debug)]
@@ -203,10 +205,26 @@ impl StatementValidator for RemoveValidator {
 
         self.validate_impl(remove_stmt)?;
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        for item in &self.items {
+            if let Some(expr_meta) = item.expression() {
+                let expr = expr_meta.inner();
+                match expr {
+                    crate::core::types::expression::Expression::Property { object, property: _ } => {
+                        if let crate::core::types::expression::Expression::Variable(var_name) = object.as_ref() {
+                            info.add_alias(var_name.clone(), AliasType::Node);
+                        }
+                    }
+                    crate::core::types::expression::Expression::Variable(var_name) => {
+                        info.add_alias(var_name.clone(), AliasType::Node);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

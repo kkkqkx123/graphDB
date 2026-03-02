@@ -19,6 +19,8 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 
 /// 验证后的 UNWIND 信息
@@ -402,11 +404,12 @@ impl StatementValidator for UnwindValidator {
             return Ok(ValidationResult::failure(errors));
         }
 
+        let mut info = ValidationInfo::new();
+
+        info.add_alias(self.variable_name.clone(), AliasType::Variable);
+
         // 返回成功的验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

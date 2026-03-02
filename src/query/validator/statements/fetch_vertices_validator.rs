@@ -27,6 +27,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的顶点获取信息
@@ -331,11 +332,14 @@ impl StatementValidator for FetchVerticesValidator {
 
         self.validated_result = Some(validated);
 
-        // 10. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 10. 构建详细的 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        // 添加语义信息
+        info.semantic_info.referenced_tags.push("vertex".to_string());
+
+        // 11. 返回包含详细信息的验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

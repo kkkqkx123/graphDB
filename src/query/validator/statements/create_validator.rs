@@ -30,6 +30,8 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 
 /// 验证后的创建信息
 #[derive(Debug, Clone)]
@@ -712,11 +714,57 @@ impl StatementValidator for CreateValidator {
             return Ok(ValidationResult::failure(errors));
         }
 
-        // 返回成功的验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 构建详细的 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        // 添加别名映射和语义信息
+        if let Some(ref result) = self.validated_result {
+            for pattern in &result.patterns {
+                match pattern {
+                    ValidatedPattern::Node(node) => {
+                        if let Some(ref var) = node.variable {
+                            info.add_alias(var.clone(), AliasType::Node);
+                        }
+                        for label in &node.labels {
+                            if !info.semantic_info.referenced_tags.contains(label) {
+                                info.semantic_info.referenced_tags.push(label.clone());
+                            }
+                        }
+                    }
+                    ValidatedPattern::Edge(edge) => {
+                        if let Some(ref var) = edge.variable {
+                            info.add_alias(var.clone(), AliasType::Edge);
+                        }
+                        if !info.semantic_info.referenced_edges.contains(&edge.edge_type) {
+                            info.semantic_info.referenced_edges.push(edge.edge_type.clone());
+                        }
+                    }
+                    ValidatedPattern::Path(path) => {
+                        for node in &path.nodes {
+                            if let Some(ref var) = node.variable {
+                                info.add_alias(var.clone(), AliasType::Node);
+                            }
+                            for label in &node.labels {
+                                if !info.semantic_info.referenced_tags.contains(label) {
+                                    info.semantic_info.referenced_tags.push(label.clone());
+                                }
+                            }
+                        }
+                        for edge in &path.edges {
+                            if let Some(ref var) = edge.variable {
+                                info.add_alias(var.clone(), AliasType::Edge);
+                            }
+                            if !info.semantic_info.referenced_edges.contains(&edge.edge_type) {
+                                info.semantic_info.referenced_edges.push(edge.edge_type.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 返回包含详细信息的验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

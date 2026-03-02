@@ -13,6 +13,8 @@ use crate::query::parser::ast::Pattern;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 
 /// Merge 语句验证器
 #[derive(Debug)]
@@ -446,6 +448,79 @@ impl MergeValidator {
             },
         ];
     }
+
+    fn extract_pattern_info(&self, pattern: &Pattern, info: &mut ValidationInfo) {
+        use crate::query::parser::ast::Pattern;
+
+        match pattern {
+            Pattern::Node(node) => {
+                if let Some(ref var) = node.variable {
+                    info.add_alias(var.clone(), AliasType::Node);
+                }
+                for label in &node.labels {
+                    if !info.semantic_info.referenced_tags.contains(label) {
+                        info.semantic_info.referenced_tags.push(label.clone());
+                    }
+                }
+            }
+            Pattern::Edge(edge) => {
+                if let Some(ref var) = edge.variable {
+                    info.add_alias(var.clone(), AliasType::Edge);
+                }
+                for edge_type in &edge.edge_types {
+                    if !info.semantic_info.referenced_edges.contains(edge_type) {
+                        info.semantic_info.referenced_edges.push(edge_type.clone());
+                    }
+                }
+            }
+            Pattern::Path(path) => {
+                for element in &path.elements {
+                    self.extract_path_element_info(element, info);
+                }
+            }
+            Pattern::Variable(var) => {
+                info.add_alias(var.name.clone(), AliasType::Variable);
+            }
+        }
+    }
+
+    fn extract_path_element_info(&self, element: &crate::query::parser::ast::PathElement, info: &mut ValidationInfo) {
+        use crate::query::parser::ast::PathElement;
+
+        match element {
+            PathElement::Node(node) => {
+                if let Some(ref var) = node.variable {
+                    info.add_alias(var.clone(), AliasType::Node);
+                }
+                for label in &node.labels {
+                    if !info.semantic_info.referenced_tags.contains(label) {
+                        info.semantic_info.referenced_tags.push(label.clone());
+                    }
+                }
+            }
+            PathElement::Edge(edge) => {
+                if let Some(ref var) = edge.variable {
+                    info.add_alias(var.clone(), AliasType::Edge);
+                }
+                for edge_type in &edge.edge_types {
+                    if !info.semantic_info.referenced_edges.contains(edge_type) {
+                        info.semantic_info.referenced_edges.push(edge_type.clone());
+                    }
+                }
+            }
+            PathElement::Alternative(patterns) => {
+                for pattern in patterns {
+                    self.extract_pattern_info(pattern, info);
+                }
+            }
+            PathElement::Optional(inner) => {
+                self.extract_path_element_info(inner, info);
+            }
+            PathElement::Repeated(inner, _) => {
+                self.extract_path_element_info(inner, info);
+            }
+        }
+    }
 }
 
 impl Default for MergeValidator {
@@ -476,10 +551,13 @@ impl StatementValidator for MergeValidator {
 
         self.validate_impl(merge_stmt)?;
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        if let Some(ref pattern) = self.pattern {
+            self.extract_pattern_info(pattern, &mut info);
+        }
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

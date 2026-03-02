@@ -18,6 +18,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 
 /// 验证后的 USE 信息
 #[derive(Debug, Clone)]
@@ -220,11 +221,12 @@ impl StatementValidator for UseValidator {
             return Ok(ValidationResult::failure(errors));
         }
 
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.used_space = Some(self.space_name.clone());
+
         // 返回成功的验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

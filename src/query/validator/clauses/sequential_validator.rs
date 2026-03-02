@@ -20,6 +20,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use std::collections::HashMap;
 
 /// 顺序语句定义
@@ -274,10 +275,9 @@ impl StatementValidator for SequentialValidator {
         // 这里简化处理，输出为空（实际应根据最后一条语句类型确定）
         self.outputs = Vec::new();
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let info = ValidationInfo::new();
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

@@ -277,6 +277,36 @@ pub struct SemanticInfo {
     pub defined_variables: Vec<String>,
     /// 聚合函数调用
     pub aggregate_calls: Vec<AggregateCallInfo>,
+    /// 分组键
+    pub grouping_keys: Vec<String>,
+    /// 聚合函数
+    pub aggregate_functions: Vec<String>,
+    /// 输出字段
+    pub output_fields: Vec<String>,
+    /// 排序字段
+    pub ordering_fields: Vec<String>,
+    /// 分页偏移
+    pub pagination_offset: Option<usize>,
+    /// 分页限制
+    pub pagination_limit: Option<usize>,
+    /// 管道步骤
+    pub pipeline_steps: Vec<String>,
+    /// 修改的对象
+    pub altered_objects: Vec<String>,
+    /// 删除的对象
+    pub dropped_objects: Vec<String>,
+    /// 受影响的用户
+    pub affected_users: Vec<String>,
+    /// 查询类型
+    pub query_type: Option<String>,
+    /// 查询复杂度
+    pub query_complexity: Option<usize>,
+    /// 集合操作类型
+    pub set_operation_type: Option<String>,
+    /// 解释格式
+    pub explanation_format: Option<String>,
+    /// 使用的空间
+    pub used_space: Option<String>,
 }
 
 /// 聚合函数调用信息

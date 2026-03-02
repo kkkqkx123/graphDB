@@ -112,6 +112,20 @@ impl Planner for InsertPlanner {
         // 获取空间名称
         let space_name = qctx.rctx().space_name.clone().unwrap_or_else(|| "default".to_string());
 
+        // 使用验证信息进行优化规划
+        let validation_info = &validated.validation_info;
+
+        // 检查语义信息
+        let referenced_tags = &validation_info.semantic_info.referenced_tags;
+        if !referenced_tags.is_empty() {
+            log::debug!("INSERT 引用的标签: {:?}", referenced_tags);
+        }
+
+        let referenced_edges = &validation_info.semantic_info.referenced_edges;
+        if !referenced_edges.is_empty() {
+            log::debug!("INSERT 引用的边类型: {:?}", referenced_edges);
+        }
+
         // 提取 INSERT 语句
         let insert_stmt = self.extract_insert_stmt(&validated.stmt)?;
 

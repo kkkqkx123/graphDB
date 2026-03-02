@@ -9,6 +9,8 @@ use crate::query::parser::ast::stmt::{ReturnStmt, ReturnItem};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 
 /// Return 语句验证器
 #[derive(Debug)]
@@ -318,10 +320,23 @@ impl StatementValidator for ReturnValidator {
 
         self.validate_impl(return_stmt)?;
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        for item in &self.items {
+            match item {
+                ReturnItem::Expression { expression, alias } => {
+                    if let Some(ref alias_name) = alias {
+                        info.add_alias(alias_name.clone(), AliasType::Expression);
+                    }
+                    info.semantic_info.output_fields.push(format!("{:?}", expression));
+                }
+                ReturnItem::All => {
+                    info.semantic_info.output_fields.push("*".to_string());
+                }
+            }
+        }
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

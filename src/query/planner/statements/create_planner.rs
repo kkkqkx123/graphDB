@@ -133,6 +133,20 @@ impl Planner for CreatePlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
+        // 使用验证信息进行优化规划
+        let validation_info = &validated.validation_info;
+
+        // 检查语义信息
+        let referenced_tags = &validation_info.semantic_info.referenced_tags;
+        if !referenced_tags.is_empty() {
+            log::debug!("CREATE 引用的标签: {:?}", referenced_tags);
+        }
+
+        let referenced_edges = &validation_info.semantic_info.referenced_edges;
+        if !referenced_edges.is_empty() {
+            log::debug!("CREATE 引用的边类型: {:?}", referenced_edges);
+        }
+
         // 获取空间名称
         let space_name = qctx.rctx().space_name.clone().unwrap_or_else(|| "default".to_string());
 

@@ -19,6 +19,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 
 /// 列信息定义
 #[derive(Debug, Clone)]
@@ -275,10 +276,13 @@ impl StatementValidator for PipeValidator {
                 .collect()
         };
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        for col in &self.left_output_cols {
+            info.semantic_info.pipeline_steps.push(format!("{}: {}", col.name, format!("{:?}", col.type_)));
+        }
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

@@ -16,6 +16,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::{Validator};
 
 /// 验证后的赋值信息
@@ -165,10 +166,11 @@ impl StatementValidator for AssignmentValidator {
             }
         }
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.add_alias(self.variable.clone(), crate::query::validator::structs::AliasType::Variable);
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

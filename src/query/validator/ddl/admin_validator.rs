@@ -18,6 +18,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 
 /// 验证后的 SHOW 信息
 #[derive(Debug, Clone)]
@@ -156,10 +157,11 @@ impl StatementValidator for ShowValidator {
         
         self.validate_impl(show_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.query_type = Some(format!("{:?}", self.target_type));
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -421,10 +423,11 @@ impl StatementValidator for ShowCreateValidator {
         
         self.validate_impl(show_create_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.query_type = Some(format!("{:?}", self.target_type));
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -514,10 +517,11 @@ impl StatementValidator for ShowConfigsValidator {
         
         self.validate_impl(show_configs_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.query_type = Some("ShowConfigs".to_string());
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -603,10 +607,11 @@ impl StatementValidator for ShowSessionsValidator {
         
         self.validate_impl(show_sessions_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.query_type = Some("ShowSessions".to_string());
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -692,10 +697,11 @@ impl StatementValidator for ShowQueriesValidator {
         
         self.validate_impl(show_queries_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.query_type = Some("ShowQueries".to_string());
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -783,10 +789,11 @@ impl StatementValidator for KillQueryValidator {
         
         self.validate_impl(kill_query_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.query_type = Some("KillQuery".to_string());
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

@@ -22,6 +22,8 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 
 /// SET 语句类型
 #[derive(Debug, Clone, PartialEq)]
@@ -462,11 +464,19 @@ impl StatementValidator for SetValidator {
             return Ok(ValidationResult::failure(errors));
         }
 
+        let mut info = ValidationInfo::new();
+
+        for item in &self.set_items {
+            if let Some(expr_meta) = item.target.expression() {
+                let expr = expr_meta.inner();
+                if let Expression::Variable(var_name) = expr {
+                    info.add_alias(var_name.clone(), AliasType::Variable);
+                }
+            }
+        }
+
         // 返回成功的验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

@@ -15,6 +15,7 @@ use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的顶点插入信息
@@ -305,7 +306,7 @@ impl StatementValidator for InsertVerticesValidator {
         // 8. 创建验证结果
         let validated = ValidatedInsertVertices {
             space_id,
-            tags: validated_tags,
+            tags: validated_tags.clone(),
             vertices: validated_vertices,
             if_not_exists: insert_stmt.if_not_exists,
         };
@@ -315,11 +316,18 @@ impl StatementValidator for InsertVerticesValidator {
         // 9. 生成输出列
         self.generate_output_columns();
 
-        // 10. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 10. 构建详细的 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        // 添加语义信息
+        for tag in &validated_tags {
+            if !info.semantic_info.referenced_tags.contains(&tag.tag_name) {
+                info.semantic_info.referenced_tags.push(tag.tag_name.clone());
+            }
+        }
+
+        // 11. 返回包含详细信息的验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

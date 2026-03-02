@@ -25,6 +25,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的边获取信息
@@ -384,7 +385,7 @@ impl StatementValidator for FetchEdgesValidator {
         // 9. 创建验证结果
         let validated = ValidatedFetchEdges {
             space_id,
-            edge_name: edge_type_name,
+            edge_name: edge_type_name.clone(),
             edge_type: edge_type_id,
             edge_keys: validated_keys,
             yield_columns: validated_columns,
@@ -404,11 +405,16 @@ impl StatementValidator for FetchEdgesValidator {
 
         self.validated_result = Some(validated);
 
-        // 10. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 10. 构建详细的 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        // 添加语义信息
+        if !info.semantic_info.referenced_edges.contains(&edge_type_name) {
+            info.semantic_info.referenced_edges.push(edge_type_name.clone());
+        }
+
+        // 11. 返回包含详细信息的验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

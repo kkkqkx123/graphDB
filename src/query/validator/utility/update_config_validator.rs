@@ -12,6 +12,7 @@ use crate::query::parser::ast::stmt::UpdateConfigsStmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 
 /// Update Configs 语句验证器
 #[derive(Debug)]
@@ -171,10 +172,11 @@ impl StatementValidator for UpdateConfigsValidator {
 
         self.validate_impl(update_configs_stmt)?;
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.query_type = Some("UpdateConfigs".to_string());
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

@@ -21,7 +21,7 @@ pub mod signature;
 pub mod registry;
 pub mod builtin;
 
-pub use signature::{FunctionSignature, RegisteredFunction, ValueType};
+pub use signature::ValueType;
 pub use registry::{global_registry, global_registry_ref, FunctionRegistry};
 
 // 从 builtin 子模块重新导出函数类型

@@ -10,6 +10,7 @@ use crate::query::validator::validator_enum::Validator;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 
 /// Query 语句验证器
 #[derive(Debug)]
@@ -107,10 +108,12 @@ impl StatementValidator for QueryValidator {
         if result.success {
             self.inputs = result.inputs;
             self.outputs = result.outputs;
-            Ok(ValidationResult::success(
-                self.inputs.clone(),
-                self.outputs.clone(),
-            ))
+
+            let mut info = ValidationInfo::new();
+            info.semantic_info.query_type = Some("Query".to_string());
+            info.semantic_info.query_complexity = Some(self.inputs.len());
+
+            Ok(ValidationResult::success_with_info(info))
         } else {
             Err(result.errors.into_iter().next().unwrap_or_else(|| {
                 ValidationError::new(

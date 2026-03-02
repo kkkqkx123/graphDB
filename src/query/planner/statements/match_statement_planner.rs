@@ -117,11 +117,27 @@ impl MatchStatementPlanner {
         stmt: &crate::query::parser::ast::Stmt,
         space_id: u64,
         sym_table: &SymbolTable,
-        _validation_info: Option<&ValidationInfo>,
+        validation_info: Option<&ValidationInfo>,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
+                // 使用验证信息优化规划
+                if let Some(info) = validation_info {
+                    // 使用索引提示
+                    for hint in &info.index_hints {
+                        if hint.estimated_selectivity < 0.1 {
+                            log::debug!("使用高选择性索引: {}", hint.index_name);
+                        }
+                    }
+
+                    // 使用语义信息优化连接顺序
+                    let referenced_tags = &info.semantic_info.referenced_tags;
+                    if !referenced_tags.is_empty() {
+                        log::debug!("引用的标签: {:?}", referenced_tags);
+                    }
+                }
+
                 // 处理路径模式
                 let mut plan = if match_stmt.patterns.is_empty() {
                     // 没有路径模式时使用默认节点扫描
@@ -129,12 +145,12 @@ impl MatchStatementPlanner {
                 } else {
                     // 处理第一个路径模式
                     let first_pattern = &match_stmt.patterns[0];
-                    self.plan_path_pattern(first_pattern, space_id, sym_table, qctx)?
+                    self.plan_path_pattern(first_pattern, space_id, sym_table, validation_info, qctx)?
                 };
 
                 // 处理额外的路径模式（使用交叉连接）
                 for pattern in match_stmt.patterns.iter().skip(1) {
-                    let path_plan = self.plan_path_pattern(pattern, space_id, sym_table, qctx)?;
+                    let path_plan = self.plan_path_pattern(pattern, space_id, sym_table, validation_info, qctx)?;
                     plan = self.cross_join_plans(plan, path_plan)?;
                 }
 
@@ -168,6 +184,7 @@ impl MatchStatementPlanner {
         pattern: &Pattern,
         space_id: u64,
         sym_table: &SymbolTable,
+        validation_info: Option<&ValidationInfo>,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         match pattern {
@@ -235,6 +252,7 @@ impl MatchStatementPlanner {
                                 space_id,
                                 prev_node_alias.as_deref(),
                                 sym_table,
+                                validation_info,
                                 qctx,
                             )?;
                             plan = if let Some(existing_root) = plan.root.take() {
@@ -252,6 +270,7 @@ impl MatchStatementPlanner {
                                 elem,
                                 space_id,
                                 prev_node_alias.as_deref(),
+                                validation_info,
                                 qctx,
                             )?;
                             plan = if let Some(existing_root) = plan.root.take() {
@@ -270,6 +289,7 @@ impl MatchStatementPlanner {
                                 *rep_type,
                                 space_id,
                                 prev_node_alias.as_deref(),
+                                validation_info,
                                 qctx,
                             )?;
                             plan = if let Some(existing_root) = plan.root.take() {
@@ -287,7 +307,7 @@ impl MatchStatementPlanner {
                 Ok(plan)
             }
             // 非路径模式委托给 plan_pattern 处理
-            _ => self.plan_pattern(pattern, space_id, sym_table, qctx),
+            _ => self.plan_pattern(pattern, space_id, sym_table, validation_info, qctx),
         }
     }
 
@@ -645,6 +665,7 @@ impl MatchStatementPlanner {
         space_id: u64,
         _prev_alias: Option<&str>,
         sym_table: &SymbolTable,
+        validation_info: Option<&ValidationInfo>,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         if patterns.is_empty() {
@@ -654,11 +675,11 @@ impl MatchStatementPlanner {
         }
 
         // 规划第一个路径选项
-        let mut plan = self.plan_pattern(&patterns[0], space_id, sym_table, qctx)?;
+        let mut plan = self.plan_pattern(&patterns[0], space_id, sym_table, validation_info, qctx)?;
 
         // 将剩余路径选项通过并集合并
         for pattern in patterns.iter().skip(1) {
-            let pattern_plan = self.plan_pattern(pattern, space_id, sym_table, qctx)?;
+            let pattern_plan = self.plan_pattern(pattern, space_id, sym_table, validation_info, qctx)?;
             plan = self.union_plans(plan, pattern_plan)?;
         }
 
@@ -671,12 +692,13 @@ impl MatchStatementPlanner {
         pattern: &Pattern,
         space_id: u64,
         sym_table: &SymbolTable,
+        validation_info: Option<&ValidationInfo>,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         match pattern {
             Pattern::Node(node) => self.plan_pattern_node(node, space_id, qctx),
             Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id),
-            Pattern::Path(_) => self.plan_path_pattern(pattern, space_id, sym_table, qctx),
+            Pattern::Path(_) => self.plan_path_pattern(pattern, space_id, sym_table, validation_info, qctx),
             Pattern::Variable(var) => self.plan_variable_pattern(var, space_id, sym_table),
         }
     }
@@ -765,6 +787,7 @@ impl MatchStatementPlanner {
         element: &PathElement,
         space_id: u64,
         _prev_alias: Option<&str>,
+        _validation_info: Option<&ValidationInfo>,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 规划可选元素
@@ -821,6 +844,7 @@ impl MatchStatementPlanner {
         rep_type: RepetitionType,
         space_id: u64,
         _prev_alias: Option<&str>,
+        _validation_info: Option<&ValidationInfo>,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 规划重复元素的基本计划

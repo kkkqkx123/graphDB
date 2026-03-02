@@ -44,6 +44,25 @@ impl Planner for UpdatePlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
+        // 使用验证信息进行优化规划
+        let validation_info = &validated.validation_info;
+
+        // 检查语义信息
+        let referenced_tags = &validation_info.semantic_info.referenced_tags;
+        if !referenced_tags.is_empty() {
+            log::debug!("UPDATE 引用的标签: {:?}", referenced_tags);
+        }
+
+        let referenced_edges = &validation_info.semantic_info.referenced_edges;
+        if !referenced_edges.is_empty() {
+            log::debug!("UPDATE 引用的边类型: {:?}", referenced_edges);
+        }
+
+        let referenced_properties = &validation_info.semantic_info.referenced_properties;
+        if !referenced_properties.is_empty() {
+            log::debug!("UPDATE 引用的属性: {:?}", referenced_properties);
+        }
+
         let update_stmt = self.extract_update_stmt(&validated.stmt)?;
 
         // 创建参数节点作为输入

@@ -12,6 +12,7 @@ use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use std::collections::HashSet;
 use std::sync::Arc;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
@@ -349,7 +350,7 @@ impl StatementValidator for InsertEdgesValidator {
         // 8. 创建验证结果
         let validated = ValidatedInsertEdges {
             space_id,
-            edge_name,
+            edge_name: edge_name.clone(),
             edge_type_id: None,
             prop_names,
             edges: validated_edges,
@@ -361,11 +362,16 @@ impl StatementValidator for InsertEdgesValidator {
         // 9. 生成输出列
         self.generate_output_columns();
 
-        // 10. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 10. 构建详细的 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        // 添加语义信息
+        if !info.semantic_info.referenced_edges.contains(&edge_name) {
+            info.semantic_info.referenced_edges.push(edge_name.clone());
+        }
+
+        // 11. 返回包含详细信息的验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

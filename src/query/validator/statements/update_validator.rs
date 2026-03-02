@@ -12,6 +12,7 @@ use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{SetClause, UpdateStmt, UpdateTarget};
 use crate::query::validator::validator_trait::{StatementValidator, StatementType, ValidationResult, ColumnDef, ExpressionProps, ValueType};
 use crate::query::validator::helpers::schema_validator::SchemaValidator;
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::storage::metadata::schema_manager::SchemaManager;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
@@ -718,11 +719,36 @@ impl StatementValidator for UpdateValidator {
         // 4. 生成输出列
         self.generate_output_columns();
 
-        // 5. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 5. 构建详细的 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        // 添加语义信息
+        match &update_stmt.target {
+            UpdateTarget::Vertex(_) => {
+                info.semantic_info.referenced_tags.push("vertex".to_string());
+            }
+            UpdateTarget::Edge { edge_type, .. } => {
+                if let Some(ref et) = edge_type {
+                    info.semantic_info.referenced_edges.push(et.clone());
+                }
+            }
+            UpdateTarget::Tag(tag_name) => {
+                info.semantic_info.referenced_tags.push(tag_name.clone());
+            }
+            UpdateTarget::TagOnVertex { tag_name, .. } => {
+                info.semantic_info.referenced_tags.push(tag_name.clone());
+            }
+        }
+
+        // 添加引用的属性
+        for assignment in &update_stmt.set_clause.assignments {
+            if !info.semantic_info.referenced_properties.contains(&assignment.property) {
+                info.semantic_info.referenced_properties.push(assignment.property.clone());
+            }
+        }
+
+        // 6. 返回包含详细信息的验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

@@ -19,6 +19,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 
 /// 验证后的用户信息
 #[derive(Debug, Clone)]
@@ -126,10 +127,11 @@ impl StatementValidator for CreateUserValidator {
         
         self.validate_impl(create_user_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.affected_users = vec![self.username.clone()];
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -233,10 +235,11 @@ impl StatementValidator for DropUserValidator {
         
         self.validate_impl(drop_user_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.affected_users = vec![self.username.clone()];
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -359,10 +362,11 @@ impl StatementValidator for AlterUserValidator {
         
         self.validate_impl(alter_user_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.affected_users = vec![self.username.clone()];
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -478,10 +482,13 @@ impl StatementValidator for ChangePasswordValidator {
         
         self.validate_impl(change_password_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        if let Some(ref username) = self.username {
+            info.semantic_info.affected_users = vec![username.clone()];
+        }
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -605,10 +612,11 @@ impl StatementValidator for GrantValidator {
         
         self.validate_impl(grant_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.affected_users = vec![self.username.clone()];
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -724,10 +732,11 @@ impl StatementValidator for RevokeValidator {
         
         self.validate_impl(revoke_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.affected_users = vec![self.username.clone()];
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -822,10 +831,11 @@ impl StatementValidator for DescribeUserValidator {
         
         self.validate_impl(describe_user_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.affected_users = vec![self.username.clone()];
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -907,10 +917,11 @@ impl StatementValidator for ShowUsersValidator {
         
         self.validate_impl(show_users_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.query_type = Some("ShowUsers".to_string());
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -988,10 +999,11 @@ impl StatementValidator for ShowRolesValidator {
         
         self.validate_impl(show_roles_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.query_type = Some("ShowRoles".to_string());
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

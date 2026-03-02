@@ -24,6 +24,8 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的子图获取信息
@@ -232,13 +234,22 @@ impl StatementValidator for GetSubgraphValidator {
             }
         }
 
+        // 8. 构建 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        if let Some(ref over_clause) = validated.over {
+            for edge_type in &over_clause.edge_types {
+                info.add_alias(edge_type.clone(), AliasType::Edge);
+                if !info.semantic_info.referenced_edges.contains(edge_type) {
+                    info.semantic_info.referenced_edges.push(edge_type.clone());
+                }
+            }
+        }
+
         self.validated_result = Some(validated);
 
-        // 8. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 9. 返回验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

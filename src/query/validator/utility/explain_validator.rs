@@ -16,6 +16,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::Validator;
 
 /// 验证后的 EXPLAIN 信息
@@ -128,10 +129,10 @@ impl StatementValidator for ExplainValidator {
             }
         }
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+        info.semantic_info.explanation_format = Some(format!("{:?}", self.format));
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -271,10 +272,10 @@ impl StatementValidator for ProfileValidator {
             }
         }
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+        info.semantic_info.explanation_format = Some(format!("{:?}", self.format));
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

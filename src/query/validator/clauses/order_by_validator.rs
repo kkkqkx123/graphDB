@@ -20,6 +20,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use std::collections::HashMap;
 
 /// 排序列定义
@@ -526,10 +527,13 @@ impl StatementValidator for OrderByValidator {
         // ORDER BY 不改变输出结构，输出与输入相同
         self.outputs = self.inputs.clone();
 
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        for col in &self.order_columns {
+            info.semantic_info.ordering_fields.push(format!("{:?}", col.expression));
+        }
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

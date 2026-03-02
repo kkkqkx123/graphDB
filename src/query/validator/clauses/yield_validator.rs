@@ -19,6 +19,8 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 
 /// 验证后的 YIELD 信息
@@ -289,11 +291,17 @@ impl StatementValidator for YieldValidator {
             return Ok(ValidationResult::failure(errors));
         }
 
+        let mut info = ValidationInfo::new();
+
+        for column in &self.yield_columns {
+            if !column.alias.is_empty() {
+                info.add_alias(column.alias.clone(), AliasType::Expression);
+            }
+            info.semantic_info.output_fields.push(format!("{:?}", column.expression));
+        }
+
         // 返回成功的验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

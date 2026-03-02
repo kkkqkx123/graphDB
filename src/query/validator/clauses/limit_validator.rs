@@ -10,6 +10,7 @@ use crate::query::QueryContext;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的 LIMIT 信息
@@ -259,11 +260,19 @@ impl StatementValidator for LimitValidator {
         // 9. 生成输出列
         self.generate_output_columns();
 
-        // 10. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 10. 构建 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        if let Some(skip) = skip_val {
+            info.semantic_info.pagination_offset = Some(skip as usize);
+        }
+
+        if let Some(limit) = limit_val {
+            info.semantic_info.pagination_limit = Some(limit as usize);
+        }
+
+        // 11. 返回验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

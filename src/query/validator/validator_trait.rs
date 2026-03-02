@@ -29,7 +29,7 @@ pub struct ColumnDef {
 /// 值类型枚举
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValueType {
-    Any,
+    Empty,
     Unknown,
     Bool,
     Int,
@@ -74,7 +74,7 @@ impl ValueType {
     pub fn to_data_type(&self) -> crate::core::DataType {
         use crate::core::DataType;
         match self {
-            ValueType::Any => DataType::Empty,
+            ValueType::Empty => DataType::Empty,
             ValueType::Unknown => DataType::Empty,
             ValueType::Bool => DataType::Bool,
             ValueType::Int => DataType::Int,

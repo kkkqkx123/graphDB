@@ -16,6 +16,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 
 /// 验证后的 Alter 信息
 #[derive(Debug, Clone)]
@@ -313,10 +314,11 @@ impl StatementValidator for AlterValidator {
         
         self.validate_impl(alter_stmt)?;
         
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        let mut info = ValidationInfo::new();
+
+        info.semantic_info.altered_objects = vec![format!("{:?}: {}", self.target_type, self.target_name)];
+
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

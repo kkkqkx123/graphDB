@@ -26,6 +26,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的删除信息
@@ -510,6 +511,8 @@ impl StatementValidator for DeleteValidator {
             where_clause: delete_stmt.where_clause.clone(),
         };
 
+        self.validated_result = Some(validated.clone());
+
         // 7. 设置输出列
         self.outputs.clear();
         self.outputs.push(ColumnDef {
@@ -517,13 +520,33 @@ impl StatementValidator for DeleteValidator {
             type_: ValueType::Bool,
         });
 
-        self.validated_result = Some(validated);
+        // 8. 构建详细的 ValidationInfo
+        let mut info = ValidationInfo::new();
 
-        // 8. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 添加语义信息
+        match &delete_stmt.target {
+            DeleteTarget::Vertices(_) => {
+                info.semantic_info.referenced_tags.push("vertex".to_string());
+            }
+            DeleteTarget::Edges { edge_type, .. } => {
+                if let Some(ref et) = edge_type {
+                    info.semantic_info.referenced_edges.push(et.clone());
+                }
+            }
+            DeleteTarget::Tags { tag_names, .. } => {
+                for tag_name in tag_names {
+                    if !info.semantic_info.referenced_tags.contains(tag_name) {
+                        info.semantic_info.referenced_tags.push(tag_name.clone());
+                    }
+                }
+            }
+            DeleteTarget::Index(_) => {
+                // 索引删除不需要添加语义信息
+            }
+        }
+
+        // 9. 返回包含详细信息的验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

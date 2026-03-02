@@ -13,6 +13,8 @@ pub enum AliasType {
     Path,
     Variable,
     Runtime,
+    CTE,
+    Expression,
 }
 
 /// 查询部分结构
