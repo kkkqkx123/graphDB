@@ -198,19 +198,11 @@ impl MergeValidator {
         }
     }
 
-    /// 内部方法：验证属性表达式
     fn validate_properties_internal(
         &self,
-        props: &crate::core::types::expression::Expression,
+        props: &Expression,
     ) -> Result<(), ValidationError> {
-        use crate::core::types::expression::Expression;
-
-        // 属性表达式应该是一个 Map 或 Literal
-        match props {
-            Expression::Literal(_) => Ok(()),
-            Expression::Variable(_) => Ok(()),
-            _ => Ok(()), // 其他类型也允许
-        }
+        Ok(())
     }
 
     /// 验证属性值
@@ -228,19 +220,11 @@ impl MergeValidator {
         }
     }
 
-    /// 内部方法：验证属性值
     fn validate_property_value_internal(
         &self,
-        value: &crate::core::types::expression::Expression,
+        value: &Expression,
     ) -> Result<(), ValidationError> {
-        use crate::core::types::expression::Expression;
-
-        // 属性值可以是常量、变量、列表等
-        match value {
-            Expression::Literal(_) => Ok(()),
-            Expression::Variable(_) => Ok(()),
-            _ => Ok(()), // 其他类型也允许
-        }
+        Ok(())
     }
 
     /// 验证 SET 子句

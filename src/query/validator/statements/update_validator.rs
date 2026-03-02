@@ -772,7 +772,7 @@ mod tests {
         ContextualExpression::new(id, ctx)
     }
 
-    fn create_update_stmt(target: UpdateTarget, assignments: Vec<Assignment>, where_clause: Option<Expression>) -> UpdateStmt {
+    fn create_update_stmt(target: UpdateTarget, assignments: Vec<Assignment>, where_clause: Option<ContextualExpression>) -> UpdateStmt {
         UpdateStmt {
             span: Span::default(),
             target,
@@ -790,10 +790,10 @@ mod tests {
     fn test_validate_vertex_target_valid() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(create_contextual_expr(Expression::literal("v1"))),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::Literal(Value::String("v1".to_string())))),
             vec![Assignment {
                 property: "name".to_string(),
-                value: create_contextual_expr(Expression::literal("new_name")),
+                value: create_contextual_expr(Expression::Literal(Value::String("new_name".to_string()))),
             }],
             None,
         );
@@ -805,10 +805,10 @@ mod tests {
     fn test_validate_vertex_target_variable() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(create_contextual_expr(Expression::variable("$vid"))),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::Variable("$vid".to_string()))),
             vec![Assignment {
                 property: "name".to_string(),
-                value: create_contextual_expr(Expression::literal("new_name")),
+                value: create_contextual_expr(Expression::Literal(Value::String("new_name".to_string()))),
             }],
             None,
         );
@@ -820,10 +820,10 @@ mod tests {
     fn test_validate_vertex_id_empty() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(create_contextual_expr(Expression::literal(""))),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::Literal(Value::String("".to_string())))),
             vec![Assignment {
                 property: "name".to_string(),
-                value: create_contextual_expr(Expression::literal("new_name")),
+                value: create_contextual_expr(Expression::Literal(Value::String("new_name".to_string()))),
             }],
             None,
         );
@@ -868,15 +868,15 @@ mod tests {
     fn test_validate_duplicate_assignment() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(Expression::literal("v1")),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::Literal(Value::String("v1".to_string())))),
             vec![
                 Assignment {
                     property: "name".to_string(),
-                    value: Expression::literal("name1"),
+                    value: create_contextual_expr(Expression::Literal(Value::String("name1".to_string()))),
                 },
                 Assignment {
                     property: "name".to_string(),
-                    value: Expression::literal("name2"),
+                    value: create_contextual_expr(Expression::Literal(Value::String("name2".to_string()))),
                 },
             ],
             None,

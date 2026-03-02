@@ -492,8 +492,8 @@ mod tests {
     #[test]
     fn test_validate_edge_key_valid() {
         let validator = FetchEdgesValidator::new();
-        let src = Expression::Literal(Value::String("v1".to_string()));
-        let dst = Expression::Literal(Value::String("v2".to_string()));
+        let src = create_contextual_expr(Expression::Literal(Value::String("v1".to_string())));
+        let dst = create_contextual_expr(Expression::Literal(Value::String("v2".to_string())));
         let result = validator.validate_edge_key(&src, &dst, None);
         assert!(result.is_ok());
     }
@@ -501,9 +501,9 @@ mod tests {
     #[test]
     fn test_validate_edge_key_with_rank() {
         let validator = FetchEdgesValidator::new();
-        let src = Expression::Literal(Value::String("v1".to_string()));
-        let dst = Expression::Literal(Value::String("v2".to_string()));
-        let rank = Some(Expression::Literal(Value::Int(0)));
+        let src = create_contextual_expr(Expression::Literal(Value::String("v1".to_string())));
+        let dst = create_contextual_expr(Expression::Literal(Value::String("v2".to_string())));
+        let rank = Some(create_contextual_expr(Expression::Literal(Value::Int(0))));
         let result = validator.validate_edge_key(&src, &dst, rank.as_ref());
         assert!(result.is_ok());
     }
@@ -511,7 +511,7 @@ mod tests {
     #[test]
     fn test_validate_rank_negative() {
         let validator = FetchEdgesValidator::new();
-        let result = validator.validate_rank(&Expression::Literal(Value::Int(-1)));
+        let result = validator.validate_rank(&create_contextual_expr(Expression::Literal(Value::Int(-1))));
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("非负"));
@@ -521,8 +521,8 @@ mod tests {
     fn test_validate_yield_duplicate_alias() {
         let validator = FetchEdgesValidator::new();
         let yield_columns = vec![
-            (Expression::Literal(Value::String("prop1".to_string())), Some("col".to_string())),
-            (Expression::Literal(Value::String("prop2".to_string())), Some("col".to_string())),
+            (create_contextual_expr(Expression::Literal(Value::String("prop1".to_string()))), Some("col".to_string())),
+            (create_contextual_expr(Expression::Literal(Value::String("prop2".to_string()))), Some("col".to_string())),
         ];
         let result = validator.validate_yield_clause(&yield_columns);
         assert!(result.is_err());

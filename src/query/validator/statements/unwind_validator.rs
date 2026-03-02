@@ -234,32 +234,95 @@ impl UnwindValidator {
         Ok(())
     }
 
-    /// 验证类型
+    /// 验证 UNWIND 表达式的元素类型
+    ///
+    /// # 延迟类型推导设计
+    ///
+    /// GraphDB 采用"延迟类型推导"策略，允许在编译期无法确定的元素类型在运行时推导。
+    /// 这是与其他验证器（SetOperationValidator、YieldValidator、OrderByValidator）
+    /// 一致的设计模式，用于支持灵活的动态查询。
+    ///
+    /// # 类型推导规则
+    ///
+    /// 支持以下表达式类型的元素类型推导：
+    /// - `[1, 2, 3]` - 列表字面量 → 元素类型可推导（Integer）
+    /// - `range(1, 10)` - 函数调用 → 返回类型已知但元素类型 Unknown
+    /// - `variable` - 变量引用 → 编译期无法确定（DataType::Empty → Unknown）
+    /// - `vertex.tags` - 属性访问 → 编译期无法确定（DataType::Empty → Unknown）
+    ///
+    /// # 处理 Unknown 类型
+    ///
+    /// 当 `list_type == ValueType::Unknown` 时：
+    /// - ✓ 验证通过（不报错），允许查询继续
+    /// - ✓ 输出列的类型设为 Unknown
+    /// - ✓ 执行器在运行时根据实际值确定真实类型
+    ///
+    /// # 运行时处理流程
+    ///
+    /// 1. `ExpressionEvaluator::evaluate(expr, context)` 获得实际 Value
+    /// 2. `extract_list(value)` 根据 Value 的实际类型处理：
+    ///    - Value::List → 提取所有元素
+    ///    - Value::Int/String/... → 包装为单元素列表
+    ///    - Value::Null → 返回空列表
+    /// 3. 每个展开的元素都获得确定的类型，输出为具体类型的数据集
+    ///
+    /// # 示例
+    ///
+    /// ```sql
+    /// -- 编译期可推导：element_type = Int
+    /// UNWIND [1, 2, 3] AS x
+    ///
+    /// -- 编译期无法推导：element_type = Unknown（但不报错）
+    /// UNWIND my_variable AS x
+    /// -- 运行时根据 my_variable 的实际值确定类型
+    /// ```
+    ///
+    /// # 参考实现
+    ///
+    /// 相同的处理模式出现在：
+    /// - `SetOperationValidator::merge_types` - Unknown 与任何类型兼容
+    /// - `YieldValidator::validate_types` - Unknown 允许但记录信息
+    /// - `OrderByValidator::deduce_expr_type` - 返回 Unknown 而不报错
+    /// - `ExpressionChecker::validate_index_access` - DataType::Empty 时跳过严格检查
     fn validate_type(&mut self) -> Result<(), ValidationError> {
-        if let Some(expr) = self.unwind_expression.get_expression() {
-            let list_type = self.deduce_list_element_type(&expr)?;
-            if list_type == ValueType::Unknown {
-                // 类型推导失败，添加警告但不报错
-                // 在实际实现中可能需要更严格的处理
-            }
+        if self.unwind_expression.expression().is_none() {
+            return Ok(());
         }
+
+        let list_type = self.deduce_list_element_type(&self.unwind_expression)?;
+
+        if list_type == ValueType::Unknown {
+            // 按项目设计允许 Unknown 类型，将类型推导延迟到运行时
+            // 执行器（UnwindExecutor）的 extract_list 方法会在运行时处理任何可能的值类型
+            // 详见 src/query/executor/result_processing/transformations/unwind.rs#L68-L75
+            //
+            // 预期行为：
+            // - 如果变量在运行时是 List，元素将被正确展开
+            // - 如果变量是其他类型，它将被包装为单元素列表
+            // - 如果变量是 Null 或 Empty，不会产生任何行
+            // 
+            // 调试提示：若查询执行出错，检查变量的实际值是否符合预期
+        }
+
         Ok(())
     }
 
     /// 验证别名引用
     fn validate_aliases(&self) -> Result<(), ValidationError> {
-        if let Some(expr) = self.unwind_expression.get_expression() {
-            let refs = self.get_expression_references(&expr);
-            for ref_name in refs {
-                if !self.aliases_available.contains_key(&ref_name) && ref_name != "$" && ref_name != "$$" {
-                    return Err(ValidationError::new(
-                        format!(
-                            "UNWIND 表达式引用了未定义的变量 '{}'",
-                            ref_name
-                        ),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
+        if self.unwind_expression.expression().is_none() {
+            return Ok(());
+        }
+
+        let refs = self.get_expression_references(&self.unwind_expression);
+        for ref_name in refs {
+            if !self.aliases_available.contains_key(&ref_name) && ref_name != "$" && ref_name != "$$" {
+                return Err(ValidationError::new(
+                    format!(
+                        "UNWIND 表达式引用了未定义的变量 '{}'",
+                        ref_name
+                    ),
+                    ValidationErrorType::SemanticError,
+                ));
             }
         }
         Ok(())
@@ -377,6 +440,17 @@ impl StatementValidator for UnwindValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::Expression;
+    use crate::core::Value;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     #[test]
     fn test_unwind_validator_new() {
@@ -405,11 +479,11 @@ mod tests {
         let mut validator = UnwindValidator::new();
         
         // 设置表达式和变量名
-        validator.set_unwind_expression(Expression::List(vec![
+        validator.set_unwind_expression(create_contextual_expr(Expression::List(vec![
             Expression::Literal(Value::Int(1)),
             Expression::Literal(Value::Int(2)),
             Expression::Literal(Value::Int(3)),
-        ]));
+        ])));
         validator.set_variable_name("x".to_string());
         
         let result = validator.validate_unwind();
@@ -424,9 +498,9 @@ mod tests {
         let mut validator = UnwindValidator::new();
         
         // 不设置变量名
-        validator.set_unwind_expression(Expression::List(vec![
+        validator.set_unwind_expression(create_contextual_expr(Expression::List(vec![
             Expression::Literal(Value::Int(1)),
-        ]));
+        ])));
         
         let result = validator.validate_unwind();
         assert!(result.is_err());
@@ -441,9 +515,9 @@ mod tests {
         aliases.insert("x".to_string(), ValueType::Int);
         validator.set_aliases_available(aliases);
         
-        validator.set_unwind_expression(Expression::List(vec![
+        validator.set_unwind_expression(create_contextual_expr(Expression::List(vec![
             Expression::Literal(Value::Int(1)),
-        ]));
+        ])));
         validator.set_variable_name("x".to_string());
         
         let result = validator.validate_unwind();
@@ -454,10 +528,10 @@ mod tests {
     fn test_unwind_invalid_variable_name() {
         let mut validator = UnwindValidator::new();
         
-        // 以数字开头的变量名
-        validator.set_unwind_expression(Expression::List(vec![
+        // 设置无效的变量名（以数字开头）
+        validator.set_unwind_expression(create_contextual_expr(Expression::List(vec![
             Expression::Literal(Value::Int(1)),
-        ]));
+        ])));
         validator.set_variable_name("1x".to_string());
         
         let result = validator.validate_unwind();

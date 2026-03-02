@@ -292,7 +292,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    Expression::Literal(crate::core::Value::Int(1)),
+                    strategy.create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -332,7 +332,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    Expression::Literal(crate::core::Value::Int(1)),
+                    strategy.create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -372,7 +372,7 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    Expression::Literal(crate::core::Value::Int(1)),
+                    strategy.create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -439,7 +439,7 @@ mod tests {
 
         let mut yield_context = YieldClauseContext {
             yield_columns: vec![YieldColumn::new(
-                Expression::Literal(crate::core::Value::Int(1)),
+                strategy.create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
                 "col1".to_string(),
             )],
             aliases_available: HashMap::new(),

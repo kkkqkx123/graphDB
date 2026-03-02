@@ -837,8 +837,17 @@ impl MatchValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
     use crate::core::Expression;
     use crate::core::Value;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     #[test]
     fn test_match_validator_creation() {
@@ -879,11 +888,11 @@ mod tests {
         aliases.insert("e".to_string(), AliasType::Edge);
 
         // 测试有效的别名引用
-        let expression = Expression::Variable("n".to_string());
+        let expression = create_contextual_expr(Expression::Variable("n".to_string()));
         assert!(validator.validate_aliases(&[expression], &aliases).is_ok());
 
         // 测试无效的别名引用
-        let invalid_expression = Expression::Variable("invalid".to_string());
+        let invalid_expression = create_contextual_expr(Expression::Variable("invalid".to_string()));
         assert!(validator
             .validate_aliases(&[invalid_expression], &aliases)
             .is_err());
@@ -892,16 +901,14 @@ mod tests {
     #[test]
     fn test_has_aggregate_expression() {
         let validator = MatchValidator::new();
-
-        // 测试没有聚合函数的表达式
-        let non_agg_expression = Expression::Literal(Value::Int(1));
+        let non_agg_expression = create_contextual_expr(Expression::Literal(Value::Int(1)));
         assert_eq!(validator.has_aggregate_expression(&non_agg_expression), false);
 
         // 测试有聚合函数的表达式
-        let agg_expression = Expression::Function {
-            name: "count".to_string(),
+        let agg_expression = create_contextual_expr(Expression::Function {
+            name: "COUNT".to_string(),
             args: vec![Expression::Variable("n".to_string())],
-        };
+        });
         assert_eq!(validator.has_aggregate_expression(&agg_expression), true);
     }
 

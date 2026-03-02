@@ -427,11 +427,19 @@ impl StatementValidator for InsertEdgesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
     use crate::query::query_request_context::QueryRequestContext;
     use std::sync::Arc;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     /// 创建测试用的 QueryContext，带有有效的 space_id
     fn create_test_query_context() -> Arc<QueryContext> {
@@ -445,10 +453,10 @@ mod tests {
     fn create_insert_edge_stmt(
         edge_name: String,
         prop_names: Vec<String>,
-        src: Expression,
-        dst: Expression,
-        rank: Option<Expression>,
-        values: Vec<Expression>,
+        src: ContextualExpression,
+        dst: ContextualExpression,
+        rank: Option<ContextualExpression>,
+        values: Vec<ContextualExpression>,
     ) -> InsertStmt {
         InsertStmt {
             span: Span::default(),
@@ -467,10 +475,10 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "".to_string(),
             vec!["prop".to_string()],
-            Expression::literal("v1"),
-            Expression::literal("v2"),
+            create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+            create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             None,
-            vec![Expression::literal("value")],
+            vec![create_contextual_expr(Expression::Literal(Value::String("value".to_string())))],
         );
 
         let qctx = create_test_query_context();
@@ -486,10 +494,13 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec!["prop1".to_string(), "prop1".to_string()],
-            Expression::literal("v1"),
-            Expression::literal("v2"),
+            create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+            create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             None,
-            vec![Expression::literal("val1"), Expression::literal("val2")],
+            vec![
+                create_contextual_expr(Expression::Literal(Value::String("val1".to_string()))),
+                create_contextual_expr(Expression::Literal(Value::String("val2".to_string())))
+            ],
         );
 
         let qctx = create_test_query_context();
@@ -505,10 +516,10 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec!["prop1".to_string(), "prop2".to_string()],
-            Expression::literal("v1"),
-            Expression::literal("v2"),
+            create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+            create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             None,
-            vec![Expression::literal("val1")],
+            vec![create_contextual_expr(Expression::Literal(Value::String("val1".to_string())))],
         );
 
         let qctx = create_test_query_context();
@@ -524,8 +535,8 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec![],
-            Expression::literal(""),
-            Expression::literal("v2"),
+            create_contextual_expr(Expression::Literal(Value::String("".to_string()))),
+            create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             None,
             vec![],
         );
@@ -543,8 +554,8 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec![],
-            Expression::literal("v1"),
-            Expression::literal(""),
+            create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+            create_contextual_expr(Expression::Literal(Value::String("".to_string()))),
             None,
             vec![],
         );
@@ -562,8 +573,8 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec![],
-            Expression::literal("v1"),
-            Expression::literal("v2"),
+            create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+            create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             None,
             vec![],
         );
@@ -579,8 +590,8 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec![],
-            Expression::variable("$src"),
-            Expression::variable("$dst"),
+            create_contextual_expr(Expression::Variable("$src".to_string())),
+            create_contextual_expr(Expression::Variable("$dst".to_string())),
             None,
             vec![],
         );
@@ -596,8 +607,8 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec![],
-            Expression::literal(123),
-            Expression::literal("v2"),
+            create_contextual_expr(Expression::Literal(Value::Int(123))),
+            create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             None,
             vec![],
         );
@@ -615,9 +626,9 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec![],
-            Expression::literal("v1"),
-            Expression::literal("v2"),
-            Some(Expression::literal(0)),
+            create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+            create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
+            Some(create_contextual_expr(Expression::Literal(Value::Int(0)))),
             vec![],
         );
 
@@ -632,9 +643,9 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec![],
-            Expression::literal("v1"),
-            Expression::literal("v2"),
-            Some(Expression::variable("$rank")),
+            create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+            create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
+            Some(create_contextual_expr(Expression::Variable("$rank".to_string()))),
             vec![],
         );
 
@@ -649,9 +660,9 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec![],
-            Expression::literal("v1"),
-            Expression::literal("v2"),
-            Some(Expression::literal("invalid")),
+            create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+            create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
+            Some(create_contextual_expr(Expression::Literal(Value::String("invalid".to_string())))),
             vec![],
         );
 
@@ -668,10 +679,13 @@ mod tests {
         let stmt = create_insert_edge_stmt(
             "friend".to_string(),
             vec!["since".to_string(), "type".to_string()],
-            Expression::literal("v1"),
-            Expression::literal("v2"),
+            create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+            create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             None,
-            vec![Expression::literal(2020), Expression::literal("best")],
+            vec![
+                create_contextual_expr(Expression::Literal(Value::Int(2020))),
+                create_contextual_expr(Expression::Literal(Value::String("best".to_string())))
+            ],
         );
 
         let qctx = create_test_query_context();

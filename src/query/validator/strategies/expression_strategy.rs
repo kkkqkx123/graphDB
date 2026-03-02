@@ -50,7 +50,7 @@ impl ExpressionValidationStrategy {
 
         // 验证表达式操作
         let expr_validator = ExpressionOperationsValidator::new();
-        expr_validator.validate_expression_operations(expr)?;
+        expr_validator.validate_expression_operations(filter)?;
 
         Ok(())
     }

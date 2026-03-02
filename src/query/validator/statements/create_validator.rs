@@ -526,10 +526,8 @@ impl CreateValidator {
     /// 内部方法：求值表达式（简化版）
     fn evaluate_expression_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &Expression,
     ) -> Result<Value, ValidationError> {
-        use crate::core::types::expression::Expression;
-
         match expr {
             Expression::Literal(value) => Ok(value.clone()),
             _ => Err(ValidationError::new(

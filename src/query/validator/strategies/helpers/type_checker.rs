@@ -588,31 +588,20 @@ pub fn deduce_expression_type(expression: &Expression) -> DataType {
 mod tests {
     use super::*;
     use crate::core::types::expression::Expression;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::ExpressionContext;
+    use crate::core::types::expression::ExpressionMeta;
+    use std::sync::Arc;
 
     #[test]
     fn test_deduce_literal_type() {
         let expr = Expression::int(42);
         let validator = TypeDeduceValidator::new();
-        let ctx = crate::query::validator::structs::YieldClauseContext {
-            yield_columns: vec![],
-            aliases_available: std::collections::HashMap::new(),
-            aliases_generated: std::collections::HashMap::new(),
-            distinct: false,
-            has_agg: false,
-            group_keys: vec![],
-            group_items: vec![],
-            need_gen_project: false,
-            agg_output_column_names: vec![],
-            proj_output_column_names: vec![],
-            proj_cols: vec![],
-            paths: vec![],
-            query_parts: vec![],
-            errors: vec![],
-            filter_condition: None,
-            skip: None,
-            limit: None,
-        };
-        let data_type = validator.deduce_type(&crate::core::types::expression::contextual::ContextualExpression::new(expr));
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+        let data_type = validator.deduce_type(&ctx_expr);
         assert_eq!(data_type, DataType::Int);
     }
 
@@ -620,7 +609,11 @@ mod tests {
     fn test_deduce_binary_type() {
         let expr = Expression::add(Expression::int(1), Expression::int(2));
         let validator = TypeDeduceValidator::new();
-        let data_type = validator.deduce_type(&crate::core::types::expression::contextual::ContextualExpression::new(expr));
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+        let data_type = validator.deduce_type(&ctx_expr);
         assert_eq!(data_type, DataType::Int);
     }
 
@@ -628,7 +621,11 @@ mod tests {
     fn test_deduce_variable_type() {
         let expr = Expression::variable("x");
         let validator = TypeDeduceValidator::new();
-        let data_type = validator.deduce_type(&crate::core::types::expression::contextual::ContextualExpression::new(expr));
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_ctx.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+        let data_type = validator.deduce_type(&ctx_expr);
         assert_eq!(data_type, DataType::Empty);
     }
 }

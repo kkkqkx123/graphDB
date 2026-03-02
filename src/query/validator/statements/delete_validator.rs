@@ -568,7 +568,7 @@ mod tests {
         ContextualExpression::new(id, ctx)
     }
 
-    fn create_delete_stmt(target: DeleteTarget, where_clause: Option<Expression>) -> DeleteStmt {
+    fn create_delete_stmt(target: DeleteTarget, where_clause: Option<ContextualExpression>) -> DeleteStmt {
         DeleteStmt {
             span: Span::default(),
             target,

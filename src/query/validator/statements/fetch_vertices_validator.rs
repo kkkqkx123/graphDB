@@ -203,8 +203,17 @@ impl FetchVerticesValidator {
     }
 
     /// 评估表达式为 Value
-    fn evaluate_expression(&self, expr: &Expression) -> Result<Value, ValidationError> {
-        match expr {
+    fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
+        let expr_meta = match expr.expression() {
+            Some(m) => m,
+            None => return Err(ValidationError::new(
+                "表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            )),
+        };
+        let inner = expr_meta.inner();
+        
+        match inner {
             Expression::Literal(v) => Ok(v.clone()),
             Expression::Variable(name) => Ok(Value::String(format!("${}", name))),
             _ => Err(ValidationError::new(
@@ -358,9 +367,19 @@ impl StatementValidator for FetchVerticesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
     use crate::core::Expression;
+    use crate::core::Value;
     use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
     use crate::query::parser::ast::Span;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     fn _create_fetch_vertices_stmt(
         vertex_ids: Vec<Expression>,
@@ -369,7 +388,7 @@ mod tests {
         FetchStmt {
             span: Span::default(),
             target: FetchTarget::Vertices {
-                ids: vertex_ids,
+                ids: vertex_ids.into_iter().map(create_contextual_expr).collect(),
                 properties,
             },
         }
@@ -391,7 +410,7 @@ mod tests {
             Expression::Literal(Value::String("v1".to_string())),
             Expression::Literal(Value::String("v2".to_string())),
         ];
-        let result = validator.validate_vertex_ids(&vertex_ids);
+        let result = validator.validate_vertex_ids(&vertex_ids.into_iter().map(create_contextual_expr).collect::<Vec<_>>());
         assert!(result.is_ok());
     }
 
@@ -399,7 +418,7 @@ mod tests {
     fn test_validate_vertex_ids_with_variable() {
         let validator = FetchVerticesValidator::new();
         let vertex_ids = vec![Expression::Variable("vids".to_string())];
-        let result = validator.validate_vertex_ids(&vertex_ids);
+        let result = validator.validate_vertex_ids(&vertex_ids.into_iter().map(create_contextual_expr).collect::<Vec<_>>());
         assert!(result.is_ok());
     }
 
@@ -410,7 +429,7 @@ mod tests {
             Expression::Literal(Value::String("v1".to_string())),
             Expression::Literal(Value::String("".to_string())),
         ];
-        let result = validator.validate_vertex_ids(&vertex_ids);
+        let result = validator.validate_vertex_ids(&vertex_ids.into_iter().map(create_contextual_expr).collect::<Vec<_>>());
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("不能为空"));

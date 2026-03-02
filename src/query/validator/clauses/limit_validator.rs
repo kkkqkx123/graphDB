@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::Expression;
+use crate::core::{Expression, Value};
 use crate::query::QueryContext;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -465,8 +465,14 @@ mod tests {
 
     #[test]
     fn test_limit_validator_count() {
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let limit_expr = Expression::Literal(Value::Int(10));
+        let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
+        let id = expr_ctx.register_expression(meta);
+        let limit_ctx_expr = ContextualExpression::new(id, expr_ctx);
+        
         let mut validator = LimitValidator::new()
-            .set_limit(Expression::literal(10))
+            .set_limit(limit_ctx_expr)
             .set_count(100);
 
         let qctx = create_test_query_context();

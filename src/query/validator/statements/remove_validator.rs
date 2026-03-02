@@ -239,7 +239,17 @@ impl StatementValidator for RemoveValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::Expression;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::Expression;
+    use crate::core::Value;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     #[test]
     fn test_remove_validator_new() {
@@ -254,14 +264,14 @@ mod tests {
         validator.user_defined_vars.push("n".to_string());
 
         // 有效的属性访问
-        let obj = Expression::Variable("n".to_string());
+        let obj = create_contextual_expr(Expression::Variable("n".to_string()));
         assert!(validator.validate_property_access(&obj, "name").is_ok());
 
         // 无效的属性名
         assert!(validator.validate_property_access(&obj, "").is_err());
 
         // 未定义的变量
-        let obj2 = Expression::Variable("m".to_string());
+        let obj2 = create_contextual_expr(Expression::Variable("m".to_string()));
         assert!(validator.validate_property_access(&obj2, "name").is_err());
     }
 

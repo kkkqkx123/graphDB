@@ -291,7 +291,7 @@ impl GoValidator {
         // 检查变量是否已定义
         if expression.is_variable() {
             if let Some(var_name) = expression.as_variable() {
-                if var_name != "$-" && !self.user_defined_vars.contains(var_name) {
+                if var_name != "$-" && !self.user_defined_vars.contains(&var_name) {
                     self.user_defined_vars.push(var_name.clone());
                 }
             }
@@ -436,11 +436,21 @@ impl StatementValidator for GoValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
     use crate::core::Expression;
+    use crate::core::Value;
     use crate::query::parser::ast::stmt::{GoStmt, FromClause, OverClause, Steps};
     use crate::query::parser::ast::Span;
     use crate::query::query_request_context::QueryRequestContext;
     use std::sync::Arc;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     /// 创建测试用的 QueryContext，带有有效的 space_id
     fn create_test_query_context() -> Arc<QueryContext> {
@@ -451,7 +461,7 @@ mod tests {
         Arc::new(qctx)
     }
 
-    fn create_go_stmt(from_expr: Expression, edge_types: Vec<String>) -> GoStmt {
+    fn create_go_stmt(from_expr: ContextualExpression, edge_types: Vec<String>) -> GoStmt {
         GoStmt {
             span: Span::default(),
             steps: Steps::Fixed(1),
@@ -474,7 +484,7 @@ mod tests {
         let mut validator = GoValidator::new();
         
         let go_stmt = create_go_stmt(
-            Expression::literal("vid1"),
+            create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
             vec!["friend".to_string()],
         );
         
@@ -488,7 +498,7 @@ mod tests {
         let mut validator = GoValidator::new();
 
         let go_stmt = create_go_stmt(
-            Expression::literal("vid1"),
+            create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
             vec![],
         );
 
@@ -504,7 +514,7 @@ mod tests {
         let mut validator = GoValidator::new();
 
         let mut go_stmt = create_go_stmt(
-            Expression::literal("vid1"),
+            create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
             vec!["friend".to_string()],
         );
 
@@ -512,7 +522,7 @@ mod tests {
             span: Span::default(),
             items: vec![
                 crate::query::parser::ast::stmt::YieldItem {
-                    expression: Expression::Variable("$$".to_string()),
+                    expression: create_contextual_expr(Expression::Variable("$$".to_string())),
                     alias: Some("dst".to_string()),
                 },
             ],
@@ -537,7 +547,7 @@ mod tests {
         let mut validator = GoValidator::new();
 
         let mut go_stmt = create_go_stmt(
-            Expression::literal("vid1"),
+            create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
             vec!["friend".to_string()],
         );
 
@@ -545,11 +555,11 @@ mod tests {
             span: Span::default(),
             items: vec![
                 crate::query::parser::ast::stmt::YieldItem {
-                    expression: Expression::Variable("$$".to_string()),
+                    expression: create_contextual_expr(Expression::Variable("$$".to_string())),
                     alias: Some("same".to_string()),
                 },
                 crate::query::parser::ast::stmt::YieldItem {
-                    expression: Expression::Variable("$^".to_string()),
+                    expression: create_contextual_expr(Expression::Variable("$^".to_string())),
                     alias: Some("same".to_string()),
                 },
             ],

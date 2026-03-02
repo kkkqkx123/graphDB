@@ -205,17 +205,21 @@ impl SetValidator {
         target: &ContextualExpression,
         _value: &ContextualExpression,
     ) -> Result<(), ValidationError> {
-        let inner_target = match target.get_expression() {
-            Some(e) => e,
-            None => {
-                return Err(ValidationError::new(
-                    "SET 目标表达式无效".to_string(),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
-        };
-        
-        if let Expression::Variable(name) = inner_target {
+        if target.expression().is_none() {
+            return Err(ValidationError::new(
+                "SET 目标表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        if !target.is_variable() {
+            return Err(ValidationError::new(
+                "SET 变量必须目标是一个变量".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        if let Some(name) = target.as_variable() {
             if name.is_empty() {
                 return Err(ValidationError::new(
                     "变量名不能为空".to_string(),
@@ -240,10 +244,17 @@ impl SetValidator {
     /// 验证 SET Tag
     fn validate_set_tag(
         &self,
-        target: &Expression,
-        _value: &Expression,
+        target: &ContextualExpression,
+        _value: &ContextualExpression,
     ) -> Result<(), ValidationError> {
-        if !matches!(target, Expression::Property { .. }) {
+        if target.expression().is_none() {
+            return Err(ValidationError::new(
+                "SET Tag 目标表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        if !target.is_property() {
             return Err(ValidationError::new(
                 "SET Tag 必须目标是一个属性表达式".to_string(),
                 ValidationErrorType::SemanticError,
@@ -255,10 +266,17 @@ impl SetValidator {
     /// 验证 SET Edge
     fn validate_set_edge(
         &self,
-        target: &Expression,
-        _value: &Expression,
+        target: &ContextualExpression,
+        _value: &ContextualExpression,
     ) -> Result<(), ValidationError> {
-        if !matches!(target, Expression::Property { .. }) {
+        if target.expression().is_none() {
+            return Err(ValidationError::new(
+                "SET Edge 目标表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        if !target.is_property() {
             return Err(ValidationError::new(
                 "SET Edge 必须目标是一个属性表达式".to_string(),
                 ValidationErrorType::SemanticError,
@@ -268,8 +286,17 @@ impl SetValidator {
     }
 
     /// 验证 SET 优先级
-    fn validate_set_priority(&self, value: &Expression) -> Result<(), ValidationError> {
-        match value {
+    fn validate_set_priority(&self, value: &ContextualExpression) -> Result<(), ValidationError> {
+        let expr_meta = match value.expression() {
+            Some(m) => m,
+            None => return Err(ValidationError::new(
+                "SET 优先级表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            )),
+        };
+        let expr = expr_meta.inner();
+        
+        match expr {
             Expression::Literal(lit) => {
                 if let crate::core::Value::Int(n) = lit {
                     if *n < 0 {
@@ -309,7 +336,9 @@ impl SetValidator {
                 ));
             }
             // 验证变量值表达式
-            self.validate_expression(value)?;
+            if let Some(expr_meta) = value.expression() {
+                self.validate_expression(expr_meta.inner())?;
+            }
         }
         Ok(())
     }
@@ -469,7 +498,17 @@ impl StatementValidator for SetValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::Expression;
     use crate::core::Value;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     #[test]
     fn test_set_validator_new() {
@@ -500,8 +539,8 @@ mod tests {
         // 测试有效的变量设置
         let item = SetItem::new(
             SetStatementType::SetVariable,
-            Expression::Variable("$var".to_string()),
-            Expression::Literal(Value::Int(42)),
+            create_contextual_expr(Expression::Variable("$var".to_string())),
+            create_contextual_expr(Expression::Literal(Value::Int(42))),
         );
         validator.add_set_item(item);
         
@@ -516,8 +555,8 @@ mod tests {
         // 测试无效的变量名（不以 $ 开头）
         let item = SetItem::new(
             SetStatementType::SetVariable,
-            Expression::Variable("var".to_string()),
-            Expression::Literal(Value::Int(42)),
+            create_contextual_expr(Expression::Variable("var".to_string())),
+            create_contextual_expr(Expression::Literal(Value::Int(42))),
         );
         validator.add_set_item(item);
         
@@ -532,8 +571,8 @@ mod tests {
         // 测试有效的优先级设置
         let item = SetItem::new(
             SetStatementType::SetPriority,
-            Expression::Variable("$priority".to_string()),
-            Expression::Literal(Value::Int(5)),
+            create_contextual_expr(Expression::Variable("$priority".to_string())),
+            create_contextual_expr(Expression::Literal(Value::Int(5))),
         );
         validator.add_set_item(item);
         
@@ -548,8 +587,8 @@ mod tests {
         // 测试无效的优先级（负数）
         let item = SetItem::new(
             SetStatementType::SetPriority,
-            Expression::Variable("$priority".to_string()),
-            Expression::Literal(Value::Int(-1)),
+            create_contextual_expr(Expression::Variable("$priority".to_string())),
+            create_contextual_expr(Expression::Literal(Value::Int(-1))),
         );
         validator.add_set_item(item);
         

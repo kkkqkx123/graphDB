@@ -145,13 +145,23 @@ impl LookupValidator {
     }
 
     /// 从表达式中提取列名
-    fn extract_column_name(&self, expr: &Expression) -> Result<String, ValidationError> {
-        match expr {
-            Expression::Variable(name) => Ok(name.clone()),
-            Expression::Label(name) => Ok(name.clone()),
-            Expression::Property { property, .. } => Ok(property.clone()),
-            Expression::Literal(value) => Ok(format!("{:?}", value)),
-            _ => Ok(format!("{:?}", expr)),
+    fn extract_column_name(&self, expr: &ContextualExpression) -> Result<String, ValidationError> {
+        if let Some(inner_expr) = expr.expression() {
+            let expr_inner = inner_expr.inner();
+            match expr_inner {
+                Expression::Variable(name) => Ok(name.clone()),
+                Expression::Label(name) => Ok(name.clone()),
+                Expression::Property { property, .. } => Ok(property.clone()),
+                _ => Err(ValidationError::new(
+                    "无法从表达式中提取列名".to_string(),
+                    ValidationErrorType::SemanticError,
+                )),
+            }
+        } else {
+            Err(ValidationError::new(
+                "表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ))
         }
     }
 
@@ -207,13 +217,20 @@ impl LookupValidator {
     }
 
     /// 验证过滤条件
-    fn validate_filter(&self, filter: &Option<Expression>) -> Result<(), ValidationError> {
+    fn validate_filter(&self, filter: &Option<ContextualExpression>) -> Result<(), ValidationError> {
         if let Some(ref filter_expr) = filter {
-            // 验证过滤器类型
-            self.validate_filter_type(filter_expr)?;
+            let expr_meta = match filter_expr.expression() {
+                Some(m) => m,
+                None => return Err(ValidationError::new(
+                    "过滤表达式无效".to_string(),
+                    ValidationErrorType::SemanticError,
+                )),
+            };
+            let expr = expr_meta.inner();
+            
+            self.validate_filter_type(expr)?;
 
-            // 检查是否包含聚合表达式
-            if self.has_aggregate_expression(filter_expr) {
+            if self.has_aggregate_expression(&expr) {
                 return Err(ValidationError::new(
                     "LOOKUP filter cannot contain aggregate expressions".to_string(),
                     ValidationErrorType::SemanticError,
@@ -320,7 +337,7 @@ impl LookupValidator {
 struct ParsedLookupInfo {
     label: String,
     is_edge: bool,
-    filter_expression: Option<Expression>,
+    filter_expression: Option<ContextualExpression>,
     yield_columns: Vec<LookupYieldColumn>,
     is_yield_all: bool,
 }

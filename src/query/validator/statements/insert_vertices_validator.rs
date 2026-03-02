@@ -142,25 +142,25 @@ impl InsertVerticesValidator {
         vid_expr: &ContextualExpression,
         idx: usize,
     ) -> Result<(), ValidationError> {
-        if let Some(e) = vid_expr.get_expression() {
-            self.validate_vid_expression_internal(&e, idx)
-        } else {
-            Err(ValidationError::new(
-                format!("顶点 ID 表达式无效，顶点 {}", idx + 1),
-                ValidationErrorType::SemanticError,
-            ))
-        }
+        self.validate_vid_expression_internal(vid_expr, idx)
     }
 
     /// 内部方法：验证 VID 表达式
     fn validate_vid_expression_internal(
         &self,
-        vid_expr: &crate::core::types::expression::Expression,
+        vid_expr: &ContextualExpression,
         idx: usize,
     ) -> Result<(), ValidationError> {
-        use crate::core::types::expression::Expression;
-
-        match vid_expr {
+        let expr_meta = match vid_expr.expression() {
+            Some(m) => m,
+            None => return Err(ValidationError::new(
+                format!("Vertex ID 表达式无效 for vertex {}", idx + 1),
+                ValidationErrorType::SemanticError,
+            )),
+        };
+        let expr = expr_meta.inner();
+        
+        match expr {
             Expression::Literal(Value::String(s)) => {
                 if s.is_empty() {
                     return Err(ValidationError::new(
@@ -173,10 +173,7 @@ impl InsertVerticesValidator {
             Expression::Literal(Value::Int(_)) => Ok(()),
             Expression::Variable(_) => Ok(()),
             _ => Err(ValidationError::new(
-                format!(
-                    "Vertex ID must be a string constant or variable for vertex {}",
-                    idx + 1
-                ),
+                format!("Invalid vertex ID expression type for vertex {}", idx + 1),
                 ValidationErrorType::SemanticError,
             )),
         }
@@ -354,10 +351,21 @@ impl StatementValidator for InsertVerticesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::Expression;
+    use crate::core::Value;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
     use crate::query::query_request_context::QueryRequestContext;
     use std::sync::Arc;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     /// 创建测试用的 QueryContext，带有有效的 space_id
     fn create_test_query_context() -> Arc<QueryContext> {
@@ -388,7 +396,7 @@ mod tests {
         }
     }
 
-    fn create_vertex_row(vid: Expression, tag_values: Vec<Vec<Expression>>) -> VertexRow {
+    fn create_vertex_row(vid: ContextualExpression, tag_values: Vec<Vec<ContextualExpression>>) -> VertexRow {
         VertexRow { vid, tag_values }
     }
 
@@ -414,8 +422,8 @@ mod tests {
         let stmt = create_insert_vertices_stmt(
             vec![create_tag_spec("", vec!["name"])],
             vec![create_vertex_row(
-                Expression::literal("vid1"),
-                vec![vec![Expression::literal("Alice")]],
+                create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
+                vec![vec![create_contextual_expr(Expression::Literal(Value::String("Alice".to_string())))]],
             )],
             false,
         );
@@ -433,8 +441,11 @@ mod tests {
         let stmt = create_insert_vertices_stmt(
             vec![create_tag_spec("person", vec!["name", "name"])],
             vec![create_vertex_row(
-                Expression::literal("vid1"),
-                vec![vec![Expression::literal("Alice"), Expression::literal("Bob")]],
+                create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
+                vec![vec![
+                    create_contextual_expr(Expression::Literal(Value::String("Alice".to_string()))),
+                    create_contextual_expr(Expression::Literal(Value::String("Bob".to_string())))
+                ]],
             )],
             false,
         );
@@ -452,8 +463,8 @@ mod tests {
         let stmt = create_insert_vertices_stmt(
             vec![create_tag_spec("person", vec!["name", "age"])],
             vec![create_vertex_row(
-                Expression::literal("vid1"),
-                vec![vec![Expression::literal("Alice")]], // 只提供了一个值，但期望两个
+                create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
+                vec![vec![create_contextual_expr(Expression::Literal(Value::String("Alice".to_string())))]],
             )],
             false,
         );
@@ -471,8 +482,8 @@ mod tests {
         let stmt = create_insert_vertices_stmt(
             vec![create_tag_spec("person", vec!["name"])],
             vec![create_vertex_row(
-                Expression::literal(""),
-                vec![vec![Expression::literal("Alice")]],
+                create_contextual_expr(Expression::Literal(Value::String("".to_string()))),
+                vec![vec![create_contextual_expr(Expression::Literal(Value::String("Alice".to_string())))]],
             )],
             false,
         );
@@ -490,8 +501,11 @@ mod tests {
         let stmt = create_insert_vertices_stmt(
             vec![create_tag_spec("person", vec!["name", "age"])],
             vec![create_vertex_row(
-                Expression::literal("vid1"),
-                vec![vec![Expression::literal("Alice"), Expression::literal(30)]],
+                create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
+                vec![vec![
+                    create_contextual_expr(Expression::Literal(Value::String("Alice".to_string()))),
+                    create_contextual_expr(Expression::Literal(Value::Int(30)))
+                ]],
             )],
             false,
         );
@@ -510,10 +524,13 @@ mod tests {
                 create_tag_spec("employee", vec!["department", "salary"]),
             ],
             vec![create_vertex_row(
-                Expression::literal("vid1"),
+                create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
                 vec![
-                    vec![Expression::literal("Alice")],
-                    vec![Expression::literal("Engineering"), Expression::literal(50000)],
+                    vec![create_contextual_expr(Expression::Literal(Value::String("Alice".to_string())))],
+                    vec![
+                        create_contextual_expr(Expression::Literal(Value::String("Engineering".to_string()))),
+                        create_contextual_expr(Expression::Literal(Value::Int(50000)))
+                    ],
                 ],
             )],
             false,
@@ -531,12 +548,12 @@ mod tests {
             vec![create_tag_spec("person", vec!["name"])],
             vec![
                 create_vertex_row(
-                    Expression::literal("vid1"),
-                    vec![vec![Expression::literal("Alice")]],
+                    create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
+                    vec![vec![create_contextual_expr(Expression::Literal(Value::String("Alice".to_string())))]],
                 ),
                 create_vertex_row(
-                    Expression::literal("vid2"),
-                    vec![vec![Expression::literal("Bob")]],
+                    create_contextual_expr(Expression::Literal(Value::String("vid2".to_string()))),
+                    vec![vec![create_contextual_expr(Expression::Literal(Value::String("Bob".to_string())))]],
                 ),
             ],
             false,
@@ -553,8 +570,8 @@ mod tests {
         let stmt = create_insert_vertices_stmt(
             vec![create_tag_spec("person", vec!["name"])],
             vec![create_vertex_row(
-                Expression::variable("$vid"),
-                vec![vec![Expression::literal("Alice")]],
+                create_contextual_expr(Expression::Variable("$vid".to_string())),
+                vec![vec![create_contextual_expr(Expression::Literal(Value::String("Alice".to_string())))]],
             )],
             false,
         );
@@ -570,8 +587,8 @@ mod tests {
         let stmt = create_insert_vertices_stmt(
             vec![create_tag_spec("person", vec!["name"])],
             vec![create_vertex_row(
-                Expression::literal(123),
-                vec![vec![Expression::literal("Alice")]],
+                create_contextual_expr(Expression::Literal(Value::Int(123))),
+                vec![vec![create_contextual_expr(Expression::Literal(Value::String("Alice".to_string())))]],
             )],
             false,
         );
@@ -616,8 +633,8 @@ mod tests {
         let stmt = create_insert_vertices_stmt(
             vec![create_tag_spec("person", vec!["name"])],
             vec![create_vertex_row(
-                Expression::literal("vid1"),
-                vec![vec![Expression::literal("Alice")]],
+                create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
+                vec![vec![create_contextual_expr(Expression::Literal(Value::String("Alice".to_string())))]],
             )],
             true, // if_not_exists = true
         );

@@ -192,9 +192,15 @@ impl ExpressionOperationsValidator {
         // 递归验证聚合参数
         self.validate_expression_operations_recursive(arg, depth + 1)?;
 
+        // 创建临时 ContextualExpression 用于类型推导
+        let ctx = std::sync::Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(arg.clone());
+        let id = ctx.register_expression(meta);
+        let contextual_arg = ContextualExpression::new(id, ctx);
+
         // 使用类型推导验证器验证聚合函数参数类型
         let type_validator = TypeDeduceValidator::new();
-        let _ = type_validator.deduce_type(arg);
+        let _ = type_validator.deduce_type(&contextual_arg);
 
         // 验证 DISTINCT 标记
         if distinct {
@@ -246,10 +252,20 @@ impl ExpressionOperationsValidator {
         self.validate_expression_operations_recursive(expression, depth + 1)?;
         self.validate_expression_operations_recursive(index, depth + 1)?;
 
+        // 创建临时 ContextualExpression 用于类型推导
+        let ctx = std::sync::Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expression.clone());
+        let expr_id = ctx.register_expression(expr_meta);
+        let contextual_expr = ContextualExpression::new(expr_id, ctx.clone());
+
+        let index_meta = crate::core::types::expression::ExpressionMeta::new(index.clone());
+        let index_id = ctx.register_expression(index_meta);
+        let contextual_index = ContextualExpression::new(index_id, ctx);
+
         // 使用类型推导验证器验证索引类型
         let type_validator = TypeDeduceValidator::new();
-        let expr_type = type_validator.deduce_type(expression);
-        let index_type = type_validator.deduce_type(index);
+        let expr_type = type_validator.deduce_type(&contextual_expr);
+        let index_type = type_validator.deduce_type(&contextual_index);
 
         match expr_type {
             DataType::List => {
