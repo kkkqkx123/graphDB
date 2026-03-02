@@ -202,10 +202,20 @@ impl SetValidator {
     /// 验证 SET 变量
     fn validate_set_variable(
         &self,
-        target: &Expression,
-        _value: &Expression,
+        target: &ContextualExpression,
+        _value: &ContextualExpression,
     ) -> Result<(), ValidationError> {
-        if let Expression::Variable(name) = target {
+        let inner_target = match target.get_expression() {
+            Some(e) => e,
+            None => {
+                return Err(ValidationError::new(
+                    "SET 目标表达式无效".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+        
+        if let Expression::Variable(name) = inner_target {
             if name.is_empty() {
                 return Err(ValidationError::new(
                     "变量名不能为空".to_string(),

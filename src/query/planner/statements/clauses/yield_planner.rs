@@ -33,7 +33,7 @@ impl YieldClausePlanner {
     pub fn plan_yield_clause(
         &self,
         yield_columns: &[YieldColumn],
-        filter_condition: Option<crate::core::Expression>,
+        filter_condition: Option<crate::core::types::ContextualExpression>,
         skip: Option<usize>,
         limit: Option<usize>,
         input_plan: &SubPlan,
@@ -81,16 +81,14 @@ impl YieldClausePlanner {
     fn create_filter_node(
         &self,
         input_plan: &SubPlan,
-        condition: crate::core::Expression,
+        condition: crate::core::types::ContextualExpression,
     ) -> Result<PlanNodeEnum, PlannerError> {
         let input_node = input_plan
             .root()
             .as_ref()
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
-        use std::sync::Arc;
-        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
-        FilterNode::from_expression(input_node.clone(), condition, ctx)
+        FilterNode::new(input_node.clone(), condition)
             .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建过滤节点失败: {}", e)))
             .map(|node| PlanNodeEnum::Filter(node))
     }
@@ -146,7 +144,7 @@ impl YieldClausePlanner {
     /// - YieldItem 到 YieldColumn 的完整转换
     /// - 聚合表达式检测
     /// - 别名处理
-    fn extract_yield_info(stmt: &Stmt) -> Result<(Vec<YieldColumn>, Option<crate::core::Expression>, Option<usize>, Option<usize>), PlannerError> {
+    fn extract_yield_info(stmt: &Stmt) -> Result<(Vec<YieldColumn>, Option<crate::core::types::ContextualExpression>, Option<usize>, Option<usize>), PlannerError> {
         use crate::query::parser::ast::Stmt;
 
         // YIELD 可能作为独立语句或子句出现在其他语句中

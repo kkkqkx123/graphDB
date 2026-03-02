@@ -13,6 +13,7 @@
 //! - 上层 Project 不依赖下层 Project 的别名解析
 
 use crate::core::YieldColumn;
+use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
@@ -109,7 +110,7 @@ impl RewriteRule for CollapseConsecutiveProjectRule {
 
     fn apply(
         &self,
-        _ctx: &mut RewriteContext,
+        ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
         // 检查是否为Project节点
@@ -126,7 +127,7 @@ impl RewriteRule for CollapseConsecutiveProjectRule {
         };
 
         // 执行合并
-        if let Some(new_proj) = self.merge_projects(parent_proj, child_proj) {
+        if let Some(new_proj) = self.merge_projects(parent_proj, child_proj, ctx) {
             let mut result = TransformResult::new();
             result.erase_curr = true;
             result.add_new_node(PlanNodeEnum::Project(new_proj));

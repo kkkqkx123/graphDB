@@ -311,44 +311,51 @@ impl UpdateValidator {
     /// 验证顶点 ID
     /// 优先使用 SchemaValidator 的统一验证方法
     fn validate_vertex_id(&self, expr: &ContextualExpression, role: &str) -> Result<(), CoreValidationError> {
-        let expr_meta = match expr.expression() {
-            Some(e) => e,
-            None => {
-                return Err(CoreValidationError::new(
-                    format!("{} vertex ID is invalid", role),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
-        };
-        let inner_expr = expr_meta.inner();
-        
+        if expr.expression().is_none() {
+            return Err(CoreValidationError::new(
+                format!("{} vertex ID is invalid", role),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
         if let Some(ref schema_validator) = self.schema_validator {
             let vid_type = crate::core::types::DataType::String;
-            return schema_validator.validate_vid_expr(inner_expr, &vid_type, role);
+            let ctx_expr = crate::core::types::ContextualExpression::new(
+                expr.id().clone(),
+                expr.context().clone()
+            );
+            return schema_validator.validate_vid_expr(&ctx_expr, &vid_type, role);
         }
-        
-        Self::basic_validate_vertex_id(inner_expr, role)
-    }
-    
-    /// 基本顶点 ID 验证（无 SchemaValidator 时）
-    fn basic_validate_vertex_id(expr: &Expression, role: &str) -> Result<(), CoreValidationError> {
-        match expr {
-            Expression::Literal(crate::core::Value::String(s)) => {
-                if s.is_empty() {
-                    return Err(CoreValidationError::new(
-                        format!("{} vertex ID cannot be empty", role),
-                        ValidationErrorType::SemanticError,
-                    ));
+
+        // 基本验证
+        if expr.is_variable() {
+            return Ok(());
+        }
+
+        if expr.is_literal() {
+            if let Some(value) = expr.as_literal() {
+                match value {
+                    crate::core::Value::String(s) => {
+                        if s.is_empty() {
+                            return Err(CoreValidationError::new(
+                                format!("{} vertex ID cannot be empty", role),
+                                ValidationErrorType::SemanticError,
+                            ));
+                        }
+                        return Ok(());
+                    }
+                    crate::core::Value::Int(_) => {
+                        return Ok(());
+                    }
+                    _ => {}
                 }
-                Ok(())
             }
-            Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
-            Expression::Variable(_) => Ok(()),
-            _ => Err(CoreValidationError::new(
-                format!("{} vertex ID must be a string constant or variable", role),
-                ValidationErrorType::SemanticError,
-            )),
         }
+
+        Err(CoreValidationError::new(
+            format!("{} vertex ID must be a string constant or variable", role),
+            ValidationErrorType::SemanticError,
+        ))
     }
 
     /// 验证并评估 VID
@@ -359,19 +366,15 @@ impl UpdateValidator {
         schema_validator: &SchemaValidator,
         role: &str,
     ) -> Result<Value, CoreValidationError> {
-        let expr_meta = match vid_expr.expression() {
-            Some(e) => e,
-            None => {
-                return Err(CoreValidationError::new(
-                    format!("{} vertex ID is invalid", role),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
-        };
-        let inner_expr = expr_meta.inner();
-        
+        if vid_expr.expression().is_none() {
+            return Err(CoreValidationError::new(
+                format!("{} vertex ID is invalid", role),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
         let vid = schema_validator
-            .evaluate_expression(inner_expr)
+            .evaluate_expression(vid_expr)
             .map_err(|e| {
                 CoreValidationError::new(
                     format!("Failed to evaluate {} vertex ID: {}", role, e.message),
@@ -392,25 +395,21 @@ impl UpdateValidator {
     }
 
     fn validate_rank(&self, expr: &ContextualExpression) -> Result<(), CoreValidationError> {
-        let expr_meta = match expr.expression() {
-            Some(e) => e,
-            None => {
-                return Err(CoreValidationError::new(
-                    "Rank expression is invalid".to_string(),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
-        };
-        let inner_expr = expr_meta.inner();
-        
-        match inner_expr {
-            Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
-            Expression::Variable(_) => Ok(()),
-            _ => Err(CoreValidationError::new(
-                "Rank must be an integer constant or variable".to_string(),
+        if expr.expression().is_none() {
+            return Err(CoreValidationError::new(
+                "Rank expression is invalid".to_string(),
                 ValidationErrorType::SemanticError,
-            )),
+            ));
         }
+
+        if expr.is_variable() || expr.is_literal() {
+            return Ok(());
+        }
+
+        Err(CoreValidationError::new(
+            "Rank must be an integer constant or variable".to_string(),
+            ValidationErrorType::SemanticError,
+        ))
     }
 
     /// 评估 rank 表达式
@@ -419,24 +418,13 @@ impl UpdateValidator {
         expr: &ContextualExpression,
         schema_validator: &SchemaValidator,
     ) -> Result<i64, CoreValidationError> {
-        let expr_meta = match expr.expression() {
-            Some(e) => e,
-            None => {
-                return Err(CoreValidationError::new(
-                    "Rank expression is invalid".to_string(),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
-        };
-        self.evaluate_rank(expr_meta.inner(), schema_validator)
-    }
+        if expr.expression().is_none() {
+            return Err(CoreValidationError::new(
+                "Rank expression is invalid".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
 
-    /// 评估 rank 表达式
-    fn evaluate_rank(
-        &self,
-        expr: &Expression,
-        schema_validator: &SchemaValidator,
-    ) -> Result<i64, CoreValidationError> {
         let value = schema_validator
             .evaluate_expression(expr)
             .map_err(|e| {
@@ -627,13 +615,26 @@ impl UpdateValidator {
     }
 
     fn validate_expression(&self, expr: &ContextualExpression) -> Result<(), CoreValidationError> {
-        if let Some(e) = expr.expression() {
-            self.validate_expression_internal(&e)
-        } else {
-            Err(CoreValidationError::new(
+        if expr.expression().is_none() {
+            return Err(CoreValidationError::new(
                 "表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
-            ))
+            ));
+        }
+
+        // 基本验证：字面量、变量、属性引用都是有效的
+        if expr.is_literal() || expr.is_variable() || expr.is_property() {
+            return Ok(());
+        }
+
+        // 对于更复杂的表达式（函数、二元运算等），我们需要访问内部结构
+        // 注意：这里仍然需要访问内部 Expression，因为 ContextualExpression API
+        // 暂时不提供访问嵌套表达式的方法
+        // 这是一个已知的架构限制，需要在后续版本中改进 ContextualExpression API
+        if let Some(expr_meta) = expr.expression() {
+            self.validate_expression_internal(expr_meta.inner())
+        } else {
+            Ok(())
         }
     }
 
@@ -758,9 +759,18 @@ impl Default for UpdateValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{UpdateTarget, SetClause, Assignment};
     use crate::query::parser::ast::Span;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     fn create_update_stmt(target: UpdateTarget, assignments: Vec<Assignment>, where_clause: Option<Expression>) -> UpdateStmt {
         UpdateStmt {
@@ -780,10 +790,10 @@ mod tests {
     fn test_validate_vertex_target_valid() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(Expression::literal("v1")),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::literal("v1"))),
             vec![Assignment {
                 property: "name".to_string(),
-                value: Expression::literal("new_name"),
+                value: create_contextual_expr(Expression::literal("new_name")),
             }],
             None,
         );
@@ -795,10 +805,10 @@ mod tests {
     fn test_validate_vertex_target_variable() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(Expression::variable("$vid")),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::variable("$vid"))),
             vec![Assignment {
                 property: "name".to_string(),
-                value: Expression::literal("new_name"),
+                value: create_contextual_expr(Expression::literal("new_name")),
             }],
             None,
         );
@@ -810,10 +820,10 @@ mod tests {
     fn test_validate_vertex_id_empty() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(Expression::literal("")),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::literal(""))),
             vec![Assignment {
                 property: "name".to_string(),
-                value: Expression::literal("new_name"),
+                value: create_contextual_expr(Expression::literal("new_name")),
             }],
             None,
         );

@@ -152,9 +152,9 @@ impl FetchEdgesValidator {
     /// 验证边键
     fn validate_edge_key(
         &self,
-        src: &Expression,
-        dst: &Expression,
-        rank: Option<&Expression>,
+        src: &ContextualExpression,
+        dst: &ContextualExpression,
+        rank: Option<&ContextualExpression>,
     ) -> Result<(), ValidationError> {
         // 验证源顶点表达式
         self.validate_endpoint(src, "源顶点")?;
@@ -169,64 +169,122 @@ impl FetchEdgesValidator {
     }
 
     /// 验证端点表达式
-    fn validate_endpoint(&self, expr: &Expression, endpoint_type: &str) -> Result<(), ValidationError> {
-        match expr {
-            Expression::Literal(value) => {
+    fn validate_endpoint(&self, expr: &ContextualExpression, endpoint_type: &str) -> Result<(), ValidationError> {
+        if expr.expression().is_none() {
+            return Err(ValidationError::new(
+                format!("边键的{} ID 表达式无效", endpoint_type),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        if expr.is_variable() {
+            return Ok(());
+        }
+
+        if expr.is_literal() {
+            if let Some(value) = expr.as_literal() {
                 if value.is_null() || value.is_empty() {
                     return Err(ValidationError::new(
                         format!("边键的{} ID 不能为空", endpoint_type),
                         ValidationErrorType::SemanticError,
                     ));
                 }
-                Ok(())
+                return Ok(());
             }
-            Expression::Variable(_) => Ok(()),
-            _ => Err(ValidationError::new(
-                format!("边键的{} ID 必须是常量或变量", endpoint_type),
-                ValidationErrorType::SemanticError,
-            )),
         }
+
+        Err(ValidationError::new(
+            format!("边键的{} ID 必须是常量或变量", endpoint_type),
+            ValidationErrorType::SemanticError,
+        ))
     }
 
     /// 验证 rank 值
-    fn validate_rank(&self, expr: &Expression) -> Result<(), ValidationError> {
-        match expr {
-            Expression::Literal(Value::Int(i)) if *i >= 0 => Ok(()),
-            Expression::Literal(Value::Int(_)) => Err(ValidationError::new(
-                "rank 值必须为非负整数".to_string(),
+    fn validate_rank(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
+        if expr.expression().is_none() {
+            return Err(ValidationError::new(
+                "Rank 表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
-            )),
-            Expression::Variable(_) => Ok(()),
-            _ => Err(ValidationError::new(
-                "rank 值必须为整数类型".to_string(),
-                ValidationErrorType::SemanticError,
-            )),
+            ));
         }
+
+        if expr.is_variable() {
+            return Ok(());
+        }
+
+        if expr.is_literal() {
+            if let Some(value) = expr.as_literal() {
+                if let Value::Int(i) = value {
+                    if i >= 0 {
+                        return Ok(());
+                    } else {
+                        return Err(ValidationError::new(
+                            "rank 值必须为非负整数".to_string(),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
+            }
+        }
+
+        Err(ValidationError::new(
+            "rank 值必须为整数类型".to_string(),
+            ValidationErrorType::SemanticError,
+        ))
     }
 
     /// 评估表达式为 Value
-    fn evaluate_expression(&self, expr: &Expression) -> Result<Value, ValidationError> {
-        match expr {
-            Expression::Literal(v) => Ok(v.clone()),
-            Expression::Variable(name) => Ok(Value::String(format!("${}", name))),
-            _ => Err(ValidationError::new(
-                "表达式必须是常量或变量".to_string(),
+    fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
+        if expr.expression().is_none() {
+            return Err(ValidationError::new(
+                "表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
-            )),
+            ));
         }
+
+        if let Some(value) = expr.as_literal() {
+            return Ok(value.clone());
+        }
+
+        if let Some(name) = expr.as_variable() {
+            return Ok(Value::String(format!("${}", name)));
+        }
+
+        Err(ValidationError::new(
+            "表达式必须是常量或变量".to_string(),
+            ValidationErrorType::SemanticError,
+        ))
     }
 
     /// 评估 rank 表达式
-    fn evaluate_rank(&self, expr: &Option<Expression>) -> Result<i64, ValidationError> {
-        match expr {
-            Some(Expression::Literal(Value::Int(i))) => Ok(*i),
-            Some(Expression::Variable(_)) => Ok(0),
-            None => Ok(0),
-            _ => Err(ValidationError::new(
-                "rank 值必须为整数".to_string(),
-                ValidationErrorType::TypeMismatch,
-            )),
+    fn evaluate_rank(&self, expr: &Option<ContextualExpression>) -> Result<i64, ValidationError> {
+        let inner_expr = match expr {
+            Some(ctx_expr) => {
+                if ctx_expr.expression().is_none() {
+                    return Err(ValidationError::new(
+                        "Rank 表达式无效".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+                ctx_expr
+            }
+            None => return Ok(0),
+        };
+
+        if inner_expr.is_variable() {
+            return Ok(0);
         }
+
+        if let Some(value) = inner_expr.as_literal() {
+            if let Value::Int(i) = value {
+                return Ok(i);
+            }
+        }
+
+        Err(ValidationError::new(
+            "rank 值必须为整数".to_string(),
+            ValidationErrorType::TypeMismatch,
+        ))
     }
 
     /// 获取 EdgeType ID
@@ -307,9 +365,17 @@ impl StatementValidator for FetchEdgesValidator {
         let mut validated_columns = Vec::new();
         if let Some(props) = properties {
             for prop in props {
-                // 使用变量表达式表示属性名
+                // 创建 ContextualExpression 表示属性名
+                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                    crate::core::Expression::Variable(prop.clone())
+                );
+                let id = qctx.expr_context().register_expression(expr_meta);
+                let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(
+                    id,
+                    qctx.expr_context().clone()
+                );
                 validated_columns.push(ValidatedYieldColumn {
-                    expression: Expression::Variable(prop.clone()),
+                    expression: ctx_expr,
                     alias: Some(prop.clone()),
                     prop_name: None,
                 });
@@ -375,9 +441,18 @@ impl StatementValidator for FetchEdgesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
     use crate::query::parser::ast::Span;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     fn _create_fetch_edges_stmt(
         edge_type: &str,
@@ -390,9 +465,9 @@ mod tests {
             span: Span::default(),
             target: FetchTarget::Edges {
                 edge_type: edge_type.to_string(),
-                src,
-                dst,
-                rank,
+                src: create_contextual_expr(src),
+                dst: create_contextual_expr(dst),
+                rank: rank.map(create_contextual_expr),
                 properties,
             },
         }

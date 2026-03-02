@@ -166,7 +166,7 @@ fn rewrite_expression_with_map(
                 .map(|(w, t)| {
                     (
                         rewrite_expression_with_map(w, rewrite_map, expr_context.clone()),
-                        rewrite_expression_with_map(t, rewrite_map, expr_context),
+                        rewrite_expression_with_map(t, rewrite_map, expr_context.clone()),
                     )
                 })
                 .collect(),

@@ -1,6 +1,7 @@
 //! 合并获取邻居和投影操作的规则
 
 use crate::core::Expression;
+use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
@@ -95,8 +96,10 @@ impl RewriteRule for MergeGetNbrsAndProjectRule {
 
         // 更新源引用为Project列的表达式
         let src_expr = columns[0].expression.clone();
-        if let Expression::Variable(name) = &src_expr {
-            new_get_neighbors.set_src_vids(name.clone());
+        if let Some(expr_meta) = src_expr.expression() {
+            if let Expression::Variable(name) = expr_meta.inner() {
+                new_get_neighbors.set_src_vids(name.clone());
+            }
         }
 
         // 清除原有依赖并设置新的输入

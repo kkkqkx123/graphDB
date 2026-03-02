@@ -18,7 +18,8 @@ use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 use crate::core::types::EdgeDirection;
 use crate::core::types::operators::AggregateFunction;
-use crate::core::types::expression::{Expression, ExpressionContext};
+use crate::core::types::expression::{Expression, ExpressionContext, ExpressionMeta};
+use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::core::YieldColumn;
 
@@ -53,8 +54,8 @@ impl PlanNodeFactory {
     pub fn create_inner_join(
         left: PlanNodeEnum,
         right: PlanNodeEnum,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
+        hash_keys: Vec<ContextualExpression>,
+        probe_keys: Vec<ContextualExpression>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         use super::join_node::InnerJoinNode;
 

@@ -112,7 +112,7 @@ impl FetchVerticesValidator {
     }
 
     /// 验证顶点 ID 列表
-    fn validate_vertex_ids(&self, vertex_ids: &[Expression]) -> Result<(), ValidationError> {
+    fn validate_vertex_ids(&self, vertex_ids: &[ContextualExpression]) -> Result<(), ValidationError> {
         if vertex_ids.is_empty() {
             return Err(ValidationError::new(
                 "必须指定至少一个顶点 ID".to_string(),
@@ -129,7 +129,7 @@ impl FetchVerticesValidator {
 
     /// 验证单个顶点 ID
     /// 使用 SchemaValidator 的统一验证方法
-    fn validate_vertex_id(&self, expr: &Expression) -> Result<(), ValidationError> {
+    fn validate_vertex_id(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
         // 使用 SchemaValidator 进行统一验证
         // 默认使用 String 类型，因为 FETCH VERTICES 通常使用字符串 VID
         let vid_type = crate::core::types::DataType::String;
@@ -147,9 +147,20 @@ impl FetchVerticesValidator {
     }
     
     /// 基本顶点 ID 验证（无 SchemaManager 时）
-    fn basic_validate_vertex_id(expr: &Expression) -> Result<(), ValidationError> {
-        match expr {
-            Expression::Literal(value) => {
+    fn basic_validate_vertex_id(expr: &ContextualExpression) -> Result<(), ValidationError> {
+        if expr.expression().is_none() {
+            return Err(ValidationError::new(
+                "顶点 ID 表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        if expr.is_variable() {
+            return Ok(());
+        }
+
+        if expr.is_literal() {
+            if let Some(value) = expr.as_literal() {
                 if value.is_null() || value.is_empty() {
                     return Err(ValidationError::new(
                         "顶点 ID 不能为空".to_string(),
@@ -164,14 +175,14 @@ impl FetchVerticesValidator {
                         ));
                     }
                 }
-                Ok(())
+                return Ok(());
             }
-            Expression::Variable(_) => Ok(()),
-            _ => Err(ValidationError::new(
-                "顶点 ID 必须是常量或变量".to_string(),
-                ValidationErrorType::SemanticError,
-            )),
         }
+
+        Err(ValidationError::new(
+            "顶点 ID 必须是常量或变量".to_string(),
+            ValidationErrorType::SemanticError,
+        ))
     }
 
     /// 验证属性列表子句
@@ -267,9 +278,17 @@ impl StatementValidator for FetchVerticesValidator {
         let mut validated_columns = Vec::new();
         if let Some(props) = properties {
             for prop in props {
-                // 使用变量表达式表示属性名
+                // 创建 ContextualExpression 表示属性名
+                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                    crate::core::Expression::Variable(prop.clone())
+                );
+                let id = qctx.expr_context().register_expression(expr_meta);
+                let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(
+                    id,
+                    qctx.expr_context().clone()
+                );
                 validated_columns.push(ValidatedYieldColumn {
-                    expression: Expression::Variable(prop.clone()),
+                    expression: ctx_expr,
                     alias: prop.clone(),
                     tag_name: None,
                     prop_name: Some(prop.clone()),

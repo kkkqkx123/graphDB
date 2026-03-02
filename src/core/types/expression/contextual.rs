@@ -118,6 +118,13 @@ impl ContextualExpression {
             .unwrap_or(false)
     }
     
+    /// 检查表达式是否为属性访问表达式
+    pub fn is_property(&self) -> bool {
+        self.expression()
+            .map(|e| e.is_property())
+            .unwrap_or(false)
+    }
+    
     /// 获取变量名
     pub fn as_variable(&self) -> Option<String> {
         self.expression()

@@ -4,6 +4,7 @@
 //! 实现了 ClausePlanner 接口，提供完整的过滤功能。
 
 use crate::core::types::ContextualExpression;
+use crate::core::Expression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
@@ -99,7 +100,11 @@ mod tests {
     #[test]
     fn test_where_clause_planner_with_filter() {
         let expr = Expression::Variable("age".to_string());
-        let planner = WhereClausePlanner::with_filter(expr);
+        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
+        let planner = WhereClausePlanner::with_filter(ctx_expr);
         assert!(planner.filter_expression.is_some());
     }
 }

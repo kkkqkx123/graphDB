@@ -29,10 +29,10 @@ pub struct MatchClauseContext {
 /// WHERE子句上下文
 #[derive(Debug, Clone)]
 pub struct WhereClauseContext {
-    pub filter: Option<Expression>,
+    pub filter: Option<ContextualExpression>,
     pub aliases_available: HashMap<String, AliasType>,
     pub aliases_generated: HashMap<String, AliasType>,
-    pub paths: Vec<Path>, // WHERE子句中可能包含的路径
+    pub paths: Vec<Path>,
     pub query_parts: Vec<QueryPart>,
     pub errors: Vec<ValidationError>,
 }

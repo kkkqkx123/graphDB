@@ -63,8 +63,12 @@ pub struct UnwindValidator {
 impl UnwindValidator {
     /// 创建新的验证器实例
     pub fn new() -> Self {
+        use std::sync::Arc;
         Self {
-            unwind_expression: ContextualExpression::new(0, None),
+            unwind_expression: ContextualExpression::new(
+                crate::core::types::expression::ExpressionId::new(0),
+                Arc::new(crate::core::types::ExpressionContext::new()),
+            ),
             variable_name: String::new(),
             aliases_available: HashMap::new(),
             inputs: Vec::new(),
@@ -274,13 +278,13 @@ impl UnwindValidator {
     }
 
     /// 推导列表元素类型
-    fn deduce_list_element_type(&self, _expression: &crate::core::types::expression::Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_list_element_type(&self, _expression: &ContextualExpression) -> Result<ValueType, ValidationError> {
         // 简化实现，实际应该根据表达式推导元素类型
         Ok(ValueType::Unknown)
     }
 
     /// 获取表达式引用的变量
-    fn get_expression_references(&self, _expression: &crate::core::types::expression::Expression) -> Vec<String> {
+    fn get_expression_references(&self, _expression: &ContextualExpression) -> Vec<String> {
         // 简化实现，实际应该分析表达式获取引用
         Vec::new()
     }

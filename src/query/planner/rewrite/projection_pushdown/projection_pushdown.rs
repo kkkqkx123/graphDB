@@ -27,6 +27,7 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
+use crate::core::types::ContextualExpression;
 
 /// 投影下推规则
 ///

@@ -191,10 +191,14 @@ impl DeleteValidator {
         let role = &format!("vertex {}", idx);
         
         if let Some(ref schema_manager) = self.schema_manager {
-            if let Some(e) = expr.expression() {
+            if expr.get_expression().is_some() {
                 let schema_validator = crate::query::validator::SchemaValidator::new(schema_manager.clone());
                 let vid_type = crate::core::types::DataType::String;
-                schema_validator.validate_vid_expr(e, &vid_type, role)
+                let ctx_expr = crate::core::types::ContextualExpression::new(
+                    expr.id().clone(),
+                    expr.context().clone()
+                );
+                schema_validator.validate_vid_expr(&ctx_expr, &vid_type, role)
                     .map_err(|e| ValidationError::new(e.message, e.error_type))
             } else {
                 Err(ValidationError::new(
@@ -209,7 +213,7 @@ impl DeleteValidator {
     
     /// 基本顶点 ID 验证（无 SchemaManager 时）
     fn basic_validate_vertex_id(expr: &ContextualExpression, idx: usize) -> Result<(), ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             match e {
                 crate::core::types::expression::Expression::Literal(Value::String(s)) => {
                     if s.is_empty() {
@@ -240,7 +244,7 @@ impl DeleteValidator {
 
     /// 验证 rank
     fn validate_rank(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
-        if let Some(e) = expr.expression() {
+        if let Some(e) = expr.get_expression() {
             match e {
                 crate::core::types::expression::Expression::Literal(Value::Int(_)) => Ok(()),
                 crate::core::types::expression::Expression::Variable(_) => Ok(()),
@@ -270,14 +274,14 @@ impl DeleteValidator {
 
     /// 验证表达式
     fn validate_expression(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
-        let expr_meta = match expr.expression() {
+        let expr_meta = match expr.get_expression() {
             Some(e) => e,
             None => return Err(ValidationError::new(
                 "表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
             )),
         };
-        self.validate_expression_internal(expr_meta.inner())
+        self.validate_expression_internal(&expr_meta)
     }
 
     /// 内部方法：验证表达式
@@ -420,7 +424,7 @@ impl DeleteValidator {
         };
         
         match inner_expr {
-            Expression::Literal(Value::Int(i)) => Ok(*i),
+            Expression::Literal(Value::Int(i)) => Ok(i.clone()),
             Expression::Variable(_) => Ok(0),
             _ => Err(ValidationError::new(
                 "Rank must be an integer".to_string(),
@@ -551,9 +555,18 @@ impl StatementValidator for DeleteValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::context::ExpressionContext;
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
     use crate::query::parser::ast::Span;
+
+    fn create_contextual_expr(expr: Expression) -> ContextualExpression {
+        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+        ContextualExpression::new(id, ctx)
+    }
 
     fn create_delete_stmt(target: DeleteTarget, where_clause: Option<Expression>) -> DeleteStmt {
         DeleteStmt {
@@ -579,8 +592,8 @@ mod tests {
         let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Vertices(vec![
-                Expression::Literal(Value::String("v1".to_string())),
-                Expression::Literal(Value::String("v2".to_string())),
+                create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+                create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             ]),
             None,
         );
@@ -592,7 +605,7 @@ mod tests {
     fn test_validate_vertices_with_variable() {
         let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
-            DeleteTarget::Vertices(vec![Expression::Variable("vids".to_string())]),
+            DeleteTarget::Vertices(vec![create_contextual_expr(Expression::Variable("vids".to_string()))]),
             None,
         );
         let result = validator.validate_delete(&stmt);
@@ -604,8 +617,8 @@ mod tests {
         let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Vertices(vec![
-                Expression::Literal(Value::String("v1".to_string())),
-                Expression::Literal(Value::String("".to_string())),
+                create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+                create_contextual_expr(Expression::Literal(Value::String("".to_string()))),
             ]),
             None,
         );
@@ -622,8 +635,8 @@ mod tests {
             DeleteTarget::Edges {
                 edge_type: Some("friend".to_string()),
                 edges: vec![(
-                    Expression::Literal(Value::String("v1".to_string())),
-                    Expression::Literal(Value::String("v2".to_string())),
+                    create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+                    create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
                     None,
                 )],
             },
@@ -640,9 +653,9 @@ mod tests {
             DeleteTarget::Edges {
                 edge_type: Some("friend".to_string()),
                 edges: vec![(
-                    Expression::Literal(Value::String("v1".to_string())),
-                    Expression::Literal(Value::String("v2".to_string())),
-                    Some(Expression::Literal(Value::Int(0))),
+                    create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
+                    create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
+                    Some(create_contextual_expr(Expression::Literal(Value::Int(0)))),
                 )],
             },
             None,
@@ -672,7 +685,7 @@ mod tests {
         let stmt = create_delete_stmt(
             DeleteTarget::Tags {
                 tag_names: vec!["person".to_string()],
-                vertex_ids: vec![Expression::Literal(Value::String("v1".to_string()))],
+                vertex_ids: vec![create_contextual_expr(Expression::Literal(Value::String("v1".to_string())))],
                 is_all_tags: false,
             },
             None,

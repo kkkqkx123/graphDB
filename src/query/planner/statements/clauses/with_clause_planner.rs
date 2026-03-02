@@ -10,7 +10,6 @@
 //! 5. 作用域重置：只保留输出的变量，其他变量不可见
 
 use crate::core::Expression;
-use crate::core::types::expression::utils::extract_group_suite;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
@@ -346,7 +345,7 @@ impl WithClausePlanner {
             aliases_generated,
             where_clause: with_stmt.where_clause.clone().map(|condition| {
                 crate::query::validator::structs::WhereClauseContext {
-                    filter: Some(condition),
+                    filter: Some(condition.into_expression()),
                     aliases_available: HashMap::new(),
                     aliases_generated: HashMap::new(),
                     paths: vec![],
@@ -450,7 +449,7 @@ impl WithClausePlanner {
                 Expression::Variable(_) => AliasType::Variable,
 
                 // 属性访问 - 尝试从对象推断类型
-                Expression::Property { object, .. } => {
+                Expression::Property { object: _, .. } => {
                     let obj_expr = crate::core::types::expression::contextual::ContextualExpression::new(
                         crate::core::types::expression::ExpressionId::new(0),
                         expression.context().clone()
@@ -492,7 +491,7 @@ impl WithClausePlanner {
                 }
 
                 // 范围表达式 - 递归推断集合类型
-                Expression::Range { collection, .. } => {
+                Expression::Range { collection: _, .. } => {
                     let coll_expr = crate::core::types::expression::contextual::ContextualExpression::new(
                         crate::core::types::expression::ExpressionId::new(0),
                         expression.context().clone()

@@ -6,8 +6,7 @@ use std::sync::Arc;
 
 use crate::define_plan_node_with_deps;
 use crate::core::YieldColumn;
-use crate::core::types::{ContextualExpression, SerializableExpression, ExpressionContext, ExpressionMeta};
-use crate::core::Expression;
+use crate::core::types::{ContextualExpression, SerializableExpression, ExpressionContext};
 
 define_plan_node_with_deps! {
     pub struct ProjectNode {

@@ -1,5 +1,6 @@
 //! 合并获取顶点和投影操作的规则
 
+use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
@@ -94,9 +95,7 @@ impl RewriteRule for MergeGetVerticesAndProjectRule {
 
         // 更新源引用为Project列的表达式
         let src_expr = columns[0].expression.clone();
-        if let Some(expr_meta) = src_expr.expression() {
-            new_get_vertices.set_src_ref(expr_meta.inner().clone());
-        }
+        new_get_vertices.set_src_ref(src_expr);
 
         // 清除原有依赖并设置新的输入
         new_get_vertices.deps_mut().clear();

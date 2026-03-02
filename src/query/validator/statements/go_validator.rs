@@ -123,33 +123,41 @@ impl GoValidator {
     }
 
     /// 验证 FROM 子句
-    fn validate_from_clause(&mut self, from_vertices: &[Expression]) -> Result<GoSource, ValidationError> {
+    fn validate_from_clause(&mut self, from_vertices: &[ContextualExpression]) -> Result<GoSource, ValidationError> {
         // 取第一个顶点表达式作为源
         let from_expr = from_vertices.first().ok_or_else(|| ValidationError::new(
             "FROM 子句不能为空".to_string(),
             ValidationErrorType::SemanticError,
         ))?;
 
-        let source_type = match from_expr {
-            Expression::Variable(var_name) => {
-                if var_name == "$-" {
-                    GoSourceType::Expression
-                } else {
-                    self.user_defined_vars.push(var_name.clone());
-                    GoSourceType::Variable
-                }
+        if from_expr.expression().is_none() {
+            return Err(ValidationError::new(
+                "FROM 子句表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        let is_variable = from_expr.is_variable() && from_expr.as_variable().as_deref() != Some("$-");
+         
+        let source_type = if let Some(var_name) = from_expr.as_variable() {
+            if var_name == "$-" {
+                GoSourceType::Expression
+            } else {
+                self.user_defined_vars.push(var_name.clone());
+                GoSourceType::Variable
             }
-            Expression::Literal(_) => GoSourceType::VertexId,
-            Expression::Parameter(_) => GoSourceType::Parameter,
-            _ => GoSourceType::Expression,
+        } else if from_expr.is_literal() {
+            GoSourceType::VertexId
+        } else {
+            GoSourceType::Expression
         };
 
         Ok(GoSource {
-            source_type: source_type.clone(),
+            source_type,
             expression: from_expr.clone(),
-            is_variable: matches!(source_type, GoSourceType::Variable),
-            variable_name: if let Expression::Variable(name) = from_expr {
-                Some(name.clone())
+            is_variable,
+            variable_name: if is_variable {
+                from_expr.as_variable()
             } else {
                 None
             },
@@ -188,7 +196,7 @@ impl GoValidator {
     }
 
     /// 验证 WHERE 子句
-    fn validate_where_clause(&mut self, filter: &Option<Expression>) -> Result<Option<Expression>, ValidationError> {
+    fn validate_where_clause(&mut self, filter: &Option<ContextualExpression>) -> Result<Option<ContextualExpression>, ValidationError> {
         if let Some(ref expr) = filter {
             self.validate_expression(expr)?;
             
@@ -206,9 +214,7 @@ impl GoValidator {
         let mut yield_columns = Vec::new();
 
         for (i, (expr, alias)) in items.iter().enumerate() {
-            if let Some(e) = expr.expression() {
-                self.validate_expression(&e)?;
-            }
+            self.validate_expression(expr)?;
 
             let col_alias = alias.clone().unwrap_or_else(|| format!("column_{}", i));
             
@@ -274,106 +280,32 @@ impl GoValidator {
     }
 
     /// 验证表达式
-    fn validate_expression(&mut self, expression: &Expression) -> Result<(), ValidationError> {
-        match expression {
-            Expression::Literal(_) => Ok(()),
-            Expression::Variable(name) => {
-                if name != "$-" && !self.user_defined_vars.contains(name) {
-                    self.user_defined_vars.push(name.clone());
-                }
-                Ok(())
-            }
-            Expression::Property { object, .. } => {
-                self.validate_expression(object)
-            }
-            Expression::Binary { left, right, .. } => {
-                self.validate_expression(left)?;
-                self.validate_expression(right)
-            }
-            Expression::Unary { operand, .. } => {
-                self.validate_expression(operand)
-            }
-            Expression::Function { args, .. } => {
-                for arg in args {
-                    self.validate_expression(arg)?;
-                }
-                Ok(())
-            }
-            Expression::Aggregate { arg, .. } => {
-                self.validate_expression(arg)
-            }
-            Expression::List(items) => {
-                for item in items {
-                    self.validate_expression(item)?;
-                }
-                Ok(())
-            }
-            Expression::Map(pairs) => {
-                for (_, value) in pairs {
-                    self.validate_expression(value)?;
-                }
-                Ok(())
-            }
-            Expression::Case { test_expr, conditions, default } => {
-                if let Some(test) = test_expr {
-                    self.validate_expression(test)?;
-                }
-                for (cond, result) in conditions {
-                    self.validate_expression(cond)?;
-                    self.validate_expression(result)?;
-                }
-                if let Some(def) = default {
-                    self.validate_expression(def)?;
-                }
-                Ok(())
-            }
-            Expression::TypeCast { expression, .. } => {
-                self.validate_expression(expression)
-            }
-            Expression::Subscript { collection, index } => {
-                self.validate_expression(collection)?;
-                self.validate_expression(index)
-            }
-            Expression::Range { collection, start, end } => {
-                self.validate_expression(collection)?;
-                if let Some(s) = start {
-                    self.validate_expression(s)?;
-                }
-                if let Some(e) = end {
-                    self.validate_expression(e)?;
-                }
-                Ok(())
-            }
-            Expression::Path(items) => {
-                for item in items {
-                    self.validate_expression(item)?;
-                }
-                Ok(())
-            }
-            Expression::Label(_) => Ok(()),
-            Expression::ListComprehension { .. } => Ok(()),
-            Expression::LabelTagProperty { tag, .. } => self.validate_expression(tag),
-            Expression::TagProperty { .. } => Ok(()),
-            Expression::EdgeProperty { .. } => Ok(()),
-            Expression::Predicate { args, .. } => {
-                for arg in args {
-                    self.validate_expression(arg)?;
-                }
-                Ok(())
-            }
-            Expression::Reduce { initial, source, mapping, .. } => {
-                self.validate_expression(initial)?;
-                self.validate_expression(source)?;
-                self.validate_expression(mapping)
-            }
-            Expression::PathBuild(exprs) => {
-                for expr in exprs {
-                    self.validate_expression(expr)?;
-                }
-                Ok(())
-            }
-            Expression::Parameter(_) => Ok(()),
+    fn validate_expression(&mut self, expression: &ContextualExpression) -> Result<(), ValidationError> {
+        if expression.expression().is_none() {
+            return Err(ValidationError::new(
+                "表达式无效".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
         }
+        
+        // 检查变量是否已定义
+        if expression.is_variable() {
+            if let Some(var_name) = expression.as_variable() {
+                if var_name != "$-" && !self.user_defined_vars.contains(var_name) {
+                    self.user_defined_vars.push(var_name.clone());
+                }
+            }
+        }
+        
+        // 获取所有变量并验证
+        let variables = expression.get_variables();
+        for var_name in variables {
+            if var_name != "$-" && !self.user_defined_vars.contains(&var_name) {
+                self.user_defined_vars.push(var_name);
+            }
+        }
+        
+        Ok(())
     }
 
     /// 构建输出列

@@ -133,8 +133,13 @@ impl LookupPlanner {
         }
 
         if columns.is_empty() {
+            let ctx = std::sync::Arc::new(crate::core::types::expression::ExpressionContext::new());
+            let expr = Expression::Variable("*".to_string());
+            let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+            let id = ctx.register_expression(meta);
+            let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
             columns.push(crate::core::YieldColumn {
-                expression: Expression::Variable("*".to_string()),
+                expression: ctx_expr,
                 alias: "result".to_string(),
                 is_matched: false,
             });

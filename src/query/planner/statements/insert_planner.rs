@@ -351,7 +351,8 @@ mod tests {
     #[test]
     fn test_create_yield_columns() {
         let planner = InsertPlanner::new();
-        let columns = planner.create_yield_columns(5);
+        let qctx = create_test_qctx();
+        let columns = planner.create_yield_columns(5, qctx);
         assert_eq!(columns.len(), 1);
         assert_eq!(columns[0].alias, "inserted_count");
     }
