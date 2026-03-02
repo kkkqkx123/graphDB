@@ -6,7 +6,7 @@ use crate::storage::StorageClient;
 use crate::core::error::{SessionError, SessionResult};
 use crate::core::{Permission, StatsManager, MetricType};
 use crate::transaction::{SavepointManager, TransactionManager};
-use crate::query::QueryPipelineManager;
+use crate::query::{QueryPipelineManager, OptimizerEngine};
 use std::sync::Arc;
 use parking_lot::Mutex;
 use std::time::Duration;
@@ -70,9 +70,11 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
 
         let query_stats_manager = Arc::new(StatsManager::new());
-        let pipeline_manager = Arc::new(Mutex::new(QueryPipelineManager::new(
+        let optimizer_engine = Arc::new(OptimizerEngine::default());
+        let pipeline_manager = Arc::new(Mutex::new(QueryPipelineManager::with_optimizer(
             Arc::new(Mutex::new((*storage).clone())),
             query_stats_manager.clone(),
+            optimizer_engine,
         )));
 
         let authenticator = AuthenticatorFactory::create_default(&config.auth);

@@ -2,7 +2,7 @@
 //!
 //! 提供与传输层无关的查询执行功能
 
-use crate::query::QueryPipelineManager;
+use crate::query::{QueryPipelineManager, OptimizerEngine};
 use crate::storage::StorageClient;
 use crate::api::core::{CoreResult, CoreError, QueryContext, QueryResult, Row, ExecutionMetadata};
 use crate::core::StatsManager;
@@ -19,8 +19,9 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     /// 创建新的 QueryApi 实例
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
         let stats_manager = Arc::new(StatsManager::new());
+        let optimizer_engine = Arc::new(OptimizerEngine::default());
         Self {
-            pipeline_manager: QueryPipelineManager::new(storage, stats_manager),
+            pipeline_manager: QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer_engine),
         }
     }
 

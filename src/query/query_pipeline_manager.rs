@@ -46,15 +46,6 @@ pub struct QueryPipelineManager<S: StorageClient + 'static> {
 }
 
 impl<S: StorageClient + 'static> QueryPipelineManager<S> {
-    /// 使用默认优化器引擎创建
-    ///
-    /// 注意：这会创建一个新的 OptimizerEngine 实例。在生产环境中，
-    /// 建议使用 `with_optimizer` 方法传入全局共享的 OptimizerEngine。
-    pub fn new(storage: Arc<Mutex<S>>, stats_manager: Arc<StatsManager>) -> Self {
-        let optimizer_engine = Arc::new(OptimizerEngine::default());
-        Self::with_optimizer(storage, stats_manager, optimizer_engine)
-    }
-
     /// 使用指定的优化器引擎创建
     ///
     /// 这是推荐的生产环境使用方式，可以共享全局的 OptimizerEngine 实例。

@@ -21,6 +21,7 @@ use common::{
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::core::stats::StatsManager;
 use std::sync::Arc;
 
@@ -101,7 +102,7 @@ fn test_insert_execution_vertex() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)";
     let result = pipeline_manager.execute_query(query);
@@ -116,7 +117,7 @@ fn test_insert_execution_edge() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')";
     let result = pipeline_manager.execute_query(query);
@@ -163,7 +164,7 @@ fn test_create_execution_vertex() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CREATE (p:Person {name: 'Alice', age: 30})";
     let result = pipeline_manager.execute_query(query);
@@ -178,7 +179,7 @@ fn test_create_execution_edge() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CREATE (a:Person)-[:KNOWS {since: '2020-01-01'}]->(b:Person)";
     let result = pipeline_manager.execute_query(query);
@@ -255,7 +256,7 @@ fn test_update_execution_vertex() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "UPDATE 1 SET age = 26";
     let result = pipeline_manager.execute_query(query);
@@ -270,7 +271,7 @@ fn test_update_execution_edge() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "UPDATE 1 -> 2 @0 OF KNOWS SET since = '2021-01-01'";
     let result = pipeline_manager.execute_query(query);
@@ -347,7 +348,7 @@ fn test_delete_execution_vertex() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DELETE VERTEX 1";
     let result = pipeline_manager.execute_query(query);
@@ -362,7 +363,7 @@ fn test_delete_execution_edge() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DELETE EDGE KNOWS 1 -> 2";
     let result = pipeline_manager.execute_query(query);
@@ -391,7 +392,7 @@ fn test_insert_if_not_exists_execution() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "INSERT VERTEX IF NOT EXISTS Person(name, age) VALUES 1:('Alice', 30)";
     let result = pipeline_manager.execute_query(query);
@@ -544,7 +545,7 @@ fn test_merge_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "MERGE (p:Person {name: 'Alice'})";
     let result = pipeline_manager.execute_query(query);
@@ -597,7 +598,7 @@ fn test_set_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "SET p.age = 26";
     let result = pipeline_manager.execute_query(query);
@@ -674,7 +675,7 @@ fn test_remove_execution_property() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "REMOVE p.temp_field";
     let result = pipeline_manager.execute_query(query);
@@ -691,7 +692,7 @@ fn test_dml_crud_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let queries = vec![
         "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)",
@@ -713,7 +714,7 @@ fn test_dml_batch_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let batch_queries = vec![
         "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)",
@@ -735,7 +736,7 @@ fn test_dml_error_handling() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let invalid_queries = vec![
         "INSERT VERTEX Person(name, age) VALUES 1:'Alice', 30",  // 无效语法
@@ -756,7 +757,7 @@ fn test_dml_transaction_like_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let transaction_queries = vec![
         "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)",
@@ -780,7 +781,7 @@ fn test_index_scan_with_limit() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let setup_queries = vec![
         "CREATE TAG Person(name string, age int)",
@@ -805,7 +806,7 @@ fn test_index_scan_with_order_by_limit() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let setup_queries = vec![
         "CREATE TAG Person(name string, age int)",
@@ -830,7 +831,7 @@ fn test_index_covering_scan() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let setup_queries = vec![
         "CREATE TAG Person(name string, age int)",
@@ -855,7 +856,7 @@ fn test_index_scan_with_filter_optimization() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let setup_queries = vec![
         "CREATE TAG Person(name string, age int, city string)",
@@ -880,7 +881,7 @@ fn test_dml_with_index_optimization() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let setup_queries = vec![
         "CREATE TAG Person(name string, age int)",
@@ -911,7 +912,7 @@ fn test_edge_index_scan_with_limit() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let setup_queries = vec![
         "CREATE TAG Person(name string)",

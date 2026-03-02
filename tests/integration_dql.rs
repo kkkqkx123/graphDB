@@ -21,6 +21,7 @@ use common::{
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::core::stats::StatsManager;
 use std::sync::Arc;
 
@@ -91,7 +92,7 @@ fn test_match_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "MATCH (n:Person) RETURN n";
     let result = pipeline_manager.execute_query(query);
@@ -106,7 +107,7 @@ fn test_match_execution_with_projection() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "MATCH (n:Person) RETURN n.name, n.age";
     let result = pipeline_manager.execute_query(query);
@@ -211,7 +212,7 @@ fn test_go_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "GO FROM 1 OVER KNOWS";
     let result = pipeline_manager.execute_query(query);
@@ -226,7 +227,7 @@ fn test_go_execution_with_yield() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "GO FROM 1 OVER KNOWS YIELD target.name";
     let result = pipeline_manager.execute_query(query);
@@ -294,7 +295,7 @@ fn test_lookup_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "LOOKUP ON Person WHERE Person.name == 'Alice'";
     let result = pipeline_manager.execute_query(query);
@@ -359,7 +360,7 @@ fn test_fetch_execution_vertex() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "FETCH PROP ON Person 1";
     let result = pipeline_manager.execute_query(query);
@@ -374,7 +375,7 @@ fn test_fetch_execution_edge() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "FETCH PROP ON KNOWS 1 -> 2";
     let result = pipeline_manager.execute_query(query);
@@ -482,7 +483,7 @@ fn test_find_path_execution_shortest() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "FIND SHORTEST PATH FROM 1 TO 4 OVER KNOWS";
     let result = pipeline_manager.execute_query(query);
@@ -551,7 +552,7 @@ fn test_subgraph_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "GET SUBGRAPH WITH PROP 1";
     let result = pipeline_manager.execute_query(query);
@@ -568,7 +569,7 @@ fn test_dql_multiple_queries() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let queries = vec![
         "MATCH (n:Person) RETURN n",
@@ -590,7 +591,7 @@ fn test_dql_error_handling() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let invalid_queries = vec![
         "MATCH (n:Person",  // 缺少右括号
@@ -613,7 +614,7 @@ fn test_go_with_dangling_edges() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 测试GO语句在存在悬挂边时的行为
     // GO语句应该返回悬挂边的属性，但点的属性为空
@@ -630,7 +631,7 @@ fn test_go_dangling_edge_returns_edge_props() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 测试GO语句返回悬挂边的属性
     let query = "GO FROM 1 OVER KNOWS YIELD edge.since, edge.strength";
@@ -646,7 +647,7 @@ fn test_match_no_dangling_edges() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // MATCH语句不应返回悬挂边
     let query = "MATCH (n:Person)-[KNOWS]->(m:Person) RETURN n, m";
@@ -883,7 +884,7 @@ fn test_yield_execution_with_where() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
 
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
 
     let query = "GO FROM 1 OVER KNOWS YIELD target.name, target.age WHERE target.age > 25";
     let result = pipeline_manager.execute_query(query);

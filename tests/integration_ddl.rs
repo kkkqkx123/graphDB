@@ -21,6 +21,7 @@ use common::{
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::core::stats::StatsManager;
 use std::sync::Arc;
 
@@ -92,7 +93,7 @@ fn test_create_tag_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CREATE TAG Person(name: STRING, age: INT)";
     let result = pipeline_manager.execute_query(query);
@@ -107,7 +108,7 @@ fn test_create_tag_execution_with_if_not_exists() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CREATE TAG IF NOT EXISTS Person(name: STRING, age: INT)";
     let result = pipeline_manager.execute_query(query);
@@ -184,7 +185,7 @@ fn test_create_edge_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CREATE EDGE KNOWS(since: DATE)";
     let result = pipeline_manager.execute_query(query);
@@ -199,7 +200,7 @@ fn test_create_edge_execution_with_if_not_exists() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CREATE EDGE IF NOT EXISTS KNOWS(since: DATE)";
     let result = pipeline_manager.execute_query(query);
@@ -276,7 +277,7 @@ fn test_alter_tag_execution_add() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "ALTER TAG Person ADD (email: STRING)";
     let result = pipeline_manager.execute_query(query);
@@ -291,7 +292,7 @@ fn test_alter_tag_execution_drop() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "ALTER TAG Person DROP (temp_field)";
     let result = pipeline_manager.execute_query(query);
@@ -368,7 +369,7 @@ fn test_alter_edge_execution_add() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "ALTER EDGE KNOWS ADD (note: STRING)";
     let result = pipeline_manager.execute_query(query);
@@ -383,7 +384,7 @@ fn test_alter_edge_execution_drop() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "ALTER EDGE KNOWS DROP (temp_field)";
     let result = pipeline_manager.execute_query(query);
@@ -448,7 +449,7 @@ fn test_drop_tag_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DROP TAG Person";
     let result = pipeline_manager.execute_query(query);
@@ -463,7 +464,7 @@ fn test_drop_tag_execution_with_if_exists() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DROP TAG IF EXISTS Person";
     let result = pipeline_manager.execute_query(query);
@@ -528,7 +529,7 @@ fn test_drop_edge_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DROP EDGE KNOWS";
     let result = pipeline_manager.execute_query(query);
@@ -543,7 +544,7 @@ fn test_drop_edge_execution_with_if_exists() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DROP EDGE IF EXISTS KNOWS";
     let result = pipeline_manager.execute_query(query);
@@ -608,7 +609,7 @@ fn test_desc_execution_tag() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DESCRIBE TAG Person";
     let result = pipeline_manager.execute_query(query);
@@ -623,7 +624,7 @@ fn test_desc_execution_edge() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DESCRIBE EDGE KNOWS";
     let result = pipeline_manager.execute_query(query);
@@ -640,7 +641,7 @@ fn test_ddl_tag_lifecycle() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let lifecycle_queries = vec![
         "CREATE TAG TestTag(name: STRING, age: INT)",
@@ -665,7 +666,7 @@ fn test_ddl_edge_lifecycle() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let lifecycle_queries = vec![
         "CREATE EDGE TestEdge(since: DATE, weight: DOUBLE)",
@@ -690,7 +691,7 @@ fn test_ddl_multiple_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let create_queries = vec![
         "CREATE TAG Person(name: STRING, age: INT)",
@@ -712,7 +713,7 @@ fn test_ddl_error_handling() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let invalid_queries = vec![
         "CREATE TAG Person",  // 缺少属性定义
@@ -733,7 +734,7 @@ fn test_ddl_if_not_exists_if_exists() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let queries = vec![
         "CREATE TAG IF NOT EXISTS Person(name: STRING)",
@@ -920,7 +921,7 @@ fn test_show_create_execution() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "SHOW CREATE TAG Person";
     let result = pipeline_manager.execute_query(query);

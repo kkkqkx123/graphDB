@@ -25,6 +25,7 @@ use common::{
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::core::stats::StatsManager;
 use std::sync::Arc;
 
@@ -72,7 +73,7 @@ fn test_use_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "USE test_space";
     let result = pipeline_manager.execute_query(query);
@@ -87,7 +88,7 @@ fn test_use_execution_nonexistent() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "USE nonexistent_space_xyz";
     let result = pipeline_manager.execute_query(query);
@@ -164,7 +165,7 @@ fn test_show_execution_spaces() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "SHOW SPACES";
     let result = pipeline_manager.execute_query(query);
@@ -179,7 +180,7 @@ fn test_show_execution_tags() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "SHOW TAGS";
     let result = pipeline_manager.execute_query(query);
@@ -194,7 +195,7 @@ fn test_show_execution_edges() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "SHOW EDGES";
     let result = pipeline_manager.execute_query(query);
@@ -247,7 +248,7 @@ fn test_explain_execution_match() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "EXPLAIN MATCH (n:Person) RETURN n";
     let result = pipeline_manager.execute_query(query);
@@ -262,7 +263,7 @@ fn test_explain_execution_go() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "EXPLAIN GO FROM 1 OVER KNOWS";
     let result = pipeline_manager.execute_query(query);
@@ -339,7 +340,7 @@ fn test_return_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "RETURN 'Hello World'";
     let result = pipeline_manager.execute_query(query);
@@ -392,7 +393,7 @@ fn test_with_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "WITH 1 AS x RETURN x";
     let result = pipeline_manager.execute_query(query);
@@ -445,7 +446,7 @@ fn test_unwind_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "UNWIND [1, 2, 3] AS n RETURN n";
     let result = pipeline_manager.execute_query(query);
@@ -498,7 +499,7 @@ fn test_pipe_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "GO FROM 1 OVER KNOWS | YIELD target.name";
     let result = pipeline_manager.execute_query(query);
@@ -515,7 +516,7 @@ fn test_management_show_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let show_queries = vec![
         "SHOW SPACES",
@@ -538,7 +539,7 @@ fn test_management_explain_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let explain_queries = vec![
         "EXPLAIN MATCH (n:Person) RETURN n",
@@ -560,7 +561,7 @@ fn test_auxiliary_return_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let return_queries = vec![
         "RETURN 'Hello'",
@@ -582,7 +583,7 @@ fn test_auxiliary_unwind_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let unwind_queries = vec![
         "UNWIND [1, 2, 3] AS n RETURN n",
@@ -603,7 +604,7 @@ fn test_auxiliary_pipe_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let pipe_queries = vec![
         "GO FROM 1 OVER KNOWS | YIELD target.name",
@@ -624,7 +625,7 @@ fn test_management_error_handling() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let invalid_queries = vec![
         "USE",  // 缺少空间名
@@ -647,7 +648,7 @@ fn test_management_combined_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let combined_queries = vec![
         "USE test_space",
@@ -670,7 +671,7 @@ fn test_auxiliary_with_operations() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let with_queries = vec![
         "WITH 1 AS x RETURN x",
@@ -691,7 +692,7 @@ fn test_management_performance() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "SHOW SPACES";
     let iterations = 10;
@@ -875,7 +876,7 @@ fn test_new_management_features() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let new_queries = vec![
         "EXPLAIN FORMAT = TABLE MATCH (n:Person) RETURN n",

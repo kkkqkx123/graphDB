@@ -18,6 +18,7 @@ use common::{
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::core::stats::StatsManager;
 use std::sync::Arc;
 
@@ -77,7 +78,7 @@ fn test_create_user_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CREATE USER alice WITH PASSWORD 'password123'";
     let result = pipeline_manager.execute_query(query);
@@ -92,7 +93,7 @@ fn test_create_user_execution_with_if_not_exists() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CREATE USER IF NOT EXISTS alice WITH PASSWORD 'password123'";
     let result = pipeline_manager.execute_query(query);
@@ -107,7 +108,7 @@ fn test_create_user_duplicate() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CREATE USER alice WITH PASSWORD 'password123'";
     let result1 = pipeline_manager.execute_query(query);
@@ -164,7 +165,7 @@ fn test_alter_user_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "ALTER USER alice WITH PASSWORD 'newpassword123'";
     let result = pipeline_manager.execute_query(query);
@@ -179,7 +180,7 @@ fn test_alter_user_nonexistent() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "ALTER USER nonexistent_user WITH PASSWORD 'newpassword'";
     let result = pipeline_manager.execute_query(query);
@@ -232,7 +233,7 @@ fn test_drop_user_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DROP USER alice";
     let result = pipeline_manager.execute_query(query);
@@ -247,7 +248,7 @@ fn test_drop_user_with_if_exists() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DROP USER IF EXISTS alice";
     let result = pipeline_manager.execute_query(query);
@@ -262,7 +263,7 @@ fn test_drop_user_nonexistent() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DROP USER nonexistent_user";
     let result = pipeline_manager.execute_query(query);
@@ -277,7 +278,7 @@ fn test_drop_user_nonexistent_with_if_exists() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "DROP USER IF EXISTS nonexistent_user";
     let result = pipeline_manager.execute_query(query);
@@ -330,7 +331,7 @@ fn test_change_password_execution_basic() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CHANGE PASSWORD 'oldpassword' TO 'newpassword'";
     let result = pipeline_manager.execute_query(query);
@@ -345,7 +346,7 @@ fn test_change_password_wrong_old_password() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let query = "CHANGE PASSWORD 'wrongpassword' TO 'newpassword'";
     let result = pipeline_manager.execute_query(query);
@@ -362,7 +363,7 @@ fn test_dcl_user_lifecycle() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let lifecycle_queries = vec![
         "CREATE USER testuser WITH PASSWORD 'password123'",
@@ -384,7 +385,7 @@ fn test_dcl_multiple_users() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let create_queries = vec![
         "CREATE USER alice WITH PASSWORD 'alice123'",
@@ -417,7 +418,7 @@ fn test_dcl_if_not_exists_if_exists() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let queries = vec![
         "CREATE USER IF NOT EXISTS testuser WITH PASSWORD 'password'",
@@ -439,7 +440,7 @@ fn test_dcl_error_handling() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let invalid_queries = vec![
         "CREATE USER",  // 缺少用户名和密码
@@ -464,7 +465,7 @@ fn test_dcl_password_security() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let password_queries = vec![
         "CREATE USER secureuser WITH PASSWORD 'SecureP@ssw0rd!2024'",
@@ -485,7 +486,7 @@ fn test_dcl_user_management_workflow() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let workflow_queries = vec![
         "CREATE USER admin WITH PASSWORD 'Admin@2024'",
@@ -509,7 +510,7 @@ fn test_dcl_special_usernames() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let special_username_queries = vec![
         "CREATE USER user_123 WITH PASSWORD 'password'",
@@ -600,7 +601,7 @@ fn test_grant_revoke_execution() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let queries = vec![
         "CREATE USER alice WITH PASSWORD 'password123'",
@@ -636,7 +637,7 @@ fn test_describe_user_execution() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let queries = vec![
         "CREATE USER alice WITH PASSWORD 'password123'",
@@ -671,7 +672,7 @@ fn test_show_users_execution() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let queries = vec![
         "CREATE USER alice WITH PASSWORD 'password123'",
@@ -720,7 +721,7 @@ fn test_show_roles_execution() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let queries = vec![
         "CREATE USER alice WITH PASSWORD 'password123'",
@@ -746,7 +747,7 @@ fn test_new_dcl_statements_lifecycle() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     let lifecycle_queries = vec![
         "CREATE USER adminuser WITH PASSWORD 'Admin@2024'",

@@ -19,6 +19,7 @@ use graphdb::query::parser::Parser;
 use graphdb::query::validator::Validator;
 use graphdb::query::planner::PlannerConfig;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::QueryContext;
 use graphdb::query::request_context::{RequestContext as ReqCtx, RequestParams};
 use graphdb::core::StatsManager;
@@ -241,7 +242,7 @@ fn test_pipeline_manager_creation() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let _pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let _pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     // 管道管理器创建成功
 }
 
@@ -251,7 +252,7 @@ fn test_pipeline_manager_create_tag() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 执行创建标签查询（使用支持的语法）
     // 注意：由于类型名是关键字，CREATE TAG可能无法解析
@@ -276,7 +277,7 @@ fn test_pipeline_manager_use_space() {
         let _ = storage_guard.create_space(&space_info);
     }
 
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 执行USE查询
     let query = "USE use_test_space";
@@ -293,7 +294,7 @@ fn test_complete_query_flow_show_spaces() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 执行完整流程：SHOW SPACES
     let query = "SHOW SPACES";
@@ -318,7 +319,7 @@ fn test_complete_query_flow_with_metrics() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 执行带指标收集的查询
     let query = "SHOW SPACES";
@@ -340,7 +341,7 @@ fn test_query_flow_create_and_desc_tag() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 创建标签
     let create_query = "CREATE TAG desc_test_tag(name: STRING)";
@@ -365,7 +366,7 @@ fn test_query_error_invalid_syntax() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 执行语法错误的查询
     let query = "INVALID SYNTAX HERE";
@@ -381,7 +382,7 @@ fn test_query_error_nonexistent_space() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 尝试使用不存在空间
     let query = "USE nonexistent_space_xyz";
@@ -399,7 +400,7 @@ fn test_query_pipeline_performance() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 执行多次查询测试性能
     let query = "SHOW SPACES";
@@ -420,7 +421,7 @@ fn test_sequential_query_execution() {
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
     
-    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
     
     // 顺序执行多个查询
     for i in 0..5 {
