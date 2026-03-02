@@ -277,7 +277,6 @@ mod tests {
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::types::expression::ExpressionContext;
-    use crate::core::types::expression::ExpressionId;
     use std::sync::Arc;
 
     #[test]

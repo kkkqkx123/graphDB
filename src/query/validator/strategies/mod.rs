@@ -15,7 +15,6 @@ pub mod metadata;
 #[cfg(test)]
 pub mod expression_strategy_test;
 
-pub use agg_functions::*;
 pub use aggregate_strategy::*;
 pub use alias_strategy::*;
 pub use clause_strategy::*;

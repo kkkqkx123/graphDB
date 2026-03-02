@@ -202,7 +202,26 @@ impl MergeValidator {
         &self,
         props: &Expression,
     ) -> Result<(), ValidationError> {
-        Ok(())
+        match props {
+            Expression::Map(items) => {
+                if items.is_empty() {
+                    return Err(ValidationError::new(
+                        "属性不能为空".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+                
+                for (key, value) in items {
+                    self.validate_property_name(key)?;
+                    self.validate_expression_recursive(value)?;
+                }
+                Ok(())
+            }
+            _ => Err(ValidationError::new(
+                "属性必须是映射类型".to_string(),
+                ValidationErrorType::SemanticError,
+            )),
+        }
     }
 
     /// 验证属性值
@@ -224,7 +243,75 @@ impl MergeValidator {
         &self,
         value: &Expression,
     ) -> Result<(), ValidationError> {
-        Ok(())
+        self.validate_expression_recursive(value)
+    }
+    
+    /// 递归验证表达式
+    fn validate_expression_recursive(&self, expr: &Expression) -> Result<(), ValidationError> {
+        match expr {
+            Expression::Literal(_) => Ok(()),
+            Expression::Variable(_) => Ok(()),
+            Expression::Function { args, .. } => {
+                if args.is_empty() {
+                    return Err(ValidationError::new(
+                        "函数调用必须有参数".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+                for arg in args.iter() {
+                    self.validate_expression_recursive(arg)?;
+                }
+                Ok(())
+            }
+            Expression::Binary { left, right, .. } => {
+                self.validate_expression_recursive(left)?;
+                self.validate_expression_recursive(right)?;
+                Ok(())
+            }
+            Expression::Unary { operand, .. } => {
+                self.validate_expression_recursive(operand)?;
+                Ok(())
+            }
+            Expression::List(items) => {
+                for item in items.iter() {
+                    self.validate_expression_recursive(item)?;
+                }
+                Ok(())
+            }
+            Expression::Map(items) => {
+                for (_, value) in items.iter() {
+                    self.validate_expression_recursive(value)?;
+                }
+                Ok(())
+            }
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
+                if let Some(test) = test_expr {
+                    self.validate_expression_recursive(test)?;
+                }
+                for (cond, val) in conditions.iter() {
+                    self.validate_expression_recursive(cond)?;
+                    self.validate_expression_recursive(val)?;
+                }
+                if let Some(def) = default {
+                    self.validate_expression_recursive(def)?;
+                }
+                Ok(())
+            }
+            Expression::Property { object, .. } => {
+                self.validate_expression_recursive(object)?;
+                Ok(())
+            }
+            Expression::Aggregate { args, .. } => {
+                for arg in args.iter() {
+                    self.validate_expression_recursive(arg)?;
+                }
+                Ok(())
+            }
+        }
     }
 
     /// 验证 SET 子句

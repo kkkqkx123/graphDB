@@ -3,9 +3,6 @@
 
 use crate::core::Expression;
 use crate::core::DataType;
-use crate::core::AggregateFunction;
-use crate::core::BinaryOperator;
-use crate::core::UnaryOperator;
 use crate::core::Value;
 use crate::core::TypeUtils;
 use crate::core::error::{ValidationError, ValidationErrorType};

@@ -81,7 +81,6 @@ mod tests {
     use super::*;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::types::expression::ExpressionContext;
-    use crate::core::types::expression::ExpressionId;
     use crate::core::Expression;
     use std::sync::Arc;
 

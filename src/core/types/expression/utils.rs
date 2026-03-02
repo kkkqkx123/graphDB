@@ -564,7 +564,7 @@ pub mod test_helpers {
     use super::*;
     use crate::core::types::expression::ContextualExpression;
     use std::sync::Arc;
-    use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ExpressionId};
+    use crate::core::types::expression::{ExpressionMeta, ExpressionContext};
     
     pub fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {
         let ctx = Arc::new(ExpressionContext::new());

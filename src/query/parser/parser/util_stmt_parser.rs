@@ -2,10 +2,7 @@
 //!
 //! 负责解析工具类语句，包括 USE、SHOW、EXPLAIN、FETCH、LOOKUP、UNWIND、RETURN、WITH、YIELD、SET、REMOVE 等。
 
-use std::sync::Arc;
-
 use crate::core::types::expression::ContextualExpression;
-use crate::core::types::expression::Expression as CoreExpression;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::OrderDirection;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};

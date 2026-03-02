@@ -5,8 +5,6 @@
 //! # 重构变更
 //! - 移除对 ast::Variable 的依赖，使用 String 替代
 
-use crate::core::Expression;
-
 /// PlanNode 基础特征
 pub trait PlanNode {
     /// 获取节点的唯一ID

@@ -106,20 +106,3 @@ pub fn parse_expression_meta_from_string(input: &str) -> Result<ContextualExpres
     let mut parser = Parser::new(input);
     parser.parse_expression_contextual()
 }
-
-/// 从字符串解析表达式为 ContextualExpression（带缓存）
-///
-/// # 参数
-/// - `input`: 表达式字符串
-/// - `cache`: 缓存 ExpressionContext
-///
-/// # 返回
-/// 解析成功返回 `ContextualExpression`，解析失败返回错误
-pub fn parse_expression_meta_from_string_with_cache(
-    input: &str,
-    cache: Arc<ExpressionContext>,
-) -> Result<ContextualExpression, crate::query::parser::core::error::ParseError> {
-    let mut parser = Parser::new(input);
-    let expr = parser.parse_expression_contextual()?;
-    Ok(expr)
-}

@@ -2,7 +2,7 @@
 //!
 //! 负责规划 RETURN 子句的执行，实现结果投影。
 
-use crate::core::types::{ContextualExpression, ExpressionContext};
+use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;

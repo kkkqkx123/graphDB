@@ -5,7 +5,6 @@
 use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::Expression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{WithStmt, ReturnItem};
 use crate::query::validator::validator_trait::{
