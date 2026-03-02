@@ -180,8 +180,10 @@ mod tests {
             op: crate::core::types::operators::BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(crate::core::Value::Int(100))),
         };
-        let child_filter =
-            FilterNode::from_expression(start, child_condition, expr_ctx.clone()).expect("创建FilterNode失败");
+        let child_expr_meta = crate::core::types::expression::ExpressionMeta::new(child_condition);
+        let child_id = expr_ctx.register_expression(child_expr_meta);
+        let child_ctx_expr = ContextualExpression::new(child_id, expr_ctx.clone());
+        let child_filter = FilterNode::new(start, child_ctx_expr).expect("创建FilterNode失败");
         let child_node = PlanNodeEnum::Filter(child_filter);
 
         // 上层Filter: col2 > 200
@@ -190,8 +192,10 @@ mod tests {
             op: crate::core::types::operators::BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(crate::core::Value::Int(200))),
         };
-        let top_filter =
-            FilterNode::from_expression(child_node.clone(), top_condition, expr_ctx).expect("创建FilterNode失败");
+        let top_expr_meta = crate::core::types::expression::ExpressionMeta::new(top_condition);
+        let top_id = expr_ctx.register_expression(top_expr_meta);
+        let top_ctx_expr = ContextualExpression::new(top_id, expr_ctx);
+        let top_filter = FilterNode::new(child_node.clone(), top_ctx_expr).expect("创建FilterNode失败");
         let top_node = PlanNodeEnum::Filter(top_filter);
 
         // 应用规则

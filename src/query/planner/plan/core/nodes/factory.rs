@@ -2,8 +2,6 @@
 //!
 //! 提供统一的节点创建接口
 
-use std::sync::Arc;
-
 use super::aggregate_node::AggregateNode;
 use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 use super::data_processing_node::{
@@ -18,7 +16,6 @@ use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 use crate::core::types::EdgeDirection;
 use crate::core::types::operators::AggregateFunction;
-use crate::core::types::expression::{Expression, ExpressionContext, ExpressionMeta};
 use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::core::YieldColumn;
@@ -32,11 +29,10 @@ impl PlanNodeFactory {
     /// 创建过滤节点
     pub fn create_filter(
         input: PlanNodeEnum,
-        condition: Expression,
+        condition: ContextualExpression,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         use super::filter_node::FilterNode;
-        let ctx = Arc::new(ExpressionContext::new());
-        let filter_node = FilterNode::from_expression(input, condition, ctx)?;
+        let filter_node = FilterNode::new(input, condition)?;
         Ok(PlanNodeEnum::Filter(filter_node))
     }
 
@@ -209,19 +205,17 @@ impl PlanNodeFactory {
     /// 创建选择节点
     pub fn create_select(
         id: i64,
-        condition: &str,
+        condition: ContextualExpression,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        let ctx = Arc::new(ExpressionContext::new());
-        Ok(PlanNodeEnum::Select(SelectNode::from_string(id, condition.to_string(), ctx)))
+        Ok(PlanNodeEnum::Select(SelectNode::new(id, condition)))
     }
 
     /// 创建循环节点
     pub fn create_loop(
         id: i64,
-        condition: &str,
+        condition: ContextualExpression,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        let ctx = Arc::new(ExpressionContext::new());
-        Ok(PlanNodeEnum::Loop(LoopNode::from_string(id, condition.to_string(), ctx)))
+        Ok(PlanNodeEnum::Loop(LoopNode::new(id, condition)))
     }
 
     /// 创建透传节点

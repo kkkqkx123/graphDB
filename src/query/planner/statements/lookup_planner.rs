@@ -95,7 +95,7 @@ impl Planner for LookupPlanner {
             current_node = PlanNodeEnum::Filter(filter_node);
         }
 
-        let yield_columns = Self::build_yield_columns(lookup_stmt)?;
+        let yield_columns = Self::build_yield_columns(lookup_stmt, &qctx)?;
         let project_node = ProjectNode::new(current_node, yield_columns).map_err(|e| {
             PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
         })?;
@@ -119,6 +119,7 @@ impl LookupPlanner {
     /// 构建YIELD列
     fn build_yield_columns(
         lookup_stmt: &LookupStmt,
+        qctx: &Arc<QueryContext>,
     ) -> Result<Vec<crate::core::YieldColumn>, PlannerError> {
         let mut columns = Vec::new();
 
@@ -133,11 +134,10 @@ impl LookupPlanner {
         }
 
         if columns.is_empty() {
-            let ctx = std::sync::Arc::new(crate::core::types::expression::ExpressionContext::new());
             let expr = Expression::Variable("*".to_string());
             let meta = crate::core::types::expression::ExpressionMeta::new(expr);
-            let id = ctx.register_expression(meta);
-            let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+            let id = qctx.expr_context().register_expression(meta);
+            let ctx_expr = crate::core::types::ContextualExpression::new(id, qctx.expr_context_clone());
             columns.push(crate::core::YieldColumn {
                 expression: ctx_expr,
                 alias: "result".to_string(),

@@ -211,12 +211,12 @@ impl ClausePlanner for WithClausePlanner {
 
     fn transform_clause(
         &self,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
         stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
         // 从语句中提取 WITH 子句信息
-        let with_ctx = Self::extract_with_context(stmt)?;
+        let with_ctx = Self::extract_with_context(stmt, &qctx)?;
         self.plan_with_clause(&with_ctx, &input_plan)
     }
 }
@@ -230,7 +230,7 @@ impl WithClausePlanner {
     /// - 处理 ORDER BY 和分页
     /// - 收集别名信息
     /// - 处理聚合表达式和分组键
-    fn extract_with_context(stmt: &Stmt) -> Result<WithClauseContext, PlannerError> {
+    fn extract_with_context(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Result<WithClauseContext, PlannerError> {
         use crate::query::parser::ast::Stmt;
         use crate::core::YieldColumn;
         use crate::query::validator::structs::{YieldClauseContext, OrderByClauseContext, PaginationContext};
@@ -254,11 +254,10 @@ impl WithClausePlanner {
                 crate::query::parser::ast::stmt::ReturnItem::All => {
                     // WITH * 表示保留所有列
                     // 使用通配符表达式表示保留所有列
-                    let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
                     let expr = Expression::Variable("*".to_string());
                     let meta = crate::core::types::expression::ExpressionMeta::new(expr);
-                    let id = expr_ctx.register_expression(meta);
-                    let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, expr_ctx);
+                    let id = qctx.expr_context().register_expression(meta);
+                    let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, qctx.expr_context_clone());
                     
                     yield_columns.push(YieldColumn {
                         expression: ctx_expr,
@@ -292,7 +291,7 @@ impl WithClausePlanner {
 
         // 提取分组键和聚合项
         let (group_keys, group_items) = if has_agg {
-            Self::extract_group_info(&yield_columns)
+            Self::extract_group_info(&yield_columns, qctx)
         } else {
             (vec![], vec![])
         };
@@ -362,7 +361,10 @@ impl WithClausePlanner {
     /// 提取分组信息
     ///
     /// 从 YieldColumn 列表中提取分组键和聚合项
-    fn extract_group_info(yield_columns: &[YieldColumn]) -> (Vec<crate::core::types::expression::contextual::ContextualExpression>, Vec<crate::core::types::expression::contextual::ContextualExpression>) {
+    fn extract_group_info(
+        yield_columns: &[YieldColumn],
+        qctx: &Arc<QueryContext>,
+    ) -> (Vec<crate::core::types::expression::contextual::ContextualExpression>, Vec<crate::core::types::expression::contextual::ContextualExpression>) {
         let mut group_keys = Vec::new();
         let mut group_items = Vec::new();
 
@@ -373,22 +375,20 @@ impl WithClausePlanner {
                     // 非聚合表达式作为分组键
                     if !suite.group_keys.is_empty() {
                         // 将 Expression 转换为 ContextualExpression
-                        let ctx = std::sync::Arc::new(crate::core::types::expression::ExpressionContext::new());
                         for key in suite.group_keys {
                             let meta = crate::core::types::expression::ExpressionMeta::new(key);
-                            let id = ctx.register_expression(meta);
-                            let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, ctx.clone());
+                            let id = qctx.expr_context().register_expression(meta);
+                            let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, qctx.expr_context_clone());
                             group_keys.push(ctx_expr);
                         }
                     }
                     // 聚合表达式作为分组项
                     if !suite.aggregates.is_empty() {
                         // 将 Expression 转换为 ContextualExpression
-                        let ctx = std::sync::Arc::new(crate::core::types::expression::ExpressionContext::new());
                         for item in suite.aggregates {
                             let meta = crate::core::types::expression::ExpressionMeta::new(item);
-                            let id = ctx.register_expression(meta);
-                            let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, ctx.clone());
+                            let id = qctx.expr_context().register_expression(meta);
+                            let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, qctx.expr_context_clone());
                             group_items.push(ctx_expr);
                         }
                     }

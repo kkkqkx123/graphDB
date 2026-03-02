@@ -9,6 +9,7 @@ use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::core::types::ContextualExpression;
 
 /// 将过滤条件下推到GetNeighbors操作的规则
 ///
@@ -167,7 +168,10 @@ mod tests {
 
         let condition = Expression::Variable("test".to_string());
         let ctx = Arc::new(ExpressionContext::new());
-        let filter = FilterNode::from_expression(start_enum.clone(), condition, ctx).expect("创建FilterNode失败");
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
+        let filter = FilterNode::new(start_enum.clone(), ctx_expr).expect("创建FilterNode失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         let get_nbrs = GetNeighborsNode::new(1, "v");

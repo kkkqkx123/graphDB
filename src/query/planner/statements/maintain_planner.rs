@@ -30,7 +30,7 @@ impl Planner for MaintainPlanner {
     fn transform(
         &mut self,
         validated: &ValidatedStatement,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let stmt_type = validated.stmt.kind().to_uppercase();
 
@@ -40,9 +40,8 @@ impl Planner for MaintainPlanner {
         // 2. 根据不同类型创建相应的计划节点
         let expr = Expression::Variable(format!("MAINTAIN_{}", stmt_type));
         let meta = ExpressionMeta::new(expr);
-        let expr_ctx = ExpressionContext::new();
-        let id = expr_ctx.register_expression(meta);
-        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        let id = qctx.expr_context().register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
         
         let yield_columns = vec![YieldColumn {
             expression: ctx_expr,

@@ -33,7 +33,7 @@ impl SubgraphPlanner {
 }
 
 impl Planner for SubgraphPlanner {
-    fn transform(&mut self, validated: &ValidatedStatement, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+    fn transform(&mut self, validated: &ValidatedStatement, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
         let subgraph_stmt = match &validated.stmt {
             Stmt::Subgraph(subgraph_stmt) => subgraph_stmt,
             _ => {
@@ -74,7 +74,7 @@ impl Planner for SubgraphPlanner {
             let filters: Vec<Expression> = where_clause.into_iter()
                 .map(|expr| expr.into_expression())
                 .collect();
-            current_node = self.apply_filters(current_node, &filters)?;
+            current_node = self.apply_filters(current_node, &filters, &qctx)?;
 
             let project_node = match Project::new(current_node.clone(), vec![]) {
                 Ok(node) => PlanNodeEnum::Project(node),
@@ -121,7 +121,7 @@ impl Planner for SubgraphPlanner {
         let filters: Vec<Expression> = where_clause.into_iter()
             .map(|expr| expr.into_expression())
             .collect();
-        current_node = self.apply_filters(current_node, &filters)?;
+        current_node = self.apply_filters(current_node, &filters, &qctx)?;
 
         let project_node = match Project::new(current_node.clone(), vec![]) {
             Ok(node) => PlanNodeEnum::Project(node),
@@ -160,13 +160,15 @@ impl SubgraphPlanner {
         &self,
         input: PlanNodeEnum,
         filters: &[Expression],
+        qctx: &Arc<QueryContext>,
     ) -> Result<PlanNodeEnum, PlannerError> {
         let mut current = input;
 
         for condition in filters {
-            use std::sync::Arc;
-            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
-            current = match FilterNode::from_expression(current.clone(), condition.clone(), ctx) {
+            let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition.clone());
+            let id = qctx.expr_context().register_expression(expr_meta);
+            let ctx_expr = crate::core::types::ContextualExpression::new(id, qctx.expr_context_clone());
+            current = match FilterNode::new(current.clone(), ctx_expr) {
                 Ok(node) => PlanNodeEnum::Filter(node),
                 Err(_) => current,
             };

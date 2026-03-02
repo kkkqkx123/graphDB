@@ -339,8 +339,10 @@ mod tests {
             right: Box::new(Expression::Literal(crate::core::Value::String("A".to_string()))),
         };
         let expr_ctx = Arc::new(ExpressionContext::new());
-        let filter = FilterNode::from_expression(aggregate_enum, condition, expr_ctx)
-            .expect("创建 FilterNode 失败");
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
+        let id = expr_ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+        let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         // 应用规则
@@ -376,8 +378,10 @@ mod tests {
             right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
         };
         let expr_ctx = Arc::new(ExpressionContext::new());
-        let filter = FilterNode::from_expression(aggregate_enum, condition, expr_ctx)
-            .expect("创建 FilterNode 失败");
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
+        let id = expr_ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+        let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         // 应用规则
@@ -403,8 +407,10 @@ mod tests {
             right: Box::new(Expression::Literal(crate::core::Value::String("test".to_string()))),
         };
         let expr_ctx = Arc::new(ExpressionContext::new());
-        let filter = FilterNode::from_expression(start_enum, condition, expr_ctx)
-            .expect("创建 FilterNode 失败");
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
+        let id = expr_ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, expr_ctx);
+        let filter = FilterNode::new(start_enum, ctx_expr).expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         // 应用规则

@@ -231,7 +231,10 @@ mod tests {
 
         let condition = Expression::Variable("test".to_string());
         let ctx = Arc::new(ExpressionContext::new());
-        let filter = FilterNode::from_expression(start_enum.clone(), condition, ctx).expect("创建FilterNode失败");
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
+        let filter = FilterNode::new(start_enum.clone(), ctx_expr).expect("创建FilterNode失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         let join = HashLeftJoinNode::new(

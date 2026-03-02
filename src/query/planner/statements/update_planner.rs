@@ -42,7 +42,7 @@ impl Planner for UpdatePlanner {
     fn transform(
         &mut self,
         validated: &ValidatedStatement,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let update_stmt = self.extract_update_stmt(&validated.stmt)?;
 
@@ -58,12 +58,11 @@ impl Planner for UpdatePlanner {
             UpdateTarget::TagOnVertex { .. } => "vertex_tag",
         };
 
-        let ctx = Arc::new(ExpressionContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::Variable(format!("updated_{}", target_name))
         );
-        let id = ctx.register_expression(expr_meta);
-        let ctx_expr = ContextualExpression::new(id, ctx);
+        let id = qctx.expr_context().register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
 
         let yield_columns = vec![
             YieldColumn {

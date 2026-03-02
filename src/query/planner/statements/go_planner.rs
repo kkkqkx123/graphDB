@@ -36,7 +36,7 @@ impl Planner for GoPlanner {
     fn transform(
         &mut self,
         validated: &ValidatedStatement,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let go_stmt = match &validated.stmt {
             Stmt::Go(go_stmt) => go_stmt,
@@ -84,7 +84,7 @@ impl Planner for GoPlanner {
             input_for_join
         };
 
-        let project_columns = Self::build_yield_columns(go_stmt)?;
+        let project_columns = Self::build_yield_columns(go_stmt, &qctx)?;
         let project_node = match ProjectNode::new(filter_node, project_columns) {
             Ok(project) => PlanNodeEnum::Project(project),
             Err(e) => {
@@ -112,6 +112,7 @@ impl GoPlanner {
     /// 构建YIELD列
     fn build_yield_columns(
         go_stmt: &GoStmt,
+        qctx: &Arc<QueryContext>,
     ) -> Result<Vec<crate::core::YieldColumn>, PlannerError> {
         let mut columns = Vec::new();
 
@@ -124,13 +125,11 @@ impl GoPlanner {
                 });
             }
         } else {
-            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
-            
             let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                 crate::core::Expression::Variable("_expandall_dst".to_string())
             );
-            let id = ctx.register_expression(expr_meta);
-            let ctx_expr = ContextualExpression::new(id, ctx.clone());
+            let id = qctx.expr_context().register_expression(expr_meta);
+            let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
             columns.push(crate::core::YieldColumn {
                 expression: ctx_expr,
                 alias: "dst".to_string(),
@@ -140,8 +139,8 @@ impl GoPlanner {
             let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                 crate::core::Expression::Variable("_expandall_props".to_string())
             );
-            let id = ctx.register_expression(expr_meta);
-            let ctx_expr = ContextualExpression::new(id, ctx);
+            let id = qctx.expr_context().register_expression(expr_meta);
+            let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
             columns.push(crate::core::YieldColumn {
                 expression: ctx_expr,
                 alias: "properties".to_string(),
@@ -150,12 +149,11 @@ impl GoPlanner {
         }
 
         if columns.is_empty() {
-            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
             let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                 crate::core::Expression::Variable("*".to_string())
             );
-            let id = ctx.register_expression(expr_meta);
-            let ctx_expr = ContextualExpression::new(id, ctx);
+            let id = qctx.expr_context().register_expression(expr_meta);
+            let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
             columns.push(crate::core::YieldColumn {
                 expression: ctx_expr,
                 alias: "result".to_string(),

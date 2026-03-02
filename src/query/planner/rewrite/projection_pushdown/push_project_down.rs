@@ -516,12 +516,10 @@ mod tests {
         assert!(rule.contains_data_source(&scan));
 
         // 中间节点 -> 数据源
-        let filter = FilterNode::from_expression(
-            scan.clone(),
-            crate::core::Expression::literal(true),
-            ctx.clone(),
-        )
-        .expect("创建 FilterNode 失败");
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(crate::core::Expression::literal(true));
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx.clone());
+        let filter = FilterNode::new(scan.clone(), ctx_expr).expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
         assert!(rule.contains_data_source(&filter_enum));
 
@@ -540,12 +538,10 @@ mod tests {
         assert!(rule.find_data_source(&scan).is_some());
 
         // 中间节点 -> 数据源
-        let filter = FilterNode::from_expression(
-            scan.clone(),
-            crate::core::Expression::literal(true),
-            ctx.clone(),
-        )
-        .expect("创建 FilterNode 失败");
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(crate::core::Expression::literal(true));
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx.clone());
+        let filter = FilterNode::new(scan.clone(), ctx_expr).expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
         let found = rule.find_data_source(&filter_enum);
         assert!(found.is_some());
@@ -568,12 +564,10 @@ mod tests {
         // 创建 Filter 节点
         use std::sync::Arc;
         let ctx = Arc::new(crate::core::types::ExpressionContext::new());
-        let filter = FilterNode::from_expression(
-            scan.clone(),
-            crate::core::Expression::literal(true),
-            ctx,
-        )
-        .expect("创建 FilterNode 失败");
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(crate::core::Expression::literal(true));
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
+        let filter = FilterNode::new(scan.clone(), ctx_expr).expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         // 创建 Project 节点

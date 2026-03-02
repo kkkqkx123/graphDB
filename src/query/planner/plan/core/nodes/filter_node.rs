@@ -37,28 +37,6 @@ impl FilterNode {
         })
     }
     
-    /// 创建新的过滤节点（从Expression）
-    pub fn from_expression(
-        input: PlanNodeEnum,
-        condition: Expression,
-        ctx: Arc<ExpressionContext>,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
-        let col_names = input.col_names().to_vec();
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
-        let id = ctx.register_expression(expr_meta);
-        let ctx_expr = ContextualExpression::new(id, ctx);
-
-        Ok(Self {
-            id: -1,
-            input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
-            condition: ctx_expr,
-            condition_serializable: None,
-            output_var: None,
-            col_names,
-        })
-    }
-
     /// 获取过滤条件
     pub fn condition(&self) -> &ContextualExpression {
         &self.condition
@@ -67,14 +45,6 @@ impl FilterNode {
     /// 设置过滤条件
     pub fn set_condition(&mut self, condition: ContextualExpression) {
         self.condition = condition;
-        self.condition_serializable = None;
-    }
-    
-    /// 设置过滤条件（从Expression）
-    pub fn set_condition_expression(&mut self, condition: Expression, ctx: Arc<ExpressionContext>) {
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
-        let id = ctx.register_expression(expr_meta);
-        self.condition = ContextualExpression::new(id, ctx);
         self.condition_serializable = None;
     }
     

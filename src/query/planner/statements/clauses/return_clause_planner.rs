@@ -59,7 +59,7 @@ fn extract_distinct_flag(stmt: &Stmt) -> bool {
     false
 }
 
-fn extract_return_columns(stmt: &Stmt) -> Vec<YieldColumn> {
+fn extract_return_columns(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Vec<YieldColumn> {
     let mut columns = Vec::new();
 
     if let Stmt::Match(match_stmt) = stmt {
@@ -74,12 +74,11 @@ fn extract_return_columns(stmt: &Stmt) -> Vec<YieldColumn> {
                         });
                     }
                     crate::query::parser::ast::stmt::ReturnItem::All => {
-                        let ctx = Arc::new(ExpressionContext::new());
                         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                             crate::core::Expression::Variable("*".to_string())
                         );
-                        let id = ctx.register_expression(expr_meta);
-                        let ctx_expr = ContextualExpression::new(id, ctx);
+                        let id = qctx.expr_context().register_expression(expr_meta);
+                        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
                         columns.push(YieldColumn {
                             expression: ctx_expr,
                             alias: "*".to_string(),
@@ -92,12 +91,11 @@ fn extract_return_columns(stmt: &Stmt) -> Vec<YieldColumn> {
     }
 
     if columns.is_empty() {
-        let ctx = Arc::new(ExpressionContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::Variable("*".to_string())
         );
-        let id = ctx.register_expression(expr_meta);
-        let ctx_expr = ContextualExpression::new(id, ctx);
+        let id = qctx.expr_context().register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
         columns.push(YieldColumn {
             expression: ctx_expr,
             alias: "*".to_string(),
@@ -115,11 +113,11 @@ impl ClausePlanner for ReturnClausePlanner {
 
     fn transform_clause(
         &self,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
         stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        let yield_columns = extract_return_columns(stmt);
+        let yield_columns = extract_return_columns(stmt, &qctx);
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("RETURN 子句需要输入计划".to_string())

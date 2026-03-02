@@ -36,24 +36,23 @@ impl WhereClausePlanner {
         }
     }
 
-    pub fn from_stmt(stmt: &Stmt) -> Self {
-        let filter = extract_where_condition(stmt);
+    pub fn from_stmt(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Self {
+        let filter = extract_where_condition(stmt, qctx);
         Self::with_filter(filter)
     }
 }
 
-fn extract_where_condition(stmt: &Stmt) -> ContextualExpression {
+fn extract_where_condition(stmt: &Stmt, qctx: &Arc<QueryContext>) -> ContextualExpression {
     if let Stmt::Match(match_stmt) = stmt {
         if let Some(ref where_expr) = match_stmt.where_clause {
             return where_expr.clone();
         }
     }
-    let ctx = Arc::new(crate::core::types::ExpressionContext::new());
     let expr_meta = crate::core::types::expression::ExpressionMeta::new(
         crate::core::Expression::Variable("true".to_string())
     );
-    let id = ctx.register_expression(expr_meta);
-    ContextualExpression::new(id, ctx)
+    let id = qctx.expr_context().register_expression(expr_meta);
+    ContextualExpression::new(id, qctx.expr_context_clone())
 }
 
 impl ClausePlanner for WhereClausePlanner {
@@ -63,19 +62,18 @@ impl ClausePlanner for WhereClausePlanner {
 
     fn transform_clause(
         &self,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
         stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
         let condition = self.filter_expression.clone()
-            .or_else(|| Some(extract_where_condition(stmt)))
+            .or_else(|| Some(extract_where_condition(stmt, &qctx)))
             .unwrap_or_else(|| {
-                let ctx = Arc::new(crate::core::types::ExpressionContext::new());
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                     crate::core::Expression::Variable("true".to_string())
                 );
-                let id = ctx.register_expression(expr_meta);
-                ContextualExpression::new(id, ctx)
+                let id = qctx.expr_context().register_expression(expr_meta);
+                ContextualExpression::new(id, qctx.expr_context_clone())
             });
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {

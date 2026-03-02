@@ -46,7 +46,7 @@ impl Planner for UsePlanner {
     fn transform(
         &mut self,
         validated: &ValidatedStatement,
-        _qctx: Arc<QueryContext>,
+        qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let use_stmt = self.extract_use_stmt(&validated.stmt)?;
 
@@ -57,9 +57,8 @@ impl Planner for UsePlanner {
         // 构建输出列，显示切换的空间名
         let expr = Expression::string(use_stmt.space.clone());
         let meta = ExpressionMeta::new(expr);
-        let expr_ctx = ExpressionContext::new();
-        let id = expr_ctx.register_expression(meta);
-        let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
+        let id = qctx.expr_context().register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
         
         let yield_columns = vec![
             YieldColumn {

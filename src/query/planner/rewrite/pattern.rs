@@ -4,6 +4,7 @@
 //! 这是从 optimizer 层独立出来的简化版本，专注于启发式重写规则的需求。
 
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::core::types::ContextualExpression;
 
 /// 生成节点匹配方法的宏
 ///
@@ -305,9 +306,11 @@ mod tests {
             ProjectNode::new(input_node.clone(), Vec::new()).expect("创建ProjectNode应该成功")
         );
         let ctx = Arc::new(ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
         let filter_node = PlanNodeEnum::Filter(
-            FilterNode::from_expression(input_node, Expression::Literal(Value::Bool(true)), ctx)
-                .expect("创建FilterNode应该成功")
+            FilterNode::new(input_node, ctx_expr).expect("创建FilterNode应该成功")
         );
         
         assert!(pattern.matches(&project_node));
@@ -347,17 +350,21 @@ mod tests {
             ProjectNode::new(scan.clone(), Vec::new()).expect("创建ProjectNode应该成功")
         );
         let ctx = Arc::new(ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx.clone());
         let filter = PlanNodeEnum::Filter(
-            FilterNode::from_expression(project.clone(), Expression::Literal(Value::Bool(true)), ctx.clone())
-                .expect("创建FilterNode应该成功")
+            FilterNode::new(project.clone(), ctx_expr).expect("创建FilterNode应该成功")
         );
         
         assert!(pattern.matches(&filter));
         
         // Filter -> Scan 不应该匹配
+        let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
+        let id2 = ctx.register_expression(expr_meta2);
+        let ctx_expr2 = ContextualExpression::new(id2, ctx);
         let filter2 = PlanNodeEnum::Filter(
-            FilterNode::from_expression(scan, Expression::Literal(Value::Bool(true)), ctx)
-                .expect("创建FilterNode应该成功")
+            FilterNode::new(scan, ctx_expr2).expect("创建FilterNode应该成功")
         );
         assert!(!pattern.matches(&filter2));
     }

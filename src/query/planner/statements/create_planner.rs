@@ -55,14 +55,13 @@ impl CreatePlanner {
         space_name: String,
         labels: &[String],
         properties: &[(String, ContextualExpression)],
+        qctx: &Arc<QueryContext>,
     ) -> Result<VertexInsertInfo, PlannerError> {
         if labels.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
                 "CREATE 节点必须指定至少一个 Label".to_string()
             ));
         }
-
-        let ctx = Arc::new(ExpressionContext::new());
 
         let tag_specs: Vec<TagInsertSpec> = labels
             .iter()
@@ -81,8 +80,8 @@ impl CreatePlanner {
             let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                 crate::core::Expression::literal(Value::Null(crate::core::NullType::default()))
             );
-            let id = ctx.register_expression(expr_meta);
-            ContextualExpression::new(id, ctx)
+            let id = qctx.expr_context().register_expression(expr_meta);
+            ContextualExpression::new(id, qctx.expr_context_clone())
         };
 
         Ok(VertexInsertInfo {
@@ -113,13 +112,12 @@ impl CreatePlanner {
     }
 
     /// 创建结果投影列
-    fn create_yield_columns(&self, count: usize) -> Vec<YieldColumn> {
-        let ctx = Arc::new(ExpressionContext::new());
+    fn create_yield_columns(&self, count: usize, qctx: &Arc<QueryContext>) -> Vec<YieldColumn> {
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::literal(Value::Int(count as i64))
         );
-        let id = ctx.register_expression(expr_meta);
-        let ctx_expr = ContextualExpression::new(id, ctx);
+        let id = qctx.expr_context().register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
         
         vec![YieldColumn {
             expression: ctx_expr,
@@ -149,7 +147,7 @@ impl Planner for CreatePlanner {
             CreateTarget::Node { variable: _, labels, properties } => {
                 // 解析属性
                 let props = if let Some(expr) = properties {
-                    Self::extract_properties(expr)?
+                    Self::extract_properties(expr, &qctx)?
                 } else {
                     vec![]
                 };
@@ -158,6 +156,7 @@ impl Planner for CreatePlanner {
                     space_name,
                     labels,
                     &props,
+                    &qctx,
                 )?;
 
                 (
@@ -168,7 +167,7 @@ impl Planner for CreatePlanner {
             CreateTarget::Edge { variable: _, edge_type, src, dst, properties, direction: _ } => {
                 // 解析属性
                 let props = if let Some(expr) = properties {
-                    Self::extract_properties(expr)?
+                    Self::extract_properties(expr, &qctx)?
                 } else {
                     vec![]
                 };
@@ -194,13 +193,13 @@ impl Planner for CreatePlanner {
                 for pattern in patterns {
                     match pattern {
                         crate::query::parser::ast::pattern::Pattern::Path(path) => {
-                            let (mut vertices, mut edges) = self.process_path_pattern(path, &space_name)?;
+                            let (mut vertices, mut edges) = self.process_path_pattern(path, &space_name, &qctx)?;
                             vertex_infos.append(&mut vertices);
                             edge_infos.append(&mut edges);
                             created_count += 1;
                         }
                         crate::query::parser::ast::pattern::Pattern::Node(node) => {
-                            let info = self.process_node_pattern(node, &space_name)?;
+                            let info = self.process_node_pattern(node, &space_name, &qctx)?;
                             vertex_infos.push(info);
                             created_count += 1;
                         }
@@ -247,7 +246,7 @@ impl Planner for CreatePlanner {
         };
 
         // 创建投影节点来返回创建结果
-        let yield_columns = self.create_yield_columns(created_count);
+        let yield_columns = self.create_yield_columns(created_count, &qctx);
 
         let project_node = ProjectNode::new(insert_node, yield_columns).map_err(|e| {
             PlannerError::PlanGenerationFailed(format!("创建 ProjectNode 失败: {}", e))
@@ -271,15 +270,17 @@ impl Planner for CreatePlanner {
 
 impl CreatePlanner {
     /// 从表达式中提取属性键值对
-    fn extract_properties(expr: &ContextualExpression) -> Result<Vec<(String, ContextualExpression)>, PlannerError> {
+    fn extract_properties(
+        expr: &ContextualExpression,
+        qctx: &Arc<QueryContext>,
+    ) -> Result<Vec<(String, ContextualExpression)>, PlannerError> {
         if let Some(expr_meta) = expr.expression() {
             if let crate::core::Expression::Map(map) = expr_meta.inner() {
                 let mut result = Vec::new();
                 for (key, value_expr) in map {
-                    let ctx = Arc::new(ExpressionContext::new());
                     let value_meta = crate::core::types::expression::ExpressionMeta::new(value_expr.clone());
-                    let id = ctx.register_expression(value_meta);
-                    let ctx_expr = ContextualExpression::new(id, ctx);
+                    let id = qctx.expr_context().register_expression(value_meta);
+                    let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
                     result.push((key.clone(), ctx_expr));
                 }
                 Ok(result)
@@ -300,9 +301,10 @@ impl CreatePlanner {
         &self,
         node: &crate::query::parser::ast::pattern::NodePattern,
         space_name: &str,
+        qctx: &Arc<QueryContext>,
     ) -> Result<VertexInsertInfo, PlannerError> {
         let props = if let Some(ref expr) = node.properties {
-            Self::extract_properties(expr)?
+            Self::extract_properties(expr, qctx)?
         } else {
             vec![]
         };
@@ -311,6 +313,7 @@ impl CreatePlanner {
             space_name.to_string(),
             &node.labels,
             &props,
+            qctx,
         )
     }
 
@@ -319,6 +322,7 @@ impl CreatePlanner {
         &self,
         path: &crate::query::parser::ast::pattern::PathPattern,
         space_name: &str,
+        qctx: &Arc<QueryContext>,
     ) -> Result<(Vec<VertexInsertInfo>, Vec<EdgeInsertInfo>), PlannerError> {
         let mut vertex_infos = Vec::new();
         let mut edge_infos = Vec::new();
@@ -327,7 +331,7 @@ impl CreatePlanner {
         for element in &path.elements {
             match element {
                 crate::query::parser::ast::pattern::PathElement::Node(node) => {
-                    let vertex_info = self.process_node_pattern(node, space_name)?;
+                    let vertex_info = self.process_node_pattern(node, space_name, qctx)?;
                     prev_vertex = Some(vertex_info.clone());
                     vertex_infos.push(vertex_info);
                 }
@@ -339,7 +343,7 @@ impl CreatePlanner {
                     }
 
                     let props = if let Some(ref expr) = edge.properties {
-                        Self::extract_properties(expr)?
+                        Self::extract_properties(expr, qctx)?
                     } else {
                         vec![]
                     };
@@ -352,20 +356,19 @@ impl CreatePlanner {
 
                     let edge_type = edge.edge_types[0].clone();
 
-                    let ctx = Arc::new(ExpressionContext::new());
                     let src_vid = {
                         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                             crate::core::Expression::literal(Value::Null(crate::core::NullType::default()))
                         );
-                        let id = ctx.register_expression(expr_meta);
-                        ContextualExpression::new(id, ctx.clone())
+                        let id = qctx.expr_context().register_expression(expr_meta);
+                        ContextualExpression::new(id, qctx.expr_context_clone())
                     };
                     let dst_vid = {
                         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                             crate::core::Expression::literal(Value::Null(crate::core::NullType::default()))
                         );
-                        let id = ctx.register_expression(expr_meta);
-                        ContextualExpression::new(id, ctx)
+                        let id = qctx.expr_context().register_expression(expr_meta);
+                        ContextualExpression::new(id, qctx.expr_context_clone())
                     };
 
                     let edge_info = EdgeInsertInfo {

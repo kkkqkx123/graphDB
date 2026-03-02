@@ -88,21 +88,6 @@ impl SelectNode {
             col_names: Vec::new(),
         }
     }
-    
-    pub fn from_string(id: i64, condition: String, ctx: Arc<ExpressionContext>) -> Self {
-        let expr_meta = ExpressionMeta::new(Expression::Variable(condition));
-        let expr_id = ctx.register_expression(expr_meta);
-        let ctx_expr = ContextualExpression::new(expr_id, ctx);
-        Self {
-            id,
-            condition: ctx_expr,
-            condition_serializable: None,
-            if_branch: None,
-            else_branch: None,
-            output_var: None,
-            col_names: Vec::new(),
-        }
-    }
 
     pub fn set_if_branch(&mut self, branch: super::plan_node_enum::PlanNodeEnum) {
         self.if_branch = Some(Box::new(branch));
@@ -257,20 +242,6 @@ impl LoopNode {
             col_names: Vec::new(),
         }
     }
-    
-    pub fn from_string(id: i64, condition: String, ctx: Arc<ExpressionContext>) -> Self {
-        let expr_meta = ExpressionMeta::new(Expression::Variable(condition));
-        let expr_id = ctx.register_expression(expr_meta);
-        let ctx_expr = ContextualExpression::new(expr_id, ctx);
-        Self {
-            id,
-            condition: ctx_expr,
-            condition_serializable: None,
-            body: None,
-            output_var: None,
-            col_names: Vec::new(),
-        }
-    }
 
     pub fn set_body(&mut self, body: super::plan_node_enum::PlanNodeEnum) {
         self.body = Some(Box::new(body));
@@ -393,7 +364,12 @@ mod tests {
     #[test]
     fn test_select_node_creation() {
         let ctx = Arc::new(ExpressionContext::new());
-        let node = SelectNode::from_string(1, "condition".to_string(), ctx);
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            crate::core::Expression::Variable("condition".to_string())
+        );
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
+        let node = SelectNode::new(1, ctx_expr);
         assert_eq!(node.type_name(), "Select");
         assert_eq!(node.id(), 1);
         assert!(node.if_branch().is_none());
@@ -403,7 +379,12 @@ mod tests {
     #[test]
     fn test_loop_node_creation() {
         let ctx = Arc::new(ExpressionContext::new());
-        let node = LoopNode::from_string(1, "condition".to_string(), ctx);
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            crate::core::Expression::Variable("condition".to_string())
+        );
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, ctx);
+        let node = LoopNode::new(1, ctx_expr);
         assert_eq!(node.type_name(), "Loop");
         assert_eq!(node.id(), 1);
         assert!(node.body().is_none());
