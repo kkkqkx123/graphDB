@@ -8,7 +8,6 @@
 //! - 添加属性索引选择逻辑
 //! - 使用 IndexSelector 自动选择最优索引
 
-use crate::core::types::{ContextualExpression, ExpressionContext};
 use crate::core::Expression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::{LookupStmt, Stmt};

@@ -6,7 +6,6 @@ mod expression_strategy_tests {
     use crate::query::validator::strategies::expression_strategy::ExpressionValidationStrategy;
     use crate::query::validator::structs::*;
     use crate::core::Expression;
-    use crate::core::DataType;
     use crate::core::Value;
     use crate::core::types::expression::utils::test_helpers::create_test_contextual_expression;
     use crate::core::types::YieldColumn;

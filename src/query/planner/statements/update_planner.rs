@@ -13,7 +13,7 @@ use crate::query::planner::plan::core::{
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::YieldColumn;
-use crate::core::types::{ContextualExpression, ExpressionContext};
+use crate::core::types::ContextualExpression;
 use std::sync::Arc;
 
 /// 更新操作规划器

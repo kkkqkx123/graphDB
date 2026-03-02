@@ -125,29 +125,7 @@ impl ReturnValidator {
         }
     }
 
-    /// 验证函数调用
-    fn validate_function_call(
-        &self,
-        name: &str,
-        args: &[crate::core::types::expression::contextual::ContextualExpression],
-    ) -> Result<(), ValidationError> {
-        // 验证函数名
-        if name.is_empty() {
-            return Err(ValidationError::new(
-                "Function name cannot be empty".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        // 验证参数
-        for arg in args {
-            self.validate_expression(arg)?;
-        }
-
-        Ok(())
-    }
-
-    /// 内部方法：验证函数调用
+    /// 验证函数调用（内部实现）
     fn validate_function_call_internal(
         &self,
         name: &str,
@@ -375,7 +353,6 @@ impl StatementValidator for ReturnValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::Expression;
 
     #[test]
     fn test_return_validator_new() {

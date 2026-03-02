@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use crate::query::optimizer::cost::{CostCalculator, SelectivityEstimator};
 use crate::query::parser::ast::pattern::{Pattern, NodePattern, EdgePattern, PathPattern, PathElement, VariablePattern};
 use crate::core::types::Expression;
+use crate::core::types::BinaryOperator;
 
 /// 遍历起点选择器
 #[derive(Debug)]
@@ -318,8 +319,6 @@ impl TraversalStartSelector {
     /// - v.id == value
     /// - {id: value}
     fn has_vid_condition_ctx(&self, expr: &crate::core::types::expression::ContextualExpression) -> bool {
-        use crate::core::types::BinaryOperator;
-
         match expr.expression() {
             Some(meta) => self.has_vid_condition(meta.inner()),
             None => false,
@@ -333,7 +332,6 @@ impl TraversalStartSelector {
     /// - v.id == value
     /// - {id: value}
     fn has_vid_condition(&self, expr: &Expression) -> bool {
-        use crate::core::types::BinaryOperator;
 
         match expr {
             // 检查是否包含 id() 函数调用

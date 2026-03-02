@@ -8,9 +8,7 @@ use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
-use crate::core::types::expression::ExpressionContext;
 use crate::core::types::expression::ExpressionMeta;
-use crate::core::types::expression::ExpressionId;
 use crate::core::YieldColumn;
 use std::sync::Arc;
 

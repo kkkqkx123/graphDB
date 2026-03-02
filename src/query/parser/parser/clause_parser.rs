@@ -2,8 +2,6 @@
 //!
 //! 负责解析各种共享子句，包括 RETURN、YIELD、SET、OVER、WHERE 等。
 
-use std::sync::Arc;
-
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::types::expression::ContextualExpression;
 use crate::core::types::expression::Expression as CoreExpression;

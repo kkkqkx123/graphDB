@@ -128,26 +128,6 @@ impl WithValidator {
         }
     }
 
-    /// 验证函数调用
-    fn validate_function_call(
-        &self,
-        name: &str,
-        args: &[ContextualExpression],
-    ) -> Result<(), ValidationError> {
-        if name.is_empty() {
-            return Err(ValidationError::new(
-                "Function name cannot be empty".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        for arg in args {
-            self.validate_expression(arg)?;
-        }
-
-        Ok(())
-    }
-
     /// 内部方法：验证函数调用
     fn validate_function_call_internal(
         &self,
@@ -412,7 +392,6 @@ impl StatementValidator for WithValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::Expression;
     use crate::core::Value;
 
     #[test]

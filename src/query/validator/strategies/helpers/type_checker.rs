@@ -3,7 +3,6 @@
 
 use crate::core::Expression;
 use crate::core::DataType;
-use crate::core::Value;
 use crate::core::TypeUtils;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::AliasType;

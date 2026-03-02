@@ -508,21 +508,6 @@ impl CreateValidator {
         }
     }
 
-    /// 求值表达式（简化版）
-    fn evaluate_expression(
-        &self,
-        expr: &ContextualExpression,
-    ) -> Result<Value, ValidationError> {
-        if let Some(e) = expr.get_expression() {
-            self.evaluate_expression_internal(&e)
-        } else {
-            Err(ValidationError::new(
-                "表达式无效".to_string(),
-                ValidationErrorType::SemanticError,
-            ))
-        }
-    }
-
     /// 内部方法：求值表达式（简化版）
     fn evaluate_expression_internal(
         &self,

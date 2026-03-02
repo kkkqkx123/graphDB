@@ -9,7 +9,7 @@
 //! - LIMIT/SKIP 分页
 //! - 智能扫描策略选择（索引扫描、属性扫描、全表扫描）
 
-use crate::core::types::{ContextualExpression, ExpressionContext};
+use crate::core::types::ContextualExpression;
 use crate::core::SymbolTable;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;

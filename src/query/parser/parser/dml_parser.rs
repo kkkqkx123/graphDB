@@ -2,8 +2,6 @@
 //!
 //! 负责解析数据修改相关语句，包括 INSERT、DELETE、UPDATE、MERGE 等。
 
-use std::sync::Arc;
-
 use crate::core::types::expression::ContextualExpression;
 use crate::core::types::expression::Expression as CoreExpression;
 use crate::core::types::EdgeDirection;

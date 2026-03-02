@@ -80,19 +80,6 @@ impl AliasValidationStrategy {
         }
     }
 
-    /// 递归验证子表达式中的别名
-    fn validate_subexpressions_aliases(
-        &self,
-        expression: &ContextualExpression,
-        aliases: &HashMap<String, AliasType>,
-    ) -> Result<(), ValidationError> {
-        let expr_meta = match expression.expression() {
-            Some(e) => e,
-            None => return Ok(()),
-        };
-        self.validate_subexpressions_aliases_internal(expr_meta.inner(), aliases)
-    }
-
     /// 内部方法：递归验证子表达式中的别名
     fn validate_subexpressions_aliases_internal(
         &self,

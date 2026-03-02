@@ -7,8 +7,7 @@ use std::sync::Arc;
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{PlanNode, PlanNodeClonable};
 use crate::define_plan_node;
-use crate::core::types::{ContextualExpression, SerializableExpression, ExpressionContext, ExpressionMeta};
-use crate::core::Expression;
+use crate::core::types::{ContextualExpression, SerializableExpression, ExpressionContext};
 
 define_plan_node! {
     pub struct ArgumentNode {

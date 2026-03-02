@@ -6,10 +6,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::Expression;
 use crate::core::types::expression::ExpressionMeta;
-use crate::core::types::expression::ExpressionContext;
-use crate::core::Value;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::UpdateConfigsStmt;
 use crate::query::validator::validator_trait::{
@@ -253,7 +250,7 @@ mod tests {
     #[test]
     fn test_validate_config_value() {
         let validator = UpdateConfigsValidator::new();
-        let mut expr_context = ExpressionContext::new();
+        let expr_context = ExpressionContext::new();
 
         // 有效配置值
         let int_meta = ExpressionMeta::new(Expression::Literal(Value::Int(100)));

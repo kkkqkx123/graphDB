@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use crate::define_plan_node_with_deps;
 use crate::core::types::{ContextualExpression, SerializableExpression, ExpressionContext};
-use crate::core::Expression;
 use super::plan_node_enum::PlanNodeEnum;
 
 define_plan_node_with_deps! {

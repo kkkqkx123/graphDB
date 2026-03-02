@@ -7,7 +7,6 @@ use std::sync::Arc;
 use crate::core::YieldColumn;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::expression::functions::global_registry;
 use crate::query::QueryContext;
 use crate::query::parser::ast::{Stmt, Pattern};
 use crate::query::parser::ast::stmt::{MatchStmt, ReturnClause, ReturnItem, OrderByClause};
@@ -22,7 +21,6 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::validator::structs::validation_info::{ValidationInfo, PathAnalysis};
 use crate::query::validator::strategies::ExpressionValidationStrategy;
-use crate::core::Expression;
 
 /// 验证后的MATCH信息
 #[derive(Debug, Clone)]
@@ -59,8 +57,6 @@ pub struct MatchValidator {
     expression_props: ExpressionProps,
     /// 用户定义变量
     user_defined_vars: Vec<String>,
-    /// 表达式上下文
-    expr_context: std::sync::Arc<crate::core::types::ExpressionContext>,
 }
 
 impl MatchValidator {
@@ -76,7 +72,6 @@ impl MatchValidator {
             optional: false,
             expression_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
-            expr_context: std::sync::Arc::new(crate::core::types::ExpressionContext::new()),
         }
     }
 
@@ -408,16 +403,6 @@ impl MatchValidator {
     /// 检查表达式是否包含聚合函数
     pub fn has_aggregate_expression(&self, expression: &ContextualExpression) -> bool {
         expression.contains_aggregate()
-    }
-
-    /// 检查函数名是否为有效的聚合函数
-    fn is_valid_aggregate_function(&self, name: &str) -> bool {
-        let agg_functions = [
-            "count", "sum", "avg", "min", "max", "collect",
-            "count_distinct", "distinct", "std", "bit_and", "bit_or", "bit_xor",
-            "collect_set", "percentile",
-        ];
-        agg_functions.iter().any(|&f| f.eq_ignore_ascii_case(name))
     }
 
     /// 验证分页

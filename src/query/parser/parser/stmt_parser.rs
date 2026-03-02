@@ -3,8 +3,6 @@
 //! 负责解析各种语句，包括 MATCH、GO、CREATE、DELETE、UPDATE 等。
 //! 本模块作为入口，将具体解析逻辑委托给各个子模块。
 
-use std::sync::Arc;
-
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::parser::parse_context::ParseContext;

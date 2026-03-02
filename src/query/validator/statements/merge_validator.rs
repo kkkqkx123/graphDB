@@ -161,6 +161,27 @@ impl MergeValidator {
         Ok(())
     }
 
+    /// 验证属性名
+    fn validate_property_name(&self, name: &str) -> Result<(), ValidationError> {
+        if name.is_empty() {
+            return Err(ValidationError::new(
+                "Property name cannot be empty".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        // 属性名必须以字母或下划线开头
+        let first_char = name.chars().next().expect("属性名已验证非空");
+        if !first_char.is_alphabetic() && first_char != '_' {
+            return Err(ValidationError::new(
+                format!("Property name must start with a letter or underscore: {}", name),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        Ok(())
+    }
+
     /// 验证标签名
     fn validate_label_name(&self, name: &str) -> Result<(), ValidationError> {
         if name.is_empty() {
@@ -305,12 +326,71 @@ impl MergeValidator {
                 self.validate_expression_recursive(object)?;
                 Ok(())
             }
-            Expression::Aggregate { args, .. } => {
+            Expression::Aggregate { arg, .. } => {
+                self.validate_expression_recursive(arg)?;
+                Ok(())
+            }
+            Expression::TypeCast { expression, .. } => {
+                self.validate_expression_recursive(expression)?;
+                Ok(())
+            }
+            Expression::Subscript { collection, index, .. } => {
+                self.validate_expression_recursive(collection)?;
+                self.validate_expression_recursive(index)?;
+                Ok(())
+            }
+            Expression::Range { collection, start, end, .. } => {
+                self.validate_expression_recursive(collection)?;
+                if let Some(s) = start {
+                    self.validate_expression_recursive(s)?;
+                }
+                if let Some(e) = end {
+                    self.validate_expression_recursive(e)?;
+                }
+                Ok(())
+            }
+            Expression::Path(exprs) => {
+                for expr in exprs.iter() {
+                    self.validate_expression_recursive(expr)?;
+                }
+                Ok(())
+            }
+            Expression::Label(_) => Ok(()),
+            Expression::ListComprehension { source, filter, map, .. } => {
+                self.validate_expression_recursive(source)?;
+                if let Some(f) = filter {
+                    self.validate_expression_recursive(f)?;
+                }
+                if let Some(m) = map {
+                    self.validate_expression_recursive(m)?;
+                }
+                Ok(())
+            }
+            Expression::LabelTagProperty { tag, .. } => {
+                self.validate_expression_recursive(tag)?;
+                Ok(())
+            }
+            Expression::TagProperty { .. } => Ok(()),
+            Expression::EdgeProperty { .. } => Ok(()),
+            Expression::Predicate { args, .. } => {
                 for arg in args.iter() {
                     self.validate_expression_recursive(arg)?;
                 }
                 Ok(())
             }
+            Expression::Reduce { initial, source, mapping, .. } => {
+                self.validate_expression_recursive(initial)?;
+                self.validate_expression_recursive(source)?;
+                self.validate_expression_recursive(mapping)?;
+                Ok(())
+            }
+            Expression::PathBuild(exprs) => {
+                for expr in exprs.iter() {
+                    self.validate_expression_recursive(expr)?;
+                }
+                Ok(())
+            }
+            Expression::Parameter(_) => Ok(()),
         }
     }
 

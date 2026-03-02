@@ -4,7 +4,7 @@ use crate::query::parser::parser::parse_context::ParseContext;
 use crate::query::parser::parser::expr_parser::ExprParser;
 use crate::query::parser::parser::stmt_parser::StmtParser;
 use crate::query::parser::ast::stmt::Stmt;
-use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+use crate::core::types::expression::{ExpressionContext, ContextualExpression};
 
 /// Parser 解析结果，包含 AST 和表达式上下文
 #[derive(Debug, Clone)]

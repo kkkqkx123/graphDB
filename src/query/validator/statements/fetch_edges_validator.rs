@@ -18,7 +18,6 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::Expression;
 use crate::core::Value;
 use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};

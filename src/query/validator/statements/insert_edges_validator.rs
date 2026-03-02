@@ -139,36 +139,6 @@ impl InsertEdgesValidator {
             ValidationErrorType::SemanticError,
         ))
     }
-    fn basic_validate_vertex_id_format_internal(
-        expr: &crate::core::types::expression::Expression,
-        role: &str,
-    ) -> Result<(), ValidationError> {
-        use crate::core::types::expression::Expression;
-
-        match expr {
-            Expression::Literal(Value::String(s)) => {
-                if s.is_empty() {
-                    return Err(ValidationError::new(
-                        format!("{} vertex ID cannot be empty", role),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
-                Ok(())
-            }
-            Expression::Variable(_var_name) => {
-                Ok(())
-            }
-            _ => {
-                Err(ValidationError::new(
-                    format!(
-                        "{} vertex ID must be a string constant or variable",
-                        role
-                    ),
-                    ValidationErrorType::SemanticError,
-                ))
-            }
-        }
-    }
 
     /// 验证 rank
     fn validate_rank(&self, rank: &Option<ContextualExpression>) -> Result<(), ValidationError> {
