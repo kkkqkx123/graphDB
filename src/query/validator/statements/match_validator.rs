@@ -698,50 +698,32 @@ impl StatementValidator for MatchValidator {
         // 4. 获取 space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 5. 创建验证结果
-        let validated = ValidatedMatch {
-            space_id,
-            patterns: match_stmt.patterns.clone(),
-            where_clause: match_stmt.where_clause.clone(),
-            return_clause: match_stmt.return_clause.clone(),
-            order_by: match_stmt.order_by.clone(),
-            limit: match_stmt.limit,
-            skip: match_stmt.skip,
-            optional: match_stmt.optional,
-            aliases: self.aliases.clone(),
-        };
-
-        self.validated_result = Some(validated);
-        self.optional = match_stmt.optional;
-
-        // 6. 生成输出列
+        // 5. 生成输出列
         self.generate_output_columns(&match_stmt);
 
-        // 7. 构建详细的 ValidationInfo
+        // 6. 构建详细的 ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // 7.1 添加别名映射
+        // 6.1 添加别名映射
         for (name, alias_type) in &self.aliases {
             info.add_alias(name.clone(), alias_type.clone());
         }
 
-        // 7.2 添加路径分析
-        if let Some(ref validated) = self.validated_result {
-            for pattern in &validated.patterns {
-                if let crate::query::parser::ast::Pattern::Path(path) = pattern {
-                    let mut analysis = PathAnalysis::new();
-                    analysis.node_count = path.elements.iter()
-                        .filter(|e| matches!(e, crate::query::parser::ast::PathElement::Node(_)))
-                        .count();
-                    analysis.edge_count = path.elements.iter()
-                        .filter(|e| matches!(e, crate::query::parser::ast::PathElement::Edge(_)))
-                        .count();
-                    info.add_path_analysis(analysis);
-                }
+        // 6.2 添加路径分析
+        for pattern in &match_stmt.patterns {
+            if let crate::query::parser::ast::Pattern::Path(path) = pattern {
+                let mut analysis = PathAnalysis::new();
+                analysis.node_count = path.elements.iter()
+                    .filter(|e| matches!(e, crate::query::parser::ast::PathElement::Node(_)))
+                    .count();
+                analysis.edge_count = path.elements.iter()
+                    .filter(|e| matches!(e, crate::query::parser::ast::PathElement::Edge(_)))
+                    .count();
+                info.add_path_analysis(analysis);
             }
         }
 
-        // 7.3 添加优化提示
+        // 6.3 添加优化提示
         if self.aliases.len() > 10 {
             info.add_optimization_hint(
                 crate::query::validator::OptimizationHint::PerformanceWarning {
@@ -751,9 +733,25 @@ impl StatementValidator for MatchValidator {
             );
         }
 
-        // 7.4 添加语义信息
+        // 6.4 添加语义信息
         info.semantic_info.referenced_tags = self.get_referenced_tags();
         info.semantic_info.referenced_edges = self.get_referenced_edges();
+
+        // 7. 创建验证结果（放在最后一步，避免不必要的 clone）
+        let validated = ValidatedMatch {
+            space_id,
+            patterns: match_stmt.patterns,
+            where_clause: match_stmt.where_clause,
+            return_clause: match_stmt.return_clause,
+            order_by: match_stmt.order_by,
+            limit: match_stmt.limit,
+            skip: match_stmt.skip,
+            optional: match_stmt.optional,
+            aliases: self.aliases.clone(),
+        };
+
+        self.validated_result = Some(validated);
+        self.optional = match_stmt.optional;
 
         // 8. 返回包含详细信息的验证结果
         Ok(ValidationResult::success_with_info(info))

@@ -2,38 +2,37 @@
 
 ## Summary
 
-- **Total Errors**: 2
-- **Total Warnings**: 0
-- **Total Issues**: 2
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 0
+- **Total Errors**: 0
+- **Total Warnings**: 1
+- **Total Issues**: 1
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 1
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 2
-
-### Error Type Breakdown
-
-- **error[E0433]**: 2 errors
-
-### Files with Errors (Top 10)
-
-- `src\query\optimizer\strategy\traversal_start.rs`: 2 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 1
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0433]: failed to resolve: use of undeclared type `BinaryOperator`: use of undeclared type `BinaryOperator`
+- **warning**: 1 warnings
 
-**Total Occurrences**: 2  
+### Files with Warnings (Top 10)
+
+- `src\query\validator\strategies\alias_strategy.rs`: 1 warnings
+
+## Detailed Warning Categorization
+
+### warning: unused variable: `variable`
+
+**Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\optimizer\strategy\traversal_start.rs`: 2 occurrences
+#### `src\query\validator\strategies\alias_strategy.rs`: 1 occurrences
 
-- Line 355: failed to resolve: use of undeclared type `BinaryOperator`: use of undeclared type `BinaryOperator`
-- Line 355: failed to resolve: use of undeclared type `BinaryOperator`: use of undeclared type `BinaryOperator`
+- Line 85: unused variable: `variable`
 

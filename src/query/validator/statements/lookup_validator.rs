@@ -13,6 +13,10 @@ use crate::query::parser::ast::{Stmt, YieldItem};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
+use crate::query::validator::structs::validation_info::{
+    ValidationInfo, OptimizationHint, IndexHint,
+};
+use crate::query::validator::structs::AliasType;
 use crate::storage::metadata::schema_manager::SchemaManager;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
@@ -395,30 +399,88 @@ impl StatementValidator for LookupValidator {
         // 6. 获取 space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 7. 创建验证结果
+        // 7. 生成输出列
+        self.outputs = self.generate_output_columns(
+            &parsed_info.yield_columns,
+            parsed_info.is_yield_all,
+        );
+
+        // 8. 构建详细的 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        // 8.1 添加别名映射
+        let alias_type = if parsed_info.is_edge {
+            AliasType::Edge
+        } else {
+            AliasType::Node
+        };
+        info.add_alias(parsed_info.label.clone(), alias_type);
+
+        // 8.2 添加语义信息
+        if parsed_info.is_edge {
+            info.semantic_info.referenced_edges.push(parsed_info.label.clone());
+        } else {
+            info.semantic_info.referenced_tags.push(parsed_info.label.clone());
+        }
+
+        // 8.3 添加优化提示
+        if let Some(ref filter) = parsed_info.filter_expression {
+            info.add_optimization_hint(
+                OptimizationHint::UseIndexScan {
+                    table: parsed_info.label.clone(),
+                    column: "id".to_string(),
+                    condition: filter.clone(),
+                }
+            );
+        }
+
+        // 8.4 添加索引提示
+        match &index_type {
+            LookupIndexType::Single(column) => {
+                info.add_index_hint(IndexHint {
+                    index_name: format!("{}_{}_index", parsed_info.label, column),
+                    table_name: parsed_info.label.clone(),
+                    columns: vec![column.clone()],
+                    applicable_conditions: parsed_info.filter_expression.clone().map_or_else(
+                        || vec![],
+                        |f| vec![f]
+                    ),
+                    estimated_selectivity: 0.1,
+                });
+            }
+            LookupIndexType::Composite(columns) => {
+                info.add_index_hint(IndexHint {
+                    index_name: format!("{}_composite_index", parsed_info.label),
+                    table_name: parsed_info.label.clone(),
+                    columns: columns.clone(),
+                    applicable_conditions: parsed_info.filter_expression.clone().map_or_else(
+                        || vec![],
+                        |f| vec![f]
+                    ),
+                    estimated_selectivity: 0.05,
+                });
+            }
+            LookupIndexType::None => {}
+        }
+
+        // 8.5 添加验证通过的子句
+        info.validated_clauses.push(crate::query::validator::structs::ClauseKind::Match);
+
+        // 9. 创建验证结果（放在最后一步，避免不必要的 clone）
         let validated = ValidatedLookup {
             space_id,
             label: parsed_info.label,
             is_edge: parsed_info.is_edge,
             index_type,
             filter_expression: parsed_info.filter_expression,
-            yield_columns: parsed_info.yield_columns.clone(),
+            yield_columns: parsed_info.yield_columns,
             is_yield_all: parsed_info.is_yield_all,
         };
 
         self.validated_result = Some(validated);
 
-        // 8. 生成输出列
-        self.outputs = self.generate_output_columns(
-            &parsed_info.yield_columns,
-            parsed_info.is_yield_all,
-        );
-
-        // 9. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 10. 返回包含详细信息的验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

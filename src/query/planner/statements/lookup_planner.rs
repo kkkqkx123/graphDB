@@ -9,11 +9,13 @@
 //! - 使用 IndexSelector 自动选择最优索引
 
 use crate::core::Expression;
+use crate::core::value::types::NullType;
 use crate::query::QueryContext;
 use crate::query::parser::ast::{LookupStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::index::Index;
 use std::sync::Arc;
 
@@ -58,22 +60,67 @@ impl Planner for LookupPlanner {
             ));
         }
 
-        // 1. 获取可用的索引列表（暂时返回空列表，后续需要从存储客户端获取）
-        let available_indexes: Vec<Index> = vec![];
+        // 使用验证信息进行优化规划
+        let validation_info = &validated.validation_info;
 
-        // 2. 使用简单启发式选择索引（选择第一个可用索引）
-        let (selected_index, scan_limits, scan_type) = if !available_indexes.is_empty() {
-            // 简单启发式：选择第一个可用索引
-            // 在小型数据库中，这种简单策略通常足够
-            let index = available_indexes.first().cloned();
-            (index, vec![], ScanType::Full)
-        } else {
-            (None, vec![], ScanType::Full)
-        };
+        // 1. 检查优化提示
+        for hint in &validation_info.optimization_hints {
+            log::debug!("LOOKUP 优化提示: {:?}", hint);
+        }
+
+        // 2. 检查索引提示
+        let mut selected_index: Option<Index> = None;
+        let mut scan_limits: Vec<crate::query::planner::plan::algorithms::IndexLimit> = Vec::new();
+        let mut scan_type = ScanType::Full;
+
+        if !validation_info.index_hints.is_empty() {
+            let hint = &validation_info.index_hints[0];
+            log::debug!("LOOKUP 使用索引提示: {:?}", hint);
+            
+            // 使用验证器提供的索引提示
+            let index_fields: Vec<crate::index::IndexField> = hint.columns.iter().map(|col| {
+                crate::index::IndexField::new(col.clone(), crate::core::Value::Null(NullType::Null), true)
+            }).collect();
+            
+            selected_index = Some(Index {
+                id: 1,
+                name: hint.index_name.clone(),
+                space_id,
+                schema_name: hint.table_name.clone(),
+                fields: index_fields,
+                properties: hint.columns.clone(),
+                index_type: crate::index::IndexType::TagIndex,
+                status: crate::index::IndexStatus::Active,
+                is_unique: false,
+                comment: None,
+            });
+            
+            scan_type = ScanType::Range;
+            
+            // 将列名转换为 IndexLimit
+            for column in &hint.columns {
+                scan_limits.push(crate::query::planner::plan::algorithms::IndexLimit::equal(
+                    column.clone(),
+                    ""
+                ));
+            }
+        }
+
+        // 3. 如果没有索引提示，获取可用的索引列表
+        if selected_index.is_none() {
+            let available_indexes: Vec<Index> = vec![];
+            
+            // 使用简单启发式选择索引（选择第一个可用索引）
+            if !available_indexes.is_empty() {
+                let index = available_indexes.first().cloned();
+                selected_index = index;
+                scan_type = ScanType::Range;
+            }
+        }
 
         let index_id = selected_index.as_ref().map(|idx| idx.id).unwrap_or(0);
 
-        // 3. 创建 IndexScan 节点
+        // 4. 创建 IndexScan 节点
         let mut index_scan_node = IndexScan::new(
             -1,
             space_id,
@@ -82,7 +129,7 @@ impl Planner for LookupPlanner {
             scan_type,
         );
 
-        // 4. 设置扫描限制和返回列
+        // 5. 设置扫描限制和返回列
         index_scan_node.scan_limits = scan_limits;
 
         let mut current_node: PlanNodeEnum = PlanNodeEnum::IndexScan(index_scan_node);

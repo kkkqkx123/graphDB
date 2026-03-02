@@ -14,6 +14,10 @@ use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
+use crate::query::validator::structs::validation_info::{
+    ValidationInfo, OptimizationHint,
+};
+use crate::query::validator::structs::AliasType;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的 GO 语句信息
@@ -385,13 +389,63 @@ impl StatementValidator for GoValidator {
         // 9. 获取 space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 10. 创建验证结果
+        // 10. 构建详细的 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        // 10.1 添加别名映射
+        for edge in &over_edges {
+            info.add_alias(edge.edge_name.clone(), AliasType::Edge);
+        }
+
+        // 10.2 添加语义信息
+        for edge in &over_edges {
+            info.semantic_info.referenced_edges.push(edge.edge_name.clone());
+        }
+
+        // 10.3 添加路径分析
+        let mut path_analysis = crate::query::validator::structs::validation_info::PathAnalysis::new();
+        path_analysis.edge_count = over_edges.len();
+        path_analysis.has_direction = over_edges.iter().any(|e| e.direction != EdgeDirection::Both);
+        
+        if let Some(ref step_range) = step_range {
+            path_analysis.min_hops = Some(step_range.step_from as usize);
+            path_analysis.max_hops = Some(step_range.step_to as usize);
+        }
+        
+        info.add_path_analysis(path_analysis);
+
+        // 10.4 添加优化提示
+        if over_edges.len() > 10 {
+            info.add_optimization_hint(
+                OptimizationHint::PerformanceWarning {
+                    message: format!("GO 语句包含 {} 条边，可能影响性能", over_edges.len()),
+                    severity: crate::query::validator::structs::validation_info::HintSeverity::Warning,
+                }
+            );
+        }
+
+        if let Some(ref step_range) = step_range {
+            let steps = step_range.step_to - step_range.step_from;
+            if steps > 10 {
+                info.add_optimization_hint(
+                    OptimizationHint::LimitResults {
+                        reason: format!("跳数过大（{}），建议限制结果数量", steps),
+                        suggested_limit: 1000,
+                    }
+                );
+            }
+        }
+
+        // 10.5 添加验证通过的子句
+        info.validated_clauses.push(crate::query::validator::structs::ClauseKind::Match);
+
+        // 11. 创建验证结果（放在最后一步，避免不必要的 clone）
         let validated = ValidatedGo {
             space_id,
             from_source: Some(from_source),
             over_edges,
             where_filter,
-            yield_columns: yield_columns.clone(),
+            yield_columns,
             step_range,
             is_truncate: false,
             truncate_columns: Vec::new(),
@@ -399,11 +453,8 @@ impl StatementValidator for GoValidator {
 
         self.validated_result = Some(validated);
 
-        // 11. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 12. 返回包含详细信息的验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {

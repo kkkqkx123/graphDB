@@ -71,12 +71,71 @@ impl AliasValidationStrategy {
     fn extract_alias_name_internal(&self, expression: &crate::core::types::expression::Expression) -> Option<String> {
         match expression {
             crate::core::types::expression::Expression::Variable(name) => Some(name.clone()),
-            crate::core::types::expression::Expression::Property { property, .. } => Some(property.clone()),
+            crate::core::types::expression::Expression::Property { object, .. } => {
+                self.extract_alias_name_internal(object)
+            }
             crate::core::types::expression::Expression::Label(name) => Some(name.clone()),
-            crate::core::types::expression::Expression::TagProperty { tag_name, property } => Some(format!("{}.{}", tag_name, property)),
-            crate::core::types::expression::Expression::EdgeProperty { edge_name, property } => Some(format!("{}.{}", edge_name, property)),
-            // 根据实际的表达式类型，可能需要处理其他别名引用
-            _ => None,
+            crate::core::types::expression::Expression::TagProperty { tag_name, .. } => Some(tag_name.clone()),
+            crate::core::types::expression::Expression::EdgeProperty { edge_name, .. } => Some(edge_name.clone()),
+            crate::core::types::expression::Expression::LabelTagProperty { tag, .. } => {
+                self.extract_alias_name_internal(tag)
+            }
+            crate::core::types::expression::Expression::Parameter(name) => Some(name.clone()),
+            crate::core::types::expression::Expression::ListComprehension { variable, .. } => Some(variable.clone()),
+            crate::core::types::expression::Expression::Reduce { accumulator, variable: _, .. } => {
+                Some(accumulator.clone())
+            }
+            crate::core::types::expression::Expression::PathBuild(items) => {
+                if let Some(first) = items.first() {
+                    self.extract_alias_name_internal(first)
+                } else {
+                    None
+                }
+            }
+            crate::core::types::expression::Expression::Path(items) => {
+                if let Some(first) = items.first() {
+                    self.extract_alias_name_internal(first)
+                } else {
+                    None
+                }
+            }
+            crate::core::types::expression::Expression::Subscript { collection, .. } => {
+                self.extract_alias_name_internal(collection)
+            }
+            crate::core::types::expression::Expression::Range { collection, .. } => {
+                self.extract_alias_name_internal(collection)
+            }
+            crate::core::types::expression::Expression::TypeCast { expression, .. } => {
+                self.extract_alias_name_internal(expression)
+            }
+            crate::core::types::expression::Expression::Aggregate { arg, .. } => {
+                self.extract_alias_name_internal(arg)
+            }
+            crate::core::types::expression::Expression::Function { name, args } => {
+                match name.to_lowercase().as_str() {
+                    "startnode" | "endnode" => {
+                        if let Some(arg) = args.first() {
+                            self.extract_alias_name_internal(arg)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            }
+            crate::core::types::expression::Expression::Unary { operand, .. } => {
+                self.extract_alias_name_internal(operand)
+            }
+            crate::core::types::expression::Expression::Binary { left, .. } => {
+                self.extract_alias_name_internal(left)
+            }
+            crate::core::types::expression::Expression::Case { test_expr, .. } => {
+                test_expr.as_ref().and_then(|e| self.extract_alias_name_internal(e))
+            }
+            crate::core::types::expression::Expression::Literal(_)
+            | crate::core::types::expression::Expression::List(_)
+            | crate::core::types::expression::Expression::Map(_)
+            | crate::core::types::expression::Expression::Predicate { .. } => None,
         }
     }
 

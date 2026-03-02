@@ -12,6 +12,7 @@ use crate::query::QueryContext;
 use crate::query::parser::ast::{GoStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use std::sync::Arc;
 
 pub use crate::query::planner::plan::core::nodes::{
@@ -46,6 +47,27 @@ impl Planner for GoPlanner {
                 ));
             }
         };
+
+        // 使用验证信息进行优化规划
+        let validation_info = &validated.validation_info;
+
+        // 1. 检查优化提示
+        for hint in &validation_info.optimization_hints {
+            log::debug!("GO 优化提示: {:?}", hint);
+        }
+
+        // 2. 使用路径分析信息
+        for path_analysis in &validation_info.path_analysis {
+            if path_analysis.edge_count > 5 {
+                log::warn!("GO 路径包含 {} 条边，可能影响性能", path_analysis.edge_count);
+            }
+        }
+
+        // 3. 使用语义信息
+        let referenced_edges = &validation_info.semantic_info.referenced_edges;
+        if !referenced_edges.is_empty() {
+            log::debug!("GO 引用的边类型: {:?}", referenced_edges);
+        }
 
         let from_var = "v";
         let arg_node = ArgumentNode::new(0, from_var);
