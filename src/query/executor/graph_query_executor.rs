@@ -313,11 +313,10 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             DeleteTarget::Vertices(vertex_exprs) => {
                 let mut vertex_ids = Vec::new();
                 for ctx_expr in vertex_exprs {
-                    let expr = ctx_expr.expression()
-                        .map(|meta| meta.inner())
+                    let expr = ctx_expr.get_expression()
                         .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                     let mut context = DefaultExpressionContext::new();
-                    let vid = ExpressionEvaluator::evaluate(expr, &mut context)
+                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
                     vertex_ids.push(vid);
                 }
@@ -335,27 +334,24 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             DeleteTarget::Edges { edge_type, edges } => {
                 let mut edge_ids = Vec::new();
                 for (src_ctx_expr, dst_ctx_expr, rank_ctx_expr) in edges {
-                    let src_expr = src_ctx_expr.expression()
-                        .map(|meta| meta.inner())
+                    let src_expr = src_ctx_expr.get_expression()
                         .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                     let mut src_context = DefaultExpressionContext::new();
-                    let src = ExpressionEvaluator::evaluate(src_expr, &mut src_context)
+                    let src = ExpressionEvaluator::evaluate(&src_expr, &mut src_context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("源顶点ID求值失败: {}", e))))?;
 
-                    let dst_expr = dst_ctx_expr.expression()
-                        .map(|meta| meta.inner())
+                    let dst_expr = dst_ctx_expr.get_expression()
                         .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                     let mut dst_context = DefaultExpressionContext::new();
-                    let dst = ExpressionEvaluator::evaluate(dst_expr, &mut dst_context)
+                    let dst = ExpressionEvaluator::evaluate(&dst_expr, &mut dst_context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("目标顶点ID求值失败: {}", e))))?;
 
                     let _rank = match rank_ctx_expr {
                         Some(ref r) => {
-                            let rank_expr = r.expression()
-                                .map(|meta| meta.inner())
+                            let rank_expr = r.get_expression()
                                 .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                             let mut rank_context = DefaultExpressionContext::new();
-                            let rank_val = ExpressionEvaluator::evaluate(rank_expr, &mut rank_context)
+                            let rank_val = ExpressionEvaluator::evaluate(&rank_expr, &mut rank_context)
                                 .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("rank求值失败: {}", e))))?;
                             match rank_val {
                                 crate::core::Value::Int(i) => Some(i),
@@ -381,14 +377,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             DeleteTarget::Tags { tag_names, vertex_ids: vertex_id_exprs, is_all_tags } => {
                 use crate::query::executor::data_modification::DeleteTagExecutor;
 
-                // 求值所有顶点ID表达式
                 let mut vertex_ids = Vec::new();
                 for ctx_expr in vertex_id_exprs {
-                    let expr = ctx_expr.expression()
-                        .map(|meta| meta.inner())
+                    let expr = ctx_expr.get_expression()
                         .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                     let mut context = DefaultExpressionContext::new();
-                    let vid = ExpressionEvaluator::evaluate(expr, &mut context)
+                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
                     vertex_ids.push(vid);
                 }
@@ -548,7 +542,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         match clause.target {
             FetchTarget::Vertices { ids, properties: _ } => {
                 let mut vertex_ids = Vec::new();
-                for expr in ids {
+                for ctx_expr in ids {
+                    let expr = ctx_expr.get_expression()
+                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
                     let mut context = DefaultExpressionContext::new();
                     let vid = ExpressionEvaluator::evaluate(&expr, &mut context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
@@ -610,19 +606,37 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         let storage = self.storage.clone();
 
-        // 解析起点和终点
+        use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+        use crate::expression::DefaultExpressionContext;
+
+        let mut context = DefaultExpressionContext::new();
+
         let left_start_ids: Vec<Value> = clause.from.vertices.iter()
-            .map(|expr| match expr {
-                crate::core::types::expression::Expression::Literal(Value::Int(n)) => Value::Int(*n),
-                crate::core::types::expression::Expression::Literal(Value::String(s)) => Value::String(s.clone()),
-                _ => Value::Null(crate::core::NullType::default()),
+            .map(|ctx_expr| {
+                let expr = ctx_expr.get_expression()
+                    .unwrap_or_else(|| crate::core::types::expression::Expression::Literal(Value::Null(crate::core::NullType::default())));
+                match expr {
+                    crate::core::types::expression::Expression::Literal(Value::Int(n)) => Value::Int(n),
+                    crate::core::types::expression::Expression::Literal(Value::String(s)) => Value::String(s),
+                    _ => {
+                        let val = ExpressionEvaluator::evaluate(&expr, &mut context)
+                            .unwrap_or_else(|_| Value::Null(crate::core::NullType::default()));
+                        val
+                    }
+                }
             })
             .collect();
 
-        let right_start_ids: Vec<Value> = vec![match &clause.to {
-            crate::core::types::expression::Expression::Literal(Value::Int(n)) => Value::Int(*n),
-            crate::core::types::expression::Expression::Literal(Value::String(s)) => Value::String(s.clone()),
-            _ => Value::Null(crate::core::NullType::default()),
+        let to_expr = clause.to.get_expression()
+            .unwrap_or_else(|| crate::core::types::expression::Expression::Literal(Value::Null(crate::core::NullType::default())));
+        let right_start_ids: Vec<Value> = vec![match to_expr {
+            crate::core::types::expression::Expression::Literal(Value::Int(n)) => Value::Int(n),
+            crate::core::types::expression::Expression::Literal(Value::String(s)) => Value::String(s),
+            _ => {
+                let val = ExpressionEvaluator::evaluate(&to_expr, &mut context)
+                    .unwrap_or_else(|_| Value::Null(crate::core::NullType::default()));
+                val
+            }
         }];
 
         // 解析边方向
@@ -912,15 +926,26 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         use crate::query::executor::data_processing::graph_traversal::algorithms::{SubgraphExecutor, SubgraphConfig};
         use crate::query::executor::base::EdgeDirection;
         use crate::core::Value;
+        use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+        use crate::expression::DefaultExpressionContext;
 
         let storage = self.storage.clone();
 
-        // 解析起始顶点ID列表
+        let mut context = DefaultExpressionContext::new();
+
         let start_vids: Vec<Value> = clause.from.vertices.iter()
-            .map(|expr| match expr {
-                crate::core::types::expression::Expression::Literal(Value::Int(n)) => Value::Int(*n),
-                crate::core::types::expression::Expression::Literal(Value::String(s)) => Value::String(s.clone()),
-                _ => Value::Null(crate::core::NullType::default()),
+            .map(|ctx_expr| {
+                let expr = ctx_expr.get_expression()
+                    .unwrap_or_else(|| crate::core::types::expression::Expression::Literal(Value::Null(crate::core::NullType::default())));
+                match expr {
+                    crate::core::types::expression::Expression::Literal(Value::Int(n)) => Value::Int(n),
+                    crate::core::types::expression::Expression::Literal(Value::String(s)) => Value::String(s),
+                    _ => {
+                        let val = ExpressionEvaluator::evaluate(&expr, &mut context)
+                            .unwrap_or(Value::Null(crate::core::NullType::default()));
+                        val
+                    }
+                }
             })
             .collect();
 
@@ -997,7 +1022,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
                 for row in values {
                     let mut context = DefaultExpressionContext::new();
-                    let vid = ExpressionEvaluator::evaluate(&row.vid, &mut context)
+                    let vid_expr = row.vid.get_expression()
+                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("顶点ID表达式不存在".to_string())))?;
+                    let vid = ExpressionEvaluator::evaluate(&vid_expr, &mut context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("表达式求值失败: {}", e))))?;
 
                     // 暂时只处理第一个 Tag 的值
@@ -1007,7 +1034,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     for (i, prop_name) in prop_names.iter().enumerate() {
                         if i < prop_values.len() {
                             let mut prop_context = DefaultExpressionContext::new();
-                            let prop_value = ExpressionEvaluator::evaluate(&prop_values[i], &mut prop_context)
+                            let prop_expr = prop_values[i].get_expression()
+                                .ok_or_else(|| DBError::Query(QueryError::ExecutionError("属性表达式不存在".to_string())))?;
+                            let prop_value = ExpressionEvaluator::evaluate(&prop_expr, &mut prop_context)
                                 .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("属性值求值失败: {}", e))))?;
                             properties.insert(prop_name.clone(), prop_value);
                         }
@@ -1043,19 +1072,25 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             InsertTarget::Edge { edge_name, prop_names, edges } => {
                 let mut edge_list = Vec::new();
 
-                for (src_expr, dst_expr, rank_expr, prop_values) in edges {
+                for (src_ctx_expr, dst_ctx_expr, rank_ctx_expr, prop_values) in edges {
                     let mut src_context = DefaultExpressionContext::new();
+                    let src_expr = src_ctx_expr.get_expression()
+                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("源顶点ID表达式不存在".to_string())))?;
                     let src = ExpressionEvaluator::evaluate(&src_expr, &mut src_context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("源顶点ID求值失败: {}", e))))?;
 
                     let mut dst_context = DefaultExpressionContext::new();
+                    let dst_expr = dst_ctx_expr.get_expression()
+                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("目标顶点ID表达式不存在".to_string())))?;
                     let dst = ExpressionEvaluator::evaluate(&dst_expr, &mut dst_context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("目标顶点ID求值失败: {}", e))))?;
 
-                    let rank = match rank_expr {
+                    let rank = match rank_ctx_expr {
                         Some(ref r) => {
                             let mut rank_context = DefaultExpressionContext::new();
-                            let rank_val = ExpressionEvaluator::evaluate(r, &mut rank_context)
+                            let rank_expr = r.get_expression()
+                                .ok_or_else(|| DBError::Query(QueryError::ExecutionError("rank表达式不存在".to_string())))?;
+                            let rank_val = ExpressionEvaluator::evaluate(&rank_expr, &mut rank_context)
                                 .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("rank求值失败: {}", e))))?;
                             match rank_val {
                                 crate::core::Value::Int(i) => i,
@@ -1069,7 +1104,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     for (i, prop_name) in prop_names.iter().enumerate() {
                         if i < prop_values.len() {
                             let mut prop_context = DefaultExpressionContext::new();
-                            let prop_value = ExpressionEvaluator::evaluate(&prop_values[i], &mut prop_context)
+                            let prop_expr = prop_values[i].get_expression()
+                                .ok_or_else(|| DBError::Query(QueryError::ExecutionError("属性表达式不存在".to_string())))?;
+                            let prop_value = ExpressionEvaluator::evaluate(&prop_expr, &mut prop_context)
                                 .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("属性值求值失败: {}", e))))?;
                             properties.insert(prop_name.clone(), prop_value);
                         }
@@ -1104,11 +1141,14 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     fn execute_unwind(&mut self, clause: crate::query::parser::ast::stmt::UnwindStmt) -> Result<ExecutionResult, DBError> {
         use crate::query::executor::result_processing::transformations::unwind::UnwindExecutor;
 
+        let expr = clause.expression.get_expression()
+            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("UNWIND表达式不存在".to_string())))?;
+
         let mut executor = UnwindExecutor::new(
             self.id,
             self.storage.clone(),
             "_input".to_string(),
-            clause.expression,
+            expr,
             vec![clause.variable.clone()],
             false,
         );
@@ -1136,7 +1176,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         let mut assignments = Vec::new();
         for assignment in clause.assignments {
-            assignments.push((assignment.property, assignment.value));
+            let expr = assignment.value.get_expression()
+                .ok_or_else(|| DBError::Query(QueryError::ExecutionError("SET表达式不存在".to_string())))?;
+            assignments.push((assignment.property, expr));
         }
 
         let mut executor = AssignExecutor::new(

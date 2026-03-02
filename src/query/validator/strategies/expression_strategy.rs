@@ -216,7 +216,7 @@ impl ExpressionValidationStrategy {
                 None => continue,
             };
             let expr = expr_meta.inner();
-            type_validator.validate_group_key_type_internal(expr, context)?;
+            type_validator.validate_group_key_type(expr, context)?;
         }
 
         Ok(())

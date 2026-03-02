@@ -483,13 +483,24 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         N: JoinNode,
     {
         let (left_var, right_var) = Self::extract_join_vars(node);
+        
+        let hash_keys: Vec<crate::core::Expression> = node.hash_keys()
+            .iter()
+            .filter_map(|ctx_expr| ctx_expr.get_expression())
+            .collect();
+        
+        let probe_keys: Vec<crate::core::Expression> = node.probe_keys()
+            .iter()
+            .filter_map(|ctx_expr| ctx_expr.get_expression())
+            .collect();
+        
         let executor = InnerJoinExecutor::new(
             node.id(),
             storage,
             left_var,
             right_var,
-            node.hash_keys().to_vec(),
-            node.probe_keys().to_vec(),
+            hash_keys,
+            probe_keys,
             node.col_names().to_vec(),
         );
         Ok(ExecutorEnum::InnerJoin(executor))
@@ -505,13 +516,24 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         N: JoinNode,
     {
         let (left_var, right_var) = Self::extract_join_vars(node);
+        
+        let hash_keys: Vec<crate::core::Expression> = node.hash_keys()
+            .iter()
+            .filter_map(|ctx_expr| ctx_expr.get_expression())
+            .collect();
+        
+        let probe_keys: Vec<crate::core::Expression> = node.probe_keys()
+            .iter()
+            .filter_map(|ctx_expr| ctx_expr.get_expression())
+            .collect();
+        
         let executor = LeftJoinExecutor::new(
             node.id(),
             storage,
             left_var,
             right_var,
-            node.hash_keys().to_vec(),
-            node.probe_keys().to_vec(),
+            hash_keys,
+            probe_keys,
             node.col_names().to_vec(),
         );
         Ok(ExecutorEnum::LeftJoin(executor))
@@ -527,13 +549,24 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         N: JoinNode,
     {
         let (left_var, right_var) = Self::extract_join_vars(node);
+        
+        let hash_keys: Vec<crate::core::Expression> = node.hash_keys()
+            .iter()
+            .filter_map(|ctx_expr| ctx_expr.get_expression())
+            .collect();
+        
+        let probe_keys: Vec<crate::core::Expression> = node.probe_keys()
+            .iter()
+            .filter_map(|ctx_expr| ctx_expr.get_expression())
+            .collect();
+        
         let executor = FullOuterJoinExecutor::new(
             node.id(),
             storage,
             left_var,
             right_var,
-            node.hash_keys().to_vec(),
-            node.probe_keys().to_vec(),
+            hash_keys,
+            probe_keys,
             node.col_names().to_vec(),
         );
         Ok(ExecutorEnum::FullOuterJoin(executor))
@@ -649,11 +682,13 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let columns = node
                     .columns()
                     .iter()
-                    .map(|col| {
-                        crate::query::executor::result_processing::ProjectionColumn::new(
-                            col.alias.clone(),
-                            col.expression.clone(),
-                        )
+                    .filter_map(|col| {
+                        col.expression.get_expression().map(|expr| {
+                            crate::query::executor::result_processing::ProjectionColumn::new(
+                                col.alias.clone(),
+                                expr,
+                            )
+                        })
                     })
                     .collect();
                 let executor = ProjectExecutor::new(node.id(), storage, columns);

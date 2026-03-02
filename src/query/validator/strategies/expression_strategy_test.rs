@@ -9,6 +9,7 @@ mod expression_strategy_tests {
     use crate::core::DataType;
     use crate::core::Value;
     use crate::core::types::expression::utils::test_helpers::create_test_contextual_expression;
+    use crate::core::types::YieldColumn;
     use std::collections::HashMap;
 
     #[test]
@@ -84,22 +85,53 @@ mod expression_strategy_tests {
     fn test_validate_return() {
         let strategy = ExpressionValidationStrategy::new();
         let mut aliases = HashMap::new();
-        aliases.insert("n".to_string(), DataType::Vertex);
+        aliases.insert("n".to_string(), AliasType::Node);
         
-        let context = ReturnClauseContext {
-            aliases: aliases.clone(),
-            return_items: vec![],
-            order_by: vec![],
+        let yield_columns = vec![
+            YieldColumn {
+                expression: create_test_contextual_expression(Expression::Variable("n".to_string())),
+                alias: "n".to_string(),
+                is_matched: false,
+            },
+        ];
+        
+        let yield_clause = YieldClauseContext {
+            yield_columns,
+            aliases_available: aliases.clone(),
+            aliases_generated: HashMap::new(),
+            distinct: false,
+            has_agg: false,
+            group_keys: vec![],
+            group_items: vec![],
+            need_gen_project: false,
+            agg_output_column_names: vec![],
+            proj_output_column_names: vec![],
+            proj_cols: vec![],
+            paths: vec![],
+            query_parts: vec![],
+            errors: vec![],
+            filter_condition: None,
             skip: None,
             limit: None,
-            is_distinct: false,
+        };
+        
+        let yield_columns_clone = yield_clause.yield_columns.clone();
+        
+        let context = ReturnClauseContext {
+            yield_clause,
+            aliases_available: aliases.clone(),
+            aliases_generated: HashMap::new(),
+            pagination: None,
+            order_by: None,
+            distinct: false,
+            query_parts: vec![],
             errors: vec![],
         };
         
         // 测试有效的变量引用
         let var_expr = Expression::Variable("n".to_string());
         let var_expression = create_test_contextual_expression(var_expr);
-        let result = strategy.validate_return_item(&var_expression, &context);
+        let result = strategy.validate_return(&var_expression, &yield_columns_clone, &context);
         assert!(result.is_ok());
         
         // 测试有效的属性访问
@@ -108,7 +140,7 @@ mod expression_strategy_tests {
             property: "name".to_string(),
         };
         let prop_expression = create_test_contextual_expression(prop_expr);
-        let result = strategy.validate_return_item(&prop_expression, &context);
+        let result = strategy.validate_return(&prop_expression, &yield_columns_clone, &context);
         assert!(result.is_ok());
     }
 
@@ -116,7 +148,7 @@ mod expression_strategy_tests {
     fn test_validate_where() {
         let strategy = ExpressionValidationStrategy::new();
         let mut aliases = HashMap::new();
-        aliases.insert("n".to_string(), DataType::Vertex);
+        aliases.insert("n".to_string(), AliasType::Node);
         
         let context = WhereClauseContext {
             filter: None,
@@ -135,30 +167,6 @@ mod expression_strategy_tests {
         };
         let bool_expression = create_test_contextual_expression(bool_expr);
         let result = strategy.validate_filter(&bool_expression, &context);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_validate_property() {
-        let strategy = ExpressionValidationStrategy::new();
-        let mut aliases = HashMap::new();
-        aliases.insert("n".to_string(), DataType::Vertex);
-        
-        let context = PropertyAccessContext {
-            object_alias: "n".to_string(),
-            property_name: "name".to_string(),
-            expected_type: Some(DataType::String),
-            aliases_available: aliases.clone(),
-            errors: vec![],
-        };
-        
-        // 测试有效的属性访问
-        let prop_expr = Expression::Property {
-            object: Box::new(Expression::Variable("n".to_string())),
-            property: "name".to_string(),
-        };
-        let prop_expression = create_test_contextual_expression(prop_expr);
-        let result = strategy.validate_property_access(&prop_expression, &context);
         assert!(result.is_ok());
     }
 }

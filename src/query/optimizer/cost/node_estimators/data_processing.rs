@@ -70,7 +70,8 @@ impl<'a> DataProcessingEstimator<'a> {
         let list_expr = node.list_expression();
 
         // 尝试解析表达式推断列表大小
-        if let Some(size) = self.expression_parser.parse_list_size(list_expr) {
+        let expr_str = list_expr.to_expression_string();
+        if let Some(size) = self.expression_parser.parse_list_size(&expr_str) {
             return size;
         }
 

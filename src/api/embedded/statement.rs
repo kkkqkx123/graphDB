@@ -431,39 +431,28 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
         let inner_expr = expr_meta.inner();
         match inner_expr {
             Expression::Parameter(name) => {
-                // 找到参数，插入到参数列表中
-                // 使用 Unknown 类型作为占位符，在绑定时进行类型推断
-                if !params.contains_key(&name) {
+                if !params.contains_key(name.as_str()) {
                     params.insert(name.clone(), DataType::Empty);
                 }
             }
             Expression::Variable(name) => {
-                // 变量引用（可能以 $ 开头）
-                // 移除 $ 前缀（如果存在）
                 let param_name = if name.starts_with('$') {
                     name.trim_start_matches('$').to_string()
                 } else {
                     name.clone()
                 };
-                // 只添加看起来像参数的变量（避免添加普通变量名）
                 if !param_name.is_empty() && (param_name.chars().next().map_or(false, |c| c.is_lowercase()) || param_name.contains('_')) {
-                    if !params.contains_key(&param_name) {
+                    if !params.contains_key(param_name.as_str()) {
                         params.insert(param_name, DataType::String);
                     }
                 }
             }
             Expression::Binary { left, right, .. } => {
-                if let Some(ref left_expr) = *left {
-                    Self::extract_params_from_expression(left_expr, params);
-                }
-                if let Some(ref right_expr) = *right {
-                    Self::extract_params_from_expression(right_expr, params);
-                }
+                Self::extract_params_from_expression(left, params);
+                Self::extract_params_from_expression(right, params);
             }
             Expression::Unary { operand, .. } => {
-                if let Some(ref operand_expr) = *operand {
-                    Self::extract_params_from_expression(operand_expr, params);
-                }
+                Self::extract_params_from_expression(operand, params);
             }
             Expression::Function { args, .. } => {
                 for arg in args {
@@ -471,9 +460,7 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 }
             }
             Expression::Aggregate { arg, .. } => {
-                if let Some(ref arg_expr) = *arg {
-                    Self::extract_params_from_expression(arg_expr, params);
-                }
+                Self::extract_params_from_expression(arg, params);
             }
             Expression::List(items) => {
                 for item in items {
@@ -498,22 +485,14 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 }
             }
             Expression::TypeCast { expression, .. } => {
-                if let Some(ref expr) = *expression {
-                    Self::extract_params_from_expression(expr, params);
-                }
+                Self::extract_params_from_expression(expression, params);
             }
             Expression::Subscript { collection, index } => {
-                if let Some(ref coll) = *collection {
-                    Self::extract_params_from_expression(coll, params);
-                }
-                if let Some(ref idx) = *index {
-                    Self::extract_params_from_expression(idx, params);
-                }
+                Self::extract_params_from_expression(collection, params);
+                Self::extract_params_from_expression(index, params);
             }
             Expression::Range { collection, start, end } => {
-                if let Some(ref coll) = *collection {
-                    Self::extract_params_from_expression(coll, params);
-                }
+                Self::extract_params_from_expression(collection, params);
                 if let Some(s) = start {
                     Self::extract_params_from_expression(s, params);
                 }
@@ -536,9 +515,7 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 }
             }
             Expression::Property { object, .. } => {
-                if let Some(ref obj) = *object {
-                    Self::extract_params_from_expression(obj, params);
-                }
+                Self::extract_params_from_expression(object, params);
             }
             _ => {}
         }
@@ -565,17 +542,11 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 }
             }
             Expression::Binary { left, right, .. } => {
-                if let Some(ref left_expr) = *left {
-                    Self::extract_params_from_expression(left_expr, params);
-                }
-                if let Some(ref right_expr) = *right {
-                    Self::extract_params_from_expression(right_expr, params);
-                }
+                Self::extract_params_from_expression(left, params);
+                Self::extract_params_from_expression(right, params);
             }
             Expression::Unary { operand, .. } => {
-                if let Some(ref operand_expr) = *operand {
-                    Self::extract_params_from_expression(operand_expr, params);
-                }
+                Self::extract_params_from_expression(operand, params);
             }
             Expression::Function { args, .. } => {
                 for arg in args {
@@ -583,9 +554,7 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 }
             }
             Expression::Aggregate { arg, .. } => {
-                if let Some(ref arg_expr) = *arg {
-                    Self::extract_params_from_expression(arg_expr, params);
-                }
+                Self::extract_params_from_expression(arg, params);
             }
             Expression::List(items) => {
                 for item in items {
@@ -610,22 +579,14 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 }
             }
             Expression::TypeCast { expression, .. } => {
-                if let Some(ref expr) = *expression {
-                    Self::extract_params_from_expression(expr, params);
-                }
+                Self::extract_params_from_expression(expression, params);
             }
             Expression::Subscript { collection, index } => {
-                if let Some(ref coll) = *collection {
-                    Self::extract_params_from_expression(coll, params);
-                }
-                if let Some(ref idx) = *index {
-                    Self::extract_params_from_expression(idx, params);
-                }
+                Self::extract_params_from_expression(collection, params);
+                Self::extract_params_from_expression(index, params);
             }
             Expression::Range { collection, start, end } => {
-                if let Some(ref coll) = *collection {
-                    Self::extract_params_from_expression(coll, params);
-                }
+                Self::extract_params_from_expression(collection, params);
                 if let Some(s) = start {
                     Self::extract_params_from_expression(s, params);
                 }
@@ -648,9 +609,7 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 }
             }
             Expression::Property { object, .. } => {
-                if let Some(ref obj) = *object {
-                    Self::extract_params_from_expression(obj, params);
-                }
+                Self::extract_params_from_expression(object, params);
             }
             _ => {}
         }

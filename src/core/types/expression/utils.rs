@@ -560,7 +560,7 @@ fn extract_aggregate_functions_recursive(
 }
 
 #[cfg(test)]
-mod test_helpers {
+pub mod test_helpers {
     use super::*;
     use crate::core::types::expression::ContextualExpression;
     use std::sync::Arc;

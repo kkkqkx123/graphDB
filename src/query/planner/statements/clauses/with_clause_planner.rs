@@ -61,7 +61,7 @@ impl WithClausePlanner {
         // 2. 处理 WHERE 条件过滤
         if let Some(ref where_ctx) = with_ctx.where_clause {
             if let Some(ref filter) = where_ctx.filter {
-                let filter_node = self.create_filter_node(&current_plan, filter.clone())?;
+                let filter_node = self.create_filter_node(&current_plan, filter)?;
                 current_plan = SubPlan::new(Some(filter_node), current_plan.tail.clone());
             }
         }
@@ -104,16 +104,14 @@ impl WithClausePlanner {
     fn create_filter_node(
         &self,
         input_plan: &SubPlan,
-        condition: Expression,
+        condition: &crate::core::types::expression::ContextualExpression,
     ) -> Result<PlanNodeEnum, PlannerError> {
         let input_node = input_plan
             .root()
             .as_ref()
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
-        use std::sync::Arc;
-        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
-        FilterNode::from_expression(input_node.clone(), condition, ctx)
+        FilterNode::new(input_node.clone(), condition.clone())
             .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建过滤节点失败: {}", e)))
             .map(|node| PlanNodeEnum::Filter(node))
     }
@@ -345,7 +343,7 @@ impl WithClausePlanner {
             aliases_generated,
             where_clause: with_stmt.where_clause.clone().map(|condition| {
                 crate::query::validator::structs::WhereClauseContext {
-                    filter: Some(condition.into_expression()),
+                    filter: Some(condition),
                     aliases_available: HashMap::new(),
                     aliases_generated: HashMap::new(),
                     paths: vec![],

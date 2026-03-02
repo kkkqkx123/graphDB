@@ -296,19 +296,34 @@ impl TraversalStartSelector {
         // 检查属性中是否有VID条件
         if let Some(props) = &node.properties {
             // 检查属性表达式中是否包含 id 字段
-            if self.has_vid_condition(props) {
+            if self.has_vid_condition_ctx(props) {
                 return Some(0.01); // VID条件具有极高选择性
             }
         }
 
         // 检查谓词中是否有VID条件
         for predicate in &node.predicates {
-            if self.has_vid_condition(predicate) {
+            if self.has_vid_condition_ctx(predicate) {
                 return Some(0.01);
             }
         }
 
         None
+    }
+
+    /// 检查表达式中是否包含VID条件
+    /// 
+    /// 识别以下模式：
+    /// - id(v) == value
+    /// - v.id == value
+    /// - {id: value}
+    fn has_vid_condition_ctx(&self, expr: &crate::core::types::expression::ContextualExpression) -> bool {
+        use crate::core::types::BinaryOperator;
+
+        match expr.expression() {
+            Some(meta) => self.has_vid_condition(meta.inner()),
+            None => false,
+        }
     }
 
     /// 检查表达式中是否包含VID条件
@@ -383,20 +398,24 @@ impl TraversalStartSelector {
 
         // 从属性条件估计选择性
         if let Some(props) = &node.properties {
-            let prop_selectivity = self.selectivity_estimator.estimate_from_expression(
-                props,
-                Some(tag_name),
-            );
-            selectivity *= prop_selectivity;
+            if let Some(expr) = props.get_expression() {
+                let prop_selectivity = self.selectivity_estimator.estimate_from_expression(
+                    &expr,
+                    Some(tag_name),
+                );
+                selectivity *= prop_selectivity;
+            }
         }
 
         // 从谓词条件估计选择性
         for predicate in &node.predicates {
-            let pred_selectivity = self.selectivity_estimator.estimate_from_expression(
-                predicate,
-                Some(tag_name),
-            );
-            selectivity *= pred_selectivity;
+            if let Some(expr) = predicate.get_expression() {
+                let pred_selectivity = self.selectivity_estimator.estimate_from_expression(
+                    &expr,
+                    Some(tag_name),
+                );
+                selectivity *= pred_selectivity;
+            }
         }
 
         selectivity

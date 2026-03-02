@@ -121,7 +121,7 @@ impl ContextualExpression {
     /// 检查表达式是否为属性访问表达式
     pub fn is_property(&self) -> bool {
         self.expression()
-            .map(|e| e.is_property())
+            .map(|e| e.inner().is_property())
             .unwrap_or(false)
     }
     

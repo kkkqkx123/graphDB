@@ -171,11 +171,11 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let query_context = Arc::new(self.create_query_context(query_text)?);
         
         let parse_start = Instant::now();
-        let stmt = match self.parse_into_context(query_text) {
-            Ok(stmt) => {
+        let parser_result = match self.parse_into_context(query_text) {
+            Ok(result) => {
                 profile.stages.parse_ms = parse_start.elapsed().as_millis() as u64;
                 metrics.record_parse_time(parse_start.elapsed());
-                stmt
+                result
             }
             Err(e) => {
                 profile.stages.parse_ms = parse_start.elapsed().as_millis() as u64;
@@ -189,7 +189,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
         
         let validate_start = Instant::now();
-        let validation_info = match self.validate_query(query_context.clone(), &stmt) {
+        let validation_info = match self.validate_query(query_context.clone(), &parser_result.stmt) {
             Ok(info) => info,
             Err(e) => {
                 profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
@@ -206,7 +206,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         metrics.record_validate_time(validate_start.elapsed());
 
         // 创建验证后的语句
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
 
         let plan_start = Instant::now();
         let execution_plan = match self.generate_execution_plan(query_context.clone(), &validated) {
@@ -315,8 +315,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             })?;
 
         // 使用 validate 获取详细的验证信息
-        let validation_result = validator.validate(stmt, query_context)
-            .map_err(|e| DBError::from(QueryError::pipeline_validation_error(e)))?;
+        let validation_result = validator.validate(stmt, query_context);
 
         if validation_result.success {
             Ok(validation_result.info.unwrap_or_default())
