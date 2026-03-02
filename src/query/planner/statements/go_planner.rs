@@ -12,7 +12,6 @@ use crate::query::QueryContext;
 use crate::query::parser::ast::{GoStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::query::validator::structs::validation_info::ValidationInfo;
 use std::sync::Arc;
 
 pub use crate::query::planner::plan::core::nodes::{

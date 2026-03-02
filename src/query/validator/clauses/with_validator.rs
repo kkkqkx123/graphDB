@@ -280,7 +280,7 @@ impl WithValidator {
         Ok(())
     }
 
-    fn validate_impl(&mut self, stmt: &WithStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: WithStmt) -> Result<(), ValidationError> {
         // 验证返回项
         if stmt.items.is_empty() {
             return Err(ValidationError::new(
@@ -342,7 +342,7 @@ impl Default for WithValidator {
 impl StatementValidator for WithValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let with_stmt = match stmt {

@@ -237,7 +237,7 @@ impl Default for FetchVerticesValidator {
 impl StatementValidator for FetchVerticesValidator {
     fn validate(
         &mut self,
-        stmt: &Stmt,
+        stmt: Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -260,7 +260,7 @@ impl StatementValidator for FetchVerticesValidator {
         };
 
         // 3. 执行基础验证
-        self.validate_fetch_vertices(fetch_stmt)?;
+        self.validate_fetch_vertices(&fetch_stmt)?;
 
         // 4. 获取 space_id
         let space_id = qctx.space_id().unwrap_or(0);

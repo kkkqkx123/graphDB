@@ -225,7 +225,7 @@ impl Default for InsertVerticesValidator {
 impl StatementValidator for InsertVerticesValidator {
     fn validate(
         &mut self,
-        stmt: &Stmt,
+        stmt: Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -410,7 +410,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("INSERT VERTEX must specify at least one tag"));
@@ -429,7 +429,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Tag name cannot be empty"));
@@ -451,7 +451,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Duplicate property name"));
@@ -470,7 +470,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Value count mismatch"));
@@ -489,7 +489,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Vertex ID cannot be empty"));
@@ -511,7 +511,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -537,7 +537,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -560,7 +560,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -577,7 +577,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -594,7 +594,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -612,7 +612,7 @@ mod tests {
         };
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "Expected INSERT VERTICES but got INSERT EDGES");
@@ -640,7 +640,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
 
         // 验证 if_not_exists 被正确保存

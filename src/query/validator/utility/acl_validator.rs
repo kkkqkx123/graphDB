@@ -56,7 +56,7 @@ impl CreateUserValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &CreateUserStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: CreateUserStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
         self.password = stmt.password.clone();
         self.role = stmt.role.clone();
@@ -111,7 +111,7 @@ impl CreateUserValidator {
 impl StatementValidator for CreateUserValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let create_user_stmt = match stmt {
@@ -188,7 +188,7 @@ impl DropUserValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &DropUserStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: DropUserStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
         self.if_exists = stmt.if_exists;
 
@@ -218,7 +218,7 @@ impl DropUserValidator {
 impl StatementValidator for DropUserValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let drop_user_stmt = match stmt {
@@ -299,7 +299,7 @@ impl AlterUserValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &AlterUserStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: AlterUserStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
         self.password = stmt.password.clone();
         self.new_role = stmt.new_role.clone();
@@ -344,7 +344,7 @@ impl AlterUserValidator {
 impl StatementValidator for AlterUserValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let alter_user_stmt = match stmt {
@@ -423,7 +423,7 @@ impl ChangePasswordValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &ChangePasswordStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: ChangePasswordStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
         self.old_password = stmt.old_password.clone();
         self.new_password = stmt.new_password.clone();
@@ -463,7 +463,7 @@ impl ChangePasswordValidator {
 impl StatementValidator for ChangePasswordValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let change_password_stmt = match stmt {
@@ -550,7 +550,7 @@ impl GrantValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &GrantStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: GrantStmt) -> Result<(), ValidationError> {
         self.role = stmt.role;
         self.space_name = stmt.space_name.clone();
         self.username = stmt.username.clone();
@@ -590,7 +590,7 @@ impl GrantValidator {
 impl StatementValidator for GrantValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let grant_stmt = match stmt {
@@ -669,7 +669,7 @@ impl RevokeValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &RevokeStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: RevokeStmt) -> Result<(), ValidationError> {
         self.role = stmt.role;
         self.space_name = stmt.space_name.clone();
         self.username = stmt.username.clone();
@@ -709,7 +709,7 @@ impl RevokeValidator {
 impl StatementValidator for RevokeValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let revoke_stmt = match stmt {
@@ -785,7 +785,7 @@ impl DescribeUserValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &DescribeUserStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: DescribeUserStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
 
         // 验证用户名非空
@@ -807,7 +807,7 @@ impl DescribeUserValidator {
 impl StatementValidator for DescribeUserValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let describe_user_stmt = match stmt {
@@ -880,7 +880,7 @@ impl ShowUsersValidator {
         }
     }
 
-    fn validate_impl(&mut self, _stmt: &ShowUsersStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, _stmt: ShowUsersStmt) -> Result<(), ValidationError> {
         Ok(())
     }
 }
@@ -892,7 +892,7 @@ impl ShowUsersValidator {
 impl StatementValidator for ShowUsersValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let show_users_stmt = match stmt {
@@ -968,14 +968,14 @@ impl ShowRolesValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &ShowRolesStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: ShowRolesStmt) -> Result<(), ValidationError> {
         self.space_name = stmt.space_name.clone();
         Ok(())
     }
 }
 
 impl StatementValidator for ShowRolesValidator {
-    fn validate(&mut self, stmt: &crate::query::parser::ast::Stmt, _qctx: Arc<QueryContext>) -> Result<ValidationResult, ValidationError> {
+    fn validate(&mut self, stmt: crate::query::parser::ast::Stmt, _qctx: Arc<QueryContext>) -> Result<ValidationResult, ValidationError> {
         let show_roles_stmt = match stmt {
             crate::query::parser::ast::Stmt::ShowRoles(s) => s,
             _ => {

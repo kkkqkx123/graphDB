@@ -269,7 +269,7 @@ impl Default for YieldValidator {
 impl StatementValidator for YieldValidator {
     fn validate(
         &mut self,
-        _stmt: &crate::query::parser::ast::Stmt,
+        _stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态

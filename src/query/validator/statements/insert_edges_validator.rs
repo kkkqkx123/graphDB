@@ -276,7 +276,7 @@ impl Default for InsertEdgesValidator {
 impl StatementValidator for InsertEdgesValidator {
     fn validate(
         &mut self,
-        stmt: &Stmt,
+        stmt: Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -452,7 +452,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "Edge type name cannot be empty");
@@ -474,7 +474,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Duplicate property name"));
@@ -493,7 +493,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Value count mismatch"));
@@ -512,7 +512,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("source vertex ID cannot be empty"));
@@ -531,7 +531,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("destination vertex ID cannot be empty"));
@@ -550,7 +550,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -567,7 +567,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -584,7 +584,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("source vertex ID must be a string constant or variable"));
@@ -603,7 +603,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -620,7 +620,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -637,7 +637,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Rank must be an integer constant or variable"));
@@ -659,7 +659,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -676,7 +676,7 @@ mod tests {
         };
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Insert(stmt), qctx);
+        let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Expected INSERT EDGES but got INSERT VERTICES"));

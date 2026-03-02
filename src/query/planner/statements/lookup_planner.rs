@@ -15,7 +15,6 @@ use crate::query::parser::ast::{LookupStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
-use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::index::Index;
 use std::sync::Arc;
 

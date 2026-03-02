@@ -134,7 +134,7 @@ impl RemoveValidator {
         Ok(())
     }
 
-    fn validate_impl(&mut self, stmt: &RemoveStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: RemoveStmt) -> Result<(), ValidationError> {
         // 验证至少有一个移除项
         if stmt.items.is_empty() {
             return Err(ValidationError::new(
@@ -188,7 +188,7 @@ impl Default for RemoveValidator {
 impl StatementValidator for RemoveValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let remove_stmt = match stmt {

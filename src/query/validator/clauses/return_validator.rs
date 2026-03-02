@@ -250,7 +250,7 @@ impl ReturnValidator {
         Ok(())
     }
 
-    fn validate_impl(&mut self, stmt: &ReturnStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: ReturnStmt) -> Result<(), ValidationError> {
         // 验证返回项
         if stmt.items.is_empty() {
             return Err(ValidationError::new(
@@ -303,7 +303,7 @@ impl Default for ReturnValidator {
 impl StatementValidator for ReturnValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let return_stmt = match stmt {

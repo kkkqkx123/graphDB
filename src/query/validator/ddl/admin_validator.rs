@@ -66,7 +66,7 @@ impl ShowValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &ShowStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: ShowStmt) -> Result<(), ValidationError> {
         self.target_type = match &stmt.target {
             ShowTarget::Spaces => ShowTargetType::Spaces,
             ShowTarget::Tags => ShowTargetType::Tags,
@@ -141,7 +141,7 @@ impl ShowValidator {
 impl StatementValidator for ShowValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let show_stmt = match stmt {
@@ -234,7 +234,7 @@ impl DescValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &DescStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: DescStmt) -> Result<(), ValidationError> {
         match &stmt.target {
             DescTarget::Space(name) => {
                 self.target_type = DescTargetType::Space;
@@ -287,7 +287,7 @@ impl DescValidator {
 impl StatementValidator for DescValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let desc_stmt = match stmt {
@@ -370,7 +370,7 @@ impl ShowCreateValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &ShowCreateStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: ShowCreateStmt) -> Result<(), ValidationError> {
         match &stmt.target {
             ShowCreateTarget::Space(name) => {
                 self.target_type = ShowCreateTargetType::Space;
@@ -406,7 +406,7 @@ impl ShowCreateValidator {
 impl StatementValidator for ShowCreateValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let show_create_stmt = match stmt {
@@ -479,7 +479,7 @@ impl ShowConfigsValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &ShowConfigsStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: ShowConfigsStmt) -> Result<(), ValidationError> {
         self.module = stmt.module.clone();
         
         self.outputs = vec![
@@ -499,7 +499,7 @@ impl ShowConfigsValidator {
 impl StatementValidator for ShowConfigsValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let show_configs_stmt = match stmt {
@@ -576,7 +576,7 @@ impl ShowSessionsValidator {
         }
     }
 
-    fn validate_impl(&mut self, _stmt: &ShowSessionsStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, _stmt: ShowSessionsStmt) -> Result<(), ValidationError> {
         Ok(())
     }
 }
@@ -588,7 +588,7 @@ impl ShowSessionsValidator {
 impl StatementValidator for ShowSessionsValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let show_sessions_stmt = match stmt {
@@ -665,7 +665,7 @@ impl ShowQueriesValidator {
         }
     }
 
-    fn validate_impl(&mut self, _stmt: &ShowQueriesStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, _stmt: ShowQueriesStmt) -> Result<(), ValidationError> {
         Ok(())
     }
 }
@@ -677,7 +677,7 @@ impl ShowQueriesValidator {
 impl StatementValidator for ShowQueriesValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let show_queries_stmt = match stmt {
@@ -754,7 +754,7 @@ impl KillQueryValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &KillQueryStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: KillQueryStmt) -> Result<(), ValidationError> {
         self.session_id = stmt.session_id;
         self.plan_id = stmt.plan_id;
         Ok(())
@@ -768,7 +768,7 @@ impl KillQueryValidator {
 impl StatementValidator for KillQueryValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let kill_query_stmt = match stmt {

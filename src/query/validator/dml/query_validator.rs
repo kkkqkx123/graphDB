@@ -76,7 +76,7 @@ impl Default for QueryValidator {
 impl StatementValidator for QueryValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let query_stmt = match stmt {
@@ -89,13 +89,18 @@ impl StatementValidator for QueryValidator {
             }
         };
 
-        self.validate_impl(query_stmt)?;
+        // 验证实现（在移动 query_stmt 之前）
+        self.validate_impl(&query_stmt)?;
+
+        // 提取第一个语句
+        let first_stmt = query_stmt.statements.into_iter().next()
+            .ok_or_else(|| ValidationError::new(
+                "Query must contain at least one statement".to_string(),
+                ValidationErrorType::SemanticError,
+            ))?;
 
         let inner = self.inner_validator.as_mut()
             .expect("inner_validator should be set after validate_impl");
-
-        let first_stmt = query_stmt.statements.first()
-            .expect("validate_impl already checked statements is not empty");
 
         let result = inner.validate(first_stmt, qctx.clone());
 

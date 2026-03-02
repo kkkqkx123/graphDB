@@ -668,7 +668,7 @@ impl MatchValidator {
 impl StatementValidator for MatchValidator {
     fn validate(
         &mut self,
-        stmt: &Stmt,
+        stmt: Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -679,9 +679,9 @@ impl StatementValidator for MatchValidator {
             ));
         }
 
-        // 2. 获取 MATCH 语句
+        // 2. 获取 MATCH 语句（拥有所有权）
         let match_stmt = match stmt {
-            Stmt::Match(m) => m.clone(),
+            Stmt::Match(m) => m,
             _ => {
                 return Err(ValidationError::new(
                     "期望 MATCH 语句".to_string(),

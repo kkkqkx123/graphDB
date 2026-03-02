@@ -306,7 +306,7 @@ impl Default for FetchEdgesValidator {
 impl StatementValidator for FetchEdgesValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -329,7 +329,7 @@ impl StatementValidator for FetchEdgesValidator {
         };
 
         // 3. 执行基础验证
-        self.validate_fetch_edges(fetch_stmt)?;
+        self.validate_fetch_edges(&fetch_stmt)?;
 
         // 4. 获取 space_id
         let space_id = qctx.space_id().unwrap_or(0);

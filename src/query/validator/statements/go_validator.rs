@@ -336,7 +336,7 @@ impl Default for GoValidator {
 impl StatementValidator for GoValidator {
     fn validate(
         &mut self,
-        stmt: &Stmt,
+        stmt: Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -539,7 +539,7 @@ mod tests {
         );
         
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Go(go_stmt), qctx);
+        let result = validator.validate(Stmt::Go(go_stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -553,7 +553,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Go(go_stmt), qctx);
+        let result = validator.validate(Stmt::Go(go_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("OVER 子句必须指定至少一条边"));
@@ -584,7 +584,7 @@ mod tests {
         });
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Go(go_stmt), qctx);
+        let result = validator.validate(Stmt::Go(go_stmt), qctx);
         assert!(result.is_ok());
         
         let outputs = validator.outputs();
@@ -621,7 +621,7 @@ mod tests {
         });
 
         let qctx = create_test_query_context();
-        let result = validator.validate(&Stmt::Go(go_stmt), qctx);
+        let result = validator.validate(Stmt::Go(go_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("重复出现"));

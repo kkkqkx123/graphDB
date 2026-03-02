@@ -64,7 +64,7 @@ impl DropValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &DropStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: DropStmt) -> Result<(), ValidationError> {
         self.if_exists = stmt.if_exists;
 
         match &stmt.target {
@@ -181,7 +181,7 @@ impl DropValidator {
 impl StatementValidator for DropValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let drop_stmt = match stmt {

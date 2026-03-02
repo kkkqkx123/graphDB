@@ -251,7 +251,7 @@ impl Default for PipeValidator {
 impl StatementValidator for PipeValidator {
     fn validate(
         &mut self,
-        _stmt: &crate::query::parser::ast::Stmt,
+        _stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         self.clear_errors();

@@ -260,7 +260,7 @@ impl Default for SequentialValidator {
 impl StatementValidator for SequentialValidator {
     fn validate(
         &mut self,
-        _stmt: &crate::query::parser::ast::Stmt,
+        _stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         self.clear_errors();

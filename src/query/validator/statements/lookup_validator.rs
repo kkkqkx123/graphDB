@@ -359,7 +359,7 @@ impl Default for LookupValidator {
 impl StatementValidator for LookupValidator {
     fn validate(
         &mut self,
-        stmt: &Stmt,
+        stmt: Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -371,7 +371,7 @@ impl StatementValidator for LookupValidator {
         }
 
         // 2. 从 Stmt 解析 LOOKUP 语句
-        let parsed_info = self.parse_from_stmt(stmt)?;
+        let parsed_info = self.parse_from_stmt(&stmt)?;
 
         // 3. 获取当前空间名称
         let space_name = qctx.space_name().unwrap_or_default();
@@ -555,7 +555,7 @@ mod tests {
         let lookup_stmt = create_simple_lookup_stmt("person", false);
         let qctx = create_test_query_context();
 
-        let result = validator.validate(&Stmt::Lookup(lookup_stmt), qctx);
+        let result = validator.validate(Stmt::Lookup(lookup_stmt), qctx);
         // 当前会失败，因为没有 YIELD 列且不是 YIELD *
         assert!(result.is_err());
     }
@@ -566,7 +566,7 @@ mod tests {
         let lookup_stmt = create_simple_lookup_stmt("", false);
         let qctx = create_test_query_context();
 
-        let result = validator.validate(&Stmt::Lookup(lookup_stmt), qctx);
+        let result = validator.validate(Stmt::Lookup(lookup_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("必须指定"));
@@ -578,7 +578,7 @@ mod tests {
         let qctx = create_test_query_context();
         // 不设置 LOOKUP 语句
 
-        let result = validator.validate(&Stmt::Use(crate::query::parser::ast::stmt::UseStmt {
+        let result = validator.validate(Stmt::Use(crate::query::parser::ast::stmt::UseStmt {
             span: Span::default(),
             space: "test".to_string(),
         }), qctx);

@@ -662,7 +662,7 @@ impl Default for CreateValidator {
 impl StatementValidator for CreateValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态
@@ -702,7 +702,7 @@ impl StatementValidator for CreateValidator {
             .unwrap_or_default();
 
         // 步骤 3: 执行具体验证逻辑
-        if let Err(e) = self.validate_impl(create_stmt, &space_name) {
+        if let Err(e) = self.validate_impl(&create_stmt, &space_name) {
             self.add_error(e);
         }
 

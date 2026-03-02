@@ -54,7 +54,7 @@ impl ExplainValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &ExplainStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: ExplainStmt) -> Result<(), ValidationError> {
         self.format = stmt.format.clone();
 
         // 验证内部语句
@@ -97,7 +97,7 @@ impl ExplainValidator {
 impl StatementValidator for ExplainValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let explain_stmt = match stmt {
@@ -110,11 +110,14 @@ impl StatementValidator for ExplainValidator {
             }
         };
 
+        // 提取内部语句（在移动之前）
+        let inner_stmt = *explain_stmt.statement.clone();
+
         self.validate_impl(explain_stmt)?;
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            let result = inner.validate(&explain_stmt.statement, qctx);
+            let result = inner.validate(inner_stmt, qctx);
             if !result.success {
                 return Err(result.errors.first().cloned().unwrap_or_else(|| {
                     ValidationError::new(
@@ -194,7 +197,7 @@ impl ProfileValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &ProfileStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: ProfileStmt) -> Result<(), ValidationError> {
         self.format = stmt.format.clone();
 
         // 验证内部语句
@@ -237,7 +240,7 @@ impl ProfileValidator {
 impl StatementValidator for ProfileValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let profile_stmt = match stmt {
@@ -250,11 +253,14 @@ impl StatementValidator for ProfileValidator {
             }
         };
 
+        // 提取内部语句（在移动之前）
+        let inner_stmt = *profile_stmt.statement.clone();
+
         self.validate_impl(profile_stmt)?;
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            let result = inner.validate(&profile_stmt.statement, qctx);
+            let result = inner.validate(inner_stmt, qctx);
             if !result.success {
                 return Err(result.errors.first().cloned().unwrap_or_else(|| {
                     ValidationError::new(

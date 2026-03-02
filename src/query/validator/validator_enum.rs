@@ -241,7 +241,7 @@ impl Validator {
     /// 验证语句
     pub fn validate(
         &mut self,
-        stmt: &Stmt,
+        stmt: Stmt,
         qctx: Arc<QueryContext>,
     ) -> ValidationResult {
         match self {

@@ -685,7 +685,7 @@ impl UpdateValidator {
 impl StatementValidator for UpdateValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -708,7 +708,7 @@ impl StatementValidator for UpdateValidator {
         };
 
         // 3. 验证 UPDATE 语句
-        if let Err(e) = self.validate_update_stmt(update_stmt) {
+        if let Err(e) = self.validate_update_stmt(&update_stmt) {
             return Err(ValidationError::new(
                 format!("UPDATE 验证失败: {}", e),
                 ValidationErrorType::SemanticError,

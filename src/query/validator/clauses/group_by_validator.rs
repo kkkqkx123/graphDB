@@ -59,7 +59,7 @@ impl GroupByValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &GroupByStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: GroupByStmt) -> Result<(), ValidationError> {
         // 验证分组键
         self.validate_group_keys(&stmt.group_items)?;
         
@@ -311,7 +311,7 @@ impl GroupByValidator {
 impl StatementValidator for GroupByValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let group_by_stmt = match stmt {

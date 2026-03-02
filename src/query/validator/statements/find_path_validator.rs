@@ -120,7 +120,7 @@ impl Default for FindPathValidator {
 impl StatementValidator for FindPathValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -131,9 +131,9 @@ impl StatementValidator for FindPathValidator {
             ));
         }
 
-        // 2. 获取 FIND PATH 语句
+        // 2. 获取 FIND PATH 语句（拥有所有权）
         let find_path_stmt = match stmt {
-            crate::query::parser::ast::Stmt::FindPath(find_path_stmt) => find_path_stmt,
+            crate::query::parser::ast::Stmt::FindPath(s) => s,
             _ => {
                 return Err(ValidationError::new(
                     "Expected FIND PATH statement".to_string(),
@@ -143,7 +143,7 @@ impl StatementValidator for FindPathValidator {
         };
 
         // 3. 执行基础验证
-        self.validate_find_path(find_path_stmt)?;
+        self.validate_find_path(&find_path_stmt)?;
 
         // 4. 验证 YIELD 子句
         self.validate_yield_clause(&find_path_stmt.yield_clause)?;
@@ -151,27 +151,27 @@ impl StatementValidator for FindPathValidator {
         // 5. 获取 space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 6. 创建验证结果
+        // 6. 创建验证结果（直接移动所有权，无需 clone）
         let validated = ValidatedFindPath {
             space_id,
-            from: find_path_stmt.from.clone(),
-            to: find_path_stmt.to.clone(),
-            over: find_path_stmt.over.clone(),
-            where_clause: find_path_stmt.where_clause.clone(),
+            from: find_path_stmt.from,
+            to: find_path_stmt.to,
+            over: find_path_stmt.over,
+            where_clause: find_path_stmt.where_clause,
             shortest: find_path_stmt.shortest,
             max_steps: find_path_stmt.max_steps,
             limit: find_path_stmt.limit,
             offset: find_path_stmt.offset,
-            yield_clause: find_path_stmt.yield_clause.clone(),
-            weight_expression: find_path_stmt.weight_expression.clone(),
-            heuristic_expression: find_path_stmt.heuristic_expression.clone(),
+            yield_clause: find_path_stmt.yield_clause,
+            weight_expression: find_path_stmt.weight_expression,
+            heuristic_expression: find_path_stmt.heuristic_expression,
             with_loop: find_path_stmt.with_loop,
             with_cycle: find_path_stmt.with_cycle,
         };
 
         // 7. 设置输出列
         self.outputs.clear();
-        if let Some(ref yc) = find_path_stmt.yield_clause {
+        if let Some(ref yc) = validated.yield_clause {
             for item in &yc.items {
                 let col_name = item.alias.clone()
                     .unwrap_or_else(|| format!("{:?}", item.expression));

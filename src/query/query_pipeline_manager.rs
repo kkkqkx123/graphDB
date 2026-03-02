@@ -102,7 +102,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         ));
 
         // 验证查询并获取验证信息
-        let validation_info = self.validate_query(query_context.clone(), &parser_result.stmt)?;
+        let validation_info = self.validate_query(query_context.clone(), parser_result.stmt.clone())?;
         query_context.set_validation_info(validation_info.clone());
 
         // 创建验证后的语句
@@ -133,7 +133,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let parser_result = self.parse_into_context(query_text)?;
 
         // 验证查询并获取验证信息
-        let validation_info = self.validate_query(query_context.clone(), &parser_result.stmt)?;
+        let validation_info = self.validate_query(query_context.clone(), parser_result.stmt.clone())?;
         query_context.set_validation_info(validation_info.clone());
 
         // 创建验证后的语句
@@ -189,7 +189,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
         
         let validate_start = Instant::now();
-        let validation_info = match self.validate_query(query_context.clone(), &parser_result.stmt) {
+        let validation_info = match self.validate_query(query_context.clone(), parser_result.stmt.clone()) {
             Ok(info) => info,
             Err(e) => {
                 profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
@@ -304,9 +304,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     fn validate_query(
         &mut self,
         query_context: Arc<QueryContext>,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
     ) -> DBResult<ValidationInfo> {
-        let mut validator = crate::query::validator::Validator::create_from_stmt(stmt)
+        let mut validator = crate::query::validator::Validator::create_from_stmt(&stmt)
             .ok_or_else(|| {
                 DBError::from(QueryError::InvalidQuery(format!(
                     "不支持的语句类型: {:?}",

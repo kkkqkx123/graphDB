@@ -422,11 +422,11 @@ pub trait StatementValidator {
     /// 返回包含详细验证信息的验证结果
     ///
     /// # 参数
-    /// - `stmt`: 要验证的语句
+    /// - `stmt`: 要验证的语句（拥有所有权）
     /// - `qctx`: 查询上下文，包含符号表、空间信息等
     fn validate(
         &mut self,
-        _stmt: &Stmt,
+        _stmt: Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 默认实现：构建基本的 ValidationInfo

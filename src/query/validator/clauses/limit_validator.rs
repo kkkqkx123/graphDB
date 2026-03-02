@@ -216,7 +216,7 @@ impl Default for LimitValidator {
 impl StatementValidator for LimitValidator {
     fn validate(
         &mut self,
-        _stmt: &crate::query::parser::ast::Stmt,
+        _stmt: crate::query::parser::ast::Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -323,7 +323,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
         let validated = validator.validated_result.expect("Failed to get validated result");
@@ -352,7 +352,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
         let validated = validator.validated_result.expect("Failed to get validated result");
@@ -376,7 +376,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(Stmt::Use(use_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be negative"));
@@ -398,7 +398,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(Stmt::Use(use_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be negative"));
@@ -426,7 +426,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(Stmt::Use(use_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("greater than zero"));
@@ -448,7 +448,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(Stmt::Use(use_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("must be integer"));
@@ -480,7 +480,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
         let validated = validator.validated_result.expect("Failed to get validated result");

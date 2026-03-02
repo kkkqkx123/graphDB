@@ -104,7 +104,7 @@ impl UpdateConfigsValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &UpdateConfigsStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: UpdateConfigsStmt) -> Result<(), ValidationError> {
         // 验证模块名
         self.validate_module(&stmt.module)?;
 
@@ -156,7 +156,7 @@ impl Default for UpdateConfigsValidator {
 impl StatementValidator for UpdateConfigsValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let update_configs_stmt = match stmt {

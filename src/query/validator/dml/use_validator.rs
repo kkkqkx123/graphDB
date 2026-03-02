@@ -190,7 +190,7 @@ impl Default for UseValidator {
 impl StatementValidator for UseValidator {
     fn validate(
         &mut self,
-        stmt: &Stmt,
+        stmt: Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态

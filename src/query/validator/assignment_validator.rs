@@ -48,7 +48,7 @@ impl AssignmentValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &AssignmentStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: AssignmentStmt) -> Result<(), ValidationError> {
         // 验证变量名
         self.variable = stmt.variable.clone();
         self.validate_variable_name(&self.variable)?;
@@ -124,7 +124,7 @@ impl AssignmentValidator {
 impl StatementValidator for AssignmentValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let assignment_stmt = match stmt {
@@ -137,11 +137,14 @@ impl StatementValidator for AssignmentValidator {
             }
         };
 
+        // 提取内部语句（在移动之前）
+        let inner_stmt = *assignment_stmt.statement.clone();
+
         self.validate_impl(assignment_stmt)?;
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            let result = inner.validate(&assignment_stmt.statement, qctx);
+            let result = inner.validate(inner_stmt, qctx);
 
             if result.success {
                 // 赋值语句的输出与内部语句相同

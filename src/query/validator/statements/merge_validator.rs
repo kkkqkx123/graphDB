@@ -412,7 +412,7 @@ impl MergeValidator {
         Ok(())
     }
 
-    fn validate_impl(&mut self, stmt: &MergeStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: MergeStmt) -> Result<(), ValidationError> {
         // 验证模式
         self.validate_pattern(&stmt.pattern)?;
 
@@ -461,7 +461,7 @@ impl Default for MergeValidator {
 impl StatementValidator for MergeValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let merge_stmt = match stmt {

@@ -69,7 +69,7 @@ impl AlterValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &AlterStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: AlterStmt) -> Result<(), ValidationError> {
         match &stmt.target {
             AlterTarget::Tag { tag_name, additions, deletions, changes } => {
                 self.target_type = AlterTargetType::Tag;
@@ -298,7 +298,7 @@ impl AlterValidator {
 impl StatementValidator for AlterValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let alter_stmt = match stmt {

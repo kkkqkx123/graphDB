@@ -51,7 +51,7 @@ impl SetOperationValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &SetOperationStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: SetOperationStmt) -> Result<(), ValidationError> {
         self.op_type = stmt.op_type.clone();
 
         // 创建左子查询验证器
@@ -210,7 +210,7 @@ impl SetOperationValidator {
 impl StatementValidator for SetOperationValidator {
     fn validate(
         &mut self,
-        stmt: &crate::query::parser::ast::Stmt,
+        stmt: crate::query::parser::ast::Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let set_op_stmt = match stmt {
@@ -223,11 +223,15 @@ impl StatementValidator for SetOperationValidator {
             }
         };
         
+        // 提取左右子查询语句
+        let left_stmt = *set_op_stmt.left.clone();
+        let right_stmt = *set_op_stmt.right.clone();
+        
         self.validate_impl(set_op_stmt)?;
         
         // 验证左右子查询
         let left_outputs = if let Some(ref mut left) = self.left_validator {
-            let result = left.validate(&set_op_stmt.left, qctx.clone());
+            let result = left.validate(left_stmt, qctx.clone());
             if result.success {
                 result.outputs
             } else {
@@ -243,7 +247,7 @@ impl StatementValidator for SetOperationValidator {
         };
 
         let right_outputs = if let Some(ref mut right) = self.right_validator {
-            let result = right.validate(&set_op_stmt.right, qctx.clone());
+            let result = right.validate(right_stmt, qctx.clone());
             if result.success {
                 result.outputs
             } else {
