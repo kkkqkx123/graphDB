@@ -901,6 +901,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     } else {
                         Some(node.edge_types().to_vec())
                     },
+                    node.any_edge_type(),
                     node.step_limit().and_then(|s| usize::try_from(s).ok()),
                 );
                 Ok(ExecutorEnum::ExpandAll(executor))

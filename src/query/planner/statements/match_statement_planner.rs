@@ -384,15 +384,22 @@ impl MatchStatementPlanner {
         edge: &crate::query::parser::ast::pattern::EdgePattern,
         space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
-        // 确定边方向
         let direction = match edge.direction {
             crate::query::parser::ast::types::EdgeDirection::Out => "out",
             crate::query::parser::ast::types::EdgeDirection::In => "in",
             crate::query::parser::ast::types::EdgeDirection::Both => "both",
         };
 
-        // 创建边扩展节点
-        let expand_node = ExpandAllNode::new(space_id, edge.edge_types.clone(), direction);
+        let edge_types = match &edge.edge_types {
+            types if !types.is_empty() => types.clone(),
+            _ => vec![],
+        };
+
+        let mut expand_node = ExpandAllNode::new(space_id, edge_types, direction);
+
+        if edge.edge_types.is_empty() {
+            expand_node.set_any_edge_type(true);
+        }
 
         let mut plan = SubPlan::from_root(expand_node.into_enum());
 

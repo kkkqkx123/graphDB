@@ -9,6 +9,8 @@
 
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{IndexInfo, SeekResult, SeekStrategyContext, SeekStrategyType};
+use crate::core::types::expression::visitor::ExpressionVisitor;
+use crate::core::types::expression::visitor_collectors::OrConditionCollector;
 use crate::core::{StorageError, Value};
 use crate::storage::StorageClient;
 
@@ -80,6 +82,33 @@ impl PropIndexSeek {
 
         for expr in expressions {
             if let Some(pred) = Self::extract_predicate(expr) {
+                predicates.push(pred);
+            }
+        }
+
+        predicates
+    }
+
+    /// 从表达式列表提取属性谓词，支持 OR 条件转换
+    pub fn extract_predicates_with_or(
+        expressions: &[crate::core::Expression],
+    ) -> Vec<PropertyPredicate> {
+        let mut predicates = Vec::new();
+
+        for expr in expressions {
+            let mut collector = OrConditionCollector::new();
+            collector.visit(expr);
+
+            if collector.can_convert_to_in() {
+                use crate::core::value::dataset::List;
+                predicates.push(PropertyPredicate {
+                    property: collector.property_name().expect("property_name should exist").clone(),
+                    op: PredicateOp::In,
+                    value: Value::List(List {
+                        values: collector.values().to_vec(),
+                    }),
+                });
+            } else if let Some(pred) = Self::extract_predicate(expr) {
                 predicates.push(pred);
             }
         }
@@ -333,5 +362,56 @@ mod tests {
         assert!(seek.value_matches(&Value::Int(20), &pred));
         assert!(!seek.value_matches(&Value::Int(18), &pred));
         assert!(!seek.value_matches(&Value::Int(15), &pred));
+    }
+
+    #[test]
+    fn test_extract_or_condition() {
+        let expr = Expression::binary(
+            Expression::binary(
+                Expression::property(Expression::variable("v"), "age"),
+                crate::core::BinaryOperator::Equal,
+                Expression::literal(10),
+            ),
+            crate::core::BinaryOperator::Or,
+            Expression::binary(
+                Expression::property(Expression::variable("v"), "age"),
+                crate::core::BinaryOperator::Equal,
+                Expression::literal(20),
+            ),
+        );
+
+        let preds = PropIndexSeek::extract_predicates_with_or(&[expr]);
+        assert_eq!(preds.len(), 1);
+
+        let pred = &preds[0];
+        assert_eq!(pred.property, "age");
+        assert_eq!(pred.op, PredicateOp::In);
+        if let Value::List(list) = &pred.value {
+            assert_eq!(list.values.len(), 2);
+            assert!(list.values.contains(&Value::Int(10)));
+            assert!(list.values.contains(&Value::Int(20)));
+        } else {
+            panic!("Expected List value");
+        }
+    }
+
+    #[test]
+    fn test_extract_or_condition_different_properties() {
+        let expr = Expression::binary(
+            Expression::binary(
+                Expression::property(Expression::variable("v"), "age"),
+                crate::core::BinaryOperator::Equal,
+                Expression::literal(10),
+            ),
+            crate::core::BinaryOperator::Or,
+            Expression::binary(
+                Expression::property(Expression::variable("v"), "name"),
+                crate::core::BinaryOperator::Equal,
+                Expression::literal("Alice"),
+            ),
+        );
+
+        let preds = PropIndexSeek::extract_predicates_with_or(&[expr]);
+        assert_eq!(preds.len(), 0);
     }
 }

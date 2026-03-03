@@ -28,9 +28,10 @@ impl GraphTraversalExecutorFactory {
         storage: Arc<Mutex<S>>,
         edge_direction: crate::query::executor::base::EdgeDirection,
         edge_types: Option<Vec<String>>,
+        any_edge_type: bool,
         max_depth: Option<usize>,
     ) -> ExpandAllExecutor<S> {
-        ExpandAllExecutor::new(id, storage, edge_direction, edge_types, max_depth)
+        ExpandAllExecutor::new(id, storage, edge_direction, edge_types, any_edge_type, max_depth)
     }
 
     /// 创建TraverseExecutor

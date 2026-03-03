@@ -90,6 +90,7 @@ define_plan_node! {
         space_id: u64,
         edge_types: Vec<String>,
         direction: String,
+        any_edge_type: bool,
         step_limit: Option<u32>,
         step_limits: Option<Vec<u32>>,
         join_input: bool,
@@ -111,6 +112,7 @@ impl ExpandAllNode {
             space_id,
             edge_types,
             direction: direction.to_string(),
+            any_edge_type: false,
             step_limit: None,
             step_limits: None,
             join_input: false,
@@ -122,6 +124,14 @@ impl ExpandAllNode {
             output_var: None,
             col_names: Vec::new(),
         }
+    }
+
+    pub fn set_any_edge_type(&mut self, any: bool) {
+        self.any_edge_type = any;
+    }
+
+    pub fn any_edge_type(&self) -> bool {
+        self.any_edge_type
     }
 
     pub fn step_limits(&self) -> Option<&Vec<u32>> {

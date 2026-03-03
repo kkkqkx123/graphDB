@@ -8,16 +8,68 @@ use crate::core::{StorageError, Vertex};
 use crate::storage::StorageClient;
 
 #[derive(Debug, Clone)]
-pub struct ScanSeek;
+pub struct ScanSeek {
+    any_label: bool,
+}
 
 impl ScanSeek {
     pub fn new() -> Self {
-        Self
+        Self { any_label: false }
+    }
+
+    pub fn with_any_label(mut self, any_label: bool) -> Self {
+        self.any_label = any_label;
+        self
     }
 }
 
 impl SeekStrategy for ScanSeek {
     fn execute<S: StorageClient>(
+        &self,
+        storage: &S,
+        context: &SeekStrategyContext,
+    ) -> Result<SeekResult, StorageError> {
+        if self.any_label {
+            self.scan_all_labels(storage, context)
+        } else {
+            self.scan_specific_labels(storage, context)
+        }
+    }
+
+    fn supports(&self, _context: &SeekStrategyContext) -> bool {
+        true
+    }
+}
+
+impl ScanSeek {
+    fn scan_all_labels<S: StorageClient>(
+        &self,
+        storage: &S,
+        context: &SeekStrategyContext,
+    ) -> Result<SeekResult, StorageError> {
+        let all_tags = storage.list_tags("default")?;
+        
+        let mut vertex_ids = Vec::new();
+        let mut rows_scanned = 0;
+
+        for tag in all_tags {
+            let vertices = storage.scan_vertices_by_tag("default", &tag.tag_name)?;
+            for vertex in vertices {
+                rows_scanned += 1;
+                if self.vertex_matches_pattern(&vertex, &context.node_pattern, true) {
+                    vertex_ids.push(vertex.vid().clone());
+                }
+            }
+        }
+
+        Ok(SeekResult {
+            vertex_ids,
+            strategy_used: SeekStrategyType::ScanSeek,
+            rows_scanned,
+        })
+    }
+
+    fn scan_specific_labels<S: StorageClient>(
         &self,
         storage: &S,
         context: &SeekStrategyContext,
@@ -28,7 +80,7 @@ impl SeekStrategy for ScanSeek {
 
         for vertex in vertices {
             rows_scanned += 1;
-            if self.vertex_matches_pattern(&vertex, &context.node_pattern) {
+            if self.vertex_matches_pattern(&vertex, &context.node_pattern, false) {
                 vertex_ids.push(vertex.vid().clone());
             }
         }
@@ -40,19 +92,22 @@ impl SeekStrategy for ScanSeek {
         })
     }
 
-    fn supports(&self, _context: &SeekStrategyContext) -> bool {
-        true
-    }
-}
-
-impl ScanSeek {
-    fn vertex_matches_pattern(&self, vertex: &Vertex, pattern: &NodePattern) -> bool {
+    fn vertex_matches_pattern(
+        &self,
+        vertex: &Vertex,
+        pattern: &NodePattern,
+        any_label: bool,
+    ) -> bool {
         if !pattern.labels.is_empty() {
             let has_all_labels = pattern
                 .labels
                 .iter()
                 .all(|label| vertex.tags.iter().any(|tag| tag.name == *label));
             if !has_all_labels {
+                return false;
+            }
+        } else if !any_label {
+            if vertex.tags.is_empty() {
                 return false;
             }
         }

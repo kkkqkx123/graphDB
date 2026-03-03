@@ -2,6 +2,7 @@
 //!
 //! 定义查找策略的基础类型和选择器
 
+use crate::core::types::expression::visitor_checkers::PropertyContainsChecker;
 use crate::core::types::Expression;
 use crate::core::Value;
 use crate::storage::StorageClient;
@@ -38,6 +39,32 @@ pub struct IndexInfo {
     pub target_type: String,
     pub target_name: String,
     pub properties: Vec<String>,
+    pub selectivity: f32,
+    pub field_count: usize,
+}
+
+impl IndexInfo {
+    pub fn new(
+        name: String,
+        target_type: String,
+        target_name: String,
+        properties: Vec<String>,
+    ) -> Self {
+        let field_count = properties.len();
+        Self {
+            name,
+            target_type,
+            target_name,
+            properties,
+            selectivity: 0.5,
+            field_count,
+        }
+    }
+
+    pub fn with_selectivity(mut self, selectivity: f32) -> Self {
+        self.selectivity = selectivity;
+        self
+    }
 }
 
 #[derive(Debug)]
@@ -127,6 +154,37 @@ impl SeekStrategySelector {
         self
     }
 
+    pub fn select_best_index<'a>(&self, indexes: &'a [IndexInfo], predicates: &[Expression]) -> Option<&'a IndexInfo> {
+        if indexes.is_empty() {
+            return None;
+        }
+
+        let candidate_indexes: Vec<&IndexInfo> = indexes
+            .iter()
+            .filter(|idx| {
+                idx.properties.iter().any(|prop| {
+                    predicates.iter().any(|pred| {
+                        PropertyContainsChecker::check(pred, &[prop.clone()])
+                    })
+                })
+            })
+            .collect();
+
+        if candidate_indexes.is_empty() {
+            return indexes.iter().min_by_key(|idx| idx.field_count);
+        }
+
+        candidate_indexes
+            .into_iter()
+            .min_by(|a, b| {
+                let field_cmp = a.field_count.cmp(&b.field_count);
+                if field_cmp != std::cmp::Ordering::Equal {
+                    return field_cmp;
+                }
+                b.selectivity.partial_cmp(&a.selectivity).unwrap_or(std::cmp::Ordering::Equal)
+            })
+    }
+
     pub fn select_strategy<S: StorageClient + ?Sized>(
         &self,
         _storage: &S,
@@ -135,8 +193,9 @@ impl SeekStrategySelector {
         if context.has_explicit_vid() {
             SeekStrategyType::VertexSeek
         } else if context.has_property_predicates() && context.has_index_for_properties() {
-            // 优先使用属性索引查找
             SeekStrategyType::PropIndexSeek
+        } else if context.node_pattern.labels.is_empty() {
+            SeekStrategyType::ScanSeek
         } else if let Some(_) = context.get_index_for_labels(&context.node_pattern.labels) {
             if context.estimated_rows < self.scan_threshold {
                 SeekStrategyType::IndexSeek

@@ -132,7 +132,10 @@ impl SeekStrategySelector {
                 };
                 self.create_edge_strategy(edge_pattern)
             }
-            SeekStrategyType::ScanSeek => AnySeekStrategy::ScanSeek(ScanSeek::new()),
+            SeekStrategyType::ScanSeek => {
+                let any_label = context.node_pattern.labels.is_empty();
+                AnySeekStrategy::ScanSeek(ScanSeek::new().with_any_label(any_label))
+            }
         };
         strategy.execute(storage, context)
     }

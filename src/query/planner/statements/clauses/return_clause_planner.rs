@@ -2,6 +2,7 @@
 //!
 //! 负责规划 RETURN 子句的执行，实现结果投影。
 
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
@@ -277,22 +278,32 @@ mod tests {
 
     #[test]
     fn test_generate_default_alias() {
+        let ctx = Arc::new(ExpressionContext::new());
         let expr = Expression::Variable("n".to_string());
-        let alias = generate_default_alias(&expr);
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let contextual = ContextualExpression::new(id, ctx.clone());
+        let alias = generate_default_alias_from_contextual(&contextual);
         assert_eq!(alias, "n");
 
         let expr = Expression::Property {
             object: Box::new(Expression::Variable("n".to_string())),
             property: "name".to_string(),
         };
-        let alias = generate_default_alias(&expr);
-        assert_eq!(alias, "n.name");
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let contextual = ContextualExpression::new(id, ctx.clone());
+        let alias = generate_default_alias_from_contextual(&contextual);
+        assert_eq!(alias, "prop.name");
 
         let expr = Expression::Function {
             name: "count".to_string(),
             args: vec![],
         };
-        let alias = generate_default_alias(&expr);
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let contextual = ContextualExpression::new(id, ctx.clone());
+        let alias = generate_default_alias_from_contextual(&contextual);
         assert_eq!(alias, "count");
     }
 

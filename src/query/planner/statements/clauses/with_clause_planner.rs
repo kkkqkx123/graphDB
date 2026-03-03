@@ -9,7 +9,6 @@
 //! 4. 分页：通过 SKIP/LIMIT 限制结果数量
 //! 5. 作用域重置：只保留输出的变量，其他变量不可见
 
-use crate::core::Expression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};

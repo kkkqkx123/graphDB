@@ -3,7 +3,7 @@
 //! 该规则识别 Traverse/AppendVertices 节点中的 vFilter，
 //! 并将可下推的过滤条件下推到数据源。
 
-use crate::core::types::{ContextualExpression, ExpressionMeta};
+use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::traversal_node::TraverseNode;

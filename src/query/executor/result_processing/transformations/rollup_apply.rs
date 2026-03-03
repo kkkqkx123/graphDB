@@ -8,8 +8,7 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::dataset::List;
-use crate::core::Expression;
-use crate::core::{DataSet, Value};
+use crate::core::{DataSet, Expression, Path, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
@@ -26,6 +25,7 @@ pub struct RollUpApplyExecutor<S: StorageClient + Send + 'static> {
     collect_col: Expression,
     col_names: Vec<String>,
     movable: bool,
+    path_mode: bool,
 }
 
 impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
@@ -46,6 +46,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
             collect_col,
             col_names,
             movable: false,
+            path_mode: false,
         }
     }
 
@@ -72,7 +73,62 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
             collect_col,
             col_names,
             movable: false,
+            path_mode: false,
         }
+    }
+
+    pub fn with_path_mode(mut self, path_mode: bool) -> Self {
+        self.path_mode = path_mode;
+        self
+    }
+
+    fn build_path(&self, values: &[Value]) -> DBResult<Path> {
+        let first_value = values.get(0).ok_or_else(|| {
+            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                "Path must have at least one vertex".to_string(),
+            ))
+        })?;
+
+        let first_vertex = match first_value {
+            Value::Vertex(v) => v.as_ref().clone(),
+            _ => {
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "First value must be a vertex".to_string(),
+                    ),
+                ))
+            }
+        };
+
+        let mut path = Path::new(first_vertex);
+
+        for value in values.iter().skip(1) {
+            match value {
+                Value::Edge(edge) => {
+                    path.add_step(crate::core::vertex_edge_path::Step::new_with_edge(
+                        crate::core::vertex_edge_path::Vertex::with_vid(edge.dst().clone()),
+                        edge.clone(),
+                    ));
+                }
+                Value::Vertex(vertex) => {
+                    path.add_step(crate::core::vertex_edge_path::Step::new(
+                        vertex.as_ref().clone(),
+                        String::new(),
+                        String::new(),
+                        0,
+                    ));
+                }
+                _ => {
+                    return Err(DBError::Query(
+                        crate::core::error::QueryError::ExecutionError(
+                            format!("Invalid path element: {:?}", value),
+                        ),
+                    ))
+                }
+            }
+        }
+
+        Ok(path)
     }
 
     fn check_bi_input_data_sets(&self) -> DBResult<()> {
@@ -219,7 +275,12 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
                 row.push(value.clone());
             }
 
-            row.push(Value::List(hash_table.clone()));
+            if self.path_mode {
+                let path = self.build_path(&hash_table.values)?;
+                row.push(Value::Path(path));
+            } else {
+                row.push(Value::List(hash_table.clone()));
+            }
             dataset.rows.push(row);
         }
 
@@ -262,7 +323,12 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
                 row.push(key_val.clone());
             }
 
-            row.push(Value::List(vals));
+            if self.path_mode {
+                let path = self.build_path(&vals.values)?;
+                row.push(Value::Path(path));
+            } else {
+                row.push(Value::List(vals));
+            }
             dataset.rows.push(row);
         }
 
@@ -307,7 +373,12 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
                 row.push(value.clone());
             }
 
-            row.push(Value::List(vals));
+            if self.path_mode {
+                let path = self.build_path(&vals.values)?;
+                row.push(Value::Path(path));
+            } else {
+                row.push(Value::List(vals));
+            }
             dataset.rows.push(row);
         }
 

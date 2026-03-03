@@ -103,6 +103,7 @@ mod tests {
             storage,
             EdgeDirection::Both,
             None,
+            false,
             Some(2),
         );
 

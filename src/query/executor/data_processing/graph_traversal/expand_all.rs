@@ -20,7 +20,8 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
-    pub max_depth: Option<usize>, // 最大扩展深度
+    pub any_edge_type: bool,
+    pub max_depth: Option<usize>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
     // 使用 NPath 缓存中间结果，减少内存复制
     npath_cache: Vec<Arc<NPath>>,
@@ -51,12 +52,14 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         storage: Arc<Mutex<S>>,
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
+        any_edge_type: bool,
         max_depth: Option<usize>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ExpandAllExecutor".to_string(), storage),
             edge_direction,
             edge_types,
+            any_edge_type,
             max_depth,
             input_executor: None,
             npath_cache: Vec::new(),
@@ -67,12 +70,17 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
     fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
         let storage = self.base.get_storage().clone();
+        let edge_types = if self.any_edge_type {
+            None
+        } else {
+            self.edge_types.clone()
+        };
         super::traversal_utils::get_neighbors_with_edges(
             &storage,
             node_id,
             self.edge_direction,
-            &self.edge_types,
-            false, // 默认不允许自环边
+            &edge_types,
+            false,
         )
         .map_err(|e| QueryError::StorageError(e.to_string()))
     }

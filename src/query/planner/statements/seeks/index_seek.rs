@@ -102,12 +102,12 @@ mod tests {
             },
             vec![],
         )
-        .with_indexes(vec![IndexInfo {
-            name: "idx_person_name".to_string(),
-            target_type: "tag".to_string(),
-            target_name: "person".to_string(),
-            properties: vec!["name".to_string()],
-        }]);
+        .with_indexes(vec![IndexInfo::new(
+            "idx_person_name".to_string(),
+            "tag".to_string(),
+            "person".to_string(),
+            vec!["name".to_string()],
+        )]);
         assert!(seek.supports(&context));
     }
 
