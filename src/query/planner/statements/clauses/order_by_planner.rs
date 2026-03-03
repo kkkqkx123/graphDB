@@ -83,10 +83,229 @@ impl ClausePlanner for OrderByClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::ExpressionContext;
+    use crate::core::Expression;
+    use crate::core::types::OrderDirection;
+    use crate::query::parser::ast::{OrderByItem, Span};
+    use crate::query::planner::plan::core::nodes::StartNode;
+    use crate::query::planner::plan::core::PlanNodeEnum;
+    use std::sync::Arc;
 
     #[test]
     fn test_order_by_clause_planner_creation() {
         let planner = OrderByClausePlanner::new();
         assert_eq!(planner.clause_kind(), CypherClauseKind::OrderBy);
+    }
+
+    #[test]
+    fn test_extract_order_by_items() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("age".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: Some(crate::query::parser::ast::stmt::OrderByClause {
+                span: Span::default(),
+                items: vec![OrderByItem {
+                    expression: ctx_expr.clone(),
+                    direction: OrderDirection::Asc,
+                }],
+            }),
+            limit: None,
+            skip: None,
+            optional: false,
+        });
+
+        let items = extract_order_by_items(&match_stmt);
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].direction, OrderDirection::Asc);
+    }
+
+    #[test]
+    fn test_extract_order_by_items_empty() {
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: None,
+            skip: None,
+            optional: false,
+        });
+
+        let items = extract_order_by_items(&match_stmt);
+        assert_eq!(items.len(), 0);
+    }
+
+    #[test]
+    fn test_expression_to_string() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("age".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let result = expression_to_string(&ctx_expr);
+        assert_eq!(result, "age");
+    }
+
+    #[test]
+    fn test_expression_to_string_complex() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Property {
+            object: Box::new(Expression::Variable("n".to_string())),
+            property: "name".to_string(),
+        };
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let result = expression_to_string(&ctx_expr);
+        assert_eq!(result, "n.name");
+    }
+
+    #[test]
+    fn test_transform_clause() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("age".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: Some(crate::query::parser::ast::stmt::OrderByClause {
+                span: Span::default(),
+                items: vec![OrderByItem {
+                    expression: ctx_expr.clone(),
+                    direction: OrderDirection::Asc,
+                }],
+            }),
+            limit: None,
+            skip: None,
+            optional: false,
+        });
+
+        let start_node = StartNode::new();
+        let start_node_enum = PlanNodeEnum::Start(start_node.clone());
+        let input_plan = SubPlan {
+            root: Some(start_node_enum.clone()),
+            tail: Some(start_node_enum),
+        };
+
+        let planner = OrderByClausePlanner::new();
+        let qctx = Arc::new(crate::query::QueryContext::new(
+            Arc::new(crate::query::query_request_context::QueryRequestContext {
+                session_id: None,
+                user_name: None,
+                space_name: None,
+                query: String::new(),
+                parameters: std::collections::HashMap::new(),
+            })
+        ));
+
+        let result = planner.transform_clause(qctx, &match_stmt, input_plan);
+        assert!(result.is_ok());
+
+        let sub_plan = result.expect("transform_clause should succeed");
+        assert!(sub_plan.root.is_some());
+
+        if let Some(PlanNodeEnum::Sort(_)) = sub_plan.root {
+        } else {
+            panic!("Expected SortNode");
+        }
+    }
+
+    #[test]
+    fn test_transform_clause_empty_order_by() {
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: None,
+            skip: None,
+            optional: false,
+        });
+
+        let start_node = StartNode::new();
+        let start_node_enum = PlanNodeEnum::Start(start_node.clone());
+        let input_plan = SubPlan {
+            root: Some(start_node_enum.clone()),
+            tail: Some(start_node_enum),
+        };
+
+        let planner = OrderByClausePlanner::new();
+        let qctx = Arc::new(crate::query::QueryContext::new(
+            Arc::new(crate::query::query_request_context::QueryRequestContext {
+                session_id: None,
+                user_name: None,
+                space_name: None,
+                query: String::new(),
+                parameters: std::collections::HashMap::new(),
+            })
+        ));
+
+        let result = planner.transform_clause(qctx, &match_stmt, input_plan);
+        assert!(result.is_ok());
+
+        let sub_plan = result.expect("transform_clause should succeed");
+        assert!(sub_plan.root.is_some());
+    }
+
+    #[test]
+    fn test_transform_clause_empty_input_plan() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("age".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: Some(crate::query::parser::ast::stmt::OrderByClause {
+                span: Span::default(),
+                items: vec![OrderByItem {
+                    expression: ctx_expr.clone(),
+                    direction: OrderDirection::Asc,
+                }],
+            }),
+            limit: None,
+            skip: None,
+            optional: false,
+        });
+
+        let input_plan = SubPlan {
+            root: None,
+            tail: None,
+        };
+
+        let planner = OrderByClausePlanner::new();
+        let qctx = Arc::new(crate::query::QueryContext::new(
+            Arc::new(crate::query::query_request_context::QueryRequestContext {
+                session_id: None,
+                user_name: None,
+                space_name: None,
+                query: String::new(),
+                parameters: std::collections::HashMap::new(),
+            })
+        ));
+
+        let result = planner.transform_clause(qctx, &match_stmt, input_plan);
+        assert!(result.is_err());
     }
 }

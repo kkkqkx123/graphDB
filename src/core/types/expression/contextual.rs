@@ -150,6 +150,126 @@ impl ContextualExpression {
             .map(|e| e.contains_aggregate())
             .unwrap_or(false)
     }
+
+    /// 检查表达式是否为函数调用
+    pub fn is_function(&self) -> bool {
+        self.expression().map(|e| e.is_function()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为路径表达式
+    pub fn is_path(&self) -> bool {
+        self.expression().map(|e| e.is_path()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为路径构建表达式
+    pub fn is_path_build(&self) -> bool {
+        self.expression().map(|e| e.is_path_build()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为标签表达式
+    pub fn is_label(&self) -> bool {
+        self.expression().map(|e| e.is_label()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为二元表达式
+    pub fn is_binary(&self) -> bool {
+        self.expression().map(|e| e.is_binary()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为一元表达式
+    pub fn is_unary(&self) -> bool {
+        self.expression().map(|e| e.is_unary()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为类型转换表达式
+    pub fn is_type_cast(&self) -> bool {
+        self.expression().map(|e| e.is_type_cast()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为下标访问表达式
+    pub fn is_subscript(&self) -> bool {
+        self.expression().map(|e| e.is_subscript()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为范围表达式
+    pub fn is_range(&self) -> bool {
+        self.expression().map(|e| e.is_range()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为列表表达式
+    pub fn is_list(&self) -> bool {
+        self.expression().map(|e| e.is_list()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为映射表达式
+    pub fn is_map(&self) -> bool {
+        self.expression().map(|e| e.is_map()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为 Case 表达式
+    pub fn is_case(&self) -> bool {
+        self.expression().map(|e| e.is_case()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为 Reduce 表达式
+    pub fn is_reduce(&self) -> bool {
+        self.expression().map(|e| e.is_reduce()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为参数表达式
+    pub fn is_parameter(&self) -> bool {
+        self.expression().map(|e| e.is_parameter()).unwrap_or(false)
+    }
+
+    /// 检查表达式是否为列表推导式
+    pub fn is_list_comprehension(&self) -> bool {
+        self.expression().map(|e| e.is_list_comprehension()).unwrap_or(false)
+    }
+
+    /// 获取函数名（如果是函数调用）
+    pub fn as_function_name(&self) -> Option<String> {
+        self.expression().and_then(|e| e.as_function_name())
+    }
+
+    /// 获取属性名（如果是属性访问）
+    pub fn as_property_name(&self) -> Option<String> {
+        self.expression().and_then(|e| e.as_property_name())
+    }
+
+    /// 获取标签名（如果是标签表达式）
+    pub fn as_label_name(&self) -> Option<String> {
+        self.expression().and_then(|e| e.as_label_name())
+    }
+
+    /// 获取参数名（如果是参数表达式）
+    pub fn as_parameter_name(&self) -> Option<String> {
+        self.expression().and_then(|e| e.as_parameter_name())
+    }
+
+    /// 检查表达式是否为空字符串
+    pub fn is_empty_string(&self) -> bool {
+        self.as_literal()
+            .and_then(|v| match v {
+                Value::String(s) => Some(s.is_empty()),
+                _ => None,
+            })
+            .unwrap_or(false)
+    }
+
+    /// 检查表达式是否为 IS NOT EMPTY 条件
+    pub fn is_not_empty_condition(&self) -> bool {
+        let s = self.to_expression_string();
+        s.contains("IS NOT EMPTY") || s.contains("is not empty")
+    }
+
+    /// 比较两个表达式是否相等（基于表达式内容而非 ID）
+    pub fn equals_by_content(&self, other: &Self) -> bool {
+        if let (Some(expr1), Some(expr2)) = (self.expression(), other.expression()) {
+            expr1.inner() == expr2.inner()
+        } else {
+            false
+        }
+    }
 }
 
 impl PartialEq for ContextualExpression {

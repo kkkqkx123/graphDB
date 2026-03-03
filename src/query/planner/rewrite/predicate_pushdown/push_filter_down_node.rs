@@ -90,13 +90,7 @@ impl PushFilterDownNodeRule {
 
         // 如果没有可以下推的条件，则不进行转换
         let picked = match filter_picked {
-            Some(f) => {
-                let expr_meta = match f.expression() {
-                    Some(e) => e,
-                    None => return Ok(None),
-                };
-                expr_meta.inner().clone()
-            }
+            Some(f) => f,
             None => return Ok(None),
         };
 
@@ -108,27 +102,23 @@ impl PushFilterDownNodeRule {
 
         // 设置 firstStepFilter
         if let Some(existing) = traverse.first_step_filter() {
-            let existing_expr = match existing.expression() {
-                Some(meta) => meta.inner().clone(),
-                None => return Ok(None),
-            };
-            let combined = Expression::Binary {
-                left: Box::new(picked),
-                op: crate::core::types::operators::BinaryOperator::And,
-                right: Box::new(existing_expr),
-            };
-            new_traverse.set_first_step_filter_expression(combined, ctx.clone());
+            // 使用 ExpressionContext 的 and 方法组合表达式
+            if let Some(combined_ctx_expr) = ctx.and(&picked, &existing) {
+                new_traverse.set_first_step_filter(combined_ctx_expr);
+            }
         } else {
-            new_traverse.set_first_step_filter_expression(picked, ctx.clone());
+            // 克隆表达式并设置
+            if let Some(picked_ctx_expr) = ctx.clone_expression(&picked) {
+                new_traverse.set_first_step_filter(picked_ctx_expr);
+            }
         }
 
         // 更新 vFilter
         if let Some(remained) = filter_remained {
-            let remained_expr = match remained.expression() {
-                Some(meta) => meta.inner().clone(),
-                None => return Ok(None),
-            };
-            new_traverse.set_v_filter_expression(remained_expr, ctx);
+            // 克隆表达式并设置
+            if let Some(remained_ctx_expr) = ctx.clone_expression(&remained) {
+                new_traverse.set_v_filter(remained_ctx_expr);
+            }
         } else {
             new_traverse.set_v_filter(ContextualExpression::new(
                 crate::core::types::expression::ExpressionId::new(0),
@@ -166,13 +156,7 @@ impl PushFilterDownNodeRule {
 
         // 如果没有可以下推的条件，则不进行转换
         let picked = match filter_picked {
-            Some(f) => {
-                let expr_meta = match f.expression() {
-                    Some(e) => e,
-                    None => return Ok(None),
-                };
-                expr_meta.inner().clone()
-            }
+            Some(f) => f,
             None => return Ok(None),
         };
 
@@ -183,35 +167,24 @@ impl PushFilterDownNodeRule {
         let ctx = v_filter.context().clone();
 
         // 设置 filter
-        let picked_expr_meta = ExpressionMeta::new(picked.clone());
-        let picked_id = ctx.register_expression(picked_expr_meta);
-        let picked_ctx_expr = ContextualExpression::new(picked_id, ctx.clone());
-
         if let Some(existing) = append.filter() {
-            let existing_expr = match existing.expression() {
-                Some(meta) => meta.inner().clone(),
-                None => return Ok(None),
-            };
-            let combined = Expression::Binary {
-                left: Box::new(picked),
-                op: crate::core::types::operators::BinaryOperator::And,
-                right: Box::new(existing_expr),
-            };
-            let combined_meta = ExpressionMeta::new(combined);
-            let combined_id = ctx.register_expression(combined_meta);
-            let combined_ctx_expr = ContextualExpression::new(combined_id, ctx.clone());
-            new_append.set_filter(combined_ctx_expr);
+            // 使用 ExpressionContext 的 and 方法组合表达式
+            if let Some(combined_ctx_expr) = ctx.and(&picked, &existing) {
+                new_append.set_filter(combined_ctx_expr);
+            }
         } else {
-            new_append.set_filter(picked_ctx_expr);
+            // 克隆表达式并设置
+            if let Some(picked_ctx_expr) = ctx.clone_expression(&picked) {
+                new_append.set_filter(picked_ctx_expr);
+            }
         }
 
         // 更新 vFilter
         if let Some(remained) = filter_remained {
-            let remained_expr = match remained.expression() {
-                Some(meta) => meta.inner().clone(),
-                None => return Ok(None),
-            };
-            new_append.set_v_filter_expression(remained_expr, ctx);
+            // 克隆表达式并设置
+            if let Some(remained_ctx_expr) = ctx.clone_expression(&remained) {
+                new_append.set_v_filter(remained_ctx_expr);
+            }
         }
 
         // 构建转换结果

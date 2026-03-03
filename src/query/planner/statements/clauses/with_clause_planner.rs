@@ -272,7 +272,7 @@ impl WithClausePlanner {
                         aliases_generated.insert(col_alias, alias_type);
                     }
 
-                    if Self::has_aggregate_expression(expression) {
+                    if expression.contains_aggregate() {
                         has_agg = true;
                     }
                 }
@@ -355,9 +355,11 @@ impl WithClausePlanner {
     /// 提取分组信息
     ///
     /// 从 YieldColumn 列表中提取分组键和聚合项
+    /// 注意：此方法违反了设计原则，应该在 Validator 层完成分组信息的提取
+    /// TODO: 将此逻辑移到 Validator 层，Planner 层只使用已注册的 ContextualExpression
     fn extract_group_info(
         yield_columns: &[YieldColumn],
-        qctx: &Arc<QueryContext>,
+        _qctx: &Arc<QueryContext>,
     ) -> (
         Vec<crate::core::types::expression::contextual::ContextualExpression>,
         Vec<crate::core::types::expression::contextual::ContextualExpression>,
@@ -366,50 +368,20 @@ impl WithClausePlanner {
         let mut group_items = Vec::new();
 
         for column in yield_columns {
-            if let Some(expr_meta) = column.expression.expression() {
-                let inner_expr = expr_meta.inner();
-                if let Ok(suite) =
-                    crate::core::types::expression::utils::extract_group_suite(inner_expr)
-                {
-                    // 非聚合表达式作为分组键
-                    if !suite.group_keys.is_empty() {
-                        // 将 Expression 转换为 ContextualExpression
-                        for key in suite.group_keys {
-                            let meta = crate::core::types::expression::ExpressionMeta::new(key);
-                            let id = qctx.expr_context().register_expression(meta);
-                            let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, qctx.expr_context_clone());
-                            group_keys.push(ctx_expr);
-                        }
-                    }
-                    // 聚合表达式作为分组项
-                    if !suite.aggregates.is_empty() {
-                        // 将 Expression 转换为 ContextualExpression
-                        for item in suite.aggregates {
-                            let meta = crate::core::types::expression::ExpressionMeta::new(item);
-                            let id = qctx.expr_context().register_expression(meta);
-                            let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, qctx.expr_context_clone());
-                            group_items.push(ctx_expr);
-                        }
-                    }
-                }
+            // 直接使用 YieldColumn 中的 ContextualExpression
+            // 不再创建新的 Expression，避免违反设计原则
+            if column.expression.contains_aggregate() {
+                // 包含聚合函数的表达式作为分组项
+                group_items.push(column.expression.clone());
+            } else {
+                // 不包含聚合函数的表达式作为分组键
+                group_keys.push(column.expression.clone());
             }
         }
 
         // 去重
-        group_keys.dedup_by(|a, b| {
-            if let (Some(a_meta), Some(b_meta)) = (a.expression(), b.expression()) {
-                a_meta.inner() == b_meta.inner()
-            } else {
-                false
-            }
-        });
-        group_items.dedup_by(|a, b| {
-            if let (Some(a_meta), Some(b_meta)) = (a.expression(), b.expression()) {
-                a_meta.inner() == b_meta.inner()
-            } else {
-                false
-            }
-        });
+        group_keys.dedup_by(|a, b| a.equals_by_content(b));
+        group_items.dedup_by(|a, b| a.equals_by_content(b));
 
         (group_keys, group_items)
     }
@@ -421,79 +393,71 @@ impl WithClausePlanner {
     fn deduce_alias_type(
         expression: &crate::core::types::expression::contextual::ContextualExpression,
     ) -> AliasType {
-        if let Some(expr_meta) = expression.expression() {
-            Self::deduce_alias_type_from_expression(expr_meta.inner())
-        } else {
-            AliasType::Runtime
-        }
+        Self::deduce_alias_type_from_contextual(expression)
     }
 
-    /// 从 Expression 推断别名类型（辅助方法）
-    fn deduce_alias_type_from_expression(e: &crate::core::Expression) -> AliasType {
-        match e {
-            // 大多数表达式无法推断类型，默认返回 Runtime
-            Expression::Literal(_)
-            | Expression::Unary { .. }
-            | Expression::TypeCast { .. }
-            | Expression::Label(_)
-            | Expression::Binary { .. }
-            | Expression::Aggregate { .. }
-            | Expression::List(_)
-            | Expression::Map(_)
-            | Expression::Case { .. }
-            | Expression::LabelTagProperty { .. }
-            | Expression::TagProperty { .. }
-            | Expression::EdgeProperty { .. }
-            | Expression::Predicate { .. }
-            | Expression::Reduce { .. }
-            | Expression::Parameter(_)
-            | Expression::ListComprehension { .. } => AliasType::Runtime,
+    /// 从 ContextualExpression 推断别名类型（辅助方法）
+    fn deduce_alias_type_from_contextual(
+        expression: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> AliasType {
+        // 大多数表达式无法推断类型，默认返回 Runtime
+        if expression.is_literal()
+            || expression.is_unary()
+            || expression.is_type_cast()
+            || expression.is_label()
+            || expression.is_binary()
+            || expression.is_aggregate()
+            || expression.is_list()
+            || expression.is_map()
+            || expression.is_case()
+            || expression.is_reduce()
+            || expression.is_parameter()
+            || expression.is_list_comprehension()
+        {
+            return AliasType::Runtime;
+        }
 
-            // 变量引用 - 默认返回 Variable，实际类型需要从 aliases_available 中获取
-            Expression::Variable(_) => AliasType::Variable,
+        // 变量引用 - 默认返回 Variable，实际类型需要从 aliases_available 中获取
+        if expression.is_variable() {
+            return AliasType::Variable;
+        }
 
-            // 属性访问 - 尝试从对象推断类型
-            Expression::Property { object, .. } => Self::deduce_alias_type_from_expression(object),
+        // 属性访问 - 尝试从对象推断类型
+        if expression.is_property() {
+            // 属性访问的类型无法直接推断，需要从 aliases_available 中获取
+            return AliasType::Runtime;
+        }
 
-            // 路径构建表达式
-            Expression::PathBuild(_) => AliasType::Path,
+        // 路径构建表达式
+        if expression.is_path_build() || expression.is_path() {
+            return AliasType::Path;
+        }
 
-            // 路径表达式
-            Expression::Path(_) => AliasType::Path,
-
-            // 函数调用 - 根据函数名推断类型
-            Expression::Function { name, .. } => {
-                let name_lower = name.to_lowercase();
-                match name_lower.as_str() {
-                    "nodes" => AliasType::NodeList,
-                    "relationships" => AliasType::EdgeList,
-                    "reversepath" => AliasType::Path,
-                    "startnode" | "endnode" => AliasType::Node,
-                    // 其他函数返回 Runtime
-                    _ => AliasType::Runtime,
-                }
-            }
-
-            // 下标访问 - 递归推断集合类型
-            Expression::Subscript { collection, .. } => {
-                let collection_type = Self::deduce_alias_type_from_expression(collection);
-                match collection_type {
-                    AliasType::EdgeList => AliasType::Edge,
-                    AliasType::NodeList => AliasType::Node,
-                    _ => collection_type,
-                }
-            }
-
-            // 范围表达式 - 递归推断集合类型
-            Expression::Range { collection, .. } => {
-                let collection_type = Self::deduce_alias_type_from_expression(collection);
-                match collection_type {
-                    AliasType::EdgeList => AliasType::EdgeList,
-                    AliasType::NodeList => AliasType::NodeList,
-                    _ => collection_type,
-                }
+        // 函数调用 - 根据函数名推断类型
+        if let Some(name) = expression.as_function_name() {
+            let name_lower = name.to_lowercase();
+            match name_lower.as_str() {
+                "nodes" => return AliasType::NodeList,
+                "relationships" => return AliasType::EdgeList,
+                "reversepath" => return AliasType::Path,
+                "startnode" | "endnode" => return AliasType::Node,
+                _ => return AliasType::Runtime,
             }
         }
+
+        // 下标访问 - 递归推断集合类型
+        if expression.is_subscript() {
+            // 下标访问的类型无法直接推断，需要从 aliases_available 中获取
+            return AliasType::Runtime;
+        }
+
+        // 范围表达式 - 递归推断集合类型
+        if expression.is_range() {
+            // 范围表达式的类型无法直接推断，需要从 aliases_available 中获取
+            return AliasType::Runtime;
+        }
+
+        AliasType::Runtime
     }
 
     /// 生成默认别名
@@ -521,37 +485,6 @@ impl WithClausePlanner {
         }
     }
 
-    /// 检查表达式是否包含聚合函数
-    fn has_aggregate_expression(
-        expression: &crate::core::types::expression::contextual::ContextualExpression,
-    ) -> bool {
-        if let Some(expr_meta) = expression.expression() {
-            Self::has_aggregate_expression_from_expression(expr_meta.inner())
-        } else {
-            false
-        }
-    }
-
-    /// 从 Expression 检查是否包含聚合函数（辅助方法）
-    fn has_aggregate_expression_from_expression(e: &crate::core::Expression) -> bool {
-        use crate::core::Expression;
-
-        match e {
-            Expression::Function { name, .. } => {
-                let agg_functions = ["count", "sum", "avg", "min", "max", "collect"];
-                agg_functions.contains(&name.to_lowercase().as_str())
-            }
-            Expression::Aggregate { .. } => true,
-            Expression::Binary { left, right, .. } => {
-                Self::has_aggregate_expression_from_expression(left)
-                    || Self::has_aggregate_expression_from_expression(right)
-            }
-            Expression::Unary { operand, .. } => {
-                Self::has_aggregate_expression_from_expression(operand)
-            }
-            _ => false,
-        }
-    }
 }
 
 impl Default for WithClausePlanner {

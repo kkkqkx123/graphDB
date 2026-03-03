@@ -557,11 +557,7 @@ impl MatchStatementPlanner {
     }
 
     fn contextual_expression_to_string(&self, expr: &ContextualExpression) -> String {
-        if let Some(expr_meta) = expr.expression() {
-            expr_meta.inner().to_expression_string()
-        } else {
-            String::new()
-        }
+        expr.to_expression_string()
     }
 
     fn plan_limit(

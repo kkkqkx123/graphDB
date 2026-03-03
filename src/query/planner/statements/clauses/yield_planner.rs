@@ -264,10 +264,222 @@ impl Default for YieldClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::ExpressionContext;
+    use crate::core::Expression;
+    use crate::query::parser::ast::{Span, YieldItem};
+    use crate::query::planner::plan::core::nodes::StartNode;
+    use crate::query::planner::plan::core::PlanNodeEnum;
+    use std::sync::Arc;
 
     #[test]
     fn test_yield_clause_planner_creation() {
         let planner = YieldClausePlanner::new();
         assert_eq!(planner.clause_kind(), CypherClauseKind::Yield);
+    }
+
+    #[test]
+    fn test_extract_yield_info_from_yield_stmt() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("n".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let yield_stmt = Stmt::Yield(crate::query::parser::ast::stmt::YieldStmt {
+            span: Span::default(),
+            items: vec![YieldItem {
+                expression: ctx_expr.clone(),
+                alias: None,
+            }],
+            where_clause: None,
+            distinct: false,
+            order_by: None,
+            skip: None,
+            limit: None,
+        });
+
+        let (columns, filter, skip, limit) = YieldClausePlanner::extract_yield_info(&yield_stmt).expect("提取失败");
+        assert_eq!(columns.len(), 1);
+        assert_eq!(columns[0].alias, "n");
+        assert!(filter.is_none());
+        assert!(skip.is_none());
+        assert!(limit.is_none());
+    }
+
+    #[test]
+    fn test_extract_yield_info_from_go_stmt() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("n".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let go_stmt = Stmt::Go(crate::query::parser::ast::stmt::GoStmt {
+            span: Span::default(),
+            steps: crate::query::parser::ast::Steps::Fixed(1),
+            from: crate::query::parser::ast::stmt::FromClause {
+                span: Span::default(),
+                vertices: vec![],
+            },
+            over: None,
+            where_clause: None,
+            yield_clause: Some(crate::query::parser::ast::stmt::YieldClause {
+                span: Span::default(),
+                items: vec![YieldItem {
+                    expression: ctx_expr.clone(),
+                    alias: None,
+                }],
+                where_clause: None,
+                order_by: None,
+                limit: Some(crate::query::parser::ast::types::LimitClause {
+                    span: Span::default(),
+                    count: 10,
+                }),
+                skip: Some(crate::query::parser::ast::types::SkipClause {
+                    span: Span::default(),
+                    count: 5,
+                }),
+                sample: None,
+            }),
+        });
+
+        let (columns, filter, skip, limit) = YieldClausePlanner::extract_yield_info(&go_stmt).expect("提取失败");
+        assert_eq!(columns.len(), 1);
+        assert!(filter.is_none());
+        assert_eq!(skip, Some(5));
+        assert_eq!(limit, Some(10));
+    }
+
+    #[test]
+    fn test_convert_yield_items() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("n".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let items = vec![YieldItem {
+            expression: ctx_expr.clone(),
+            alias: Some("node".to_string()),
+        }];
+
+        let yield_columns = YieldClausePlanner::convert_yield_items(&items).expect("转换失败");
+        assert_eq!(yield_columns.len(), 1);
+        assert_eq!(yield_columns[0].alias, "node");
+    }
+
+    #[test]
+    fn test_generate_default_alias() {
+        let expr = Expression::Variable("n".to_string());
+        let alias = YieldClausePlanner::generate_default_alias(&expr);
+        assert_eq!(alias, "n");
+
+        let expr = Expression::Property {
+            object: Box::new(Expression::Variable("n".to_string())),
+            property: "name".to_string(),
+        };
+        let alias = YieldClausePlanner::generate_default_alias(&expr);
+        assert_eq!(alias, "n.name");
+
+        let expr = Expression::Function {
+            name: "count".to_string(),
+            args: vec![],
+        };
+        let alias = YieldClausePlanner::generate_default_alias(&expr);
+        assert_eq!(alias, "count");
+    }
+
+    #[test]
+    fn test_transform_clause() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("n".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let yield_stmt = Stmt::Yield(crate::query::parser::ast::stmt::YieldStmt {
+            span: Span::default(),
+            items: vec![YieldItem {
+                expression: ctx_expr.clone(),
+                alias: None,
+            }],
+            where_clause: None,
+            distinct: false,
+            order_by: None,
+            skip: None,
+            limit: None,
+        });
+
+        let start_node = StartNode::new();
+        let start_node_enum = PlanNodeEnum::Start(start_node.clone());
+        let input_plan = SubPlan {
+            root: Some(start_node_enum.clone()),
+            tail: Some(start_node_enum),
+        };
+
+        let planner = YieldClausePlanner::new();
+        let qctx = Arc::new(crate::query::QueryContext::new(
+            Arc::new(crate::query::query_request_context::QueryRequestContext {
+                session_id: None,
+                user_name: None,
+                space_name: None,
+                query: String::new(),
+                parameters: std::collections::HashMap::new(),
+            })
+        ));
+
+        let result = planner.transform_clause(qctx, &yield_stmt, input_plan);
+        assert!(result.is_ok());
+
+        let sub_plan = result.expect("transform_clause should succeed");
+        assert!(sub_plan.root.is_some());
+
+        match sub_plan.root {
+            Some(PlanNodeEnum::Project(_)) => {}
+            Some(PlanNodeEnum::Filter(_)) => {}
+            Some(PlanNodeEnum::Limit(_)) => {}
+            _ => panic!("Expected ProjectNode, FilterNode, or LimitNode"),
+        }
+    }
+
+    #[test]
+    fn test_transform_clause_empty_input_plan() {
+        let ctx = Arc::new(ExpressionContext::new());
+        let expr = Expression::Variable("n".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+
+        let yield_stmt = Stmt::Yield(crate::query::parser::ast::stmt::YieldStmt {
+            span: Span::default(),
+            items: vec![YieldItem {
+                expression: ctx_expr.clone(),
+                alias: None,
+            }],
+            where_clause: None,
+            distinct: false,
+            order_by: None,
+            skip: None,
+            limit: None,
+        });
+
+        let input_plan = SubPlan {
+            root: None,
+            tail: None,
+        };
+
+        let planner = YieldClausePlanner::new();
+        let qctx = Arc::new(crate::query::QueryContext::new(
+            Arc::new(crate::query::query_request_context::QueryRequestContext {
+                session_id: None,
+                user_name: None,
+                space_name: None,
+                query: String::new(),
+                parameters: std::collections::HashMap::new(),
+            })
+        ));
+
+        let result = planner.transform_clause(qctx, &yield_stmt, input_plan);
+        assert!(result.is_err());
     }
 }

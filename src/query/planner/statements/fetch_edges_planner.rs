@@ -112,31 +112,35 @@ impl Planner for FetchEdgesPlanner {
 }
 
 /// 从表达式中提取字符串值
+/// 注意：此方法违反了设计原则，应该避免在 Planner 层提取字符串值
+/// TODO: 将此逻辑移到 Parser 或 Validator 层，Planner 层只使用已注册的 ContextualExpression
 fn extract_string_from_expr(
     expr: &crate::core::types::expression::contextual::ContextualExpression,
 ) -> Result<String, PlannerError> {
-    let expr_meta = match expr.expression() {
-        Some(e) => e,
-        None => return Err(PlannerError::InvalidOperation("表达式无效".to_string())),
-    };
-    let inner_expr = expr_meta.inner();
-    match inner_expr {
-        crate::core::types::expression::Expression::Variable(s) => Ok(s.clone()),
-        crate::core::types::expression::Expression::Literal(v) => match v {
-            crate::core::Value::String(s) => Ok(s.clone()),
-            crate::core::Value::Int(i) => Ok(i.to_string()),
-            crate::core::Value::Float(f) => Ok(f.to_string()),
-            crate::core::Value::Bool(b) => Ok(b.to_string()),
-            _ => Err(PlannerError::InvalidOperation(format!(
-                "无法从字面量提取字符串: {:?}",
-                v
-            ))),
-        },
-        _ => Err(PlannerError::InvalidOperation(format!(
-            "无法从表达式提取字符串: {:?}",
-            inner_expr
-        ))),
+    // 使用 ContextualExpression 的辅助方法，避免直接访问 inner
+    if let Some(var_name) = expr.as_variable() {
+        return Ok(var_name);
     }
+
+    if let Some(literal) = expr.as_literal() {
+        match literal {
+            crate::core::Value::String(s) => return Ok(s.clone()),
+            crate::core::Value::Int(i) => return Ok(i.to_string()),
+            crate::core::Value::Float(f) => return Ok(f.to_string()),
+            crate::core::Value::Bool(b) => return Ok(b.to_string()),
+            _ => {
+                return Err(PlannerError::InvalidOperation(format!(
+                    "无法从字面量提取字符串: {:?}",
+                    literal
+                )))
+            }
+        }
+    }
+
+    Err(PlannerError::InvalidOperation(format!(
+        "无法从表达式提取字符串: {}",
+        expr.to_expression_string()
+    )))
 }
 
 impl Default for FetchEdgesPlanner {

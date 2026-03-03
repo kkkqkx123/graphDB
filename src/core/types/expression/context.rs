@@ -8,6 +8,8 @@ use std::sync::Arc;
 
 use super::{Expression, ExpressionId, ExpressionMeta};
 use crate::core::types::DataType;
+use crate::core::types::operators::BinaryOperator;
+use crate::core::types::operators::UnaryOperator;
 use crate::core::Value;
 
 /// 表达式优化状态标记
@@ -173,6 +175,184 @@ impl ExpressionContext {
     pub fn clear_all(&self) {
         self.expressions.clear();
         self.clear_caches();
+    }
+
+    // ==================== 表达式重写 API ====================
+    // 以下方法用于表达式重写和组合，避免在 Rewrite 层直接操作 Expression
+
+    /// 克隆表达式并注册到上下文
+    ///
+    /// 从现有的 ContextualExpression 中提取 Expression，创建副本并注册到上下文
+    /// 返回新的 ContextualExpression
+    pub fn clone_expression(
+        &self,
+        ctx_expr: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        let expr_meta = ctx_expr.expression()?;
+        let inner_expr = expr_meta.inner().clone();
+        let meta = ExpressionMeta::new(inner_expr);
+        let id = self.register_expression(meta);
+        Some(crate::core::types::expression::contextual::ContextualExpression::new(
+            id,
+            ctx_expr.context().clone(),
+        ))
+    }
+
+    /// 组合两个表达式为二元表达式
+    ///
+    /// # 参数
+    /// - `op`: 二元操作符
+    /// - `left`: 左操作数的 ContextualExpression
+    /// - `right`: 右操作数的 ContextualExpression
+    ///
+    /// # 返回
+    /// 组合后的 ContextualExpression
+    pub fn combine_expressions(
+        &self,
+        op: BinaryOperator,
+        left: &crate::core::types::expression::contextual::ContextualExpression,
+        right: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        let left_meta = left.expression()?;
+        let right_meta = right.expression()?;
+
+        let combined_expr = Expression::Binary {
+            left: Box::new(left_meta.inner().clone()),
+            op,
+            right: Box::new(right_meta.inner().clone()),
+        };
+
+        let meta = ExpressionMeta::new(combined_expr);
+        let id = self.register_expression(meta);
+        Some(crate::core::types::expression::contextual::ContextualExpression::new(
+            id,
+            left.context().clone(),
+        ))
+    }
+
+    /// 创建一元表达式
+    ///
+    /// # 参数
+    /// - `op`: 一元操作符
+    /// - `operand`: 操作数的 ContextualExpression
+    ///
+    /// # 返回
+    /// 新的 ContextualExpression
+    pub fn create_unary_expression(
+        &self,
+        op: UnaryOperator,
+        operand: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        let operand_meta = operand.expression()?;
+
+        let unary_expr = Expression::Unary {
+            op,
+            operand: Box::new(operand_meta.inner().clone()),
+        };
+
+        let meta = ExpressionMeta::new(unary_expr);
+        let id = self.register_expression(meta);
+        Some(crate::core::types::expression::contextual::ContextualExpression::new(
+            id,
+            operand.context().clone(),
+        ))
+    }
+
+    /// 创建属性访问表达式
+    ///
+    /// # 参数
+    /// - `object`: 对象的 ContextualExpression
+    /// - `property`: 属性名
+    ///
+    /// # 返回
+    /// 新的 ContextualExpression
+    pub fn create_property_expression(
+        &self,
+        object: &crate::core::types::expression::contextual::ContextualExpression,
+        property: &str,
+    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        let object_meta = object.expression()?;
+
+        let property_expr = Expression::Property {
+            object: Box::new(object_meta.inner().clone()),
+            property: property.to_string(),
+        };
+
+        let meta = ExpressionMeta::new(property_expr);
+        let id = self.register_expression(meta);
+        Some(crate::core::types::expression::contextual::ContextualExpression::new(
+            id,
+            object.context().clone(),
+        ))
+    }
+
+    /// 创建函数调用表达式
+    ///
+    /// # 参数
+    /// - `name`: 函数名
+    /// - `args`: 参数的 ContextualExpression 列表
+    /// - `ctx_expr`: 用于获取上下文的 ContextualExpression
+    ///
+    /// # 返回
+    /// 新的 ContextualExpression
+    pub fn create_function_expression(
+        &self,
+        name: &str,
+        args: &[crate::core::types::expression::contextual::ContextualExpression],
+        ctx_expr: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        let arg_exprs: Vec<Expression> = args
+            .iter()
+            .filter_map(|arg| arg.expression().map(|meta| meta.inner().clone()))
+            .collect();
+
+        if arg_exprs.len() != args.len() {
+            return None;
+        }
+
+        let function_expr = Expression::Function {
+            name: name.to_string(),
+            args: arg_exprs,
+        };
+
+        let meta = ExpressionMeta::new(function_expr);
+        let id = self.register_expression(meta);
+        Some(crate::core::types::expression::contextual::ContextualExpression::new(
+            id,
+            ctx_expr.context().clone(),
+        ))
+    }
+
+    /// 创建 AND 表达式
+    ///
+    /// 便捷方法，用于组合两个条件表达式
+    pub fn and(
+        &self,
+        left: &crate::core::types::expression::contextual::ContextualExpression,
+        right: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        self.combine_expressions(BinaryOperator::And, left, right)
+    }
+
+    /// 创建 OR 表达式
+    ///
+    /// 便捷方法，用于组合两个条件表达式
+    pub fn or(
+        &self,
+        left: &crate::core::types::expression::contextual::ContextualExpression,
+        right: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        self.combine_expressions(BinaryOperator::Or, left, right)
+    }
+
+    /// 创建 NOT 表达式
+    ///
+    /// 便捷方法，用于创建否定表达式
+    pub fn not(
+        &self,
+        operand: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        self.create_unary_expression(UnaryOperator::Not, operand)
     }
 }
 

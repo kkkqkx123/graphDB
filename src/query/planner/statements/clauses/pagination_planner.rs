@@ -66,10 +66,204 @@ impl ClausePlanner for PaginationPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::parser::ast::Span;
+    use crate::query::planner::plan::core::nodes::StartNode;
+    use crate::query::planner::plan::core::PlanNodeEnum;
 
     #[test]
     fn test_pagination_planner_creation() {
         let planner = PaginationPlanner::new();
         assert_eq!(planner.clause_kind(), CypherClauseKind::Pagination);
+    }
+
+    #[test]
+    fn test_extract_pagination_info() {
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: Some(10),
+            skip: Some(5),
+            optional: false,
+        });
+
+        let pagination = extract_pagination_info(&match_stmt);
+        assert_eq!(pagination.skip, 5);
+        assert_eq!(pagination.limit, 10);
+    }
+
+    #[test]
+    fn test_extract_pagination_info_defaults() {
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: None,
+            skip: None,
+            optional: false,
+        });
+
+        let pagination = extract_pagination_info(&match_stmt);
+        assert_eq!(pagination.skip, 0);
+        assert_eq!(pagination.limit, 100);
+    }
+
+    #[test]
+    fn test_extract_pagination_info_only_limit() {
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: Some(20),
+            skip: None,
+            optional: false,
+        });
+
+        let pagination = extract_pagination_info(&match_stmt);
+        assert_eq!(pagination.skip, 0);
+        assert_eq!(pagination.limit, 20);
+    }
+
+    #[test]
+    fn test_extract_pagination_info_only_skip() {
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: None,
+            skip: Some(15),
+            optional: false,
+        });
+
+        let pagination = extract_pagination_info(&match_stmt);
+        assert_eq!(pagination.skip, 15);
+        assert_eq!(pagination.limit, 100);
+    }
+
+    #[test]
+    fn test_transform_clause() {
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: Some(10),
+            skip: Some(5),
+            optional: false,
+        });
+
+        let start_node = StartNode::new();
+        let start_node_enum = PlanNodeEnum::Start(start_node.clone());
+        let input_plan = SubPlan {
+            root: Some(start_node_enum.clone()),
+            tail: Some(start_node_enum),
+        };
+
+        let planner = PaginationPlanner::new();
+        let qctx = std::sync::Arc::new(crate::query::QueryContext::new(
+            std::sync::Arc::new(crate::query::query_request_context::QueryRequestContext {
+                session_id: None,
+                user_name: None,
+                space_name: None,
+                query: String::new(),
+                parameters: std::collections::HashMap::new(),
+            })
+        ));
+
+        let result = planner.transform_clause(qctx, &match_stmt, input_plan);
+        assert!(result.is_ok());
+
+        let sub_plan = result.expect("transform_clause should succeed");
+        assert!(sub_plan.root.is_some());
+
+        if let Some(PlanNodeEnum::Limit(_)) = sub_plan.root {
+        } else {
+            panic!("Expected LimitNode");
+        }
+    }
+
+    #[test]
+    fn test_transform_clause_defaults() {
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: None,
+            skip: None,
+            optional: false,
+        });
+
+        let start_node = StartNode::new();
+        let start_node_enum = PlanNodeEnum::Start(start_node.clone());
+        let input_plan = SubPlan {
+            root: Some(start_node_enum.clone()),
+            tail: Some(start_node_enum),
+        };
+
+        let planner = PaginationPlanner::new();
+        let qctx = std::sync::Arc::new(crate::query::QueryContext::new(
+            std::sync::Arc::new(crate::query::query_request_context::QueryRequestContext {
+                session_id: None,
+                user_name: None,
+                space_name: None,
+                query: String::new(),
+                parameters: std::collections::HashMap::new(),
+            })
+        ));
+
+        let result = planner.transform_clause(qctx, &match_stmt, input_plan);
+        assert!(result.is_ok());
+
+        let sub_plan = result.expect("transform_clause should succeed");
+        assert!(sub_plan.root.is_some());
+
+        if let Some(PlanNodeEnum::Limit(_)) = sub_plan.root {
+        } else {
+            panic!("Expected LimitNode");
+        }
+    }
+
+    #[test]
+    fn test_transform_clause_empty_input_plan() {
+        let match_stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+            span: Span::default(),
+            patterns: vec![],
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: Some(10),
+            skip: Some(5),
+            optional: false,
+        });
+
+        let input_plan = SubPlan {
+            root: None,
+            tail: None,
+        };
+
+        let planner = PaginationPlanner::new();
+        let qctx = std::sync::Arc::new(crate::query::QueryContext::new(
+            std::sync::Arc::new(crate::query::query_request_context::QueryRequestContext {
+                session_id: None,
+                user_name: None,
+                space_name: None,
+                query: String::new(),
+                parameters: std::collections::HashMap::new(),
+            })
+        ));
+
+        let result = planner.transform_clause(qctx, &match_stmt, input_plan);
+        assert!(result.is_err());
     }
 }

@@ -177,4 +177,56 @@ impl Expression {
             _ => None,
         }
     }
+
+    /// 检查是否为路径构建表达式
+    pub fn is_path_build(&self) -> bool {
+        matches!(self, Expression::PathBuild(_))
+    }
+
+    /// 检查是否为类型转换表达式
+    pub fn is_type_cast(&self) -> bool {
+        matches!(self, Expression::TypeCast { .. })
+    }
+
+    /// 检查是否为列表推导表达式
+    pub fn is_list_comprehension(&self) -> bool {
+        matches!(self, Expression::ListComprehension { .. })
+    }
+
+    /// 检查是否为 Reduce 表达式
+    pub fn is_reduce(&self) -> bool {
+        matches!(self, Expression::Reduce { .. })
+    }
+
+    /// 获取函数名（如果是函数调用）
+    pub fn as_function_name(&self) -> Option<String> {
+        match self {
+            Expression::Function { name, .. } => Some(name.clone()),
+            _ => None,
+        }
+    }
+
+    /// 获取属性名（如果是属性访问）
+    pub fn as_property_name(&self) -> Option<String> {
+        match self {
+            Expression::Property { property, .. } => Some(property.clone()),
+            _ => None,
+        }
+    }
+
+    /// 获取标签名（如果是标签表达式）
+    pub fn as_label_name(&self) -> Option<String> {
+        match self {
+            Expression::Label(name) => Some(name.clone()),
+            _ => None,
+        }
+    }
+
+    /// 获取参数名（如果是参数表达式）
+    pub fn as_parameter_name(&self) -> Option<String> {
+        match self {
+            Expression::Parameter(name) => Some(name.clone()),
+            _ => None,
+        }
+    }
 }

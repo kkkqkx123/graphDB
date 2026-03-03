@@ -1,6 +1,22 @@
 //! 表达式工具函数
 //!
 //! 提供表达式处理和操作的工具函数
+//!
+//! # 设计说明
+//!
+//! Rewrite 层的职责是重写表达式，这需要：
+//! 1. 分析现有表达式的结构
+//! 2. 创建新的表达式
+//! 3. 将新表达式注册到 ExpressionContext
+//!
+//! 因此，Rewrite 层需要访问 Expression 的内部结构。
+//! 这是设计上的必要权衡，因为：
+//! - ContextualExpression 是轻量级引用，不包含表达式结构
+//! - 重写操作需要创建新的 Expression
+//! - 新 Expression 必须注册到 ExpressionContext 才能使用
+//!
+//! TODO: 考虑将表达式重写逻辑移到 ExpressionContext 中，
+//! 提供 ContextualExpression 级别的重写 API，避免直接操作 Expression
 
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionContext;

@@ -186,6 +186,101 @@ impl ExpressionMeta {
     pub fn expression(&self) -> &Expression {
         &self.inner
     }
+
+    /// 检查是否为函数调用
+    pub fn is_function(&self) -> bool {
+        self.inner.as_ref().is_function()
+    }
+
+    /// 检查是否为路径表达式
+    pub fn is_path(&self) -> bool {
+        self.inner.as_ref().is_path()
+    }
+
+    /// 检查是否为路径构建表达式
+    pub fn is_path_build(&self) -> bool {
+        self.inner.as_ref().is_path_build()
+    }
+
+    /// 检查是否为标签表达式
+    pub fn is_label(&self) -> bool {
+        self.inner.as_ref().is_label()
+    }
+
+    /// 检查是否为二元表达式
+    pub fn is_binary(&self) -> bool {
+        self.inner.as_ref().is_binary()
+    }
+
+    /// 检查是否为一元表达式
+    pub fn is_unary(&self) -> bool {
+        self.inner.as_ref().is_unary()
+    }
+
+    /// 检查是否为类型转换表达式
+    pub fn is_type_cast(&self) -> bool {
+        self.inner.as_ref().is_type_cast()
+    }
+
+    /// 检查是否为下标访问表达式
+    pub fn is_subscript(&self) -> bool {
+        self.inner.as_ref().is_subscript()
+    }
+
+    /// 检查是否为范围表达式
+    pub fn is_range(&self) -> bool {
+        self.inner.as_ref().is_range()
+    }
+
+    /// 检查是否为列表表达式
+    pub fn is_list(&self) -> bool {
+        self.inner.as_ref().is_list()
+    }
+
+    /// 检查是否为映射表达式
+    pub fn is_map(&self) -> bool {
+        self.inner.as_ref().is_map()
+    }
+
+    /// 检查是否为 Case 表达式
+    pub fn is_case(&self) -> bool {
+        self.inner.as_ref().is_case()
+    }
+
+    /// 检查是否为 Reduce 表达式
+    pub fn is_reduce(&self) -> bool {
+        self.inner.as_ref().is_reduce()
+    }
+
+    /// 检查是否为参数表达式
+    pub fn is_parameter(&self) -> bool {
+        self.inner.as_ref().is_parameter()
+    }
+
+    /// 检查是否为列表推导式
+    pub fn is_list_comprehension(&self) -> bool {
+        self.inner.as_ref().is_list_comprehension()
+    }
+
+    /// 获取函数名（如果是函数调用）
+    pub fn as_function_name(&self) -> Option<String> {
+        self.inner.as_ref().as_function_name()
+    }
+
+    /// 获取属性名（如果是属性访问）
+    pub fn as_property_name(&self) -> Option<String> {
+        self.inner.as_ref().as_property_name()
+    }
+
+    /// 获取标签名（如果是标签表达式）
+    pub fn as_label_name(&self) -> Option<String> {
+        self.inner.as_ref().as_label_name()
+    }
+
+    /// 获取参数名（如果是参数表达式）
+    pub fn as_parameter_name(&self) -> Option<String> {
+        self.inner.as_ref().as_parameter_name()
+    }
 }
 
 /// 从 ExpressionMeta 提取核心表达式

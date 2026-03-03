@@ -107,13 +107,7 @@ impl RewriteRule for PushFilterDownTraverseRule {
 
         // 如果没有可以选择的条件，则不进行转换
         let picked = match filter_picked {
-            Some(f) => {
-                let expr_meta = match f.expression() {
-                    Some(e) => e,
-                    None => return Ok(None),
-                };
-                expr_meta.inner().clone()
-            }
+            Some(f) => f,
             None => return Ok(None),
         };
 
@@ -122,28 +116,15 @@ impl RewriteRule for PushFilterDownTraverseRule {
 
         // 设置或合并 eFilter
         if let Some(existing_ctx) = traverse.e_filter() {
-            let existing_expr = existing_ctx.expression().map(|meta| meta.inner().clone());
-            if let Some(existing) = existing_expr {
-                let combined = Expression::Binary {
-                    left: Box::new(picked),
-                    op: crate::core::types::operators::BinaryOperator::And,
-                    right: Box::new(existing),
-                };
-                let combined_meta = crate::core::types::ExpressionMeta::new(combined);
-                let combined_id = ctx.register_expression(combined_meta);
-                let combined_ctx_expr = ContextualExpression::new(combined_id, ctx.clone());
+            // 使用 ExpressionContext 的 and 方法组合表达式
+            if let Some(combined_ctx_expr) = ctx.and(&picked, &existing_ctx) {
                 new_traverse.set_e_filter(combined_ctx_expr);
-            } else {
-                let picked_meta = crate::core::types::ExpressionMeta::new(picked);
-                let picked_id = ctx.register_expression(picked_meta);
-                let picked_ctx_expr = ContextualExpression::new(picked_id, ctx.clone());
-                new_traverse.set_e_filter(picked_ctx_expr);
             }
         } else {
-            let picked_meta = crate::core::types::ExpressionMeta::new(picked);
-            let picked_id = ctx.register_expression(picked_meta);
-            let picked_ctx_expr = ContextualExpression::new(picked_id, ctx.clone());
-            new_traverse.set_e_filter(picked_ctx_expr);
+            // 克隆表达式并设置
+            if let Some(picked_ctx_expr) = ctx.clone_expression(&picked) {
+                new_traverse.set_e_filter(picked_ctx_expr);
+            }
         }
 
         // 构建转换结果
@@ -154,14 +135,10 @@ impl RewriteRule for PushFilterDownTraverseRule {
             result.erase_curr = false;
             // 更新 Filter 节点的条件
             let mut new_filter = filter_node.clone();
-            let unpicked_expr = match unpicked.expression() {
-                Some(meta) => meta.inner().clone(),
-                None => return Ok(None),
-            };
-            let unpicked_meta = crate::core::types::ExpressionMeta::new(unpicked_expr);
-            let unpicked_id = ctx.register_expression(unpicked_meta);
-            let unpicked_ctx_expr = ContextualExpression::new(unpicked_id, ctx);
-            new_filter.set_condition(unpicked_ctx_expr);
+            // 克隆表达式并设置
+            if let Some(unpicked_ctx_expr) = ctx.clone_expression(&unpicked) {
+                new_filter.set_condition(unpicked_ctx_expr);
+            }
             result.add_new_node(PlanNodeEnum::Filter(new_filter));
         } else {
             // 完全下推，删除 Filter 节点
