@@ -2,78 +2,75 @@
 
 ## Summary
 
-- **Total Errors**: 4
-- **Total Warnings**: 1
-- **Total Issues**: 5
-- **Unique Error Patterns**: 4
-- **Unique Warning Patterns**: 1
+- **Total Errors**: 11
+- **Total Warnings**: 2
+- **Total Issues**: 13
+- **Unique Error Patterns**: 3
+- **Unique Warning Patterns**: 2
 - **Files with Issues**: 3
 
 ## Error Statistics
 
-**Total Errors**: 4
+**Total Errors**: 11
 
 ### Error Type Breakdown
 
-- **error[E0609]**: 2 errors
-- **error[E0308]**: 1 errors
-- **error[E0004]**: 1 errors
+- **error[E0614]**: 9 errors
+- **error[E0599]**: 2 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\validator\utility\acl_validator.rs`: 3 errors
-- `src\query\validator\statements\merge_validator.rs`: 1 errors
+- `src\query\executor\tag_filter.rs`: 11 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 2
 
 ### Warning Type Breakdown
 
-- **warning**: 1 warnings
+- **warning**: 2 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\validator\clauses\group_by_validator.rs`: 1 warnings
+- `src\query\planner\rewrite\predicate_pushdown\push_filter_down_get_nbrs.rs`: 1 warnings
+- `src\query\validator\expression_analyzer.rs`: 1 warnings
 
 ## Detailed Error Categorization
 
-### error[E0609]: no field `users` on type `&mut GrantValidator`: unknown field
+### error[E0614]: type `operators::BinaryOperator` cannot be dereferenced: can't be dereferenced
+
+**Total Occurrences**: 9  
+**Unique Files**: 1
+
+#### `src\query\executor\tag_filter.rs`: 9 occurrences
+
+- Line 153: type `operators::BinaryOperator` cannot be dereferenced: can't be dereferenced
+- Line 156: type `def::Expression` cannot be dereferenced: can't be dereferenced
+- Line 158: type `operators::BinaryOperator` cannot be dereferenced: can't be dereferenced
+- ... 6 more occurrences in this file
+
+### error[E0599]: no function or associated item named `parse_simple_tag_list` found for struct `tag_filter::TagFilterProcessor` in the current scope: function or associated item not found in `TagFilterProcessor`
 
 **Total Occurrences**: 2  
 **Unique Files**: 1
 
-#### `src\query\validator\utility\acl_validator.rs`: 2 occurrences
+#### `src\query\executor\tag_filter.rs`: 2 occurrences
 
-- Line 615: no field `users` on type `&mut GrantValidator`: unknown field
-- Line 735: no field `users` on type `&mut RevokeValidator`: unknown field
-
-### error[E0308]: mismatched types: expected `String`, found `Option<String>`
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\query\validator\utility\acl_validator.rs`: 1 occurrences
-
-- Line 487: mismatched types: expected `String`, found `Option<String>`
-
-### error[E0004]: non-exhaustive patterns: `&ast::pattern::Pattern::Variable(_)` not covered: pattern `&ast::pattern::Pattern::Variable(_)` not covered
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\query\validator\statements\merge_validator.rs`: 1 occurrences
-
-- Line 455: non-exhaustive patterns: `&ast::pattern::Pattern::Variable(_)` not covered: pattern `&ast::pattern::Pattern::Variable(_)` not covered
+- Line 144: no function or associated item named `parse_simple_tag_list` found for struct `tag_filter::TagFilterProcessor` in the current scope: function or associated item not found in `TagFilterProcessor`
+- Line 193: no function or associated item named `parse_simple_tag_list` found for struct `tag_filter::TagFilterProcessor` in the current scope: function or associated item not found in `TagFilterProcessor`
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `crate::query::validator::structs::AliasType`
+### warning: unused import: `std::sync::Arc`
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+**Total Occurrences**: 2  
+**Unique Files**: 2
 
-#### `src\query\validator\clauses\group_by_validator.rs`: 1 occurrences
+#### `src\query\planner\rewrite\predicate_pushdown\push_filter_down_get_nbrs.rs`: 1 occurrences
 
-- Line 21: unused import: `crate::query::validator::structs::AliasType`
+- Line 16: unused import: `std::sync::Arc`
+
+#### `src\query\validator\expression_analyzer.rs`: 1 occurrences
+
+- Line 15: unused import: `ExpressionContext`
 

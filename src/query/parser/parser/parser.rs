@@ -94,15 +94,3 @@ impl<'a> Parser<'a> {
         self.ctx.take_errors()
     }
 }
-
-/// 从字符串解析表达式为 ContextualExpression
-///
-/// # 参数
-/// - `input`: 表达式字符串
-///
-/// # 返回
-/// 解析成功返回 `ContextualExpression`，解析失败返回错误
-pub fn parse_expression_meta_from_string(input: &str) -> Result<ContextualExpression, crate::query::parser::core::error::ParseError> {
-    let mut parser = Parser::new(input);
-    parser.parse_expression_contextual()
-}

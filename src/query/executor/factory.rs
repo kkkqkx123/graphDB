@@ -93,14 +93,6 @@ fn parse_edge_direction(direction_str: &str) -> crate::core::EdgeDirection {
     }
 }
 
-/// 安全解析表达式字符串
-/// 如果解析失败，返回 None
-fn parse_expression_safe(expr_str: &str) -> Option<crate::core::Expression> {
-    crate::query::parser::parser::parse_expression_meta_from_string(expr_str)
-        .ok()
-        .map(|ctx_expr| ctx_expr.into_expression())
-}
-
 /// 执行器工厂
 ///
 /// 负责根据计划节点类型创建对应的执行器实例
@@ -621,12 +613,8 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.id(),
                     storage,
                     None,
-                    node.tag_filter().as_ref().and_then(|f| {
-                        parse_expression_safe(f)
-                    }),
-                    node.vertex_filter().as_ref().and_then(|f| {
-                        parse_expression_safe(f)
-                    }),
+                    None, // tag_filter 不是表达式，是标签名
+                    node.vertex_filter().and_then(|f| f.get_expression()),
                     node.limit().map(|l| l as usize),
                 );
                 Ok(ExecutorEnum::GetVertices(executor))
@@ -636,7 +624,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.id(),
                     storage,
                     node.edge_type(),
-                    node.filter().and_then(|f| parse_expression_safe(f)),
+                    node.filter().and_then(|f| f.get_expression()),
                     node.limit().map(|l| l as usize),
                 );
                 Ok(ExecutorEnum::ScanEdges(executor))
@@ -648,9 +636,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     storage,
                     if vertex_ids.is_empty() { None } else { Some(vertex_ids) },
                     None,
-                    node.expression().and_then(|e| {
-                        parse_expression_safe(e)
-                    }),
+                    node.expression().and_then(|e| e.get_expression()),
                     node.limit().map(|l| l as usize),
                 );
                 Ok(ExecutorEnum::GetVertices(executor))
@@ -1067,17 +1053,14 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .cloned()
                     .unwrap_or_else(|| format!("right_{}", node.id()));
 
+                // 列名直接转换为变量表达式，不需要解析
                 let compare_cols: Vec<crate::core::Expression> = node.compare_cols()
                     .iter()
-                    .map(|col| {
-                        crate::query::parser::parser::parse_expression_meta_from_string(col)
-                            .map(|ctx_expr| ctx_expr.into_expression())
-                            .unwrap_or_else(|_| crate::core::Expression::Variable(col.clone()))
-                    })
+                    .map(|col| crate::core::Expression::Variable(col.clone()))
                     .collect();
 
                 let collect_col = node.collect_col()
-                    .and_then(|col| parse_expression_safe(col))
+                    .map(|col| crate::core::Expression::Variable(col.clone()))
                     .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
 
                 let executor = RollUpApplyExecutor::new(
@@ -1101,13 +1084,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .cloned()
                     .unwrap_or_else(|| format!("right_{}", node.id()));
 
+                // 列名直接转换为变量表达式，不需要解析
                 let key_cols: Vec<crate::core::Expression> = node.key_cols()
                     .iter()
-                    .map(|col| {
-                        crate::query::parser::parser::parse_expression_meta_from_string(col)
-                            .map(|ctx_expr| ctx_expr.into_expression())
-                            .unwrap_or_else(|_| crate::core::Expression::Variable(col.clone()))
-                    })
+                    .map(|col| crate::core::Expression::Variable(col.clone()))
                     .collect();
 
                 let executor = PatternApplyExecutor::new(
@@ -1207,7 +1187,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.index_id,
                     node.scan_type.as_str(),
                     node.scan_limits.clone(),
-                    node.filter.as_ref().and_then(|f| parse_expression_safe(f)),
+                    node.filter.as_ref().and_then(|f| f.get_expression()),
                     node.return_columns.clone(),
                     node.limit.map(|l| l as usize),
                     node.is_edge_scan(),
@@ -1224,7 +1204,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.index_name().chars().fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)), // 将 index_name 转换为 index_id
                     node.scan_type().as_str(),
                     node.scan_limits().to_vec(),
-                    node.filter().and_then(|f| parse_expression_safe(f)),
+                    node.filter().and_then(|f| f.get_expression()),
                     node.return_columns().to_vec(),
                     node.limit().map(|l| l as usize),
                     true, // is_edge - 边索引扫描

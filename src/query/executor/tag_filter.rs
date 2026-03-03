@@ -89,51 +89,6 @@ impl TagFilterProcessor {
         }
     }
 
-    /// 解析标签过滤字符串为表达式
-    pub fn parse_tag_filter(filter_str: &str) -> Result<Expression, String> {
-        // 尝试解析为完整表达式
-        match crate::query::parser::parse_expression_meta_from_string(filter_str) {
-            Ok(ctx_expr) => Ok(ctx_expr.into_expression()),
-            Err(_) => {
-                // 如果解析失败，尝试作为简单的标签列表处理
-                Self::parse_simple_tag_list(filter_str)
-            }
-        }
-    }
-
-    /// 解析简单的标签列表（逗号分隔）
-    fn parse_simple_tag_list(filter_str: &str) -> Result<Expression, String> {
-        let tags: Vec<String> = filter_str
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-
-        if tags.is_empty() {
-            return Err("空的标签列表".to_string());
-        }
-
-        // 创建表达式：tags CONTAINS tag1 OR tags CONTAINS tag2 OR ...
-        let mut expression = None;
-        for tag in tags {
-            let tag_expression = Expression::binary(
-                Expression::variable("tags".to_string()),
-                crate::core::types::operators::BinaryOperator::In,
-                Expression::list(vec![Expression::literal(tag)]),
-            );
-
-            expression = match expression {
-                None => Some(tag_expression),
-                Some(existing) => Some(Expression::binary(
-                    existing,
-                    crate::core::types::operators::BinaryOperator::Or,
-                    tag_expression,
-                )),
-            };
-        }
-
-        expression.ok_or_else(|| "无法创建标签过滤表达式".to_string())
-    }
 }
 
 #[cfg(test)]

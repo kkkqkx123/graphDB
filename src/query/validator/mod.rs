@@ -41,6 +41,9 @@ pub mod validator_enum;
 // assignment 验证器
 pub mod assignment_validator;
 
+// 表达式分析器
+pub mod expression_analyzer;
+
 // 导出数据结构
 pub use structs::{
     AliasType,
@@ -183,3 +186,6 @@ pub use helpers::SchemaValidator;
 
 // 导出 assignment 验证器
 pub use assignment_validator::{AssignmentValidator, ValidatedAssignment};
+
+// 导出表达式分析器
+pub use expression_analyzer::{ExpressionAnalyzer, ExpressionAnalysisResult};

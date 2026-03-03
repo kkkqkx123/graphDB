@@ -41,25 +41,16 @@ impl ValidatedStatement {
     }
 }
 
-/// 表达式类型信息
-/// 使用表达式字符串表示作为键
-#[derive(Debug, Clone)]
-pub struct ExprTypeInfo {
-    /// 表达式字符串表示
-    pub expr_str: String,
-    /// 表达式类型
-    pub value_type: ValueType,
-}
-
 /// 验证信息结构体
 /// 包含验证阶段收集的所有有用信息
+///
+/// 设计说明：
+/// 表达式类型信息统一存储在 ExpressionContext 中，通过 ContextualExpression 访问。
+/// 本结构体不再维护独立的表达式类型缓存，确保单一数据源。
 #[derive(Debug, Clone, Default)]
 pub struct ValidationInfo {
     /// 别名映射（变量名 -> 类型）
     pub alias_map: HashMap<String, AliasType>,
-
-    /// 表达式类型推断结果（使用字符串键）
-    pub expr_types: HashMap<String, ValueType>,
 
     /// 路径分析结果
     pub path_analysis: Vec<PathAnalysis>,
@@ -91,17 +82,27 @@ impl ValidationInfo {
         self.alias_map.insert(name, alias_type);
     }
 
-    /// 添加表达式类型
-    /// 使用表达式字符串表示作为键
-    pub fn add_expr_type(&mut self, expr: &ContextualExpression, value_type: ValueType) {
-        let expr_str = expr.to_expression_string();
-        self.expr_types.insert(expr_str, value_type);
+    /// 获取表达式类型
+    ///
+    /// 从 ExpressionContext 获取类型信息，确保单一数据源。
+    /// 所有类型信息在验证阶段通过 ExpressionAnalyzer 存储到 ExpressionContext。
+    pub fn get_expr_type(&self, expr: &ContextualExpression) -> Option<ValueType> {
+        expr.data_type().map(|data_type| ValueType::from_data_type(&data_type))
     }
 
-    /// 根据表达式字符串获取类型
-    pub fn get_expr_type(&self, expr: &ContextualExpression) -> Option<&ValueType> {
-        let expr_str = expr.to_expression_string();
-        self.expr_types.get(&expr_str)
+    /// 使用 ExpressionAnalyzer 分析表达式
+    /// 将类型和常量信息存储到 ExpressionContext
+    pub fn analyze_expression(
+        &mut self,
+        expr: &ContextualExpression,
+        variable_types: Option<&std::collections::HashMap<String, crate::core::DataType>>,
+    ) -> Result<crate::query::validator::ExpressionAnalysisResult, crate::core::error::ValidationError> {
+        use crate::query::validator::ExpressionAnalyzer;
+
+        let analyzer = ExpressionAnalyzer::new();
+        let result = analyzer.analyze(expr, variable_types)?;
+
+        Ok(result)
     }
 
     /// 添加路径分析

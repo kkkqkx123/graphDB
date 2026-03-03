@@ -10,6 +10,10 @@ use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::core::types::ContextualExpression;
+use crate::core::Expression;
+use crate::core::types::operators::BinaryOperator;
+use crate::core::types::expression::ExpressionMeta;
+use std::sync::Arc;
 
 /// 将过滤条件下推到GetNeighbors操作的规则
 ///
@@ -91,22 +95,29 @@ impl RewriteRule for PushFilterDownGetNbrsRule {
             None => return Ok(None),
         };
 
-        // 将 Expression 序列化为字符串
-        let condition_str = match serde_json::to_string(&expr) {
-            Ok(s) => s,
-            Err(_) => return Ok(None),
-        };
-
         // 创建新的 GetNeighbors 节点
         let mut new_get_nbrs = get_nbrs.clone();
 
-        // 合并现有过滤条件
-        let new_filter = if let Some(existing) = get_nbrs.expression() {
-            format!("{{\"and\": [{}, {}]}}", existing, condition_str)
+        // 合并现有过滤条件 - 使用 Expression::And 组合表达式
+        let combined_expr = if let Some(existing_ctx) = get_nbrs.expression() {
+            if let Some(existing_expr) = existing_ctx.get_expression() {
+                Expression::Binary {
+                    op: BinaryOperator::And,
+                    left: Box::new(existing_expr.clone()),
+                    right: Box::new(expr),
+                }
+            } else {
+                expr
+            }
         } else {
-            condition_str
+            expr
         };
 
+        // 从 filter 节点的 condition 获取 context，注册新的组合表达式
+        let context = condition.context().clone();
+        let new_meta = ExpressionMeta::new(combined_expr);
+        let new_id = context.register_expression(new_meta);
+        let new_filter = ContextualExpression::new(new_id, context);
         new_get_nbrs.set_expression(new_filter);
 
         // 构建转换结果

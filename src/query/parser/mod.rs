@@ -23,4 +23,3 @@ pub use parser::Parser;
 pub use parser::ExprParser;
 pub use parser::StmtParser;
 pub use parser::ParserResult;
-pub use parser::parse_expression_meta_from_string;

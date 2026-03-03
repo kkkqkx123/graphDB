@@ -15,7 +15,7 @@ define_plan_node! {
         src_ref: ContextualExpression,
         src_vids: String,
         tag_props: Vec<TagProp>,
-        expression: Option<String>,
+        expression: Option<ContextualExpression>,
         dedup: bool,
         limit: Option<i64>,
     }
@@ -71,8 +71,12 @@ impl GetVerticesNode {
         self.tag_props = tag_props;
     }
 
-    pub fn expression(&self) -> Option<&String> {
+    pub fn expression(&self) -> Option<&ContextualExpression> {
         self.expression.as_ref()
+    }
+
+    pub fn set_expression(&mut self, expression: ContextualExpression) {
+        self.expression = Some(expression);
     }
 
     pub fn limit(&self) -> Option<i64> {
@@ -129,7 +133,7 @@ define_plan_node! {
         space_id: u64,
         edge_type: String,
         index_name: String,
-        expression: Option<String>,
+        expression: Option<ContextualExpression>,
         limit: Option<i64>,
         scan_type: ScanType,
         scan_limits: Vec<IndexLimit>,
@@ -172,8 +176,12 @@ impl EdgeIndexScanNode {
         &self.index_name
     }
 
-    pub fn filter(&self) -> Option<&String> {
+    pub fn filter(&self) -> Option<&ContextualExpression> {
         self.expression.as_ref()
+    }
+
+    pub fn set_filter(&mut self, filter: ContextualExpression) {
+        self.expression = Some(filter);
     }
 
     pub fn limit(&self) -> Option<i64> {
@@ -214,7 +222,7 @@ define_plan_node! {
         rank: String,
         dst: String,
         edge_props: Vec<EdgeProp>,
-        expression: Option<String>,
+        expression: Option<ContextualExpression>,
         dedup: bool,
         limit: Option<i64>,
     }
@@ -280,8 +288,12 @@ impl GetEdgesNode {
         &self.dst
     }
 
-    pub fn expression(&self) -> Option<&String> {
+    pub fn expression(&self) -> Option<&ContextualExpression> {
         self.expression.as_ref()
+    }
+
+    pub fn set_expression(&mut self, expression: ContextualExpression) {
+        self.expression = Some(expression);
     }
 
     pub fn limit(&self) -> Option<i64> {
@@ -297,7 +309,7 @@ define_plan_node! {
         direction: String,
         edge_props: Vec<EdgeProp>,
         tag_props: Vec<TagProp>,
-        expression: Option<String>,
+        expression: Option<ContextualExpression>,
         dedup: bool,
         limit: Option<i64>,
     }
@@ -348,11 +360,11 @@ impl GetNeighborsNode {
         &self.direction
     }
 
-    pub fn expression(&self) -> Option<&String> {
+    pub fn expression(&self) -> Option<&ContextualExpression> {
         self.expression.as_ref()
     }
 
-    pub fn set_expression(&mut self, expression: String) {
+    pub fn set_expression(&mut self, expression: ContextualExpression) {
         self.expression = Some(expression);
     }
 
@@ -401,7 +413,7 @@ define_plan_node! {
     pub struct ScanVerticesNode {
         space_id: u64,
         tag: Option<String>,
-        expression: Option<String>,
+        expression: Option<ContextualExpression>,
         limit: Option<i64>,
     }
     enum: ScanVertices
@@ -441,8 +453,12 @@ impl ScanVerticesNode {
         self.tag.as_ref()
     }
 
-    pub fn vertex_filter(&self) -> Option<&String> {
+    pub fn vertex_filter(&self) -> Option<&ContextualExpression> {
         self.expression.as_ref()
+    }
+
+    pub fn set_vertex_filter(&mut self, filter: ContextualExpression) {
+        self.expression = Some(filter);
     }
 
     pub fn limit(&self) -> Option<i64> {
@@ -454,7 +470,7 @@ define_plan_node! {
     pub struct ScanEdgesNode {
         space_id: u64,
         edge_type: Option<String>,
-        expression: Option<String>,
+        expression: Option<ContextualExpression>,
         limit: Option<i64>,
     }
     enum: ScanEdges
@@ -486,8 +502,12 @@ impl ScanEdgesNode {
         self.edge_type.clone()
     }
 
-    pub fn filter(&self) -> Option<&String> {
+    pub fn filter(&self) -> Option<&ContextualExpression> {
         self.expression.as_ref()
+    }
+
+    pub fn set_filter(&mut self, filter: ContextualExpression) {
+        self.expression = Some(filter);
     }
 
     pub fn limit(&self) -> Option<i64> {

@@ -8,8 +8,8 @@ use crate::expression::context::DefaultExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
-use crate::query::parser::parser::parse_expression_meta_from_string;
 use crate::storage::StorageClient;
+use crate::core::types::expression::ContextualExpression;
 use parking_lot::Mutex;
 
 // Executor for inserting new vertices/edges
@@ -176,7 +176,7 @@ pub struct UpdateExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_updates: Option<Vec<VertexUpdate>>,
     edge_updates: Option<Vec<EdgeUpdate>>,
-    condition: Option<String>,
+    condition: Option<ContextualExpression>,
     return_props: Option<Vec<String>>,
     yield_names: Vec<String>,
     insertable: bool,
@@ -215,7 +215,7 @@ impl<S: StorageClient> UpdateExecutor<S> {
         storage: Arc<Mutex<S>>,
         vertex_updates: Option<Vec<VertexUpdate>>,
         edge_updates: Option<Vec<EdgeUpdate>>,
-        condition: Option<String>,
+        condition: Option<ContextualExpression>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "UpdateExecutor".to_string(), storage),
@@ -305,15 +305,8 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<UpdateResult>> {
         let mut results = Vec::new();
 
-        let condition_expression = if let Some(ref condition_str) = self.condition {
-            Some(parse_expression_meta_from_string(condition_str).map(|ctx_expr| ctx_expr.into_expression()).map_err(|e| {
-                crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    format!("条件解析失败: {}", e),
-                ))
-            })?)
-        } else {
-            None
-        };
+        // 直接从 ContextualExpression 获取 Expression
+        let condition_expression = self.condition.as_ref().and_then(|c| c.get_expression());
 
         let mut storage = self.get_storage().lock();
 
@@ -443,7 +436,7 @@ pub struct DeleteExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
     edge_ids: Option<Vec<(Value, Value, String)>>,
-    condition: Option<String>,
+    condition: Option<ContextualExpression>,
     with_edge: bool, // 是否级联删除关联边
     space_name: String,
 }
@@ -454,7 +447,7 @@ impl<S: StorageClient> DeleteExecutor<S> {
         storage: Arc<Mutex<S>>,
         vertex_ids: Option<Vec<Value>>,
         edge_ids: Option<Vec<(Value, Value, String)>>,
-        condition: Option<String>,
+        condition: Option<ContextualExpression>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DeleteExecutor".to_string(), storage),
@@ -534,15 +527,8 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
     fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_deleted = 0;
 
-        let condition_expression = if let Some(ref condition_str) = self.condition {
-            Some(parse_expression_meta_from_string(condition_str).map(|ctx_expr| ctx_expr.into_expression()).map_err(|e| {
-                crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    format!("条件解析失败: {}", e),
-                ))
-            })?)
-        } else {
-            None
-        };
+        // 直接从 ContextualExpression 获取 Expression
+        let condition_expression = self.condition.as_ref().and_then(|c| c.get_expression());
 
         if let Some(ids) = &self.vertex_ids {
             let mut storage = self.get_storage().lock();

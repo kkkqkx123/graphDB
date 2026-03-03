@@ -2,6 +2,7 @@
 //! 包含索引扫描等搜索相关操作
 
 use crate::core::types::graph_schema::OrderDirection;
+use crate::core::types::expression::ContextualExpression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
@@ -140,7 +141,7 @@ pub struct IndexScan {
     pub index_id: i32,
     pub scan_type: ScanType,          // 使用枚举类型代替字符串
     pub scan_limits: Vec<IndexLimit>, // 索引扫描限制
-    pub filter: Option<String>,
+    pub filter: Option<ContextualExpression>,
     pub return_columns: Vec<String>,
     pub limit: Option<i64>,           // 限制返回的记录数量
     pub order_by: Vec<OrderByItem>,   // 排序条件（用于TopN下推）
