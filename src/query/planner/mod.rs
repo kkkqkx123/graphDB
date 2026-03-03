@@ -2,9 +2,9 @@
 //! Contains the Planner trait, ExecutionPlan structure, and various specific planners
 
 // 核心模块
+pub mod connector;
 pub mod plan;
 pub mod planner;
-pub mod connector;
 pub mod template_extractor;
 
 // 按功能组织的模块
@@ -14,18 +14,14 @@ pub mod statements;
 pub mod rewrite;
 
 // 重新导出主要的类型
-pub use plan::execution_plan::{ExecutionPlan, SubPlan};
-pub use planner::{
-    Planner, PlannerConfig, PlannerError, SentenceKind,
-};
 pub use connector::SegmentsConnector;
-pub use template_extractor::{TemplateExtractor, ParameterizingTransformer, ParameterizedResult};
+pub use plan::execution_plan::{ExecutionPlan, SubPlan};
+pub use planner::{Planner, PlannerConfig, PlannerError, SentenceKind};
+pub use template_extractor::{ParameterizedResult, ParameterizingTransformer, TemplateExtractor};
 
 // 从 core 模块重新导出 JoinType
 pub use crate::core::types::JoinType;
-pub use statements::{
-    MatchStatementPlanner,
-};
+pub use statements::MatchStatementPlanner;
 
 // 静态注册相关导出
 pub use planner::PlannerEnum;

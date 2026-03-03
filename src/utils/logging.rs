@@ -3,7 +3,7 @@
 // 封装 flexi_logger 的初始化和关闭操作，确保异步日志正确 flush
 
 use crate::config::Config;
-use flexi_logger::{Cleanup, Criterion, FileSpec, Logger, Naming, WriteMode, LoggerHandle};
+use flexi_logger::{Cleanup, Criterion, FileSpec, Logger, LoggerHandle, Naming, WriteMode};
 use parking_lot::Mutex;
 
 /// 全局日志句柄，用于程序退出时 flush
@@ -85,15 +85,15 @@ mod tests {
     #[test]
     fn test_logging_init_and_shutdown() {
         let config = Config::default();
-        
+
         // 初始化日志
         let result = init(&config);
         assert!(result.is_ok(), "日志初始化失败: {:?}", result.err());
         assert!(is_initialized());
-        
+
         // 写入测试日志
         log::info!("测试日志消息");
-        
+
         // 关闭日志
         shutdown();
         assert!(!is_initialized());

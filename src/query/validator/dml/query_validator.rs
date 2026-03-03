@@ -2,15 +2,15 @@
 //! 用于验证顶层查询语句（QueryStmt）
 //! Query 语句是一个包装器，包含实际的查询语句
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::QueryStmt;
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::Validator;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
-use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::QueryContext;
+use std::sync::Arc;
 
 /// Query 语句验证器
 #[derive(Debug)]
@@ -43,11 +43,15 @@ impl QueryValidator {
         }
 
         let first_stmt = &stmt.statements[0];
-        let validator = Validator::create_from_stmt(first_stmt)
-            .ok_or_else(|| ValidationError::new(
-                format!("Unsupported statement type in QUERY: {:?}", first_stmt.kind()),
+        let validator = Validator::create_from_stmt(first_stmt).ok_or_else(|| {
+            ValidationError::new(
+                format!(
+                    "Unsupported statement type in QUERY: {:?}",
+                    first_stmt.kind()
+                ),
                 ValidationErrorType::SemanticError,
-            ))?;
+            )
+        })?;
 
         self.inner_validator = Some(Box::new(validator));
         self.setup_outputs();
@@ -94,13 +98,16 @@ impl StatementValidator for QueryValidator {
         self.validate_impl(&query_stmt)?;
 
         // 提取第一个语句
-        let first_stmt = query_stmt.statements.into_iter().next()
-            .ok_or_else(|| ValidationError::new(
+        let first_stmt = query_stmt.statements.into_iter().next().ok_or_else(|| {
+            ValidationError::new(
                 "Query must contain at least one statement".to_string(),
                 ValidationErrorType::SemanticError,
-            ))?;
+            )
+        })?;
 
-        let inner = self.inner_validator.as_mut()
+        let inner = self
+            .inner_validator
+            .as_mut()
             .expect("inner_validator should be set after validate_impl");
 
         let result = inner.validate(first_stmt, qctx.clone());
@@ -156,7 +163,7 @@ impl StatementValidator for QueryValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::ast::{QueryStmt, Stmt, Span};
+    use crate::query::parser::ast::{QueryStmt, Span, Stmt};
 
     #[test]
     fn test_query_validator_new() {

@@ -1,20 +1,22 @@
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-use parking_lot::Mutex;
-    use crate::query::executor::admin::tag::{
-        CreateTagExecutor, AlterTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
-    };
-    use crate::query::executor::admin::tag::create_tag::ExecutorTagInfo;
-    use crate::query::executor::admin::tag::alter_tag::{AlterTagInfo, AlterTagItem};
     use crate::core::types::PropertyDef;
     use crate::core::DataType;
-    use crate::storage::test_mock::MockStorage;
+    use crate::query::executor::admin::tag::alter_tag::{AlterTagInfo, AlterTagItem};
+    use crate::query::executor::admin::tag::create_tag::ExecutorTagInfo;
+    use crate::query::executor::admin::tag::{
+        AlterTagExecutor, CreateTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
+    };
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
+    use parking_lot::Mutex;
+    use std::sync::Arc;
 
     #[test]
     fn test_create_tag_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let properties = vec![
             PropertyDef::new("name".to_string(), DataType::String),
             PropertyDef::new("age".to_string(), DataType::Int32),
@@ -34,7 +36,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_create_tag_executor_with_if_not_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
 
         let mut executor = CreateTagExecutor::with_if_not_exists(2, storage, tag_info);
@@ -45,14 +49,16 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_alter_tag_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let new_prop = PropertyDef::new("email".to_string(), DataType::String);
         let items = vec![
             AlterTagItem::add_property(new_prop),
             AlterTagItem::drop_property("old_field".to_string()),
         ];
-        let alter_info = AlterTagInfo::new("test_space".to_string(), "person".to_string())
-            .with_items(items);
+        let alter_info =
+            AlterTagInfo::new("test_space".to_string(), "person".to_string()).with_items(items);
 
         let mut executor = AlterTagExecutor::new(3, storage, alter_info);
 
@@ -62,8 +68,11 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_drop_tag_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let mut executor = DropTagExecutor::new(4, storage, "test_space".to_string(), "person".to_string());
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let mut executor =
+            DropTagExecutor::new(4, storage, "test_space".to_string(), "person".to_string());
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -75,8 +84,15 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_drop_tag_executor_with_if_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let mut executor = DropTagExecutor::with_if_exists(5, storage, "test_space".to_string(), "person".to_string());
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let mut executor = DropTagExecutor::with_if_exists(
+            5,
+            storage,
+            "test_space".to_string(),
+            "person".to_string(),
+        );
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -84,8 +100,11 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_desc_tag_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let mut executor = DescTagExecutor::new(6, storage, "test_space".to_string(), "person".to_string());
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let mut executor =
+            DescTagExecutor::new(6, storage, "test_space".to_string(), "person".to_string());
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -93,7 +112,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_show_tags_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = ShowTagsExecutor::new(7, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -123,15 +144,17 @@ use parking_lot::Mutex;
             AlterTagItem::add_property(new_prop),
             AlterTagItem::drop_property("old_field".to_string()),
         ];
-        let alter_info = AlterTagInfo::new("test_space".to_string(), "person".to_string())
-            .with_items(items);
+        let alter_info =
+            AlterTagInfo::new("test_space".to_string(), "person".to_string()).with_items(items);
 
         assert_eq!(alter_info.items.len(), 2);
     }
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
         let mut executor = CreateTagExecutor::new(8, storage, tag_info);
 
@@ -144,7 +167,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
         let executor = CreateTagExecutor::new(9, storage, tag_info);
 

@@ -2,13 +2,13 @@
 //!
 //! 负责查看指定标签的详细信息。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
-use crate::core::{DataSet, Value};
-use crate::storage::iterator::Row;
 use crate::core::types::graph_schema::PropertyType;
+use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
 /// 标签描述信息
@@ -54,7 +54,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescTagExecutor<S
 
         match result {
             Ok(Some(tag_schema)) => {
-                let rows: Vec<Row> = tag_schema.properties
+                let rows: Vec<Row> = tag_schema
+                    .properties
                     .iter()
                     .map(|field| {
                         vec![
@@ -79,9 +80,14 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescTagExecutor<S
                 };
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            Ok(None) => Ok(ExecutionResult::Error(format!("Tag '{}' not found in space '{}'",
-                self.tag_name, self.space_name))),
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to describe tag: {}", e))),
+            Ok(None) => Ok(ExecutionResult::Error(format!(
+                "Tag '{}' not found in space '{}'",
+                self.tag_name, self.space_name
+            ))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to describe tag: {}",
+                e
+            ))),
         }
     }
 

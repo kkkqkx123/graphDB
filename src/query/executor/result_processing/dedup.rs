@@ -3,22 +3,20 @@
 //! 实现数据去重功能，支持基于指定键的去重策略
 //! CPU 密集型操作，使用 Rayon 进行并行化
 
+use parking_lot::Mutex;
 use std::collections::HashSet;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use rayon;
 
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
+use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::ParallelConfig;
-use crate::query::executor::base::{
-    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
-};
-use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
-use crate::storage::StorageClient;
 use crate::storage::iterator::Row;
+use crate::storage::StorageClient;
 
 /// 去重策略
 #[derive(Debug, Clone, PartialEq)]
@@ -108,14 +106,9 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     }
 
     /// 值去重
-    fn dedup_values(
-        &mut self,
-        values: Vec<Value>,
-    ) -> Result<Vec<Value>, crate::query::QueryError> {
+    fn dedup_values(&mut self, values: Vec<Value>) -> Result<Vec<Value>, crate::query::QueryError> {
         match self.strategy.clone() {
-            DedupStrategy::Full => {
-                self.hash_based_dedup(values, |value| format!("{:?}", value))
-            }
+            DedupStrategy::Full => self.hash_based_dedup(values, |value| format!("{:?}", value)),
             DedupStrategy::ByKeys(keys) => {
                 let keys = Arc::new(keys);
                 let keys_clone = keys.clone();
@@ -123,9 +116,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
                     move |value: &Value| Self::extract_keys_from_value_static(value, &keys_clone);
                 self.hash_based_dedup(values, key_extractor)
             }
-            _ => {
-                self.hash_based_dedup(values, |value| format!("{:?}", value))
-            }
+            _ => self.hash_based_dedup(values, |value| format!("{:?}", value)),
         }
     }
 
@@ -148,25 +139,16 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
                 };
                 self.hash_based_dedup(vertices, key_extractor)
             }
-            _ => {
-                self.hash_based_dedup(vertices, |vertex| format!("{:?}", vertex.vid))
-            }
+            _ => self.hash_based_dedup(vertices, |vertex| format!("{:?}", vertex.vid)),
         }
     }
 
-    fn dedup_edges(
-        &mut self,
-        edges: Vec<Edge>,
-    ) -> Result<Vec<Edge>, crate::query::QueryError> {
+    fn dedup_edges(&mut self, edges: Vec<Edge>) -> Result<Vec<Edge>, crate::query::QueryError> {
         match self.strategy.clone() {
-            DedupStrategy::Full => {
-                self.hash_based_dedup(edges, |edge| format!("{:?}", edge))
-            }
-            DedupStrategy::ByEdgeKey => {
-                self.hash_based_dedup(edges, |edge| {
-                    format!("{:?}-{}-{:?}", edge.src, edge.edge_type, edge.dst)
-                })
-            }
+            DedupStrategy::Full => self.hash_based_dedup(edges, |edge| format!("{:?}", edge)),
+            DedupStrategy::ByEdgeKey => self.hash_based_dedup(edges, |edge| {
+                format!("{:?}-{}-{:?}", edge.src, edge.edge_type, edge.dst)
+            }),
             DedupStrategy::ByKeys(keys) => {
                 let keys = Arc::new(keys);
                 let keys_clone = keys.clone();
@@ -174,11 +156,9 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
                     move |edge: &Edge| Self::extract_keys_from_edge_static(edge, &keys_clone);
                 self.hash_based_dedup(edges, key_extractor)
             }
-            _ => {
-                self.hash_based_dedup(edges, |edge| {
-                    format!("{:?}-{}-{:?}", edge.src, edge.edge_type, edge.dst)
-                })
-            }
+            _ => self.hash_based_dedup(edges, |edge| {
+                format!("{:?}-{}-{:?}", edge.src, edge.edge_type, edge.dst)
+            }),
         }
     }
 
@@ -245,9 +225,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
                 dataset.rows = unique_rows;
                 Ok(())
             }
-            _ => {
-                self.dedup_dataset_with_strategy_sequential(dataset)
-            }
+            _ => self.dedup_dataset_with_strategy_sequential(dataset),
         }
     }
 
@@ -622,10 +600,9 @@ mod tests {
         let input_result = ExecutionResult::Values(test_data);
 
         // 使用 ResultProcessor trait 的 set_input 方法
-        <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<MockStorage>>::set_input(
-            &mut executor,
-            input_result,
-        );
+        <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<
+            MockStorage,
+        >>::set_input(&mut executor, input_result);
 
         // 执行去重
         let result = executor
@@ -678,7 +655,9 @@ mod tests {
         ];
 
         // 使用 set_input 方法设置输入数据
-        <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<MockStorage>>::set_input(&mut executor, ExecutionResult::Values(test_data));
+        <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<
+            MockStorage,
+        >>::set_input(&mut executor, ExecutionResult::Values(test_data));
 
         // 处理去重
         let result = executor

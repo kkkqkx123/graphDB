@@ -1,10 +1,10 @@
 //! 类型检查工具
 //! 负责表达式类型推导、类型验证和类型兼容性检查
 
-use crate::core::Expression;
-use crate::core::DataType;
-use crate::core::TypeUtils;
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::DataType;
+use crate::core::Expression;
+use crate::core::TypeUtils;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::ValueType;
 use std::collections::HashMap;
@@ -21,7 +21,10 @@ impl TypeDeduceValidator {
         Self
     }
 
-    pub fn deduce_type(&self, expression: &crate::core::types::expression::contextual::ContextualExpression) -> DataType {
+    pub fn deduce_type(
+        &self,
+        expression: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> DataType {
         if let Some(expr) = expression.get_expression() {
             expr.deduce_type()
         } else {
@@ -96,12 +99,12 @@ impl TypeValidator {
             Expression::Function { name, args } => {
                 self.validate_function_return_type(name, args, context, expected_type)
             }
-            Expression::Aggregate { func, arg, distinct: _ } => {
-                self.validate_aggregate_return_type(func, arg, context, expected_type)
-            }
-            Expression::Variable(name) => {
-                self.validate_variable_type(name, context, expected_type)
-            }
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct: _,
+            } => self.validate_aggregate_return_type(func, arg, context, expected_type),
+            Expression::Variable(name) => self.validate_variable_type(name, context, expected_type),
             _ => {
                 let actual_type = self.deduce_expr_type(expression);
                 let expected_value_type = Self::value_type_def_to_value_type(&expected_type);
@@ -151,10 +154,7 @@ impl TypeValidator {
                     }
                 } else {
                     Err(ValidationError::new(
-                        format!(
-                            "比较操作符的结果是布尔值，但期望类型是 {:?}",
-                            expected_type
-                        ),
+                        format!("比较操作符的结果是布尔值，但期望类型是 {:?}", expected_type),
                         ValidationErrorType::TypeError,
                     ))
                 }
@@ -165,10 +165,7 @@ impl TypeValidator {
                     self.validate_expression_type_full(right, context, DataType::Bool)
                 } else {
                     Err(ValidationError::new(
-                        format!(
-                            "逻辑操作符的结果是布尔值，但期望类型是 {:?}",
-                            expected_type
-                        ),
+                        format!("逻辑操作符的结果是布尔值，但期望类型是 {:?}", expected_type),
                         ValidationErrorType::TypeError,
                     ))
                 }
@@ -177,7 +174,7 @@ impl TypeValidator {
                 let left_type = self.deduce_expression_type_full(left, context);
                 let right_type = self.deduce_expression_type_full(right, context);
                 let result_type = self.deduce_binary_expr_type(op, &left_type, &right_type);
-                
+
                 if self.are_types_compatible(&result_type, &expected_type) {
                     Ok(())
                 } else {
@@ -206,10 +203,7 @@ impl TypeValidator {
                     self.validate_expression_type_full(operand, context, DataType::Bool)
                 } else {
                     Err(ValidationError::new(
-                        format!(
-                            "逻辑非的结果是布尔值，但期望类型是 {:?}",
-                            expected_type
-                        ),
+                        format!("逻辑非的结果是布尔值，但期望类型是 {:?}", expected_type),
                         ValidationErrorType::TypeError,
                     ))
                 }
@@ -326,7 +320,11 @@ impl TypeValidator {
             Expression::Function { name, args } => {
                 self.deduce_function_return_type(name, args, context)
             }
-            Expression::Aggregate { func, arg, distinct: _ } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct: _,
+            } => {
                 let arg_type = self.deduce_expression_type_full(arg, context);
                 self.deduce_aggregate_return_type_with_arg(func, &arg_type)
             }
@@ -367,9 +365,27 @@ impl TypeValidator {
         left_type: &DataType,
         right_type: &DataType,
     ) -> DataType {
-        let left_is_numeric = matches!(left_type, DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 | DataType::Float | DataType::Double);
-        let right_is_numeric = matches!(right_type, DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 | DataType::Float | DataType::Double);
-        
+        let left_is_numeric = matches!(
+            left_type,
+            DataType::Int
+                | DataType::Int8
+                | DataType::Int16
+                | DataType::Int32
+                | DataType::Int64
+                | DataType::Float
+                | DataType::Double
+        );
+        let right_is_numeric = matches!(
+            right_type,
+            DataType::Int
+                | DataType::Int8
+                | DataType::Int16
+                | DataType::Int32
+                | DataType::Int64
+                | DataType::Float
+                | DataType::Double
+        );
+
         if !left_is_numeric || !right_is_numeric {
             return DataType::Empty;
         }
@@ -390,17 +406,21 @@ impl TypeValidator {
         operand_type: &DataType,
     ) -> DataType {
         match op {
-            crate::core::UnaryOperator::Not => {
-                match operand_type {
-                    DataType::Bool => DataType::Bool,
-                    DataType::Null | DataType::Empty => DataType::Bool,
-                    _ => DataType::Empty,
-                }
-            }
+            crate::core::UnaryOperator::Not => match operand_type {
+                DataType::Bool => DataType::Bool,
+                DataType::Null | DataType::Empty => DataType::Bool,
+                _ => DataType::Empty,
+            },
             crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => {
-                let is_numeric = matches!(operand_type, 
-                    DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 
-                    | DataType::Float | DataType::Double
+                let is_numeric = matches!(
+                    operand_type,
+                    DataType::Int
+                        | DataType::Int8
+                        | DataType::Int16
+                        | DataType::Int32
+                        | DataType::Int64
+                        | DataType::Float
+                        | DataType::Double
                 );
                 if is_numeric || matches!(operand_type, DataType::Null | DataType::Empty) {
                     operand_type.clone()
@@ -408,7 +428,7 @@ impl TypeValidator {
                     DataType::Empty
                 }
             }
-            crate::core::UnaryOperator::IsNull 
+            crate::core::UnaryOperator::IsNull
             | crate::core::UnaryOperator::IsNotNull
             | crate::core::UnaryOperator::IsEmpty
             | crate::core::UnaryOperator::IsNotEmpty => DataType::Bool,
@@ -451,10 +471,7 @@ impl TypeValidator {
         }
     }
 
-    pub fn deduce_aggregate_return_type(
-        &self,
-        func: &crate::core::AggregateFunction,
-    ) -> DataType {
+    pub fn deduce_aggregate_return_type(&self, func: &crate::core::AggregateFunction) -> DataType {
         match func {
             crate::core::AggregateFunction::Count(_) => DataType::Int,
             crate::core::AggregateFunction::Sum(_) => DataType::Float,
@@ -467,7 +484,8 @@ impl TypeValidator {
             crate::core::AggregateFunction::Distinct(_) => DataType::Set,
             crate::core::AggregateFunction::Percentile(_, _) => DataType::Float,
             crate::core::AggregateFunction::Std(_) => DataType::Float,
-            crate::core::AggregateFunction::BitAnd(_) | crate::core::AggregateFunction::BitOr(_) => DataType::Int,
+            crate::core::AggregateFunction::BitAnd(_)
+            | crate::core::AggregateFunction::BitOr(_) => DataType::Int,
             crate::core::AggregateFunction::GroupConcat(_, _) => DataType::String,
         }
     }
@@ -489,7 +507,8 @@ impl TypeValidator {
             crate::core::AggregateFunction::Distinct(_) => DataType::Set,
             crate::core::AggregateFunction::Percentile(_, _) => DataType::Float,
             crate::core::AggregateFunction::Std(_) => DataType::Float,
-            crate::core::AggregateFunction::BitAnd(_) | crate::core::AggregateFunction::BitOr(_) => DataType::Int,
+            crate::core::AggregateFunction::BitAnd(_)
+            | crate::core::AggregateFunction::BitOr(_) => DataType::Int,
             crate::core::AggregateFunction::GroupConcat(_, _) => DataType::String,
         }
     }
@@ -519,12 +538,12 @@ impl TypeValidator {
                 self.has_aggregate_expression_internal(left.as_ref())
                     || self.has_aggregate_expression_internal(right.as_ref())
             }
-            Expression::Function { args, .. } => {
-                args.iter().any(|arg| self.has_aggregate_expression_internal(arg))
-            }
-            Expression::List(items) => {
-                items.iter().any(|item| self.has_aggregate_expression_internal(item))
-            }
+            Expression::Function { args, .. } => args
+                .iter()
+                .any(|arg| self.has_aggregate_expression_internal(arg)),
+            Expression::List(items) => items
+                .iter()
+                .any(|item| self.has_aggregate_expression_internal(item)),
             Expression::Map(items) => items
                 .iter()
                 .any(|(_, value)| self.has_aggregate_expression_internal(value)),
@@ -533,12 +552,16 @@ impl TypeValidator {
                 conditions,
                 default,
             } => {
-                test_expr.as_ref().map_or(false, |expr| self.has_aggregate_expression_internal(expr))
+                test_expr
+                    .as_ref()
+                    .map_or(false, |expr| self.has_aggregate_expression_internal(expr))
                     || conditions.iter().any(|(cond, val)| {
                         self.has_aggregate_expression_internal(cond)
                             || self.has_aggregate_expression_internal(val)
                     })
-                    || default.as_ref().map_or(false, |d| self.has_aggregate_expression_internal(d))
+                    || default
+                        .as_ref()
+                        .map_or(false, |d| self.has_aggregate_expression_internal(d))
             }
             _ => false,
         }
@@ -583,8 +606,8 @@ pub fn deduce_expression_type(expression: &Expression) -> DataType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::Expression;
     use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::Expression;
     use crate::core::types::expression::ExpressionContext;
     use crate::core::types::expression::ExpressionMeta;
     use std::sync::Arc;

@@ -27,7 +27,12 @@ pub struct EdgeInsertInfo {
     pub space_name: String,
     pub edge_name: String,
     pub prop_names: Vec<String>,
-    pub edges: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>, Vec<ContextualExpression>)>,
+    pub edges: Vec<(
+        ContextualExpression,
+        ContextualExpression,
+        Option<ContextualExpression>,
+        Vec<ContextualExpression>,
+    )>,
 }
 
 define_plan_node! {
@@ -115,7 +120,14 @@ impl InsertEdgesNode {
         &self.info.prop_names
     }
 
-    pub fn edges(&self) -> &[(ContextualExpression, ContextualExpression, Option<ContextualExpression>, Vec<ContextualExpression>)] {
+    pub fn edges(
+        &self,
+    ) -> &[(
+        ContextualExpression,
+        ContextualExpression,
+        Option<ContextualExpression>,
+        Vec<ContextualExpression>,
+    )] {
         &self.info.edges
     }
 }
@@ -123,8 +135,8 @@ impl InsertEdgesNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::{ContextualExpression, ExpressionContext, ExpressionMeta};
     use crate::core::{Expression, Value};
-    use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ContextualExpression};
     use std::sync::Arc;
 
     // 辅助函数：创建常量表达式
@@ -140,20 +152,16 @@ mod tests {
     fn test_vertex_insert_info_creation() {
         let info = VertexInsertInfo {
             space_name: "test_space".to_string(),
-            tags: vec![
-                TagInsertSpec {
-                    tag_name: "person".to_string(),
-                    prop_names: vec!["name".to_string(), "age".to_string()],
-                },
-            ],
+            tags: vec![TagInsertSpec {
+                tag_name: "person".to_string(),
+                prop_names: vec!["name".to_string(), "age".to_string()],
+            }],
             values: vec![(
                 lit(Value::Int(1)),
-                vec![
-                    vec![
-                        lit(Value::String("Alice".to_string())),
-                        lit(Value::Int(30)),
-                    ],
-                ],
+                vec![vec![
+                    lit(Value::String("Alice".to_string())),
+                    lit(Value::Int(30)),
+                ]],
             )],
         };
 
@@ -187,12 +195,10 @@ mod tests {
     fn test_insert_vertices_node_creation() {
         let info = VertexInsertInfo {
             space_name: "test_space".to_string(),
-            tags: vec![
-                TagInsertSpec {
-                    tag_name: "person".to_string(),
-                    prop_names: vec!["name".to_string()],
-                },
-            ],
+            tags: vec![TagInsertSpec {
+                tag_name: "person".to_string(),
+                prop_names: vec!["name".to_string()],
+            }],
             values: vec![(
                 lit(Value::Int(1)),
                 vec![vec![lit(Value::String("Alice".to_string()))]],
@@ -237,12 +243,10 @@ mod tests {
     fn test_insert_vertices_node_with_multiple_values() {
         let info = VertexInsertInfo {
             space_name: "test_space".to_string(),
-            tags: vec![
-                TagInsertSpec {
-                    tag_name: "person".to_string(),
-                    prop_names: vec!["name".to_string(), "age".to_string()],
-                },
-            ],
+            tags: vec![TagInsertSpec {
+                tag_name: "person".to_string(),
+                prop_names: vec!["name".to_string(), "age".to_string()],
+            }],
             values: vec![
                 (
                     lit(Value::Int(1)),
@@ -302,12 +306,10 @@ mod tests {
     fn test_insert_vertices_node_info_method() {
         let info = VertexInsertInfo {
             space_name: "test_space".to_string(),
-            tags: vec![
-                TagInsertSpec {
-                    tag_name: "person".to_string(),
-                    prop_names: vec!["name".to_string()],
-                },
-            ],
+            tags: vec![TagInsertSpec {
+                tag_name: "person".to_string(),
+                prop_names: vec!["name".to_string()],
+            }],
             values: vec![],
         };
 

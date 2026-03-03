@@ -15,30 +15,32 @@
 use thiserror::Error;
 
 // 子模块
+pub mod auth;
 pub mod codes;
-pub mod storage;
-pub mod query;
 pub mod expression;
 pub mod manager;
-pub mod session;
-pub mod permission;
-pub mod validation;
-pub mod auth;
 pub mod optimize;
+pub mod permission;
+pub mod query;
+pub mod session;
+pub mod storage;
+pub mod validation;
 
 // 重新导出错误码
-pub use codes::{ErrorCode, ErrorCategory as CodeErrorCategory, PublicError, ToPublicError};
+pub use codes::{ErrorCategory as CodeErrorCategory, ErrorCode, PublicError, ToPublicError};
 
 // 重新导出所有错误类型
-pub use storage::{StorageError, StorageResult};
-pub use query::{QueryError, QueryResult, PlanNodeVisitError};
-pub use expression::{ExpressionError, ExpressionErrorType, ExpressionPosition};
-pub use manager::{ManagerError, ManagerResult, ErrorCategory};
-pub use session::{SessionError, SessionResult};
-pub use permission::{PermissionError, PermissionResult};
-pub use validation::{ValidationError, ValidationErrorType, SchemaValidationError, SchemaValidationResult};
 pub use auth::{AuthError, AuthResult};
-pub use optimize::{OptimizeError, OptimizeResult, CostError, CostResult};
+pub use expression::{ExpressionError, ExpressionErrorType, ExpressionPosition};
+pub use manager::{ErrorCategory, ManagerError, ManagerResult};
+pub use optimize::{CostError, CostResult, OptimizeError, OptimizeResult};
+pub use permission::{PermissionError, PermissionResult};
+pub use query::{PlanNodeVisitError, QueryError, QueryResult};
+pub use session::{SessionError, SessionResult};
+pub use storage::{StorageError, StorageResult};
+pub use validation::{
+    SchemaValidationError, SchemaValidationResult, ValidationError, ValidationErrorType,
+};
 
 pub use crate::core::types::DataType;
 

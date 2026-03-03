@@ -2,12 +2,12 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
-use crate::core::{Edge, NPath, Path, Value, Vertex};
 use crate::core::value::dataset::List;
+use crate::core::{Edge, NPath, Path, Value, Vertex};
 
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
-use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -65,10 +65,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         }
     }
 
-    fn get_neighbors_with_edges(
-        &self,
-        node_id: &Value,
-    ) -> Result<Vec<(Value, Edge)>, QueryError> {
+    fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
         let storage = self.base.get_storage().clone();
         super::traversal_utils::get_neighbors_with_edges(
             &storage,
@@ -148,7 +145,8 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             self.visited_nodes.insert(neighbor_id.clone());
 
             // 递归扩展（即使顶点是悬挂的，也继续扩展以获取更多边）
-            let mut expanded_npaths = self.expand_paths_recursive(&new_npath, current_depth + 1, max_depth)?;
+            let mut expanded_npaths =
+                self.expand_paths_recursive(&new_npath, current_depth + 1, max_depth)?;
             all_npaths.append(&mut expanded_npaths);
 
             // 取消标记（允许在其他路径中访问）
@@ -265,8 +263,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             let initial_npath = Arc::new(NPath::new(Arc::new(vertex)));
 
             // 递归扩展路径
-            let mut expanded_npaths = self
-                .expand_paths_recursive(&initial_npath, 0, max_depth)?;
+            let mut expanded_npaths = self.expand_paths_recursive(&initial_npath, 0, max_depth)?;
             self.npath_cache.append(&mut expanded_npaths);
         }
 

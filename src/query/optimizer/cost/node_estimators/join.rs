@@ -8,11 +8,11 @@
 //! - CrossJoin
 //! - FullOuterJoin
 
-use crate::query::planner::plan::PlanNodeEnum;
+use super::{get_input_rows, NodeEstimator};
+use crate::core::error::optimize::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::core::error::optimize::CostError;
-use super::{NodeEstimator, get_input_rows};
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 连接操作估算器
 pub struct JoinEstimator<'a> {
@@ -39,40 +39,51 @@ impl<'a> NodeEstimator for JoinEstimator<'a> {
             PlanNodeEnum::HashInnerJoin(_) => {
                 // 内连接输出行数估算（假设选择性为 0.3）
                 let output_rows = (left_rows.min(right_rows) as f64 * 0.3).max(1.0) as u64;
-                let cost = self.cost_calculator.calculate_hash_join_cost(left_rows, right_rows);
+                let cost = self
+                    .cost_calculator
+                    .calculate_hash_join_cost(left_rows, right_rows);
                 Ok((cost, output_rows))
             }
             PlanNodeEnum::HashLeftJoin(_) => {
                 // 左连接保持左表所有行
                 let output_rows = left_rows;
-                let cost = self.cost_calculator
+                let cost = self
+                    .cost_calculator
                     .calculate_hash_left_join_cost(left_rows, right_rows);
                 Ok((cost, output_rows))
             }
             PlanNodeEnum::InnerJoin(_) => {
                 let output_rows = (left_rows.min(right_rows) as f64 * 0.3).max(1.0) as u64;
-                let cost = self.cost_calculator.calculate_inner_join_cost(left_rows, right_rows);
+                let cost = self
+                    .cost_calculator
+                    .calculate_inner_join_cost(left_rows, right_rows);
                 Ok((cost, output_rows))
             }
             PlanNodeEnum::LeftJoin(_) => {
                 let output_rows = left_rows;
-                let cost = self.cost_calculator.calculate_left_join_cost(left_rows, right_rows);
+                let cost = self
+                    .cost_calculator
+                    .calculate_left_join_cost(left_rows, right_rows);
                 Ok((cost, output_rows))
             }
             PlanNodeEnum::CrossJoin(_) => {
                 let output_rows = left_rows.saturating_mul(right_rows);
-                let cost = self.cost_calculator.calculate_cross_join_cost(left_rows, right_rows);
+                let cost = self
+                    .cost_calculator
+                    .calculate_cross_join_cost(left_rows, right_rows);
                 Ok((cost, output_rows.max(1)))
             }
             PlanNodeEnum::FullOuterJoin(_) => {
                 let output_rows = left_rows.saturating_add(right_rows);
-                let cost = self.cost_calculator
+                let cost = self
+                    .cost_calculator
                     .calculate_full_outer_join_cost(left_rows, right_rows);
                 Ok((cost, output_rows.max(1)))
             }
-            _ => Err(CostError::UnsupportedNodeType(
-                format!("连接估算器不支持节点类型: {:?}", std::mem::discriminant(node))
-            )),
+            _ => Err(CostError::UnsupportedNodeType(format!(
+                "连接估算器不支持节点类型: {:?}",
+                std::mem::discriminant(node)
+            ))),
         }
     }
 }

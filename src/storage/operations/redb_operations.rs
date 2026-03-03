@@ -1,13 +1,15 @@
-use crate::core::{Edge, EdgeDirection, Value, Vertex, StorageError};
-use crate::storage::operations::{VertexReader, EdgeReader, VertexWriter, EdgeWriter, ScanResult};
-use crate::storage::redb_types::{ByteKey, NODES_TABLE, EDGES_TABLE};
-use crate::storage::serializer::{vertex_to_bytes, vertex_from_bytes, edge_to_bytes, edge_from_bytes, value_to_bytes};
+use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
+use crate::storage::operations::{EdgeReader, EdgeWriter, ScanResult, VertexReader, VertexWriter};
+use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
+use crate::storage::serializer::{
+    edge_from_bytes, edge_to_bytes, value_to_bytes, vertex_from_bytes, vertex_to_bytes,
+};
 use crate::transaction::TransactionContext;
 use crate::utils::id_gen::generate_id;
-use redb::{Database, ReadableTable};
 use lru::LruCache;
-use std::sync::Arc;
 use parking_lot::Mutex;
+use redb::{Database, ReadableTable};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct RedbReader {
@@ -47,7 +49,10 @@ impl RedbReader {
             .open_table(NODES_TABLE)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        match table.get(ByteKey(id_bytes.to_vec())).map_err(|e| StorageError::DbError(e.to_string()))? {
+        match table
+            .get(ByteKey(id_bytes.to_vec()))
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
             Some(value) => {
                 let vertex_bytes = value.value();
                 let vertex: Vertex = vertex_from_bytes(&vertex_bytes.0)?;
@@ -113,13 +118,14 @@ impl VertexReader for RedbReader {
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
         let mut vertices = Vec::new();
-        for result in table.iter()
-             .map_err(|e| StorageError::DbError(e.to_string()))?
-         {
-             let (_, vertex_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-             let vertex: Vertex = vertex_from_bytes(&vertex_bytes.value().0)?;
-             vertices.push(vertex);
-         }
+        for result in table
+            .iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            let (_, vertex_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let vertex: Vertex = vertex_from_bytes(&vertex_bytes.value().0)?;
+            vertices.push(vertex);
+        }
 
         Ok(ScanResult::new(vertices))
     }
@@ -215,7 +221,8 @@ impl EdgeReader for RedbReader {
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
         let mut edges = Vec::new();
-        for result in table.iter()
+        for result in table
+            .iter()
             .map_err(|e| StorageError::DbError(e.to_string()))?
         {
             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -254,7 +261,8 @@ impl EdgeReader for RedbReader {
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
         let mut edges = Vec::new();
-        for result in table.iter()
+        for result in table
+            .iter()
             .map_err(|e| StorageError::DbError(e.to_string()))?
         {
             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -262,7 +270,8 @@ impl EdgeReader for RedbReader {
             edges.push(edge);
         }
 
-        let filtered_edges: Vec<Edge> = edges.into_iter()
+        let filtered_edges: Vec<Edge> = edges
+            .into_iter()
             .filter(|e| e.edge_type == edge_type)
             .collect();
 
@@ -279,7 +288,8 @@ impl EdgeReader for RedbReader {
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
         let mut edges = Vec::new();
-        for result in table.iter()
+        for result in table
+            .iter()
             .map_err(|e| StorageError::DbError(e.to_string()))?
         {
             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -473,13 +483,16 @@ impl RedbWriter {
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-            if table.get(ByteKey(id_bytes.to_vec()))
+            if table
+                .get(ByteKey(id_bytes.to_vec()))
                 .map_err(|e| StorageError::DbError(e.to_string()))?
-                .is_none() {
+                .is_none()
+            {
                 return Err(StorageError::NodeNotFound(id.clone()));
             }
 
-            table.remove(ByteKey(id_bytes.to_vec()))
+            table
+                .remove(ByteKey(id_bytes.to_vec()))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             Ok(())
@@ -487,7 +500,10 @@ impl RedbWriter {
     }
 
     /// 批量插入顶点的内部实现
-    fn batch_insert_vertices_internal(&self, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+    fn batch_insert_vertices_internal(
+        &self,
+        vertices: Vec<Vertex>,
+    ) -> Result<Vec<Value>, StorageError> {
         let mut ids = Vec::new();
 
         let executor = self.get_executor();
@@ -502,7 +518,8 @@ impl RedbWriter {
                 let vertex_bytes = vertex_to_bytes(&vertex_with_id)?;
                 let id_bytes = value_to_bytes(&id)?;
 
-                table.insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
+                table
+                    .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
                     .map_err(|e| StorageError::DbError(e.to_string()))?;
                 ids.push(id);
             }
@@ -514,7 +531,11 @@ impl RedbWriter {
     }
 
     /// 删除标签的内部实现
-    fn delete_tags_internal(&self, vertex_id: &Value, tag_names: &[String]) -> Result<usize, StorageError> {
+    fn delete_tags_internal(
+        &self,
+        vertex_id: &Value,
+        tag_names: &[String],
+    ) -> Result<usize, StorageError> {
         let id_bytes = value_to_bytes(vertex_id)?;
         let tag_names = tag_names.to_vec(); // 克隆以便在闭包中使用
 
@@ -525,8 +546,10 @@ impl RedbWriter {
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             // 获取现有顶点
-            let vertex = match table.get(ByteKey(id_bytes.to_vec()))
-                .map_err(|e| StorageError::DbError(e.to_string()))? {
+            let vertex = match table
+                .get(ByteKey(id_bytes.to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+            {
                 Some(value) => {
                     let vertex_bytes = value.value();
                     vertex_from_bytes(&vertex_bytes.0)?
@@ -536,7 +559,8 @@ impl RedbWriter {
 
             // 过滤掉要删除的标签
             let original_tag_count = vertex.tags.len();
-            let remaining_tags: Vec<_> = vertex.tags
+            let remaining_tags: Vec<_> = vertex
+                .tags
                 .into_iter()
                 .filter(|tag| !tag_names.contains(&tag.name))
                 .collect();
@@ -548,7 +572,8 @@ impl RedbWriter {
             let updated_vertex = Vertex::new(vertex_id.clone(), remaining_tags);
             let vertex_bytes = vertex_to_bytes(&updated_vertex)?;
 
-            table.insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
+            table
+                .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             Ok(deleted_count)
@@ -573,7 +598,11 @@ impl VertexWriter for RedbWriter {
         self.delete_vertex_internal(id)
     }
 
-    fn batch_insert_vertices(&mut self, space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+    fn batch_insert_vertices(
+        &mut self,
+        space: &str,
+        vertices: Vec<Vertex>,
+    ) -> Result<Vec<Value>, StorageError> {
         let _ = space;
         self.batch_insert_vertices_internal(vertices)
     }
@@ -626,13 +655,19 @@ impl RedbWriter {
                 .open_table(EDGES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-            if table.get(ByteKey(edge_key_bytes.to_vec()))
+            if table
+                .get(ByteKey(edge_key_bytes.to_vec()))
                 .map_err(|e| StorageError::DbError(e.to_string()))?
-                .is_none() {
-                return Err(StorageError::EdgeNotFound(Value::String(format!("{:?}_{:?}_{}", src, dst, edge_type))));
+                .is_none()
+            {
+                return Err(StorageError::EdgeNotFound(Value::String(format!(
+                    "{:?}_{:?}_{}",
+                    src, dst, edge_type
+                ))));
             }
 
-            table.remove(ByteKey(edge_key_bytes.to_vec()))
+            table
+                .remove(ByteKey(edge_key_bytes.to_vec()))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             Ok(())
@@ -652,7 +687,8 @@ impl RedbWriter {
                 let edge_key_bytes = edge_key.as_bytes().to_vec();
                 let edge_bytes = edge_to_bytes(&edge)?;
 
-                table.insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
+                table
+                    .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
                     .map_err(|e| StorageError::DbError(e.to_string()))?;
             }
 

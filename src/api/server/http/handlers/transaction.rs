@@ -1,16 +1,13 @@
 use axum::{
-    extract::{Path, State, Json},
+    extract::{Json, Path, State},
     response::Json as JsonResponse,
 };
 use serde::{Deserialize, Serialize};
 use tokio::task;
 
-use crate::api::server::http::{
-    state::AppState,
-    error::HttpError,
-};
+use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
-use crate::transaction::{TransactionOptions, DurabilityLevel};
+use crate::transaction::{DurabilityLevel, TransactionOptions};
 
 #[derive(Debug, Deserialize)]
 pub struct BeginTransactionRequest {
@@ -70,7 +67,7 @@ pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
     let result = task::spawn_blocking(move || {
         let txn_api = state.server.get_txn_api();
         let handle = crate::api::core::TransactionHandle(txn_id);
-        
+
         match txn_api.commit(handle) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
                 "message": "事务提交成功",
@@ -81,7 +78,7 @@ pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
-    
+
     Ok(JsonResponse(result?))
 }
 
@@ -94,7 +91,7 @@ pub async fn rollback<S: StorageClient + Clone + Send + Sync + 'static>(
     let result = task::spawn_blocking(move || {
         let txn_api = state.server.get_txn_api();
         let handle = crate::api::core::TransactionHandle(txn_id);
-        
+
         match txn_api.rollback(handle) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
                 "message": "事务回滚成功",
@@ -105,6 +102,6 @@ pub async fn rollback<S: StorageClient + Clone + Send + Sync + 'static>(
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
-    
+
     Ok(JsonResponse(result?))
 }

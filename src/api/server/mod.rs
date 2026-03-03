@@ -2,14 +2,14 @@
 //!
 //! 提供基于 HTTP/RPC 的 GraphDB 服务接口
 
-pub mod http;
 pub mod auth;
-pub mod session;
-pub mod permission;
 pub mod graph_service;
+pub mod http;
+pub mod permission;
+pub mod session;
 
-pub use http::HttpServer;
 pub use auth::{Authenticator, PasswordAuthenticator};
-pub use session::{ClientSession, GraphSessionManager, Session, SpaceInfo};
-pub use permission::{PermissionManager, PermissionChecker, RoleType, Permission};
 pub use graph_service::GraphService;
+pub use http::HttpServer;
+pub use permission::{Permission, PermissionChecker, PermissionManager, RoleType};
+pub use session::{ClientSession, GraphSessionManager, Session, SpaceInfo};

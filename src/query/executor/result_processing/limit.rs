@@ -2,17 +2,15 @@
 //!
 //! 实现对查询结果的数量限制和偏移功能，支持 LIMIT 和 OFFSET 操作
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::InputExecutor;
-use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::base::{
-    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
-};
+use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{ExecutionResult, Executor};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
 
 /// 限制执行器 - 实现LIMIT和OFFSET功能
@@ -93,8 +91,7 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
             }
             _ => Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(
-                    "Limit executor expects DataSet, Values, Vertices, or Edges input"
-                        .to_string(),
+                    "Limit executor expects DataSet, Values, Vertices, or Edges input".to_string(),
                 ),
             )),
         }

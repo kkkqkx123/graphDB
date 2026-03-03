@@ -3,8 +3,8 @@
 //! 提供集合类型的求值功能，包括下标访问、范围访问和属性访问
 
 use crate::core::error::ExpressionError;
-use crate::core::Value;
 use crate::core::value::dataset::List;
+use crate::core::Value;
 
 /// 集合操作求值器
 pub struct CollectionOperationEvaluator;
@@ -164,10 +164,7 @@ impl CollectionOperationEvaluator {
     }
 
     /// 求值属性访问
-    pub fn eval_property_access(
-        object: &Value,
-        property: &str,
-    ) -> Result<Value, ExpressionError> {
+    pub fn eval_property_access(object: &Value, property: &str) -> Result<Value, ExpressionError> {
         if object.is_null() {
             return Ok(Value::Null(crate::core::value::NullType::Null));
         }

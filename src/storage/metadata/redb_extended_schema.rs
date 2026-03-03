@@ -1,8 +1,12 @@
 use crate::core::error::ManagerError;
-use crate::core::types::{SchemaChange, SchemaExportConfig, SchemaImportResult, SchemaVersion, TagInfo, EdgeTypeInfo};
+use crate::core::types::{
+    EdgeTypeInfo, SchemaChange, SchemaExportConfig, SchemaImportResult, SchemaVersion, TagInfo,
+};
 use crate::storage::metadata::ExtendedSchemaManager;
-use crate::storage::redb_types::{ByteKey, SCHEMA_VERSIONS_TABLE, SCHEMA_CHANGES_TABLE, CURRENT_VERSIONS_TABLE};
-use bincode::{encode_to_vec, decode_from_slice};
+use crate::storage::redb_types::{
+    ByteKey, CURRENT_VERSIONS_TABLE, SCHEMA_CHANGES_TABLE, SCHEMA_VERSIONS_TABLE,
+};
+use bincode::{decode_from_slice, encode_to_vec};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
@@ -39,31 +43,41 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
         let current_version = self.get_schema_version(space_id)?;
         let new_version = current_version + 1;
 
-        let write_txn = self.db.begin_write()
+        let write_txn = self
+            .db
+            .begin_write()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         {
-            let mut table = write_txn.open_table(CURRENT_VERSIONS_TABLE)
+            let mut table = write_txn
+                .open_table(CURRENT_VERSIONS_TABLE)
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
             let key = Self::make_current_version_key(space_id);
             let value = new_version.to_be_bytes().to_vec();
-            table.insert(key, ByteKey(value))
+            table
+                .insert(key, ByteKey(value))
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         }
-        write_txn.commit()
+        write_txn
+            .commit()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
 
         Ok(new_version)
     }
 
     fn get_schema_version(&self, space_id: u64) -> Result<i32, ManagerError> {
-        let read_txn = self.db.begin_read()
+        let read_txn = self
+            .db
+            .begin_read()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
-        let table = read_txn.open_table(CURRENT_VERSIONS_TABLE)
+        let table = read_txn
+            .open_table(CURRENT_VERSIONS_TABLE)
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
 
         let key = Self::make_current_version_key(space_id);
-        match table.get(key)
-            .map_err(|e| ManagerError::storage_error(e.to_string()))? {
+        match table
+            .get(key)
+            .map_err(|e| ManagerError::storage_error(e.to_string()))?
+        {
             Some(value) => {
                 let bytes = value.value().0;
                 if bytes.len() == 4 {
@@ -82,17 +96,22 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
             return Err(ManagerError::invalid_input("版本号必须 >= 1"));
         }
 
-        let write_txn = self.db.begin_write()
+        let write_txn = self
+            .db
+            .begin_write()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         {
-            let mut table = write_txn.open_table(CURRENT_VERSIONS_TABLE)
+            let mut table = write_txn
+                .open_table(CURRENT_VERSIONS_TABLE)
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
             let key = Self::make_current_version_key(space_id);
             let value = version.to_be_bytes().to_vec();
-            table.insert(key, ByteKey(value))
+            table
+                .insert(key, ByteKey(value))
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         }
-        write_txn.commit()
+        write_txn
+            .commit()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
 
         Ok(())
@@ -121,25 +140,32 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
         let value = encode_to_vec(&snapshot, bincode::config::standard())
             .map_err(|e| ManagerError::storage_error(format!("序列化失败: {}", e)))?;
 
-        let write_txn = self.db.begin_write()
+        let write_txn = self
+            .db
+            .begin_write()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         {
-            let mut table = write_txn.open_table(SCHEMA_VERSIONS_TABLE)
+            let mut table = write_txn
+                .open_table(SCHEMA_VERSIONS_TABLE)
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
-            table.insert(key, ByteKey(value))
+            table
+                .insert(key, ByteKey(value))
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         }
 
         {
-            let mut table = write_txn.open_table(CURRENT_VERSIONS_TABLE)
+            let mut table = write_txn
+                .open_table(CURRENT_VERSIONS_TABLE)
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
             let current_key = Self::make_current_version_key(space_id);
             let current_value = new_version.to_be_bytes().to_vec();
-            table.insert(current_key, ByteKey(current_value))
+            table
+                .insert(current_key, ByteKey(current_value))
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         }
 
-        write_txn.commit()
+        write_txn
+            .commit()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
 
         Ok(snapshot)
@@ -154,41 +180,49 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
         let value = encode_to_vec(&change, bincode::config::standard())
             .map_err(|e| ManagerError::storage_error(format!("序列化失败: {}", e)))?;
 
-        let write_txn = self.db.begin_write()
+        let write_txn = self
+            .db
+            .begin_write()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         {
-            let mut table = write_txn.open_table(SCHEMA_CHANGES_TABLE)
+            let mut table = write_txn
+                .open_table(SCHEMA_CHANGES_TABLE)
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
-            table.insert(key, ByteKey(value))
+            table
+                .insert(key, ByteKey(value))
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         }
-        write_txn.commit()
+        write_txn
+            .commit()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
 
         Ok(())
     }
 
-    fn get_schema_changes(
-        &self,
-        space_id: u64,
-    ) -> Result<Vec<SchemaChange>, ManagerError> {
-        let read_txn = self.db.begin_read()
+    fn get_schema_changes(&self, space_id: u64) -> Result<Vec<SchemaChange>, ManagerError> {
+        let read_txn = self
+            .db
+            .begin_read()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
-        let table = read_txn.open_table(SCHEMA_CHANGES_TABLE)
+        let table = read_txn
+            .open_table(SCHEMA_CHANGES_TABLE)
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
 
         let prefix = format!("schema_change:{}:", space_id);
         let mut changes = Vec::new();
 
-        for result in table.iter()
-            .map_err(|e| ManagerError::storage_error(e.to_string()))? {
+        for result in table
+            .iter()
+            .map_err(|e| ManagerError::storage_error(e.to_string()))?
+        {
             let (key, value) = result.map_err(|e| ManagerError::storage_error(e.to_string()))?;
             let key_bytes = key.value().0.clone();
             let key_str = String::from_utf8_lossy(&key_bytes);
             if key_str.starts_with(&prefix) {
-                let change: SchemaChange = decode_from_slice(&value.value().0, bincode::config::standard())
-                    .map_err(|e| ManagerError::storage_error(format!("反序列化失败: {}", e)))?
-                    .0;
+                let change: SchemaChange =
+                    decode_from_slice(&value.value().0, bincode::config::standard())
+                        .map_err(|e| ManagerError::storage_error(format!("反序列化失败: {}", e)))?
+                        .0;
                 changes.push(change);
             }
         }
@@ -197,14 +231,18 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
     }
 
     fn clear_schema_changes(&self, space_id: u64) -> Result<(), ManagerError> {
-        let write_txn = self.db.begin_write()
+        let write_txn = self
+            .db
+            .begin_write()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         {
-            let mut table = write_txn.open_table(SCHEMA_CHANGES_TABLE)
+            let mut table = write_txn
+                .open_table(SCHEMA_CHANGES_TABLE)
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?;
 
             let prefix = format!("schema_change:{}:", space_id);
-            let keys_to_remove: Vec<ByteKey> = table.iter()
+            let keys_to_remove: Vec<ByteKey> = table
+                .iter()
                 .map_err(|e| ManagerError::storage_error(e.to_string()))?
                 .filter_map(|result| {
                     result.ok().and_then(|(key, _)| {
@@ -223,7 +261,8 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
                 let _ = table.remove(key);
             }
         }
-        write_txn.commit()
+        write_txn
+            .commit()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
 
         Ok(())
@@ -241,27 +280,33 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::{SchemaChangeType, TagInfo, PropertyDef, DataType};
+    use crate::core::types::{DataType, PropertyDef, SchemaChangeType, TagInfo};
     use tempfile::TempDir;
 
     fn create_test_manager() -> (RedbExtendedSchemaManager, TempDir) {
         let temp_dir = TempDir::new().expect("创建临时目录应该成功");
         let db_path = temp_dir.path().join("test.db");
         let db = Arc::new(Database::create(db_path).expect("创建数据库应该成功"));
-        
+
         // 初始化所需的表
         let write_txn = db.begin_write().expect("开始写事务应该成功");
         {
-            let _ = write_txn.open_table(SCHEMA_VERSIONS_TABLE).expect("打开SCHEMA_VERSIONS_TABLE应该成功");
+            let _ = write_txn
+                .open_table(SCHEMA_VERSIONS_TABLE)
+                .expect("打开SCHEMA_VERSIONS_TABLE应该成功");
         }
         {
-            let _ = write_txn.open_table(SCHEMA_CHANGES_TABLE).expect("打开SCHEMA_CHANGES_TABLE应该成功");
+            let _ = write_txn
+                .open_table(SCHEMA_CHANGES_TABLE)
+                .expect("打开SCHEMA_CHANGES_TABLE应该成功");
         }
         {
-            let _ = write_txn.open_table(CURRENT_VERSIONS_TABLE).expect("打开CURRENT_VERSIONS_TABLE应该成功");
+            let _ = write_txn
+                .open_table(CURRENT_VERSIONS_TABLE)
+                .expect("打开CURRENT_VERSIONS_TABLE应该成功");
         }
         write_txn.commit().expect("提交事务应该成功");
-        
+
         (RedbExtendedSchemaManager::new(db), temp_dir)
     }
 
@@ -271,14 +316,20 @@ mod tests {
         let space_id = 1;
 
         // 初始版本为 0
-        let version = manager.get_schema_version(space_id).expect("获取schema版本应该成功");
+        let version = manager
+            .get_schema_version(space_id)
+            .expect("获取schema版本应该成功");
         assert_eq!(version, 0);
 
         // 创建新版本
-        let new_version = manager.create_schema_version(space_id).expect("创建schema版本应该成功");
+        let new_version = manager
+            .create_schema_version(space_id)
+            .expect("创建schema版本应该成功");
         assert_eq!(new_version, 1);
 
-        let version = manager.get_schema_version(space_id).expect("获取schema版本应该成功");
+        let version = manager
+            .get_schema_version(space_id)
+            .expect("获取schema版本应该成功");
         assert_eq!(version, 1);
     }
 
@@ -304,19 +355,23 @@ mod tests {
 
         let edge_types = vec![];
 
-        let snapshot = manager.save_schema_snapshot(
-            space_id,
-            tags.clone(),
-            edge_types,
-            Some("创建 Person 标签".to_string()),
-        ).expect("保存schema快照应该成功");
+        let snapshot = manager
+            .save_schema_snapshot(
+                space_id,
+                tags.clone(),
+                edge_types,
+                Some("创建 Person 标签".to_string()),
+            )
+            .expect("保存schema快照应该成功");
 
         assert_eq!(snapshot.version, 1);
         assert_eq!(snapshot.space_id, space_id);
         assert_eq!(snapshot.tags.len(), 1);
 
         // 验证版本已更新
-        let version = manager.get_schema_version(space_id).expect("获取schema版本应该成功");
+        let version = manager
+            .get_schema_version(space_id)
+            .expect("获取schema版本应该成功");
         assert_eq!(version, 1);
     }
 
@@ -338,9 +393,13 @@ mod tests {
             timestamp: chrono::Utc::now().timestamp_millis(),
         };
 
-        manager.record_schema_change(space_id, change.clone()).expect("记录schema变更应该成功");
+        manager
+            .record_schema_change(space_id, change.clone())
+            .expect("记录schema变更应该成功");
 
-        let changes = manager.get_schema_changes(space_id).expect("获取schema变更应该成功");
+        let changes = manager
+            .get_schema_changes(space_id)
+            .expect("获取schema变更应该成功");
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].target, "Person.name");
     }

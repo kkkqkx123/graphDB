@@ -6,9 +6,12 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::core::{Edge, Path, Value, Vertex};
 use crate::core::error::{DBError, DBResult};
-use crate::query::executor::base::{BaseExecutor, EdgeDirection, Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor, ExecutionResult, DBResult as ExecDBResult};
+use crate::core::{Edge, Path, Value, Vertex};
+use crate::query::executor::base::{
+    BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
+    Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor,
+};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -101,11 +104,13 @@ impl SubgraphResult {
     /// 转换为路径列表
     pub fn to_paths(&self) -> Vec<Path> {
         let mut paths = Vec::new();
-        
+
         for edge in &self.edges {
             if let Some(src_vertex) = self.vertices.get(&edge.src) {
                 let mut path = Path::new(src_vertex.clone());
-                let dst_vertex = self.vertices.get(&edge.dst)
+                let dst_vertex = self
+                    .vertices
+                    .get(&edge.dst)
                     .cloned()
                     .unwrap_or_else(|| Vertex::with_vid(edge.dst.as_ref().clone()));
                 path.steps.push(crate::core::Step::new(
@@ -117,7 +122,7 @@ impl SubgraphResult {
                 paths.push(path);
             }
         }
-        
+
         paths
     }
 }
@@ -174,7 +179,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         config: SubgraphConfig,
     ) -> Self {
         let valid_vids: HashSet<Value> = start_vids.iter().cloned().collect();
-        
+
         Self {
             base: BaseExecutor::new(id, "SubgraphExecutor".to_string(), storage),
             start_vids: start_vids.clone(),
@@ -191,17 +196,18 @@ impl<S: StorageClient> SubgraphExecutor<S> {
 
     /// 获取邻居节点
     fn get_neighbors(&self, node_id: &Value) -> DBResult<Vec<(Value, Edge)>> {
-        let storage = self.base.storage.as_ref()
-            .ok_or_else(|| DBError::Storage(
-                crate::core::error::StorageError::DbError("Storage not set".to_string())
-            ))?;
+        let storage = self.base.storage.as_ref().ok_or_else(|| {
+            DBError::Storage(crate::core::error::StorageError::DbError(
+                "Storage not set".to_string(),
+            ))
+        })?;
         let storage = storage.lock();
 
         let edges = storage
             .get_node_edges("default", node_id, self.config.edge_direction)
-            .map_err(|e| DBError::Storage(
-                crate::core::error::StorageError::DbError(e.to_string())
-            ))?;
+            .map_err(|e| {
+                DBError::Storage(crate::core::error::StorageError::DbError(e.to_string()))
+            })?;
 
         let filtered_edges = if let Some(ref edge_types) = self.config.edge_types {
             edges
@@ -217,7 +223,8 @@ impl<S: StorageClient> SubgraphExecutor<S> {
             .filter_map(|edge| {
                 if *edge.src == *node_id {
                     Some(((*edge.dst).clone(), edge))
-                } else if *edge.dst == *node_id && self.config.edge_direction == EdgeDirection::Both {
+                } else if *edge.dst == *node_id && self.config.edge_direction == EdgeDirection::Both
+                {
                     Some(((*edge.src).clone(), edge))
                 } else {
                     None
@@ -254,7 +261,7 @@ impl<S: StorageClient> SubgraphExecutor<S> {
             for (neighbor_id, edge) in neighbors {
                 // 添加边到结果
                 self.result.edges.push(edge);
-                
+
                 // 添加目标顶点到有效顶点集
                 self.valid_vids.insert(neighbor_id.clone());
 
@@ -280,10 +287,11 @@ impl<S: StorageClient> SubgraphExecutor<S> {
 
     /// 获取顶点详细信息
     fn fetch_vertices(&mut self) -> DBResult<()> {
-        let storage = self.base.storage.as_ref()
-            .ok_or_else(|| DBError::Storage(
-                crate::core::error::StorageError::DbError("Storage not set".to_string())
-            ))?;
+        let storage = self.base.storage.as_ref().ok_or_else(|| {
+            DBError::Storage(crate::core::error::StorageError::DbError(
+                "Storage not set".to_string(),
+            ))
+        })?;
         let storage = storage.lock();
 
         for vid in &self.valid_vids {
@@ -297,9 +305,9 @@ impl<S: StorageClient> SubgraphExecutor<S> {
                     self.result.vertices.insert(vid.clone(), vertex);
                 }
                 Err(e) => {
-                    return Err(DBError::Storage(
-                        crate::core::error::StorageError::DbError(e.to_string())
-                    ));
+                    return Err(DBError::Storage(crate::core::error::StorageError::DbError(
+                        e.to_string(),
+                    )));
                 }
             }
         }
@@ -342,7 +350,8 @@ impl<S: StorageClient> SubgraphExecutor<S> {
             }
         }
 
-        self.stats.set_execution_time(start_time.elapsed().as_millis() as u64);
+        self.stats
+            .set_execution_time(start_time.elapsed().as_millis() as u64);
         self.result.stats = self.stats.clone();
         self.result.visited_vids = self.valid_vids.clone();
 
@@ -357,11 +366,12 @@ impl<S: StorageClient> SubgraphExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> BaseExecutorTrait<S> for SubgraphExecutor<S> {
     fn execute(&mut self) -> ExecDBResult<ExecutionResult> {
-        let result = self.execute_subgraph()
-            .map_err(|e| crate::core::error::DBError::Query(
-                crate::query::QueryError::ExecutionError(e.to_string())
-            ))?;
-        
+        let result = self.execute_subgraph().map_err(|e| {
+            crate::core::error::DBError::Query(crate::query::QueryError::ExecutionError(
+                e.to_string(),
+            ))
+        })?;
+
         let paths = result.to_paths();
         Ok(ExecutionResult::Paths(paths))
     }
@@ -445,15 +455,12 @@ mod tests {
 
     #[test]
     fn test_subgraph_executor_creation() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let config = SubgraphConfig::new(2);
-        
-        let executor = SubgraphExecutor::new(
-            1,
-            storage,
-            vec![Value::from("a")],
-            config,
-        );
+
+        let executor = SubgraphExecutor::new(1, storage, vec![Value::from("a")], config);
 
         assert_eq!(executor.start_vids.len(), 1);
         assert_eq!(executor.config.steps, 2);
@@ -463,17 +470,15 @@ mod tests {
     #[test]
     fn test_subgraph_result() {
         let mut result = SubgraphResult::new();
-        
+
         // 添加一些顶点
-        result.vertices.insert(
-            Value::from("a"),
-            Vertex::with_vid(Value::from("a"))
-        );
-        result.vertices.insert(
-            Value::from("b"),
-            Vertex::with_vid(Value::from("b"))
-        );
-        
+        result
+            .vertices
+            .insert(Value::from("a"), Vertex::with_vid(Value::from("a")));
+        result
+            .vertices
+            .insert(Value::from("b"), Vertex::with_vid(Value::from("b")));
+
         // 添加一条边
         let edge = Edge::new(
             Value::from("a"),
@@ -483,7 +488,7 @@ mod tests {
             HashMap::new(),
         );
         result.edges.push(edge);
-        
+
         // 测试转换为路径
         let paths = result.to_paths();
         assert_eq!(paths.len(), 1);

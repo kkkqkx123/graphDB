@@ -5,11 +5,11 @@
 use thiserror::Error;
 
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
-use crate::core::error::storage::StorageError;
 use crate::core::error::expression::{ExpressionError, ExpressionErrorType};
 use crate::core::error::manager::ManagerError;
-use crate::core::error::session::SessionError;
 use crate::core::error::permission::PermissionError;
+use crate::core::error::session::SessionError;
+use crate::core::error::storage::StorageError;
 use crate::core::error::DBError;
 
 /// 计划节点访问错误类型
@@ -60,23 +60,23 @@ impl QueryError {
     pub fn pipeline_parse_error<E: std::error::Error>(e: E) -> Self {
         QueryError::ParseError(e.to_string())
     }
-    
+
     pub fn pipeline_validation_error<E: std::error::Error>(e: E) -> Self {
         QueryError::InvalidQuery(e.to_string())
     }
-    
+
     pub fn pipeline_planning_error<E: std::error::Error>(e: E) -> Self {
         QueryError::PlanningError(e.to_string())
     }
-    
+
     pub fn pipeline_optimization_error<E: std::error::Error>(e: E) -> Self {
         QueryError::OptimizationError(e.to_string())
     }
-    
+
     pub fn pipeline_execution_error<E: std::error::Error>(e: E) -> Self {
         QueryError::ExecutionError(e.to_string())
     }
-    
+
     pub fn pipeline_error(phase: &str, message: String) -> Self {
         match phase {
             "parse" => QueryError::ParseError(message),

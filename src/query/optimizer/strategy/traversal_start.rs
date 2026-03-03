@@ -2,13 +2,15 @@
 //!
 //! 用于选择图遍历的最优起点
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use crate::query::optimizer::cost::{CostCalculator, SelectivityEstimator};
-use crate::query::parser::ast::pattern::{Pattern, NodePattern, EdgePattern, PathPattern, PathElement, VariablePattern};
-use crate::core::types::Expression;
 use crate::core::types::BinaryOperator;
+use crate::core::types::Expression;
+use crate::query::optimizer::cost::{CostCalculator, SelectivityEstimator};
+use crate::query::parser::ast::pattern::{
+    EdgePattern, NodePattern, PathElement, PathPattern, Pattern, VariablePattern,
+};
 
 /// 遍历起点选择器
 #[derive(Debug)]
@@ -81,12 +83,11 @@ impl TraversalStartSelector {
         }
 
         // 选择代价最小的起点
-        candidates.into_iter()
-            .min_by(|a, b| {
-                a.estimated_cost
-                    .partial_cmp(&b.estimated_cost)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+        candidates.into_iter().min_by(|a, b| {
+            a.estimated_cost
+                .partial_cmp(&b.estimated_cost)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     /// 评估模式中的所有候选节点
@@ -139,32 +140,28 @@ impl TraversalStartSelector {
                         candidates.extend(self.evaluate_pattern(pattern));
                     }
                 }
-                PathElement::Optional(inner) => {
-                    match inner.as_ref() {
-                        PathElement::Node(node) => {
-                            if let Some(candidate) = self.evaluate_node(node) {
-                                candidates.push(candidate);
-                            }
+                PathElement::Optional(inner) => match inner.as_ref() {
+                    PathElement::Node(node) => {
+                        if let Some(candidate) = self.evaluate_node(node) {
+                            candidates.push(candidate);
                         }
-                        PathElement::Edge(edge) => {
-                            candidates.extend(self.evaluate_edge_as_start(edge));
-                        }
-                        _ => {}
                     }
-                }
-                PathElement::Repeated(inner, _) => {
-                    match inner.as_ref() {
-                        PathElement::Node(node) => {
-                            if let Some(candidate) = self.evaluate_node(node) {
-                                candidates.push(candidate);
-                            }
-                        }
-                        PathElement::Edge(edge) => {
-                            candidates.extend(self.evaluate_edge_as_start(edge));
-                        }
-                        _ => {}
+                    PathElement::Edge(edge) => {
+                        candidates.extend(self.evaluate_edge_as_start(edge));
                     }
-                }
+                    _ => {}
+                },
+                PathElement::Repeated(inner, _) => match inner.as_ref() {
+                    PathElement::Node(node) => {
+                        if let Some(candidate) = self.evaluate_node(node) {
+                            candidates.push(candidate);
+                        }
+                    }
+                    PathElement::Edge(edge) => {
+                        candidates.extend(self.evaluate_edge_as_start(edge));
+                    }
+                    _ => {}
+                },
             }
         }
 
@@ -172,7 +169,7 @@ impl TraversalStartSelector {
     }
 
     /// 将边模式评估为起点候选
-    /// 
+    ///
     /// 边模式本身不能直接作为遍历起点，但可以通过以下方式转换：
     /// 1. 如果有边类型，可以估计边的数量作为参考
     /// 2. 返回一个虚拟的节点模式表示可以从边的任一端开始
@@ -181,11 +178,14 @@ impl TraversalStartSelector {
 
         // 边模式不能直接作为起点，但我们可以创建一个表示边端点的虚拟节点
         // 这在实际查询规划中可能用于决定遍历方向
-        
+
         // 如果边有类型信息，我们可以基于边统计创建候选
         if let Some(edge_type) = edge.edge_types.first() {
-            let edge_stats = self.cost_calculator.statistics_manager().get_edge_stats(edge_type);
-            
+            let edge_stats = self
+                .cost_calculator
+                .statistics_manager()
+                .get_edge_stats(edge_type);
+
             if let Some(stats) = edge_stats {
                 // 创建一个虚拟节点模式表示边的源端点
                 let virtual_node = NodePattern {
@@ -198,12 +198,14 @@ impl TraversalStartSelector {
 
                 // 基于边统计估计代价
                 let estimated_cost = stats.estimate_expand_cost(1) as f64;
-                
+
                 candidates.push(CandidateStart {
                     node_pattern: virtual_node,
                     estimated_start_nodes: stats.unique_src_vertices,
                     estimated_cost,
-                    reason: SelectionReason::TagIndex { vertex_count: stats.unique_src_vertices },
+                    reason: SelectionReason::TagIndex {
+                        vertex_count: stats.unique_src_vertices,
+                    },
                 });
             }
         }
@@ -212,7 +214,7 @@ impl TraversalStartSelector {
     }
 
     /// 评估变量模式
-    /// 
+    ///
     /// 从变量上下文中查找变量对应的节点模式
     fn evaluate_variable(&self, var: &VariablePattern) -> Option<CandidateStart> {
         // 在变量上下文中查找变量
@@ -233,8 +235,10 @@ impl TraversalStartSelector {
         Some(CandidateStart {
             node_pattern: placeholder_node,
             estimated_start_nodes: 1000, // 默认估计值
-            estimated_cost: 1000.0, // 高代价表示不确定性
-            reason: SelectionReason::VariableBinding { variable_name: var.name.clone() },
+            estimated_cost: 1000.0,      // 高代价表示不确定性
+            reason: SelectionReason::VariableBinding {
+                variable_name: var.name.clone(),
+            },
         })
     }
 
@@ -257,7 +261,10 @@ impl TraversalStartSelector {
         let selectivity = self.calculate_node_selectivity(node, tag_name);
 
         // 获取顶点数量
-        let vertex_count = self.cost_calculator.statistics_manager().get_vertex_count(tag_name);
+        let vertex_count = self
+            .cost_calculator
+            .statistics_manager()
+            .get_vertex_count(tag_name);
 
         // 计算估计的起始节点数
         let estimated_start_nodes = ((vertex_count as f64 * selectivity) as u64).max(1);
@@ -265,7 +272,8 @@ impl TraversalStartSelector {
         // 计算扫描代价
         let estimated_cost = if selectivity < 0.1 {
             // 使用索引扫描
-            self.cost_calculator.calculate_index_scan_cost(tag_name, "", selectivity)
+            self.cost_calculator
+                .calculate_index_scan_cost(tag_name, "", selectivity)
         } else {
             // 全表扫描
             self.cost_calculator.calculate_scan_vertices_cost(tag_name)
@@ -288,7 +296,7 @@ impl TraversalStartSelector {
     }
 
     /// 检查是否有显式VID
-    /// 
+    ///
     /// 检查节点模式中的属性和谓词是否包含显式的VID条件，例如：
     /// - id(v) == "xxx"
     /// - v.id == "xxx"
@@ -313,12 +321,15 @@ impl TraversalStartSelector {
     }
 
     /// 检查表达式中是否包含VID条件
-    /// 
+    ///
     /// 识别以下模式：
     /// - id(v) == value
     /// - v.id == value
     /// - {id: value}
-    fn has_vid_condition_ctx(&self, expr: &crate::core::types::expression::ContextualExpression) -> bool {
+    fn has_vid_condition_ctx(
+        &self,
+        expr: &crate::core::types::expression::ContextualExpression,
+    ) -> bool {
         match expr.expression() {
             Some(meta) => self.has_vid_condition(meta.inner()),
             None => false,
@@ -326,13 +337,12 @@ impl TraversalStartSelector {
     }
 
     /// 检查表达式中是否包含VID条件
-    /// 
+    ///
     /// 识别以下模式：
     /// - id(v) == value
     /// - v.id == value
     /// - {id: value}
     fn has_vid_condition(&self, expr: &Expression) -> bool {
-
         match expr {
             // 检查是否包含 id() 函数调用
             Expression::Function { name, args } => {
@@ -362,20 +372,19 @@ impl TraversalStartSelector {
                 self.has_vid_condition(left) || self.has_vid_condition(right)
             }
             // 检查Map中是否包含id字段
-            Expression::Map(pairs) => {
-                pairs.iter().any(|(key, value)| {
-                    key.eq_ignore_ascii_case("id") || self.has_vid_condition(value)
-                })
-            }
+            Expression::Map(pairs) => pairs.iter().any(|(key, value)| {
+                key.eq_ignore_ascii_case("id") || self.has_vid_condition(value)
+            }),
             // 对其他表达式类型递归检查子表达式
-            _ => {
-                expr.children().iter().any(|child| self.has_vid_condition(child))
-            }
+            _ => expr
+                .children()
+                .iter()
+                .any(|child| self.has_vid_condition(child)),
         }
     }
 
     /// 判断表达式是否为VID表达式
-    /// 
+    ///
     /// 识别 id() 函数调用或 .id 属性访问
     fn is_vid_expression(&self, expr: &Expression) -> bool {
         match expr {
@@ -383,9 +392,7 @@ impl TraversalStartSelector {
                 let name_upper = name.to_uppercase();
                 name_upper == "ID" && !args.is_empty()
             }
-            Expression::Property { property, .. } => {
-                property.eq_ignore_ascii_case("id")
-            }
+            Expression::Property { property, .. } => property.eq_ignore_ascii_case("id"),
             _ => false,
         }
     }
@@ -397,10 +404,9 @@ impl TraversalStartSelector {
         // 从属性条件估计选择性
         if let Some(props) = &node.properties {
             if let Some(expr) = props.get_expression() {
-                let prop_selectivity = self.selectivity_estimator.estimate_from_expression(
-                    &expr,
-                    Some(tag_name),
-                );
+                let prop_selectivity = self
+                    .selectivity_estimator
+                    .estimate_from_expression(&expr, Some(tag_name));
                 selectivity *= prop_selectivity;
             }
         }
@@ -408,10 +414,9 @@ impl TraversalStartSelector {
         // 从谓词条件估计选择性
         for predicate in &node.predicates {
             if let Some(expr) = predicate.get_expression() {
-                let pred_selectivity = self.selectivity_estimator.estimate_from_expression(
-                    &expr,
-                    Some(tag_name),
-                );
+                let pred_selectivity = self
+                    .selectivity_estimator
+                    .estimate_from_expression(&expr, Some(tag_name));
                 selectivity *= pred_selectivity;
             }
         }
@@ -420,7 +425,7 @@ impl TraversalStartSelector {
     }
 
     /// 添加变量绑定到上下文
-    /// 
+    ///
     /// 用于在查询规划过程中建立变量与节点模式的映射
     pub fn bind_variable(&mut self, var_name: String, node: NodePattern) {
         self.variable_context.insert(var_name, node);

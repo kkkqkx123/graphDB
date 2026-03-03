@@ -7,18 +7,17 @@
 //! 2. 所有管理类语句都是全局语句，不需要预先选择空间
 //! 3. 验证目标对象是否存在
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{
-    ShowStmt, ShowTarget, DescStmt, DescTarget, ShowCreateStmt, ShowCreateTarget,
-    ShowConfigsStmt, ShowSessionsStmt, ShowQueriesStmt, KillQueryStmt,
-};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
+    DescStmt, DescTarget, KillQueryStmt, ShowConfigsStmt, ShowCreateStmt, ShowCreateTarget,
+    ShowQueriesStmt, ShowSessionsStmt, ShowStmt, ShowTarget,
 };
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
+use std::sync::Arc;
 
 /// 验证后的 SHOW 信息
 #[derive(Debug, Clone)]
@@ -96,34 +95,77 @@ impl ShowValidator {
     fn setup_outputs(&mut self) {
         self.outputs = match self.target_type {
             ShowTargetType::Spaces => vec![
-                ColumnDef { name: "Name".to_string(), type_: ValueType::String },
-                ColumnDef { name: "ID".to_string(), type_: ValueType::Int },
+                ColumnDef {
+                    name: "Name".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "ID".to_string(),
+                    type_: ValueType::Int,
+                },
             ],
-            ShowTargetType::Tags | ShowTargetType::Edges => vec![
-                ColumnDef { name: "Name".to_string(), type_: ValueType::String },
-            ],
+            ShowTargetType::Tags | ShowTargetType::Edges => vec![ColumnDef {
+                name: "Name".to_string(),
+                type_: ValueType::String,
+            }],
             ShowTargetType::Users => vec![
-                ColumnDef { name: "Account".to_string(), type_: ValueType::String },
-                ColumnDef { name: "IP".to_string(), type_: ValueType::String },
+                ColumnDef {
+                    name: "Account".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "IP".to_string(),
+                    type_: ValueType::String,
+                },
             ],
             ShowTargetType::Roles => vec![
-                ColumnDef { name: "Account".to_string(), type_: ValueType::String },
-                ColumnDef { name: "Role".to_string(), type_: ValueType::String },
+                ColumnDef {
+                    name: "Account".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "Role".to_string(),
+                    type_: ValueType::String,
+                },
             ],
             ShowTargetType::Sessions => vec![
-                ColumnDef { name: "SessionId".to_string(), type_: ValueType::Int },
-                ColumnDef { name: "UserName".to_string(), type_: ValueType::String },
+                ColumnDef {
+                    name: "SessionId".to_string(),
+                    type_: ValueType::Int,
+                },
+                ColumnDef {
+                    name: "UserName".to_string(),
+                    type_: ValueType::String,
+                },
             ],
             ShowTargetType::Queries => vec![
-                ColumnDef { name: "SessionID".to_string(), type_: ValueType::Int },
-                ColumnDef { name: "ExecutionPlanID".to_string(), type_: ValueType::Int },
+                ColumnDef {
+                    name: "SessionID".to_string(),
+                    type_: ValueType::Int,
+                },
+                ColumnDef {
+                    name: "ExecutionPlanID".to_string(),
+                    type_: ValueType::Int,
+                },
             ],
             ShowTargetType::Configs => vec![
-                ColumnDef { name: "Module".to_string(), type_: ValueType::String },
-                ColumnDef { name: "Name".to_string(), type_: ValueType::String },
-                ColumnDef { name: "Value".to_string(), type_: ValueType::String },
+                ColumnDef {
+                    name: "Module".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "Name".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "Value".to_string(),
+                    type_: ValueType::String,
+                },
             ],
-            _ => vec![ColumnDef { name: "Result".to_string(), type_: ValueType::String }],
+            _ => vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
         };
     }
 
@@ -154,9 +196,9 @@ impl StatementValidator for ShowValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(show_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.query_type = Some(format!("{:?}", self.target_type));
@@ -243,30 +285,66 @@ impl DescValidator {
                 self.target_name = name.clone();
                 self.space_name = name.clone();
                 self.outputs = vec![
-                    ColumnDef { name: "Field".to_string(), type_: ValueType::String },
-                    ColumnDef { name: "Value".to_string(), type_: ValueType::String },
+                    ColumnDef {
+                        name: "Field".to_string(),
+                        type_: ValueType::String,
+                    },
+                    ColumnDef {
+                        name: "Value".to_string(),
+                        type_: ValueType::String,
+                    },
                 ];
             }
-            DescTarget::Tag { space_name, tag_name } => {
+            DescTarget::Tag {
+                space_name,
+                tag_name,
+            } => {
                 self.target_type = DescTargetType::Tag;
                 self.space_name = space_name.clone();
                 self.target_name = tag_name.clone();
                 self.outputs = vec![
-                    ColumnDef { name: "Field".to_string(), type_: ValueType::String },
-                    ColumnDef { name: "Type".to_string(), type_: ValueType::String },
-                    ColumnDef { name: "Null".to_string(), type_: ValueType::String },
-                    ColumnDef { name: "Default".to_string(), type_: ValueType::String },
+                    ColumnDef {
+                        name: "Field".to_string(),
+                        type_: ValueType::String,
+                    },
+                    ColumnDef {
+                        name: "Type".to_string(),
+                        type_: ValueType::String,
+                    },
+                    ColumnDef {
+                        name: "Null".to_string(),
+                        type_: ValueType::String,
+                    },
+                    ColumnDef {
+                        name: "Default".to_string(),
+                        type_: ValueType::String,
+                    },
                 ];
             }
-            DescTarget::Edge { space_name, edge_name } => {
+            DescTarget::Edge {
+                space_name,
+                edge_name,
+            } => {
                 self.target_type = DescTargetType::Edge;
                 self.space_name = space_name.clone();
                 self.target_name = edge_name.clone();
                 self.outputs = vec![
-                    ColumnDef { name: "Field".to_string(), type_: ValueType::String },
-                    ColumnDef { name: "Type".to_string(), type_: ValueType::String },
-                    ColumnDef { name: "Null".to_string(), type_: ValueType::String },
-                    ColumnDef { name: "Default".to_string(), type_: ValueType::String },
+                    ColumnDef {
+                        name: "Field".to_string(),
+                        type_: ValueType::String,
+                    },
+                    ColumnDef {
+                        name: "Type".to_string(),
+                        type_: ValueType::String,
+                    },
+                    ColumnDef {
+                        name: "Null".to_string(),
+                        type_: ValueType::String,
+                    },
+                    ColumnDef {
+                        name: "Default".to_string(),
+                        type_: ValueType::String,
+                    },
                 ];
             }
         }
@@ -301,9 +379,9 @@ impl StatementValidator for DescValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(desc_stmt)?;
-        
+
         Ok(ValidationResult::success(
             self.inputs.clone(),
             self.outputs.clone(),
@@ -393,8 +471,14 @@ impl ShowCreateValidator {
         }
 
         self.outputs = vec![
-            ColumnDef { name: "Target".to_string(), type_: ValueType::String },
-            ColumnDef { name: "CreateStatement".to_string(), type_: ValueType::String },
+            ColumnDef {
+                name: "Target".to_string(),
+                type_: ValueType::String,
+            },
+            ColumnDef {
+                name: "CreateStatement".to_string(),
+                type_: ValueType::String,
+            },
         ];
 
         Ok(())
@@ -420,9 +504,9 @@ impl StatementValidator for ShowCreateValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(show_create_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.query_type = Some(format!("{:?}", self.target_type));
@@ -484,11 +568,20 @@ impl ShowConfigsValidator {
 
     fn validate_impl(&mut self, stmt: ShowConfigsStmt) -> Result<(), ValidationError> {
         self.module = stmt.module.clone();
-        
+
         self.outputs = vec![
-            ColumnDef { name: "Module".to_string(), type_: ValueType::String },
-            ColumnDef { name: "Name".to_string(), type_: ValueType::String },
-            ColumnDef { name: "Value".to_string(), type_: ValueType::String },
+            ColumnDef {
+                name: "Module".to_string(),
+                type_: ValueType::String,
+            },
+            ColumnDef {
+                name: "Name".to_string(),
+                type_: ValueType::String,
+            },
+            ColumnDef {
+                name: "Value".to_string(),
+                type_: ValueType::String,
+            },
         ];
 
         Ok(())
@@ -514,9 +607,9 @@ impl StatementValidator for ShowConfigsValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(show_configs_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.query_type = Some("ShowConfigs".to_string());
@@ -569,11 +662,26 @@ impl ShowSessionsValidator {
         Self {
             inputs: Vec::new(),
             outputs: vec![
-                ColumnDef { name: "SessionId".to_string(), type_: ValueType::Int },
-                ColumnDef { name: "UserName".to_string(), type_: ValueType::String },
-                ColumnDef { name: "SpaceName".to_string(), type_: ValueType::String },
-                ColumnDef { name: "CreateTime".to_string(), type_: ValueType::String },
-                ColumnDef { name: "UpdateTime".to_string(), type_: ValueType::String },
+                ColumnDef {
+                    name: "SessionId".to_string(),
+                    type_: ValueType::Int,
+                },
+                ColumnDef {
+                    name: "UserName".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "SpaceName".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "CreateTime".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "UpdateTime".to_string(),
+                    type_: ValueType::String,
+                },
             ],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
@@ -604,9 +712,9 @@ impl StatementValidator for ShowSessionsValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(show_sessions_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.query_type = Some("ShowSessions".to_string());
@@ -659,11 +767,26 @@ impl ShowQueriesValidator {
         Self {
             inputs: Vec::new(),
             outputs: vec![
-                ColumnDef { name: "SessionID".to_string(), type_: ValueType::Int },
-                ColumnDef { name: "ExecutionPlanID".to_string(), type_: ValueType::Int },
-                ColumnDef { name: "User".to_string(), type_: ValueType::String },
-                ColumnDef { name: "Query".to_string(), type_: ValueType::String },
-                ColumnDef { name: "StartTime".to_string(), type_: ValueType::String },
+                ColumnDef {
+                    name: "SessionID".to_string(),
+                    type_: ValueType::Int,
+                },
+                ColumnDef {
+                    name: "ExecutionPlanID".to_string(),
+                    type_: ValueType::Int,
+                },
+                ColumnDef {
+                    name: "User".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "Query".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "StartTime".to_string(),
+                    type_: ValueType::String,
+                },
             ],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
@@ -694,9 +817,9 @@ impl StatementValidator for ShowQueriesValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(show_queries_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.query_type = Some("ShowQueries".to_string());
@@ -752,9 +875,10 @@ impl KillQueryValidator {
             session_id: 0,
             plan_id: 0,
             inputs: Vec::new(),
-            outputs: vec![
-                ColumnDef { name: "Result".to_string(), type_: ValueType::String },
-            ],
+            outputs: vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
         }
@@ -786,9 +910,9 @@ impl StatementValidator for KillQueryValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(kill_query_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.query_type = Some("KillQuery".to_string());

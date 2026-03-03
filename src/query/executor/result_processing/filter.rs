@@ -3,26 +3,24 @@
 //! 实现对查询结果的条件过滤功能，支持 HAVING 子句
 //! CPU 密集型操作，使用 Rayon 进行并行化
 
-use std::sync::Arc;
 use parking_lot::Mutex;
 use rayon::prelude::*;
+use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::ContextualExpression;
 use crate::core::value::DataSet;
+use crate::core::value::NullType;
 use crate::core::Expression;
 use crate::core::Value;
-use crate::core::value::NullType;
-use crate::core::types::ContextualExpression;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::ParallelConfig;
-use crate::query::executor::base::{
-    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
-};
-use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
 
 /// FilterExecutor - 过滤执行器
@@ -335,11 +333,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FilterExecutor<S>
         };
 
         let result = self.process(input_result);
-        
+
         if let Ok(ref exec_result) = result {
             self.base.get_stats_mut().add_row(exec_result.count());
         }
-        
+
         result
     }
 

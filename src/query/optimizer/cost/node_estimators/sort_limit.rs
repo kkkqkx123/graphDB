@@ -13,11 +13,11 @@
 //! - Sort: 支持 Top-N 优化（当数据量 > limit * 10 时使用堆排序）
 //! - Limit: 简单的内存操作，代价与 offset + limit 成正比
 
-use crate::query::planner::plan::PlanNodeEnum;
+use super::{get_input_rows, NodeEstimator};
+use crate::core::error::optimize::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::core::error::optimize::CostError;
-use super::{NodeEstimator, get_input_rows};
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 排序和限制操作估算器
 pub struct SortLimitEstimator<'a> {
@@ -63,7 +63,9 @@ impl<'a> NodeEstimator for SortLimitEstimator<'a> {
                 let input_rows_val = get_input_rows(child_estimates, 0);
                 let sort_keys = n.sort_items().len();
                 // Sort 节点本身没有 limit，但如果有子 Limit 节点，可以传递 limit 进行优化
-                let cost = self.cost_calculator.calculate_sort_cost(input_rows_val, sort_keys, None);
+                let cost =
+                    self.cost_calculator
+                        .calculate_sort_cost(input_rows_val, sort_keys, None);
                 // Sort 不改变行数
                 Ok((cost, input_rows_val))
             }
@@ -73,7 +75,9 @@ impl<'a> NodeEstimator for SortLimitEstimator<'a> {
                 // 基于实际 LimitExecutor 实现：代价与 offset + limit 成正比
                 let offset = n.offset();
                 let rows_to_process = ((limit.max(0) + offset.max(0)) as u64).min(input_rows_val);
-                let cost = self.cost_calculator.calculate_limit_cost(input_rows_val, limit)
+                let cost = self
+                    .cost_calculator
+                    .calculate_limit_cost(input_rows_val, limit)
                     + rows_to_process as f64 * self.cost_calculator.config().cpu_tuple_cost * 0.1;
                 let output_rows = (limit.max(0) as u64).min(input_rows_val);
                 Ok((cost, output_rows))
@@ -82,7 +86,9 @@ impl<'a> NodeEstimator for SortLimitEstimator<'a> {
                 let input_rows_val = get_input_rows(child_estimates, 0);
                 let limit = n.limit();
                 // TopN 使用堆实现，复杂度 O(n log k)
-                let cost = self.cost_calculator.calculate_topn_cost(input_rows_val, limit);
+                let cost = self
+                    .cost_calculator
+                    .calculate_topn_cost(input_rows_val, limit);
                 let output_rows = (limit.max(0) as u64).min(input_rows_val);
                 Ok((cost, output_rows))
             }
@@ -100,7 +106,8 @@ impl<'a> NodeEstimator for SortLimitEstimator<'a> {
                 );
 
                 // 聚合输出行数基于 GROUP BY 键的基数（HashMap 键的数量）
-                let output_rows = self.estimate_group_by_cardinality(n.group_keys(), input_rows_val);
+                let output_rows =
+                    self.estimate_group_by_cardinality(n.group_keys(), input_rows_val);
                 Ok((cost, output_rows))
             }
             PlanNodeEnum::Dedup(_) => {
@@ -119,9 +126,10 @@ impl<'a> NodeEstimator for SortLimitEstimator<'a> {
                 let output_rows = sample_count.min(input_rows_val);
                 Ok((cost, output_rows.max(1)))
             }
-            _ => Err(CostError::UnsupportedNodeType(
-                format!("排序限制估算器不支持节点类型: {:?}", std::mem::discriminant(node))
-            )),
+            _ => Err(CostError::UnsupportedNodeType(format!(
+                "排序限制估算器不支持节点类型: {:?}",
+                std::mem::discriminant(node)
+            ))),
         }
     }
 }

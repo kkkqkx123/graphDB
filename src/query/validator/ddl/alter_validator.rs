@@ -7,16 +7,15 @@
 //! 2. ALTER SPACE 是全局语句，其他 ALTER 需要选择空间
 //! 3. 验证属性修改的合法性（添加、删除、修改）
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::PropertyDef;
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{AlterStmt, AlterTarget, PropertyChange};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
+use std::sync::Arc;
 
 /// 验证后的 Alter 信息
 #[derive(Debug, Clone)]
@@ -62,9 +61,10 @@ impl AlterValidator {
             deletions: Vec::new(),
             changes: Vec::new(),
             inputs: Vec::new(),
-            outputs: vec![
-                ColumnDef { name: "Result".to_string(), type_: ValueType::String },
-            ],
+            outputs: vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
         }
@@ -72,7 +72,12 @@ impl AlterValidator {
 
     fn validate_impl(&mut self, stmt: AlterStmt) -> Result<(), ValidationError> {
         match &stmt.target {
-            AlterTarget::Tag { tag_name, additions, deletions, changes } => {
+            AlterTarget::Tag {
+                tag_name,
+                additions,
+                deletions,
+                changes,
+            } => {
                 self.target_type = AlterTargetType::Tag;
                 self.target_name = tag_name.clone();
                 self.additions = additions.clone();
@@ -98,7 +103,12 @@ impl AlterValidator {
                 // 验证属性修改
                 self.validate_property_changes(additions, deletions, changes)?;
             }
-            AlterTarget::Edge { edge_name, additions, deletions, changes } => {
+            AlterTarget::Edge {
+                edge_name,
+                additions,
+                deletions,
+                changes,
+            } => {
                 self.target_type = AlterTargetType::Edge;
                 self.target_name = edge_name.clone();
                 self.additions = additions.clone();
@@ -124,7 +134,10 @@ impl AlterValidator {
                 // 验证属性修改
                 self.validate_property_changes(additions, deletions, changes)?;
             }
-            AlterTarget::Space { space_name, comment } => {
+            AlterTarget::Space {
+                space_name,
+                comment,
+            } => {
                 self.target_type = AlterTargetType::Space;
                 self.target_name = space_name.clone();
                 self.space_name = Some(space_name.clone());
@@ -311,12 +324,13 @@ impl StatementValidator for AlterValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(alter_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
-        info.semantic_info.altered_objects = vec![format!("{:?}: {}", self.target_type, self.target_name)];
+        info.semantic_info.altered_objects =
+            vec![format!("{:?}: {}", self.target_type, self.target_name)];
 
         Ok(ValidationResult::success_with_info(info))
     }

@@ -32,18 +32,20 @@
 //! - AppendVertices 的 nodeAlias 只被引用一次
 //! - Join 的 hash keys 匹配 id() 或 _joinkey() 模式
 
-use crate::core::Expression;
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::YieldColumn;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{SingleInputNode, MultipleInputNode};
+use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::join_node::{HashInnerJoinNode, HashLeftJoinNode};
+use crate::query::planner::plan::core::nodes::plan_node_traits::{
+    MultipleInputNode, SingleInputNode,
+};
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult, RewriteError};
+use crate::query::planner::rewrite::result::{RewriteError, RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::RewriteRule;
 use std::sync::Arc;
 
@@ -86,7 +88,11 @@ impl RemoveAppendVerticesBelowJoinRule {
                     self.collect_property_names_recursive(arg, result);
                 }
             }
-            Expression::Case { conditions, default, .. } => {
+            Expression::Case {
+                conditions,
+                default,
+                ..
+            } => {
                 for (when, then) in conditions {
                     self.collect_property_names_recursive(when, result);
                     self.collect_property_names_recursive(then, result);
@@ -100,11 +106,16 @@ impl RemoveAppendVerticesBelowJoinRule {
     }
 
     /// 检查表达式是否为 id() 或 _joinkey() 函数调用，返回参数表达式
-    fn is_id_or_joinkey_function(&self, expr: &ContextualExpression) -> Option<ContextualExpression> {
+    fn is_id_or_joinkey_function(
+        &self,
+        expr: &ContextualExpression,
+    ) -> Option<ContextualExpression> {
         if let Some(expr_meta) = expr.expression() {
             let inner_expr = expr_meta.inner();
             match inner_expr {
-                Expression::Function { name, args } if (name == "id" || name == "_joinkey") && args.len() == 1 => {
+                Expression::Function { name, args }
+                    if (name == "id" || name == "_joinkey") && args.len() == 1 =>
+                {
                     // 创建新的 ContextualExpression 包装参数
                     let ctx = expr.context().clone();
                     let meta = ExpressionMeta::new(args[0].clone());
@@ -131,12 +142,18 @@ impl RemoveAppendVerticesBelowJoinRule {
 
     /// 计算 avNodeAlias 在表达式列表中的引用次数
     fn count_alias_references(&self, exprs: &[ContextualExpression], alias: &str) -> usize {
-        exprs.iter().filter(|e| self.expr_references_alias(e, alias)).count()
+        exprs
+            .iter()
+            .filter(|e| self.expr_references_alias(e, alias))
+            .count()
     }
 
     /// 计算 avNodeAlias 在 YieldColumn 列表中的引用次数
     fn count_alias_references_in_columns(&self, columns: &[YieldColumn], alias: &str) -> usize {
-        columns.iter().filter(|c| self.expr_references_alias(&c.expression, alias)).count()
+        columns
+            .iter()
+            .filter(|c| self.expr_references_alias(&c.expression, alias))
+            .count()
     }
 
     /// 查找包含指定别名的列索引
@@ -154,7 +171,11 @@ impl RemoveAppendVerticesBelowJoinRule {
     }
 
     /// 查找 probe keys 中匹配 id()/_joinkey() 模式的索引
-    fn find_matching_probe_key(&self, probe_keys: &[ContextualExpression], av_node_alias: &str) -> Option<usize> {
+    fn find_matching_probe_key(
+        &self,
+        probe_keys: &[ContextualExpression],
+        av_node_alias: &str,
+    ) -> Option<usize> {
         for (idx, expr) in probe_keys.iter().enumerate() {
             if let Some(arg) = self.is_id_or_joinkey_function(expr) {
                 if self.expr_contains_variable(&arg, av_node_alias) {
@@ -184,12 +205,13 @@ impl RemoveAppendVerticesBelowJoinRule {
                     let left_meta = ExpressionMeta::new(*left.clone());
                     let left_id = ctx.register_expression(left_meta);
                     let left_expr = ContextualExpression::new(left_id, ctx.clone());
-                    
+
                     let right_meta = ExpressionMeta::new(*right.clone());
                     let right_id = ctx.register_expression(right_meta);
                     let right_expr = ContextualExpression::new(right_id, ctx);
-                    
-                    self.expr_contains_variable(&left_expr, var_name) || self.expr_contains_variable(&right_expr, var_name)
+
+                    self.expr_contains_variable(&left_expr, var_name)
+                        || self.expr_contains_variable(&right_expr, var_name)
                 }
                 Expression::Unary { operand, .. } => {
                     let ctx = expr.context().clone();
@@ -215,7 +237,11 @@ impl RemoveAppendVerticesBelowJoinRule {
     }
 
     /// 创建 none_direct_dst 函数调用表达式
-    fn create_none_direct_dst_expr(&self, edge_alias: &str, vertex_alias: &str) -> ContextualExpression {
+    fn create_none_direct_dst_expr(
+        &self,
+        edge_alias: &str,
+        vertex_alias: &str,
+    ) -> ContextualExpression {
         let expr = Expression::Function {
             name: "none_direct_dst".to_string(),
             args: vec![
@@ -262,12 +288,18 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
     ) -> RewriteResult<Option<TransformResult>> {
         // 检查是否为哈希连接节点
         let (hash_keys, probe_keys, left_input, right_input) = match node {
-            PlanNodeEnum::HashInnerJoin(n) => {
-                (n.hash_keys().to_vec(), n.probe_keys().to_vec(), n.left_input().clone(), n.right_input().clone())
-            }
-            PlanNodeEnum::HashLeftJoin(n) => {
-                (n.hash_keys().to_vec(), n.probe_keys().to_vec(), n.left_input().clone(), n.right_input().clone())
-            }
+            PlanNodeEnum::HashInnerJoin(n) => (
+                n.hash_keys().to_vec(),
+                n.probe_keys().to_vec(),
+                n.left_input().clone(),
+                n.right_input().clone(),
+            ),
+            PlanNodeEnum::HashLeftJoin(n) => (
+                n.hash_keys().to_vec(),
+                n.probe_keys().to_vec(),
+                n.left_input().clone(),
+                n.right_input().clone(),
+            ),
             _ => return Ok(None),
         };
 
@@ -360,10 +392,8 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
         };
 
         // 创建新的 Project 节点
-        let new_project = ProjectNode::new(
-            append_inputs[0].as_ref().clone(),
-            new_columns,
-        ).map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?;
+        let new_project = ProjectNode::new(append_inputs[0].as_ref().clone(), new_columns)
+            .map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?;
 
         // 创建新的 probe keys
         let mut new_probe_keys: Vec<ContextualExpression> = probe_keys.clone();
@@ -371,26 +401,24 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
 
         // 创建新的 Join 节点
         let new_join: PlanNodeEnum = match node {
-            PlanNodeEnum::HashInnerJoin(_) => {
-                PlanNodeEnum::HashInnerJoin(
-                    HashInnerJoinNode::new(
-                        left_input.clone(),
-                        PlanNodeEnum::Project(new_project),
-                        hash_keys.iter().cloned().collect(),
-                        new_probe_keys,
-                    ).map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?
+            PlanNodeEnum::HashInnerJoin(_) => PlanNodeEnum::HashInnerJoin(
+                HashInnerJoinNode::new(
+                    left_input.clone(),
+                    PlanNodeEnum::Project(new_project),
+                    hash_keys.iter().cloned().collect(),
+                    new_probe_keys,
                 )
-            }
-            PlanNodeEnum::HashLeftJoin(_) => {
-                PlanNodeEnum::HashLeftJoin(
-                    HashLeftJoinNode::new(
-                        left_input.clone(),
-                        PlanNodeEnum::Project(new_project),
-                        hash_keys.iter().cloned().collect(),
-                        new_probe_keys,
-                    ).map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?
+                .map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?,
+            ),
+            PlanNodeEnum::HashLeftJoin(_) => PlanNodeEnum::HashLeftJoin(
+                HashLeftJoinNode::new(
+                    left_input.clone(),
+                    PlanNodeEnum::Project(new_project),
+                    hash_keys.iter().cloned().collect(),
+                    new_probe_keys,
                 )
-            }
+                .map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?,
+            ),
             _ => unreachable!(),
         };
 
@@ -420,5 +448,4 @@ mod tests {
         let pattern = rule.pattern();
         assert!(pattern.node.is_some());
     }
-
 }

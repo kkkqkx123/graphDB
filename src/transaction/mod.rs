@@ -25,16 +25,18 @@
 
 pub mod context;
 pub mod manager;
-pub mod types;
 pub mod savepoint;
 pub mod two_phase;
+pub mod types;
 
 pub use context::TransactionContext;
 pub use manager::TransactionManager;
-pub use savepoint::{Savepoint, SavepointId, SavepointInfo, SavepointManager, SavepointState, SavepointStats};
+pub use savepoint::{
+    Savepoint, SavepointId, SavepointInfo, SavepointManager, SavepointState, SavepointStats,
+};
 pub use two_phase::{
-    ParticipantState, ParticipantVote, ResourceManager, TwoPhaseCoordinator,
-    TwoPhaseId, TwoPhaseState, TwoPhaseTransaction,
+    ParticipantState, ParticipantVote, ResourceManager, TwoPhaseCoordinator, TwoPhaseId,
+    TwoPhaseState, TwoPhaseTransaction,
 };
 pub use types::*;
 
@@ -42,9 +44,7 @@ pub use types::*;
 pub const VERSION: &str = "1.0.0";
 
 /// 创建默认配置的事务管理器
-pub fn create_transaction_manager(
-    db: std::sync::Arc<redb::Database>,
-) -> TransactionManager {
+pub fn create_transaction_manager(db: std::sync::Arc<redb::Database>) -> TransactionManager {
     TransactionManager::new(db, TransactionManagerConfig::default())
 }
 
@@ -55,8 +55,7 @@ pub fn readonly_options() -> TransactionOptions {
 
 /// 创建高性能写事务选项（不保证立即持久化）
 pub fn high_performance_write_options() -> TransactionOptions {
-    TransactionOptions::new()
-        .with_durability(DurabilityLevel::None)
+    TransactionOptions::new().with_durability(DurabilityLevel::None)
 }
 
 /// 创建安全写事务选项（两阶段提交）
@@ -74,7 +73,10 @@ mod tests {
 
     fn create_test_db() -> (Arc<redb::Database>, TempDir) {
         let temp_dir = TempDir::new().expect("Failed to create temporary directory");
-        let db = Arc::new(redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create test database"));
+        let db = Arc::new(
+            redb::Database::create(temp_dir.path().join("test.db"))
+                .expect("Failed to create test database"),
+        );
         (db, temp_dir)
     }
 
@@ -88,10 +90,12 @@ mod tests {
         let (db, _temp) = create_test_db();
         let manager = create_transaction_manager(db);
 
-        let txn_id = manager.begin_transaction(TransactionOptions::default())
+        let txn_id = manager
+            .begin_transaction(TransactionOptions::default())
             .expect("Failed to begin transaction");
 
-        manager.commit_transaction(txn_id)
+        manager
+            .commit_transaction(txn_id)
             .expect("Failed to commit transaction");
     }
 
@@ -101,12 +105,18 @@ mod tests {
         let manager = create_transaction_manager(db);
 
         let options = readonly_options();
-        let txn_id = manager.begin_transaction(options).expect("Failed to begin readonly transaction");
+        let txn_id = manager
+            .begin_transaction(options)
+            .expect("Failed to begin readonly transaction");
 
-        let ctx = manager.get_context(txn_id).expect("Failed to get transaction context");
+        let ctx = manager
+            .get_context(txn_id)
+            .expect("Failed to get transaction context");
         assert!(ctx.read_only);
 
-        manager.commit_transaction(txn_id).expect("Failed to commit transaction");
+        manager
+            .commit_transaction(txn_id)
+            .expect("Failed to commit transaction");
     }
 
     #[test]

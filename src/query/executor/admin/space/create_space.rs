@@ -77,7 +77,11 @@ impl<S: StorageClient> CreateSpaceExecutor<S> {
     }
 
     /// 创建带 IF NOT EXISTS 选项的 CreateSpaceExecutor
-    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, space_info: ExecutorSpaceInfo) -> Self {
+    pub fn with_if_not_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_info: ExecutorSpaceInfo,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateSpaceExecutor".to_string(), storage),
             space_info,
@@ -100,10 +104,16 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateSpaceExecut
                 if self.if_not_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Space '{}' already exists", self.space_info.space_name)))
+                    Ok(ExecutionResult::Error(format!(
+                        "Space '{}' already exists",
+                        self.space_info.space_name
+                    )))
                 }
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to create space: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to create space: {}",
+                e
+            ))),
         }
     }
 

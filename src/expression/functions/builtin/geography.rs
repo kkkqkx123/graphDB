@@ -4,8 +4,8 @@ use crate::core::error::ExpressionError;
 use crate::core::value::geography::GeographyValue;
 use crate::core::value::NullType;
 use crate::core::Value;
-use crate::define_function_enum;
 use crate::define_binary_geography_fn;
+use crate::define_function_enum;
 
 define_function_enum! {
     /// 地理空间函数枚举
@@ -123,11 +123,15 @@ fn execute_st_geogfromtext(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
         Value::String(wkt) => match Geography::from_wkt(wkt) {
             Ok(Geography::Point(geo)) => Ok(Value::Geography(geo)),
-            Ok(_) => Err(ExpressionError::type_error("st_geogfromtext目前只支持点类型")),
+            Ok(_) => Err(ExpressionError::type_error(
+                "st_geogfromtext目前只支持点类型",
+            )),
             Err(e) => Err(ExpressionError::type_error(&format!("解析WKT失败: {}", e))),
         },
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("st_geogfromtext函数需要字符串参数")),
+        _ => Err(ExpressionError::type_error(
+            "st_geogfromtext函数需要字符串参数",
+        )),
     }
 }
 
@@ -193,9 +197,7 @@ define_binary_geography_fn!(
 
 define_binary_geography_fn!(
     execute_st_distance,
-    |geo1: &GeographyValue, geo2: &GeographyValue| {
-        Ok(Value::Float(geo1.distance(geo2)))
-    },
+    |geo1: &GeographyValue, geo2: &GeographyValue| { Ok(Value::Float(geo1.distance(geo2))) },
     "st_distance"
 );
 
@@ -253,7 +255,9 @@ mod tests {
             longitude: 121.4737,
             latitude: 31.2304,
         };
-        let result = func.execute(&[Value::Geography(geo1), Value::Geography(geo2)]).unwrap();
+        let result = func
+            .execute(&[Value::Geography(geo1), Value::Geography(geo2)])
+            .unwrap();
         assert!(matches!(result, Value::Float(_)));
     }
 

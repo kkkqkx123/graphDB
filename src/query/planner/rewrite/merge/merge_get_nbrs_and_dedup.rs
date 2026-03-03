@@ -160,12 +160,11 @@ mod tests {
         // 应用规则
         let rule = MergeGetNbrsAndDedupRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &get_neighbors_node).expect("应用规则失败");
+        let result = rule
+            .apply(&mut ctx, &get_neighbors_node)
+            .expect("应用规则失败");
 
-        assert!(
-            result.is_some(),
-            "应该成功合并GetNeighbors和Dedup节点"
-        );
+        assert!(result.is_some(), "应该成功合并GetNeighbors和Dedup节点");
 
         // 验证结果
         let transform_result = result.expect("Failed to apply rewrite rule");

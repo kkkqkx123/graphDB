@@ -27,16 +27,16 @@
 //! ```
 
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::rewrite::aggregate;
 use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::RewriteRule as RewriteRuleTrait;
 use crate::query::planner::rewrite::elimination;
+use crate::query::planner::rewrite::limit_pushdown;
 use crate::query::planner::rewrite::merge;
+use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::predicate_pushdown;
 use crate::query::planner::rewrite::projection_pushdown;
-use crate::query::planner::rewrite::limit_pushdown;
-use crate::query::planner::rewrite::aggregate;
+use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planner::rewrite::rule::RewriteRule as RewriteRuleTrait;
 
 macro_rules! define_rewrite_rules {
     (
@@ -207,41 +207,109 @@ impl RuleRegistry {
 impl Default for RuleRegistry {
     fn default() -> Self {
         let mut registry = Self::new();
-        registry.add(RewriteRule::EliminateFilter(elimination::EliminateFilterRule::new()));
-        registry.add(RewriteRule::RemoveNoopProject(elimination::RemoveNoopProjectRule::new()));
-        registry.add(RewriteRule::EliminateAppendVertices(elimination::EliminateAppendVerticesRule::new()));
-        registry.add(RewriteRule::RemoveAppendVerticesBelowJoin(elimination::RemoveAppendVerticesBelowJoinRule::new()));
-        registry.add(RewriteRule::EliminateRowCollect(elimination::EliminateRowCollectRule::new()));
-        registry.add(RewriteRule::EliminateEmptySetOperation(elimination::EliminateEmptySetOperationRule::new()));
-        registry.add(RewriteRule::DedupElimination(elimination::DedupEliminationRule::new()));
-        registry.add(RewriteRule::EliminateSort(elimination::EliminateSortRule::new()));
+        registry.add(RewriteRule::EliminateFilter(
+            elimination::EliminateFilterRule::new(),
+        ));
+        registry.add(RewriteRule::RemoveNoopProject(
+            elimination::RemoveNoopProjectRule::new(),
+        ));
+        registry.add(RewriteRule::EliminateAppendVertices(
+            elimination::EliminateAppendVerticesRule::new(),
+        ));
+        registry.add(RewriteRule::RemoveAppendVerticesBelowJoin(
+            elimination::RemoveAppendVerticesBelowJoinRule::new(),
+        ));
+        registry.add(RewriteRule::EliminateRowCollect(
+            elimination::EliminateRowCollectRule::new(),
+        ));
+        registry.add(RewriteRule::EliminateEmptySetOperation(
+            elimination::EliminateEmptySetOperationRule::new(),
+        ));
+        registry.add(RewriteRule::DedupElimination(
+            elimination::DedupEliminationRule::new(),
+        ));
+        registry.add(RewriteRule::EliminateSort(
+            elimination::EliminateSortRule::new(),
+        ));
         registry.add(RewriteRule::CombineFilter(merge::CombineFilterRule::new()));
-        registry.add(RewriteRule::CollapseProject(merge::CollapseProjectRule::new()));
-        registry.add(RewriteRule::CollapseConsecutiveProject(merge::CollapseConsecutiveProjectRule::new()));
-        registry.add(RewriteRule::MergeGetVerticesAndProject(merge::MergeGetVerticesAndProjectRule::new()));
-        registry.add(RewriteRule::MergeGetVerticesAndDedup(merge::MergeGetVerticesAndDedupRule::new()));
-        registry.add(RewriteRule::MergeGetNbrsAndProject(merge::MergeGetNbrsAndProjectRule::new()));
-        registry.add(RewriteRule::MergeGetNbrsAndDedup(merge::MergeGetNbrsAndDedupRule::new()));
-        registry.add(RewriteRule::PushFilterDownTraverse(predicate_pushdown::PushFilterDownTraverseRule::new()));
-        registry.add(RewriteRule::PushFilterDownExpandAll(predicate_pushdown::PushFilterDownExpandAllRule::new()));
-        registry.add(RewriteRule::PushFilterDownNode(predicate_pushdown::PushFilterDownNodeRule::new()));
-        registry.add(RewriteRule::PushEFilterDown(predicate_pushdown::PushEFilterDownRule::new()));
-        registry.add(RewriteRule::PushVFilterDownScanVertices(predicate_pushdown::PushVFilterDownScanVerticesRule::new()));
-        registry.add(RewriteRule::PushFilterDownInnerJoin(predicate_pushdown::PushFilterDownInnerJoinRule::new()));
-        registry.add(RewriteRule::PushFilterDownHashInnerJoin(predicate_pushdown::PushFilterDownHashInnerJoinRule::new()));
-        registry.add(RewriteRule::PushFilterDownHashLeftJoin(predicate_pushdown::PushFilterDownHashLeftJoinRule::new()));
-        registry.add(RewriteRule::PushFilterDownCrossJoin(predicate_pushdown::PushFilterDownCrossJoinRule::new()));
-        registry.add(RewriteRule::PushFilterDownGetNbrs(predicate_pushdown::PushFilterDownGetNbrsRule::new()));
-        registry.add(RewriteRule::PushFilterDownAllPaths(predicate_pushdown::PushFilterDownAllPathsRule::new()));
-        registry.add(RewriteRule::ProjectionPushDown(projection_pushdown::ProjectionPushDownRule::new()));
-        registry.add(RewriteRule::PushProjectDown(projection_pushdown::PushProjectDownRule::new()));
-        registry.add(RewriteRule::PushLimitDownGetVertices(limit_pushdown::PushLimitDownGetVerticesRule::new()));
-        registry.add(RewriteRule::PushLimitDownGetEdges(limit_pushdown::PushLimitDownGetEdgesRule::new()));
-        registry.add(RewriteRule::PushLimitDownScanVertices(limit_pushdown::PushLimitDownScanVerticesRule::new()));
-        registry.add(RewriteRule::PushLimitDownScanEdges(limit_pushdown::PushLimitDownScanEdgesRule::new()));
-        registry.add(RewriteRule::PushLimitDownIndexScan(limit_pushdown::PushLimitDownIndexScanRule::new()));
-        registry.add(RewriteRule::PushTopNDownIndexScan(limit_pushdown::PushTopNDownIndexScanRule::new()));
-        registry.add(RewriteRule::PushFilterDownAggregate(aggregate::PushFilterDownAggregateRule::new()));
+        registry.add(RewriteRule::CollapseProject(
+            merge::CollapseProjectRule::new(),
+        ));
+        registry.add(RewriteRule::CollapseConsecutiveProject(
+            merge::CollapseConsecutiveProjectRule::new(),
+        ));
+        registry.add(RewriteRule::MergeGetVerticesAndProject(
+            merge::MergeGetVerticesAndProjectRule::new(),
+        ));
+        registry.add(RewriteRule::MergeGetVerticesAndDedup(
+            merge::MergeGetVerticesAndDedupRule::new(),
+        ));
+        registry.add(RewriteRule::MergeGetNbrsAndProject(
+            merge::MergeGetNbrsAndProjectRule::new(),
+        ));
+        registry.add(RewriteRule::MergeGetNbrsAndDedup(
+            merge::MergeGetNbrsAndDedupRule::new(),
+        ));
+        registry.add(RewriteRule::PushFilterDownTraverse(
+            predicate_pushdown::PushFilterDownTraverseRule::new(),
+        ));
+        registry.add(RewriteRule::PushFilterDownExpandAll(
+            predicate_pushdown::PushFilterDownExpandAllRule::new(),
+        ));
+        registry.add(RewriteRule::PushFilterDownNode(
+            predicate_pushdown::PushFilterDownNodeRule::new(),
+        ));
+        registry.add(RewriteRule::PushEFilterDown(
+            predicate_pushdown::PushEFilterDownRule::new(),
+        ));
+        registry.add(RewriteRule::PushVFilterDownScanVertices(
+            predicate_pushdown::PushVFilterDownScanVerticesRule::new(),
+        ));
+        registry.add(RewriteRule::PushFilterDownInnerJoin(
+            predicate_pushdown::PushFilterDownInnerJoinRule::new(),
+        ));
+        registry.add(RewriteRule::PushFilterDownHashInnerJoin(
+            predicate_pushdown::PushFilterDownHashInnerJoinRule::new(),
+        ));
+        registry.add(RewriteRule::PushFilterDownHashLeftJoin(
+            predicate_pushdown::PushFilterDownHashLeftJoinRule::new(),
+        ));
+        registry.add(RewriteRule::PushFilterDownCrossJoin(
+            predicate_pushdown::PushFilterDownCrossJoinRule::new(),
+        ));
+        registry.add(RewriteRule::PushFilterDownGetNbrs(
+            predicate_pushdown::PushFilterDownGetNbrsRule::new(),
+        ));
+        registry.add(RewriteRule::PushFilterDownAllPaths(
+            predicate_pushdown::PushFilterDownAllPathsRule::new(),
+        ));
+        registry.add(RewriteRule::ProjectionPushDown(
+            projection_pushdown::ProjectionPushDownRule::new(),
+        ));
+        registry.add(RewriteRule::PushProjectDown(
+            projection_pushdown::PushProjectDownRule::new(),
+        ));
+        registry.add(RewriteRule::PushLimitDownGetVertices(
+            limit_pushdown::PushLimitDownGetVerticesRule::new(),
+        ));
+        registry.add(RewriteRule::PushLimitDownGetEdges(
+            limit_pushdown::PushLimitDownGetEdgesRule::new(),
+        ));
+        registry.add(RewriteRule::PushLimitDownScanVertices(
+            limit_pushdown::PushLimitDownScanVerticesRule::new(),
+        ));
+        registry.add(RewriteRule::PushLimitDownScanEdges(
+            limit_pushdown::PushLimitDownScanEdgesRule::new(),
+        ));
+        registry.add(RewriteRule::PushLimitDownIndexScan(
+            limit_pushdown::PushLimitDownIndexScanRule::new(),
+        ));
+        registry.add(RewriteRule::PushTopNDownIndexScan(
+            limit_pushdown::PushTopNDownIndexScanRule::new(),
+        ));
+        registry.add(RewriteRule::PushFilterDownAggregate(
+            aggregate::PushFilterDownAggregateRule::new(),
+        ));
         registry
     }
 }

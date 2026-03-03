@@ -2,15 +2,15 @@
 //! 用于验证 RETURN 语句（Cypher 风格的返回子句）
 //! 参考 nebula-graph MatchValidator.cpp 中的 Return 子句验证
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
-use crate::query::parser::ast::stmt::{ReturnStmt, ReturnItem};
+use crate::query::parser::ast::stmt::{ReturnItem, ReturnStmt};
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::query::validator::structs::validation_info::ValidationInfo;
-use crate::query::validator::structs::AliasType;
+use crate::query::QueryContext;
+use std::sync::Arc;
 
 /// Return 语句验证器
 #[derive(Debug)]
@@ -57,7 +57,8 @@ impl ReturnValidator {
                 self.validate_expression(expression)?;
 
                 // 确定列名
-                let name = alias.clone()
+                let name = alias
+                    .clone()
                     .or_else(|| self.infer_column_name(expression))
                     .unwrap_or_else(|| "column".to_string());
 
@@ -113,16 +114,12 @@ impl ReturnValidator {
                 }
                 Ok(())
             }
-            Expression::Function { name, args } => {
-                self.validate_function_call_internal(name, args)
-            }
+            Expression::Function { name, args } => self.validate_function_call_internal(name, args),
             Expression::Binary { left, right, .. } => {
                 self.validate_expression_internal(left)?;
                 self.validate_expression_internal(right)
             }
-            Expression::Unary { operand, .. } => {
-                self.validate_expression_internal(operand)
-            }
+            Expression::Unary { operand, .. } => self.validate_expression_internal(operand),
             _ => Ok(()),
         }
     }
@@ -230,7 +227,11 @@ impl ReturnValidator {
     }
 
     /// 验证 SKIP 和 LIMIT
-    fn validate_skip_limit(&self, skip: Option<usize>, limit: Option<usize>) -> Result<(), ValidationError> {
+    fn validate_skip_limit(
+        &self,
+        skip: Option<usize>,
+        limit: Option<usize>,
+    ) -> Result<(), ValidationError> {
         if let Some(s) = skip {
             if s > 1_000_000 {
                 return Err(ValidationError::new(
@@ -328,7 +329,9 @@ impl StatementValidator for ReturnValidator {
                     if let Some(ref alias_name) = alias {
                         info.add_alias(alias_name.clone(), AliasType::Expression);
                     }
-                    info.semantic_info.output_fields.push(format!("{:?}", expression));
+                    info.semantic_info
+                        .output_fields
+                        .push(format!("{:?}", expression));
                 }
                 ReturnItem::All => {
                     info.semantic_info.output_fields.push("*".to_string());
@@ -380,19 +383,23 @@ mod tests {
     fn test_validate_return_item_all() {
         let validator = ReturnValidator::new();
         let item = ReturnItem::All;
-        let col = validator.validate_return_item(&item).expect("Failed to validate return item");
+        let col = validator
+            .validate_return_item(&item)
+            .expect("Failed to validate return item");
         assert_eq!(col.name, "*");
         assert_eq!(col.type_, ValueType::Map);
     }
 
     #[test]
     fn test_validate_return_item_expression() {
-        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use crate::core::types::expression::{
+            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+        };
         use std::sync::Arc;
 
         let mut validator = ReturnValidator::new();
         validator.user_defined_vars.push("n".to_string());
-        
+
         let expr_ctx = Arc::new(ExpressionContext::new());
         let expr = Expression::Variable("n".to_string());
         let meta = ExpressionMeta::new(expr);
@@ -402,20 +409,26 @@ mod tests {
             expression: ctx_expr,
             alias: Some("node".to_string()),
         };
-        let col = validator.validate_return_item(&item).expect("Failed to validate return item");
+        let col = validator
+            .validate_return_item(&item)
+            .expect("Failed to validate return item");
         assert_eq!(col.name, "node");
     }
 
     #[test]
     fn test_validate_skip_limit() {
         let validator = ReturnValidator::new();
-        
+
         // 有效值
         assert!(validator.validate_skip_limit(Some(10), Some(100)).is_ok());
         assert!(validator.validate_skip_limit(None, None).is_ok());
-        
+
         // 超过最大值
-        assert!(validator.validate_skip_limit(Some(2_000_000), None).is_err());
-        assert!(validator.validate_skip_limit(None, Some(2_000_000)).is_err());
+        assert!(validator
+            .validate_skip_limit(Some(2_000_000), None)
+            .is_err());
+        assert!(validator
+            .validate_skip_limit(None, Some(2_000_000))
+            .is_err());
     }
 }

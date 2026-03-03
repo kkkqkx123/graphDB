@@ -30,7 +30,7 @@ pub struct PasswordAuthenticator {
 }
 
 impl PasswordAuthenticator {
-    pub fn new<F>(user_verifier: F, config: AuthConfig) -> Self 
+    pub fn new<F>(user_verifier: F, config: AuthConfig) -> Self
     where
         F: Fn(&str, &str) -> AuthResult<bool> + Send + Sync + 'static,
     {
@@ -45,7 +45,7 @@ impl PasswordAuthenticator {
     pub fn new_default(config: AuthConfig) -> Self {
         let default_username = config.default_username.clone();
         let default_password = config.default_password.clone();
-        
+
         Self::new(
             move |username: &str, password: &str| {
                 // 使用配置的默认用户名和密码
@@ -67,10 +67,12 @@ impl PasswordAuthenticator {
         }
 
         let mut attempts = self.login_attempts.write();
-        
-        let attempt = attempts.entry(username.to_string()).or_insert(LoginAttempt {
-            remaining_attempts: self.config.failed_login_attempts,
-        });
+
+        let attempt = attempts
+            .entry(username.to_string())
+            .or_insert(LoginAttempt {
+                remaining_attempts: self.config.failed_login_attempts,
+            });
 
         // 减少剩余尝试次数
         if attempt.remaining_attempts > 0 {
@@ -135,10 +137,7 @@ pub struct AuthenticatorFactory;
 
 impl AuthenticatorFactory {
     /// 创建密码认证器
-    pub fn create<F>(
-        config: &AuthConfig,
-        user_verifier: F,
-    ) -> PasswordAuthenticator
+    pub fn create<F>(config: &AuthConfig, user_verifier: F) -> PasswordAuthenticator
     where
         F: Fn(&str, &str) -> AuthResult<bool> + Send + Sync + 'static,
     {
@@ -169,10 +168,7 @@ mod tests {
     #[test]
     fn test_password_authenticator_success() {
         let config = create_test_config();
-        let auth = PasswordAuthenticator::new(
-            |_username: &str, _password: &str| Ok(true),
-            config,
-        );
+        let auth = PasswordAuthenticator::new(|_username: &str, _password: &str| Ok(true), config);
 
         assert!(auth.authenticate("user", "pass").is_ok());
     }
@@ -180,10 +176,7 @@ mod tests {
     #[test]
     fn test_password_authenticator_failure() {
         let config = create_test_config();
-        let auth = PasswordAuthenticator::new(
-            |_username: &str, _password: &str| Ok(false),
-            config,
-        );
+        let auth = PasswordAuthenticator::new(|_username: &str, _password: &str| Ok(false), config);
 
         assert!(auth.authenticate("user", "wrong_pass").is_err());
     }
@@ -219,10 +212,7 @@ mod tests {
             force_change_default_password: false,
         };
 
-        let auth = PasswordAuthenticator::new(
-            |_username: &str, _password: &str| Ok(false),
-            config,
-        );
+        let auth = PasswordAuthenticator::new(|_username: &str, _password: &str| Ok(false), config);
 
         // 第一次失败 - 还剩1次
         let result1 = auth.authenticate("user", "wrong");
@@ -257,7 +247,7 @@ mod tests {
 
         let success = Arc::new(AtomicBool::new(false));
         let success_clone = success.clone();
-        
+
         let auth = PasswordAuthenticator::new(
             move |_username: &str, _password: &str| {
                 if success_clone.load(Ordering::SeqCst) {
@@ -294,10 +284,8 @@ mod tests {
             force_change_default_password: false,
         };
 
-        let _auth = AuthenticatorFactory::create(
-            &config,
-            |_username: &str, _password: &str| Ok(true),
-        );
+        let _auth =
+            AuthenticatorFactory::create(&config, |_username: &str, _password: &str| Ok(true));
         // 验证创建成功（不再返回Result，直接创建成功）
 
         let _auth_default = AuthenticatorFactory::create_default(&config);

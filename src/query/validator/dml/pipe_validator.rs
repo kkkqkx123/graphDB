@@ -12,14 +12,13 @@
 //!    - 类型匹配验证
 //! 3. 使用 QueryContext 统一管理上下文
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
+use std::sync::Arc;
 
 /// 列信息定义
 #[derive(Debug, Clone)]
@@ -93,7 +92,8 @@ impl PipeValidator {
     pub fn set_left_output(&mut self, cols: Vec<ColumnInfo>) {
         self.left_output_cols = cols;
         // 同步到 inputs
-        self.inputs = self.left_output_cols
+        self.inputs = self
+            .left_output_cols
             .iter()
             .map(|col| ColumnDef {
                 name: col.name.clone(),
@@ -220,7 +220,8 @@ impl PipeValidator {
 
         if !self.right_input_cols.is_empty() && self.left_output_cols.is_empty() {
             return Err(ValidationError::new(
-                "Pipe requires input from previous query but previous query has no output".to_string(),
+                "Pipe requires input from previous query but previous query has no output"
+                    .to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -279,7 +280,11 @@ impl StatementValidator for PipeValidator {
         let mut info = ValidationInfo::new();
 
         for col in &self.left_output_cols {
-            info.semantic_info.pipeline_steps.push(format!("{}: {}", col.name, format!("{:?}", col.type_)));
+            info.semantic_info.pipeline_steps.push(format!(
+                "{}: {}",
+                col.name,
+                format!("{:?}", col.type_)
+            ));
         }
 
         Ok(ValidationResult::success_with_info(info))
@@ -348,9 +353,7 @@ mod tests {
             ColumnInfo::new("name".to_string(), ValueType::String),
             ColumnInfo::new("age".to_string(), ValueType::Int),
         ];
-        let right_cols = vec![
-            ColumnInfo::new("name".to_string(), ValueType::String),
-        ];
+        let right_cols = vec![ColumnInfo::new("name".to_string(), ValueType::String)];
         validator.set_left_output(left_cols);
         validator.set_right_input(right_cols);
 
@@ -361,12 +364,8 @@ mod tests {
     #[test]
     fn test_validate_incompatible_type() {
         let mut validator = PipeValidator::new();
-        let left_cols = vec![
-            ColumnInfo::new("age".to_string(), ValueType::Int),
-        ];
-        let right_cols = vec![
-            ColumnInfo::new("age".to_string(), ValueType::String),
-        ];
+        let left_cols = vec![ColumnInfo::new("age".to_string(), ValueType::Int)];
+        let right_cols = vec![ColumnInfo::new("age".to_string(), ValueType::String)];
         validator.set_left_output(left_cols);
         validator.set_right_input(right_cols);
 
@@ -377,12 +376,8 @@ mod tests {
     #[test]
     fn test_validate_missing_column() {
         let mut validator = PipeValidator::new();
-        let left_cols = vec![
-            ColumnInfo::new("name".to_string(), ValueType::String),
-        ];
-        let right_cols = vec![
-            ColumnInfo::new("age".to_string(), ValueType::Int),
-        ];
+        let left_cols = vec![ColumnInfo::new("name".to_string(), ValueType::String)];
+        let right_cols = vec![ColumnInfo::new("age".to_string(), ValueType::Int)];
         validator.set_left_output(left_cols);
         validator.set_right_input(right_cols);
 
@@ -392,12 +387,8 @@ mod tests {
 
     #[test]
     fn test_validate_static_method() {
-        let left_cols = vec![
-            ColumnInfo::new("name".to_string(), ValueType::String),
-        ];
-        let right_cols = vec![
-            ColumnInfo::new("name".to_string(), ValueType::String),
-        ];
+        let left_cols = vec![ColumnInfo::new("name".to_string(), ValueType::String)];
+        let right_cols = vec![ColumnInfo::new("name".to_string(), ValueType::String)];
 
         let result = PipeValidator::validate_pipe_compatibility(&left_cols, &right_cols);
         assert!(result.is_ok());

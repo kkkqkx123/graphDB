@@ -2,16 +2,16 @@
 //! 对应 NebulaGraph LimitValidator.h/.cpp 的功能
 //! 验证 LIMIT 和 SKIP 子句的表达式
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::{Expression, Value};
-use crate::query::QueryContext;
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use std::sync::Arc;
 
 /// 验证后的 LIMIT 信息
 #[derive(Debug, Clone)]
@@ -71,7 +71,10 @@ impl LimitValidator {
     }
 
     /// 验证 SKIP 表达式
-    fn validate_skip(&self, skip: &Option<ContextualExpression>) -> Result<Option<u64>, ValidationError> {
+    fn validate_skip(
+        &self,
+        skip: &Option<ContextualExpression>,
+    ) -> Result<Option<u64>, ValidationError> {
         if let Some(skip_expr) = skip {
             // 验证类型是否为整数
             if !self.is_integer_expression(skip_expr) {
@@ -96,7 +99,10 @@ impl LimitValidator {
     }
 
     /// 验证 LIMIT 表达式
-    fn validate_limit(&self, limit: &Option<ContextualExpression>) -> Result<Option<u64>, ValidationError> {
+    fn validate_limit(
+        &self,
+        limit: &Option<ContextualExpression>,
+    ) -> Result<Option<u64>, ValidationError> {
         if let Some(limit_expr) = limit {
             // 验证类型是否为整数
             if !self.is_integer_expression(limit_expr) {
@@ -158,7 +164,10 @@ impl LimitValidator {
     }
 
     /// 内部方法：检查表达式是否为整数类型
-    fn is_integer_expression_internal(&self, expr: &crate::core::types::expression::Expression) -> bool {
+    fn is_integer_expression_internal(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> bool {
         use crate::core::types::expression::Expression;
 
         match expr {
@@ -181,7 +190,10 @@ impl LimitValidator {
     }
 
     /// 内部方法：评估表达式
-    fn evaluate_expression_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<i64, ValidationError> {
+    fn evaluate_expression_internal(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> Result<i64, ValidationError> {
         use crate::core::types::expression::Expression;
 
         match expr {
@@ -323,9 +335,8 @@ mod tests {
         let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
-        
-        let mut validator = LimitValidator::new()
-            .set_limit(ctx_expr);
+
+        let mut validator = LimitValidator::new().set_limit(ctx_expr);
 
         let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
@@ -335,7 +346,9 @@ mod tests {
         let result = validator.validate(Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
-        let validated = validator.validated_result.expect("Failed to get validated result");
+        let validated = validator
+            .validated_result
+            .expect("Failed to get validated result");
         assert_eq!(validated.limit, Some(10));
     }
 
@@ -346,12 +359,12 @@ mod tests {
         let skip_meta = crate::core::types::expression::ExpressionMeta::new(skip_expr);
         let skip_id = expr_ctx.register_expression(skip_meta);
         let skip_ctx_expr = ContextualExpression::new(skip_id, expr_ctx.clone());
-        
+
         let limit_expr = Expression::literal(10);
         let limit_meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
         let limit_id = expr_ctx.register_expression(limit_meta);
         let limit_ctx_expr = ContextualExpression::new(limit_id, expr_ctx);
-        
+
         let mut validator = LimitValidator::new()
             .set_skip(skip_ctx_expr)
             .set_limit(limit_ctx_expr);
@@ -364,7 +377,9 @@ mod tests {
         let result = validator.validate(Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
-        let validated = validator.validated_result.expect("Failed to get validated result");
+        let validated = validator
+            .validated_result
+            .expect("Failed to get validated result");
         assert_eq!(validated.skip, Some(5));
         assert_eq!(validated.limit, Some(10));
     }
@@ -376,9 +391,8 @@ mod tests {
         let meta = crate::core::types::expression::ExpressionMeta::new(skip_expr);
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
-        
-        let mut validator = LimitValidator::new()
-            .set_skip(ctx_expr);
+
+        let mut validator = LimitValidator::new().set_skip(ctx_expr);
 
         let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
@@ -398,9 +412,8 @@ mod tests {
         let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
-        
-        let mut validator = LimitValidator::new()
-            .set_limit(ctx_expr);
+
+        let mut validator = LimitValidator::new().set_limit(ctx_expr);
 
         let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
@@ -420,12 +433,12 @@ mod tests {
         let skip_meta = crate::core::types::expression::ExpressionMeta::new(skip_expr);
         let skip_id = expr_ctx.register_expression(skip_meta);
         let skip_ctx_expr = ContextualExpression::new(skip_id, expr_ctx.clone());
-        
+
         let limit_expr = Expression::literal(0);
         let limit_meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
         let limit_id = expr_ctx.register_expression(limit_meta);
         let limit_ctx_expr = ContextualExpression::new(limit_id, expr_ctx);
-        
+
         let mut validator = LimitValidator::new()
             .set_skip(skip_ctx_expr)
             .set_limit(limit_ctx_expr);
@@ -448,9 +461,8 @@ mod tests {
         let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
-        
-        let mut validator = LimitValidator::new()
-            .set_limit(ctx_expr);
+
+        let mut validator = LimitValidator::new().set_limit(ctx_expr);
 
         let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
@@ -479,7 +491,7 @@ mod tests {
         let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
         let id = expr_ctx.register_expression(meta);
         let limit_ctx_expr = ContextualExpression::new(id, expr_ctx);
-        
+
         let mut validator = LimitValidator::new()
             .set_limit(limit_ctx_expr)
             .set_count(100);
@@ -492,7 +504,9 @@ mod tests {
         let result = validator.validate(Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
-        let validated = validator.validated_result.expect("Failed to get validated result");
+        let validated = validator
+            .validated_result
+            .expect("Failed to get validated result");
         assert_eq!(validated.count, Some(100));
     }
 }

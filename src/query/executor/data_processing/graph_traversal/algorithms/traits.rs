@@ -2,9 +2,9 @@
 //!
 //! 定义各种图算法的统一接口
 
+use super::types::AlgorithmStats;
 use crate::core::{Path, Value};
 use crate::query::QueryError;
-use super::types::AlgorithmStats;
 
 /// 最短路径算法接口
 ///

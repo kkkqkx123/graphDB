@@ -10,16 +10,16 @@
 //! 5. 作用域重置：只保留输出的变量，其他变量不可见
 
 use crate::core::Expression;
-use crate::query::QueryContext;
+use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
-use crate::core::YieldColumn;
 use crate::query::validator::structs::{
     AliasType, CypherClauseKind, OrderByClauseContext, PaginationContext, WithClauseContext,
 };
+use crate::query::QueryContext;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -51,10 +51,8 @@ impl WithClausePlanner {
 
         // 1. 构建投影节点（如果有具体的输出列）
         if !with_ctx.yield_clause.yield_columns.is_empty() {
-            let project_node = self.create_project_node(
-                &current_plan,
-                &with_ctx.yield_clause.yield_columns,
-            )?;
+            let project_node =
+                self.create_project_node(&current_plan, &with_ctx.yield_clause.yield_columns)?;
             current_plan = SubPlan::new(Some(project_node), current_plan.tail.clone());
         }
 
@@ -139,7 +137,8 @@ impl WithClausePlanner {
             .indexed_order_factors
             .iter()
             .map(|(idx, dir)| {
-                let column = col_names.get(*idx)
+                let column = col_names
+                    .get(*idx)
                     .cloned()
                     .unwrap_or_else(|| format!("col_{}", idx));
                 crate::query::planner::plan::core::nodes::SortItem::new(column.clone(), dir.clone())
@@ -152,11 +151,11 @@ impl WithClausePlanner {
         }
 
         // 创建排序节点
-        let sort_node = crate::query::planner::plan::core::nodes::SortNode::new(
-            input_node.clone(),
-            sort_items,
-        )
-        .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建排序节点失败: {}", e)))?;
+        let sort_node =
+            crate::query::planner::plan::core::nodes::SortNode::new(input_node.clone(), sort_items)
+                .map_err(|e| {
+                    PlannerError::PlanGenerationFailed(format!("创建排序节点失败: {}", e))
+                })?;
 
         Ok(SubPlan::new(
             Some(PlanNodeEnum::Sort(sort_node)),
@@ -230,16 +229,21 @@ impl WithClausePlanner {
     /// - 处理 ORDER BY 和分页
     /// - 收集别名信息
     /// - 处理聚合表达式和分组键
-    fn extract_with_context(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Result<WithClauseContext, PlannerError> {
-        use crate::query::parser::ast::Stmt;
+    fn extract_with_context(
+        stmt: &Stmt,
+        qctx: &Arc<QueryContext>,
+    ) -> Result<WithClauseContext, PlannerError> {
         use crate::core::YieldColumn;
-        use crate::query::validator::structs::{YieldClauseContext, OrderByClauseContext, PaginationContext};
+        use crate::query::parser::ast::Stmt;
+        use crate::query::validator::structs::{
+            OrderByClauseContext, PaginationContext, YieldClauseContext,
+        };
 
         let with_stmt = match stmt {
             Stmt::With(w) => w,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
-                    "期望 WITH 语句，但得到了其他类型的语句".to_string()
+                    "期望 WITH 语句，但得到了其他类型的语句".to_string(),
                 ));
             }
         };
@@ -257,8 +261,12 @@ impl WithClausePlanner {
                     let expr = Expression::Variable("*".to_string());
                     let meta = crate::core::types::expression::ExpressionMeta::new(expr);
                     let id = qctx.expr_context().register_expression(meta);
-                    let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(id, qctx.expr_context_clone());
-                    
+                    let ctx_expr =
+                        crate::core::types::expression::contextual::ContextualExpression::new(
+                            id,
+                            qctx.expr_context_clone(),
+                        );
+
                     yield_columns.push(YieldColumn {
                         expression: ctx_expr,
                         alias: "*".to_string(),
@@ -266,9 +274,9 @@ impl WithClausePlanner {
                     });
                 }
                 crate::query::parser::ast::stmt::ReturnItem::Expression { expression, alias } => {
-                    let col_alias = alias.clone().unwrap_or_else(|| {
-                        Self::generate_default_alias(expression)
-                    });
+                    let col_alias = alias
+                        .clone()
+                        .unwrap_or_else(|| Self::generate_default_alias(expression));
 
                     yield_columns.push(YieldColumn {
                         expression: expression.clone(),
@@ -297,13 +305,17 @@ impl WithClausePlanner {
         };
 
         // 构建 ORDER BY 上下文
-        let order_by = with_stmt.order_by.as_ref().map(|order| {
-            OrderByClauseContext {
-                indexed_order_factors: order.items.iter().enumerate().map(|(idx, item)| {
-                    (idx, item.direction.clone())
-                }).collect(),
-            }
-        });
+        let order_by = with_stmt
+            .order_by
+            .as_ref()
+            .map(|order| OrderByClauseContext {
+                indexed_order_factors: order
+                    .items
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, item)| (idx, item.direction.clone()))
+                    .collect(),
+            });
 
         // 构建分页上下文
         let pagination = if with_stmt.skip.is_some() || with_stmt.limit.is_some() {
@@ -364,14 +376,19 @@ impl WithClausePlanner {
     fn extract_group_info(
         yield_columns: &[YieldColumn],
         qctx: &Arc<QueryContext>,
-    ) -> (Vec<crate::core::types::expression::contextual::ContextualExpression>, Vec<crate::core::types::expression::contextual::ContextualExpression>) {
+    ) -> (
+        Vec<crate::core::types::expression::contextual::ContextualExpression>,
+        Vec<crate::core::types::expression::contextual::ContextualExpression>,
+    ) {
         let mut group_keys = Vec::new();
         let mut group_items = Vec::new();
 
         for column in yield_columns {
             if let Some(expr_meta) = column.expression.expression() {
                 let inner_expr = expr_meta.inner();
-                if let Ok(suite) = crate::core::types::expression::utils::extract_group_suite(inner_expr) {
+                if let Ok(suite) =
+                    crate::core::types::expression::utils::extract_group_suite(inner_expr)
+                {
                     // 非聚合表达式作为分组键
                     if !suite.group_keys.is_empty() {
                         // 将 Expression 转换为 ContextualExpression
@@ -419,7 +436,9 @@ impl WithClausePlanner {
     ///
     /// 根据表达式推断别名类型
     /// 参考 NebulaGraph 的 DeduceAliasTypeVisitor 实现
-    fn deduce_alias_type(expression: &crate::core::types::expression::contextual::ContextualExpression) -> AliasType {
+    fn deduce_alias_type(
+        expression: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> AliasType {
         if let Some(expr_meta) = expression.expression() {
             Self::deduce_alias_type_from_expression(expr_meta.inner())
         } else {
@@ -452,9 +471,7 @@ impl WithClausePlanner {
             Expression::Variable(_) => AliasType::Variable,
 
             // 属性访问 - 尝试从对象推断类型
-            Expression::Property { object, .. } => {
-                Self::deduce_alias_type_from_expression(object)
-            },
+            Expression::Property { object, .. } => Self::deduce_alias_type_from_expression(object),
 
             // 路径构建表达式
             Expression::PathBuild(_) => AliasType::Path,
@@ -498,9 +515,11 @@ impl WithClausePlanner {
     }
 
     /// 生成默认别名
-    fn generate_default_alias(expression: &crate::core::types::expression::contextual::ContextualExpression) -> String {
+    fn generate_default_alias(
+        expression: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> String {
         use crate::core::Expression;
-        
+
         if let Some(e) = expression.get_expression() {
             match e {
                 Expression::Variable(name) => name.clone(),
@@ -521,7 +540,9 @@ impl WithClausePlanner {
     }
 
     /// 检查表达式是否包含聚合函数
-    fn has_aggregate_expression(expression: &crate::core::types::expression::contextual::ContextualExpression) -> bool {
+    fn has_aggregate_expression(
+        expression: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> bool {
         if let Some(expr_meta) = expression.expression() {
             Self::has_aggregate_expression_from_expression(expr_meta.inner())
         } else {
@@ -532,7 +553,7 @@ impl WithClausePlanner {
     /// 从 Expression 检查是否包含聚合函数（辅助方法）
     fn has_aggregate_expression_from_expression(e: &crate::core::Expression) -> bool {
         use crate::core::Expression;
-        
+
         match e {
             Expression::Function { name, .. } => {
                 let agg_functions = ["count", "sum", "avg", "min", "max", "collect"];
@@ -540,7 +561,8 @@ impl WithClausePlanner {
             }
             Expression::Aggregate { .. } => true,
             Expression::Binary { left, right, .. } => {
-                Self::has_aggregate_expression_from_expression(left) || Self::has_aggregate_expression_from_expression(right)
+                Self::has_aggregate_expression_from_expression(left)
+                    || Self::has_aggregate_expression_from_expression(right)
             }
             Expression::Unary { operand, .. } => {
                 Self::has_aggregate_expression_from_expression(operand)

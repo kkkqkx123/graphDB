@@ -1,18 +1,22 @@
-use crate::core::{Edge, Value, Vertex, StorageError};
+use crate::core::{Edge, StorageError, Value, Vertex};
 
 pub trait VertexWriter: Send + Sync {
     fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError>;
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError>;
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError>;
-    fn batch_insert_vertices(&mut self, space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError>;
-    
+    fn batch_insert_vertices(
+        &mut self,
+        space: &str,
+        vertices: Vec<Vertex>,
+    ) -> Result<Vec<Value>, StorageError>;
+
     /// 删除顶点上的指定标签
-    /// 
+    ///
     /// # Arguments
     /// * `space` - 空间名称
     /// * `vertex_id` - 顶点ID
     /// * `tag_names` - 要删除的标签名列表
-    /// 
+    ///
     /// # Returns
     /// * `Ok(usize)` - 成功删除的标签数量
     /// * `Err(StorageError)` - 存储错误

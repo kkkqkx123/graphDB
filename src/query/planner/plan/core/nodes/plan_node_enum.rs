@@ -1,9 +1,6 @@
 //! PlanNode 枚举定义
 //!
 
-use super::plan_node_category::PlanNodeCategory;
-use super::space_nodes::{CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode};
-use super::tag_nodes::{AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode};
 use super::edge_nodes::{AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode};
 use super::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
@@ -11,6 +8,9 @@ use super::index_nodes::{
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
 use super::insert_nodes::{InsertEdgesNode, InsertVerticesNode};
+use super::plan_node_category::PlanNodeCategory;
+use super::space_nodes::{CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode};
+use super::tag_nodes::{AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode};
 use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode};
 use crate::query::planner::plan::core::explain::PlanNodeDescription;
 
@@ -23,14 +23,16 @@ pub use super::data_processing_node::{
 };
 pub use super::filter_node::FilterNode;
 pub use super::graph_scan_node::{
-    EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
+    EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
+    ScanVerticesNode,
 };
-pub use super::set_operations_node::{IntersectNode, MinusNode};
 pub use super::join_node::{
-    CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode,
+    CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
+    LeftJoinNode,
 };
 pub use super::project_node::ProjectNode;
 pub use super::sample_node::SampleNode;
+pub use super::set_operations_node::{IntersectNode, MinusNode};
 pub use super::sort_node::{LimitNode, SortNode, TopNNode};
 pub use super::start_node::StartNode;
 pub use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
@@ -1648,9 +1650,7 @@ impl PlanNodeEnum {
                 desc.add_description("spaceName", node.space_name().to_string());
                 desc
             }
-            PlanNodeEnum::ShowSpaces(_) => {
-                PlanNodeDescription::new("ShowSpaces", self.id())
-            }
+            PlanNodeEnum::ShowSpaces(_) => PlanNodeDescription::new("ShowSpaces", self.id()),
 
             // Tag 管理节点
             PlanNodeEnum::CreateTag(node) => {
@@ -1658,7 +1658,10 @@ impl PlanNodeEnum {
                 let info = node.info();
                 desc.add_description("spaceName", info.space_name.clone());
                 desc.add_description("tagName", info.tag_name.clone());
-                desc.add_description("properties", format!("[{} properties]", info.properties.len()));
+                desc.add_description(
+                    "properties",
+                    format!("[{} properties]", info.properties.len()),
+                );
                 desc
             }
             PlanNodeEnum::AlterTag(node) => {
@@ -1682,9 +1685,7 @@ impl PlanNodeEnum {
                 desc.add_description("tagName", node.tag_name().to_string());
                 desc
             }
-            PlanNodeEnum::ShowTags(_) => {
-                PlanNodeDescription::new("ShowTags", self.id())
-            }
+            PlanNodeEnum::ShowTags(_) => PlanNodeDescription::new("ShowTags", self.id()),
 
             // Edge 管理节点
             PlanNodeEnum::CreateEdge(node) => {
@@ -1692,7 +1693,10 @@ impl PlanNodeEnum {
                 let info = node.info();
                 desc.add_description("spaceName", info.space_name.clone());
                 desc.add_description("edgeName", info.edge_name.clone());
-                desc.add_description("properties", format!("[{} properties]", info.properties.len()));
+                desc.add_description(
+                    "properties",
+                    format!("[{} properties]", info.properties.len()),
+                );
                 desc
             }
             PlanNodeEnum::AlterEdge(node) => {
@@ -1716,9 +1720,7 @@ impl PlanNodeEnum {
                 desc.add_description("edgeName", node.edge_name().to_string());
                 desc
             }
-            PlanNodeEnum::ShowEdges(_) => {
-                PlanNodeDescription::new("ShowEdges", self.id())
-            }
+            PlanNodeEnum::ShowEdges(_) => PlanNodeDescription::new("ShowEdges", self.id()),
 
             // Tag 索引管理节点
             PlanNodeEnum::CreateTagIndex(node) => {
@@ -1727,7 +1729,10 @@ impl PlanNodeEnum {
                 desc.add_description("spaceName", info.space_name.clone());
                 desc.add_description("indexName", info.index_name.clone());
                 desc.add_description("targetName", info.target_name.clone());
-                desc.add_description("properties", format!("[{} properties]", info.properties.len()));
+                desc.add_description(
+                    "properties",
+                    format!("[{} properties]", info.properties.len()),
+                );
                 desc
             }
             PlanNodeEnum::DropTagIndex(node) => {
@@ -1759,7 +1764,10 @@ impl PlanNodeEnum {
                 desc.add_description("spaceName", info.space_name.clone());
                 desc.add_description("indexName", info.index_name.clone());
                 desc.add_description("targetName", info.target_name.clone());
-                desc.add_description("properties", format!("[{} properties]", info.properties.len()));
+                desc.add_description(
+                    "properties",
+                    format!("[{} properties]", info.properties.len()),
+                );
                 desc
             }
             PlanNodeEnum::DropEdgeIndex(node) => {
@@ -1811,7 +1819,10 @@ impl PlanNodeEnum {
             PlanNodeEnum::ChangePassword(node) => {
                 let mut desc = PlanNodeDescription::new("ChangePassword", node.id());
                 let info = node.password_info();
-                let username_str = info.username.clone().unwrap_or_else(|| "current_user".to_string());
+                let username_str = info
+                    .username
+                    .clone()
+                    .unwrap_or_else(|| "current_user".to_string());
                 desc.add_description("username", username_str);
                 desc.add_description("password", "******");
                 desc.add_description("newPassword", "******");
@@ -1833,7 +1844,10 @@ impl PlanNodeEnum {
                 let info = node.info();
                 desc.add_description("spaceName", info.space_name.clone());
                 desc.add_description("edgeName", info.edge_name.clone());
-                desc.add_description("properties", format!("[{} properties]", info.prop_names.len()));
+                desc.add_description(
+                    "properties",
+                    format!("[{} properties]", info.prop_names.len()),
+                );
                 desc.add_description("edges", format!("[{} edges]", info.edges.len()));
                 desc
             }

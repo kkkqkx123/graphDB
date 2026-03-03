@@ -26,13 +26,13 @@
 //! - DataCollect 节点的 kind 为 kRowBasedMove
 //! - DataCollect 的子节点为 Project
 
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::data_processing_node::DataCollectNode;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
+use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
 
 /// 消除冗余数据收集操作的规则
 ///
@@ -66,8 +66,7 @@ impl RewriteRule for EliminateRowCollectRule {
 
     fn pattern(&self) -> Pattern {
         // 匹配 DataCollect->Project 模式
-        Pattern::new_with_name("DataCollect")
-            .with_dependency_name("Project")
+        Pattern::new_with_name("DataCollect").with_dependency_name("Project")
     }
 
     fn apply(
@@ -142,11 +141,11 @@ mod tests {
     #[test]
     fn test_is_row_based_move() {
         let rule = EliminateRowCollectRule::new();
-        
+
         // 创建测试用的 DataCollectNode
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         let start_enum = PlanNodeEnum::Start(start_node);
-        
+
         let data_collect = DataCollectNode::new(start_enum.clone(), "kRowBasedMove")
             .expect("Failed to create DataCollectNode");
         assert!(rule.is_row_based_move(&data_collect));

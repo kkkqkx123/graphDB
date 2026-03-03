@@ -1,7 +1,7 @@
 //! 合并获取邻居和投影操作的规则
 
-use crate::core::Expression;
 use crate::core::types::ContextualExpression;
+use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
@@ -152,10 +152,10 @@ mod tests {
 
     #[test]
     fn test_merge_get_nbrs_and_project() {
-        use std::sync::Arc;
-        use crate::core::types::expression::ExpressionMeta;
         use crate::core::types::expression::ExpressionContext;
-        
+        use crate::core::types::expression::ExpressionMeta;
+        use std::sync::Arc;
+
         // 创建起始节点
         let start = PlanNodeEnum::Start(StartNode::new());
 
@@ -167,7 +167,7 @@ mod tests {
         let vid_meta = ExpressionMeta::new(vid_expr);
         let vid_id = expr_ctx.register_expression(vid_meta);
         let vid_ctx_expr = ContextualExpression::new(vid_id, expr_ctx);
-        
+
         let columns = vec![YieldColumn {
             expression: vid_ctx_expr,
             alias: "v".to_string(),
@@ -189,11 +189,10 @@ mod tests {
         // 应用规则
         let rule = MergeGetNbrsAndProjectRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &get_neighbors_node).expect("应用规则失败");
+        let result = rule
+            .apply(&mut ctx, &get_neighbors_node)
+            .expect("应用规则失败");
 
-        assert!(
-            result.is_some(),
-            "应该成功合并GetNeighbors和Project节点"
-        );
+        assert!(result.is_some(), "应该成功合并GetNeighbors和Project节点");
     }
 }

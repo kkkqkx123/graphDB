@@ -4,11 +4,11 @@
 
 use std::sync::Arc;
 
-use crate::core::{StorageError, Vertex};
 use crate::core::types::EdgeDirection;
+use crate::core::{StorageError, Vertex};
 use crate::storage::StorageClient;
 
-use super::{TagStatistics, EdgeTypeStatistics, PropertyStatistics};
+use super::{EdgeTypeStatistics, PropertyStatistics, TagStatistics};
 
 /// 统计信息收集器
 pub struct StatisticsCollector<S: StorageClient> {
@@ -44,7 +44,11 @@ impl<S: StorageClient> StatisticsCollector<S> {
     }
 
     /// 收集标签统计信息
-    pub fn collect_tag_stats(&self, space: &str, tag_name: &str) -> Result<TagStatistics, StorageError> {
+    pub fn collect_tag_stats(
+        &self,
+        space: &str,
+        tag_name: &str,
+    ) -> Result<TagStatistics, StorageError> {
         let mut stats = TagStatistics::new(tag_name.to_string());
 
         // 扫描该标签的所有顶点
@@ -53,9 +57,7 @@ impl<S: StorageClient> StatisticsCollector<S> {
 
         if stats.vertex_count > 0 {
             // 计算平均顶点大小
-            let total_size: usize = vertices.iter()
-                .map(|v| v.estimated_size())
-                .sum();
+            let total_size: usize = vertices.iter().map(|v| v.estimated_size()).sum();
             stats.avg_vertex_size = total_size / vertices.len();
 
             // 计算平均度数
@@ -78,11 +80,15 @@ impl<S: StorageClient> StatisticsCollector<S> {
 
         for vertex in vertices {
             // 获取出边
-            let out_edges = self.storage.get_node_edges(space, vertex.vid(), EdgeDirection::Out)?;
+            let out_edges = self
+                .storage
+                .get_node_edges(space, vertex.vid(), EdgeDirection::Out)?;
             total_out_degree += out_edges.len();
 
             // 获取入边
-            let in_edges = self.storage.get_node_edges(space, vertex.vid(), EdgeDirection::In)?;
+            let in_edges = self
+                .storage
+                .get_node_edges(space, vertex.vid(), EdgeDirection::In)?;
             total_in_degree += in_edges.len();
         }
 
@@ -102,7 +108,11 @@ impl<S: StorageClient> StatisticsCollector<S> {
     }
 
     /// 收集边类型统计信息
-    pub fn collect_edge_stats(&self, space: &str, edge_type: &str) -> Result<EdgeTypeStatistics, StorageError> {
+    pub fn collect_edge_stats(
+        &self,
+        space: &str,
+        edge_type: &str,
+    ) -> Result<EdgeTypeStatistics, StorageError> {
         let mut stats = EdgeTypeStatistics::new(edge_type.to_string());
 
         // 扫描该类型的所有边

@@ -2,8 +2,8 @@
 //!
 //! 提供属性级别的统计信息，用于查询优化器估算选择性
 
-use std::time::SystemTime;
 use crate::core::value::Value;
+use std::time::SystemTime;
 
 /// 属性统计信息
 #[derive(Debug, Clone)]

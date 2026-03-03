@@ -2,8 +2,8 @@ use dashmap::DashMap;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -175,7 +175,11 @@ pub struct ErrorInfo {
 }
 
 impl ErrorInfo {
-    pub fn new(error_type: ErrorType, error_phase: QueryPhase, error_message: impl Into<String>) -> Self {
+    pub fn new(
+        error_type: ErrorType,
+        error_phase: QueryPhase,
+        error_message: impl Into<String>,
+    ) -> Self {
         Self {
             error_type,
             error_phase,
@@ -291,39 +295,39 @@ impl QueryMetrics {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn record_parse_time(&mut self, duration: Duration) {
         self.parse_time_us = duration.as_micros() as u64;
     }
-    
+
     pub fn record_validate_time(&mut self, duration: Duration) {
         self.validate_time_us = duration.as_micros() as u64;
     }
-    
+
     pub fn record_plan_time(&mut self, duration: Duration) {
         self.plan_time_us = duration.as_micros() as u64;
     }
-    
+
     pub fn record_optimize_time(&mut self, duration: Duration) {
         self.optimize_time_us = duration.as_micros() as u64;
     }
-    
+
     pub fn record_execute_time(&mut self, duration: Duration) {
         self.execute_time_us = duration.as_micros() as u64;
     }
-    
+
     pub fn record_total_time(&mut self, duration: Duration) {
         self.total_time_us = duration.as_micros() as u64;
     }
-    
+
     pub fn set_plan_node_count(&mut self, count: usize) {
         self.plan_node_count = count;
     }
-    
+
     pub fn set_result_row_count(&mut self, count: usize) {
         self.result_row_count = count;
     }
-    
+
     pub fn to_map(&self) -> HashMap<String, u64> {
         let mut map = HashMap::new();
         map.insert("parse_time_us".to_string(), self.parse_time_us);
@@ -381,9 +385,15 @@ impl MetricValue {
     }
 
     pub fn decrement(&self) {
-        let _ = self.value.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| {
-            if v > 0 { Some(v - 1) } else { Some(0) }
-        });
+        let _ = self
+            .value
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| {
+                if v > 0 {
+                    Some(v - 1)
+                } else {
+                    Some(0)
+                }
+            });
         self.update_timestamp();
     }
 
@@ -489,15 +499,19 @@ impl StatsManager {
         };
 
         // 构建执行器统计数组
-        let executor_stats: Vec<serde_json::Value> = profile.executor_stats.iter().map(|stat| {
-            serde_json::json!({
-                "type": &stat.executor_type,
-                "id": stat.executor_id,
-                "duration_ms": stat.duration_ms,
-                "rows_processed": stat.rows_processed,
-                "memory_used": stat.memory_used,
+        let executor_stats: Vec<serde_json::Value> = profile
+            .executor_stats
+            .iter()
+            .map(|stat| {
+                serde_json::json!({
+                    "type": &stat.executor_type,
+                    "id": stat.executor_id,
+                    "duration_ms": stat.duration_ms,
+                    "rows_processed": stat.rows_processed,
+                    "memory_used": stat.memory_used,
+                })
             })
-        }).collect();
+            .collect();
 
         let log_entry = serde_json::json!({
             "timestamp": chrono::Local::now().to_rfc3339(),
@@ -524,7 +538,7 @@ impl StatsManager {
         });
 
         let log_line = format!("{}\n", log_entry.to_string());
-        
+
         // 确保日志目录存在
         let log_dir = std::path::Path::new(&self.config.slow_query_log_dir);
         if let Err(e) = std::fs::create_dir_all(log_dir) {
@@ -535,7 +549,7 @@ impl StatsManager {
         // 按天轮转日志文件
         let date = chrono::Local::now().format("%Y-%m-%d");
         let log_file = log_dir.join(format!("slow_queries_{}.log", date));
-        
+
         if let Err(e) = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -559,11 +573,7 @@ impl StatsManager {
                     info.error_message
                 );
             } else if let Some(ref msg) = profile.error_message {
-                log::error!(
-                    "慢查询执行失败 [trace_id={}]: {}",
-                    profile.trace_id,
-                    msg
-                );
+                log::error!("慢查询执行失败 [trace_id={}]: {}", profile.trace_id, msg);
             }
         }
     }
@@ -611,7 +621,9 @@ impl StatsManager {
 
         for profile in profiles.iter() {
             for exec_stat in &profile.executor_stats {
-                let entry = stats.entry(exec_stat.executor_type.clone()).or_insert((0, 0, 0));
+                let entry = stats
+                    .entry(exec_stat.executor_type.clone())
+                    .or_insert((0, 0, 0));
                 entry.0 += exec_stat.duration_ms;
                 entry.1 += exec_stat.rows_processed as u64;
                 entry.2 += 1;
@@ -634,16 +646,18 @@ impl StatsManager {
     }
 
     pub fn add_value(&self, metric_type: MetricType) {
-        let metric = self.metrics.entry(metric_type).or_insert_with(|| {
-            Arc::new(MetricValue::new(0))
-        });
+        let metric = self
+            .metrics
+            .entry(metric_type)
+            .or_insert_with(|| Arc::new(MetricValue::new(0)));
         metric.increment();
     }
 
     pub fn add_value_with_amount(&self, metric_type: MetricType, amount: u64) {
-        let metric = self.metrics.entry(metric_type).or_insert_with(|| {
-            Arc::new(MetricValue::new(0))
-        });
+        let metric = self
+            .metrics
+            .entry(metric_type)
+            .or_insert_with(|| Arc::new(MetricValue::new(0)));
         metric.add(amount);
     }
 
@@ -654,12 +668,13 @@ impl StatsManager {
     }
 
     pub fn add_space_metric(&self, space_name: &str, metric_type: MetricType) {
-        let space_map = self.space_metrics.entry(space_name.to_string()).or_insert_with(|| {
-            Arc::new(DashMap::new())
-        });
-        let metric = space_map.entry(metric_type).or_insert_with(|| {
-            Arc::new(MetricValue::new(0))
-        });
+        let space_map = self
+            .space_metrics
+            .entry(space_name.to_string())
+            .or_insert_with(|| Arc::new(DashMap::new()));
+        let metric = space_map
+            .entry(metric_type)
+            .or_insert_with(|| Arc::new(MetricValue::new(0)));
         metric.increment();
     }
 
@@ -676,9 +691,9 @@ impl StatsManager {
     }
 
     pub fn get_space_value(&self, space_name: &str, metric_type: MetricType) -> Option<u64> {
-        self.space_metrics.get(space_name).and_then(|space_map| {
-            space_map.get(&metric_type).map(|metric| metric.get())
-        })
+        self.space_metrics
+            .get(space_name)
+            .and_then(|space_map| space_map.get(&metric_type).map(|metric| metric.get()))
     }
 
     pub fn get_all_metrics(&self) -> HashMap<MetricType, u64> {
@@ -790,7 +805,11 @@ impl StatsManager {
     /// 获取错误统计摘要
     pub fn get_error_summary(&self) -> ErrorSummary {
         ErrorSummary {
-            total_errors: self.error_counts.iter().map(|c| c.load(Ordering::Relaxed)).sum(),
+            total_errors: self
+                .error_counts
+                .iter()
+                .map(|c| c.load(Ordering::Relaxed))
+                .sum(),
             errors_by_type: self.get_all_error_counts(),
             errors_by_phase: self.get_all_error_counts_by_phase(),
         }
@@ -800,7 +819,7 @@ impl StatsManager {
         let mut last_metrics = self.last_query_metrics.lock();
         *last_metrics = Some(metrics.clone());
         drop(last_metrics);
-        
+
         let updates = [
             (MetricType::QueryParseTimeUs, metrics.parse_time_us),
             (MetricType::QueryValidateTimeUs, metrics.validate_time_us),
@@ -808,23 +827,30 @@ impl StatsManager {
             (MetricType::QueryOptimizeTimeUs, metrics.optimize_time_us),
             (MetricType::QueryExecuteTimeUs, metrics.execute_time_us),
             (MetricType::QueryTotalTimeUs, metrics.total_time_us),
-            (MetricType::QueryPlanNodeCount, metrics.plan_node_count as u64),
-            (MetricType::QueryResultRowCount, metrics.result_row_count as u64),
+            (
+                MetricType::QueryPlanNodeCount,
+                metrics.plan_node_count as u64,
+            ),
+            (
+                MetricType::QueryResultRowCount,
+                metrics.result_row_count as u64,
+            ),
         ];
-        
+
         for (metric_type, value) in updates {
-            let metric = self.metrics.entry(metric_type).or_insert_with(|| {
-                Arc::new(MetricValue::new(0))
-            });
+            let metric = self
+                .metrics
+                .entry(metric_type)
+                .or_insert_with(|| Arc::new(MetricValue::new(0)));
             metric.set(value);
         }
     }
-    
+
     pub fn get_last_query_metrics(&self) -> Option<QueryMetrics> {
         let last_metrics = self.last_query_metrics.lock();
         last_metrics.clone()
     }
-    
+
     pub fn get_query_metrics(&self) -> Option<QueryMetrics> {
         self.get_last_query_metrics()
     }
@@ -845,7 +871,7 @@ mod tests {
         let stats = StatsManager::new();
         // DashMap 是懒加载的，只有在第一次 add_value 时才会创建 metric
         assert_eq!(stats.get_value(MetricType::NumQueries), None);
-        
+
         // 添加值后会创建 metric
         stats.add_value(MetricType::NumQueries);
         assert_eq!(stats.get_value(MetricType::NumQueries), Some(1));
@@ -1218,8 +1244,14 @@ mod tests {
         let summary = stats.get_error_summary();
         assert_eq!(summary.total_errors, 3);
         assert_eq!(summary.errors_by_type.get(&ErrorType::ParseError), Some(&1));
-        assert_eq!(summary.errors_by_type.get(&ErrorType::ValidationError), Some(&1));
-        assert_eq!(summary.errors_by_type.get(&ErrorType::ExecutionError), Some(&1));
+        assert_eq!(
+            summary.errors_by_type.get(&ErrorType::ValidationError),
+            Some(&1)
+        );
+        assert_eq!(
+            summary.errors_by_type.get(&ErrorType::ExecutionError),
+            Some(&1)
+        );
     }
 
     #[test]
@@ -1241,19 +1273,26 @@ mod tests {
         let error_info = ErrorInfo::new(
             ErrorType::ParseError,
             QueryPhase::Parse,
-            "语法错误: 缺少右括号"
-        ).with_details("在位置 15 处发现语法错误");
+            "语法错误: 缺少右括号",
+        )
+        .with_details("在位置 15 处发现语法错误");
 
         profile.mark_failed_with_info(error_info);
 
         assert!(matches!(profile.status, QueryStatus::Failed));
-        assert_eq!(profile.error_message, Some("语法错误: 缺少右括号".to_string()));
+        assert_eq!(
+            profile.error_message,
+            Some("语法错误: 缺少右括号".to_string())
+        );
         assert!(profile.error_info.is_some());
 
         let info = profile.error_info.expect("Failed to get error info");
         assert!(matches!(info.error_type, ErrorType::ParseError));
         assert!(matches!(info.error_phase, QueryPhase::Parse));
-        assert_eq!(info.error_details, Some("在位置 15 处发现语法错误".to_string()));
+        assert_eq!(
+            info.error_details,
+            Some("在位置 15 处发现语法错误".to_string())
+        );
     }
 
     #[test]
@@ -1264,11 +1303,7 @@ mod tests {
         assert!(profile.error_type().is_none());
         assert!(profile.error_phase().is_none());
 
-        let error_info = ErrorInfo::new(
-            ErrorType::ExecutionError,
-            QueryPhase::Execute,
-            "执行超时"
-        );
+        let error_info = ErrorInfo::new(ErrorType::ExecutionError, QueryPhase::Execute, "执行超时");
         profile.mark_failed_with_info(error_info);
 
         assert_eq!(profile.error_type(), Some(ErrorType::ExecutionError));
@@ -1286,11 +1321,7 @@ mod tests {
         });
 
         let profile = QueryProfile::new(123, "INVALID QUERY".to_string());
-        let error_info = ErrorInfo::new(
-            ErrorType::ParseError,
-            QueryPhase::Parse,
-            "无效的查询语法"
-        );
+        let error_info = ErrorInfo::new(ErrorType::ParseError, QueryPhase::Parse, "无效的查询语法");
 
         stats.record_failed_query(profile, error_info);
 

@@ -1,15 +1,12 @@
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     http::StatusCode,
     response::Json as JsonResponse,
 };
 use serde::{Deserialize, Serialize};
 use tokio::task;
 
-use crate::api::server::http::{
-    state::AppState,
-    error::HttpError,
-};
+use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
 
 #[derive(Debug, Deserialize)]
@@ -40,7 +37,7 @@ pub async fn login<S: StorageClient + Clone + Send + Sync + 'static>(
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
-    
+
     Ok(JsonResponse(result?))
 }
 

@@ -5,14 +5,14 @@
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// WHERE 子句规划器
@@ -49,7 +49,7 @@ fn extract_where_condition(stmt: &Stmt, qctx: &Arc<QueryContext>) -> ContextualE
         }
     }
     let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-        crate::core::Expression::Variable("true".to_string())
+        crate::core::Expression::Variable("true".to_string()),
     );
     let id = qctx.expr_context().register_expression(expr_meta);
     ContextualExpression::new(id, qctx.expr_context_clone())
@@ -66,11 +66,13 @@ impl ClausePlanner for WhereClausePlanner {
         stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        let condition = self.filter_expression.clone()
+        let condition = self
+            .filter_expression
+            .clone()
             .or_else(|| Some(extract_where_condition(stmt, &qctx)))
             .unwrap_or_else(|| {
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                    crate::core::Expression::Variable("true".to_string())
+                    crate::core::Expression::Variable("true".to_string()),
                 );
                 let id = qctx.expr_context().register_expression(expr_meta);
                 ContextualExpression::new(id, qctx.expr_context_clone())

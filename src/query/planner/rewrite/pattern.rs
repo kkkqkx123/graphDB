@@ -3,8 +3,8 @@
 //! 提供计划节点的模式匹配功能，用于重写规则识别特定计划结构。
 //! 这是从 optimizer 层独立出来的简化版本，专注于启发式重写规则的需求。
 
-use crate::query::planner::plan::PlanNodeEnum;
 use crate::core::types::ContextualExpression;
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 生成节点匹配方法的宏
 ///
@@ -88,7 +88,8 @@ impl Pattern {
         }
 
         // 获取所有依赖节点的名称
-        let dep_names: Vec<&str> = self.dependencies
+        let dep_names: Vec<&str> = self
+            .dependencies
             .iter()
             .filter_map(|d| d.node.as_ref())
             .filter_map(|n| n.as_single())
@@ -100,9 +101,10 @@ impl Pattern {
 
         // 检查每个依赖模式是否匹配
         for dep_pattern in &self.dependencies {
-            let dep_matches = plan_node.dependencies().iter().any(|input| {
-                dep_pattern.matches(input)
-            });
+            let dep_matches = plan_node
+                .dependencies()
+                .iter()
+                .any(|input| dep_pattern.matches(input));
 
             if !dep_matches {
                 return false;
@@ -129,7 +131,14 @@ impl Pattern {
 
     /// 创建匹配 Join 节点的模式（匹配任何连接类型）
     pub fn with_join_matcher() -> Self {
-        Self::multi(vec!["HashInnerJoin", "HashLeftJoin", "InnerJoin", "LeftJoin", "CrossJoin", "FullOuterJoin"])
+        Self::multi(vec![
+            "HashInnerJoin",
+            "HashLeftJoin",
+            "InnerJoin",
+            "LeftJoin",
+            "CrossJoin",
+            "FullOuterJoin",
+        ])
     }
 }
 
@@ -290,29 +299,31 @@ impl NodeVisitor for NodeVisitorFinder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
+    use crate::core::types::ExpressionContext;
+    use crate::core::Expression;
+    use crate::core::Value;
+    use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
     use crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode;
     use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
-    use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-    use crate::core::Value;
-    use crate::core::Expression;
-    use crate::core::types::ExpressionContext;
+    use std::sync::Arc;
 
     #[test]
     fn test_pattern_matches() {
         let pattern = Pattern::new_with_name("Project");
         let input_node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
         let project_node = PlanNodeEnum::Project(
-            ProjectNode::new(input_node.clone(), Vec::new()).expect("创建ProjectNode应该成功")
+            ProjectNode::new(input_node.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
         );
         let ctx = Arc::new(ExpressionContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(
+            Value::Bool(true),
+        ));
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
         let filter_node = PlanNodeEnum::Filter(
-            FilterNode::new(input_node, ctx_expr).expect("创建FilterNode应该成功")
+            FilterNode::new(input_node, ctx_expr).expect("创建FilterNode应该成功"),
         );
-        
+
         assert!(pattern.matches(&project_node));
         assert!(!pattern.matches(&filter_node));
     }
@@ -342,30 +353,32 @@ mod tests {
 
     #[test]
     fn test_pattern_with_dependency() {
-        let pattern = Pattern::new_with_name("Filter")
-            .with_dependency_name("Project");
-        
+        let pattern = Pattern::new_with_name("Filter").with_dependency_name("Project");
+
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
         let project = PlanNodeEnum::Project(
-            ProjectNode::new(scan.clone(), Vec::new()).expect("创建ProjectNode应该成功")
+            ProjectNode::new(scan.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
         );
         let ctx = Arc::new(ExpressionContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(
+            Value::Bool(true),
+        ));
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx.clone());
         let filter = PlanNodeEnum::Filter(
-            FilterNode::new(project.clone(), ctx_expr).expect("创建FilterNode应该成功")
+            FilterNode::new(project.clone(), ctx_expr).expect("创建FilterNode应该成功"),
         );
-        
+
         assert!(pattern.matches(&filter));
-        
+
         // Filter -> Scan 不应该匹配
-        let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
+        let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(
+            Value::Bool(true),
+        ));
         let id2 = ctx.register_expression(expr_meta2);
         let ctx_expr2 = ContextualExpression::new(id2, ctx);
-        let filter2 = PlanNodeEnum::Filter(
-            FilterNode::new(scan, ctx_expr2).expect("创建FilterNode应该成功")
-        );
+        let filter2 =
+            PlanNodeEnum::Filter(FilterNode::new(scan, ctx_expr2).expect("创建FilterNode应该成功"));
         assert!(!pattern.matches(&filter2));
     }
 }

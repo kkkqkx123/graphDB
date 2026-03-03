@@ -14,10 +14,10 @@
 use std::sync::Arc;
 
 use crate::core::error::ValidationError;
-use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
+use crate::query::QueryContext;
 
 /// 列定义
 #[derive(Debug, Clone)]
@@ -53,7 +53,11 @@ impl ValueType {
         use crate::core::DataType;
         match data_type {
             DataType::Bool => ValueType::Bool,
-            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => ValueType::Int,
+            DataType::Int
+            | DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64 => ValueType::Int,
             DataType::Float | DataType::Double => ValueType::Float,
             DataType::String | DataType::FixedString(_) => ValueType::String,
             DataType::Date => ValueType::Date,

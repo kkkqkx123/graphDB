@@ -2,16 +2,16 @@
 //!
 //! 提供所有join操作的基础实现，包括哈希表构建、探测等核心功能
 
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::core::{DataSet, Expression, Value};
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::base::ExecutionResult;
 use crate::query::executor::data_processing::join::hash_table::JoinKey;
 use crate::query::executor::data_processing::join::join_key_evaluator::JoinKeyEvaluator;
-use crate::query::executor::base::ExecutionResult;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 

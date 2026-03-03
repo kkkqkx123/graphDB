@@ -4,11 +4,11 @@
 //! 并将过滤条件下推到 AllPaths 节点中。
 
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将过滤条件下推到AllPaths操作的规则
 ///
@@ -96,7 +96,10 @@ impl RewriteRule for PushFilterDownAllPathsRule {
 
 impl PushDownRule for PushFilterDownAllPathsRule {
     fn can_push_down(&self, node: &PlanNodeEnum, target: &PlanNodeEnum) -> bool {
-        matches!((node, target), (PlanNodeEnum::Filter(_), PlanNodeEnum::AllPaths(_)))
+        matches!(
+            (node, target),
+            (PlanNodeEnum::Filter(_), PlanNodeEnum::AllPaths(_))
+        )
     }
 
     fn push_down(

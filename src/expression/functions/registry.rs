@@ -3,15 +3,15 @@
 //! 提供函数的注册、查找和执行功能
 //! 具体函数实现位于 builtin/ 子模块
 
+use super::BuiltinFunction;
+use super::CustomFunction;
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use super::BuiltinFunction;
-use super::CustomFunction;
 
 /// 函数注册表
-/// 
+///
 /// 使用静态分发机制，通过 BuiltinFunction 和 CustomFunction 枚举直接调用函数
 /// 避免了动态分发（dyn）的开销
 #[derive(Debug)]
@@ -45,16 +45,15 @@ impl FunctionRegistry {
 
     /// 获取所有函数名称
     pub fn function_names(&self) -> Vec<&str> {
-        let mut names: Vec<&str> = self.builtin_functions.keys()
-            .map(|s| s.as_str())
-            .collect();
+        let mut names: Vec<&str> = self.builtin_functions.keys().map(|s| s.as_str()).collect();
         names.extend(self.custom_functions.keys().map(|s| s.as_str()));
         names
     }
 
     /// 注册内置函数
     pub fn register_builtin(&mut self, function: BuiltinFunction) {
-        self.builtin_functions.insert(function.name().to_string(), function);
+        self.builtin_functions
+            .insert(function.name().to_string(), function);
     }
 
     /// 获取内置函数
@@ -64,7 +63,8 @@ impl FunctionRegistry {
 
     /// 注册自定义函数（完整形式）
     pub fn register_custom_full(&mut self, function: CustomFunction) {
-        self.custom_functions.insert(function.name.clone(), function);
+        self.custom_functions
+            .insert(function.name.clone(), function);
     }
 
     /// 获取自定义函数
@@ -78,12 +78,12 @@ impl FunctionRegistry {
         if let Some(func) = self.builtin_functions.get(name) {
             return func.execute(args);
         }
-        
+
         // 再尝试查找自定义函数
         if let Some(func) = self.custom_functions.get(name) {
             return func.execute(args);
         }
-        
+
         Err(ExpressionError::new(
             ExpressionErrorType::UndefinedFunction,
             format!("未定义的函数: {}", name),
@@ -92,11 +92,11 @@ impl FunctionRegistry {
 
     /// 注册所有内置函数
     fn register_all_builtin_functions(&mut self) {
-        use super::MathFunction;
-        use super::StringFunction;
-        use super::RegexFunction;
         use super::ConversionFunction;
         use super::DateTimeFunction;
+        use super::MathFunction;
+        use super::RegexFunction;
+        use super::StringFunction;
 
         // 注册数学函数
         self.register_builtin(BuiltinFunction::Math(MathFunction::Abs));
@@ -172,7 +172,9 @@ impl FunctionRegistry {
         // 注册地理空间函数
         use super::GeographyFunction;
         self.register_builtin(BuiltinFunction::Geography(GeographyFunction::StPoint));
-        self.register_builtin(BuiltinFunction::Geography(GeographyFunction::StGeogFromText));
+        self.register_builtin(BuiltinFunction::Geography(
+            GeographyFunction::StGeogFromText,
+        ));
         self.register_builtin(BuiltinFunction::Geography(GeographyFunction::StAsText));
         self.register_builtin(BuiltinFunction::Geography(GeographyFunction::StCentroid));
         self.register_builtin(BuiltinFunction::Geography(GeographyFunction::StIsValid));
@@ -223,11 +225,13 @@ impl FunctionRegistry {
 pub fn global_registry() -> Arc<FunctionRegistry> {
     use std::sync::OnceLock;
     static REGISTRY: OnceLock<Arc<FunctionRegistry>> = OnceLock::new();
-    REGISTRY.get_or_init(|| Arc::new(FunctionRegistry::new())).clone()
+    REGISTRY
+        .get_or_init(|| Arc::new(FunctionRegistry::new()))
+        .clone()
 }
 
 /// 获取全局函数注册表的静态引用
-/// 
+///
 /// 用于需要返回函数引用的场景（如 ExpressionContext::get_function）
 pub fn global_registry_ref() -> &'static FunctionRegistry {
     use std::sync::OnceLock;

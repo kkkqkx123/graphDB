@@ -18,14 +18,13 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::query::QueryContext;
-use crate::query::parser::ast::stmt::{SubgraphStmt, Steps, FromClause, OverClause, YieldClause};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
+use crate::query::parser::ast::stmt::{FromClause, OverClause, Steps, SubgraphStmt, YieldClause};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的子图获取信息
@@ -147,11 +146,17 @@ impl GetSubgraphValidator {
     }
 
     /// 验证 YIELD 子句
-    fn validate_yield_clause(&self, yield_clause: &Option<YieldClause>) -> Result<(), ValidationError> {
+    fn validate_yield_clause(
+        &self,
+        yield_clause: &Option<YieldClause>,
+    ) -> Result<(), ValidationError> {
         if let Some(ref yc) = yield_clause {
-            let mut seen_names: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+            let mut seen_names: std::collections::HashMap<String, usize> =
+                std::collections::HashMap::new();
             for item in &yc.items {
-                let name = item.alias.clone()
+                let name = item
+                    .alias
+                    .clone()
                     .unwrap_or_else(|| format!("{:?}", item.expression));
                 let count = seen_names.entry(name.clone()).or_insert(0);
                 *count += 1;
@@ -225,7 +230,9 @@ impl StatementValidator for GetSubgraphValidator {
         self.outputs.clear();
         if let Some(ref yc) = validated.yield_clause {
             for item in &yc.items {
-                let col_name = item.alias.clone()
+                let col_name = item
+                    .alias
+                    .clone()
                     .unwrap_or_else(|| format!("{:?}", item.expression));
                 self.outputs.push(ColumnDef {
                     name: col_name,

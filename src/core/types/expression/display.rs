@@ -35,7 +35,11 @@ impl Expression {
                     .join(", ");
                 format!("{}({})", name, args_str)
             }
-            Expression::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 let distinct_str = if *distinct { "DISTINCT " } else { "" };
                 format!(
                     "{}({}{})",
@@ -143,10 +147,7 @@ impl Expression {
                     .as_ref()
                     .map(|m| format!(" | {}", m.to_expression_string()))
                     .unwrap_or_default();
-                format!(
-                    "[{} IN {}{}{}]",
-                    variable, source_str, filter_str, map_str
-                )
+                format!("[{} IN {}{}{}]", variable, source_str, filter_str, map_str)
             }
             Expression::LabelTagProperty { tag, property } => {
                 format!("{}.{}", tag.to_expression_string(), property)
@@ -154,7 +155,10 @@ impl Expression {
             Expression::TagProperty { tag_name, property } => {
                 format!("{}.{}", tag_name, property)
             }
-            Expression::EdgeProperty { edge_name, property } => {
+            Expression::EdgeProperty {
+                edge_name,
+                property,
+            } => {
                 format!("{}.{}", edge_name, property)
             }
             Expression::Predicate { func, args } => {

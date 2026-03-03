@@ -108,7 +108,7 @@ mod tests {
         let child1 = NodeCostEstimate::leaf(10.0, 100);
         let child2 = NodeCostEstimate::leaf(20.0, 200);
         let combined = NodeCostEstimate::combine_children(&[child1, child2], 5.0, 50);
-        
+
         assert_eq!(combined.node_cost, 5.0);
         assert_eq!(combined.total_cost, 35.0); // 5 + 10 + 20
         assert_eq!(combined.output_rows, 50);

@@ -72,70 +72,54 @@
 
 // 核心类型模块（新）
 pub mod context;
+pub mod expression_utils;
 pub mod pattern;
 pub mod result;
 pub mod rule;
-pub mod expression_utils;
 
 // 宏模块
 pub mod macros;
 
 // 核心 trait 和实现
-pub mod rewrite_rule;
 pub mod plan_rewriter;
+pub mod rewrite_rule;
 
 // 静态分发规则枚举
 pub mod rule_enum;
 
 // 具体规则模块
-pub mod predicate_pushdown;
-pub mod merge;
-pub mod projection_pushdown;
+pub mod aggregate;
 pub mod elimination;
 pub mod limit_pushdown;
-pub mod aggregate;
+pub mod merge;
+pub mod predicate_pushdown;
+pub mod projection_pushdown;
 
 // ==================== 导出核心类型 ====================
 
 // 从新的独立模块导出
 pub use context::RewriteContext;
-pub use pattern::{Pattern, MatchNode, PlanNodeMatcher, NodeVisitor, NodeVisitorRecorder, NodeVisitorFinder};
-pub use result::{RewriteError, RewriteResult, TransformResult, MatchedResult};
+pub use pattern::{
+    MatchNode, NodeVisitor, NodeVisitorFinder, NodeVisitorRecorder, Pattern, PlanNodeMatcher,
+};
+pub use result::{MatchedResult, RewriteError, RewriteResult, TransformResult};
 pub use rule::{
-    RewriteRule, 
-    BaseRewriteRule, 
-    MergeRule, 
-    PushDownRule, 
-    EliminationRule,
+    BaseRewriteRule, EliminationRule, IntoRuleWrapper, MergeRule, PushDownRule, RewriteRule,
     RuleWrapper,
-    IntoRuleWrapper,
 };
 
 // 从兼容层导出
-pub use rewrite_rule::{
-    HeuristicRule,
-    HeuristicRuleAdapter,
-    IntoOptRule,
-};
+pub use rewrite_rule::{HeuristicRule, HeuristicRuleAdapter, IntoOptRule};
 
-pub use plan_rewriter::{
-    PlanRewriter,
-    create_default_rewriter,
-    rewrite_plan,
-};
+pub use plan_rewriter::{create_default_rewriter, rewrite_plan, PlanRewriter};
 
 // 导出静态分发规则枚举
-pub use rule_enum::{
-    RewriteRule as RewriteRuleEnum,
-    RuleRegistry,
-};
+pub use rule_enum::{RewriteRule as RewriteRuleEnum, RuleRegistry};
 
 // 统一导出所有重写规则
-pub use predicate_pushdown::*;
-pub use merge::*;
-pub use projection_pushdown::*;
+pub use aggregate::*;
 pub use elimination::*;
 pub use limit_pushdown::*;
-pub use aggregate::*;
-
-
+pub use merge::*;
+pub use predicate_pushdown::*;
+pub use projection_pushdown::*;

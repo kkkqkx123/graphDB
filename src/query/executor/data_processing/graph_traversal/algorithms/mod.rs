@@ -27,8 +27,8 @@ pub use traits::{
     AlgorithmContext, PathFindingAlgorithm, ShortestPathAlgorithm, TraversalAlgorithm,
 };
 pub use types::{
-    AlgorithmStats, BidirectionalBFSState, DistanceNode, EdgeWeightConfig, HeuristicFunction, 
-    Interims, MultiPathRequest, SelfLoopDedup, ShortestPathAlgorithmType, TerminationMap,
-    combine_npaths, create_termination_map, cleanup_termination_map, has_duplicate_edges, 
-    is_termination_complete, mark_path_found,
+    cleanup_termination_map, combine_npaths, create_termination_map, has_duplicate_edges,
+    is_termination_complete, mark_path_found, AlgorithmStats, BidirectionalBFSState, DistanceNode,
+    EdgeWeightConfig, HeuristicFunction, Interims, MultiPathRequest, SelfLoopDedup,
+    ShortestPathAlgorithmType, TerminationMap,
 };

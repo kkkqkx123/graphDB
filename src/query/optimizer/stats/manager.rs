@@ -2,11 +2,11 @@
 //!
 //! 统一管理所有统计信息，提供线程安全的访问
 
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::RwLock;
 
-use super::{TagStatistics, EdgeTypeStatistics, PropertyStatistics};
+use super::{EdgeTypeStatistics, PropertyStatistics, TagStatistics};
 
 /// 统计信息管理器
 ///
@@ -81,7 +81,9 @@ impl StatisticsManager {
 
     /// 更新边类型统计信息
     pub fn update_edge_stats(&self, stats: EdgeTypeStatistics) {
-        self.edge_stats.write().insert(stats.edge_type.clone(), stats);
+        self.edge_stats
+            .write()
+            .insert(stats.edge_type.clone(), stats);
     }
 
     /// 获取边数量
@@ -92,7 +94,11 @@ impl StatisticsManager {
     }
 
     /// 获取属性统计信息
-    pub fn get_property_stats(&self, tag_name: Option<&str>, property_name: &str) -> Option<PropertyStatistics> {
+    pub fn get_property_stats(
+        &self,
+        tag_name: Option<&str>,
+        property_name: &str,
+    ) -> Option<PropertyStatistics> {
         let key = match tag_name {
             Some(tag) => format!("{}.{}", tag, property_name),
             None => property_name.to_string(),

@@ -183,19 +183,6 @@ impl Default for PlanDescription {
 use crate::query::planner::plan::algorithms::{
     AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
 };
-use crate::query::planner::plan::core::nodes::plan_node_enum::*;
-use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
-use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::{
-    SampleNode, EdgeIndexScanNode, HashInnerJoinNode, HashLeftJoinNode,
-    MinusNode, IntersectNode,
-};
-use crate::query::planner::plan::core::nodes::space_nodes::{
-    CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
-};
-use crate::query::planner::plan::core::nodes::tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
-};
 use crate::query::planner::plan::core::nodes::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
@@ -204,8 +191,20 @@ use crate::query::planner::plan::core::nodes::index_nodes::{
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
+use crate::query::planner::plan::core::nodes::plan_node_enum::*;
+use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
+use crate::query::planner::plan::core::nodes::space_nodes::{
+    CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
+};
+use crate::query::planner::plan::core::nodes::tag_nodes::{
+    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
+};
 use crate::query::planner::plan::core::nodes::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
+};
+use crate::query::planner::plan::core::nodes::{
+    EdgeIndexScanNode, HashInnerJoinNode, HashLeftJoinNode, IntersectNode, MinusNode, SampleNode,
 };
 
 /// DescribeVisitor - 计划节点描述访问者
@@ -244,8 +243,7 @@ impl Default for DescribeVisitor {
 impl PlanNodeVisitor for DescribeVisitor {
     type Result = ();
 
-    fn visit_default(&mut self) {
-    }
+    fn visit_default(&mut self) {}
 
     fn visit_start(&mut self, node: &StartNode) {
         self.create_description("Start", node);

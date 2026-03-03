@@ -12,16 +12,16 @@
 //! - 两个 Project 节点连续出现
 //! - 上层 Project 不依赖下层 Project 的别名解析
 
-use crate::core::YieldColumn;
 use crate::core::types::ContextualExpression;
+use crate::core::YieldColumn;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
 use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::expression_utils::rewrite_contextual_expression;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
-use crate::query::planner::rewrite::expression_utils::rewrite_contextual_expression;
 use std::collections::HashMap;
 
 /// 合并连续投影规则
@@ -58,7 +58,6 @@ impl CollapseConsecutiveProjectRule {
         Self
     }
 
-
     /// 执行合并操作
     fn merge_projects(
         &self,
@@ -81,7 +80,11 @@ impl CollapseConsecutiveProjectRule {
             .columns()
             .iter()
             .map(|col| YieldColumn {
-                expression: rewrite_contextual_expression(&col.expression, &rewrite_map, expr_context.clone()),
+                expression: rewrite_contextual_expression(
+                    &col.expression,
+                    &rewrite_map,
+                    expr_context.clone(),
+                ),
                 alias: col.alias.clone(),
                 is_matched: col.is_matched,
             })
@@ -174,10 +177,10 @@ mod tests {
 
     #[test]
     fn test_collapse_consecutive_projects() {
-        use std::sync::Arc;
-        use crate::core::types::expression::ExpressionMeta;
         use crate::core::types::expression::ExpressionContext;
-        
+        use crate::core::types::expression::ExpressionMeta;
+        use std::sync::Arc;
+
         // 创建起始节点
         let start = PlanNodeEnum::Start(StartNode::new());
 
@@ -189,12 +192,12 @@ mod tests {
         let a_meta = ExpressionMeta::new(a_expr);
         let a_id = expr_ctx.register_expression(a_meta);
         let a_ctx_expr = ContextualExpression::new(a_id, expr_ctx.clone());
-        
+
         let b_expr = Expression::Variable("b".to_string());
         let b_meta = ExpressionMeta::new(b_expr);
         let b_id = expr_ctx.register_expression(b_meta);
         let b_ctx_expr = ContextualExpression::new(b_id, expr_ctx.clone());
-        
+
         let child_columns = vec![
             YieldColumn {
                 expression: a_ctx_expr,
@@ -215,13 +218,14 @@ mod tests {
         let col_a_meta = ExpressionMeta::new(col_a_expr);
         let col_a_id = expr_ctx.register_expression(col_a_meta);
         let col_a_ctx_expr = ContextualExpression::new(col_a_id, expr_ctx);
-        
+
         let parent_columns = vec![YieldColumn {
             expression: col_a_ctx_expr,
             alias: "result".to_string(),
             is_matched: false,
         }];
-        let parent_proj = ProjectNode::new(child_node, parent_columns).expect("创建上层Project失败");
+        let parent_proj =
+            ProjectNode::new(child_node, parent_columns).expect("创建上层Project失败");
         let parent_node = PlanNodeEnum::Project(parent_proj);
 
         // 应用规则
@@ -229,10 +233,7 @@ mod tests {
         let mut ctx = RewriteContext::new();
         let result = rule.apply(&mut ctx, &parent_node).expect("应用规则失败");
 
-        assert!(
-            result.is_some(),
-            "应该成功合并连续的Project节点"
-        );
+        assert!(result.is_some(), "应该成功合并连续的Project节点");
 
         // 验证结果
         let transform_result = result.expect("Failed to apply rewrite rule");

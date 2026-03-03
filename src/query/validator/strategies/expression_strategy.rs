@@ -1,15 +1,15 @@
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::DataType;
 use crate::core::YieldColumn;
-use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::{
-    WhereClauseContext, MatchClauseContext,
-    ReturnClauseContext, WithClauseContext, UnwindClauseContext, YieldClauseContext,
+    MatchClauseContext, ReturnClauseContext, UnwindClauseContext, WhereClauseContext,
+    WithClauseContext, YieldClauseContext,
 };
 
+use super::expression_operations::ExpressionOperationsValidator;
 use super::helpers::TypeValidator;
 use super::helpers::VariableChecker;
-use super::expression_operations::ExpressionOperationsValidator;
 
 /// 表达式验证策略
 pub struct ExpressionValidationStrategy;
@@ -124,7 +124,8 @@ impl ExpressionValidationStrategy {
 
         // 验证表达式中的变量引用
         let var_validator = VariableChecker::new();
-        var_validator.validate_expression_variables(return_expression, &context.aliases_available)?;
+        var_validator
+            .validate_expression_variables(return_expression, &context.aliases_available)?;
 
         Ok(())
     }
@@ -171,7 +172,8 @@ impl ExpressionValidationStrategy {
 
             // 验证表达式中的变量引用
             let var_validator = VariableChecker::new();
-            var_validator.validate_expression_variables(unwind_expression, &context.aliases_available)?;
+            var_validator
+                .validate_expression_variables(unwind_expression, &context.aliases_available)?;
         }
 
         Ok(())
@@ -205,7 +207,8 @@ impl ExpressionValidationStrategy {
             }
 
             // 验证表达式中的变量引用
-            var_validator.validate_expression_variables(&column.expression, &context.aliases_available)?;
+            var_validator
+                .validate_expression_variables(&column.expression, &context.aliases_available)?;
         }
 
         // 验证分组键

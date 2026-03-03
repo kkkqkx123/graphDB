@@ -3,7 +3,7 @@
 //! 基于顶点ID的直接查找策略
 
 use super::seek_strategy::SeekStrategy;
-use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern};
+use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::StorageClient;
 
@@ -52,8 +52,7 @@ impl SeekStrategy for VertexSeek {
 
     fn supports(&self, context: &SeekStrategyContext) -> bool {
         context.has_explicit_vid()
-            || (!context.node_pattern.labels.is_empty()
-                && context.estimated_rows < 1000)
+            || (!context.node_pattern.labels.is_empty() && context.estimated_rows < 1000)
     }
 }
 
@@ -79,7 +78,10 @@ impl VertexSeek {
         Ok(ids)
     }
 
-    fn extract_vid_from_predicate(&self, predicate: &crate::core::types::expression::Expression) -> Option<Value> {
+    fn extract_vid_from_predicate(
+        &self,
+        predicate: &crate::core::types::expression::Expression,
+    ) -> Option<Value> {
         use crate::core::types::expression::Expression;
 
         match predicate {
@@ -98,18 +100,20 @@ impl VertexSeek {
 
     fn vertex_matches_pattern(&self, vertex: &Vertex, pattern: &NodePattern) -> bool {
         if !pattern.labels.is_empty() {
-            let has_all_labels = pattern.labels.iter().all(|label| {
-                vertex.tags.iter().any(|tag| tag.name == *label)
-            });
+            let has_all_labels = pattern
+                .labels
+                .iter()
+                .all(|label| vertex.tags.iter().any(|tag| tag.name == *label));
             if !has_all_labels {
                 return false;
             }
         }
 
         for (prop_name, prop_value) in &pattern.properties {
-            let found = vertex.get_all_properties().iter().any(|(name, value)| {
-                name == prop_name && **value == *prop_value
-            });
+            let found = vertex
+                .get_all_properties()
+                .iter()
+                .any(|(name, value)| name == prop_name && **value == *prop_value);
             if !found {
                 return false;
             }

@@ -9,8 +9,8 @@ use std::time::{Duration, Instant};
 use lru::LruCache;
 use parking_lot::Mutex;
 
-use crate::query::planner::planner::SentenceKind;
 use crate::query::optimizer::decision::types::OptimizationDecision;
+use crate::query::planner::planner::SentenceKind;
 
 /// 决策缓存错误
 #[derive(Debug, thiserror::Error)]
@@ -185,9 +185,7 @@ impl DecisionCache {
         }
 
         let cache_size = NonZeroUsize::new(config.max_entries)
-            .ok_or_else(|| DecisionCacheError::OperationFailed(
-                "创建缓存失败".to_string(),
-            ))?;
+            .ok_or_else(|| DecisionCacheError::OperationFailed("创建缓存失败".to_string()))?;
 
         Ok(Self {
             cache: Mutex::new(LruCache::new(cache_size)),
@@ -220,7 +218,10 @@ impl DecisionCache {
             }
 
             // 检查版本是否匹配
-            if !cached.decision.is_valid(current_stats_version, current_index_version) {
+            if !cached
+                .decision
+                .is_valid(current_stats_version, current_index_version)
+            {
                 drop(cache);
                 self.record_version_mismatch();
                 return Ok(None);
@@ -327,7 +328,11 @@ impl DecisionCache {
         let mut cache = self.cache.lock();
         let keys_to_remove: Vec<_> = cache
             .iter()
-            .filter(|(_, cached)| !cached.decision.is_valid(current_stats_version, current_index_version))
+            .filter(|(_, cached)| {
+                !cached
+                    .decision
+                    .is_valid(current_stats_version, current_index_version)
+            })
             .map(|(key, _)| key.clone())
             .collect();
 
@@ -415,7 +420,9 @@ mod tests {
         let decision = create_test_decision(1, 1);
 
         // 插入
-        cache.insert(key.clone(), decision.clone()).expect("插入失败");
+        cache
+            .insert(key.clone(), decision.clone())
+            .expect("插入失败");
         assert_eq!(cache.size(), 1);
 
         // 获取（版本匹配）
@@ -459,28 +466,18 @@ mod tests {
 
         // 第一次调用，应该执行计算
         let decision1 = cache
-            .get_or_compute(
-                key.clone(),
-                1,
-                1,
-                || {
-                    *compute_count_clone.lock() += 1;
-                    Ok(create_test_decision(1, 1))
-                },
-            )
+            .get_or_compute(key.clone(), 1, 1, || {
+                *compute_count_clone.lock() += 1;
+                Ok(create_test_decision(1, 1))
+            })
             .expect("获取失败");
 
         // 第二次调用，应该使用缓存
         let decision2 = cache
-            .get_or_compute(
-                key.clone(),
-                1,
-                1,
-                || {
-                    *compute_count_clone.lock() += 1;
-                    Ok(create_test_decision(1, 1))
-                },
-            )
+            .get_or_compute(key.clone(), 1, 1, || {
+                *compute_count_clone.lock() += 1;
+                Ok(create_test_decision(1, 1))
+            })
             .expect("获取失败");
 
         assert_eq!(*compute_count.lock(), 1);

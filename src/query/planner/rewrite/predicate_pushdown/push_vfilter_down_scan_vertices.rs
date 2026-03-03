@@ -8,7 +8,7 @@ use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
+use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将顶点过滤条件下推到ScanVertices节点的规则
 ///
@@ -145,27 +145,22 @@ fn rewrite_wildcard_to_alias(expr: &Expression, vertex_alias: &str) -> Expressio
                 property: property.clone(),
             }
         }
-        Expression::Binary { left, op, right } => {
-            Expression::Binary {
-                left: Box::new(rewrite_wildcard_to_alias(left, vertex_alias)),
-                op: *op,
-                right: Box::new(rewrite_wildcard_to_alias(right, vertex_alias)),
-            }
-        }
-        Expression::Unary { op, operand } => {
-            Expression::Unary {
-                op: *op,
-                operand: Box::new(rewrite_wildcard_to_alias(operand, vertex_alias)),
-            }
-        }
-        Expression::Function { name, args } => {
-            Expression::Function {
-                name: name.clone(),
-                args: args.iter()
-                    .map(|arg| rewrite_wildcard_to_alias(arg, vertex_alias))
-                    .collect(),
-            }
-        }
+        Expression::Binary { left, op, right } => Expression::Binary {
+            left: Box::new(rewrite_wildcard_to_alias(left, vertex_alias)),
+            op: *op,
+            right: Box::new(rewrite_wildcard_to_alias(right, vertex_alias)),
+        },
+        Expression::Unary { op, operand } => Expression::Unary {
+            op: *op,
+            operand: Box::new(rewrite_wildcard_to_alias(operand, vertex_alias)),
+        },
+        Expression::Function { name, args } => Expression::Function {
+            name: name.clone(),
+            args: args
+                .iter()
+                .map(|arg| rewrite_wildcard_to_alias(arg, vertex_alias))
+                .collect(),
+        },
         _ => expr.clone(),
     }
 }

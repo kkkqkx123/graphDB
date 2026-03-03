@@ -3,10 +3,10 @@
 use crate::core::error::ExpressionError;
 use crate::core::value::{DateTimeValue, DateValue, NullType, TimeValue};
 use crate::core::Value;
+use crate::define_datetime_extractor;
+use crate::define_function_enum;
 use crate::expression::context::CacheManager;
 use chrono::{Datelike, Timelike};
-use crate::define_function_enum;
-use crate::define_datetime_extractor;
 
 define_function_enum! {
     /// 日期时间函数枚举
@@ -250,7 +250,9 @@ fn execute_datetime_with_cache(
                 }
                 let datetime = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
                     .map_err(|_| {
-                        ExpressionError::type_error("无法解析日期时间字符串，期望格式: YYYY-MM-DD HH:MM:SS")
+                        ExpressionError::type_error(
+                            "无法解析日期时间字符串，期望格式: YYYY-MM-DD HH:MM:SS",
+                        )
                     })?;
                 let dt_val = DateTimeValue {
                     year: datetime.year(),
@@ -272,7 +274,7 @@ fn execute_datetime_with_cache(
 
 fn execute_timestamp(args: &[Value]) -> Result<Value, ExpressionError> {
     use std::time::{SystemTime, UNIX_EPOCH};
-    
+
     if args.is_empty() {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -292,7 +294,9 @@ fn execute_timestamp(args: &[Value]) -> Result<Value, ExpressionError> {
                 Ok(Value::Int(timestamp))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("timestamp函数需要日期时间类型或无参数")),
+            _ => Err(ExpressionError::type_error(
+                "timestamp函数需要日期时间类型或无参数",
+            )),
         }
     }
 }

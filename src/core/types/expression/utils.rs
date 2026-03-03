@@ -43,9 +43,7 @@ impl GroupSuite {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.group_keys.is_empty()
-            && self.group_items.is_empty()
-            && self.aggregates.is_empty()
+        self.group_keys.is_empty() && self.group_items.is_empty() && self.aggregates.is_empty()
     }
 
     pub fn union(&mut self, other: &GroupSuite) {
@@ -123,7 +121,11 @@ fn extract_group_suite_recursive(expression: &Expression, group_suite: &mut Grou
                 extract_group_suite_recursive(arg, group_suite);
             }
         }
-        Expression::Aggregate { func, arg, distinct } => {
+        Expression::Aggregate {
+            func,
+            arg,
+            distinct,
+        } => {
             let agg_expression = Expression::Aggregate {
                 func: func.clone(),
                 arg: Box::new(arg.as_ref().clone()),
@@ -252,11 +254,8 @@ where
 }
 
 /// 递归查找表达式的辅助函数
-fn find_all_recursive<F>(
-    expression: &Expression,
-    predicate: &F,
-    results: &mut Vec<Expression>,
-) where
+fn find_all_recursive<F>(expression: &Expression, predicate: &F, results: &mut Vec<Expression>)
+where
     F: Fn(&Expression) -> bool,
 {
     if predicate(expression) {
@@ -410,19 +409,21 @@ pub fn has_aggregate_function(expression: &Expression) -> bool {
         Expression::Unary { operand, .. } => has_aggregate_function(operand),
         Expression::Function { args, .. } => args.iter().any(|arg| has_aggregate_function(arg)),
         Expression::List(items) => items.iter().any(|item| has_aggregate_function(item)),
-        Expression::Map(pairs) => {
-            pairs.iter().any(|(_, expr)| has_aggregate_function(expr))
-        }
+        Expression::Map(pairs) => pairs.iter().any(|(_, expr)| has_aggregate_function(expr)),
         Expression::Case {
             test_expr,
             conditions,
             default,
         } => {
-            test_expr.as_ref().map_or(false, |e| has_aggregate_function(e))
-                || conditions
-                    .iter()
-                    .any(|(cond, expr)| has_aggregate_function(cond) || has_aggregate_function(expr))
-                || default.as_ref().map_or(false, |e| has_aggregate_function(e))
+            test_expr
+                .as_ref()
+                .map_or(false, |e| has_aggregate_function(e))
+                || conditions.iter().any(|(cond, expr)| {
+                    has_aggregate_function(cond) || has_aggregate_function(expr)
+                })
+                || default
+                    .as_ref()
+                    .map_or(false, |e| has_aggregate_function(e))
         }
         Expression::TypeCast { expression, .. } => has_aggregate_function(expression),
         Expression::Subscript { collection, index } => {
@@ -563,9 +564,9 @@ fn extract_aggregate_functions_recursive(
 pub mod test_helpers {
     use super::*;
     use crate::core::types::expression::ContextualExpression;
+    use crate::core::types::expression::{ExpressionContext, ExpressionMeta};
     use std::sync::Arc;
-    use crate::core::types::expression::{ExpressionMeta, ExpressionContext};
-    
+
     pub fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {
         let ctx = Arc::new(ExpressionContext::new());
         let meta = ExpressionMeta::new(expr);

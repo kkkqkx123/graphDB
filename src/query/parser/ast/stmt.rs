@@ -4,9 +4,9 @@
 
 use super::pattern::*;
 use super::types::*;
-use crate::core::types::PropertyDef;
-use crate::core::types::expression::ContextualExpression;
 use crate::core::types::expression::utils::collect_variables_from_contextual;
+use crate::core::types::expression::ContextualExpression;
+use crate::core::types::PropertyDef;
 
 /// 语句枚举 - 所有图数据库操作语句
 #[derive(Debug, Clone, PartialEq)]
@@ -160,136 +160,268 @@ impl Stmt {
 
     // 类型转换方法
     pub fn as_query(&self) -> Option<&QueryStmt> {
-        match self { Stmt::Query(s) => Some(s), _ => None }
+        match self {
+            Stmt::Query(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_create(&self) -> Option<&CreateStmt> {
-        match self { Stmt::Create(s) => Some(s), _ => None }
+        match self {
+            Stmt::Create(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_match(&self) -> Option<&MatchStmt> {
-        match self { Stmt::Match(s) => Some(s), _ => None }
+        match self {
+            Stmt::Match(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_delete(&self) -> Option<&DeleteStmt> {
-        match self { Stmt::Delete(s) => Some(s), _ => None }
+        match self {
+            Stmt::Delete(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_update(&self) -> Option<&UpdateStmt> {
-        match self { Stmt::Update(s) => Some(s), _ => None }
+        match self {
+            Stmt::Update(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_go(&self) -> Option<&GoStmt> {
-        match self { Stmt::Go(s) => Some(s), _ => None }
+        match self {
+            Stmt::Go(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_fetch(&self) -> Option<&FetchStmt> {
-        match self { Stmt::Fetch(s) => Some(s), _ => None }
+        match self {
+            Stmt::Fetch(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_use(&self) -> Option<&UseStmt> {
-        match self { Stmt::Use(s) => Some(s), _ => None }
+        match self {
+            Stmt::Use(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_show(&self) -> Option<&ShowStmt> {
-        match self { Stmt::Show(s) => Some(s), _ => None }
+        match self {
+            Stmt::Show(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_explain(&self) -> Option<&ExplainStmt> {
-        match self { Stmt::Explain(s) => Some(s), _ => None }
+        match self {
+            Stmt::Explain(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_profile(&self) -> Option<&ProfileStmt> {
-        match self { Stmt::Profile(s) => Some(s), _ => None }
+        match self {
+            Stmt::Profile(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_group_by(&self) -> Option<&GroupByStmt> {
-        match self { Stmt::GroupBy(s) => Some(s), _ => None }
+        match self {
+            Stmt::GroupBy(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_lookup(&self) -> Option<&LookupStmt> {
-        match self { Stmt::Lookup(s) => Some(s), _ => None }
+        match self {
+            Stmt::Lookup(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_subgraph(&self) -> Option<&SubgraphStmt> {
-        match self { Stmt::Subgraph(s) => Some(s), _ => None }
+        match self {
+            Stmt::Subgraph(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_find_path(&self) -> Option<&FindPathStmt> {
-        match self { Stmt::FindPath(s) => Some(s), _ => None }
+        match self {
+            Stmt::FindPath(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_insert(&self) -> Option<&InsertStmt> {
-        match self { Stmt::Insert(s) => Some(s), _ => None }
+        match self {
+            Stmt::Insert(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_merge(&self) -> Option<&MergeStmt> {
-        match self { Stmt::Merge(s) => Some(s), _ => None }
+        match self {
+            Stmt::Merge(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_unwind(&self) -> Option<&UnwindStmt> {
-        match self { Stmt::Unwind(s) => Some(s), _ => None }
+        match self {
+            Stmt::Unwind(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_return(&self) -> Option<&ReturnStmt> {
-        match self { Stmt::Return(s) => Some(s), _ => None }
+        match self {
+            Stmt::Return(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_with(&self) -> Option<&WithStmt> {
-        match self { Stmt::With(s) => Some(s), _ => None }
+        match self {
+            Stmt::With(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_yield(&self) -> Option<&YieldStmt> {
-        match self { Stmt::Yield(s) => Some(s), _ => None }
+        match self {
+            Stmt::Yield(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_set(&self) -> Option<&SetStmt> {
-        match self { Stmt::Set(s) => Some(s), _ => None }
+        match self {
+            Stmt::Set(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_remove(&self) -> Option<&RemoveStmt> {
-        match self { Stmt::Remove(s) => Some(s), _ => None }
+        match self {
+            Stmt::Remove(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_pipe(&self) -> Option<&PipeStmt> {
-        match self { Stmt::Pipe(s) => Some(s), _ => None }
+        match self {
+            Stmt::Pipe(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_drop(&self) -> Option<&DropStmt> {
-        match self { Stmt::Drop(s) => Some(s), _ => None }
+        match self {
+            Stmt::Drop(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_desc(&self) -> Option<&DescStmt> {
-        match self { Stmt::Desc(s) => Some(s), _ => None }
+        match self {
+            Stmt::Desc(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_alter(&self) -> Option<&AlterStmt> {
-        match self { Stmt::Alter(s) => Some(s), _ => None }
+        match self {
+            Stmt::Alter(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_create_user(&self) -> Option<&CreateUserStmt> {
-        match self { Stmt::CreateUser(s) => Some(s), _ => None }
+        match self {
+            Stmt::CreateUser(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_alter_user(&self) -> Option<&AlterUserStmt> {
-        match self { Stmt::AlterUser(s) => Some(s), _ => None }
+        match self {
+            Stmt::AlterUser(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_drop_user(&self) -> Option<&DropUserStmt> {
-        match self { Stmt::DropUser(s) => Some(s), _ => None }
+        match self {
+            Stmt::DropUser(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_change_password(&self) -> Option<&ChangePasswordStmt> {
-        match self { Stmt::ChangePassword(s) => Some(s), _ => None }
+        match self {
+            Stmt::ChangePassword(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_grant(&self) -> Option<&GrantStmt> {
-        match self { Stmt::Grant(s) => Some(s), _ => None }
+        match self {
+            Stmt::Grant(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_revoke(&self) -> Option<&RevokeStmt> {
-        match self { Stmt::Revoke(s) => Some(s), _ => None }
+        match self {
+            Stmt::Revoke(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_describe_user(&self) -> Option<&DescribeUserStmt> {
-        match self { Stmt::DescribeUser(s) => Some(s), _ => None }
+        match self {
+            Stmt::DescribeUser(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_show_users(&self) -> Option<&ShowUsersStmt> {
-        match self { Stmt::ShowUsers(s) => Some(s), _ => None }
+        match self {
+            Stmt::ShowUsers(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_show_roles(&self) -> Option<&ShowRolesStmt> {
-        match self { Stmt::ShowRoles(s) => Some(s), _ => None }
+        match self {
+            Stmt::ShowRoles(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_show_create(&self) -> Option<&ShowCreateStmt> {
-        match self { Stmt::ShowCreate(s) => Some(s), _ => None }
+        match self {
+            Stmt::ShowCreate(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_show_sessions(&self) -> Option<&ShowSessionsStmt> {
-        match self { Stmt::ShowSessions(s) => Some(s), _ => None }
+        match self {
+            Stmt::ShowSessions(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_show_queries(&self) -> Option<&ShowQueriesStmt> {
-        match self { Stmt::ShowQueries(s) => Some(s), _ => None }
+        match self {
+            Stmt::ShowQueries(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_kill_query(&self) -> Option<&KillQueryStmt> {
-        match self { Stmt::KillQuery(s) => Some(s), _ => None }
+        match self {
+            Stmt::KillQuery(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_show_configs(&self) -> Option<&ShowConfigsStmt> {
-        match self { Stmt::ShowConfigs(s) => Some(s), _ => None }
+        match self {
+            Stmt::ShowConfigs(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_update_configs(&self) -> Option<&UpdateConfigsStmt> {
-        match self { Stmt::UpdateConfigs(s) => Some(s), _ => None }
+        match self {
+            Stmt::UpdateConfigs(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_assignment(&self) -> Option<&AssignmentStmt> {
-        match self { Stmt::Assignment(s) => Some(s), _ => None }
+        match self {
+            Stmt::Assignment(s) => Some(s),
+            _ => None,
+        }
     }
     pub fn as_set_operation(&self) -> Option<&SetOperationStmt> {
-        match self { Stmt::SetOperation(s) => Some(s), _ => None }
+        match self {
+            Stmt::SetOperation(s) => Some(s),
+            _ => None,
+        }
     }
 }
 
@@ -333,9 +465,7 @@ pub enum CreateTarget {
         direction: EdgeDirection,
     },
     /// Cypher 风格的完整路径创建: CREATE (a)-[:FRIEND]->(b)
-    Path {
-        patterns: Vec<Pattern>,
-    },
+    Path { patterns: Vec<Pattern> },
     /// Schema 定义 - TAG
     Tag {
         name: String,
@@ -390,7 +520,10 @@ pub struct ReturnClause {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReturnItem {
     All,
-    Expression { expression: ContextualExpression, alias: Option<String> },
+    Expression {
+        expression: ContextualExpression,
+        alias: Option<String>,
+    },
 }
 
 /// 排序子句
@@ -440,7 +573,11 @@ pub enum DeleteTarget {
     Vertices(Vec<ContextualExpression>),
     Edges {
         edge_type: Option<String>,
-        edges: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>)>,
+        edges: Vec<(
+            ContextualExpression,
+            ContextualExpression,
+            Option<ContextualExpression>,
+        )>,
     },
     /// 删除标签 - 包含标签名列表和顶点ID列表
     Tags {
@@ -692,8 +829,8 @@ pub struct FindPathStmt {
     pub yield_clause: Option<YieldClause>,
     pub weight_expression: Option<String>,
     pub heuristic_expression: Option<String>,
-    pub with_loop: bool,   // 是否允许自环
-    pub with_cycle: bool,  // 是否允许回路（路径中重复访问顶点）
+    pub with_loop: bool,  // 是否允许自环
+    pub with_cycle: bool, // 是否允许回路（路径中重复访问顶点）
 }
 
 /// INSERT 语句
@@ -714,7 +851,12 @@ pub enum InsertTarget {
     Edge {
         edge_name: String,
         prop_names: Vec<String>,
-        edges: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>, Vec<ContextualExpression>)>,
+        edges: Vec<(
+            ContextualExpression,
+            ContextualExpression,
+            Option<ContextualExpression>,
+            Vec<ContextualExpression>,
+        )>,
     },
 }
 
@@ -766,14 +908,14 @@ pub struct KillQueryStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShowConfigsStmt {
     pub span: Span,
-    pub module: Option<String>,  // 可选的模块名过滤
+    pub module: Option<String>, // 可选的模块名过滤
 }
 
 /// UPDATE CONFIGS 语句
 #[derive(Debug, Clone, PartialEq)]
 pub struct UpdateConfigsStmt {
     pub span: Span,
-    pub module: Option<String>,  // 可选的模块名
+    pub module: Option<String>, // 可选的模块名
     pub config_name: String,
     pub config_value: ContextualExpression,
 }
@@ -782,7 +924,7 @@ pub struct UpdateConfigsStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AssignmentStmt {
     pub span: Span,
-    pub variable: String,  // 变量名（不包含$前缀）
+    pub variable: String, // 变量名（不包含$前缀）
     pub statement: Box<Stmt>,
 }
 
@@ -1294,13 +1436,14 @@ mod tests {
     #[test]
     fn test_find_path_stmt() {
         use std::sync::Arc;
-        
+
         let expr_context = Arc::new(crate::core::types::expression::ExpressionContext::new());
         let expr = crate::core::types::expression::Expression::Variable("target".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let expr_id = expr_context.register_expression(expr_meta);
-        let to_expr = crate::core::types::expression::ContextualExpression::new(expr_id, expr_context);
-        
+        let to_expr =
+            crate::core::types::expression::ContextualExpression::new(expr_id, expr_context);
+
         let stmt = Stmt::FindPath(FindPathStmt {
             span: Span::default(),
             from: FromClause {

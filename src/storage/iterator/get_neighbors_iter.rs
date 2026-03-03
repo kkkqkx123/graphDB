@@ -10,13 +10,13 @@
 //! 4. 边列表层：edgeIdx_（每个邻接边一条记录）
 
 use super::{Iterator, IteratorKind, Row};
-use crate::core::{DataSet, Edge, Value};
 use crate::core::vertex_edge_path::Tag;
+use crate::core::{DataSet, Edge, Value};
+use parking_lot::Mutex;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 /// 属性索引结构
 #[derive(Debug, Clone)]
@@ -120,9 +120,7 @@ impl GetNeighborsIter {
     /// 构建索引
     fn build_index(&mut self, ds_index: &mut DataSetIndex) -> Result<i64, String> {
         let col_names = {
-            let ds = ds_index
-                .ds
-                .lock();
+            let ds = ds_index.ds.lock();
             ds.col_names.clone()
         };
         if col_names.len() < 3 {
@@ -370,8 +368,7 @@ impl Iterator for GetNeighborsIter {
                     self.current_ds_index += 1;
                     if self.current_ds_index < self.ds_indices.len() {
                         self.current_row = 0;
-                        self.col_idx =
-                            self.ds_indices[self.current_ds_index].col_lower_bound + 1;
+                        self.col_idx = self.ds_indices[self.current_ds_index].col_lower_bound + 1;
                     } else {
                         self.valid = false;
                         break;
@@ -917,7 +914,8 @@ impl Iterator for GetNeighborsIter {
 
         let current_edge_name = self.current_edge_name()?;
         // 去掉+/-前缀得到边类型名
-        let edge_type = if current_edge_name.starts_with('+') || current_edge_name.starts_with('-') {
+        let edge_type = if current_edge_name.starts_with('+') || current_edge_name.starts_with('-')
+        {
             &current_edge_name[1..]
         } else {
             current_edge_name
@@ -941,10 +939,8 @@ impl Iterator for GetNeighborsIter {
         if let Some(edge_data) = self.get_current_edge_data() {
             for (i, prop_name) in prop_index.prop_list.iter().enumerate() {
                 if i < edge_data.len() {
-                    let is_system_prop = matches!(
-                        prop_name.as_str(),
-                        "_dst" | "_rank" | "_type" | "_src"
-                    );
+                    let is_system_prop =
+                        matches!(prop_name.as_str(), "_dst" | "_rank" | "_type" | "_src");
                     if !is_system_prop {
                         edge_props.insert(prop_name.clone(), edge_data[i].clone());
                     }
@@ -952,13 +948,7 @@ impl Iterator for GetNeighborsIter {
             }
         }
 
-        let edge = Edge::new(
-            src_vid,
-            dst_vid,
-            edge_type.to_string(),
-            ranking,
-            edge_props,
-        );
+        let edge = Edge::new(src_vid, dst_vid, edge_type.to_string(), ranking, edge_props);
 
         Some(Value::Edge(edge))
     }
@@ -996,8 +986,8 @@ impl GetNeighborsIter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::DataSet;
     use crate::core::value::dataset::List;
+    use crate::core::DataSet;
 
     fn create_test_neighbors_data() -> Value {
         // 创建测试数据：一个顶点有两条边

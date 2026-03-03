@@ -11,17 +11,16 @@
 //!    - 别名引用验证
 //! 3. 使用 QueryContext 统一管理上下文
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::query::QueryContext;
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// 验证后的 UNWIND 信息
 #[derive(Debug, Clone)]
@@ -170,7 +169,10 @@ impl UnwindValidator {
     }
 
     /// 内部方法：验证表达式
-    fn validate_expression_internal(&self, expression: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
+    fn validate_expression_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+    ) -> Result<(), ValidationError> {
         if self.expression_is_empty(expression) {
             return Err(ValidationError::new(
                 "UNWIND 表达式不能为空".to_string(),
@@ -211,22 +213,22 @@ impl UnwindValidator {
             ));
         }
 
-        if self.variable_name.chars().next().unwrap_or_default().is_ascii_digit() {
+        if self
+            .variable_name
+            .chars()
+            .next()
+            .unwrap_or_default()
+            .is_ascii_digit()
+        {
             return Err(ValidationError::new(
-                format!(
-                    "变量名 '{}' 不能以数字开头",
-                    self.variable_name
-                ),
+                format!("变量名 '{}' 不能以数字开头", self.variable_name),
                 ValidationErrorType::SemanticError,
             ));
         }
 
         if self.aliases_available.contains_key(&self.variable_name) {
             return Err(ValidationError::new(
-                format!(
-                    "变量 '{}' 已在查询中定义",
-                    self.variable_name
-                ),
+                format!("变量 '{}' 已在查询中定义", self.variable_name),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -300,7 +302,7 @@ impl UnwindValidator {
             // - 如果变量在运行时是 List，元素将被正确展开
             // - 如果变量是其他类型，它将被包装为单元素列表
             // - 如果变量是 Null 或 Empty，不会产生任何行
-            // 
+            //
             // 调试提示：若查询执行出错，检查变量的实际值是否符合预期
         }
 
@@ -315,12 +317,12 @@ impl UnwindValidator {
 
         let refs = self.get_expression_references(&self.unwind_expression);
         for ref_name in refs {
-            if !self.aliases_available.contains_key(&ref_name) && ref_name != "$" && ref_name != "$$" {
+            if !self.aliases_available.contains_key(&ref_name)
+                && ref_name != "$"
+                && ref_name != "$$"
+            {
                 return Err(ValidationError::new(
-                    format!(
-                        "UNWIND 表达式引用了未定义的变量 '{}'",
-                        ref_name
-                    ),
+                    format!("UNWIND 表达式引用了未定义的变量 '{}'", ref_name),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -329,19 +331,28 @@ impl UnwindValidator {
     }
 
     /// 检查表达式是否为空
-    fn expression_is_empty(&self, _expression: &crate::core::types::expression::Expression) -> bool {
+    fn expression_is_empty(
+        &self,
+        _expression: &crate::core::types::expression::Expression,
+    ) -> bool {
         // 简化实现，实际应该检查表达式是否为空
         false
     }
 
     /// 推导表达式类型
-    fn deduce_expr_type(&self, _expression: &crate::core::types::expression::Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_expr_type(
+        &self,
+        _expression: &crate::core::types::expression::Expression,
+    ) -> Result<ValueType, ValidationError> {
         // 简化实现，实际应该根据表达式推导类型
         Ok(ValueType::List)
     }
 
     /// 推导列表元素类型
-    fn deduce_list_element_type(&self, _expression: &ContextualExpression) -> Result<ValueType, ValidationError> {
+    fn deduce_list_element_type(
+        &self,
+        _expression: &ContextualExpression,
+    ) -> Result<ValueType, ValidationError> {
         // 简化实现，实际应该根据表达式推导元素类型
         Ok(ValueType::Unknown)
     }
@@ -441,8 +452,8 @@ impl StatementValidator for UnwindValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;
 
@@ -478,7 +489,7 @@ mod tests {
     #[test]
     fn test_unwind_validation() {
         let mut validator = UnwindValidator::new();
-        
+
         // 设置表达式和变量名
         validator.set_unwind_expression(create_contextual_expr(Expression::List(vec![
             Expression::Literal(Value::Int(1)),
@@ -486,10 +497,10 @@ mod tests {
             Expression::Literal(Value::Int(3)),
         ])));
         validator.set_variable_name("x".to_string());
-        
+
         let result = validator.validate_unwind();
         assert!(result.is_ok());
-        
+
         let validated = result.expect("Failed to validate unwind");
         assert_eq!(validated.variable_name, "x");
     }
@@ -497,12 +508,12 @@ mod tests {
     #[test]
     fn test_unwind_empty_variable() {
         let mut validator = UnwindValidator::new();
-        
+
         // 不设置变量名
         validator.set_unwind_expression(create_contextual_expr(Expression::List(vec![
             Expression::Literal(Value::Int(1)),
         ])));
-        
+
         let result = validator.validate_unwind();
         assert!(result.is_err());
     }
@@ -510,17 +521,17 @@ mod tests {
     #[test]
     fn test_unwind_duplicate_variable() {
         let mut validator = UnwindValidator::new();
-        
+
         // 设置已存在的变量名
         let mut aliases = HashMap::new();
         aliases.insert("x".to_string(), ValueType::Int);
         validator.set_aliases_available(aliases);
-        
+
         validator.set_unwind_expression(create_contextual_expr(Expression::List(vec![
             Expression::Literal(Value::Int(1)),
         ])));
         validator.set_variable_name("x".to_string());
-        
+
         let result = validator.validate_unwind();
         assert!(result.is_err());
     }
@@ -528,13 +539,13 @@ mod tests {
     #[test]
     fn test_unwind_invalid_variable_name() {
         let mut validator = UnwindValidator::new();
-        
+
         // 设置无效的变量名（以数字开头）
         validator.set_unwind_expression(create_contextual_expr(Expression::List(vec![
             Expression::Literal(Value::Int(1)),
         ])));
         validator.set_variable_name("1x".to_string());
-        
+
         let result = validator.validate_unwind();
         assert!(result.is_err());
     }

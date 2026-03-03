@@ -3,9 +3,9 @@
 use crate::core::error::ExpressionError;
 use crate::core::value::NullType;
 use crate::core::Value;
+use crate::define_binary_string_bool_fn;
 use crate::define_function_enum;
 use crate::define_unary_string_fn;
-use crate::define_binary_string_bool_fn;
 
 define_function_enum! {
     /// 字符串函数枚举
@@ -145,7 +145,9 @@ fn execute_substring(args: &[Value]) -> Result<Value, ExpressionError> {
         (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
             Ok(Value::Null(NullType::Null))
         }
-        _ => Err(ExpressionError::type_error("substring函数需要字符串和两个整数")),
+        _ => Err(ExpressionError::type_error(
+            "substring函数需要字符串和两个整数",
+        )),
     }
 }
 
@@ -163,17 +165,27 @@ fn execute_concat(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_replace(args: &[Value]) -> Result<Value, ExpressionError> {
     match (&args[0], &args[1]) {
-        (Value::String(s), Value::String(from)) => {
-            Ok(Value::String(s.replace(from, "")))
-        }
+        (Value::String(s), Value::String(from)) => Ok(Value::String(s.replace(from, ""))),
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
         _ => Err(ExpressionError::type_error("replace函数需要字符串类型")),
     }
 }
 
-define_binary_string_bool_fn!(execute_contains, |s: &str, sub: &str| s.contains(sub), "contains");
-define_binary_string_bool_fn!(execute_starts_with, |s: &str, prefix: &str| s.starts_with(prefix), "starts_with");
-define_binary_string_bool_fn!(execute_ends_with, |s: &str, suffix: &str| s.ends_with(suffix), "ends_with");
+define_binary_string_bool_fn!(
+    execute_contains,
+    |s: &str, sub: &str| s.contains(sub),
+    "contains"
+);
+define_binary_string_bool_fn!(
+    execute_starts_with,
+    |s: &str, prefix: &str| s.starts_with(prefix),
+    "starts_with"
+);
+define_binary_string_bool_fn!(
+    execute_ends_with,
+    |s: &str, suffix: &str| s.ends_with(suffix),
+    "ends_with"
+);
 
 fn execute_split(args: &[Value]) -> Result<Value, ExpressionError> {
     use crate::core::value::dataset::List;
@@ -182,7 +194,10 @@ fn execute_split(args: &[Value]) -> Result<Value, ExpressionError> {
     }
     match (&args[0], &args[1]) {
         (Value::String(s), Value::String(delimiter)) => {
-            let parts: Vec<Value> = s.split(delimiter).map(|p| Value::String(p.to_string())).collect();
+            let parts: Vec<Value> = s
+                .split(delimiter)
+                .map(|p| Value::String(p.to_string()))
+                .collect();
             Ok(Value::List(List { values: parts }))
         }
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
@@ -213,7 +228,9 @@ fn execute_lpad(args: &[Value]) -> Result<Value, ExpressionError> {
         (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
             Ok(Value::Null(NullType::Null))
         }
-        _ => Err(ExpressionError::type_error("lpad函数需要字符串、整数和字符串参数")),
+        _ => Err(ExpressionError::type_error(
+            "lpad函数需要字符串、整数和字符串参数",
+        )),
     }
 }
 
@@ -241,7 +258,9 @@ fn execute_rpad(args: &[Value]) -> Result<Value, ExpressionError> {
         (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
             Ok(Value::Null(NullType::Null))
         }
-        _ => Err(ExpressionError::type_error("rpad函数需要字符串、整数和字符串参数")),
+        _ => Err(ExpressionError::type_error(
+            "rpad函数需要字符串、整数和字符串参数",
+        )),
     }
 }
 
@@ -252,7 +271,11 @@ fn execute_concat_ws(args: &[Value]) -> Result<Value, ExpressionError> {
     let separator = match &args[0] {
         Value::String(s) => s.clone(),
         Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-        _ => return Err(ExpressionError::type_error("concat_ws函数第一个参数需要字符串类型")),
+        _ => {
+            return Err(ExpressionError::type_error(
+                "concat_ws函数第一个参数需要字符串类型",
+            ))
+        }
     };
     let mut result = String::new();
     for (i, arg) in args[1..].iter().enumerate() {
@@ -316,59 +339,71 @@ mod tests {
     #[test]
     fn test_trim() {
         let func = StringFunction::Trim;
-        let result = func.execute(&[Value::String("  hello  ".to_string())]).unwrap();
+        let result = func
+            .execute(&[Value::String("  hello  ".to_string())])
+            .unwrap();
         assert_eq!(result, Value::String("hello".to_string()));
     }
 
     #[test]
     fn test_substring() {
         let func = StringFunction::Substring;
-        let result = func.execute(&[
-            Value::String("hello".to_string()),
-            Value::Int(1),
-            Value::Int(3),
-        ]).unwrap();
+        let result = func
+            .execute(&[
+                Value::String("hello".to_string()),
+                Value::Int(1),
+                Value::Int(3),
+            ])
+            .unwrap();
         assert_eq!(result, Value::String("ell".to_string()));
     }
 
     #[test]
     fn test_concat() {
         let func = StringFunction::Concat;
-        let result = func.execute(&[
-            Value::String("hello".to_string()),
-            Value::String(" ".to_string()),
-            Value::String("world".to_string()),
-        ]).unwrap();
+        let result = func
+            .execute(&[
+                Value::String("hello".to_string()),
+                Value::String(" ".to_string()),
+                Value::String("world".to_string()),
+            ])
+            .unwrap();
         assert_eq!(result, Value::String("hello world".to_string()));
     }
 
     #[test]
     fn test_contains() {
         let func = StringFunction::Contains;
-        let result = func.execute(&[
-            Value::String("hello world".to_string()),
-            Value::String("world".to_string()),
-        ]).unwrap();
+        let result = func
+            .execute(&[
+                Value::String("hello world".to_string()),
+                Value::String("world".to_string()),
+            ])
+            .unwrap();
         assert_eq!(result, Value::Bool(true));
     }
 
     #[test]
     fn test_starts_with() {
         let func = StringFunction::StartsWith;
-        let result = func.execute(&[
-            Value::String("hello world".to_string()),
-            Value::String("hello".to_string()),
-        ]).unwrap();
+        let result = func
+            .execute(&[
+                Value::String("hello world".to_string()),
+                Value::String("hello".to_string()),
+            ])
+            .unwrap();
         assert_eq!(result, Value::Bool(true));
     }
 
     #[test]
     fn test_ends_with() {
         let func = StringFunction::EndsWith;
-        let result = func.execute(&[
-            Value::String("hello world".to_string()),
-            Value::String("world".to_string()),
-        ]).unwrap();
+        let result = func
+            .execute(&[
+                Value::String("hello world".to_string()),
+                Value::String("world".to_string()),
+            ])
+            .unwrap();
         assert_eq!(result, Value::Bool(true));
     }
 

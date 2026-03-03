@@ -2,15 +2,17 @@
 //!
 //! 负责解析图遍历相关语句，包括 MATCH、GO、FIND PATH、GET SUBGRAPH 等。
 
-use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::types::expression::ContextualExpression;
 use crate::core::types::expression::Expression as CoreExpression;
+use crate::core::types::graph_schema::EdgeDirection;
+use crate::query::parser::ast::pattern::{
+    EdgePattern, EdgeRange, NodePattern, PathElement, PathPattern, Pattern, VariablePattern,
+};
 use crate::query::parser::ast::stmt::*;
-use crate::query::parser::ast::pattern::{EdgePattern, EdgeRange, NodePattern, PathElement, PathPattern, Pattern, VariablePattern};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::parser::clause_parser::ClauseParser;
-use crate::query::parser::parser::ExprParser;
 use crate::query::parser::parser::parse_context::ParseContext;
+use crate::query::parser::parser::ExprParser;
 use crate::query::parser::TokenKind;
 
 /// 图遍历解析器
@@ -66,7 +68,7 @@ impl TraversalParser {
         ctx.expect_token(TokenKind::Go)?;
 
         let steps = self.parse_steps(ctx)?;
-        
+
         // 消费可选的 STEP/STEP 关键字
         ctx.match_token(TokenKind::Step);
 
@@ -110,7 +112,10 @@ impl TraversalParser {
     }
 
     /// 解析 FIND PATH 语句
-    pub fn parse_find_path_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+    pub fn parse_find_path_statement(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Find)?;
 
@@ -262,12 +267,15 @@ impl TraversalParser {
         // 检查是否是节点模式（以 ( 开头）
         if ctx.match_token(TokenKind::LParen) {
             let node = self.parse_node_pattern(ctx, start_span)?;
-            
+
             // 检查是否有链式边模式
-            if ctx.check_token(TokenKind::LeftArrow) || ctx.check_token(TokenKind::RightArrow) || ctx.check_token(TokenKind::Minus) {
+            if ctx.check_token(TokenKind::LeftArrow)
+                || ctx.check_token(TokenKind::RightArrow)
+                || ctx.check_token(TokenKind::Minus)
+            {
                 return self.parse_path_pattern(ctx, node);
             }
-            
+
             return Ok(Pattern::Node(node));
         }
 
@@ -276,10 +284,7 @@ impl TraversalParser {
             let name = name.clone();
             let span = ctx.current_span();
             ctx.next_token();
-            return Ok(Pattern::Variable(VariablePattern {
-                span,
-                name,
-            }));
+            return Ok(Pattern::Variable(VariablePattern { span, name }));
         }
 
         Err(ParseError::new(
@@ -290,7 +295,11 @@ impl TraversalParser {
     }
 
     /// 解析节点模式
-    fn parse_node_pattern(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<NodePattern, ParseError> {
+    fn parse_node_pattern(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<NodePattern, ParseError> {
         let mut variable = None;
         let mut labels = Vec::new();
         let mut properties = None;
@@ -299,7 +308,7 @@ impl TraversalParser {
         if let TokenKind::Identifier(ref name) = ctx.current_token().kind.clone() {
             let name = name.clone();
             ctx.next_token();
-            
+
             // 检查后面是否是标签（:label）
             if ctx.check_token(TokenKind::Colon) {
                 variable = Some(name);
@@ -344,12 +353,19 @@ impl TraversalParser {
     }
 
     /// 解析路径模式
-    fn parse_path_pattern(&mut self, ctx: &mut ParseContext, start_node: NodePattern) -> Result<Pattern, ParseError> {
+    fn parse_path_pattern(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_node: NodePattern,
+    ) -> Result<Pattern, ParseError> {
         let start_span = start_node.span;
         let mut elements = vec![PathElement::Node(start_node)];
 
         // 解析边和节点的链式结构
-        while ctx.check_token(TokenKind::LeftArrow) || ctx.check_token(TokenKind::RightArrow) || ctx.check_token(TokenKind::Minus) {
+        while ctx.check_token(TokenKind::LeftArrow)
+            || ctx.check_token(TokenKind::RightArrow)
+            || ctx.check_token(TokenKind::Minus)
+        {
             let edge = self.parse_edge_pattern(ctx)?;
             elements.push(PathElement::Edge(edge));
 
@@ -366,10 +382,7 @@ impl TraversalParser {
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
 
-        Ok(Pattern::Path(PathPattern {
-            span,
-            elements,
-        }))
+        Ok(Pattern::Path(PathPattern { span, elements }))
     }
 
     /// 解析边模式
@@ -396,7 +409,7 @@ impl TraversalParser {
             if let TokenKind::Identifier(ref name) = ctx.current_token().kind.clone() {
                 let name = name.clone();
                 ctx.next_token();
-                
+
                 if ctx.check_token(TokenKind::Colon) {
                     variable = Some(name);
                 } else {
@@ -432,12 +445,13 @@ impl TraversalParser {
                     };
 
                     if ctx.match_token(TokenKind::DotDot) {
-                        let max = if matches!(ctx.current_token().kind, TokenKind::IntegerLiteral(_)) {
-                            let n = ctx.expect_integer_literal()? as usize;
-                            Some(n)
-                        } else {
-                            None
-                        };
+                        let max =
+                            if matches!(ctx.current_token().kind, TokenKind::IntegerLiteral(_)) {
+                                let n = ctx.expect_integer_literal()? as usize;
+                                Some(n)
+                            } else {
+                                None
+                            };
                         range = Some(EdgeRange::new(min, max));
                     } else if let Some(min_val) = min {
                         range = Some(EdgeRange::fixed(min_val));
@@ -497,23 +511,29 @@ impl TraversalParser {
     }
 
     /// 解析表达式列表
-    fn parse_expression_list(&mut self, ctx: &mut ParseContext) -> Result<Vec<ContextualExpression>, ParseError> {
+    fn parse_expression_list(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Vec<ContextualExpression>, ParseError> {
         let mut expressions = Vec::new();
-        
+
         loop {
             expressions.push(self.parse_expression(ctx)?);
             if !ctx.match_token(TokenKind::Comma) {
                 break;
             }
         }
-        
+
         Ok(expressions)
     }
 
     /// 解析属性表达式
-    fn parse_properties_expr(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
+    fn parse_properties_expr(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<ContextualExpression, ParseError> {
         let mut properties = Vec::new();
-        
+
         while !ctx.check_token(TokenKind::RBrace) {
             let key = ctx.expect_identifier()?;
             ctx.expect_token(TokenKind::Colon)?;
@@ -523,28 +543,37 @@ impl TraversalParser {
                 break;
             }
         }
-        
+
         let mut mapped_properties = Vec::new();
         for (k, v) in properties {
-            let v_expr = v.expression()
-                .ok_or_else(|| ParseError::new_simple(
-                    "Expression not registered in context".to_string(),
-                    ctx.current_position()
-                ))?
+            let v_expr = v
+                .expression()
+                .ok_or_else(|| {
+                    ParseError::new_simple(
+                        "Expression not registered in context".to_string(),
+                        ctx.current_position(),
+                    )
+                })?
                 .inner()
                 .clone();
             mapped_properties.push((k, v_expr));
         }
-        
+
         let expr = CoreExpression::map(mapped_properties);
-        
+
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.expression_context().register_expression(expr_meta);
-        Ok(ContextualExpression::new(id, ctx.expression_context_clone()))
+        Ok(ContextualExpression::new(
+            id,
+            ctx.expression_context_clone(),
+        ))
     }
 
     /// 解析表达式
-    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
+    fn parse_expression(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<ContextualExpression, ParseError> {
         let mut expr_parser = ExprParser::new(ctx);
         expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }

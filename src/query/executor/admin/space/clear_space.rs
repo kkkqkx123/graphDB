@@ -2,8 +2,8 @@
 //!
 //! 负责清空指定空间的所有数据。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -35,7 +35,10 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ClearSpaceExecuto
 
         match result {
             Ok(_) => Ok(ExecutionResult::Success),
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to clear space: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to clear space: {}",
+                e
+            ))),
         }
     }
 
@@ -81,12 +84,14 @@ impl<S: StorageClient> HasStorage<S> for ClearSpaceExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_clear_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = ClearSpaceExecutor::new(1, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -95,7 +100,9 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = ClearSpaceExecutor::new(2, storage, "test_space".to_string());
 
         assert!(!executor.is_open());
@@ -107,7 +114,9 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let executor = ClearSpaceExecutor::new(3, storage, "test_space".to_string());
 
         assert_eq!(executor.id(), 3);

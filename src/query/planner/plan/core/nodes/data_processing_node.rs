@@ -2,8 +2,8 @@
 //!
 //! 包含Union、Unwind、Dedup等数据处理相关的计划节点
 
-use crate::define_plan_node_with_deps;
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::define_plan_node_with_deps;
 
 define_plan_node_with_deps! {
     pub struct UnionNode {
@@ -573,7 +573,9 @@ mod tests {
                 StartNode::new(),
             );
 
-        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use crate::core::types::expression::{
+            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+        };
         use std::sync::Arc;
 
         let expr_ctx = Arc::new(ExpressionContext::new());

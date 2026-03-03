@@ -2,20 +2,18 @@
 //!
 //! 处理 USE <space> 语句的查询规划
 
-use crate::query::QueryContext;
-use crate::query::parser::ast::{UseStmt, Stmt};
-use crate::query::planner::plan::core::{
-    node_id_generator::next_node_id,
-    nodes::{
-        ArgumentNode, ProjectNode,
-    },
-};
-use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::YieldColumn;
+use crate::query::parser::ast::{Stmt, UseStmt};
+use crate::query::planner::plan::core::{
+    node_id_generator::next_node_id,
+    nodes::{ArgumentNode, ProjectNode},
+};
+use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// USE 语句规划器
@@ -57,31 +55,22 @@ impl Planner for UsePlanner {
         let meta = ExpressionMeta::new(expr);
         let id = qctx.expr_context().register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
-        
-        let yield_columns = vec![
-            YieldColumn {
-                expression: ctx_expr,
-                alias: "space_name".to_string(),
-                is_matched: false,
-            }
-        ];
+
+        let yield_columns = vec![YieldColumn {
+            expression: ctx_expr,
+            alias: "space_name".to_string(),
+            is_matched: false,
+        }];
 
         // 创建投影节点
-        let project_node = ProjectNode::new(
-            arg_node_enum.clone(),
-            yield_columns,
-        ).map_err(|e| PlannerError::PlanGenerationFailed(format!(
-            "Failed to create ProjectNode: {}",
-            e
-        )))?;
+        let project_node = ProjectNode::new(arg_node_enum.clone(), yield_columns).map_err(|e| {
+            PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
+        })?;
 
         let final_node = PlanNodeEnum::Project(project_node);
 
         // 创建 SubPlan
-        let sub_plan = SubPlan::new(
-            Some(final_node),
-            Some(arg_node_enum),
-        );
+        let sub_plan = SubPlan::new(Some(final_node), Some(arg_node_enum));
 
         Ok(sub_plan)
     }

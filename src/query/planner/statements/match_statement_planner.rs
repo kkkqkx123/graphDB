@@ -11,20 +11,23 @@
 
 use crate::core::types::ContextualExpression;
 use crate::core::SymbolTable;
-use crate::query::QueryContext;
+use crate::core::YieldColumn;
+use crate::query::parser::ast::pattern::{PathElement, Pattern, RepetitionType};
 use crate::query::parser::ast::Stmt;
-use crate::query::parser::ast::pattern::{Pattern, PathElement, RepetitionType};
-use crate::query::planner::plan::SubPlan;
+use crate::query::parser::OrderByItem;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::{LimitNode, ProjectNode, ScanVerticesNode, SortNode, SortItem, LeftJoinNode, UnionNode, LoopNode, ArgumentNode};
 use crate::query::planner::plan::core::nodes::ExpandAllNode;
+use crate::query::planner::plan::core::nodes::{
+    ArgumentNode, LeftJoinNode, LimitNode, LoopNode, ProjectNode, ScanVerticesNode, SortItem,
+    SortNode, UnionNode,
+};
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::planner::statements::statement_planner::StatementPlanner;
-use crate::query::validator::ValidationInfo;
-use crate::core::YieldColumn;
-use crate::query::parser::OrderByItem;
 use crate::query::validator::structs::CypherClauseKind;
+use crate::query::validator::ValidationInfo;
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// 分页信息结构体
@@ -90,7 +93,13 @@ impl Planner for MatchStatementPlanner {
         }
 
         // 使用别名映射优化规划
-        self.plan_match_pattern(&validated.stmt, space_id, sym_table, Some(validation_info), &qctx)
+        self.plan_match_pattern(
+            &validated.stmt,
+            space_id,
+            sym_table,
+            Some(validation_info),
+            &qctx,
+        )
     }
 }
 
@@ -145,12 +154,24 @@ impl MatchStatementPlanner {
                 } else {
                     // 处理第一个路径模式
                     let first_pattern = &match_stmt.patterns[0];
-                    self.plan_path_pattern(first_pattern, space_id, sym_table, validation_info, qctx)?
+                    self.plan_path_pattern(
+                        first_pattern,
+                        space_id,
+                        sym_table,
+                        validation_info,
+                        qctx,
+                    )?
                 };
 
                 // 处理额外的路径模式（使用交叉连接）
                 for pattern in match_stmt.patterns.iter().skip(1) {
-                    let path_plan = self.plan_path_pattern(pattern, space_id, sym_table, validation_info, qctx)?;
+                    let path_plan = self.plan_path_pattern(
+                        pattern,
+                        space_id,
+                        sym_table,
+                        validation_info,
+                        qctx,
+                    )?;
                     plan = self.cross_join_plans(plan, path_plan)?;
                 }
 
@@ -173,8 +194,8 @@ impl MatchStatementPlanner {
                 Ok(plan)
             }
             _ => Err(PlannerError::InvalidOperation(
-                "Expected MATCH statement".to_string()
-            ))
+                "Expected MATCH statement".to_string(),
+            )),
         }
     }
 
@@ -190,9 +211,7 @@ impl MatchStatementPlanner {
         match pattern {
             Pattern::Path(path) => {
                 if path.elements.is_empty() {
-                    return Err(PlannerError::PlanGenerationFailed(
-                        "空路径模式".to_string()
-                    ));
+                    return Err(PlannerError::PlanGenerationFailed("空路径模式".to_string()));
                 }
 
                 let mut plan = SubPlan::new(None, None);
@@ -203,7 +222,7 @@ impl MatchStatementPlanner {
                         PathElement::Node(node) => {
                             // 规划节点扫描
                             let node_plan = self.plan_pattern_node(node, space_id, qctx)?;
-                            
+
                             plan = if let Some(existing_root) = plan.root.take() {
                                 if let Some(ref alias) = prev_node_alias {
                                     // 如果有前一个节点，使用连接
@@ -231,7 +250,7 @@ impl MatchStatementPlanner {
                             // 规划边扩展
                             if prev_node_alias.is_none() {
                                 return Err(PlannerError::PlanGenerationFailed(
-                                    "边模式必须跟随节点模式".to_string()
+                                    "边模式必须跟随节点模式".to_string(),
                                 ));
                             }
 
@@ -324,11 +343,13 @@ impl MatchStatementPlanner {
 
         // 如果有标签过滤，添加过滤器
         if !node.labels.is_empty() {
-            let label_filter = Self::build_label_filter_expression(&node.variable, &node.labels, qctx);
+            let label_filter =
+                Self::build_label_filter_expression(&node.variable, &node.labels, qctx);
             let filter_node = FilterNode::new(
                 plan.root.as_ref().expect("plan的root应该存在").clone(),
                 label_filter,
-            ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
+            )
+            .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
 
@@ -337,7 +358,8 @@ impl MatchStatementPlanner {
             let filter_node = FilterNode::new(
                 plan.root.as_ref().expect("plan的root应该存在").clone(),
                 props.clone(),
-            ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
+            )
+            .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
 
@@ -347,7 +369,8 @@ impl MatchStatementPlanner {
                 let filter_node = FilterNode::new(
                     plan.root.as_ref().expect("plan的root应该存在").clone(),
                     pred.clone(),
-                ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
+                )
+                .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
                 plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
             }
         }
@@ -369,11 +392,7 @@ impl MatchStatementPlanner {
         };
 
         // 创建边扩展节点
-        let expand_node = ExpandAllNode::new(
-            space_id,
-            edge.edge_types.clone(),
-            direction,
-        );
+        let expand_node = ExpandAllNode::new(space_id, edge.edge_types.clone(), direction);
 
         let mut plan = SubPlan::from_root(expand_node.into_enum());
 
@@ -382,7 +401,8 @@ impl MatchStatementPlanner {
             let filter_node = FilterNode::new(
                 plan.root.as_ref().expect("plan的root应该存在").clone(),
                 props.clone(),
-            ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
+            )
+            .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
 
@@ -392,7 +412,8 @@ impl MatchStatementPlanner {
                 let filter_node = FilterNode::new(
                     plan.root.as_ref().expect("plan的root应该存在").clone(),
                     pred.clone(),
-                ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
+                )
+                .map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
                 plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
             }
         }
@@ -401,11 +422,7 @@ impl MatchStatementPlanner {
     }
 
     /// 交叉连接两个计划
-    fn cross_join_plans(
-        &self,
-        left: SubPlan,
-        right: SubPlan,
-    ) -> Result<SubPlan, PlannerError> {
+    fn cross_join_plans(&self, left: SubPlan, right: SubPlan) -> Result<SubPlan, PlannerError> {
         use crate::query::planner::plan::core::nodes::CrossJoinNode;
 
         let left_root = match left.root {
@@ -418,10 +435,8 @@ impl MatchStatementPlanner {
             None => return Ok(left),
         };
 
-        let join_node = CrossJoinNode::new(
-            left_root.clone(),
-            right_root.clone(),
-        ).map_err(|e| PlannerError::JoinFailed(format!("交叉连接失败: {}", e)))?;
+        let join_node = CrossJoinNode::new(left_root.clone(), right_root.clone())
+            .map_err(|e| PlannerError::JoinFailed(format!("交叉连接失败: {}", e)))?;
 
         Ok(SubPlan {
             root: Some(join_node.into_enum()),
@@ -470,12 +485,9 @@ impl MatchStatementPlanner {
         let probe_keys = vec![ContextualExpression::new(probe_key_id, ctx)];
 
         // 创建哈希内连接节点
-        let join_node = HashInnerJoinNode::new(
-            left_root.clone(),
-            right_root.clone(),
-            hash_keys,
-            probe_keys,
-        ).map_err(|e| PlannerError::JoinFailed(format!("哈希内连接失败: {}", e)))?;
+        let join_node =
+            HashInnerJoinNode::new(left_root.clone(), right_root.clone(), hash_keys, probe_keys)
+                .map_err(|e| PlannerError::JoinFailed(format!("哈希内连接失败: {}", e)))?;
 
         Ok(SubPlan {
             root: Some(join_node.into_enum()),
@@ -494,9 +506,10 @@ impl MatchStatementPlanner {
         condition: ContextualExpression,
         _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())
-        })?;
+        let input_node = input_plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
         let filter_node = FilterNode::new(input_node.clone(), condition)?;
         Ok(SubPlan::new(Some(filter_node.into_enum()), input_plan.tail))
@@ -508,12 +521,16 @@ impl MatchStatementPlanner {
         columns: Vec<YieldColumn>,
         _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())
-        })?;
+        let input_node = input_plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
         let project_node = ProjectNode::new(input_node.clone(), columns)?;
-        Ok(SubPlan::new(Some(project_node.into_enum()), input_plan.tail))
+        Ok(SubPlan::new(
+            Some(project_node.into_enum()),
+            input_plan.tail,
+        ))
     }
 
     fn plan_sort(
@@ -522,9 +539,10 @@ impl MatchStatementPlanner {
         order_by: Vec<OrderByItem>,
         _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())
-        })?;
+        let input_node = input_plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
         let sort_items: Vec<SortItem> = order_by
             .into_iter()
@@ -551,11 +569,16 @@ impl MatchStatementPlanner {
         input_plan: SubPlan,
         pagination: PaginationInfo,
     ) -> Result<SubPlan, PlannerError> {
-        let input_node = input_plan.root().as_ref().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())
-        })?;
+        let input_node = input_plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
-        let limit_node = LimitNode::new(input_node.clone(), pagination.skip as i64, pagination.limit as i64)?;
+        let limit_node = LimitNode::new(
+            input_node.clone(),
+            pagination.skip as i64,
+            pagination.limit as i64,
+        )?;
         let limit_node_enum = limit_node.into_enum();
         Ok(SubPlan::new(Some(limit_node_enum), input_plan.tail))
     }
@@ -583,7 +606,10 @@ impl MatchStatementPlanner {
                     let mut columns = Vec::new();
                     for item in &return_clause.items {
                         match item {
-                            crate::query::parser::ast::stmt::ReturnItem::Expression { expression, alias } => {
+                            crate::query::parser::ast::stmt::ReturnItem::Expression {
+                                expression,
+                                alias,
+                            } => {
                                 columns.push(YieldColumn {
                                     expression: expression.clone(),
                                     alias: alias.clone().unwrap_or_default(),
@@ -592,10 +618,11 @@ impl MatchStatementPlanner {
                             }
                             crate::query::parser::ast::stmt::ReturnItem::All => {
                                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                                    crate::core::Expression::Variable("*".to_string())
+                                    crate::core::Expression::Variable("*".to_string()),
                                 );
                                 let id = qctx.expr_context().register_expression(expr_meta);
-                                let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
+                                let ctx_expr =
+                                    ContextualExpression::new(id, qctx.expr_context_clone());
                                 columns.push(YieldColumn {
                                     expression: ctx_expr,
                                     alias: "*".to_string(),
@@ -606,7 +633,7 @@ impl MatchStatementPlanner {
                     }
                     if columns.is_empty() {
                         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                            crate::core::Expression::Variable("*".to_string())
+                            crate::core::Expression::Variable("*".to_string()),
                         );
                         let id = qctx.expr_context().register_expression(expr_meta);
                         let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
@@ -670,16 +697,18 @@ impl MatchStatementPlanner {
     ) -> Result<SubPlan, PlannerError> {
         if patterns.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
-                "替代路径不能为空".to_string()
+                "替代路径不能为空".to_string(),
             ));
         }
 
         // 规划第一个路径选项
-        let mut plan = self.plan_pattern(&patterns[0], space_id, sym_table, validation_info, qctx)?;
+        let mut plan =
+            self.plan_pattern(&patterns[0], space_id, sym_table, validation_info, qctx)?;
 
         // 将剩余路径选项通过并集合并
         for pattern in patterns.iter().skip(1) {
-            let pattern_plan = self.plan_pattern(pattern, space_id, sym_table, validation_info, qctx)?;
+            let pattern_plan =
+                self.plan_pattern(pattern, space_id, sym_table, validation_info, qctx)?;
             plan = self.union_plans(plan, pattern_plan)?;
         }
 
@@ -698,7 +727,9 @@ impl MatchStatementPlanner {
         match pattern {
             Pattern::Node(node) => self.plan_pattern_node(node, space_id, qctx),
             Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id),
-            Pattern::Path(_) => self.plan_path_pattern(pattern, space_id, sym_table, validation_info, qctx),
+            Pattern::Path(_) => {
+                self.plan_path_pattern(pattern, space_id, sym_table, validation_info, qctx)
+            }
             Pattern::Variable(var) => self.plan_variable_pattern(var, space_id, sym_table),
         }
     }
@@ -729,16 +760,16 @@ impl MatchStatementPlanner {
     ) -> Result<SubPlan, PlannerError> {
         // 使用 SymbolTable 验证变量是否存在
         if !sym_table.has_variable(&var.name) {
-            return Err(PlannerError::PlanGenerationFailed(
-                format!("变量 '{}' 未定义", var.name)
-            ));
+            return Err(PlannerError::PlanGenerationFailed(format!(
+                "变量 '{}' 未定义",
+                var.name
+            )));
         }
 
         // 获取变量信息（用于类型检查）
-        let _var_info = sym_table.get_variable_info(&var.name)
-            .ok_or_else(|| PlannerError::PlanGenerationFailed(
-                format!("无法获取变量 '{}' 的信息", var.name)
-            ))?;
+        let _var_info = sym_table.get_variable_info(&var.name).ok_or_else(|| {
+            PlannerError::PlanGenerationFailed(format!("无法获取变量 '{}' 的信息", var.name))
+        })?;
 
         // 创建 ArgumentNode 来引用变量
         // ArgumentNode 表示从外部变量输入数据，用于子查询或模式引用
@@ -751,11 +782,7 @@ impl MatchStatementPlanner {
     }
 
     /// 合并两个计划为并集
-    fn union_plans(
-        &self,
-        left: SubPlan,
-        right: SubPlan,
-    ) -> Result<SubPlan, PlannerError> {
+    fn union_plans(&self, left: SubPlan, right: SubPlan) -> Result<SubPlan, PlannerError> {
         let left_root = match left.root {
             Some(ref r) => r,
             None => return Ok(right),
@@ -770,7 +797,8 @@ impl MatchStatementPlanner {
         let union_node = UnionNode::new(
             left_root.clone(),
             true, // distinct = true，去重
-        ).map_err(|e| PlannerError::PlanGenerationFailed(format!("并集操作失败: {}", e)))?;
+        )
+        .map_err(|e| PlannerError::PlanGenerationFailed(format!("并集操作失败: {}", e)))?;
 
         Ok(SubPlan {
             root: Some(union_node.into_enum()),
@@ -796,7 +824,7 @@ impl MatchStatementPlanner {
             PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
-                    "可选路径不支持嵌套的复杂模式".to_string()
+                    "可选路径不支持嵌套的复杂模式".to_string(),
                 ));
             }
         };
@@ -805,11 +833,7 @@ impl MatchStatementPlanner {
     }
 
     /// 左连接两个计划
-    fn left_join_plans(
-        &self,
-        left: SubPlan,
-        right: SubPlan,
-    ) -> Result<SubPlan, PlannerError> {
+    fn left_join_plans(&self, left: SubPlan, right: SubPlan) -> Result<SubPlan, PlannerError> {
         let left_root = match left.root {
             Some(ref r) => r,
             None => return Ok(right),
@@ -826,7 +850,8 @@ impl MatchStatementPlanner {
             right_root.clone(),
             vec![], // hash_keys
             vec![], // probe_keys
-        ).map_err(|e| PlannerError::JoinFailed(format!("左连接失败: {}", e)))?;
+        )
+        .map_err(|e| PlannerError::JoinFailed(format!("左连接失败: {}", e)))?;
 
         Ok(SubPlan {
             root: Some(join_node.into_enum()),
@@ -853,7 +878,7 @@ impl MatchStatementPlanner {
             PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
-                    "重复路径不支持嵌套的复杂模式".to_string()
+                    "重复路径不支持嵌套的复杂模式".to_string(),
                 ));
             }
         };
@@ -864,12 +889,14 @@ impl MatchStatementPlanner {
             RepetitionType::OneOrMore => "loop_count >= 1".to_string(),
             RepetitionType::ZeroOrOne => "loop_count <= 1".to_string(),
             RepetitionType::Exactly(n) => format!("loop_count == {}", n),
-            RepetitionType::Range(min, max) => format!("loop_count >= {} && loop_count <= {}", min, max),
+            RepetitionType::Range(min, max) => {
+                format!("loop_count >= {} && loop_count <= {}", min, max)
+            }
         };
 
         // 创建循环条件表达式
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::Variable(condition_str)
+            crate::core::Expression::Variable(condition_str),
         );
         let id = qctx.expr_context().register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
@@ -912,12 +939,22 @@ impl MatchStatementPlanner {
         } else {
             // 多个标签: labels(n) CONTAINS "label1" AND labels(n) CONTAINS "label2" AND ...
             let first_label = crate::core::Expression::literal(labels[0].clone());
-            let first_condition = crate::core::Expression::function("contains", vec![labels_func.clone(), first_label]);
+            let first_condition = crate::core::Expression::function(
+                "contains",
+                vec![labels_func.clone(), first_label],
+            );
 
             labels.iter().skip(1).fold(first_condition, |acc, label| {
                 let label_literal = crate::core::Expression::literal(label.clone());
-                let condition = crate::core::Expression::function("contains", vec![labels_func.clone(), label_literal]);
-                crate::core::Expression::binary(acc, crate::core::types::operators::BinaryOperator::And, condition)
+                let condition = crate::core::Expression::function(
+                    "contains",
+                    vec![labels_func.clone(), label_literal],
+                );
+                crate::core::Expression::binary(
+                    acc,
+                    crate::core::types::operators::BinaryOperator::And,
+                    condition,
+                )
             })
         };
 

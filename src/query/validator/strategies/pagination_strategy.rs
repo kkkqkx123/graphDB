@@ -1,11 +1,11 @@
 //! 分页验证策略
 //! 负责验证SKIP、LIMIT和分页相关的表达式
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::YieldColumn;
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::utils::is_evaluable;
-use crate::query::validator::structs::{MatchStepRange, PaginationContext, OrderByClauseContext};
+use crate::core::YieldColumn;
+use crate::query::validator::structs::{MatchStepRange, OrderByClauseContext, PaginationContext};
 
 /// 分页验证策略
 pub struct PaginationValidationStrategy;
@@ -57,10 +57,12 @@ impl PaginationValidationStrategy {
     ) -> Result<(), ValidationError> {
         let expr_meta = match expression.expression() {
             Some(e) => e,
-            None => return Err(ValidationError::new(
-                format!("{}表达式无效", clause_name),
-                ValidationErrorType::PaginationError,
-            )),
+            None => {
+                return Err(ValidationError::new(
+                    format!("{}表达式无效", clause_name),
+                    ValidationErrorType::PaginationError,
+                ))
+            }
         };
         let expr = expr_meta.inner();
 
@@ -96,8 +98,8 @@ impl PaginationValidationStrategy {
                 ValidationErrorType::PaginationError,
             )),
             _ => {
-                use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
                 use crate::expression::context::DefaultExpressionContext;
+                use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 
                 let mut context = DefaultExpressionContext::new();
                 match ExpressionEvaluator::evaluate(expression, &mut context) {
@@ -169,8 +171,8 @@ impl PaginationValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::{ContextualExpression, ExpressionContext, ExpressionMeta};
     use crate::core::Expression;
-    use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ContextualExpression};
     use std::sync::Arc;
 
     /// 从 Expression 创建 ContextualExpression
@@ -192,12 +194,18 @@ mod tests {
         let strategy = PaginationValidationStrategy::new();
 
         // 测试有效的分页表达式
-        let skip_expression = create_contextual_expression(Expression::Literal(crate::core::Value::Int(1)));
-        let limit_expression = create_contextual_expression(Expression::Literal(crate::core::Value::Int(10)));
+        let skip_expression =
+            create_contextual_expression(Expression::Literal(crate::core::Value::Int(1)));
+        let limit_expression =
+            create_contextual_expression(Expression::Literal(crate::core::Value::Int(10)));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(strategy
-            .validate_pagination(Some(&skip_expression), Some(&limit_expression), &pagination_ctx)
+            .validate_pagination(
+                Some(&skip_expression),
+                Some(&limit_expression),
+                &pagination_ctx
+            )
             .is_ok());
 
         // 测试无效的分页参数
@@ -245,7 +253,10 @@ mod tests {
         ];
 
         let valid_context = OrderByClauseContext {
-            indexed_order_factors: vec![(0, crate::core::types::OrderDirection::Asc), (1, crate::core::types::OrderDirection::Desc)],
+            indexed_order_factors: vec![
+                (0, crate::core::types::OrderDirection::Asc),
+                (1, crate::core::types::OrderDirection::Desc),
+            ],
         };
 
         assert!(strategy
@@ -267,12 +278,15 @@ mod tests {
         let strategy = PaginationValidationStrategy::new();
 
         // 测试有效的整数表达式
-        let int_expression = create_contextual_expression(Expression::Literal(crate::core::Value::Int(10)));
+        let int_expression =
+            create_contextual_expression(Expression::Literal(crate::core::Value::Int(10)));
         assert!(strategy
             .validate_pagination_expression(&int_expression, "LIMIT")
             .is_ok());
 
-        let string_expression = create_contextual_expression(Expression::Literal(crate::core::Value::String("invalid".to_string())));
+        let string_expression = create_contextual_expression(Expression::Literal(
+            crate::core::Value::String("invalid".to_string()),
+        ));
         assert!(strategy
             .validate_pagination_expression(&string_expression, "LIMIT")
             .is_err());

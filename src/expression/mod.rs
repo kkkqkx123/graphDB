@@ -15,6 +15,4 @@ pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPos
 pub use evaluator::{ExpressionContext, ExpressionEvaluator};
 
 // 从 context 模块重新导出上下文类型
-pub use context::{
-    DefaultExpressionContext, RowExpressionContext,
-};
+pub use context::{DefaultExpressionContext, RowExpressionContext};

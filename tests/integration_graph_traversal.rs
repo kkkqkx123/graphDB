@@ -10,18 +10,17 @@
 mod common;
 
 use common::TestStorage;
-use graphdb::core::{Value, Vertex, Edge, Path, Step};
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::DataType;
+use graphdb::core::{Edge, Path, Step, Value, Vertex};
+use graphdb::query::executor::base::{EdgeDirection as ExecEdgeDirection, Executor};
 use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
-    MultiShortestPathExecutor, SubgraphExecutor, SubgraphConfig,
-    AlgorithmContext, AlgorithmStats,
+    AlgorithmContext, AlgorithmStats, MultiShortestPathExecutor, SubgraphConfig, SubgraphExecutor,
 };
-use graphdb::query::executor::base::{Executor, EdgeDirection as ExecEdgeDirection};
 use graphdb::storage::RedbStorage;
-use std::sync::Arc;
 use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 fn get_storage(storage: &Arc<Mutex<RedbStorage>>) -> parking_lot::MutexGuard<RedbStorage> {
     storage.lock()
@@ -47,7 +46,7 @@ fn test_algorithm_context_creation() {
 #[test]
 fn test_algorithm_context_default() {
     let context = AlgorithmContext::new();
-    
+
     assert_eq!(context.max_depth, None);
     assert_eq!(context.limit, usize::MAX);
     assert!(!context.single_shortest);
@@ -57,15 +56,15 @@ fn test_algorithm_context_default() {
 #[test]
 fn test_algorithm_stats() {
     let mut stats = AlgorithmStats::new();
-    
+
     assert_eq!(stats.nodes_visited, 0);
     assert_eq!(stats.edges_traversed, 0);
     assert_eq!(stats.execution_time_ms, 0);
-    
+
     stats.nodes_visited = 100;
     stats.edges_traversed = 200;
     stats.execution_time_ms = 50;
-    
+
     assert_eq!(stats.nodes_visited, 100);
     assert_eq!(stats.edges_traversed, 200);
     assert_eq!(stats.execution_time_ms, 50);
@@ -136,7 +135,7 @@ fn test_multi_shortest_path_bidirectional_direction() {
 #[test]
 fn test_subgraph_config_default() {
     let config = SubgraphConfig::default();
-    
+
     assert_eq!(config.steps, 1);
     assert_eq!(config.edge_direction, ExecEdgeDirection::Out);
     assert!(config.edge_types.is_none());
@@ -153,7 +152,10 @@ fn test_subgraph_config_builder() {
 
     assert_eq!(config.steps, 3);
     assert_eq!(config.edge_direction, ExecEdgeDirection::Both);
-    assert_eq!(config.edge_types, Some(vec!["KNOWS".to_string(), "FRIEND".to_string()]));
+    assert_eq!(
+        config.edge_types,
+        Some(vec!["KNOWS".to_string(), "FRIEND".to_string()])
+    );
     assert_eq!(config.limit, Some(100));
 }
 
@@ -164,12 +166,7 @@ fn test_subgraph_executor_creation() {
 
     let config = SubgraphConfig::new(2);
 
-    let executor = SubgraphExecutor::new(
-        1,
-        storage.clone(),
-        vec![Value::from("alice")],
-        config,
-    );
+    let executor = SubgraphExecutor::new(1, storage.clone(), vec![Value::from("alice")], config);
 
     assert_eq!(executor.id(), 1);
     assert_eq!(executor.name(), "SubgraphExecutor");
@@ -186,7 +183,11 @@ fn test_subgraph_executor_multiple_start_vids() {
     let executor = SubgraphExecutor::new(
         1,
         storage.clone(),
-        vec![Value::from("alice"), Value::from("bob"), Value::from("charlie")],
+        vec![
+            Value::from("alice"),
+            Value::from("bob"),
+            Value::from("charlie"),
+        ],
         config,
     );
 
@@ -200,7 +201,7 @@ fn test_subgraph_executor_multiple_start_vids() {
 fn test_path_creation() {
     let vertex = Vertex::with_vid(Value::from("A"));
     let path = Path::new(vertex.clone());
-    
+
     assert_eq!(path.src.vid, Box::new(Value::from("A")));
     assert!(path.steps.is_empty());
 }
@@ -209,15 +210,11 @@ fn test_path_creation() {
 fn test_path_with_steps() {
     let src = Vertex::with_vid(Value::from("A"));
     let dst = Vertex::with_vid(Value::from("B"));
-    
+
     let mut path = Path::new(src);
-    path.steps.push(Step::new(
-        dst,
-        "KNOWS".to_string(),
-        "KNOWS".to_string(),
-        0,
-    ));
-    
+    path.steps
+        .push(Step::new(dst, "KNOWS".to_string(), "KNOWS".to_string(), 0));
+
     assert_eq!(path.steps.len(), 1);
     assert_eq!(path.steps[0].edge.edge_type, "KNOWS");
 }
@@ -225,7 +222,7 @@ fn test_path_with_steps() {
 #[test]
 fn test_vertex_with_vid() {
     let vertex = Vertex::with_vid(Value::from("test_id"));
-    
+
     assert_eq!(vertex.vid, Box::new(Value::from("test_id")));
     assert!(vertex.tags.is_empty());
     assert!(vertex.properties.is_empty());
@@ -233,12 +230,16 @@ fn test_vertex_with_vid() {
 
 #[test]
 fn test_vertex_with_tags() {
-    let tag = Tag::new("Person".to_string(), [
-        ("name".to_string(), Value::from("Alice")),
-    ].iter().cloned().collect());
-    
+    let tag = Tag::new(
+        "Person".to_string(),
+        [("name".to_string(), Value::from("Alice"))]
+            .iter()
+            .cloned()
+            .collect(),
+    );
+
     let vertex = Vertex::new(Value::from("alice"), vec![tag]);
-    
+
     assert_eq!(vertex.vid, Box::new(Value::from("alice")));
     assert_eq!(vertex.tags.len(), 1);
     assert_eq!(vertex.tags[0].name, "Person");
@@ -255,7 +256,7 @@ fn test_edge_creation() {
         0,
         HashMap::new(),
     );
-    
+
     assert_eq!(edge.src, Box::new(Value::from("A")));
     assert_eq!(edge.dst, Box::new(Value::from("B")));
     assert_eq!(edge.edge_type, "KNOWS");
@@ -266,7 +267,7 @@ fn test_edge_creation() {
 fn test_edge_with_properties() {
     let mut props = HashMap::new();
     props.insert("since".to_string(), Value::from("2020-01-01"));
-    
+
     let edge = Edge::new(
         Value::from("A"),
         Value::from("B"),
@@ -274,7 +275,7 @@ fn test_edge_with_properties() {
         1,
         props,
     );
-    
+
     assert_eq!(edge.ranking, 1);
     assert!(edge.props.contains_key("since"));
 }
@@ -289,7 +290,7 @@ fn test_multi_shortest_path_empty_start() {
     let executor = MultiShortestPathExecutor::new(
         1,
         storage.clone(),
-        vec![],  // 空起点
+        vec![], // 空起点
         vec![Value::from("bob")],
         ExecEdgeDirection::Out,
         None,
@@ -309,7 +310,7 @@ fn test_multi_shortest_path_empty_end() {
         1,
         storage.clone(),
         vec![Value::from("alice")],
-        vec![],  // 空终点
+        vec![], // 空终点
         ExecEdgeDirection::Out,
         None,
         10,
@@ -329,7 +330,7 @@ fn test_subgraph_empty_start() {
     let executor = SubgraphExecutor::new(
         1,
         storage.clone(),
-        vec![],  // 空起点
+        vec![], // 空起点
         config,
     );
 
@@ -342,14 +343,9 @@ fn test_subgraph_zero_steps() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
-    let config = SubgraphConfig::new(0);  // 0步
+    let config = SubgraphConfig::new(0); // 0步
 
-    let executor = SubgraphExecutor::new(
-        1,
-        storage.clone(),
-        vec![Value::from("alice")],
-        config,
-    );
+    let executor = SubgraphExecutor::new(1, storage.clone(), vec![Value::from("alice")], config);
 
     assert_eq!(executor.id(), 1);
     // 验证0步配置下执行器仍能创建
@@ -357,16 +353,14 @@ fn test_subgraph_zero_steps() {
 
 #[test]
 fn test_algorithm_context_with_zero_limit() {
-    let context = AlgorithmContext::new()
-        .with_limit(0);
-    
+    let context = AlgorithmContext::new().with_limit(0);
+
     assert_eq!(context.limit, 0);
 }
 
 #[test]
 fn test_algorithm_context_with_max_depth_zero() {
-    let context = AlgorithmContext::new()
-        .with_max_depth(Some(0));
+    let context = AlgorithmContext::new().with_max_depth(Some(0));
 
     assert_eq!(context.max_depth, Some(0));
 }
@@ -380,13 +374,11 @@ fn test_algorithm_context_with_loop() {
     assert!(!context_default.with_loop);
 
     // 测试设置 with_loop 为 true
-    let context_with_loop = AlgorithmContext::new()
-        .with_loop(true);
+    let context_with_loop = AlgorithmContext::new().with_loop(true);
     assert!(context_with_loop.with_loop);
 
     // 测试设置 with_loop 为 false
-    let context_no_loop = AlgorithmContext::new()
-        .with_loop(false);
+    let context_no_loop = AlgorithmContext::new().with_loop(false);
     assert!(!context_no_loop.with_loop);
 }
 
@@ -415,23 +407,14 @@ fn test_expand_executor_with_loop() {
     let storage = test_storage.storage();
 
     // 创建默认执行器（with_loop = false）
-    let executor_default = ExpandExecutor::new(
-        1,
-        storage.clone(),
-        ExecEdgeDirection::Out,
-        None,
-        Some(3),
-    );
+    let executor_default =
+        ExpandExecutor::new(1, storage.clone(), ExecEdgeDirection::Out, None, Some(3));
     assert!(!executor_default.with_loop);
 
     // 创建允许自环边的执行器
-    let executor_with_loop = ExpandExecutor::new(
-        2,
-        storage.clone(),
-        ExecEdgeDirection::Out,
-        None,
-        Some(3),
-    ).with_loop(true);
+    let executor_with_loop =
+        ExpandExecutor::new(2, storage.clone(), ExecEdgeDirection::Out, None, Some(3))
+            .with_loop(true);
     assert!(executor_with_loop.with_loop);
 }
 
@@ -463,7 +446,8 @@ fn test_all_paths_executor_with_loop() {
         ExecEdgeDirection::Both,
         None,
         5,
-    ).with_loop(true);
+    )
+    .with_loop(true);
     assert!(executor_with_loop.with_loop);
 }
 
@@ -471,10 +455,10 @@ fn test_all_paths_executor_with_loop() {
 
 #[test]
 fn test_weighted_shortest_path_executor_creation() {
-    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
     use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
-        EdgeWeightConfig, ShortestPathAlgorithmType
+        EdgeWeightConfig, ShortestPathAlgorithmType,
     };
+    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
@@ -498,10 +482,10 @@ fn test_weighted_shortest_path_executor_creation() {
 
 #[test]
 fn test_weighted_shortest_path_with_ranking() {
-    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
     use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
-        EdgeWeightConfig, ShortestPathAlgorithmType
+        EdgeWeightConfig, ShortestPathAlgorithmType,
     };
+    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
@@ -524,10 +508,10 @@ fn test_weighted_shortest_path_with_ranking() {
 
 #[test]
 fn test_weighted_shortest_path_astar() {
-    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
     use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
-        EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType
+        EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType,
     };
+    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
@@ -558,7 +542,11 @@ fn test_weighted_path_query_parser_integration() {
     let mut parser = Parser::new(query);
     let result = parser.parse();
 
-    assert!(result.is_ok(), "带权路径查询解析应该成功: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "带权路径查询解析应该成功: {:?}",
+        result.err()
+    );
 
     let stmt = result.expect("解析应该成功");
     assert_eq!(stmt.kind(), "FIND PATH");
@@ -573,7 +561,11 @@ fn test_weighted_path_query_with_ranking_parser() {
     let mut parser = Parser::new(query);
     let result = parser.parse();
 
-    assert!(result.is_ok(), "使用ranking权重的路径查询解析应该成功: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "使用ranking权重的路径查询解析应该成功: {:?}",
+        result.err()
+    );
 }
 
 #[test]
@@ -585,5 +577,9 @@ fn test_unweighted_path_query_parser() {
     let mut parser = Parser::new(query);
     let result = parser.parse();
 
-    assert!(result.is_ok(), "无权路径查询解析应该成功: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "无权路径查询解析应该成功: {:?}",
+        result.err()
+    );
 }

@@ -8,47 +8,21 @@
 
 mod common;
 
-use graphdb::query::planner::rewrite::{
-    RewriteRuleEnum,
-    RuleRegistry,
-    PlanRewriter,
-    create_default_rewriter,
-    EliminateFilterRule,
-    RemoveNoopProjectRule,
-    EliminateAppendVerticesRule,
-    RemoveAppendVerticesBelowJoinRule,
-    EliminateRowCollectRule,
-    EliminateEmptySetOperationRule,
-    DedupEliminationRule,
-    CombineFilterRule,
-    CollapseProjectRule,
-    CollapseConsecutiveProjectRule,
-    MergeGetVerticesAndProjectRule,
-    MergeGetVerticesAndDedupRule,
-    MergeGetNbrsAndProjectRule,
-    MergeGetNbrsAndDedupRule,
-    PushFilterDownTraverseRule,
-    PushFilterDownExpandAllRule,
-    PushFilterDownNodeRule,
-    PushEFilterDownRule,
-    PushVFilterDownScanVerticesRule,
-    PushFilterDownInnerJoinRule,
-    PushFilterDownHashInnerJoinRule,
-    PushFilterDownHashLeftJoinRule,
-    PushFilterDownCrossJoinRule,
-    PushFilterDownGetNbrsRule,
-    PushFilterDownAllPathsRule,
-    ProjectionPushDownRule,
-    PushProjectDownRule,
-    PushLimitDownGetVerticesRule,
-    PushLimitDownGetEdgesRule,
-    PushLimitDownScanVerticesRule,
-    PushLimitDownScanEdgesRule,
-    PushLimitDownIndexScanRule,
-    PushTopNDownIndexScanRule,
-    PushFilterDownAggregateRule,
-};
 use graphdb::query::planner::rewrite::rule::RewriteRule;
+use graphdb::query::planner::rewrite::{
+    create_default_rewriter, CollapseConsecutiveProjectRule, CollapseProjectRule,
+    CombineFilterRule, DedupEliminationRule, EliminateAppendVerticesRule,
+    EliminateEmptySetOperationRule, EliminateFilterRule, EliminateRowCollectRule,
+    MergeGetNbrsAndDedupRule, MergeGetNbrsAndProjectRule, MergeGetVerticesAndDedupRule,
+    MergeGetVerticesAndProjectRule, PlanRewriter, ProjectionPushDownRule, PushEFilterDownRule,
+    PushFilterDownAggregateRule, PushFilterDownAllPathsRule, PushFilterDownCrossJoinRule,
+    PushFilterDownExpandAllRule, PushFilterDownGetNbrsRule, PushFilterDownHashInnerJoinRule,
+    PushFilterDownHashLeftJoinRule, PushFilterDownInnerJoinRule, PushFilterDownNodeRule,
+    PushFilterDownTraverseRule, PushLimitDownGetEdgesRule, PushLimitDownGetVerticesRule,
+    PushLimitDownIndexScanRule, PushLimitDownScanEdgesRule, PushLimitDownScanVerticesRule,
+    PushProjectDownRule, PushTopNDownIndexScanRule, PushVFilterDownScanVerticesRule,
+    RemoveAppendVerticesBelowJoinRule, RemoveNoopProjectRule, RewriteRuleEnum, RuleRegistry,
+};
 
 // ==================== RuleRegistry 集成测试 ====================
 
@@ -85,9 +59,7 @@ fn test_rule_registry_new() {
 fn test_rule_registry_add() {
     let mut registry = RuleRegistry::new();
 
-    registry.add(RewriteRuleEnum::EliminateFilter(
-        EliminateFilterRule::new()
-    ));
+    registry.add(RewriteRuleEnum::EliminateFilter(EliminateFilterRule::new()));
 
     assert_eq!(registry.len(), 1, "添加一个规则后长度应为 1");
     assert!(!registry.is_empty(), "添加规则后不应为空");
@@ -160,9 +132,7 @@ fn test_rewrite_rule_names() {
         "PushFilterDownAggregateRule",
     ];
 
-    let mut actual_names: Vec<_> = registry.iter()
-        .map(|rule| rule.name())
-        .collect();
+    let mut actual_names: Vec<_> = registry.iter().map(|rule| rule.name()).collect();
 
     actual_names.sort();
     let mut expected_sorted = expected_names.clone();
@@ -173,9 +143,7 @@ fn test_rewrite_rule_names() {
 
 #[test]
 fn test_rewrite_rule_pattern() {
-    let rule = RewriteRuleEnum::EliminateFilter(
-        EliminateFilterRule::new()
-    );
+    let rule = RewriteRuleEnum::EliminateFilter(EliminateFilterRule::new());
 
     let pattern = rule.pattern();
     // 验证 pattern 方法可以正常调用
@@ -184,9 +152,7 @@ fn test_rewrite_rule_pattern() {
 
 #[test]
 fn test_rewrite_rule_trait_methods() {
-    let rule = RewriteRuleEnum::EliminateFilter(
-        EliminateFilterRule::new()
-    );
+    let rule = RewriteRuleEnum::EliminateFilter(EliminateFilterRule::new());
 
     // 测试 RewriteRule trait 方法
     let name = rule.name();
@@ -252,16 +218,20 @@ fn test_static_dispatch_overhead() {
 fn test_elimination_rules_count() {
     let registry = RuleRegistry::default();
 
-    let elimination_rules: Vec<_> = registry.iter()
-        .filter(|rule| matches!(rule,
-            RewriteRuleEnum::EliminateFilter(_) |
-            RewriteRuleEnum::RemoveNoopProject(_) |
-            RewriteRuleEnum::EliminateAppendVertices(_) |
-            RewriteRuleEnum::RemoveAppendVerticesBelowJoin(_) |
-            RewriteRuleEnum::EliminateRowCollect(_) |
-            RewriteRuleEnum::EliminateEmptySetOperation(_) |
-            RewriteRuleEnum::DedupElimination(_)
-        ))
+    let elimination_rules: Vec<_> = registry
+        .iter()
+        .filter(|rule| {
+            matches!(
+                rule,
+                RewriteRuleEnum::EliminateFilter(_)
+                    | RewriteRuleEnum::RemoveNoopProject(_)
+                    | RewriteRuleEnum::EliminateAppendVertices(_)
+                    | RewriteRuleEnum::RemoveAppendVerticesBelowJoin(_)
+                    | RewriteRuleEnum::EliminateRowCollect(_)
+                    | RewriteRuleEnum::EliminateEmptySetOperation(_)
+                    | RewriteRuleEnum::DedupElimination(_)
+            )
+        })
         .collect();
 
     assert_eq!(elimination_rules.len(), 7, "应有 7 个消除规则");
@@ -271,16 +241,20 @@ fn test_elimination_rules_count() {
 fn test_merge_rules_count() {
     let registry = RuleRegistry::default();
 
-    let merge_rules: Vec<_> = registry.iter()
-        .filter(|rule| matches!(rule,
-            RewriteRuleEnum::CombineFilter(_) |
-            RewriteRuleEnum::CollapseProject(_) |
-            RewriteRuleEnum::CollapseConsecutiveProject(_) |
-            RewriteRuleEnum::MergeGetVerticesAndProject(_) |
-            RewriteRuleEnum::MergeGetVerticesAndDedup(_) |
-            RewriteRuleEnum::MergeGetNbrsAndProject(_) |
-            RewriteRuleEnum::MergeGetNbrsAndDedup(_)
-        ))
+    let merge_rules: Vec<_> = registry
+        .iter()
+        .filter(|rule| {
+            matches!(
+                rule,
+                RewriteRuleEnum::CombineFilter(_)
+                    | RewriteRuleEnum::CollapseProject(_)
+                    | RewriteRuleEnum::CollapseConsecutiveProject(_)
+                    | RewriteRuleEnum::MergeGetVerticesAndProject(_)
+                    | RewriteRuleEnum::MergeGetVerticesAndDedup(_)
+                    | RewriteRuleEnum::MergeGetNbrsAndProject(_)
+                    | RewriteRuleEnum::MergeGetNbrsAndDedup(_)
+            )
+        })
         .collect();
 
     assert_eq!(merge_rules.len(), 7, "应有 7 个合并规则");
@@ -290,20 +264,24 @@ fn test_merge_rules_count() {
 fn test_predicate_pushdown_rules_count() {
     let registry = RuleRegistry::default();
 
-    let predicate_pushdown_rules: Vec<_> = registry.iter()
-        .filter(|rule| matches!(rule,
-            RewriteRuleEnum::PushFilterDownTraverse(_) |
-            RewriteRuleEnum::PushFilterDownExpandAll(_) |
-            RewriteRuleEnum::PushFilterDownNode(_) |
-            RewriteRuleEnum::PushEFilterDown(_) |
-            RewriteRuleEnum::PushVFilterDownScanVertices(_) |
-            RewriteRuleEnum::PushFilterDownInnerJoin(_) |
-            RewriteRuleEnum::PushFilterDownHashInnerJoin(_) |
-            RewriteRuleEnum::PushFilterDownHashLeftJoin(_) |
-            RewriteRuleEnum::PushFilterDownCrossJoin(_) |
-            RewriteRuleEnum::PushFilterDownGetNbrs(_) |
-            RewriteRuleEnum::PushFilterDownAllPaths(_)
-        ))
+    let predicate_pushdown_rules: Vec<_> = registry
+        .iter()
+        .filter(|rule| {
+            matches!(
+                rule,
+                RewriteRuleEnum::PushFilterDownTraverse(_)
+                    | RewriteRuleEnum::PushFilterDownExpandAll(_)
+                    | RewriteRuleEnum::PushFilterDownNode(_)
+                    | RewriteRuleEnum::PushEFilterDown(_)
+                    | RewriteRuleEnum::PushVFilterDownScanVertices(_)
+                    | RewriteRuleEnum::PushFilterDownInnerJoin(_)
+                    | RewriteRuleEnum::PushFilterDownHashInnerJoin(_)
+                    | RewriteRuleEnum::PushFilterDownHashLeftJoin(_)
+                    | RewriteRuleEnum::PushFilterDownCrossJoin(_)
+                    | RewriteRuleEnum::PushFilterDownGetNbrs(_)
+                    | RewriteRuleEnum::PushFilterDownAllPaths(_)
+            )
+        })
         .collect();
 
     assert_eq!(predicate_pushdown_rules.len(), 11, "应有 11 个谓词下推规则");
@@ -313,11 +291,14 @@ fn test_predicate_pushdown_rules_count() {
 fn test_projection_pushdown_rules_count() {
     let registry = RuleRegistry::default();
 
-    let projection_pushdown_rules: Vec<_> = registry.iter()
-        .filter(|rule| matches!(rule,
-            RewriteRuleEnum::ProjectionPushDown(_) |
-            RewriteRuleEnum::PushProjectDown(_)
-        ))
+    let projection_pushdown_rules: Vec<_> = registry
+        .iter()
+        .filter(|rule| {
+            matches!(
+                rule,
+                RewriteRuleEnum::ProjectionPushDown(_) | RewriteRuleEnum::PushProjectDown(_)
+            )
+        })
         .collect();
 
     assert_eq!(projection_pushdown_rules.len(), 2, "应有 2 个投影下推规则");
@@ -327,15 +308,19 @@ fn test_projection_pushdown_rules_count() {
 fn test_limit_pushdown_rules_count() {
     let registry = RuleRegistry::default();
 
-    let limit_pushdown_rules: Vec<_> = registry.iter()
-        .filter(|rule| matches!(rule,
-            RewriteRuleEnum::PushLimitDownGetVertices(_) |
-            RewriteRuleEnum::PushLimitDownGetEdges(_) |
-            RewriteRuleEnum::PushLimitDownScanVertices(_) |
-            RewriteRuleEnum::PushLimitDownScanEdges(_) |
-            RewriteRuleEnum::PushLimitDownIndexScan(_) |
-            RewriteRuleEnum::PushTopNDownIndexScan(_)
-        ))
+    let limit_pushdown_rules: Vec<_> = registry
+        .iter()
+        .filter(|rule| {
+            matches!(
+                rule,
+                RewriteRuleEnum::PushLimitDownGetVertices(_)
+                    | RewriteRuleEnum::PushLimitDownGetEdges(_)
+                    | RewriteRuleEnum::PushLimitDownScanVertices(_)
+                    | RewriteRuleEnum::PushLimitDownScanEdges(_)
+                    | RewriteRuleEnum::PushLimitDownIndexScan(_)
+                    | RewriteRuleEnum::PushTopNDownIndexScan(_)
+            )
+        })
         .collect();
 
     assert_eq!(limit_pushdown_rules.len(), 6, "应有 6 个 LIMIT 下推规则");
@@ -345,10 +330,9 @@ fn test_limit_pushdown_rules_count() {
 fn test_aggregate_rules_count() {
     let registry = RuleRegistry::default();
 
-    let aggregate_rules: Vec<_> = registry.iter()
-        .filter(|rule| matches!(rule,
-            RewriteRuleEnum::PushFilterDownAggregate(_)
-        ))
+    let aggregate_rules: Vec<_> = registry
+        .iter()
+        .filter(|rule| matches!(rule, RewriteRuleEnum::PushFilterDownAggregate(_)))
         .collect();
 
     assert_eq!(aggregate_rules.len(), 1, "应有 1 个聚合优化规则");
@@ -360,9 +344,7 @@ fn test_aggregate_rules_count() {
 fn test_rule_names_unique() {
     let registry = RuleRegistry::default();
 
-    let mut names: Vec<_> = registry.iter()
-        .map(|rule| rule.name())
-        .collect();
+    let mut names: Vec<_> = registry.iter().map(|rule| rule.name()).collect();
 
     names.sort();
     names.dedup();

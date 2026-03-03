@@ -1,14 +1,11 @@
 use axum::{
-    extract::{Path, State, Json},
+    extract::{Json, Path, State},
     http::StatusCode,
     response::Json as JsonResponse,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::api::server::http::{
-    state::AppState,
-    error::HttpError,
-};
+use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
 
 #[derive(Debug, Deserialize)]
@@ -33,7 +30,7 @@ pub async fn create<S: StorageClient + Clone + Send + Sync + 'static>(
         .create_session(request.username, request.client_ip)
         .await
         .map_err(|e| HttpError::BadRequest(format!("创建会话失败: {}", e)))?;
-    
+
     Ok(JsonResponse(SessionResponse {
         session_id: session.id(),
         username: session.user(),
@@ -52,7 +49,7 @@ pub async fn get_session<S: StorageClient + Clone + Send + Sync + 'static>(
     let session = session_manager
         .find_session(session_id)
         .ok_or_else(|| HttpError::NotFound("会话不存在".to_string()))?;
-    
+
     Ok(JsonResponse(serde_json::json!({
         "session_id": session.id(),
         "username": session.user(),

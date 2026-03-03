@@ -36,8 +36,7 @@ pub use limit::LimitExecutor;
 // 聚合执行器
 pub mod aggregation;
 pub use aggregation::{
-    AggregateExecutor, AggregateFunctionSpec, GroupAggregateState, GroupByExecutor,
-    HavingExecutor,
+    AggregateExecutor, AggregateFunctionSpec, GroupAggregateState, GroupByExecutor, HavingExecutor,
 };
 
 pub use crate::core::types::operators::AggregateFunction;
@@ -67,5 +66,6 @@ pub use topn::TopNExecutor;
 // - RollUpApply（聚合操作）
 pub mod transformations;
 pub use transformations::{
-    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor, UnwindExecutor,
+    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
+    UnwindExecutor,
 };

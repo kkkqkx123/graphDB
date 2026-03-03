@@ -170,8 +170,7 @@ impl SymbolTable {
             return Err(format!("变量 '{}' 已存在", name));
         }
 
-        let symbol = Symbol::new(name, DataType::DataSet)
-            .with_col_names(col_names);
+        let symbol = Symbol::new(name, DataType::DataSet).with_col_names(col_names);
         symbols.insert(name.to_string(), symbol.clone());
 
         Ok(symbol)
@@ -235,12 +234,7 @@ impl SymbolTable {
         }
     }
 
-    pub fn update_read_by(
-        &self,
-        old_var: &str,
-        new_var: &str,
-        node_id: i64,
-    ) -> bool {
+    pub fn update_read_by(&self, old_var: &str, new_var: &str, node_id: i64) -> bool {
         let mut symbols = self.symbols.write();
         let mut success = false;
 
@@ -259,12 +253,7 @@ impl SymbolTable {
         success
     }
 
-    pub fn update_written_by(
-        &self,
-        old_var: &str,
-        new_var: &str,
-        node_id: i64,
-    ) -> bool {
+    pub fn update_written_by(&self, old_var: &str, new_var: &str, node_id: i64) -> bool {
         let mut symbols = self.symbols.write();
         let mut success = false;
 
@@ -427,7 +416,9 @@ mod tests {
         let table = SymbolTable::new();
         let info = VariableInfo::new("var1".to_string(), DataType::DataSet)
             .with_source_clause("MATCH".to_string());
-        table.new_variable_with_info("var1", info).expect("创建变量失败");
+        table
+            .new_variable_with_info("var1", info)
+            .expect("创建变量失败");
 
         let vars = table.get_variables_by_source("MATCH");
         assert_eq!(vars.len(), 1);
@@ -437,9 +428,10 @@ mod tests {
     #[test]
     fn test_get_aggregated_variables() {
         let table = SymbolTable::new();
-        let info = VariableInfo::new("var1".to_string(), DataType::DataSet)
-            .with_aggregated(true);
-        table.new_variable_with_info("var1", info).expect("创建变量失败");
+        let info = VariableInfo::new("var1".to_string(), DataType::DataSet).with_aggregated(true);
+        table
+            .new_variable_with_info("var1", info)
+            .expect("创建变量失败");
         table.new_variable("var2").expect("创建变量失败");
 
         let vars = table.get_aggregated_variables();

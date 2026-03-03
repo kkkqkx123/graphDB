@@ -3,26 +3,24 @@
 //! 实现高效的 TopN 查询，使用堆数据结构优化性能
 //! CPU 密集型操作，使用 Rayon 进行并行化
 
+use parking_lot::Mutex;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use rayon::prelude::*;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::Expression;
 use crate::core::types::OrderDirection;
+use crate::core::Expression;
 use crate::core::{DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::ParallelConfig;
-use crate::query::executor::base::{
-    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
-};
-use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
 
 /// 排序列定义
@@ -325,47 +323,57 @@ impl<S: StorageClient> TopNExecutor<S> {
         if is_ascending {
             let mut items: Vec<TopNItemParallel> = rows_with_values
                 .into_iter()
-                .map(|(sort_value, row)| TopNItemParallel {
-                    sort_value,
-                    row,
-                })
+                .map(|(sort_value, row)| TopNItemParallel { sort_value, row })
                 .collect();
 
             if items.len() > target_count {
                 items.select_nth_unstable_by(target_count, |a, b| {
-                    a.sort_value.partial_cmp(&b.sort_value).unwrap_or(Ordering::Equal)
+                    a.sort_value
+                        .partial_cmp(&b.sort_value)
+                        .unwrap_or(Ordering::Equal)
                 });
                 items.truncate(target_count);
             }
 
             items.sort_by(|a, b| {
-                a.sort_value.partial_cmp(&b.sort_value).unwrap_or(Ordering::Equal)
+                a.sort_value
+                    .partial_cmp(&b.sort_value)
+                    .unwrap_or(Ordering::Equal)
             });
             items.truncate(self.n);
 
-            dataset.rows = items.into_iter().skip(self.offset).map(|item| item.row).collect();
+            dataset.rows = items
+                .into_iter()
+                .skip(self.offset)
+                .map(|item| item.row)
+                .collect();
         } else {
             let mut items: Vec<TopNItemParallel> = rows_with_values
                 .into_iter()
-                .map(|(sort_value, row)| TopNItemParallel {
-                    sort_value,
-                    row,
-                })
+                .map(|(sort_value, row)| TopNItemParallel { sort_value, row })
                 .collect();
 
             if items.len() > target_count {
                 items.select_nth_unstable_by(target_count, |a, b| {
-                    b.sort_value.partial_cmp(&a.sort_value).unwrap_or(Ordering::Equal)
+                    b.sort_value
+                        .partial_cmp(&a.sort_value)
+                        .unwrap_or(Ordering::Equal)
                 });
                 items.truncate(target_count);
             }
 
             items.sort_by(|a, b| {
-                b.sort_value.partial_cmp(&a.sort_value).unwrap_or(Ordering::Equal)
+                b.sort_value
+                    .partial_cmp(&a.sort_value)
+                    .unwrap_or(Ordering::Equal)
             });
             items.truncate(self.n);
 
-            dataset.rows = items.into_iter().skip(self.offset).map(|item| item.row).collect();
+            dataset.rows = items
+                .into_iter()
+                .skip(self.offset)
+                .map(|item| item.row)
+                .collect();
         }
 
         Ok(dataset)
@@ -605,9 +613,8 @@ impl<S: StorageClient> TopNExecutor<S> {
         // 2. 使用select_nth_unstable优化TopN查询
         if vertices_with_sort_values.len() > heap_size {
             // 使用select_nth_unstable选择前heap_size个元素
-            vertices_with_sort_values.select_nth_unstable_by(heap_size, |a, b| {
-                self.compare_sort_values(&a.0, &b.0)
-            });
+            vertices_with_sort_values
+                .select_nth_unstable_by(heap_size, |a, b| self.compare_sort_values(&a.0, &b.0));
             vertices_with_sort_values.truncate(heap_size);
         }
 
@@ -618,7 +625,12 @@ impl<S: StorageClient> TopNExecutor<S> {
         let start = self.offset.min(vertices_with_sort_values.len());
         let end = (self.n + self.offset).min(vertices_with_sort_values.len());
 
-        Ok(vertices_with_sort_values.into_iter().skip(start).take(end - start).map(|(_, v)| v).collect())
+        Ok(vertices_with_sort_values
+            .into_iter()
+            .skip(start)
+            .take(end - start)
+            .map(|(_, v)| v)
+            .collect())
     }
 
     /// 对边列表执行 TopN
@@ -666,9 +678,8 @@ impl<S: StorageClient> TopNExecutor<S> {
         // 2. 使用select_nth_unstable优化TopN查询
         if edges_with_sort_values.len() > heap_size {
             // 使用select_nth_unstable选择前heap_size个元素
-            edges_with_sort_values.select_nth_unstable_by(heap_size, |a, b| {
-                self.compare_sort_values(&a.0, &b.0)
-            });
+            edges_with_sort_values
+                .select_nth_unstable_by(heap_size, |a, b| self.compare_sort_values(&a.0, &b.0));
             edges_with_sort_values.truncate(heap_size);
         }
 
@@ -679,7 +690,12 @@ impl<S: StorageClient> TopNExecutor<S> {
         let start = self.offset.min(edges_with_sort_values.len());
         let end = (self.n + self.offset).min(edges_with_sort_values.len());
 
-        Ok(edges_with_sort_values.into_iter().skip(start).take(end - start).map(|(_, e)| e).collect())
+        Ok(edges_with_sort_values
+            .into_iter()
+            .skip(start)
+            .take(end - start)
+            .map(|(_, e)| e)
+            .collect())
     }
 
     /// 对值列表执行 TopN
@@ -719,7 +735,12 @@ impl<S: StorageClient> TopNExecutor<S> {
         let start = self.offset.min(rows.len());
         let end = (self.n + self.offset).min(rows.len());
 
-        Ok(rows.into_iter().skip(start).take(end - start).map(|row| row.into_iter().next().expect("row不应为空")).collect())
+        Ok(rows
+            .into_iter()
+            .skip(start)
+            .take(end - start)
+            .map(|row| row.into_iter().next().expect("row不应为空"))
+            .collect())
     }
 
     /// 计算堆大小
@@ -758,7 +779,11 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// 从顶点中提取值
-    fn extract_value_from_vertex(&self, vertex: &crate::core::Vertex, expression: &Expression) -> DBResult<Value> {
+    fn extract_value_from_vertex(
+        &self,
+        vertex: &crate::core::Vertex,
+        expression: &Expression,
+    ) -> DBResult<Value> {
         match expression {
             Expression::Variable(name) => {
                 // 尝试从属性中获取
@@ -774,7 +799,8 @@ impl<S: StorageClient> TopNExecutor<S> {
             }
             Expression::Property { object, property } => {
                 if object.as_ref() == &Expression::Variable("v".to_string())
-                    || object.as_ref() == &Expression::Variable("vertex".to_string()) {
+                    || object.as_ref() == &Expression::Variable("vertex".to_string())
+                {
                     if let Some(value) = vertex.get_property_any(property) {
                         Ok(value.clone())
                     } else {
@@ -798,14 +824,21 @@ impl<S: StorageClient> TopNExecutor<S> {
                     }
                 }
 
-                ExpressionEvaluator::evaluate(expression, &mut context)
-                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))
+                ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                })
             }
         }
     }
 
     /// 从边中提取值
-    fn extract_value_from_edge(&self, edge: &crate::core::Edge, expression: &Expression) -> DBResult<Value> {
+    fn extract_value_from_edge(
+        &self,
+        edge: &crate::core::Edge,
+        expression: &Expression,
+    ) -> DBResult<Value> {
         match expression {
             Expression::Variable(name) => {
                 if name == "src" || name == "_src" {
@@ -824,7 +857,8 @@ impl<S: StorageClient> TopNExecutor<S> {
             }
             Expression::Property { object, property } => {
                 if object.as_ref() == &Expression::Variable("e".to_string())
-                    || object.as_ref() == &Expression::Variable("edge".to_string()) {
+                    || object.as_ref() == &Expression::Variable("edge".to_string())
+                {
                     if let Some(value) = edge.get_property(property) {
                         Ok(value.clone())
                     } else {
@@ -841,15 +875,21 @@ impl<S: StorageClient> TopNExecutor<S> {
                 context.set_variable("src".to_string(), *edge.src.clone());
                 context.set_variable("dst".to_string(), *edge.dst.clone());
                 context.set_variable("ranking".to_string(), Value::Int(edge.ranking));
-                context.set_variable("edge_type".to_string(), Value::String(edge.edge_type.clone()));
+                context.set_variable(
+                    "edge_type".to_string(),
+                    Value::String(edge.edge_type.clone()),
+                );
 
                 // 添加所有属性到上下文
                 for (prop_name, prop_value) in &edge.props {
                     context.set_variable(prop_name.clone(), prop_value.clone());
                 }
 
-                ExpressionEvaluator::evaluate(expression, &mut context)
-                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))
+                ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                })
             }
         }
     }
@@ -871,7 +911,9 @@ impl<S: StorageClient> TopNExecutor<S> {
             if comparison != Ordering::Equal {
                 return match order {
                     crate::query::executor::result_processing::sort::SortOrder::Asc => comparison,
-                    crate::query::executor::result_processing::sort::SortOrder::Desc => comparison.reverse(),
+                    crate::query::executor::result_processing::sort::SortOrder::Desc => {
+                        comparison.reverse()
+                    }
                 };
             }
         }
@@ -881,7 +923,9 @@ impl<S: StorageClient> TopNExecutor<S> {
     /// 比较两行数据（用于值列表排序）
     fn compare_rows(&self, a: &[Value], b: &[Value]) -> DBResult<Ordering> {
         // 创建虚拟列名
-        let col_names: Vec<String> = (0..a.len().max(b.len())).map(|i| format!("col_{}", i)).collect();
+        let col_names: Vec<String> = (0..a.len().max(b.len()))
+            .map(|i| format!("col_{}", i))
+            .collect();
 
         // 计算排序值
         let sort_values_a = self.calculate_sort_value(a, &col_names)?;
@@ -998,7 +1042,9 @@ impl<S: StorageClient> TopNExecutor<S> {
 
     /// 推入堆中
     pub fn push_to_heap(&mut self, item: TopNItem) -> Result<(), TopNError> {
-        let heap = self.heap.get_or_insert_with(|| BinaryHeap::with_capacity(self.n + 1));
+        let heap = self
+            .heap
+            .get_or_insert_with(|| BinaryHeap::with_capacity(self.n + 1));
 
         heap.push(item);
 
@@ -1179,9 +1225,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
     fn open(&mut self) -> DBResult<()> {
         if self.is_open {
             return Err(DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Executor already open".to_string(),
-                ),
+                crate::core::error::QueryError::ExecutionError("Executor already open".to_string()),
             ));
         }
 
@@ -1257,9 +1301,11 @@ impl<S: StorageClient + Send + Sync + 'static> TopNExecutor<S> {
     }
 
     fn fallback_to_external_sort(&mut self) -> DBResult<ExecutionResult> {
-        Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
-            "Memory limit exceeded, consider reducing the dataset size or N value".to_string(),
-        )))
+        Err(DBError::Query(
+            crate::core::error::QueryError::ExecutionError(
+                "Memory limit exceeded, consider reducing the dataset size or N value".to_string(),
+            ),
+        ))
     }
 }
 

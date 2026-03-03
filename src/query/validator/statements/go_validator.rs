@@ -7,17 +7,15 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::DataType;
 use crate::core::types::EdgeDirection;
-use crate::query::QueryContext;
+use crate::core::DataType;
 use crate::query::parser::ast::Stmt;
+use crate::query::validator::structs::validation_info::{OptimizationHint, ValidationInfo};
+use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::query::validator::structs::validation_info::{
-    ValidationInfo, OptimizationHint,
-};
-use crate::query::validator::structs::AliasType;
+use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的 GO 语句信息
@@ -126,12 +124,17 @@ impl GoValidator {
     }
 
     /// 验证 FROM 子句
-    fn validate_from_clause(&mut self, from_vertices: &[ContextualExpression]) -> Result<GoSource, ValidationError> {
+    fn validate_from_clause(
+        &mut self,
+        from_vertices: &[ContextualExpression],
+    ) -> Result<GoSource, ValidationError> {
         // 取第一个顶点表达式作为源
-        let from_expr = from_vertices.first().ok_or_else(|| ValidationError::new(
-            "FROM 子句不能为空".to_string(),
-            ValidationErrorType::SemanticError,
-        ))?;
+        let from_expr = from_vertices.first().ok_or_else(|| {
+            ValidationError::new(
+                "FROM 子句不能为空".to_string(),
+                ValidationErrorType::SemanticError,
+            )
+        })?;
 
         if from_expr.expression().is_none() {
             return Err(ValidationError::new(
@@ -140,8 +143,9 @@ impl GoValidator {
             ));
         }
 
-        let is_variable = from_expr.is_variable() && from_expr.as_variable().as_deref() != Some("$-");
-         
+        let is_variable =
+            from_expr.is_variable() && from_expr.as_variable().as_deref() != Some("$-");
+
         let source_type = if let Some(var_name) = from_expr.as_variable() {
             if var_name == "$-" {
                 GoSourceType::Expression
@@ -168,7 +172,10 @@ impl GoValidator {
     }
 
     /// 验证 OVER 子句
-    fn validate_over_clause(&mut self, edge_names: &[String]) -> Result<Vec<OverEdge>, ValidationError> {
+    fn validate_over_clause(
+        &mut self,
+        edge_names: &[String],
+    ) -> Result<Vec<OverEdge>, ValidationError> {
         if edge_names.is_empty() {
             return Err(ValidationError::new(
                 "OVER 子句必须指定至少一条边".to_string(),
@@ -199,10 +206,13 @@ impl GoValidator {
     }
 
     /// 验证 WHERE 子句
-    fn validate_where_clause(&mut self, filter: &Option<ContextualExpression>) -> Result<Option<ContextualExpression>, ValidationError> {
+    fn validate_where_clause(
+        &mut self,
+        filter: &Option<ContextualExpression>,
+    ) -> Result<Option<ContextualExpression>, ValidationError> {
         if let Some(ref expr) = filter {
             self.validate_expression(expr)?;
-            
+
             // WHERE 子句应该返回布尔类型
             // 简化处理：假设表达式有效
             Ok(Some(expr.clone()))
@@ -212,7 +222,10 @@ impl GoValidator {
     }
 
     /// 验证 YIELD 子句
-    fn validate_yield_clause(&mut self, items: &[(ContextualExpression, Option<String>)]) -> Result<Vec<GoYieldColumn>, ValidationError> {
+    fn validate_yield_clause(
+        &mut self,
+        items: &[(ContextualExpression, Option<String>)],
+    ) -> Result<Vec<GoYieldColumn>, ValidationError> {
         let mut column_names = HashMap::new();
         let mut yield_columns = Vec::new();
 
@@ -220,7 +233,7 @@ impl GoValidator {
             self.validate_expression(expr)?;
 
             let col_alias = alias.clone().unwrap_or_else(|| format!("column_{}", i));
-            
+
             if column_names.contains_key(&col_alias) {
                 return Err(ValidationError::new(
                     format!("YIELD 列别名 '{}' 重复出现", col_alias),
@@ -240,7 +253,10 @@ impl GoValidator {
     }
 
     /// 验证步数范围
-    fn validate_step_range(&mut self, steps: &crate::query::parser::ast::stmt::Steps) -> Result<Option<StepRange>, ValidationError> {
+    fn validate_step_range(
+        &mut self,
+        steps: &crate::query::parser::ast::stmt::Steps,
+    ) -> Result<Option<StepRange>, ValidationError> {
         match steps {
             crate::query::parser::ast::stmt::Steps::Fixed(n) => {
                 let n_i32 = *n as i32;
@@ -283,14 +299,17 @@ impl GoValidator {
     }
 
     /// 验证表达式
-    fn validate_expression(&mut self, expression: &ContextualExpression) -> Result<(), ValidationError> {
+    fn validate_expression(
+        &mut self,
+        expression: &ContextualExpression,
+    ) -> Result<(), ValidationError> {
         if expression.expression().is_none() {
             return Err(ValidationError::new(
                 "表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
-        
+
         // 检查变量是否已定义
         if expression.is_variable() {
             if let Some(var_name) = expression.as_variable() {
@@ -299,7 +318,7 @@ impl GoValidator {
                 }
             }
         }
-        
+
         // 获取所有变量并验证
         let variables = expression.get_variables();
         for var_name in variables {
@@ -307,7 +326,7 @@ impl GoValidator {
                 self.user_defined_vars.push(var_name);
             }
         }
-        
+
         Ok(())
     }
 
@@ -362,7 +381,9 @@ impl StatementValidator for GoValidator {
         let from_source = self.validate_from_clause(&go_stmt.from.vertices)?;
 
         // 4. 验证 OVER 子句
-        let edge_names: Vec<String> = go_stmt.over.as_ref()
+        let edge_names: Vec<String> = go_stmt
+            .over
+            .as_ref()
             .map(|over| over.edge_types.clone())
             .unwrap_or_default();
         let over_edges = self.validate_over_clause(&edge_names)?;
@@ -371,9 +392,13 @@ impl StatementValidator for GoValidator {
         let where_filter = self.validate_where_clause(&go_stmt.where_clause)?;
 
         // 6. 验证 YIELD 子句
-        let yield_items: Vec<(ContextualExpression, Option<String>)> = go_stmt.yield_clause.as_ref()
+        let yield_items: Vec<(ContextualExpression, Option<String>)> = go_stmt
+            .yield_clause
+            .as_ref()
             .map(|yield_clause| {
-                yield_clause.items.iter()
+                yield_clause
+                    .items
+                    .iter()
                     .map(|item| (item.expression.clone(), item.alias.clone()))
                     .collect()
             })
@@ -399,45 +424,47 @@ impl StatementValidator for GoValidator {
 
         // 10.2 添加语义信息
         for edge in &over_edges {
-            info.semantic_info.referenced_edges.push(edge.edge_name.clone());
+            info.semantic_info
+                .referenced_edges
+                .push(edge.edge_name.clone());
         }
 
         // 10.3 添加路径分析
-        let mut path_analysis = crate::query::validator::structs::validation_info::PathAnalysis::new();
+        let mut path_analysis =
+            crate::query::validator::structs::validation_info::PathAnalysis::new();
         path_analysis.edge_count = over_edges.len();
-        path_analysis.has_direction = over_edges.iter().any(|e| e.direction != EdgeDirection::Both);
-        
+        path_analysis.has_direction = over_edges
+            .iter()
+            .any(|e| e.direction != EdgeDirection::Both);
+
         if let Some(ref step_range) = step_range {
             path_analysis.min_hops = Some(step_range.step_from as usize);
             path_analysis.max_hops = Some(step_range.step_to as usize);
         }
-        
+
         info.add_path_analysis(path_analysis);
 
         // 10.4 添加优化提示
         if over_edges.len() > 10 {
-            info.add_optimization_hint(
-                OptimizationHint::PerformanceWarning {
-                    message: format!("GO 语句包含 {} 条边，可能影响性能", over_edges.len()),
-                    severity: crate::query::validator::structs::validation_info::HintSeverity::Warning,
-                }
-            );
+            info.add_optimization_hint(OptimizationHint::PerformanceWarning {
+                message: format!("GO 语句包含 {} 条边，可能影响性能", over_edges.len()),
+                severity: crate::query::validator::structs::validation_info::HintSeverity::Warning,
+            });
         }
 
         if let Some(ref step_range) = step_range {
             let steps = step_range.step_to - step_range.step_from;
             if steps > 10 {
-                info.add_optimization_hint(
-                    OptimizationHint::LimitResults {
-                        reason: format!("跳数过大（{}），建议限制结果数量", steps),
-                        suggested_limit: 1000,
-                    }
-                );
+                info.add_optimization_hint(OptimizationHint::LimitResults {
+                    reason: format!("跳数过大（{}），建议限制结果数量", steps),
+                    suggested_limit: 1000,
+                });
             }
         }
 
         // 10.5 添加验证通过的子句
-        info.validated_clauses.push(crate::query::validator::structs::ClauseKind::Match);
+        info.validated_clauses
+            .push(crate::query::validator::structs::ClauseKind::Match);
 
         // 11. 创建验证结果（放在最后一步，避免不必要的 clone）
         let validated = ValidatedGo {
@@ -486,11 +513,11 @@ impl StatementValidator for GoValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::query::parser::ast::stmt::{GoStmt, FromClause, OverClause, Steps};
+    use crate::query::parser::ast::stmt::{FromClause, GoStmt, OverClause, Steps};
     use crate::query::parser::ast::Span;
     use crate::query::query_request_context::QueryRequestContext;
     use std::sync::Arc;
@@ -532,12 +559,12 @@ mod tests {
     #[test]
     fn test_go_validator_basic() {
         let mut validator = GoValidator::new();
-        
+
         let go_stmt = create_go_stmt(
             create_contextual_expr(Expression::Literal(Value::String("vid1".to_string()))),
             vec!["friend".to_string()],
         );
-        
+
         let qctx = create_test_query_context();
         let result = validator.validate(Stmt::Go(go_stmt), qctx);
         assert!(result.is_ok());
@@ -570,12 +597,10 @@ mod tests {
 
         go_stmt.yield_clause = Some(crate::query::parser::ast::stmt::YieldClause {
             span: Span::default(),
-            items: vec![
-                crate::query::parser::ast::stmt::YieldItem {
-                    expression: create_contextual_expr(Expression::Variable("$$".to_string())),
-                    alias: Some("dst".to_string()),
-                },
-            ],
+            items: vec![crate::query::parser::ast::stmt::YieldItem {
+                expression: create_contextual_expr(Expression::Variable("$$".to_string())),
+                alias: Some("dst".to_string()),
+            }],
             where_clause: None,
             order_by: None,
             limit: None,
@@ -586,7 +611,7 @@ mod tests {
         let qctx = create_test_query_context();
         let result = validator.validate(Stmt::Go(go_stmt), qctx);
         assert!(result.is_ok());
-        
+
         let outputs = validator.outputs();
         assert_eq!(outputs.len(), 1);
         assert_eq!(outputs[0].name, "dst");
@@ -630,7 +655,7 @@ mod tests {
     #[test]
     fn test_go_validator_trait_interface() {
         let validator = GoValidator::new();
-        
+
         assert_eq!(validator.statement_type(), StatementType::Go);
         assert!(validator.inputs().is_empty());
         assert!(validator.user_defined_vars().is_empty());

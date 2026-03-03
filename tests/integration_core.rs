@@ -9,13 +9,15 @@
 
 mod common;
 
-use graphdb::core::value::{NullType, Value, DateValue, TimeValue, DateTimeValue, GeographyValue, DurationValue, DataSet};
 use graphdb::core::types::DataType;
+use graphdb::core::value::{
+    DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
+};
 // Vertex, Edge, Path 在需要时通过 graphdb::core 使用
 use graphdb::core::types::expression::Expression;
-use graphdb::expression::{ExpressionEvaluator, ExpressionContext};
 use graphdb::expression::context::DefaultExpressionContext;
 use graphdb::expression::functions::FunctionRegistry;
+use graphdb::expression::{ExpressionContext, ExpressionEvaluator};
 
 // ==================== Value 类型测试 ====================
 
@@ -61,7 +63,10 @@ fn test_value_type_checking() {
     assert_eq!(Value::Bool(true).get_type(), DataType::Bool);
     assert_eq!(Value::Int(42).get_type(), DataType::Int);
     assert_eq!(Value::Float(3.14).get_type(), DataType::Float);
-    assert_eq!(Value::String("test".to_string()).get_type(), DataType::String);
+    assert_eq!(
+        Value::String("test".to_string()).get_type(),
+        DataType::String
+    );
 
     // 数值类型检查
     assert!(Value::Int(42).is_numeric());
@@ -82,15 +87,33 @@ fn test_value_boolean_conversion() {
     assert_eq!(Value::Bool(false).to_bool(), Value::Bool(false));
 
     // 字符串转换
-    assert_eq!(Value::String("true".to_string()).to_bool(), Value::Bool(true));
-    assert_eq!(Value::String("TRUE".to_string()).to_bool(), Value::Bool(true));
-    assert_eq!(Value::String("false".to_string()).to_bool(), Value::Bool(false));
-    assert_eq!(Value::String("FALSE".to_string()).to_bool(), Value::Bool(false));
-    assert_eq!(Value::String("invalid".to_string()).to_bool(), Value::Null(NullType::Null));
+    assert_eq!(
+        Value::String("true".to_string()).to_bool(),
+        Value::Bool(true)
+    );
+    assert_eq!(
+        Value::String("TRUE".to_string()).to_bool(),
+        Value::Bool(true)
+    );
+    assert_eq!(
+        Value::String("false".to_string()).to_bool(),
+        Value::Bool(false)
+    );
+    assert_eq!(
+        Value::String("FALSE".to_string()).to_bool(),
+        Value::Bool(false)
+    );
+    assert_eq!(
+        Value::String("invalid".to_string()).to_bool(),
+        Value::Null(NullType::Null)
+    );
 
     // 空值和 Null
     assert_eq!(Value::Empty.to_bool(), Value::Null(NullType::Null));
-    assert_eq!(Value::Null(NullType::Null).to_bool(), Value::Null(NullType::Null));
+    assert_eq!(
+        Value::Null(NullType::Null).to_bool(),
+        Value::Null(NullType::Null)
+    );
 
     // 其他类型返回 BadData
     assert_eq!(Value::Int(1).to_bool(), Value::Null(NullType::BadData));
@@ -108,13 +131,22 @@ fn test_value_integer_conversion() {
 
     // 边界值处理
     assert_eq!(Value::Float(f64::NAN).to_int(), Value::Null(NullType::Null));
-    assert_eq!(Value::Float(f64::INFINITY).to_int(), Value::Null(NullType::Null));
-    assert_eq!(Value::Float(f64::NEG_INFINITY).to_int(), Value::Null(NullType::Null));
+    assert_eq!(
+        Value::Float(f64::INFINITY).to_int(),
+        Value::Null(NullType::Null)
+    );
+    assert_eq!(
+        Value::Float(f64::NEG_INFINITY).to_int(),
+        Value::Null(NullType::Null)
+    );
 
     // 字符串解析
     assert_eq!(Value::String("42".to_string()).to_int(), Value::Int(42));
     assert_eq!(Value::String("-100".to_string()).to_int(), Value::Int(-100));
-    assert_eq!(Value::String("invalid".to_string()).to_int(), Value::Null(NullType::Null));
+    assert_eq!(
+        Value::String("invalid".to_string()).to_int(),
+        Value::Null(NullType::Null)
+    );
 
     // 布尔值转换
     assert_eq!(Value::Bool(true).to_int(), Value::Int(1));
@@ -130,9 +162,18 @@ fn test_value_float_conversion() {
     assert_eq!(Value::Int(42).to_float(), Value::Float(42.0));
 
     // 字符串解析
-    assert_eq!(Value::String("3.14".to_string()).to_float(), Value::Float(3.14));
-    assert_eq!(Value::String("-2.5".to_string()).to_float(), Value::Float(-2.5));
-    assert_eq!(Value::String("invalid".to_string()).to_float(), Value::Null(NullType::Null));
+    assert_eq!(
+        Value::String("3.14".to_string()).to_float(),
+        Value::Float(3.14)
+    );
+    assert_eq!(
+        Value::String("-2.5".to_string()).to_float(),
+        Value::Float(-2.5)
+    );
+    assert_eq!(
+        Value::String("invalid".to_string()).to_float(),
+        Value::Null(NullType::Null)
+    );
 
     // 布尔值转换
     assert_eq!(Value::Bool(true).to_float(), Value::Float(1.0));
@@ -143,29 +184,41 @@ fn test_value_float_conversion() {
 fn test_value_arithmetic_operations() {
     // 加法
     assert_eq!(
-        Value::Int(10).add(&Value::Int(5)).expect("整数加法应该成功"),
+        Value::Int(10)
+            .add(&Value::Int(5))
+            .expect("整数加法应该成功"),
         Value::Int(15)
     );
     assert_eq!(
-        Value::Float(3.5).add(&Value::Float(2.5)).expect("浮点数加法应该成功"),
+        Value::Float(3.5)
+            .add(&Value::Float(2.5))
+            .expect("浮点数加法应该成功"),
         Value::Float(6.0)
     );
     assert_eq!(
-        Value::Int(10).add(&Value::Float(2.5)).expect("整数与浮点数加法应该成功"),
+        Value::Int(10)
+            .add(&Value::Float(2.5))
+            .expect("整数与浮点数加法应该成功"),
         Value::Float(12.5)
     );
     assert_eq!(
-        Value::String("Hello, ".to_string()).add(&Value::String("World".to_string())).expect("字符串连接应该成功"),
+        Value::String("Hello, ".to_string())
+            .add(&Value::String("World".to_string()))
+            .expect("字符串连接应该成功"),
         Value::String("Hello, World".to_string())
     );
 
     // 减法
     assert_eq!(
-        Value::Int(10).sub(&Value::Int(3)).expect("整数减法应该成功"),
+        Value::Int(10)
+            .sub(&Value::Int(3))
+            .expect("整数减法应该成功"),
         Value::Int(7)
     );
     assert_eq!(
-        Value::Float(10.5).sub(&Value::Float(3.5)).expect("浮点数减法应该成功"),
+        Value::Float(10.5)
+            .sub(&Value::Float(3.5))
+            .expect("浮点数减法应该成功"),
         Value::Float(7.0)
     );
 
@@ -175,17 +228,23 @@ fn test_value_arithmetic_operations() {
         Value::Int(42)
     );
     assert_eq!(
-        Value::Float(3.0).mul(&Value::Float(4.0)).expect("浮点数乘法应该成功"),
+        Value::Float(3.0)
+            .mul(&Value::Float(4.0))
+            .expect("浮点数乘法应该成功"),
         Value::Float(12.0)
     );
 
     // 除法
     assert_eq!(
-        Value::Int(10).div(&Value::Int(2)).expect("整数除法应该成功"),
+        Value::Int(10)
+            .div(&Value::Int(2))
+            .expect("整数除法应该成功"),
         Value::Int(5)
     );
     assert_eq!(
-        Value::Float(10.0).div(&Value::Float(4.0)).expect("浮点数除法应该成功"),
+        Value::Float(10.0)
+            .div(&Value::Float(4.0))
+            .expect("浮点数除法应该成功"),
         Value::Float(2.5)
     );
 
@@ -195,7 +254,9 @@ fn test_value_arithmetic_operations() {
 
     // 取模
     assert_eq!(
-        Value::Int(10).rem(&Value::Int(3)).expect("整数取模应该成功"),
+        Value::Int(10)
+            .rem(&Value::Int(3))
+            .expect("整数取模应该成功"),
         Value::Int(1)
     );
     assert!(Value::Int(10).rem(&Value::Int(0)).is_err());
@@ -214,7 +275,10 @@ fn test_value_comparison() {
 
     // 字符串比较
     assert!(Value::String("b".to_string()) > Value::String("a".to_string()));
-    assert_eq!(Value::String("test".to_string()), Value::String("test".to_string()));
+    assert_eq!(
+        Value::String("test".to_string()),
+        Value::String("test".to_string())
+    );
 
     // 布尔值比较
     assert!(Value::Bool(true) > Value::Bool(false));
@@ -226,52 +290,107 @@ fn test_value_comparison() {
 #[test]
 fn test_value_unary_operations() {
     // 取反
-    assert_eq!(Value::Int(42).negate().expect("整数取反应该成功"), Value::Int(-42));
-    assert_eq!(Value::Float(3.14).negate().expect("浮点数取反应该成功"), Value::Float(-3.14));
+    assert_eq!(
+        Value::Int(42).negate().expect("整数取反应该成功"),
+        Value::Int(-42)
+    );
+    assert_eq!(
+        Value::Float(3.14).negate().expect("浮点数取反应该成功"),
+        Value::Float(-3.14)
+    );
     assert!(Value::String("test".to_string()).negate().is_err());
 
     // 绝对值
-    assert_eq!(Value::Int(-42).abs().expect("整数绝对值应该成功"), Value::Int(42));
-    assert_eq!(Value::Float(-3.14).abs().expect("浮点数绝对值应该成功"), Value::Float(3.14));
+    assert_eq!(
+        Value::Int(-42).abs().expect("整数绝对值应该成功"),
+        Value::Int(42)
+    );
+    assert_eq!(
+        Value::Float(-3.14).abs().expect("浮点数绝对值应该成功"),
+        Value::Float(3.14)
+    );
     assert!(Value::String("test".to_string()).abs().is_err());
 
     // 长度
-    assert_eq!(Value::String("hello".to_string()).length().expect("字符串长度计算应该成功"), Value::Int(5));
-    assert_eq!(Value::List(graphdb::core::List { values: vec![Value::Int(1), Value::Int(2)] }).length().expect("列表长度计算应该成功"), Value::Int(2));
-    assert_eq!(Value::Map(std::collections::HashMap::new()).length().expect("映射长度计算应该成功"), Value::Int(0));
+    assert_eq!(
+        Value::String("hello".to_string())
+            .length()
+            .expect("字符串长度计算应该成功"),
+        Value::Int(5)
+    );
+    assert_eq!(
+        Value::List(graphdb::core::List {
+            values: vec![Value::Int(1), Value::Int(2)]
+        })
+        .length()
+        .expect("列表长度计算应该成功"),
+        Value::Int(2)
+    );
+    assert_eq!(
+        Value::Map(std::collections::HashMap::new())
+            .length()
+            .expect("映射长度计算应该成功"),
+        Value::Int(0)
+    );
 }
 
 #[test]
 fn test_value_complex_types() {
     // DateValue
-    let date = DateValue { year: 2024, month: 6, day: 15 };
+    let date = DateValue {
+        year: 2024,
+        month: 6,
+        day: 15,
+    };
     assert_eq!(date.year, 2024);
     assert_eq!(date.month, 6);
     assert_eq!(date.day, 15);
 
     // TimeValue
-    let time = TimeValue { hour: 14, minute: 30, sec: 45, microsec: 0 };
+    let time = TimeValue {
+        hour: 14,
+        minute: 30,
+        sec: 45,
+        microsec: 0,
+    };
     assert_eq!(time.hour, 14);
     assert_eq!(time.minute, 30);
 
     // DateTimeValue
-    let datetime = DateTimeValue { year: 2024, month: 6, day: 15, hour: 14, minute: 30, sec: 0, microsec: 0 };
+    let datetime = DateTimeValue {
+        year: 2024,
+        month: 6,
+        day: 15,
+        hour: 14,
+        minute: 30,
+        sec: 0,
+        microsec: 0,
+    };
     assert_eq!(datetime.year, 2024);
 
     // GeographyValue
-    let geo = GeographyValue { latitude: 39.9042, longitude: 116.4074 };
+    let geo = GeographyValue {
+        latitude: 39.9042,
+        longitude: 116.4074,
+    };
     assert_eq!(geo.latitude, 39.9042);
     assert_eq!(geo.longitude, 116.4074);
 
     // DurationValue
-    let duration = DurationValue { seconds: 3600, microseconds: 0, months: 0 };
+    let duration = DurationValue {
+        seconds: 3600,
+        microseconds: 0,
+        months: 0,
+    };
     assert_eq!(duration.seconds, 3600);
 
     // DataSet
     let mut dataset = DataSet::new();
     dataset.col_names.push("name".to_string());
     dataset.col_names.push("age".to_string());
-    dataset.rows.push(vec![Value::String("Alice".to_string()), Value::Int(30)]);
+    dataset
+        .rows
+        .push(vec![Value::String("Alice".to_string()), Value::Int(30)]);
     assert_eq!(dataset.col_names.len(), 2);
     assert_eq!(dataset.rows.len(), 1);
 }
@@ -418,7 +537,7 @@ fn test_expression_unary_creation() {
 #[test]
 fn test_evaluator_literal() {
     let mut ctx = DefaultExpressionContext::new();
-    
+
     // 整数
     let expr = Expression::literal(42i64);
     let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("整数字面量求值应该成功");
@@ -640,7 +759,8 @@ fn test_evaluator_batch_evaluation() {
         Expression::literal(3i64),
     ];
 
-    let results = ExpressionEvaluator::evaluate_batch(&expressions, &mut ctx).expect("批量表达式求值应该成功");
+    let results = ExpressionEvaluator::evaluate_batch(&expressions, &mut ctx)
+        .expect("批量表达式求值应该成功");
     assert_eq!(results.len(), 3);
     assert_eq!(results[0], Value::Int(1));
     assert_eq!(results[1], Value::Int(2));
@@ -669,18 +789,26 @@ fn test_function_registry_builtins() {
     let registry = FunctionRegistry::new();
 
     // 测试数学函数
-    let result = registry.execute("abs", &[Value::Int(-42)]).expect("abs函数执行应该成功");
+    let result = registry
+        .execute("abs", &[Value::Int(-42)])
+        .expect("abs函数执行应该成功");
     assert_eq!(result, Value::Int(42));
 
-    let result = registry.execute("abs", &[Value::Float(-3.14)]).expect("abs函数执行应该成功");
+    let result = registry
+        .execute("abs", &[Value::Float(-3.14)])
+        .expect("abs函数执行应该成功");
     assert_eq!(result, Value::Float(3.14));
 
     // 测试字符串函数
-    let result = registry.execute("length", &[Value::String("hello".to_string())]).expect("length函数执行应该成功");
+    let result = registry
+        .execute("length", &[Value::String("hello".to_string())])
+        .expect("length函数执行应该成功");
     assert_eq!(result, Value::Int(5));
 
     // 测试类型转换函数
-    let result = registry.execute("to_int", &[Value::String("42".to_string())]).expect("to_int函数执行应该成功");
+    let result = registry
+        .execute("to_int", &[Value::String("42".to_string())])
+        .expect("to_int函数执行应该成功");
     assert_eq!(result, Value::Int(42));
 }
 
@@ -709,7 +837,10 @@ fn test_basic_context_variables() {
 
     // 获取变量
     assert_eq!(ctx.get_variable("x"), Some(Value::Int(100)));
-    assert_eq!(ctx.get_variable("y"), Some(Value::String("test".to_string())));
+    assert_eq!(
+        ctx.get_variable("y"),
+        Some(Value::String("test".to_string()))
+    );
     assert_eq!(ctx.get_variable("z"), None);
 }
 
@@ -719,16 +850,22 @@ fn test_basic_context_functions() {
 
     // 通过全局注册表测试函数存在性和执行
     let registry = FunctionRegistry::new();
-    
+
     // 测试 abs 函数
     let result = registry.execute("abs", &[Value::Int(-42)]);
     assert!(result.is_ok());
-    assert_eq!(result.expect("Failed to execute abs function"), Value::Int(42));
+    assert_eq!(
+        result.expect("Failed to execute abs function"),
+        Value::Int(42)
+    );
 
     // 测试 length 函数
     let result = registry.execute("length", &[Value::String("hello".to_string())]);
     assert!(result.is_ok());
-    assert_eq!(result.expect("Failed to execute length function"), Value::Int(5));
+    assert_eq!(
+        result.expect("Failed to execute length function"),
+        Value::Int(5)
+    );
 
     // 未定义的函数应该返回错误
     let result = registry.execute("undefined_func", &[Value::Int(1)]);
@@ -822,18 +959,19 @@ fn test_string_concatenation() {
 #[test]
 fn test_list_operations() {
     // 创建列表值
-    let list = Value::List(graphdb::core::List { values: vec![
-        Value::Int(1),
-        Value::Int(2),
-        Value::Int(3),
-    ]});
+    let list = Value::List(graphdb::core::List {
+        values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
+    });
 
     assert_eq!(list.length().expect("列表长度计算应该成功"), Value::Int(3));
     assert_eq!(list.get_type(), DataType::List);
 
     // 空列表
     let empty_list = Value::List(graphdb::core::List { values: vec![] });
-    assert_eq!(empty_list.length().expect("空列表长度计算应该成功"), Value::Int(0));
+    assert_eq!(
+        empty_list.length().expect("空列表长度计算应该成功"),
+        Value::Int(0)
+    );
 }
 
 #[test]
@@ -846,7 +984,10 @@ fn test_map_operations() {
     map.insert("age".to_string(), Value::Int(30));
     let map_value = Value::Map(map);
 
-    assert_eq!(map_value.length().expect("映射长度计算应该成功"), Value::Int(2));
+    assert_eq!(
+        map_value.length().expect("映射长度计算应该成功"),
+        Value::Int(2)
+    );
     assert_eq!(map_value.get_type(), DataType::Map);
 }
 
@@ -859,7 +1000,9 @@ fn test_value_memory_estimation() {
     let string_val = Value::String("hello world".to_string());
     assert!(string_val.estimated_size() >= std::mem::size_of::<Value>() + "hello world".len());
 
-    let list_val = Value::List(graphdb::core::List { values: vec![Value::Int(1), Value::Int(2)] });
+    let list_val = Value::List(graphdb::core::List {
+        values: vec![Value::Int(1), Value::Int(2)],
+    });
     assert!(list_val.estimated_size() > int_val.estimated_size());
 }
 

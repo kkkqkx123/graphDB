@@ -1,7 +1,7 @@
 //! 存储层数据操作类型
 
-use crate::core::Value;
 use crate::core::DataType;
+use crate::core::Value;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 

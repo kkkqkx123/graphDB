@@ -1,5 +1,5 @@
-use crate::core::value::Value;
 use crate::core::result::iterator_enum::ResultIteratorEnum;
+use crate::core::value::Value;
 
 /// Result 状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -227,7 +227,7 @@ mod tests {
         let mut result = Result::new();
         result.add_row(vec![Value::Int(1), Value::String("Alice".to_string())]);
         result.add_row(vec![Value::Int(2), Value::String("Bob".to_string())]);
-        
+
         assert_eq!(result.row_count(), 2);
         assert!(!result.is_empty());
     }
@@ -236,7 +236,7 @@ mod tests {
     fn test_result_get_row() {
         let mut result = Result::new();
         result.add_row(vec![Value::Int(1), Value::String("Alice".to_string())]);
-        
+
         let row = result.get_row(0);
         assert!(row.is_some());
         assert_eq!(row.expect("Expected row to exist")[0], Value::Int(1));
@@ -246,10 +246,13 @@ mod tests {
     fn test_result_get_value() {
         let mut result = Result::new();
         result.add_row(vec![Value::Int(1), Value::String("Alice".to_string())]);
-        
+
         let value = result.get_value(0, 1);
         assert!(value.is_some());
-        assert_eq!(value.expect("Expected value to exist"), &Value::String("Alice".to_string()));
+        assert_eq!(
+            value.expect("Expected value to exist"),
+            &Value::String("Alice".to_string())
+        );
     }
 
     #[test]
@@ -259,9 +262,9 @@ mod tests {
             vec![Value::Int(2), Value::String("Bob".to_string())],
         ];
         let col_names = vec!["id".to_string(), "name".to_string()];
-        
+
         let result = Result::from_rows(rows, col_names);
-        
+
         assert_eq!(result.row_count(), 2);
         assert_eq!(result.col_count(), 2);
         assert_eq!(result.state(), ResultState::Completed);
@@ -271,7 +274,7 @@ mod tests {
     fn test_result_empty() {
         let col_names = vec!["id".to_string()];
         let result = Result::empty(col_names.clone());
-        
+
         assert_eq!(result.col_names(), &col_names);
         assert_eq!(result.row_count(), 0);
         assert!(result.is_empty());
@@ -282,7 +285,7 @@ mod tests {
         let mut result = Result::new();
         result.add_row(vec![Value::Int(1)]);
         result.add_row(vec![Value::Int(2)]);
-        
+
         let rows: Vec<_> = result.into_iter().collect();
         assert_eq!(rows.len(), 2);
     }

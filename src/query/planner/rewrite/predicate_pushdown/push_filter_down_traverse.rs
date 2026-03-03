@@ -3,15 +3,15 @@
 //! 该规则识别 Filter -> Traverse 模式，
 //! 并将边属性过滤条件下推到 Traverse 节点中。
 
+use crate::core::types::ContextualExpression;
+use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::expression_utils::split_filter;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
-use crate::core::Expression;
-use crate::core::types::ContextualExpression;
-use crate::query::planner::rewrite::expression_utils::split_filter;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将过滤条件下推到遍历操作的规则
 ///
@@ -106,9 +106,7 @@ impl RewriteRule for PushFilterDownTraverseRule {
         let ctx = filter_condition.context().clone();
 
         // 定义选择器函数：检查表达式是否包含边属性
-        let picker = |expr: &Expression| -> bool {
-            is_edge_property_expression(edge_alias, expr)
-        };
+        let picker = |expr: &Expression| -> bool { is_edge_property_expression(edge_alias, expr) };
 
         // 分割过滤条件
         let (filter_picked, filter_unpicked) = split_filter(&filter_expr, picker);
@@ -195,7 +193,10 @@ impl PushDownRule for PushFilterDownTraverseRule {
 /// 检查表达式是否为边属性表达式
 fn is_edge_property_expression(edge_alias: &str, expr: &Expression) -> bool {
     match expr {
-        Expression::Property { object, property: _ } => {
+        Expression::Property {
+            object,
+            property: _,
+        } => {
             if let Expression::Variable(name) = object.as_ref() {
                 name == edge_alias
             } else {
@@ -206,12 +207,10 @@ fn is_edge_property_expression(edge_alias: &str, expr: &Expression) -> bool {
             is_edge_property_expression(edge_alias, left)
                 || is_edge_property_expression(edge_alias, right)
         }
-        Expression::Unary { op: _, operand } => {
-            is_edge_property_expression(edge_alias, operand)
-        }
-        Expression::Function { name: _, args } => {
-            args.iter().any(|arg| is_edge_property_expression(edge_alias, arg))
-        }
+        Expression::Unary { op: _, operand } => is_edge_property_expression(edge_alias, operand),
+        Expression::Function { name: _, args } => args
+            .iter()
+            .any(|arg| is_edge_property_expression(edge_alias, arg)),
         _ => false,
     }
 }

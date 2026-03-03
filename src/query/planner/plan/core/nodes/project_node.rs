@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use crate::define_plan_node_with_deps;
+use crate::core::types::{ContextualExpression, ExpressionContext, SerializableExpression};
 use crate::core::YieldColumn;
-use crate::core::types::{ContextualExpression, SerializableExpression, ExpressionContext};
+use crate::define_plan_node_with_deps;
 
 define_plan_node_with_deps! {
     pub struct ProjectNode {
@@ -46,18 +46,16 @@ impl ProjectNode {
         self.columns = columns;
         self.col_names = self.columns.iter().map(|col| col.alias.clone()).collect();
     }
-    
+
     pub fn prepare_for_serialization(&mut self, _ctx: Arc<ExpressionContext>) {
         self.columns_serializable = Some(
             self.columns
                 .iter()
-                .map(|col| {
-                    SerializableExpression::from_contextual(&col.expression)
-                })
-                .collect()
+                .map(|col| SerializableExpression::from_contextual(&col.expression))
+                .collect(),
         );
     }
-    
+
     pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
         if let Some(ref ser_columns) = self.columns_serializable {
             self.columns = ser_columns
@@ -79,8 +77,8 @@ impl ProjectNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::ExpressionMeta;
     use crate::core::types::expression::ExpressionContext;
+    use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use std::sync::Arc;
 
@@ -119,12 +117,12 @@ mod tests {
             );
 
         let expr_ctx = Arc::new(ExpressionContext::new());
-        
+
         let name_expr = Expression::Variable("name".to_string());
         let name_meta = ExpressionMeta::new(name_expr);
         let name_id = expr_ctx.register_expression(name_meta);
         let name_ctx_expr = ContextualExpression::new(name_id, expr_ctx.clone());
-        
+
         let age_expr = Expression::Variable("age".to_string());
         let age_meta = ExpressionMeta::new(age_expr);
         let age_id = expr_ctx.register_expression(age_meta);

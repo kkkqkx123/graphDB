@@ -94,7 +94,9 @@ fn execute_json_extract(args: &[Value]) -> Result<Value, ExpressionError> {
             Ok(json_to_value(result))
         }
         (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-        _ => Err(ExpressionError::type_error("json_extract函数需要字符串参数")),
+        _ => Err(ExpressionError::type_error(
+            "json_extract函数需要字符串参数",
+        )),
     }
 }
 
@@ -159,11 +161,7 @@ mod tests {
     fn test_coalesce() {
         let func = UtilityFunction::Coalesce;
         let result = func
-            .execute(&[
-                Value::Null(NullType::Null),
-                Value::Int(42),
-                Value::Int(100),
-            ])
+            .execute(&[Value::Null(NullType::Null), Value::Int(42), Value::Int(100)])
             .unwrap();
         assert_eq!(result, Value::Int(42));
     }
@@ -171,9 +169,7 @@ mod tests {
     #[test]
     fn test_hash() {
         let func = UtilityFunction::Hash;
-        let result = func
-            .execute(&[Value::String("test".to_string())])
-            .unwrap();
+        let result = func.execute(&[Value::String("test".to_string())]).unwrap();
         assert!(matches!(result, Value::Int(_)));
     }
 }

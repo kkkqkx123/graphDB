@@ -1,18 +1,18 @@
 //! 折叠多个投影操作的规则
 
-use crate::core::YieldColumn;
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionMeta;
-use crate::core::types::expression::ExpressionContext;
 use crate::core::types::expression::Expression;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::YieldColumn;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
 use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::expression_utils::rewrite_contextual_expression;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
-use crate::query::planner::rewrite::expression_utils::rewrite_contextual_expression;
 use std::sync::Arc;
 
 /// 折叠多个投影操作的规则
@@ -56,7 +56,10 @@ impl CollapseProjectRule {
             None => return false,
         };
         let inner_expr = expr_meta.inner();
-        matches!(inner_expr, Expression::Variable(_) | Expression::Property { .. })
+        matches!(
+            inner_expr,
+            Expression::Variable(_) | Expression::Property { .. }
+        )
     }
 
     /// 收集表达式中所有的属性引用
@@ -66,7 +69,7 @@ impl CollapseProjectRule {
             None => return,
         };
         let inner_expr = expr_meta.inner();
-        
+
         match inner_expr {
             Expression::Variable(name) => refs.push(name.clone()),
             Expression::Property { object, property } => {
@@ -161,7 +164,6 @@ impl CollapseProjectRule {
             _ => {}
         }
     }
-
 }
 
 impl Default for CollapseProjectRule {
@@ -234,7 +236,11 @@ impl RewriteRule for CollapseProjectRule {
         let new_columns: Vec<YieldColumn> = parent_cols
             .iter()
             .map(|col| YieldColumn {
-                expression: rewrite_contextual_expression(&col.expression, &rewrite_map, expr_context.clone()),
+                expression: rewrite_contextual_expression(
+                    &col.expression,
+                    &rewrite_map,
+                    expr_context.clone(),
+                ),
                 alias: col.alias.clone(),
                 is_matched: col.is_matched,
             })
@@ -273,10 +279,10 @@ impl MergeRule for CollapseProjectRule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::ExpressionContext;
+    use crate::core::types::expression::ExpressionMeta;
     use crate::core::YieldColumn;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
-    use crate::core::types::expression::ExpressionMeta;
-    use crate::core::types::expression::ExpressionContext;
     use std::sync::Arc;
 
     #[test]
@@ -302,7 +308,7 @@ mod tests {
         let child_meta = ExpressionMeta::new(child_expr);
         let child_id = expr_ctx.register_expression(child_meta);
         let child_ctx_expr = ContextualExpression::new(child_id, expr_ctx.clone());
-        
+
         let child_columns = vec![YieldColumn {
             expression: child_ctx_expr,
             alias: "col1".to_string(),
@@ -316,7 +322,7 @@ mod tests {
         let parent_meta = ExpressionMeta::new(parent_expr);
         let parent_id = expr_ctx.register_expression(parent_meta);
         let parent_ctx_expr = ContextualExpression::new(parent_id, expr_ctx);
-        
+
         let parent_columns = vec![YieldColumn {
             expression: parent_ctx_expr,
             alias: "col2".to_string(),
@@ -331,9 +337,6 @@ mod tests {
         let mut ctx = RewriteContext::new();
         let result = rule.apply(&mut ctx, &parent_node).expect("应用规则失败");
 
-        assert!(
-            result.is_some(),
-            "应该成功折叠两个Project节点"
-        );
+        assert!(result.is_some(), "应该成功折叠两个Project节点");
     }
 }

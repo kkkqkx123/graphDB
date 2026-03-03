@@ -10,15 +10,15 @@ use std::sync::Arc;
 
 use crate::core::types::EdgeDirection;
 use crate::core::Expression;
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::Steps;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::{
-    ArgumentNode as Argument, ExpandAllNode, FilterNode, GetVerticesNode,
-    PlanNodeEnum, ProjectNode as Project,
+    ArgumentNode as Argument, ExpandAllNode, FilterNode, GetVerticesNode, PlanNodeEnum,
+    ProjectNode as Project,
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::QueryContext;
 
 /// SUBGRAPH查询规划器
 /// 负责将SUBGRAPH查询转换为执行计划
@@ -33,12 +33,16 @@ impl SubgraphPlanner {
 }
 
 impl Planner for SubgraphPlanner {
-    fn transform(&mut self, validated: &ValidatedStatement, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+    fn transform(
+        &mut self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
         let subgraph_stmt = match &validated.stmt {
             Stmt::Subgraph(subgraph_stmt) => subgraph_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "SubgraphPlanner 需要 Subgraph 语句".to_string()
+                    "SubgraphPlanner 需要 Subgraph 语句".to_string(),
                 ));
             }
         };
@@ -54,7 +58,7 @@ impl Planner for SubgraphPlanner {
             Steps::Range { min, max } => (*min, *max),
             Steps::Variable(_) => {
                 return Err(PlannerError::InvalidOperation(
-                    "SUBGRAPH 不支持变量步数".to_string()
+                    "SUBGRAPH 不支持变量步数".to_string(),
                 ));
             }
         };
@@ -67,11 +71,12 @@ impl Planner for SubgraphPlanner {
 
         if m_steps == 0 {
             log::debug!("SUBGRAPH with 0 steps - returning only start vertices");
-            
+
             let get_vertices_node = GetVerticesNode::new(1, var_name);
             current_node = PlanNodeEnum::GetVertices(get_vertices_node);
 
-            let filters: Vec<Expression> = where_clause.into_iter()
+            let filters: Vec<Expression> = where_clause
+                .into_iter()
                 .map(|expr| expr.into_expression())
                 .collect();
             current_node = self.apply_filters(current_node, &filters, &qctx)?;
@@ -87,13 +92,13 @@ impl Planner for SubgraphPlanner {
         }
 
         let edge_types = over.map(|o| o.edge_types.clone()).unwrap_or_default();
-        let direction_str = over.map(|o| {
-            match o.direction {
+        let direction_str = over
+            .map(|o| match o.direction {
                 EdgeDirection::Out => "out",
                 EdgeDirection::In => "in",
                 EdgeDirection::Both => "both",
-            }
-        }).unwrap_or("out");
+            })
+            .unwrap_or("out");
 
         if m_steps > 0 {
             current_node = self.create_expand_node(
@@ -118,7 +123,8 @@ impl Planner for SubgraphPlanner {
             }
         }
 
-        let filters: Vec<Expression> = where_clause.into_iter()
+        let filters: Vec<Expression> = where_clause
+            .into_iter()
             .map(|expr| expr.into_expression())
             .collect();
         current_node = self.apply_filters(current_node, &filters, &qctx)?;
@@ -151,7 +157,7 @@ impl SubgraphPlanner {
     ) -> Result<PlanNodeEnum, PlannerError> {
         let mut expand_node = ExpandAllNode::new(1, edge_types.to_vec(), direction);
         expand_node.set_step_limit(max_step);
-        
+
         Ok(PlanNodeEnum::ExpandAll(expand_node))
     }
 
@@ -167,7 +173,8 @@ impl SubgraphPlanner {
         for condition in filters {
             let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition.clone());
             let id = qctx.expr_context().register_expression(expr_meta);
-            let ctx_expr = crate::core::types::ContextualExpression::new(id, qctx.expr_context_clone());
+            let ctx_expr =
+                crate::core::types::ContextualExpression::new(id, qctx.expr_context_clone());
             current = match FilterNode::new(current.clone(), ctx_expr) {
                 Ok(node) => PlanNodeEnum::Filter(node),
                 Err(_) => current,

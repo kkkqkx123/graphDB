@@ -11,33 +11,41 @@ use std::time::Instant;
 use crate::storage::StorageClient;
 
 use super::admin::{
-    AlterEdgeExecutor, AlterTagExecutor, AnalyzeExecutor, ChangePasswordExecutor, CreateEdgeExecutor,
-    CreateSpaceExecutor, CreateTagExecutor, CreateUserExecutor, AlterUserExecutor, DropUserExecutor,
-    DescEdgeExecutor, DescSpaceExecutor, DescTagExecutor,
-    DropEdgeExecutor, DropSpaceExecutor, DropTagExecutor, ShowSpacesExecutor, ShowTagsExecutor, ShowEdgesExecutor,
-    CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
-    RebuildTagIndexExecutor, CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor,
-    ShowEdgeIndexesExecutor, RebuildEdgeIndexExecutor,
+    AlterEdgeExecutor, AlterTagExecutor, AlterUserExecutor, AnalyzeExecutor,
+    ChangePasswordExecutor, CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateSpaceExecutor,
+    CreateTagExecutor, CreateTagIndexExecutor, CreateUserExecutor, DescEdgeExecutor,
+    DescEdgeIndexExecutor, DescSpaceExecutor, DescTagExecutor, DescTagIndexExecutor,
+    DropEdgeExecutor, DropEdgeIndexExecutor, DropSpaceExecutor, DropTagExecutor,
+    DropTagIndexExecutor, DropUserExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor,
+    ShowEdgeIndexesExecutor, ShowEdgesExecutor, ShowSpacesExecutor, ShowTagIndexesExecutor,
+    ShowTagsExecutor,
 };
 
-use super::base::{BaseExecutor, ExecutorStats, StartExecutor, ExecutionResult, DBResult, Executor, InputExecutor};
+use super::base::{
+    BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, InputExecutor, StartExecutor,
+};
 use super::data_access::{
     AllPathsExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
     ScanEdgesExecutor, ScanVerticesExecutor,
 };
 use super::data_processing::graph_traversal::{
-    ExpandAllExecutor, ExpandExecutor, ShortestPathExecutor,
-    TraverseExecutor,
+    ExpandAllExecutor, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
 };
-use super::data_processing::join::{CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor, InnerJoinExecutor, LeftJoinExecutor};
-use super::data_processing::set_operations::{IntersectExecutor, MinusExecutor, UnionAllExecutor, UnionExecutor};
+use super::data_processing::join::{
+    CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor,
+    InnerJoinExecutor, LeftJoinExecutor,
+};
+use super::data_processing::set_operations::{
+    IntersectExecutor, MinusExecutor, UnionAllExecutor, UnionExecutor,
+};
 use super::logic::{ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor};
+use super::result_processing::transformations::{
+    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
+    UnwindExecutor,
+};
 use super::result_processing::{
     AggregateExecutor, DedupExecutor, FilterExecutor, GroupByExecutor, HavingExecutor,
     LimitExecutor, ProjectExecutor, SampleExecutor, SortExecutor, TopNExecutor,
-};
-use super::result_processing::transformations::{
-    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor, UnwindExecutor,
 };
 use super::search_executors::BFSShortestExecutor;
 use super::search_executors::IndexScanExecutor;
@@ -124,81 +132,231 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
 impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ExecutorEnum::Start(exec) => f.write_str(&format!("ExecutorEnum::Start({})", exec.name())),
-            ExecutorEnum::Base(exec) => f.write_str(&format!("ExecutorEnum::Base({})", exec.name())),
-            ExecutorEnum::GetVertices(exec) => f.write_str(&format!("ExecutorEnum::GetVertices({})", exec.name())),
-            ExecutorEnum::GetNeighbors(exec) => f.write_str(&format!("ExecutorEnum::GetNeighbors({})", exec.name())),
-            ExecutorEnum::GetProp(exec) => f.write_str(&format!("ExecutorEnum::GetProp({})", exec.name())),
-            ExecutorEnum::AllPaths(exec) => f.write_str(&format!("ExecutorEnum::AllPaths({})", exec.name())),
-            ExecutorEnum::Expand(exec) => f.write_str(&format!("ExecutorEnum::Expand({})", exec.name())),
-            ExecutorEnum::ExpandAll(exec) => f.write_str(&format!("ExecutorEnum::ExpandAll({})", exec.name())),
-            ExecutorEnum::Traverse(exec) => f.write_str(&format!("ExecutorEnum::Traverse({})", exec.name())),
-            ExecutorEnum::ShortestPath(exec) => f.write_str(&format!("ExecutorEnum::ShortestPath({})", exec.name())),
-            ExecutorEnum::InnerJoin(exec) => f.write_str(&format!("ExecutorEnum::InnerJoin({})", exec.name())),
-            ExecutorEnum::HashInnerJoin(exec) => f.write_str(&format!("ExecutorEnum::HashInnerJoin({})", exec.name())),
-            ExecutorEnum::LeftJoin(exec) => f.write_str(&format!("ExecutorEnum::LeftJoin({})", exec.name())),
-            ExecutorEnum::HashLeftJoin(exec) => f.write_str(&format!("ExecutorEnum::HashLeftJoin({})", exec.name())),
-            ExecutorEnum::FullOuterJoin(exec) => f.write_str(&format!("ExecutorEnum::FullOuterJoin({})", exec.name())),
-            ExecutorEnum::CrossJoin(exec) => f.write_str(&format!("ExecutorEnum::CrossJoin({})", exec.name())),
-            ExecutorEnum::Union(exec) => f.write_str(&format!("ExecutorEnum::Union({})", exec.name())),
-            ExecutorEnum::UnionAll(exec) => f.write_str(&format!("ExecutorEnum::UnionAll({})", exec.name())),
-            ExecutorEnum::Minus(exec) => f.write_str(&format!("ExecutorEnum::Minus({})", exec.name())),
-            ExecutorEnum::Intersect(exec) => f.write_str(&format!("ExecutorEnum::Intersect({})", exec.name())),
-            ExecutorEnum::Filter(exec) => f.write_str(&format!("ExecutorEnum::Filter({})", exec.name())),
-            ExecutorEnum::Project(exec) => f.write_str(&format!("ExecutorEnum::Project({})", exec.name())),
-            ExecutorEnum::Limit(exec) => f.write_str(&format!("ExecutorEnum::Limit({})", exec.name())),
-            ExecutorEnum::Sort(exec) => f.write_str(&format!("ExecutorEnum::Sort({})", exec.name())),
-            ExecutorEnum::TopN(exec) => f.write_str(&format!("ExecutorEnum::TopN({})", exec.name())),
-            ExecutorEnum::Sample(exec) => f.write_str(&format!("ExecutorEnum::Sample({})", exec.name())),
-            ExecutorEnum::Aggregate(exec) => f.write_str(&format!("ExecutorEnum::Aggregate({})", exec.name())),
-            ExecutorEnum::GroupBy(exec) => f.write_str(&format!("ExecutorEnum::GroupBy({})", exec.name())),
-            ExecutorEnum::Having(exec) => f.write_str(&format!("ExecutorEnum::Having({})", exec.name())),
-            ExecutorEnum::Dedup(exec) => f.write_str(&format!("ExecutorEnum::Dedup({})", exec.name())),
-            ExecutorEnum::Unwind(exec) => f.write_str(&format!("ExecutorEnum::Unwind({})", exec.name())),
-            ExecutorEnum::Assign(exec) => f.write_str(&format!("ExecutorEnum::Assign({})", exec.name())),
-            ExecutorEnum::AppendVertices(exec) => f.write_str(&format!("ExecutorEnum::AppendVertices({})", exec.name())),
-            ExecutorEnum::RollUpApply(exec) => f.write_str(&format!("ExecutorEnum::RollUpApply({})", exec.name())),
-            ExecutorEnum::PatternApply(exec) => f.write_str(&format!("ExecutorEnum::PatternApply({})", exec.name())),
-            ExecutorEnum::Loop(exec) => f.write_str(&format!("ExecutorEnum::Loop({})", exec.name())),
-            ExecutorEnum::ForLoop(exec) => f.write_str(&format!("ExecutorEnum::ForLoop({})", exec.name())),
-            ExecutorEnum::WhileLoop(exec) => f.write_str(&format!("ExecutorEnum::WhileLoop({})", exec.name())),
-            ExecutorEnum::Select(exec) => f.write_str(&format!("ExecutorEnum::Select({})", exec.name())),
-            ExecutorEnum::ScanEdges(exec) => f.write_str(&format!("ExecutorEnum::ScanEdges({})", exec.name())),
-            ExecutorEnum::ScanVertices(exec) => f.write_str(&format!("ExecutorEnum::ScanVertices({})", exec.name())),
-            ExecutorEnum::IndexScan(exec) => f.write_str(&format!("ExecutorEnum::IndexScan({})", exec.name())),
-            ExecutorEnum::Argument(exec) => f.write_str(&format!("ExecutorEnum::Argument({})", exec.name())),
-            ExecutorEnum::PassThrough(exec) => f.write_str(&format!("ExecutorEnum::PassThrough({})", exec.name())),
-            ExecutorEnum::DataCollect(exec) => f.write_str(&format!("ExecutorEnum::DataCollect({})", exec.name())),
-            ExecutorEnum::BFSShortest(exec) => f.write_str(&format!("ExecutorEnum::BFSShortest({})", exec.name())),
-            ExecutorEnum::ShowSpaces(exec) => f.write_str(&format!("ExecutorEnum::ShowSpaces({})", exec.name())),
-            ExecutorEnum::ShowTags(exec) => f.write_str(&format!("ExecutorEnum::ShowTags({})", exec.name())),
-            ExecutorEnum::ShowEdges(exec) => f.write_str(&format!("ExecutorEnum::ShowEdges({})", exec.name())),
-            ExecutorEnum::CreateTagIndex(exec) => f.write_str(&format!("ExecutorEnum::CreateTagIndex({})", exec.name())),
-            ExecutorEnum::DropTagIndex(exec) => f.write_str(&format!("ExecutorEnum::DropTagIndex({})", exec.name())),
-            ExecutorEnum::DescTagIndex(exec) => f.write_str(&format!("ExecutorEnum::DescTagIndex({})", exec.name())),
-            ExecutorEnum::ShowTagIndexes(exec) => f.write_str(&format!("ExecutorEnum::ShowTagIndexes({})", exec.name())),
-            ExecutorEnum::RebuildTagIndex(exec) => f.write_str(&format!("ExecutorEnum::RebuildTagIndex({})", exec.name())),
-            ExecutorEnum::CreateEdgeIndex(exec) => f.write_str(&format!("ExecutorEnum::CreateEdgeIndex({})", exec.name())),
-            ExecutorEnum::DropEdgeIndex(exec) => f.write_str(&format!("ExecutorEnum::DropEdgeIndex({})", exec.name())),
-            ExecutorEnum::DescEdgeIndex(exec) => f.write_str(&format!("ExecutorEnum::DescEdgeIndex({})", exec.name())),
-            ExecutorEnum::ShowEdgeIndexes(exec) => f.write_str(&format!("ExecutorEnum::ShowEdgeIndexes({})", exec.name())),
-            ExecutorEnum::RebuildEdgeIndex(exec) => f.write_str(&format!("ExecutorEnum::RebuildEdgeIndex({})", exec.name())),
-            ExecutorEnum::CreateSpace(exec) => f.write_str(&format!("ExecutorEnum::CreateSpace({})", exec.name())),
-            ExecutorEnum::DropSpace(exec) => f.write_str(&format!("ExecutorEnum::DropSpace({})", exec.name())),
-            ExecutorEnum::DescSpace(exec) => f.write_str(&format!("ExecutorEnum::DescSpace({})", exec.name())),
-            ExecutorEnum::CreateTag(exec) => f.write_str(&format!("ExecutorEnum::CreateTag({})", exec.name())),
-            ExecutorEnum::AlterTag(exec) => f.write_str(&format!("ExecutorEnum::AlterTag({})", exec.name())),
-            ExecutorEnum::DescTag(exec) => f.write_str(&format!("ExecutorEnum::DescTag({})", exec.name())),
-            ExecutorEnum::DropTag(exec) => f.write_str(&format!("ExecutorEnum::DropTag({})", exec.name())),
-            ExecutorEnum::CreateEdge(exec) => f.write_str(&format!("ExecutorEnum::CreateEdge({})", exec.name())),
-            ExecutorEnum::AlterEdge(exec) => f.write_str(&format!("ExecutorEnum::AlterEdge({})", exec.name())),
-            ExecutorEnum::DescEdge(exec) => f.write_str(&format!("ExecutorEnum::DescEdge({})", exec.name())),
-            ExecutorEnum::DropEdge(exec) => f.write_str(&format!("ExecutorEnum::DropEdge({})", exec.name())),
-            ExecutorEnum::CreateUser(exec) => f.write_str(&format!("ExecutorEnum::CreateUser({})", exec.name())),
-            ExecutorEnum::AlterUser(exec) => f.write_str(&format!("ExecutorEnum::AlterUser({})", exec.name())),
-            ExecutorEnum::DropUser(exec) => f.write_str(&format!("ExecutorEnum::DropUser({})", exec.name())),
-            ExecutorEnum::ChangePassword(exec) => f.write_str(&format!("ExecutorEnum::ChangePassword({})", exec.name())),
-            ExecutorEnum::Analyze(exec) => f.write_str(&format!("ExecutorEnum::Analyze({})", exec.name())),
+            ExecutorEnum::Start(exec) => {
+                f.write_str(&format!("ExecutorEnum::Start({})", exec.name()))
+            }
+            ExecutorEnum::Base(exec) => {
+                f.write_str(&format!("ExecutorEnum::Base({})", exec.name()))
+            }
+            ExecutorEnum::GetVertices(exec) => {
+                f.write_str(&format!("ExecutorEnum::GetVertices({})", exec.name()))
+            }
+            ExecutorEnum::GetNeighbors(exec) => {
+                f.write_str(&format!("ExecutorEnum::GetNeighbors({})", exec.name()))
+            }
+            ExecutorEnum::GetProp(exec) => {
+                f.write_str(&format!("ExecutorEnum::GetProp({})", exec.name()))
+            }
+            ExecutorEnum::AllPaths(exec) => {
+                f.write_str(&format!("ExecutorEnum::AllPaths({})", exec.name()))
+            }
+            ExecutorEnum::Expand(exec) => {
+                f.write_str(&format!("ExecutorEnum::Expand({})", exec.name()))
+            }
+            ExecutorEnum::ExpandAll(exec) => {
+                f.write_str(&format!("ExecutorEnum::ExpandAll({})", exec.name()))
+            }
+            ExecutorEnum::Traverse(exec) => {
+                f.write_str(&format!("ExecutorEnum::Traverse({})", exec.name()))
+            }
+            ExecutorEnum::ShortestPath(exec) => {
+                f.write_str(&format!("ExecutorEnum::ShortestPath({})", exec.name()))
+            }
+            ExecutorEnum::InnerJoin(exec) => {
+                f.write_str(&format!("ExecutorEnum::InnerJoin({})", exec.name()))
+            }
+            ExecutorEnum::HashInnerJoin(exec) => {
+                f.write_str(&format!("ExecutorEnum::HashInnerJoin({})", exec.name()))
+            }
+            ExecutorEnum::LeftJoin(exec) => {
+                f.write_str(&format!("ExecutorEnum::LeftJoin({})", exec.name()))
+            }
+            ExecutorEnum::HashLeftJoin(exec) => {
+                f.write_str(&format!("ExecutorEnum::HashLeftJoin({})", exec.name()))
+            }
+            ExecutorEnum::FullOuterJoin(exec) => {
+                f.write_str(&format!("ExecutorEnum::FullOuterJoin({})", exec.name()))
+            }
+            ExecutorEnum::CrossJoin(exec) => {
+                f.write_str(&format!("ExecutorEnum::CrossJoin({})", exec.name()))
+            }
+            ExecutorEnum::Union(exec) => {
+                f.write_str(&format!("ExecutorEnum::Union({})", exec.name()))
+            }
+            ExecutorEnum::UnionAll(exec) => {
+                f.write_str(&format!("ExecutorEnum::UnionAll({})", exec.name()))
+            }
+            ExecutorEnum::Minus(exec) => {
+                f.write_str(&format!("ExecutorEnum::Minus({})", exec.name()))
+            }
+            ExecutorEnum::Intersect(exec) => {
+                f.write_str(&format!("ExecutorEnum::Intersect({})", exec.name()))
+            }
+            ExecutorEnum::Filter(exec) => {
+                f.write_str(&format!("ExecutorEnum::Filter({})", exec.name()))
+            }
+            ExecutorEnum::Project(exec) => {
+                f.write_str(&format!("ExecutorEnum::Project({})", exec.name()))
+            }
+            ExecutorEnum::Limit(exec) => {
+                f.write_str(&format!("ExecutorEnum::Limit({})", exec.name()))
+            }
+            ExecutorEnum::Sort(exec) => {
+                f.write_str(&format!("ExecutorEnum::Sort({})", exec.name()))
+            }
+            ExecutorEnum::TopN(exec) => {
+                f.write_str(&format!("ExecutorEnum::TopN({})", exec.name()))
+            }
+            ExecutorEnum::Sample(exec) => {
+                f.write_str(&format!("ExecutorEnum::Sample({})", exec.name()))
+            }
+            ExecutorEnum::Aggregate(exec) => {
+                f.write_str(&format!("ExecutorEnum::Aggregate({})", exec.name()))
+            }
+            ExecutorEnum::GroupBy(exec) => {
+                f.write_str(&format!("ExecutorEnum::GroupBy({})", exec.name()))
+            }
+            ExecutorEnum::Having(exec) => {
+                f.write_str(&format!("ExecutorEnum::Having({})", exec.name()))
+            }
+            ExecutorEnum::Dedup(exec) => {
+                f.write_str(&format!("ExecutorEnum::Dedup({})", exec.name()))
+            }
+            ExecutorEnum::Unwind(exec) => {
+                f.write_str(&format!("ExecutorEnum::Unwind({})", exec.name()))
+            }
+            ExecutorEnum::Assign(exec) => {
+                f.write_str(&format!("ExecutorEnum::Assign({})", exec.name()))
+            }
+            ExecutorEnum::AppendVertices(exec) => {
+                f.write_str(&format!("ExecutorEnum::AppendVertices({})", exec.name()))
+            }
+            ExecutorEnum::RollUpApply(exec) => {
+                f.write_str(&format!("ExecutorEnum::RollUpApply({})", exec.name()))
+            }
+            ExecutorEnum::PatternApply(exec) => {
+                f.write_str(&format!("ExecutorEnum::PatternApply({})", exec.name()))
+            }
+            ExecutorEnum::Loop(exec) => {
+                f.write_str(&format!("ExecutorEnum::Loop({})", exec.name()))
+            }
+            ExecutorEnum::ForLoop(exec) => {
+                f.write_str(&format!("ExecutorEnum::ForLoop({})", exec.name()))
+            }
+            ExecutorEnum::WhileLoop(exec) => {
+                f.write_str(&format!("ExecutorEnum::WhileLoop({})", exec.name()))
+            }
+            ExecutorEnum::Select(exec) => {
+                f.write_str(&format!("ExecutorEnum::Select({})", exec.name()))
+            }
+            ExecutorEnum::ScanEdges(exec) => {
+                f.write_str(&format!("ExecutorEnum::ScanEdges({})", exec.name()))
+            }
+            ExecutorEnum::ScanVertices(exec) => {
+                f.write_str(&format!("ExecutorEnum::ScanVertices({})", exec.name()))
+            }
+            ExecutorEnum::IndexScan(exec) => {
+                f.write_str(&format!("ExecutorEnum::IndexScan({})", exec.name()))
+            }
+            ExecutorEnum::Argument(exec) => {
+                f.write_str(&format!("ExecutorEnum::Argument({})", exec.name()))
+            }
+            ExecutorEnum::PassThrough(exec) => {
+                f.write_str(&format!("ExecutorEnum::PassThrough({})", exec.name()))
+            }
+            ExecutorEnum::DataCollect(exec) => {
+                f.write_str(&format!("ExecutorEnum::DataCollect({})", exec.name()))
+            }
+            ExecutorEnum::BFSShortest(exec) => {
+                f.write_str(&format!("ExecutorEnum::BFSShortest({})", exec.name()))
+            }
+            ExecutorEnum::ShowSpaces(exec) => {
+                f.write_str(&format!("ExecutorEnum::ShowSpaces({})", exec.name()))
+            }
+            ExecutorEnum::ShowTags(exec) => {
+                f.write_str(&format!("ExecutorEnum::ShowTags({})", exec.name()))
+            }
+            ExecutorEnum::ShowEdges(exec) => {
+                f.write_str(&format!("ExecutorEnum::ShowEdges({})", exec.name()))
+            }
+            ExecutorEnum::CreateTagIndex(exec) => {
+                f.write_str(&format!("ExecutorEnum::CreateTagIndex({})", exec.name()))
+            }
+            ExecutorEnum::DropTagIndex(exec) => {
+                f.write_str(&format!("ExecutorEnum::DropTagIndex({})", exec.name()))
+            }
+            ExecutorEnum::DescTagIndex(exec) => {
+                f.write_str(&format!("ExecutorEnum::DescTagIndex({})", exec.name()))
+            }
+            ExecutorEnum::ShowTagIndexes(exec) => {
+                f.write_str(&format!("ExecutorEnum::ShowTagIndexes({})", exec.name()))
+            }
+            ExecutorEnum::RebuildTagIndex(exec) => {
+                f.write_str(&format!("ExecutorEnum::RebuildTagIndex({})", exec.name()))
+            }
+            ExecutorEnum::CreateEdgeIndex(exec) => {
+                f.write_str(&format!("ExecutorEnum::CreateEdgeIndex({})", exec.name()))
+            }
+            ExecutorEnum::DropEdgeIndex(exec) => {
+                f.write_str(&format!("ExecutorEnum::DropEdgeIndex({})", exec.name()))
+            }
+            ExecutorEnum::DescEdgeIndex(exec) => {
+                f.write_str(&format!("ExecutorEnum::DescEdgeIndex({})", exec.name()))
+            }
+            ExecutorEnum::ShowEdgeIndexes(exec) => {
+                f.write_str(&format!("ExecutorEnum::ShowEdgeIndexes({})", exec.name()))
+            }
+            ExecutorEnum::RebuildEdgeIndex(exec) => {
+                f.write_str(&format!("ExecutorEnum::RebuildEdgeIndex({})", exec.name()))
+            }
+            ExecutorEnum::CreateSpace(exec) => {
+                f.write_str(&format!("ExecutorEnum::CreateSpace({})", exec.name()))
+            }
+            ExecutorEnum::DropSpace(exec) => {
+                f.write_str(&format!("ExecutorEnum::DropSpace({})", exec.name()))
+            }
+            ExecutorEnum::DescSpace(exec) => {
+                f.write_str(&format!("ExecutorEnum::DescSpace({})", exec.name()))
+            }
+            ExecutorEnum::CreateTag(exec) => {
+                f.write_str(&format!("ExecutorEnum::CreateTag({})", exec.name()))
+            }
+            ExecutorEnum::AlterTag(exec) => {
+                f.write_str(&format!("ExecutorEnum::AlterTag({})", exec.name()))
+            }
+            ExecutorEnum::DescTag(exec) => {
+                f.write_str(&format!("ExecutorEnum::DescTag({})", exec.name()))
+            }
+            ExecutorEnum::DropTag(exec) => {
+                f.write_str(&format!("ExecutorEnum::DropTag({})", exec.name()))
+            }
+            ExecutorEnum::CreateEdge(exec) => {
+                f.write_str(&format!("ExecutorEnum::CreateEdge({})", exec.name()))
+            }
+            ExecutorEnum::AlterEdge(exec) => {
+                f.write_str(&format!("ExecutorEnum::AlterEdge({})", exec.name()))
+            }
+            ExecutorEnum::DescEdge(exec) => {
+                f.write_str(&format!("ExecutorEnum::DescEdge({})", exec.name()))
+            }
+            ExecutorEnum::DropEdge(exec) => {
+                f.write_str(&format!("ExecutorEnum::DropEdge({})", exec.name()))
+            }
+            ExecutorEnum::CreateUser(exec) => {
+                f.write_str(&format!("ExecutorEnum::CreateUser({})", exec.name()))
+            }
+            ExecutorEnum::AlterUser(exec) => {
+                f.write_str(&format!("ExecutorEnum::AlterUser({})", exec.name()))
+            }
+            ExecutorEnum::DropUser(exec) => {
+                f.write_str(&format!("ExecutorEnum::DropUser({})", exec.name()))
+            }
+            ExecutorEnum::ChangePassword(exec) => {
+                f.write_str(&format!("ExecutorEnum::ChangePassword({})", exec.name()))
+            }
+            ExecutorEnum::Analyze(exec) => {
+                f.write_str(&format!("ExecutorEnum::Analyze({})", exec.name()))
+            }
         }
     }
 }
@@ -1198,7 +1356,7 @@ impl<S: StorageClient + Send + 'static> ChainableExecutor<S> for ExecutorEnum<S>
     }
 }
 
-use crate::query::core::{NodeType, NodeCategory};
+use crate::query::core::{NodeCategory, NodeType};
 
 /// ExecutorEnum 的 NodeType trait 实现
 ///

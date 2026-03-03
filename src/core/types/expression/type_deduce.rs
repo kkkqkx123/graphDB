@@ -17,27 +17,19 @@ impl Expression {
             Expression::Literal(value) => Self::deduce_value_type(value),
             Expression::Variable(_) => DataType::Empty,
             Expression::Property { .. } => DataType::Empty,
-            Expression::Binary { op, left, right } => {
-                Self::deduce_binary_type(op, left, right)
-            }
-            Expression::Unary { op, operand } => {
-                Self::deduce_unary_type(op, operand)
-            }
-            Expression::Function { name, args } => {
-                Self::deduce_function_type(name, args)
-            }
-            Expression::Aggregate { func, .. } => {
-                Self::deduce_aggregate_type(func)
-            }
+            Expression::Binary { op, left, right } => Self::deduce_binary_type(op, left, right),
+            Expression::Unary { op, operand } => Self::deduce_unary_type(op, operand),
+            Expression::Function { name, args } => Self::deduce_function_type(name, args),
+            Expression::Aggregate { func, .. } => Self::deduce_aggregate_type(func),
             Expression::List(_) => DataType::List,
             Expression::Map(_) => DataType::Map,
-            Expression::Case { conditions, default, .. } => {
-                Self::deduce_case_type(conditions, default.as_deref())
-            }
+            Expression::Case {
+                conditions,
+                default,
+                ..
+            } => Self::deduce_case_type(conditions, default.as_deref()),
             Expression::TypeCast { target_type, .. } => target_type.clone(),
-            Expression::Subscript { collection, .. } => {
-                Self::deduce_subscript_type(collection)
-            }
+            Expression::Subscript { collection, .. } => Self::deduce_subscript_type(collection),
             Expression::Range { .. } => DataType::List,
             Expression::Path(_) => DataType::Path,
             Expression::Label(_) => DataType::String,
@@ -131,7 +123,8 @@ impl Expression {
         let name_upper = name.to_uppercase();
         match name_upper.as_str() {
             // 数学函数
-            "ABS" | "CEIL" | "FLOOR" | "ROUND" | "SIGN" | "SQRT" | "POW" | "EXP" | "LOG" | "LOG10" | "LOG2" => {
+            "ABS" | "CEIL" | "FLOOR" | "ROUND" | "SIGN" | "SQRT" | "POW" | "EXP" | "LOG"
+            | "LOG10" | "LOG2" => {
                 if let Some(first_arg) = args.first() {
                     first_arg.deduce_type()
                 } else {
@@ -140,7 +133,9 @@ impl Expression {
             }
             // 字符串函数
             "LENGTH" | "SIZE" => DataType::Int,
-            "SUBSTRING" | "REPLACE" | "TRIM" | "LTRIM" | "RTRIM" | "UPPER" | "LOWER" | "CONCAT" => DataType::String,
+            "SUBSTRING" | "REPLACE" | "TRIM" | "LTRIM" | "RTRIM" | "UPPER" | "LOWER" | "CONCAT" => {
+                DataType::String
+            }
             // 类型转换函数
             "TOSTRING" => DataType::String,
             "TOINT" => DataType::Int,

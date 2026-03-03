@@ -1,7 +1,6 @@
 //! FETCH VERTICES查询规划器
 //! 处理FETCH VERTICES查询的规划
 
-use crate::query::QueryContext;
 use crate::query::parser::ast::{FetchTarget, Stmt};
 use crate::query::planner::plan::core::common::TagProp;
 use crate::query::planner::plan::core::nodes::{
@@ -9,6 +8,7 @@ use crate::query::planner::plan::core::nodes::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// FETCH VERTICES查询规划器
@@ -33,17 +33,19 @@ impl Planner for FetchVerticesPlanner {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "FetchVerticesPlanner 需要 Fetch 语句".to_string()
+                    "FetchVerticesPlanner 需要 Fetch 语句".to_string(),
                 ));
             }
         };
 
         // 检查是否是 FETCH VERTICES
         let (_ids, properties) = match &fetch_stmt.target {
-            FetchTarget::Vertices { ids, properties, .. } => (ids, properties),
+            FetchTarget::Vertices {
+                ids, properties, ..
+            } => (ids, properties),
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "FetchVerticesPlanner 需要 FETCH VERTICES 语句".to_string()
+                    "FetchVerticesPlanner 需要 FETCH VERTICES 语句".to_string(),
                 ));
             }
         };

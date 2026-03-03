@@ -1,7 +1,4 @@
-use axum::{
-    http::StatusCode,
-    response::Json,
-};
+use axum::{http::StatusCode, response::Json};
 use serde_json::json;
 
 pub async fn check() -> (StatusCode, Json<serde_json::Value>) {

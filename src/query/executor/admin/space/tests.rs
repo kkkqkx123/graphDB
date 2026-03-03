@@ -1,19 +1,21 @@
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-use parking_lot::Mutex;
-    use crate::query::executor::admin::space::{
-        CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor,
-    };
     use crate::query::executor::admin::space::create_space::ExecutorSpaceInfo;
-    use crate::storage::test_mock::MockStorage;
+    use crate::query::executor::admin::space::{
+        CreateSpaceExecutor, DescSpaceExecutor, DropSpaceExecutor, ShowSpacesExecutor,
+    };
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
+    use parking_lot::Mutex;
+    use std::sync::Arc;
 
     #[test]
     fn test_create_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let space_info = ExecutorSpaceInfo::new("test_space".to_string())
-            .with_vid_type("INT64".to_string());
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let space_info =
+            ExecutorSpaceInfo::new("test_space".to_string()).with_vid_type("INT64".to_string());
 
         let mut executor = CreateSpaceExecutor::new(1, storage, space_info);
 
@@ -27,7 +29,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_drop_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DropSpaceExecutor::new(2, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -40,7 +44,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_desc_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DescSpaceExecutor::new(3, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -49,7 +55,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_show_spaces_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = ShowSpacesExecutor::new(4, storage);
 
         let result = executor.execute();
@@ -62,15 +70,16 @@ use parking_lot::Mutex;
         assert_eq!(space_info.space_name, "my_space");
         assert_eq!(space_info.vid_type, "FIXED_STRING(32)");
 
-        let space_info = space_info
-            .with_vid_type("INT32".to_string());
+        let space_info = space_info.with_vid_type("INT32".to_string());
 
         assert_eq!(space_info.vid_type, "INT32");
     }
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let space_info = ExecutorSpaceInfo::new("test_space".to_string());
         let mut executor = CreateSpaceExecutor::new(5, storage, space_info);
 
@@ -83,7 +92,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let space_info = ExecutorSpaceInfo::new("test_space".to_string());
         let executor = CreateSpaceExecutor::new(6, storage, space_info);
 

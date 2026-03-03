@@ -4,16 +4,16 @@
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::QueryContext;
+use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
-use crate::core::YieldColumn;
 use crate::query::validator::structs::CypherClauseKind;
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 pub use crate::query::planner::plan::core::PlanNodeEnum;
@@ -35,9 +35,7 @@ pub struct ReturnItem {
 
 impl ReturnClausePlanner {
     pub fn new() -> Self {
-        Self {
-            distinct: false,
-        }
+        Self { distinct: false }
     }
 
     pub fn with_distinct(distinct: bool) -> Self {
@@ -66,7 +64,10 @@ fn extract_return_columns(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Vec<YieldCol
         if let Some(return_clause) = &match_stmt.return_clause {
             for item in &return_clause.items {
                 match item {
-                    crate::query::parser::ast::stmt::ReturnItem::Expression { expression, alias } => {
+                    crate::query::parser::ast::stmt::ReturnItem::Expression {
+                        expression,
+                        alias,
+                    } => {
                         columns.push(YieldColumn {
                             expression: expression.clone(),
                             alias: alias.clone().unwrap_or_default(),
@@ -75,7 +76,7 @@ fn extract_return_columns(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Vec<YieldCol
                     }
                     crate::query::parser::ast::stmt::ReturnItem::All => {
                         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                            crate::core::Expression::Variable("*".to_string())
+                            crate::core::Expression::Variable("*".to_string()),
                         );
                         let id = qctx.expr_context().register_expression(expr_meta);
                         let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
@@ -92,7 +93,7 @@ fn extract_return_columns(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Vec<YieldCol
 
     if columns.is_empty() {
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::Variable("*".to_string())
+            crate::core::Expression::Variable("*".to_string()),
         );
         let id = qctx.expr_context().register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());

@@ -2,13 +2,14 @@
 //!
 //! 提供高效的哈希表用于join操作，支持内存限制和磁盘溢出
 
+use crate::common::memory::{MemoryConfig, MemoryTracker};
 use crate::core::types::expression::Expression;
 use crate::core::{DBError, DBResult, DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
-use crate::common::memory::{MemoryConfig, MemoryTracker};
 use bincode::{decode_from_slice, encode_to_vec, Decode, Encode};
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::fs::{File, OpenOptions};
@@ -16,7 +17,6 @@ use std::hash::{Hash, Hasher};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 /// Join键，支持高效的哈希和序列化
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
@@ -220,7 +220,9 @@ impl SpillManager {
                 .map_err(|e| DBError::Io(e.to_string()))?;
 
             // 写入数据
-            writer.write_all(&serialized).map_err(|e| DBError::Io(e.to_string()))?;
+            writer
+                .write_all(&serialized)
+                .map_err(|e| DBError::Io(e.to_string()))?;
 
             self.current_file_size += data_size + 4; // +4 for size prefix
         }
@@ -273,7 +275,9 @@ impl SpillManager {
 
                             // 读取数据
                             let mut data = vec![0u8; data_size];
-                            reader.read_exact(&mut data).map_err(|e| DBError::Io(e.to_string()))?;
+                            reader
+                                .read_exact(&mut data)
+                                .map_err(|e| DBError::Io(e.to_string()))?;
 
                             // 反序列化
                             let (key, entries): (JoinKey, Vec<HashTableEntry>) =
@@ -380,11 +384,11 @@ impl HashTable {
         let initial_capacity = config.initial_capacity;
 
         let spill_manager = if config.spill_dir.is_some() && config.memory_config.spill_enabled {
-            let spill_dir = config.spill_dir.as_ref().expect("Spill directory should exist when spill is enabled");
-            Some(SpillManager::new(
-                spill_dir,
-                config.max_spill_file_size,
-            )?)
+            let spill_dir = config
+                .spill_dir
+                .as_ref()
+                .expect("Spill directory should exist when spill is enabled");
+            Some(SpillManager::new(spill_dir, config.max_spill_file_size)?)
         } else {
             None
         };
@@ -405,11 +409,10 @@ impl HashTable {
 
         // 1. 检查是否需要溢出（在分配前）
         if self.should_spill() {
-            self.spill_to_disk()
-                .map_err(|e| {
-                    log::warn!("溢出失败: {}", e);
-                    e
-                })?;
+            self.spill_to_disk().map_err(|e| {
+                log::warn!("溢出失败: {}", e);
+                e
+            })?;
         }
 
         // 2. 分配内存
@@ -433,7 +436,10 @@ impl HashTable {
     fn perform_insert(&mut self, key: JoinKey, entry: HashTableEntry) -> DBResult<()> {
         let entry_size = entry.estimated_size;
 
-        let entries = self.memory_table.entry(key.clone()).or_insert_with(Vec::new);
+        let entries = self
+            .memory_table
+            .entry(key.clone())
+            .or_insert_with(Vec::new);
         entries.push(entry);
 
         {
@@ -453,7 +459,8 @@ impl HashTable {
 
     /// 检查是否应该溢出
     fn should_spill(&self) -> bool {
-        self.memory_tracker.current_usage() as usize > self.config.memory_config.max_query_memory as usize 
+        self.memory_tracker.current_usage() as usize
+            > self.config.memory_config.max_query_memory as usize
             && self.spill_manager.is_some()
     }
 
@@ -683,13 +690,16 @@ mod tests {
         let config = HashTableConfig::default();
         let memory_tracker = Arc::new(MemoryTracker::new(100 * 1024 * 1024));
 
-        let mut hash_table = HashTable::new(memory_tracker, config).expect("HashTable::new should succeed");
+        let mut hash_table =
+            HashTable::new(memory_tracker, config).expect("HashTable::new should succeed");
 
         // 插入测试数据
         let key = JoinKey::new(vec![Value::Int(1)]);
         let entry = HashTableEntry::new(vec![Value::String("test".to_string())], 0);
 
-        hash_table.insert(key.clone(), entry).expect("insert should succeed");
+        hash_table
+            .insert(key.clone(), entry)
+            .expect("insert should succeed");
 
         // 探测测试
         let results = hash_table.probe(&key);
@@ -713,7 +723,8 @@ mod tests {
 
         let memory_tracker = Arc::new(MemoryTracker::new(100 * 1024 * 1024));
 
-        let mut hash_table = HashTable::new(memory_tracker, config).expect("HashTable::new should succeed");
+        let mut hash_table =
+            HashTable::new(memory_tracker, config).expect("HashTable::new should succeed");
 
         // 这里可以添加内存限制测试逻辑
         // 例如尝试插入大量数据并验证行为

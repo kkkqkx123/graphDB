@@ -3,16 +3,16 @@
 //! 该规则识别 Traverse/AppendVertices 节点中的 vFilter，
 //! 并将可下推的过滤条件下推到数据源。
 
-use crate::core::Expression;
 use crate::core::types::{ContextualExpression, ExpressionMeta};
+use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::traversal_node::TraverseNode;
 use crate::query::planner::plan::core::nodes::AppendVerticesNode;
 use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::expression_utils::{check_col_name, split_filter};
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
-use crate::query::planner::rewrite::expression_utils::{split_filter, check_col_name};
 
 /// 将过滤条件下推到Traverse/AppendVertices节点的规则
 ///
@@ -63,12 +63,8 @@ impl RewriteRule for PushFilterDownNodeRule {
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
         match node {
-            PlanNodeEnum::Traverse(traverse) => {
-                self.apply_to_traverse(traverse)
-            }
-            PlanNodeEnum::AppendVertices(append) => {
-                self.apply_to_append_vertices(append)
-            }
+            PlanNodeEnum::Traverse(traverse) => self.apply_to_traverse(traverse),
+            PlanNodeEnum::AppendVertices(append) => self.apply_to_append_vertices(append),
             _ => Ok(None),
         }
     }
@@ -76,10 +72,7 @@ impl RewriteRule for PushFilterDownNodeRule {
 
 impl PushFilterDownNodeRule {
     /// 应用到 Traverse 节点
-    fn apply_to_traverse(
-        &self,
-        traverse: &TraverseNode,
-    ) -> RewriteResult<Option<TransformResult>> {
+    fn apply_to_traverse(&self, traverse: &TraverseNode) -> RewriteResult<Option<TransformResult>> {
         // 检查是否存在 vFilter
         let v_filter = match traverse.v_filter() {
             Some(filter) => filter,
@@ -96,9 +89,7 @@ impl PushFilterDownNodeRule {
         let col_names = traverse.col_names().to_vec();
 
         // 定义选择器：检查表达式是否只涉及当前节点的列
-        let picker = |expr: &Expression| -> bool {
-            check_col_name(&col_names, expr)
-        };
+        let picker = |expr: &Expression| -> bool { check_col_name(&col_names, expr) };
 
         // 分割过滤条件
         let (filter_picked, filter_remained) = split_filter(&v_expr, picker);
@@ -170,9 +161,7 @@ impl PushFilterDownNodeRule {
         let col_names = append.col_names().to_vec();
 
         // 定义选择器：检查表达式是否只涉及当前节点的列
-        let picker = |expr: &Expression| -> bool {
-            check_col_name(&col_names, expr)
-        };
+        let picker = |expr: &Expression| -> bool { check_col_name(&col_names, expr) };
 
         // 分割过滤条件
         let (filter_picked, filter_remained) = split_filter(&v_expr, picker);
@@ -228,7 +217,10 @@ impl PushFilterDownNodeRule {
 
 impl PushDownRule for PushFilterDownNodeRule {
     fn can_push_down(&self, node: &PlanNodeEnum, _target: &PlanNodeEnum) -> bool {
-        matches!(node, PlanNodeEnum::Traverse(_) | PlanNodeEnum::AppendVertices(_))
+        matches!(
+            node,
+            PlanNodeEnum::Traverse(_) | PlanNodeEnum::AppendVertices(_)
+        )
     }
 
     fn push_down(

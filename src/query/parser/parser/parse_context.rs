@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use crate::query::parser::lexer::Lexer;
-use crate::query::parser::lexer::LexError;
-use crate::query::parser::Token;
-use crate::query::parser::core::error::{ParseError, ParseErrorKind};
-use crate::core::types::{Position, Span};
-use crate::query::parser::TokenKind;
-use crate::query::parser::ParseErrors;
 use crate::core::types::expression::ExpressionContext;
+use crate::core::types::{Position, Span};
+use crate::query::parser::core::error::{ParseError, ParseErrorKind};
+use crate::query::parser::lexer::LexError;
+use crate::query::parser::lexer::Lexer;
+use crate::query::parser::ParseErrors;
+use crate::query::parser::Token;
+use crate::query::parser::TokenKind;
 
 pub struct ParseContext<'a> {
     lexer: Lexer<'a>,
@@ -239,7 +239,10 @@ impl<'a> ParseContext<'a> {
                 let pos = self.current_position();
                 Err(ParseError::new(
                     ParseErrorKind::UnexpectedToken,
-                    format!("Expected string literal, found {:?}", self.current_token.kind),
+                    format!(
+                        "Expected string literal, found {:?}",
+                        self.current_token.kind
+                    ),
                     pos,
                 ))
             }
@@ -257,7 +260,10 @@ impl<'a> ParseContext<'a> {
                 let pos = self.current_position();
                 Err(ParseError::new(
                     ParseErrorKind::UnexpectedToken,
-                    format!("Expected integer literal, found {:?}", self.current_token.kind),
+                    format!(
+                        "Expected integer literal, found {:?}",
+                        self.current_token.kind
+                    ),
                     pos,
                 ))
             }
@@ -275,7 +281,10 @@ impl<'a> ParseContext<'a> {
                 let pos = self.current_position();
                 Err(ParseError::new(
                     ParseErrorKind::UnexpectedToken,
-                    format!("Expected float literal, found {:?}", self.current_token.kind),
+                    format!(
+                        "Expected float literal, found {:?}",
+                        self.current_token.kind
+                    ),
                     pos,
                 ))
             }

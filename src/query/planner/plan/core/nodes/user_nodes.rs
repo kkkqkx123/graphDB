@@ -2,8 +2,8 @@
 //!
 //! 提供用户管理相关的计划节点定义
 
-use crate::define_plan_node;
 use crate::core::types::PasswordInfo;
+use crate::define_plan_node;
 
 define_plan_node! {
     pub struct CreateUserNode {

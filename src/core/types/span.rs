@@ -82,7 +82,12 @@ impl Span {
     }
 
     /// 从四个坐标创建跨度
-    pub fn from_coords(start_line: usize, start_col: usize, end_line: usize, end_col: usize) -> Self {
+    pub fn from_coords(
+        start_line: usize,
+        start_col: usize,
+        end_line: usize,
+        end_col: usize,
+    ) -> Self {
         Self {
             start: Position::new(start_line, start_col),
             end: Position::new(end_line, end_col),
@@ -114,7 +119,11 @@ impl Span {
     pub fn merge(&self, other: Span) -> Span {
         Span::new(
             self.start,
-            if self.end >= other.end { self.end } else { other.end },
+            if self.end >= other.end {
+                self.end
+            } else {
+                other.end
+            },
         )
     }
 
@@ -148,7 +157,10 @@ impl Span {
 
     /// 转换为字符串表示
     pub fn to_string(&self) -> String {
-        format!("{}:{} - {}:{}", self.start.line, self.start.column, self.end.line, self.end.column)
+        format!(
+            "{}:{} - {}:{}",
+            self.start.line, self.start.column, self.end.line, self.end.column
+        )
     }
 
     /// 获取起始位置的行号
@@ -174,7 +186,11 @@ impl Span {
 
 impl fmt::Display for Span {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{}:{} - {}:{}]", self.start.line, self.start.column, self.end.line, self.end.column)
+        write!(
+            f,
+            "[{}:{} - {}:{}]",
+            self.start.line, self.start.column, self.end.line, self.end.column
+        )
     }
 }
 

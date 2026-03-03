@@ -14,8 +14,8 @@ pub mod clauses;
 pub mod paths;
 pub mod seeks;
 
-pub mod statement_planner;
 pub mod match_statement_planner;
+pub mod statement_planner;
 
 pub mod create_planner;
 pub mod delete_planner;
@@ -34,5 +34,5 @@ pub mod use_planner;
 pub mod user_management_planner;
 
 // 重新导出语句规划器模块
-pub use statement_planner::{ClausePlanner, StatementPlanner};
 pub use match_statement_planner::MatchStatementPlanner;
+pub use statement_planner::{ClausePlanner, StatementPlanner};

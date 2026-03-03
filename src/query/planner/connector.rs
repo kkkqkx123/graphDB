@@ -2,9 +2,9 @@
 //!
 //! 提供计划节点之间的连接功能，包括内连接、左连接和输入添加
 
-use crate::query::QueryContext;
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::PlannerError;
+use crate::query::QueryContext;
 use std::collections::HashSet;
 
 /// 计划连接器
@@ -143,9 +143,17 @@ mod tests {
             crate::query::planner::plan::core::nodes::StartNode::new(),
         ));
 
-        let result = SegmentsConnector::inner_join(&create_test_query_context(), left, right, HashSet::new());
+        let result = SegmentsConnector::inner_join(
+            &create_test_query_context(),
+            left,
+            right,
+            HashSet::new(),
+        );
         assert!(result.is_ok());
-        assert!(result.expect("Expected planner result to exist").root.is_some());
+        assert!(result
+            .expect("Expected planner result to exist")
+            .root
+            .is_some());
     }
 
     #[test]
@@ -157,9 +165,13 @@ mod tests {
             crate::query::planner::plan::core::nodes::StartNode::new(),
         ));
 
-        let result = SegmentsConnector::left_join(&create_test_query_context(), left, right, HashSet::new());
+        let result =
+            SegmentsConnector::left_join(&create_test_query_context(), left, right, HashSet::new());
         assert!(result.is_ok());
-        assert!(result.expect("Expected planner result to exist").root.is_some());
+        assert!(result
+            .expect("Expected planner result to exist")
+            .root
+            .is_some());
     }
 
     #[test]
@@ -173,7 +185,10 @@ mod tests {
 
         let result = SegmentsConnector::cross_join(left, right);
         assert!(result.is_ok());
-        assert!(result.expect("Expected planner result to exist").root.is_some());
+        assert!(result
+            .expect("Expected planner result to exist")
+            .root
+            .is_some());
     }
 
     #[test]
@@ -196,9 +211,17 @@ mod tests {
             crate::query::planner::plan::core::nodes::StartNode::new(),
         ));
 
-        let result = SegmentsConnector::inner_join(&create_test_query_context(), left, right, HashSet::new());
+        let result = SegmentsConnector::inner_join(
+            &create_test_query_context(),
+            left,
+            right,
+            HashSet::new(),
+        );
         assert!(result.is_ok());
-        assert!(result.expect("Expected planner result to exist").root.is_some());
+        assert!(result
+            .expect("Expected planner result to exist")
+            .root
+            .is_some());
     }
 
     #[test]
@@ -210,6 +233,9 @@ mod tests {
 
         let result = SegmentsConnector::cross_join(left, right);
         assert!(result.is_ok());
-        assert!(result.expect("Expected planner result to exist").root.is_some());
+        assert!(result
+            .expect("Expected planner result to exist")
+            .root
+            .is_some());
     }
 }

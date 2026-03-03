@@ -1,4 +1,4 @@
-use crate::core::{Edge, EdgeDirection, Value, Vertex, StorageError};
+use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
 
 pub trait VertexReader: Send + Sync {
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError>;

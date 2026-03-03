@@ -289,7 +289,12 @@ impl DataSet {
     /// 获取指定列的所有值
     pub fn get_column(&self, col_name: &str) -> Option<Vec<super::types::Value>> {
         if let Some(index) = self.get_col_index(col_name) {
-            Some(self.rows.iter().filter_map(|row| row.get(index).cloned()).collect())
+            Some(
+                self.rows
+                    .iter()
+                    .filter_map(|row| row.get(index).cloned())
+                    .collect(),
+            )
         } else {
             None
         }
@@ -302,7 +307,12 @@ impl DataSet {
     {
         DataSet {
             col_names: self.col_names.clone(),
-            rows: self.rows.iter().filter(|row| predicate(row)).cloned().collect(),
+            rows: self
+                .rows
+                .iter()
+                .filter(|row| predicate(row))
+                .cloned()
+                .collect(),
         }
     }
 
@@ -327,13 +337,17 @@ impl DataSet {
 
     /// 连接两个数据集
     pub fn join(&self, other: &DataSet, on: &str) -> Result<DataSet, String> {
-        let left_index = self.get_col_index(on)
+        let left_index = self
+            .get_col_index(on)
             .ok_or_else(|| format!("左数据集找不到列: {}", on))?;
-        let right_index = other.get_col_index(on)
+        let right_index = other
+            .get_col_index(on)
             .ok_or_else(|| format!("右数据集找不到列: {}", on))?;
 
         let mut result = DataSet::new();
-        result.col_names = self.col_names.iter()
+        result.col_names = self
+            .col_names
+            .iter()
             .chain(other.col_names.iter())
             .filter(|name| *name != on)
             .cloned()
@@ -374,7 +388,8 @@ impl DataSet {
             groups.entry(key).or_insert_with(Vec::new).push(row.clone());
         }
 
-        groups.into_iter()
+        groups
+            .into_iter()
             .map(|(key, rows)| {
                 let dataset = DataSet {
                     col_names: self.col_names.clone(),
@@ -427,7 +442,9 @@ impl DataSet {
         let other_set: HashSet<&Vec<super::types::Value>> = other.rows.iter().collect();
         DataSet {
             col_names: self.col_names.clone(),
-            rows: self.rows.iter()
+            rows: self
+                .rows
+                .iter()
                 .filter(|row| other_set.contains(row))
                 .cloned()
                 .collect(),
@@ -440,7 +457,9 @@ impl DataSet {
         let other_set: HashSet<&Vec<super::types::Value>> = other.rows.iter().collect();
         DataSet {
             col_names: self.col_names.clone(),
-            rows: self.rows.iter()
+            rows: self
+                .rows
+                .iter()
                 .filter(|row| !other_set.contains(row))
                 .cloned()
                 .collect(),
@@ -491,13 +510,13 @@ impl DataSet {
     /// 估算数据集的内存使用大小
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
-        
+
         // 计算 col_names 的容量开销
         size += self.col_names.capacity() * std::mem::size_of::<String>();
         for col_name in &self.col_names {
             size += col_name.capacity();
         }
-        
+
         // 计算 rows 的容量开销
         size += self.rows.capacity() * std::mem::size_of::<Vec<super::types::Value>>();
         for row in &self.rows {
@@ -506,7 +525,7 @@ impl DataSet {
                 size += value.estimated_size();
             }
         }
-        
+
         size
     }
 }

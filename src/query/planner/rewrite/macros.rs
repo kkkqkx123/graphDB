@@ -614,10 +614,10 @@ macro_rules! define_rewrite_rule_registry {
 }
 
 // 重新导出所有宏
-pub use crate::define_rewrite_rule;
-pub use crate::define_typed_rewrite_rule;
-pub use crate::define_rewrite_pushdown_rule;
 pub use crate::define_rewrite_elimination_rule;
-pub use crate::define_simple_rewrite_elimination_rule;
 pub use crate::define_rewrite_merge_rule;
+pub use crate::define_rewrite_pushdown_rule;
+pub use crate::define_rewrite_rule;
 pub use crate::define_rewrite_rule_registry;
+pub use crate::define_simple_rewrite_elimination_rule;
+pub use crate::define_typed_rewrite_rule;

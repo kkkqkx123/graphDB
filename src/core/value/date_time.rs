@@ -25,7 +25,7 @@ impl DateValue {
         if duration.months != 0 {
             self.add_months(duration.months);
         }
-        
+
         let total_days = duration.seconds / 86400;
         if total_days != 0 {
             self.add_days(total_days);
@@ -37,7 +37,7 @@ impl DateValue {
         if duration.months != 0 {
             self.add_months(-duration.months);
         }
-        
+
         let total_days = duration.seconds / 86400;
         if total_days != 0 {
             self.add_days(-total_days);
@@ -47,20 +47,20 @@ impl DateValue {
     fn add_months(&mut self, months: i32) {
         let mut new_month = self.month as i32 + months;
         let mut year_delta = 0;
-        
+
         while new_month > 12 {
             new_month -= 12;
             year_delta += 1;
         }
-        
+
         while new_month < 1 {
             new_month += 12;
             year_delta -= 1;
         }
-        
+
         self.year += year_delta;
         self.month = new_month as u32;
-        
+
         self.normalize_day();
     }
 
@@ -156,26 +156,27 @@ impl TimeValue {
     pub fn add_duration(&mut self, duration: &DurationValue) {
         let total_microseconds = duration.seconds * 1_000_000 + duration.microseconds as i64;
         let mut new_microseconds = self.microsec as i64 + total_microseconds;
-        
+
         while new_microseconds >= 86_400_000_000 {
             new_microseconds -= 86_400_000_000;
         }
         while new_microseconds < 0 {
             new_microseconds += 86_400_000_000;
         }
-        
+
         self.microsec = (new_microseconds % 1_000_000) as u32;
         let total_seconds = new_microseconds / 1_000_000;
-        
-        let mut total_time = self.hour as i64 * 3600 + self.minute as i64 * 60 + self.sec as i64 + total_seconds;
-        
+
+        let mut total_time =
+            self.hour as i64 * 3600 + self.minute as i64 * 60 + self.sec as i64 + total_seconds;
+
         while total_time >= 86_400 {
             total_time -= 86_400;
         }
         while total_time < 0 {
             total_time += 86_400;
         }
-        
+
         self.hour = (total_time / 3600) as u32;
         self.minute = ((total_time % 3600) / 60) as u32;
         self.sec = (total_time % 60) as u32;
@@ -229,7 +230,7 @@ impl DateTimeValue {
             day: self.day,
         };
         date.add_duration(duration);
-        
+
         let mut time = TimeValue {
             hour: self.hour,
             minute: self.minute,
@@ -237,7 +238,7 @@ impl DateTimeValue {
             microsec: self.microsec,
         };
         time.add_duration(duration);
-        
+
         self.year = date.year;
         self.month = date.month;
         self.day = date.day;
@@ -255,7 +256,7 @@ impl DateTimeValue {
             day: self.day,
         };
         date.sub_duration(duration);
-        
+
         let mut time = TimeValue {
             hour: self.hour,
             minute: self.minute,
@@ -263,7 +264,7 @@ impl DateTimeValue {
             microsec: self.microsec,
         };
         time.sub_duration(duration);
-        
+
         self.year = date.year;
         self.month = date.month;
         self.day = date.day;

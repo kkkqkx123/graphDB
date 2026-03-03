@@ -5,5 +5,11 @@
 pub mod match_path_planner;
 pub mod shortest_path_planner;
 
-pub use match_path_planner::{EdgePattern, MatchPathPlanner, PathPattern, PathPatternKind, PathPlan, StartVidFinder, EndCondition, EdgeTraversal};
-pub use shortest_path_planner::{ShortestPathPlanner, ShortestPathPlan, ShortestPathResult, ShortestPath, StartVidSource, BfsConfig};
+pub use match_path_planner::{
+    EdgePattern, EdgeTraversal, EndCondition, MatchPathPlanner, PathPattern, PathPatternKind,
+    PathPlan, StartVidFinder,
+};
+pub use shortest_path_planner::{
+    BfsConfig, ShortestPath, ShortestPathPlan, ShortestPathPlanner, ShortestPathResult,
+    StartVidSource,
+};

@@ -2,8 +2,8 @@
 //!
 //! 负责删除指定的边类型及其所有数据。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -31,7 +31,12 @@ impl<S: StorageClient> DropEdgeExecutor<S> {
     }
 
     /// 创建带 IF EXISTS 选项的 DropEdgeExecutor
-    pub fn with_if_exists(id: i64, storage: Arc<Mutex<S>>, space_name: String, edge_name: String) -> Self {
+    pub fn with_if_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_name: String,
+        edge_name: String,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropEdgeExecutor".to_string(), storage),
             space_name,
@@ -54,11 +59,16 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropEdgeExecutor<
                 if self.if_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Edge type '{}' not found in space '{}'",
-                        self.edge_name, self.space_name)))
+                    Ok(ExecutionResult::Error(format!(
+                        "Edge type '{}' not found in space '{}'",
+                        self.edge_name, self.space_name
+                    )))
                 }
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to drop edge type: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to drop edge type: {}",
+                e
+            ))),
         }
     }
 

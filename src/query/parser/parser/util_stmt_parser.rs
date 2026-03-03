@@ -7,8 +7,8 @@ use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::OrderDirection;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::parser::clause_parser::ClauseParser;
-use crate::query::parser::parser::ExprParser;
 use crate::query::parser::parser::parse_context::ParseContext;
+use crate::query::parser::parser::ExprParser;
 use crate::query::parser::TokenKind;
 
 /// 工具语句解析器
@@ -26,7 +26,10 @@ impl UtilStmtParser {
 
         let space = ctx.expect_identifier()?;
 
-        Ok(Stmt::Use(UseStmt { span: start_span, space }))
+        Ok(Stmt::Use(UseStmt {
+            span: start_span,
+            space,
+        }))
     }
 
     /// 解析 SHOW 语句
@@ -59,11 +62,18 @@ impl UtilStmtParser {
             ShowTarget::Spaces
         };
 
-        Ok(Stmt::Show(ShowStmt { span: start_span, target }))
+        Ok(Stmt::Show(ShowStmt {
+            span: start_span,
+            target,
+        }))
     }
 
     /// 解析 SHOW CREATE 内部方法
-    pub fn parse_show_create_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+    pub fn parse_show_create_internal(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<Stmt, ParseError> {
         ctx.expect_token(TokenKind::Create)?;
 
         let target = if ctx.match_token(TokenKind::Space) {
@@ -89,7 +99,11 @@ impl UtilStmtParser {
     }
 
     /// 解析 SHOW USERS 内部方法
-    fn parse_show_users_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+    fn parse_show_users_internal(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<Stmt, ParseError> {
         ctx.expect_token(TokenKind::Users)?;
 
         let end_span = ctx.current_span();
@@ -99,7 +113,11 @@ impl UtilStmtParser {
     }
 
     /// 解析 SHOW ROLES 内部方法
-    fn parse_show_roles_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+    fn parse_show_roles_internal(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<Stmt, ParseError> {
         ctx.expect_token(TokenKind::Roles)?;
 
         // 可选的 IN <space_name> 子句
@@ -226,9 +244,9 @@ impl UtilStmtParser {
         ctx.expect_token(TokenKind::Unwind)?;
 
         let expression = self.parse_expression(ctx)?;
-        
+
         ctx.match_token(TokenKind::As);
-        
+
         let variable = ctx.expect_identifier()?;
 
         Ok(Stmt::Unwind(UnwindStmt {
@@ -244,7 +262,7 @@ impl UtilStmtParser {
         ctx.expect_token(TokenKind::Return)?;
 
         let return_clause = ClauseParser::new().parse_return_clause(ctx)?;
-        
+
         Ok(Stmt::Return(ReturnStmt {
             span: start_span,
             items: return_clause.items,
@@ -344,7 +362,7 @@ impl UtilStmtParser {
         ctx.expect_token(TokenKind::Set)?;
 
         let set_clause = ClauseParser::new().parse_set_clause(ctx)?;
-        
+
         Ok(Stmt::Set(SetStmt {
             span: start_span,
             assignments: set_clause.assignments,
@@ -371,27 +389,36 @@ impl UtilStmtParser {
     }
 
     /// 解析表达式列表
-    fn parse_expression_list(&mut self, ctx: &mut ParseContext) -> Result<Vec<ContextualExpression>, ParseError> {
+    fn parse_expression_list(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Vec<ContextualExpression>, ParseError> {
         let mut expressions = Vec::new();
-        
+
         loop {
             expressions.push(self.parse_expression(ctx)?);
             if !ctx.match_token(TokenKind::Comma) {
                 break;
             }
         }
-        
+
         Ok(expressions)
     }
 
     /// 解析表达式
-    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
+    fn parse_expression(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<ContextualExpression, ParseError> {
         let mut expr_parser = ExprParser::new(ctx);
         expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 
     /// 解析 ORDER BY 子句
-    fn parse_order_by_clause(&mut self, ctx: &mut ParseContext) -> Result<OrderByClause, ParseError> {
+    fn parse_order_by_clause(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<OrderByClause, ParseError> {
         let span = ctx.current_span();
         let mut items = Vec::new();
 
@@ -404,7 +431,10 @@ impl UtilStmtParser {
             } else {
                 OrderDirection::Asc
             };
-            items.push(OrderByItem { expression: expr, direction });
+            items.push(OrderByItem {
+                expression: expr,
+                direction,
+            });
             if !ctx.match_token(TokenKind::Comma) {
                 break;
             }

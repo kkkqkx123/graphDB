@@ -1,15 +1,15 @@
 //! 维护操作规划器
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
-use crate::query::QueryContext;
-use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum, ProjectNode};
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::YieldColumn;
+use crate::query::parser::ast::Stmt;
+use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum, ProjectNode};
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// 维护操作规划器
@@ -40,19 +40,20 @@ impl Planner for MaintainPlanner {
         let meta = ExpressionMeta::new(expr);
         let id = qctx.expr_context().register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
-        
+
         let yield_columns = vec![YieldColumn {
             expression: ctx_expr,
             alias: "maintain_result".to_string(),
             is_matched: false,
         }];
 
-        let project_node =
-            ProjectNode::new(PlanNodeEnum::Argument(arg_node.clone()), yield_columns)
-                .map_err(|e| PlannerError::PlanGenerationFailed(format!(
-                    "Failed to create ProjectNode: {}",
-                    e
-                )))?;
+        let project_node = ProjectNode::new(
+            PlanNodeEnum::Argument(arg_node.clone()),
+            yield_columns,
+        )
+        .map_err(|e| {
+            PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
+        })?;
 
         // 3. 不同类型的操作可能需要不同处理
         let final_node = if stmt_type == "SUBMIT JOB" {

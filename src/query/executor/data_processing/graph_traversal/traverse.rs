@@ -2,15 +2,15 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 use crate::core::value::dataset::List;
+use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
-use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -102,10 +102,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
         self
     }
 
-    fn get_neighbors_with_edges(
-        &self,
-        node_id: &Value,
-    ) -> Result<Vec<(Value, Edge)>, QueryError> {
+    fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
         let storage = self.base.get_storage().clone();
         super::traversal_utils::get_neighbors_with_edges(
             &storage,
@@ -126,7 +123,10 @@ impl<S: StorageClient> TraverseExecutor<S> {
         if let Some(ref e_filter) = self.e_filter {
             let mut context = DefaultExpressionContext::new();
             context.set_variable("edge".to_string(), Value::Edge(edge.clone()));
-            context.set_variable("vertex".to_string(), Value::Vertex(Box::new(vertex.clone())));
+            context.set_variable(
+                "vertex".to_string(),
+                Value::Vertex(Box::new(vertex.clone())),
+            );
 
             // 如果路径不为空，添加上下文
             if !path.steps.is_empty() {
@@ -147,7 +147,10 @@ impl<S: StorageClient> TraverseExecutor<S> {
         if path.steps.is_empty() {
             if let Some(ref v_filter) = self.v_filter {
                 let mut context = DefaultExpressionContext::new();
-                context.set_variable("vertex".to_string(), Value::Vertex(Box::new(vertex.clone())));
+                context.set_variable(
+                    "vertex".to_string(),
+                    Value::Vertex(Box::new(vertex.clone())),
+                );
 
                 match ExpressionEvaluator::evaluate(v_filter, &mut context) {
                     Ok(Value::Bool(true)) => {}
@@ -160,7 +163,10 @@ impl<S: StorageClient> TraverseExecutor<S> {
         if let Some(ref filter) = self.filter {
             let mut context = DefaultExpressionContext::new();
             context.set_variable("edge".to_string(), Value::Edge(edge.clone()));
-            context.set_variable("vertex".to_string(), Value::Vertex(Box::new(vertex.clone())));
+            context.set_variable(
+                "vertex".to_string(),
+                Value::Vertex(Box::new(vertex.clone())),
+            );
 
             if !path.steps.is_empty() {
                 let last_step = path.steps.last().expect("Path should have steps");
@@ -200,11 +206,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
 
 impl<S: StorageClient> TraverseExecutor<S> {
     /// 执行单步遍历
-    fn traverse_step(
-        &mut self,
-        current_depth: usize,
-        max_depth: usize,
-    ) -> Result<(), QueryError> {
+    fn traverse_step(&mut self, current_depth: usize, max_depth: usize) -> Result<(), QueryError> {
         if current_depth >= max_depth {
             // 将剩余的 current_npaths 移到 completed_npaths
             self.completed_npaths.extend(self.current_npaths.clone());
@@ -288,7 +290,11 @@ impl<S: StorageClient> TraverseExecutor<S> {
     /// 构建遍历结果
     fn build_traversal_result(&self) -> ExecutionResult {
         // 将 NPath 转换为 Path 用于输出
-        let completed_paths: Vec<Path> = self.completed_npaths.iter().map(|np| np.to_path()).collect();
+        let completed_paths: Vec<Path> = self
+            .completed_npaths
+            .iter()
+            .map(|np| np.to_path())
+            .collect();
 
         if self.generate_path {
             // 返回路径结果

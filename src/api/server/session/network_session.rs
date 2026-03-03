@@ -1,11 +1,11 @@
 use log::{info, warn};
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use parking_lot::RwLock;
 
+use crate::core::error::{QueryError, QueryResult};
 use crate::core::RoleType;
-use crate::core::error::{QueryResult, QueryError};
 use crate::transaction::{SavepointId, TransactionId, TransactionOptions};
 
 #[derive(Debug, Clone)]
@@ -32,7 +32,7 @@ pub struct ClientSession {
     roles: Arc<RwLock<HashMap<i64, RoleType>>>,
     idle_start_time: Arc<RwLock<Instant>>,
     contexts: Arc<RwLock<HashMap<u32, String>>>, // Represents queries running in this session
-    
+
     // 事务相关字段
     current_transaction: Arc<RwLock<Option<TransactionId>>>,
     savepoint_stack: Arc<RwLock<Vec<SavepointId>>>,
@@ -160,7 +160,11 @@ impl ClientSession {
 
     pub fn mark_all_queries_killed(&self) {
         let query_count = self.active_queries_count();
-        info!("Killing all {} queries in session {}", query_count, self.id());
+        info!(
+            "Killing all {} queries in session {}",
+            query_count,
+            self.id()
+        );
         self.contexts.write().clear();
     }
 
@@ -170,34 +174,46 @@ impl ClientSession {
     }
 
     /// 终止指定查询（KILL QUERY）
-    /// 
+    ///
     /// # 参数
     /// * `query_id` - 要终止的查询ID
-    /// 
+    ///
     /// # 返回
     /// * `Ok(())` - 成功终止查询
     /// * `Err(QueryError)` - 终止失败的具体原因
     pub fn kill_query(&self, query_id: u32) -> QueryResult<()> {
-        info!("Attempting to kill query {} in session {}", query_id, self.id());
-        
+        info!(
+            "Attempting to kill query {} in session {}",
+            query_id,
+            self.id()
+        );
+
         // 检查查询是否存在
         if !self.find_query(query_id) {
             warn!("Query {} not found in session {}", query_id, self.id());
-            return Err(QueryError::ExecutionError(format!("查询未找到: {}", query_id)));
+            return Err(QueryError::ExecutionError(format!(
+                "查询未找到: {}",
+                query_id
+            )));
         }
-        
+
         // 标记查询为已终止
         self.mark_query_killed(query_id);
-        
-        info!("Successfully killed query {} in session {}", query_id, self.id());
+
+        info!(
+            "Successfully killed query {} in session {}",
+            query_id,
+            self.id()
+        );
         Ok(())
     }
 
     /// 批量终止多个查询
     pub fn kill_multiple_queries(&self, query_ids: &[u32]) -> Vec<QueryResult<()>> {
-        query_ids.iter().map(|&query_id| {
-            self.kill_query(query_id)
-        }).collect()
+        query_ids
+            .iter()
+            .map(|&query_id| self.kill_query(query_id))
+            .collect()
     }
 
     // ==================== 事务管理方法 ====================
@@ -216,7 +232,11 @@ impl ClientSession {
     /// 解绑当前事务
     pub fn unbind_transaction(&self) {
         if let Some(txn_id) = self.current_transaction() {
-            info!("Unbinding transaction {} from session {}", txn_id, self.id());
+            info!(
+                "Unbinding transaction {} from session {}",
+                txn_id,
+                self.id()
+            );
             *self.current_transaction.write() = None;
             // 清空保存点栈
             self.savepoint_stack.write().clear();
@@ -235,7 +255,11 @@ impl ClientSession {
 
     /// 设置自动提交模式
     pub fn set_auto_commit(&self, auto_commit: bool) {
-        info!("Setting auto_commit to {} for session {}", auto_commit, self.id());
+        info!(
+            "Setting auto_commit to {} for session {}",
+            auto_commit,
+            self.id()
+        );
         *self.auto_commit.write() = auto_commit;
     }
 
@@ -253,7 +277,11 @@ impl ClientSession {
 
     /// 添加保存点到栈
     pub fn push_savepoint(&self, savepoint_id: SavepointId) {
-        info!("Pushing savepoint {} to session {}", savepoint_id, self.id());
+        info!(
+            "Pushing savepoint {} to session {}",
+            savepoint_id,
+            self.id()
+        );
         self.savepoint_stack.write().push(savepoint_id);
     }
 
@@ -318,7 +346,7 @@ mod tests {
             id: 456,
         };
         client_session.set_space(space_info.clone());
-        
+
         assert_eq!(client_session.space().unwrap().id, 456);
         assert_eq!(client_session.space().unwrap().name, "test_space");
 
@@ -525,7 +553,10 @@ mod tests {
         client_session.push_savepoint(SavepointId::new(1));
         client_session.push_savepoint(SavepointId::new(2));
         assert_eq!(client_session.savepoint_count(), 2);
-        assert_eq!(client_session.savepoint_stack(), vec![SavepointId::new(1), SavepointId::new(2)]);
+        assert_eq!(
+            client_session.savepoint_stack(),
+            vec![SavepointId::new(1), SavepointId::new(2)]
+        );
 
         // 清空保存点
         client_session.clear_savepoints();

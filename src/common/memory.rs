@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 
-
 /// 内存管理配置
 #[derive(Debug, Clone)]
 pub struct MemoryConfig {
@@ -31,7 +30,6 @@ impl MemoryConfig {
     }
 }
 
-
 /// 内存跟踪器，用于监控内存分配
 #[derive(Debug)]
 pub struct MemoryTracker {
@@ -56,7 +54,7 @@ impl MemoryTracker {
     pub fn record_allocation(&self, size: usize) -> Result<(), String> {
         let size = size as i64;
         let new_used = self.used.fetch_add(size, Ordering::Relaxed) + size;
-        
+
         if new_used > self.limit.load(Ordering::Relaxed) {
             self.used.fetch_sub(size, Ordering::Relaxed);
             return Err(format!(
@@ -65,10 +63,10 @@ impl MemoryTracker {
                 self.limit.load(Ordering::Relaxed)
             ));
         }
-        
+
         self.allocation_count.fetch_add(1, Ordering::Relaxed);
         self.peak.fetch_max(new_used, Ordering::Relaxed);
-        
+
         Ok(())
     }
 
@@ -109,9 +107,6 @@ impl MemoryTracker {
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,8 +138,7 @@ mod tests {
 
         assert!(tracker.record_allocation(50).is_ok());
         assert!(tracker.record_allocation(60).is_err());
-        
+
         assert_eq!(tracker.current_usage(), 50);
     }
-
 }

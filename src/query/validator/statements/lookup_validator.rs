@@ -8,17 +8,17 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
-use crate::query::QueryContext;
 use crate::query::parser::ast::{Stmt, YieldItem};
+use crate::query::validator::structs::validation_info::{
+    IndexHint, OptimizationHint, ValidationInfo,
+};
+use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::query::validator::structs::validation_info::{
-    ValidationInfo, OptimizationHint, IndexHint,
-};
-use crate::query::validator::structs::AliasType;
-use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的 LOOKUP 信息
 #[derive(Debug, Clone)]
@@ -82,10 +82,7 @@ impl LookupValidator {
     }
 
     /// 从 AST 解析 LOOKUP 语句
-    fn parse_from_stmt(
-        &self,
-        stmt: &Stmt,
-    ) -> Result<ParsedLookupInfo, ValidationError> {
+    fn parse_from_stmt(&self, stmt: &Stmt) -> Result<ParsedLookupInfo, ValidationError> {
         let lookup_stmt = match stmt {
             Stmt::Lookup(lookup_stmt) => lookup_stmt,
             _ => {
@@ -136,10 +133,7 @@ impl LookupValidator {
     }
 
     /// 解析单个 YIELD 项
-    fn parse_yield_item(
-        &self,
-        item: &YieldItem,
-    ) -> Result<LookupYieldColumn, ValidationError> {
+    fn parse_yield_item(&self, item: &YieldItem) -> Result<LookupYieldColumn, ValidationError> {
         let name = self.extract_column_name(&item.expression)?;
         Ok(LookupYieldColumn {
             name,
@@ -221,17 +215,22 @@ impl LookupValidator {
     }
 
     /// 验证过滤条件
-    fn validate_filter(&self, filter: &Option<ContextualExpression>) -> Result<(), ValidationError> {
+    fn validate_filter(
+        &self,
+        filter: &Option<ContextualExpression>,
+    ) -> Result<(), ValidationError> {
         if let Some(ref filter_expr) = filter {
             let expr_meta = match filter_expr.expression() {
                 Some(m) => m,
-                None => return Err(ValidationError::new(
-                    "过滤表达式无效".to_string(),
-                    ValidationErrorType::SemanticError,
-                )),
+                None => {
+                    return Err(ValidationError::new(
+                        "过滤表达式无效".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ))
+                }
             };
             let expr = expr_meta.inner();
-            
+
             self.validate_filter_type(expr)?;
 
             if self.has_aggregate_expression(&expr) {
@@ -250,10 +249,14 @@ impl LookupValidator {
             Expression::Binary { op, .. } => {
                 use crate::core::BinaryOperator;
                 match op {
-                    BinaryOperator::Equal | BinaryOperator::NotEqual |
-                    BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual |
-                    BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual |
-                    BinaryOperator::And | BinaryOperator::Or => Ok(()),
+                    BinaryOperator::Equal
+                    | BinaryOperator::NotEqual
+                    | BinaryOperator::LessThan
+                    | BinaryOperator::LessThanOrEqual
+                    | BinaryOperator::GreaterThan
+                    | BinaryOperator::GreaterThanOrEqual
+                    | BinaryOperator::And
+                    | BinaryOperator::Or => Ok(()),
                     _ => Err(ValidationError::new(
                         "Filter expression must return bool type".to_string(),
                         ValidationErrorType::TypeError,
@@ -271,9 +274,7 @@ impl LookupValidator {
             Expression::Binary { left, right, .. } => {
                 self.has_aggregate_expression(left) || self.has_aggregate_expression(right)
             }
-            Expression::Unary { operand, .. } => {
-                self.has_aggregate_expression(operand)
-            }
+            Expression::Unary { operand, .. } => self.has_aggregate_expression(operand),
             Expression::Function { args, .. } => {
                 args.iter().any(|arg| self.has_aggregate_expression(arg))
             }
@@ -384,11 +385,8 @@ impl StatementValidator for LookupValidator {
         }
 
         // 4. 验证 LOOKUP 目标
-        let index_type = self.validate_lookup_target(
-            &space_name,
-            &parsed_info.label,
-            parsed_info.is_edge,
-        )?;
+        let index_type =
+            self.validate_lookup_target(&space_name, &parsed_info.label, parsed_info.is_edge)?;
 
         // 4. 验证过滤条件
         self.validate_filter(&parsed_info.filter_expression)?;
@@ -400,10 +398,8 @@ impl StatementValidator for LookupValidator {
         let space_id = qctx.space_id().unwrap_or(0);
 
         // 7. 生成输出列
-        self.outputs = self.generate_output_columns(
-            &parsed_info.yield_columns,
-            parsed_info.is_yield_all,
-        );
+        self.outputs =
+            self.generate_output_columns(&parsed_info.yield_columns, parsed_info.is_yield_all);
 
         // 8. 构建详细的 ValidationInfo
         let mut info = ValidationInfo::new();
@@ -418,20 +414,22 @@ impl StatementValidator for LookupValidator {
 
         // 8.2 添加语义信息
         if parsed_info.is_edge {
-            info.semantic_info.referenced_edges.push(parsed_info.label.clone());
+            info.semantic_info
+                .referenced_edges
+                .push(parsed_info.label.clone());
         } else {
-            info.semantic_info.referenced_tags.push(parsed_info.label.clone());
+            info.semantic_info
+                .referenced_tags
+                .push(parsed_info.label.clone());
         }
 
         // 8.3 添加优化提示
         if let Some(ref filter) = parsed_info.filter_expression {
-            info.add_optimization_hint(
-                OptimizationHint::UseIndexScan {
-                    table: parsed_info.label.clone(),
-                    column: "id".to_string(),
-                    condition: filter.clone(),
-                }
-            );
+            info.add_optimization_hint(OptimizationHint::UseIndexScan {
+                table: parsed_info.label.clone(),
+                column: "id".to_string(),
+                condition: filter.clone(),
+            });
         }
 
         // 8.4 添加索引提示
@@ -441,10 +439,10 @@ impl StatementValidator for LookupValidator {
                     index_name: format!("{}_{}_index", parsed_info.label, column),
                     table_name: parsed_info.label.clone(),
                     columns: vec![column.clone()],
-                    applicable_conditions: parsed_info.filter_expression.clone().map_or_else(
-                        || vec![],
-                        |f| vec![f]
-                    ),
+                    applicable_conditions: parsed_info
+                        .filter_expression
+                        .clone()
+                        .map_or_else(|| vec![], |f| vec![f]),
                     estimated_selectivity: 0.1,
                 });
             }
@@ -453,10 +451,10 @@ impl StatementValidator for LookupValidator {
                     index_name: format!("{}_composite_index", parsed_info.label),
                     table_name: parsed_info.label.clone(),
                     columns: columns.clone(),
-                    applicable_conditions: parsed_info.filter_expression.clone().map_or_else(
-                        || vec![],
-                        |f| vec![f]
-                    ),
+                    applicable_conditions: parsed_info
+                        .filter_expression
+                        .clone()
+                        .map_or_else(|| vec![], |f| vec![f]),
                     estimated_selectivity: 0.05,
                 });
             }
@@ -464,7 +462,8 @@ impl StatementValidator for LookupValidator {
         }
 
         // 8.5 添加验证通过的子句
-        info.validated_clauses.push(crate::query::validator::structs::ClauseKind::Match);
+        info.validated_clauses
+            .push(crate::query::validator::structs::ClauseKind::Match);
 
         // 9. 创建验证结果（放在最后一步，避免不必要的 clone）
         let validated = ValidatedLookup {
@@ -578,10 +577,13 @@ mod tests {
         let qctx = create_test_query_context();
         // 不设置 LOOKUP 语句
 
-        let result = validator.validate(Stmt::Use(crate::query::parser::ast::stmt::UseStmt {
-            span: Span::default(),
-            space: "test".to_string(),
-        }), qctx);
+        let result = validator.validate(
+            Stmt::Use(crate::query::parser::ast::stmt::UseStmt {
+                span: Span::default(),
+                space: "test".to_string(),
+            }),
+            qctx,
+        );
         assert!(result.is_err());
     }
 }

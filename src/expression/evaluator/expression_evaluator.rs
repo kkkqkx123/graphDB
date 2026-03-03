@@ -4,9 +4,9 @@
 
 use crate::core::error::ExpressionError;
 use crate::core::types::expression::Expression;
+use crate::core::value::dataset::List;
 use crate::core::value::NullType;
 use crate::core::Value;
-use crate::core::value::dataset::List;
 use crate::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 use crate::expression::evaluator::functions::FunctionEvaluator;
 use crate::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};
@@ -55,41 +55,83 @@ impl ExpressionEvaluator {
                 Self::requires_runtime_context(left) || Self::requires_runtime_context(right)
             }
             Expression::Unary { operand, .. } => Self::requires_runtime_context(operand),
-            Expression::Function { args, .. } => args.iter().any(|arg| Self::requires_runtime_context(arg)),
+            Expression::Function { args, .. } => {
+                args.iter().any(|arg| Self::requires_runtime_context(arg))
+            }
             Expression::Aggregate { arg, .. } => Self::requires_runtime_context(arg),
             Expression::List(items) => items.iter().any(|arg| Self::requires_runtime_context(arg)),
-            Expression::Map(pairs) => pairs.iter().any(|(_, val)| Self::requires_runtime_context(val)),
-            Expression::Case { test_expr, conditions, default } => {
-                test_expr.as_ref().map_or(false, |expr| Self::requires_runtime_context(expr))
-                    || conditions.iter().any(|(cond, val)| Self::requires_runtime_context(cond) || Self::requires_runtime_context(val))
-                    || default.as_ref().map_or(false, |d| Self::requires_runtime_context(d))
+            Expression::Map(pairs) => pairs
+                .iter()
+                .any(|(_, val)| Self::requires_runtime_context(val)),
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
+                test_expr
+                    .as_ref()
+                    .map_or(false, |expr| Self::requires_runtime_context(expr))
+                    || conditions.iter().any(|(cond, val)| {
+                        Self::requires_runtime_context(cond) || Self::requires_runtime_context(val)
+                    })
+                    || default
+                        .as_ref()
+                        .map_or(false, |d| Self::requires_runtime_context(d))
             }
             Expression::TypeCast { expression, .. } => Self::requires_runtime_context(expression),
             Expression::Subscript { collection, index } => {
                 Self::requires_runtime_context(collection) || Self::requires_runtime_context(index)
             }
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 Self::requires_runtime_context(collection)
-                    || start.as_ref().map_or(false, |s| Self::requires_runtime_context(s))
-                    || end.as_ref().map_or(false, |e| Self::requires_runtime_context(e))
+                    || start
+                        .as_ref()
+                        .map_or(false, |s| Self::requires_runtime_context(s))
+                    || end
+                        .as_ref()
+                        .map_or(false, |e| Self::requires_runtime_context(e))
             }
-            Expression::Path(items) => items.iter().any(|item| Self::requires_runtime_context(item)),
+            Expression::Path(items) => items
+                .iter()
+                .any(|item| Self::requires_runtime_context(item)),
             Expression::Label(_) => false,
-            Expression::ListComprehension { source, filter, map, .. } => {
+            Expression::ListComprehension {
+                source,
+                filter,
+                map,
+                ..
+            } => {
                 Self::requires_runtime_context(source)
-                    || filter.as_ref().map_or(false, |f| Self::requires_runtime_context(f))
-                    || map.as_ref().map_or(false, |m| Self::requires_runtime_context(m))
+                    || filter
+                        .as_ref()
+                        .map_or(false, |f| Self::requires_runtime_context(f))
+                    || map
+                        .as_ref()
+                        .map_or(false, |m| Self::requires_runtime_context(m))
             }
             Expression::LabelTagProperty { tag, .. } => Self::requires_runtime_context(tag),
             Expression::TagProperty { .. } => false,
             Expression::EdgeProperty { .. } => false,
-            Expression::Predicate { args, .. } => args.iter().any(|arg| Self::requires_runtime_context(arg)),
-            Expression::Reduce { initial, source, mapping, .. } => {
+            Expression::Predicate { args, .. } => {
+                args.iter().any(|arg| Self::requires_runtime_context(arg))
+            }
+            Expression::Reduce {
+                initial,
+                source,
+                mapping,
+                ..
+            } => {
                 Self::requires_runtime_context(initial)
                     || Self::requires_runtime_context(source)
                     || Self::requires_runtime_context(mapping)
             }
-            Expression::PathBuild(exprs) => exprs.iter().any(|expr| Self::requires_runtime_context(expr)),
+            Expression::PathBuild(exprs) => exprs
+                .iter()
+                .any(|expr| Self::requires_runtime_context(expr)),
             Expression::Parameter(_) => true,
         }
     }
@@ -128,17 +170,18 @@ impl ExpressionEvaluator {
                     .map(|arg| Self::evaluate_recursive(arg, context))
                     .collect();
                 let arg_values = arg_values?;
-                
+
                 // 先获取函数（不可变借用）
                 let func_ref = context.get_function(name);
-                
+
                 if let Some(func_ref) = func_ref {
                     // 转换为拥有所有权的函数引用以避免借用问题
-                    let owned_func: crate::expression::functions::OwnedFunctionRef = func_ref.clone().into();
-                    
+                    let owned_func: crate::expression::functions::OwnedFunctionRef =
+                        func_ref.clone().into();
+
                     // 显式释放 func_ref 的借用
                     drop(func_ref);
-                    
+
                     // 如果上下文支持缓存，使用缓存感知执行
                     if context.supports_cache() {
                         // 获取缓存（可变借用）
@@ -155,13 +198,21 @@ impl ExpressionEvaluator {
             }
 
             // 聚合函数 - 直接求值
-            Expression::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 let arg_value = Self::evaluate_recursive(arg, context)?;
                 FunctionEvaluator::eval_aggregate_function(func, &[arg_value], *distinct)
             }
 
             // CASE 表达式 - 短路求值
-            Expression::Case { test_expr, conditions, default } => {
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
                 if let Some(expr) = test_expr {
                     let test_value = Self::evaluate_recursive(expr, context)?;
                     for (condition, value) in conditions {
@@ -181,7 +232,9 @@ impl ExpressionEvaluator {
                     }
                 }
                 match default {
-                    Some(default_expression) => Self::evaluate_recursive(default_expression, context),
+                    Some(default_expression) => {
+                        Self::evaluate_recursive(default_expression, context)
+                    }
                     None => Ok(Value::Null(NullType::Null)),
                 }
             }
@@ -213,7 +266,11 @@ impl ExpressionEvaluator {
             }
 
             // 范围访问
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 let collection_value = Self::evaluate_recursive(collection, context)?;
                 let start_value = start
                     .as_ref()
@@ -246,21 +303,41 @@ impl ExpressionEvaluator {
             }
 
             // 类型转换
-            Expression::TypeCast { expression, target_type } => {
+            Expression::TypeCast {
+                expression,
+                target_type,
+            } => {
                 let value = Self::evaluate_recursive(expression, context)?;
                 Self::eval_type_cast(&value, target_type)
             }
 
             // 其他需要运行时上下文的表达式类型
             Expression::Label(_) => Err(ExpressionError::type_error("未求解的标签表达式")),
-            Expression::ListComprehension { .. } => Err(ExpressionError::type_error("列表推导表达式需要运行时上下文")),
-            Expression::LabelTagProperty { .. } => Err(ExpressionError::type_error("标签属性表达式需要运行时上下文")),
-            Expression::TagProperty { .. } => Err(ExpressionError::type_error("标签属性表达式需要运行时上下文")),
-            Expression::EdgeProperty { .. } => Err(ExpressionError::type_error("边属性表达式需要运行时上下文")),
-            Expression::Predicate { .. } => Err(ExpressionError::type_error("谓词表达式需要运行时上下文")),
-            Expression::Reduce { .. } => Err(ExpressionError::type_error("归约表达式需要运行时上下文")),
-            Expression::PathBuild(_) => Err(ExpressionError::type_error("路径构建表达式需要运行时上下文")),
-            Expression::Parameter(name) => Err(ExpressionError::type_error(&format!("查询参数 '{}' 需要运行时上下文提供值", name))),
+            Expression::ListComprehension { .. } => Err(ExpressionError::type_error(
+                "列表推导表达式需要运行时上下文",
+            )),
+            Expression::LabelTagProperty { .. } => Err(ExpressionError::type_error(
+                "标签属性表达式需要运行时上下文",
+            )),
+            Expression::TagProperty { .. } => Err(ExpressionError::type_error(
+                "标签属性表达式需要运行时上下文",
+            )),
+            Expression::EdgeProperty { .. } => {
+                Err(ExpressionError::type_error("边属性表达式需要运行时上下文"))
+            }
+            Expression::Predicate { .. } => {
+                Err(ExpressionError::type_error("谓词表达式需要运行时上下文"))
+            }
+            Expression::Reduce { .. } => {
+                Err(ExpressionError::type_error("归约表达式需要运行时上下文"))
+            }
+            Expression::PathBuild(_) => Err(ExpressionError::type_error(
+                "路径构建表达式需要运行时上下文",
+            )),
+            Expression::Parameter(name) => Err(ExpressionError::type_error(&format!(
+                "查询参数 '{}' 需要运行时上下文提供值",
+                name
+            ))),
         }
     }
 
@@ -276,14 +353,19 @@ impl ExpressionEvaluator {
             DataType::Int => value.to_int(),
             DataType::Float => value.to_float(),
             DataType::String => {
-                return value.to_string().map(Value::String).map_err(ExpressionError::type_error);
+                return value
+                    .to_string()
+                    .map(Value::String)
+                    .map_err(ExpressionError::type_error);
             }
             DataType::List => value.to_list(),
             DataType::Map => value.to_map(),
-            _ => return Err(ExpressionError::type_error(format!(
-                "不支持的类型转换: {:?}",
-                target_type
-            ))),
+            _ => {
+                return Err(ExpressionError::type_error(format!(
+                    "不支持的类型转换: {:?}",
+                    target_type
+                )))
+            }
         };
 
         // 检查转换结果是否为 Null(BadData)

@@ -19,13 +19,12 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Value;
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的边获取信息
@@ -108,7 +107,7 @@ impl FetchEdgesValidator {
         yield_columns: &[(ContextualExpression, Option<String>)],
     ) -> Result<(), ValidationError> {
         let mut seen_aliases = std::collections::HashSet::new();
-        
+
         for (_, alias) in yield_columns {
             if let Some(ref name) = alias {
                 if !seen_aliases.insert(name.clone()) {
@@ -119,14 +118,20 @@ impl FetchEdgesValidator {
                 }
             }
         }
-        
+
         Ok(())
     }
 
     /// 基础验证
     fn validate_fetch_edges(&self, stmt: &FetchStmt) -> Result<(), ValidationError> {
         match &stmt.target {
-            FetchTarget::Edges { edge_type, src, dst, rank, .. } => {
+            FetchTarget::Edges {
+                edge_type,
+                src,
+                dst,
+                rank,
+                ..
+            } => {
                 self.validate_edge_name(edge_type)?;
                 self.validate_edge_key(src, dst, rank.as_ref())?;
                 Ok(())
@@ -169,7 +174,11 @@ impl FetchEdgesValidator {
     }
 
     /// 验证端点表达式
-    fn validate_endpoint(&self, expr: &ContextualExpression, endpoint_type: &str) -> Result<(), ValidationError> {
+    fn validate_endpoint(
+        &self,
+        expr: &ContextualExpression,
+        endpoint_type: &str,
+    ) -> Result<(), ValidationError> {
         if expr.expression().is_none() {
             return Err(ValidationError::new(
                 format!("边键的{} ID 表达式无效", endpoint_type),
@@ -288,7 +297,11 @@ impl FetchEdgesValidator {
     }
 
     /// 获取 EdgeType ID
-    fn get_edge_type_id(&self, edge_name: &str, _space_id: u64) -> Result<Option<i32>, ValidationError> {
+    fn get_edge_type_id(
+        &self,
+        edge_name: &str,
+        _space_id: u64,
+    ) -> Result<Option<i32>, ValidationError> {
         let _ = edge_name;
         Ok(None)
     }
@@ -337,9 +350,19 @@ impl StatementValidator for FetchEdgesValidator {
 
         // 5. 提取边信息并验证
         let (edge_type_name, src, dst, rank, properties) = match &fetch_stmt.target {
-            FetchTarget::Edges { edge_type, src, dst, rank, properties } => {
-                (edge_type.clone(), src, dst, rank.clone(), properties.clone())
-            }
+            FetchTarget::Edges {
+                edge_type,
+                src,
+                dst,
+                rank,
+                properties,
+            } => (
+                edge_type.clone(),
+                src,
+                dst,
+                rank.clone(),
+                properties.clone(),
+            ),
             _ => {
                 return Err(ValidationError::new(
                     "Expected FETCH EDGES statement".to_string(),
@@ -367,13 +390,14 @@ impl StatementValidator for FetchEdgesValidator {
             for prop in props {
                 // 创建 ContextualExpression 表示属性名
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                    crate::core::Expression::Variable(prop.clone())
+                    crate::core::Expression::Variable(prop.clone()),
                 );
                 let id = qctx.expr_context().register_expression(expr_meta);
-                let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(
-                    id,
-                    qctx.expr_context().clone()
-                );
+                let ctx_expr =
+                    crate::core::types::expression::contextual::ContextualExpression::new(
+                        id,
+                        qctx.expr_context().clone(),
+                    );
                 validated_columns.push(ValidatedYieldColumn {
                     expression: ctx_expr,
                     alias: Some(prop.clone()),
@@ -395,8 +419,7 @@ impl StatementValidator for FetchEdgesValidator {
         // 9. 设置输出列
         self.outputs.clear();
         for (i, col) in validated.yield_columns.iter().enumerate() {
-            let col_name = col.alias.clone()
-                .unwrap_or_else(|| format!("column_{}", i));
+            let col_name = col.alias.clone().unwrap_or_else(|| format!("column_{}", i));
             self.outputs.push(ColumnDef {
                 name: col_name,
                 type_: ValueType::String,
@@ -409,8 +432,14 @@ impl StatementValidator for FetchEdgesValidator {
         let mut info = ValidationInfo::new();
 
         // 添加语义信息
-        if !info.semantic_info.referenced_edges.contains(&edge_type_name) {
-            info.semantic_info.referenced_edges.push(edge_type_name.clone());
+        if !info
+            .semantic_info
+            .referenced_edges
+            .contains(&edge_type_name)
+        {
+            info.semantic_info
+                .referenced_edges
+                .push(edge_type_name.clone());
         }
 
         // 11. 返回包含详细信息的验证结果
@@ -446,8 +475,8 @@ impl StatementValidator for FetchEdgesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
     use crate::query::parser::ast::Span;
@@ -516,7 +545,8 @@ mod tests {
     #[test]
     fn test_validate_rank_negative() {
         let validator = FetchEdgesValidator::new();
-        let result = validator.validate_rank(&create_contextual_expr(Expression::Literal(Value::Int(-1))));
+        let result =
+            validator.validate_rank(&create_contextual_expr(Expression::Literal(Value::Int(-1))));
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("非负"));
@@ -526,8 +556,14 @@ mod tests {
     fn test_validate_yield_duplicate_alias() {
         let validator = FetchEdgesValidator::new();
         let yield_columns = vec![
-            (create_contextual_expr(Expression::Literal(Value::String("prop1".to_string()))), Some("col".to_string())),
-            (create_contextual_expr(Expression::Literal(Value::String("prop2".to_string()))), Some("col".to_string())),
+            (
+                create_contextual_expr(Expression::Literal(Value::String("prop1".to_string()))),
+                Some("col".to_string()),
+            ),
+            (
+                create_contextual_expr(Expression::Literal(Value::String("prop2".to_string()))),
+                Some("col".to_string()),
+            ),
         ];
         let result = validator.validate_yield_clause(&yield_columns);
         assert!(result.is_err());
@@ -538,14 +574,14 @@ mod tests {
     #[test]
     fn test_statement_validator_trait() {
         let validator = FetchEdgesValidator::new();
-        
+
         // 测试 statement_type
         assert_eq!(validator.statement_type(), StatementType::FetchEdges);
-        
+
         // 测试 inputs/outputs
         assert!(validator.inputs().is_empty());
         assert!(validator.outputs().is_empty());
-        
+
         // 测试 user_defined_vars
         assert!(validator.user_defined_vars().is_empty());
     }

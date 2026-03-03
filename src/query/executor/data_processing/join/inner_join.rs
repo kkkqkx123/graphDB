@@ -2,16 +2,16 @@
 //!
 //! 实现基于哈希的内连接算法，支持单键和多键连接
 
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, Value};
 use crate::expression::context::row_context::RowExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 
@@ -27,7 +27,10 @@ impl<S: StorageClient> std::fmt::Debug for InnerJoinExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InnerJoinExecutor")
             .field("base_executor", &"BaseJoinExecutor<S>")
-            .field("single_key_hash_table", &self.single_key_hash_table.is_some())
+            .field(
+                "single_key_hash_table",
+                &self.single_key_hash_table.is_some(),
+            )
             .field("multi_key_hash_table", &self.multi_key_hash_table.is_some())
             .field("use_multi_key", &self.use_multi_key)
             .finish()
@@ -61,16 +64,15 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         left_dataset: &DataSet,
         right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
-        self.base_executor.optimize_join_order(left_dataset, right_dataset);
+        self.base_executor
+            .optimize_join_order(left_dataset, right_dataset);
         let exchange = self.base_executor.is_exchanged();
 
         let hash_keys = self.base_executor.get_hash_keys().clone();
         let probe_keys = self.base_executor.get_probe_keys().clone();
 
         if hash_keys.is_empty() || probe_keys.is_empty() {
-            return Err(QueryError::ExecutionError(
-                "哈希键或探测键为空".to_string(),
-            ));
+            return Err(QueryError::ExecutionError("哈希键或探测键为空".to_string()));
         }
 
         let hash_key = hash_keys[0].clone();
@@ -164,16 +166,15 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         left_dataset: &DataSet,
         right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
-        self.base_executor.optimize_join_order(left_dataset, right_dataset);
+        self.base_executor
+            .optimize_join_order(left_dataset, right_dataset);
         let exchange = self.base_executor.is_exchanged();
 
         let hash_keys = self.base_executor.get_hash_keys().clone();
         let probe_keys = self.base_executor.get_probe_keys().clone();
 
         if hash_keys.is_empty() || probe_keys.is_empty() {
-            return Err(QueryError::ExecutionError(
-                "哈希键或探测键为空".to_string(),
-            ));
+            return Err(QueryError::ExecutionError("哈希键或探测键为空".to_string()));
         }
 
         let (build_dataset, probe_dataset, build_col_names, probe_col_names) = if exchange {
@@ -445,16 +446,10 @@ mod tests {
                 if let Some(Value::DataSet(dataset)) = values.first() {
                     assert_eq!(dataset.rows.len(), 2);
                     assert_eq!(dataset.rows[0][0], Value::Int(1));
-                    assert_eq!(
-                        dataset.rows[0][1],
-                        Value::String("Alice".to_string())
-                    );
+                    assert_eq!(dataset.rows[0][1], Value::String("Alice".to_string()));
                     assert_eq!(dataset.rows[0][2], Value::Int(25));
                     assert_eq!(dataset.rows[1][0], Value::Int(2));
-                    assert_eq!(
-                        dataset.rows[1][1],
-                        Value::String("Bob".to_string())
-                    );
+                    assert_eq!(dataset.rows[1][1], Value::String("Bob".to_string()));
                     assert_eq!(dataset.rows[1][2], Value::Int(30));
                 } else {
                     panic!("期望DataSet结果");
@@ -471,8 +466,16 @@ mod tests {
         let left_dataset = DataSet {
             col_names: vec!["a".to_string(), "b".to_string(), "name".to_string()],
             rows: vec![
-                vec![Value::Int(1), Value::Int(10), Value::String("Alice".to_string())],
-                vec![Value::Int(2), Value::Int(20), Value::String("Bob".to_string())],
+                vec![
+                    Value::Int(1),
+                    Value::Int(10),
+                    Value::String("Alice".to_string()),
+                ],
+                vec![
+                    Value::Int(2),
+                    Value::Int(20),
+                    Value::String("Bob".to_string()),
+                ],
             ],
         };
 
@@ -490,14 +493,8 @@ mod tests {
             storage,
             "left".to_string(),
             "right".to_string(),
-            vec![
-                Expression::variable("a"),
-                Expression::variable("b"),
-            ],
-            vec![
-                Expression::variable("a"),
-                Expression::variable("b"),
-            ],
+            vec![Expression::variable("a"), Expression::variable("b")],
+            vec![Expression::variable("a"), Expression::variable("b")],
             vec![
                 "a".to_string(),
                 "b".to_string(),

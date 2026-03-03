@@ -20,13 +20,12 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::core::Value;
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的删除信息
@@ -148,7 +147,11 @@ impl DeleteValidator {
                     }
                 }
             }
-            DeleteTarget::Tags { tag_names, vertex_ids, is_all_tags } => {
+            DeleteTarget::Tags {
+                tag_names,
+                vertex_ids,
+                is_all_tags,
+            } => {
                 // 如果不是删除所有 Tag，则需要指定至少一个 Tag 名
                 if !is_all_tags && tag_names.is_empty() {
                     return Err(ValidationError::new(
@@ -188,18 +191,24 @@ impl DeleteValidator {
 
     /// 验证顶点 ID
     /// 使用 SchemaValidator 的统一验证方法
-    fn validate_vertex_id(&self, expr: &ContextualExpression, idx: usize) -> Result<(), ValidationError> {
+    fn validate_vertex_id(
+        &self,
+        expr: &ContextualExpression,
+        idx: usize,
+    ) -> Result<(), ValidationError> {
         let role = &format!("vertex {}", idx);
-        
+
         if let Some(ref schema_manager) = self.schema_manager {
             if expr.get_expression().is_some() {
-                let schema_validator = crate::query::validator::SchemaValidator::new(schema_manager.clone());
+                let schema_validator =
+                    crate::query::validator::SchemaValidator::new(schema_manager.clone());
                 let vid_type = crate::core::types::DataType::String;
                 let ctx_expr = crate::core::types::ContextualExpression::new(
                     expr.id().clone(),
-                    expr.context().clone()
+                    expr.context().clone(),
                 );
-                schema_validator.validate_vid_expr(&ctx_expr, &vid_type, role)
+                schema_validator
+                    .validate_vid_expr(&ctx_expr, &vid_type, role)
                     .map_err(|e| ValidationError::new(e.message, e.error_type))
             } else {
                 Err(ValidationError::new(
@@ -211,9 +220,12 @@ impl DeleteValidator {
             Self::basic_validate_vertex_id(expr, idx)
         }
     }
-    
+
     /// 基本顶点 ID 验证（无 SchemaManager 时）
-    fn basic_validate_vertex_id(expr: &ContextualExpression, idx: usize) -> Result<(), ValidationError> {
+    fn basic_validate_vertex_id(
+        expr: &ContextualExpression,
+        idx: usize,
+    ) -> Result<(), ValidationError> {
         if let Some(e) = expr.get_expression() {
             match e {
                 crate::core::types::expression::Expression::Literal(Value::String(s)) => {
@@ -277,16 +289,21 @@ impl DeleteValidator {
     fn validate_expression(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
         let expr_meta = match expr.get_expression() {
             Some(e) => e,
-            None => return Err(ValidationError::new(
-                "表达式无效".to_string(),
-                ValidationErrorType::SemanticError,
-            )),
+            None => {
+                return Err(ValidationError::new(
+                    "表达式无效".to_string(),
+                    ValidationErrorType::SemanticError,
+                ))
+            }
         };
         self.validate_expression_internal(&expr_meta)
     }
 
     /// 内部方法：验证表达式
-    fn validate_expression_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
+    fn validate_expression_internal(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> Result<(), ValidationError> {
         match expr {
             crate::core::types::expression::Expression::Literal(_) => Ok(()),
             crate::core::types::expression::Expression::Variable(_) => Ok(()),
@@ -297,7 +314,9 @@ impl DeleteValidator {
                 }
                 Ok(())
             }
-            crate::core::types::expression::Expression::Unary { operand, .. } => self.validate_expression_internal(operand),
+            crate::core::types::expression::Expression::Unary { operand, .. } => {
+                self.validate_expression_internal(operand)
+            }
             crate::core::types::expression::Expression::Binary { left, right, .. } => {
                 self.validate_expression_internal(left)?;
                 self.validate_expression_internal(right)?;
@@ -352,7 +371,11 @@ impl DeleteValidator {
                     edges: validated_edges,
                 })
             }
-            DeleteTarget::Tags { tag_names, vertex_ids, is_all_tags } => {
+            DeleteTarget::Tags {
+                tag_names,
+                vertex_ids,
+                is_all_tags,
+            } => {
                 // 获取 Tag IDs
                 let mut tag_ids = Vec::new();
                 let final_tag_names = if *is_all_tags {
@@ -399,12 +422,10 @@ impl DeleteValidator {
                 ));
             }
         };
-        
+
         match inner_expr {
             Expression::Literal(v) => Ok(v.clone()),
-            Expression::Variable(name) => {
-                Ok(Value::String(format!("${}", name)))
-            }
+            Expression::Variable(name) => Ok(Value::String(format!("${}", name))),
             _ => Err(ValidationError::new(
                 format!("Failed to evaluate vertex ID at position {}", idx),
                 ValidationErrorType::SemanticError,
@@ -423,7 +444,7 @@ impl DeleteValidator {
                 ));
             }
         };
-        
+
         match inner_expr {
             Expression::Literal(Value::Int(i)) => Ok(i.clone()),
             Expression::Variable(_) => Ok(0),
@@ -447,11 +468,7 @@ impl DeleteValidator {
     }
 
     /// 获取 Tag ID
-    fn get_tag_id(
-        &self,
-        tag_name: &str,
-        _space_id: u64,
-    ) -> Result<Option<i32>, ValidationError> {
+    fn get_tag_id(&self, tag_name: &str, _space_id: u64) -> Result<Option<i32>, ValidationError> {
         // 如果有 schema_manager，可以查询实际的 tag_id
         // 这里简化处理，返回 None 让执行层处理
         let _ = tag_name;
@@ -526,7 +543,9 @@ impl StatementValidator for DeleteValidator {
         // 添加语义信息
         match &delete_stmt.target {
             DeleteTarget::Vertices(_) => {
-                info.semantic_info.referenced_tags.push("vertex".to_string());
+                info.semantic_info
+                    .referenced_tags
+                    .push("vertex".to_string());
             }
             DeleteTarget::Edges { edge_type, .. } => {
                 if let Some(ref et) = edge_type {
@@ -578,8 +597,8 @@ impl StatementValidator for DeleteValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
     use crate::query::parser::ast::Span;
@@ -591,7 +610,10 @@ mod tests {
         ContextualExpression::new(id, ctx)
     }
 
-    fn create_delete_stmt(target: DeleteTarget, where_clause: Option<ContextualExpression>) -> DeleteStmt {
+    fn create_delete_stmt(
+        target: DeleteTarget,
+        where_clause: Option<ContextualExpression>,
+    ) -> DeleteStmt {
         DeleteStmt {
             span: Span::default(),
             target,
@@ -607,7 +629,10 @@ mod tests {
         let result = validator.validate_delete(&stmt);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert_eq!(err.message, "DELETE VERTICES must specify at least one vertex");
+        assert_eq!(
+            err.message,
+            "DELETE VERTICES must specify at least one vertex"
+        );
     }
 
     #[test]
@@ -628,7 +653,9 @@ mod tests {
     fn test_validate_vertices_with_variable() {
         let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
-            DeleteTarget::Vertices(vec![create_contextual_expr(Expression::Variable("vids".to_string()))]),
+            DeleteTarget::Vertices(vec![create_contextual_expr(Expression::Variable(
+                "vids".to_string(),
+            ))]),
             None,
         );
         let result = validator.validate_delete(&stmt);
@@ -708,7 +735,9 @@ mod tests {
         let stmt = create_delete_stmt(
             DeleteTarget::Tags {
                 tag_names: vec!["person".to_string()],
-                vertex_ids: vec![create_contextual_expr(Expression::Literal(Value::String("v1".to_string())))],
+                vertex_ids: vec![create_contextual_expr(Expression::Literal(Value::String(
+                    "v1".to_string(),
+                )))],
                 is_all_tags: false,
             },
             None,
@@ -720,10 +749,7 @@ mod tests {
     #[test]
     fn test_validate_index_empty() {
         let validator = DeleteValidator::new();
-        let stmt = create_delete_stmt(
-            DeleteTarget::Index("".to_string()),
-            None,
-        );
+        let stmt = create_delete_stmt(DeleteTarget::Index("".to_string()), None);
         let result = validator.validate_delete(&stmt);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -733,10 +759,7 @@ mod tests {
     #[test]
     fn test_validate_index_valid() {
         let validator = DeleteValidator::new();
-        let stmt = create_delete_stmt(
-            DeleteTarget::Index("idx_person".to_string()),
-            None,
-        );
+        let stmt = create_delete_stmt(DeleteTarget::Index("idx_person".to_string()), None);
         let result = validator.validate_delete(&stmt);
         assert!(result.is_ok());
     }
@@ -744,14 +767,14 @@ mod tests {
     #[test]
     fn test_statement_validator_trait() {
         let validator = DeleteValidator::new();
-        
+
         // 测试 statement_type
         assert_eq!(validator.statement_type(), StatementType::Delete);
-        
+
         // 测试 inputs/outputs
         assert!(validator.inputs().is_empty());
         assert!(validator.outputs().is_empty());
-        
+
         // 测试 user_defined_vars
         assert!(validator.user_defined_vars().is_empty());
     }

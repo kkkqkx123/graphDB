@@ -1,10 +1,10 @@
 //! 变量检查工具
 //! 负责验证变量的作用域、命名格式和使用
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionMeta;
-use crate::core::types::expression::ExpressionContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionMeta;
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -24,12 +24,12 @@ impl VariableChecker {
         if let Some(expr_meta) = expression.expression() {
             let expr = expr_meta.inner();
             let variables = self.extract_variables_internal(expr);
-            
+
             for var in &variables {
                 self.validate_variable_usage(var, available_aliases)?;
             }
         }
-        
+
         Ok(())
     }
 
@@ -106,13 +106,20 @@ impl VariableChecker {
         Vec::new()
     }
 
-    fn extract_variables_internal(&self, expression: &crate::core::types::expression::Expression) -> Vec<String> {
+    fn extract_variables_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+    ) -> Vec<String> {
         let mut variables = Vec::new();
         self.collect_variables_internal(expression, &mut variables);
         variables
     }
 
-    fn collect_variables_internal(&self, expression: &crate::core::types::expression::Expression, variables: &mut Vec<String>) {
+    fn collect_variables_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+        variables: &mut Vec<String>,
+    ) {
         match expression {
             crate::core::types::expression::Expression::Variable(name) => {
                 if !variables.contains(name) {
@@ -134,10 +141,16 @@ impl VariableChecker {
             crate::core::types::expression::Expression::Aggregate { arg, .. } => {
                 self.collect_variables_internal(arg, variables);
             }
-            crate::core::types::expression::Expression::Property { object: inner_expression, .. } => {
+            crate::core::types::expression::Expression::Property {
+                object: inner_expression,
+                ..
+            } => {
                 self.collect_variables_internal(inner_expression, variables);
             }
-            crate::core::types::expression::Expression::Subscript { collection: inner_expression, index } => {
+            crate::core::types::expression::Expression::Subscript {
+                collection: inner_expression,
+                index,
+            } => {
                 self.collect_variables_internal(inner_expression, variables);
                 self.collect_variables_internal(index, variables);
             }
@@ -179,33 +192,43 @@ impl VariableChecker {
         false
     }
 
-    fn contains_variable_internal(&self, expression: &crate::core::types::expression::Expression, var: &str) -> bool {
+    fn contains_variable_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+        var: &str,
+    ) -> bool {
         match expression {
             crate::core::types::expression::Expression::Variable(name) => name == var,
             crate::core::types::expression::Expression::Binary { left, right, .. } => {
-                self.contains_variable_internal(left, var) || self.contains_variable_internal(right, var)
+                self.contains_variable_internal(left, var)
+                    || self.contains_variable_internal(right, var)
             }
             crate::core::types::expression::Expression::Unary { operand, .. } => {
                 self.contains_variable_internal(operand, var)
             }
-            crate::core::types::expression::Expression::Function { args, .. } => {
-                args.iter().any(|arg| self.contains_variable_internal(arg, var))
-            }
+            crate::core::types::expression::Expression::Function { args, .. } => args
+                .iter()
+                .any(|arg| self.contains_variable_internal(arg, var)),
             crate::core::types::expression::Expression::Aggregate { arg, .. } => {
                 self.contains_variable_internal(arg, var)
             }
-            crate::core::types::expression::Expression::Property { object: inner_expression, .. } => {
+            crate::core::types::expression::Expression::Property {
+                object: inner_expression,
+                ..
+            } => self.contains_variable_internal(inner_expression, var),
+            crate::core::types::expression::Expression::Subscript {
+                collection: inner_expression,
+                index,
+            } => {
                 self.contains_variable_internal(inner_expression, var)
+                    || self.contains_variable_internal(index, var)
             }
-            crate::core::types::expression::Expression::Subscript { collection: inner_expression, index } => {
-                self.contains_variable_internal(inner_expression, var) || self.contains_variable_internal(index, var)
-            }
-            crate::core::types::expression::Expression::List(items) => {
-                items.iter().any(|item| self.contains_variable_internal(item, var))
-            }
-            crate::core::types::expression::Expression::Map(pairs) => {
-                pairs.iter().any(|(_, value)| self.contains_variable_internal(value, var))
-            }
+            crate::core::types::expression::Expression::List(items) => items
+                .iter()
+                .any(|item| self.contains_variable_internal(item, var)),
+            crate::core::types::expression::Expression::Map(pairs) => pairs
+                .iter()
+                .any(|(_, value)| self.contains_variable_internal(value, var)),
             crate::core::types::expression::Expression::Case {
                 test_expr,
                 conditions,
@@ -244,28 +267,30 @@ impl VariableChecker {
         false
     }
 
-    fn is_arithmetic_expression_internal(&self, expression: &crate::core::types::expression::Expression, var: &str) -> bool {
+    fn is_arithmetic_expression_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+        var: &str,
+    ) -> bool {
         match expression {
-            crate::core::types::expression::Expression::Binary { op, left, right } => {
-                match op {
-                    crate::core::types::operators::BinaryOperator::Add
-                    | crate::core::types::operators::BinaryOperator::Subtract
-                    | crate::core::types::operators::BinaryOperator::Multiply
-                    | crate::core::types::operators::BinaryOperator::Divide
-                    | crate::core::types::operators::BinaryOperator::Modulo => {
-                        self.contains_variable_internal(left, var) || self.contains_variable_internal(right, var)
-                    }
-                    _ => false,
+            crate::core::types::expression::Expression::Binary { op, left, right } => match op {
+                crate::core::types::operators::BinaryOperator::Add
+                | crate::core::types::operators::BinaryOperator::Subtract
+                | crate::core::types::operators::BinaryOperator::Multiply
+                | crate::core::types::operators::BinaryOperator::Divide
+                | crate::core::types::operators::BinaryOperator::Modulo => {
+                    self.contains_variable_internal(left, var)
+                        || self.contains_variable_internal(right, var)
                 }
-            }
-            crate::core::types::expression::Expression::Unary { op, operand } => {
-                match op {
-                    crate::core::types::operators::UnaryOperator::Minus | crate::core::types::operators::UnaryOperator::Plus => {
-                        self.contains_variable_internal(operand, var)
-                    }
-                    _ => false,
+                _ => false,
+            },
+            crate::core::types::expression::Expression::Unary { op, operand } => match op {
+                crate::core::types::operators::UnaryOperator::Minus
+                | crate::core::types::operators::UnaryOperator::Plus => {
+                    self.contains_variable_internal(operand, var)
                 }
-            }
+                _ => false,
+            },
             _ => false,
         }
     }
@@ -286,12 +311,12 @@ mod tests {
     #[test]
     fn test_validate_variable_name_format() {
         let checker = VariableChecker::new();
-        
+
         assert!(checker.validate_variable_name_format("var").is_ok());
         assert!(checker.validate_variable_name_format("var1").is_ok());
         assert!(checker.validate_variable_name_format("var_name").is_ok());
         assert!(checker.validate_variable_name_format("_var").is_ok());
-        
+
         assert!(checker.validate_variable_name_format("").is_err());
         assert!(checker.validate_variable_name_format("1var").is_err());
         assert!(checker.validate_variable_name_format("var-name").is_err());
@@ -301,7 +326,7 @@ mod tests {
     #[test]
     fn test_contains_variable() {
         let checker = VariableChecker::new();
-        
+
         let var_expression = Expression::Variable("test_var".to_string());
         let meta = ExpressionMeta::new(var_expression);
         let expr_ctx = ExpressionContext::new();
@@ -309,7 +334,7 @@ mod tests {
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert!(checker.contains_variable(&ctx_expr, "test_var"));
         assert!(!checker.contains_variable(&ctx_expr, "other_var"));
-        
+
         let literal_expression = Expression::Literal(Value::Int(42));
         let meta = ExpressionMeta::new(literal_expression);
         let expr_ctx = ExpressionContext::new();
@@ -321,7 +346,7 @@ mod tests {
     #[test]
     fn test_is_arithmetic_expression() {
         let checker = VariableChecker::new();
-        
+
         let add_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Variable("var".to_string())),
@@ -332,7 +357,7 @@ mod tests {
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert!(checker.is_arithmetic_expression(&ctx_expr, "var"));
-        
+
         let eq_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("var".to_string())),
@@ -348,7 +373,7 @@ mod tests {
     #[test]
     fn test_extract_variables() {
         let checker = VariableChecker::new();
-        
+
         let complex_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Variable("var1".to_string())),
@@ -358,7 +383,7 @@ mod tests {
         let expr_ctx = ExpressionContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
-        
+
         let variables = checker.extract_variables(&ctx_expr);
         assert_eq!(variables.len(), 2);
         assert!(variables.contains(&"var1".to_string()));

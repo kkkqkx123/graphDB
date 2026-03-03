@@ -51,10 +51,16 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropSpaceExecutor
                 if self.if_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Space '{}' not found", self.space_name)))
+                    Ok(ExecutionResult::Error(format!(
+                        "Space '{}' not found",
+                        self.space_name
+                    )))
                 }
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to drop space: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to drop space: {}",
+                e
+            ))),
         }
     }
 

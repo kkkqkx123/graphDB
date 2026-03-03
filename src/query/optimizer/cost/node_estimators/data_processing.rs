@@ -7,16 +7,16 @@
 //! - DataCollect
 //! - Start
 
-use crate::core::Expression;
-use crate::core::types::BinaryOperator;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::optimizer::cost::estimate::NodeCostEstimate;
-use crate::query::optimizer::cost::CostCalculator;
-use crate::query::optimizer::cost::selectivity::SelectivityEstimator;
-use crate::query::optimizer::cost::expression_parser::ExpressionParser;
-use crate::query::optimizer::cost::config::CostModelConfig;
+use super::{get_input_rows, NodeEstimator};
 use crate::core::error::optimize::CostError;
-use super::{NodeEstimator, get_input_rows};
+use crate::core::types::BinaryOperator;
+use crate::core::Expression;
+use crate::query::optimizer::cost::config::CostModelConfig;
+use crate::query::optimizer::cost::estimate::NodeCostEstimate;
+use crate::query::optimizer::cost::expression_parser::ExpressionParser;
+use crate::query::optimizer::cost::selectivity::SelectivityEstimator;
+use crate::query::optimizer::cost::CostCalculator;
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 数据处理节点估算器
 pub struct DataProcessingEstimator<'a> {
@@ -43,21 +43,17 @@ impl<'a> DataProcessingEstimator<'a> {
     /// 计算过滤条件数量
     pub fn count_filter_conditions(&self, condition: &Expression) -> usize {
         match condition {
-            Expression::Binary { op, left, right } => {
-                match op {
-                    BinaryOperator::And => {
-                        self.count_filter_conditions(left) + self.count_filter_conditions(right)
-                    }
-                    BinaryOperator::Or => {
-                        (self.count_filter_conditions(left) + self.count_filter_conditions(right)).max(1)
-                    }
-                    _ => 1,
+            Expression::Binary { op, left, right } => match op {
+                BinaryOperator::And => {
+                    self.count_filter_conditions(left) + self.count_filter_conditions(right)
                 }
-            }
+                BinaryOperator::Or => (self.count_filter_conditions(left)
+                    + self.count_filter_conditions(right))
+                .max(1),
+                _ => 1,
+            },
             Expression::Unary { .. } => 1,
-            Expression::Function { args, .. } => {
-                args.iter().map(|_| 1).sum::<usize>().max(1)
-            }
+            Expression::Function { args, .. } => args.iter().map(|_| 1).sum::<usize>().max(1),
             _ => 1,
         }
     }
@@ -95,35 +91,46 @@ impl<'a> NodeEstimator for DataProcessingEstimator<'a> {
                 };
                 let condition_count = self.count_filter_conditions(&condition_expr);
                 // 估算过滤后的行数
-                let selectivity = self.selectivity_estimator.estimate_from_expression(&condition_expr, None);
+                let selectivity = self
+                    .selectivity_estimator
+                    .estimate_from_expression(&condition_expr, None);
                 let output_rows = (input_rows_val as f64 * selectivity).max(1.0) as u64;
-                let cost = self.cost_calculator.calculate_filter_cost(input_rows_val, condition_count);
+                let cost = self
+                    .cost_calculator
+                    .calculate_filter_cost(input_rows_val, condition_count);
                 Ok((cost, output_rows))
             }
             PlanNodeEnum::Project(n) => {
                 let input_rows_val = get_input_rows(child_estimates, 0);
                 let columns = n.columns().len();
-                let cost = self.cost_calculator.calculate_project_cost(input_rows_val, columns);
+                let cost = self
+                    .cost_calculator
+                    .calculate_project_cost(input_rows_val, columns);
                 // Project 不改变行数
                 Ok((cost, input_rows_val))
             }
             PlanNodeEnum::Unwind(n) => {
                 let input_rows_val = get_input_rows(child_estimates, 0);
                 let list_size = self.estimate_unwind_list_size(n);
-                let cost = self.cost_calculator.calculate_unwind_cost(input_rows_val, list_size);
+                let cost = self
+                    .cost_calculator
+                    .calculate_unwind_cost(input_rows_val, list_size);
                 // Unwind 将每行展开为列表大小行
                 let output_rows = (input_rows_val as f64 * list_size) as u64;
                 Ok((cost, output_rows.max(1)))
             }
             PlanNodeEnum::DataCollect(_) => {
                 let input_rows_val = get_input_rows(child_estimates, 0);
-                let cost = self.cost_calculator.calculate_data_collect_cost(input_rows_val);
+                let cost = self
+                    .cost_calculator
+                    .calculate_data_collect_cost(input_rows_val);
                 Ok((cost, input_rows_val))
             }
             PlanNodeEnum::Start(_) => Ok((0.0, 0)),
-            _ => Err(CostError::UnsupportedNodeType(
-                format!("数据处理估算器不支持节点类型: {:?}", std::mem::discriminant(node))
-            )),
+            _ => Err(CostError::UnsupportedNodeType(format!(
+                "数据处理估算器不支持节点类型: {:?}",
+                std::mem::discriminant(node)
+            ))),
         }
     }
 }

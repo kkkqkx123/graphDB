@@ -66,17 +66,13 @@ impl LineString {
     pub fn length(&self) -> f64 {
         let mut total = 0.0;
         for window in self.coordinates.windows(2) {
-            total += Self::haversine_distance(
-                window[0].y, window[0].x,
-                window[1].y, window[1].x,
-            );
+            total += Self::haversine_distance(window[0].y, window[0].x, window[1].y, window[1].x);
         }
         total
     }
 
     pub fn is_valid(&self) -> bool {
-        self.coordinates.len() >= 2
-            && self.coordinates.iter().all(|c| c.is_valid())
+        self.coordinates.len() >= 2 && self.coordinates.iter().all(|c| c.is_valid())
     }
 
     fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
@@ -159,20 +155,19 @@ impl Polygon {
 
     pub fn is_valid(&self) -> bool {
         !self.rings.is_empty()
-            && self.rings.iter().all(|ring| {
-                ring.len() >= 3 && ring.iter().all(|c| c.is_valid())
-            })
+            && self
+                .rings
+                .iter()
+                .all(|ring| ring.len() >= 3 && ring.iter().all(|c| c.is_valid()))
     }
 
     /// 转换为 WKT 格式
     pub fn as_wkt(&self) -> String {
-        let rings: Vec<String> = self.rings
+        let rings: Vec<String> = self
+            .rings
             .iter()
             .map(|ring| {
-                let coords: Vec<String> = ring
-                    .iter()
-                    .map(|c| format!("{} {}", c.x, c.y))
-                    .collect();
+                let coords: Vec<String> = ring.iter().map(|c| format!("{} {}", c.x, c.y)).collect();
                 format!("({})", coords.join(", "))
             })
             .collect();
@@ -229,13 +224,7 @@ impl GeographyValue {
     }
 
     /// 检查点是否在指定矩形区域内
-    pub fn in_bbox(
-        &self,
-        min_lat: f64,
-        max_lat: f64,
-        min_lon: f64,
-        max_lon: f64,
-    ) -> bool {
+    pub fn in_bbox(&self, min_lat: f64, max_lat: f64, min_lon: f64, max_lon: f64) -> bool {
         self.latitude >= min_lat
             && self.latitude <= max_lat
             && self.longitude >= min_lon
@@ -280,7 +269,8 @@ impl Geography {
                 format!("POINT({} {})", geo.longitude, geo.latitude)
             }
             Geography::LineString(ls) => {
-                let coords: Vec<String> = ls.coordinates
+                let coords: Vec<String> = ls
+                    .coordinates
                     .iter()
                     .map(|c| format!("{} {}", c.x, c.y))
                     .collect();
@@ -292,7 +282,7 @@ impl Geography {
 
     pub fn from_wkt(wkt: &str) -> Result<Self, String> {
         let wkt = wkt.trim();
-        
+
         if wkt.starts_with("POINT") {
             Self::parse_point_wkt(wkt)
         } else if wkt.starts_with("LINESTRING") {
@@ -307,14 +297,16 @@ impl Geography {
     fn parse_point_wkt(wkt: &str) -> Result<Self, String> {
         let re = Regex::new(r"POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)")
             .map_err(|_| "无效的正则表达式".to_string())?;
-        
+
         if let Some(caps) = re.captures(wkt) {
-            let lon = caps.get(1)
+            let lon = caps
+                .get(1)
                 .ok_or("缺少经度坐标")?
                 .as_str()
                 .parse::<f64>()
                 .map_err(|_| "无效的经度格式")?;
-            let lat = caps.get(2)
+            let lat = caps
+                .get(2)
                 .ok_or("缺少纬度坐标")?
                 .as_str()
                 .parse::<f64>()
@@ -324,49 +316,47 @@ impl Geography {
                 longitude: lon,
             }));
         }
-        
+
         Err("无效的 POINT WKT 格式".to_string())
     }
 
     fn parse_linestring_wkt(wkt: &str) -> Result<Self, String> {
         let re = Regex::new(r"LINESTRING\s*\(\s*(.*?)\s*\)")
             .map_err(|_| "无效的正则表达式".to_string())?;
-        
+
         if let Some(caps) = re.captures(wkt) {
-            let coords_str = caps.get(1)
-                .ok_or("缺少坐标数据")?
-                .as_str();
+            let coords_str = caps.get(1).ok_or("缺少坐标数据")?.as_str();
             let coords: Result<Vec<Coordinate>, _> = coords_str
                 .split(',')
                 .map(|s| {
                     let parts: Vec<&str> = s.trim().split_whitespace().collect();
                     if parts.len() == 2 {
-                        let x = parts[0].parse::<f64>().map_err(|_| "无效的坐标".to_string())?;
-                        let y = parts[1].parse::<f64>().map_err(|_| "无效的坐标".to_string())?;
+                        let x = parts[0]
+                            .parse::<f64>()
+                            .map_err(|_| "无效的坐标".to_string())?;
+                        let y = parts[1]
+                            .parse::<f64>()
+                            .map_err(|_| "无效的坐标".to_string())?;
                         Ok(Coordinate::new(x, y))
                     } else {
                         Err("无效的坐标格式".to_string())
                     }
                 })
                 .collect();
-            
-            return coords.map(|coordinates| {
-                Geography::LineString(LineString { coordinates })
-            });
+
+            return coords.map(|coordinates| Geography::LineString(LineString { coordinates }));
         }
-        
+
         Err("无效的 LINESTRING WKT 格式".to_string())
     }
 
     fn parse_polygon_wkt(wkt: &str) -> Result<Self, String> {
         use regex::Regex;
-        let re = Regex::new(r"POLYGON\s*\(\s*(.*?)\s*\)")
-            .map_err(|_| "无效的正则表达式".to_string())?;
-        
+        let re =
+            Regex::new(r"POLYGON\s*\(\s*(.*?)\s*\)").map_err(|_| "无效的正则表达式".to_string())?;
+
         if let Some(caps) = re.captures(wkt) {
-            let rings_str = caps.get(1)
-                .ok_or("缺少多边形数据")?
-                .as_str();
+            let rings_str = caps.get(1).ok_or("缺少多边形数据")?.as_str();
             let rings: Result<Vec<Vec<Coordinate>>, _> = rings_str
                 .split("),(")
                 .map(|s| {
@@ -376,8 +366,12 @@ impl Geography {
                         .map(|coord_str| {
                             let parts: Vec<&str> = coord_str.trim().split_whitespace().collect();
                             if parts.len() == 2 {
-                                let x = parts[0].parse::<f64>().map_err(|_| "无效的坐标".to_string())?;
-                                let y = parts[1].parse::<f64>().map_err(|_| "无效的坐标".to_string())?;
+                                let x = parts[0]
+                                    .parse::<f64>()
+                                    .map_err(|_| "无效的坐标".to_string())?;
+                                let y = parts[1]
+                                    .parse::<f64>()
+                                    .map_err(|_| "无效的坐标".to_string())?;
                                 Ok(Coordinate::new(x, y))
                             } else {
                                 Err("无效的坐标格式".to_string())
@@ -387,12 +381,10 @@ impl Geography {
                     coords
                 })
                 .collect();
-            
-            return rings.map(|rings| {
-                Geography::Polygon(Polygon { rings })
-            });
+
+            return rings.map(|rings| Geography::Polygon(Polygon { rings }));
         }
-        
+
         Err("无效的 POLYGON WKT 格式".to_string())
     }
 }

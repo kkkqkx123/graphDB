@@ -9,11 +9,11 @@
 //! - **StatementPlanner**：语句级 trait，处理完整语句的规划
 //! - **ClausePlanner**：子句级 trait，处理单个子句的规划
 
-use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, ValidatedStatement};
 use crate::query::validator::structs::CypherClauseKind;
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// 语句级规划器 trait
@@ -48,9 +48,9 @@ pub trait ClausePlanner: std::fmt::Debug {
 mod tests {
     use super::*;
     use crate::query::parser::ast::Span;
-    use crate::query::query_request_context::QueryRequestContext;
     use crate::query::planner::plan::core::nodes::StartNode;
     use crate::query::planner::plan::core::PlanNodeEnum;
+    use crate::query::query_request_context::QueryRequestContext;
     use std::collections::HashMap;
 
     #[derive(Debug)]
@@ -69,7 +69,11 @@ mod tests {
     }
 
     impl Planner for MockStatementPlanner {
-        fn transform(&mut self, _validated: &ValidatedStatement, _qctx: Arc<QueryContext>) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
+        fn transform(
+            &mut self,
+            _validated: &ValidatedStatement,
+            _qctx: Arc<QueryContext>,
+        ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
             let start_node = StartNode::new();
             let start_node_enum = PlanNodeEnum::Start(start_node);
             Ok(SubPlan {
@@ -163,10 +167,7 @@ mod tests {
     fn test_statement_planner_transform() {
         use crate::query::validator::ValidationInfo;
 
-        let mut planner = MockStatementPlanner::new(
-            "MATCH",
-            vec![CypherClauseKind::Match],
-        );
+        let mut planner = MockStatementPlanner::new("MATCH", vec![CypherClauseKind::Match]);
         let stmt = create_test_match_stmt();
         let qctx = create_test_qctx();
 
@@ -183,10 +184,7 @@ mod tests {
 
     #[test]
     fn test_statement_planner_match_planner() {
-        let planner = MockStatementPlanner::new(
-            "MATCH",
-            vec![CypherClauseKind::Match],
-        );
+        let planner = MockStatementPlanner::new("MATCH", vec![CypherClauseKind::Match]);
         let stmt = create_test_match_stmt();
         assert!(planner.match_planner(&stmt));
     }
@@ -224,10 +222,18 @@ mod tests {
         ];
         let planner = MockStatementPlanner::new("MATCH", supported_kinds.clone());
         assert_eq!(planner.supported_clause_kinds().len(), 4);
-        assert!(planner.supported_clause_kinds().contains(&CypherClauseKind::Match));
-        assert!(planner.supported_clause_kinds().contains(&CypherClauseKind::Where));
-        assert!(planner.supported_clause_kinds().contains(&CypherClauseKind::Return));
-        assert!(planner.supported_clause_kinds().contains(&CypherClauseKind::With));
+        assert!(planner
+            .supported_clause_kinds()
+            .contains(&CypherClauseKind::Match));
+        assert!(planner
+            .supported_clause_kinds()
+            .contains(&CypherClauseKind::Where));
+        assert!(planner
+            .supported_clause_kinds()
+            .contains(&CypherClauseKind::Return));
+        assert!(planner
+            .supported_clause_kinds()
+            .contains(&CypherClauseKind::With));
     }
 
     #[test]

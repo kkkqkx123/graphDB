@@ -326,14 +326,15 @@ impl IndexBinaryEncoder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{DateValue, DateTimeValue};
+    use crate::core::{DateTimeValue, DateValue};
 
     #[test]
     fn test_encode_decode_int64() {
         let test_values = vec![0i64, 1, -1, i64::MAX, i64::MIN, 1234567890];
         for value in test_values {
             let encoded = IndexBinaryEncoder::encode_int64(value);
-            let decoded = IndexBinaryEncoder::decode_int64(&encoded).expect("Failed to decode int64 in test");
+            let decoded =
+                IndexBinaryEncoder::decode_int64(&encoded).expect("Failed to decode int64 in test");
             assert_eq!(value, decoded);
         }
     }
@@ -343,7 +344,8 @@ mod tests {
         let test_values = vec![0.0f64, 1.0, -1.0, f64::MAX, f64::MIN, 3.1415926];
         for value in test_values {
             let encoded = IndexBinaryEncoder::encode_float64(value);
-            let decoded = IndexBinaryEncoder::decode_float64(&encoded).expect("Failed to decode float64 in test");
+            let decoded = IndexBinaryEncoder::decode_float64(&encoded)
+                .expect("Failed to decode float64 in test");
             assert!((value - decoded).abs() < f64::EPSILON);
         }
     }
@@ -352,7 +354,8 @@ mod tests {
     fn test_encode_decode_bool() {
         for value in [true, false] {
             let encoded = IndexBinaryEncoder::encode_bool(value);
-            let decoded = IndexBinaryEncoder::decode_bool(&encoded).expect("Failed to decode bool in test");
+            let decoded =
+                IndexBinaryEncoder::decode_bool(&encoded).expect("Failed to decode bool in test");
             assert_eq!(value, decoded);
         }
     }
@@ -362,7 +365,8 @@ mod tests {
         let test_values = vec!["", "hello", "中文", "特殊字符!@#$%"];
         for value in test_values {
             let encoded = IndexBinaryEncoder::encode_string(value);
-            let decoded = IndexBinaryEncoder::decode_string(&encoded).expect("Failed to decode string in test");
+            let decoded = IndexBinaryEncoder::decode_string(&encoded)
+                .expect("Failed to decode string in test");
             assert_eq!(value, decoded);
         }
     }
@@ -375,7 +379,8 @@ mod tests {
             day: 17,
         };
         let encoded = IndexBinaryEncoder::encode_date(&date);
-        let decoded = IndexBinaryEncoder::decode_date(&encoded).expect("Failed to decode date in test");
+        let decoded =
+            IndexBinaryEncoder::decode_date(&encoded).expect("Failed to decode date in test");
         assert_eq!(date.year, decoded.year);
         assert_eq!(date.month, decoded.month);
         assert_eq!(date.day, decoded.day);
@@ -393,7 +398,8 @@ mod tests {
             ..Default::default()
         };
         let encoded = IndexBinaryEncoder::encode_datetime(&datetime);
-        let decoded = IndexBinaryEncoder::decode_datetime(&encoded).expect("Failed to decode datetime in test");
+        let decoded = IndexBinaryEncoder::decode_datetime(&encoded)
+            .expect("Failed to decode datetime in test");
         assert_eq!(datetime.year, decoded.year);
         assert_eq!(datetime.month, decoded.month);
         assert_eq!(datetime.day, decoded.day);

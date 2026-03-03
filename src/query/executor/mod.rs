@@ -32,10 +32,9 @@ pub use data_access::{
 
 // Re-export result processing executors
 pub use result_processing::{
-    AggregateExecutor, AggregateFunction, DedupExecutor, DedupStrategy,
-    FilterExecutor, GroupAggregateState, GroupByExecutor, HavingExecutor, LimitExecutor,
-    ProjectExecutor, SampleExecutor, SampleMethod,
-    SortExecutor, SortKey, SortOrder, TopNExecutor,
+    AggregateExecutor, AggregateFunction, DedupExecutor, DedupStrategy, FilterExecutor,
+    GroupAggregateState, GroupByExecutor, HavingExecutor, LimitExecutor, ProjectExecutor,
+    SampleExecutor, SampleMethod, SortExecutor, SortKey, SortOrder, TopNExecutor,
 };
 
 // Re-export ResultProcessorFactory from base module
@@ -43,7 +42,8 @@ pub use base::ResultProcessorFactory;
 
 // Re-export transformations (数据转换执行器)
 pub use result_processing::transformations::{
-    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor, UnwindExecutor,
+    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
+    UnwindExecutor,
 };
 
 // Re-export logic executors (循环控制执行器)
@@ -60,13 +60,13 @@ pub use graph_query_executor::GraphQueryExecutor;
 
 // Re-export admin executors (管理执行器)
 pub use admin::{
-    CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor,
-    CreateTagExecutor, AlterTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
-    CreateEdgeExecutor, AlterEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
-    CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
-    CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor, ShowEdgeIndexesExecutor,
-    RebuildTagIndexExecutor, RebuildEdgeIndexExecutor,
-    CreateUserExecutor, AlterUserExecutor, DropUserExecutor, ChangePasswordExecutor,
+    AlterEdgeExecutor, AlterTagExecutor, AlterUserExecutor, ChangePasswordExecutor,
+    CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateSpaceExecutor, CreateTagExecutor,
+    CreateTagIndexExecutor, CreateUserExecutor, DescEdgeExecutor, DescEdgeIndexExecutor,
+    DescSpaceExecutor, DescTagExecutor, DescTagIndexExecutor, DropEdgeExecutor,
+    DropEdgeIndexExecutor, DropSpaceExecutor, DropTagExecutor, DropTagIndexExecutor,
+    DropUserExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, ShowEdgeIndexesExecutor,
+    ShowEdgesExecutor, ShowSpacesExecutor, ShowTagIndexesExecutor, ShowTagsExecutor,
 };
 
 // Re-export search executors (搜索执行器)
@@ -111,27 +111,34 @@ mod consistency_tests {
     fn test_node_type_id_consistency() {
         // 此测试确保所有 PlanNode 类型都有对应的 Executor 类型
         // 实际检查在编译期通过常量断言完成
-        assert_eq!(super::PLAN_NODE_VARIANT_COUNT, super::EXECUTOR_VARIANT_COUNT);
+        assert_eq!(
+            super::PLAN_NODE_VARIANT_COUNT,
+            super::EXECUTOR_VARIANT_COUNT
+        );
     }
 
     /// 验证节点类型映射
     #[test]
     fn test_node_type_mapping() {
-        use crate::query::planner::plan::core::nodes::{CrossJoinNode, ArgumentNode, PlanNodeEnum as NodeEnum};
-        
+        use crate::query::planner::plan::core::nodes::{
+            ArgumentNode, CrossJoinNode, PlanNodeEnum as NodeEnum,
+        };
+
         // 示例：验证 CrossJoin 的映射
         // 创建两个 ArgumentNode 作为 CrossJoin 的输入
         let left = ArgumentNode::new(1, "left_var");
         let right = ArgumentNode::new(2, "right_var");
-        let cross_join_node = CrossJoinNode::new(
-            NodeEnum::Argument(left),
-            NodeEnum::Argument(right)
-        ).expect("创建 CrossJoinNode 失败");
+        let cross_join_node =
+            CrossJoinNode::new(NodeEnum::Argument(left), NodeEnum::Argument(right))
+                .expect("创建 CrossJoinNode 失败");
         let plan_node = PlanNodeEnum::CrossJoin(cross_join_node);
-        
+
         // 验证 PlanNodeEnum 实现了 NodeTypeMapping
         let executor_type = plan_node.corresponding_executor_type();
         assert!(executor_type.is_some());
-        assert_eq!(executor_type.expect("Expected executor type to exist"), "cross_join");
+        assert_eq!(
+            executor_type.expect("Expected executor type to exist"),
+            "cross_join"
+        );
     }
 }

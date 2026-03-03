@@ -5,8 +5,8 @@
 use super::super::common::{EdgeProp, TagProp};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::define_plan_node;
-use crate::query::planner::plan::core::node_id_generator::next_node_id;
 use crate::query::planner::plan::algorithms::{IndexLimit, ScanType};
+use crate::query::planner::plan::core::node_id_generator::next_node_id;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 define_plan_node! {
@@ -25,17 +25,17 @@ define_plan_node! {
 
 impl GetVerticesNode {
     pub fn new(space_id: u64, src_vids: &str) -> Self {
-        use crate::core::Expression;
-        use crate::core::types::expression::ExpressionMeta;
         use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::Expression;
         use std::sync::Arc;
-        
+
         let expr_ctx = Arc::new(ExpressionContext::new());
         let src_expr = Expression::Variable(src_vids.to_string());
         let src_meta = ExpressionMeta::new(src_expr);
         let src_id = expr_ctx.register_expression(src_meta);
         let src_ctx_expr = ContextualExpression::new(src_id, expr_ctx);
-        
+
         Self {
             id: next_node_id(),
             deps: Vec::new(),
@@ -92,17 +92,17 @@ impl GetVerticesNode {
     }
 
     pub fn set_src_vids(&mut self, src_vids: String) {
-        use crate::core::Expression;
-        use crate::core::types::expression::ExpressionMeta;
         use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::Expression;
         use std::sync::Arc;
-        
+
         let expr_ctx = Arc::new(ExpressionContext::new());
         let src_expr = Expression::Variable(src_vids.clone());
         let src_meta = ExpressionMeta::new(src_expr);
         let src_id = expr_ctx.register_expression(src_meta);
         let src_ctx_expr = ContextualExpression::new(src_id, expr_ctx);
-        
+
         self.src_ref = src_ctx_expr;
         self.src_vids = src_vids;
     }
@@ -232,17 +232,17 @@ define_plan_node! {
 
 impl GetEdgesNode {
     pub fn new(space_id: u64, src: &str, edge_type: &str, rank: &str, dst: &str) -> Self {
-        use crate::core::Expression;
-        use crate::core::types::expression::ExpressionMeta;
         use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::Expression;
         use std::sync::Arc;
-        
+
         let expr_ctx = Arc::new(ExpressionContext::new());
         let edge_expr = Expression::Variable(format!("{}->{}@{}", src, dst, edge_type));
         let edge_meta = ExpressionMeta::new(edge_expr);
         let edge_id = expr_ctx.register_expression(edge_meta);
         let edge_ctx_expr = ContextualExpression::new(edge_id, expr_ctx);
-        
+
         Self {
             id: next_node_id(),
             space_id,

@@ -1,7 +1,7 @@
 //! CREATE 语句验证器（Cypher 风格）- 新体系版本
 //! 对应 Cypher CREATE (n:Label {prop: value}) 语法的验证
 //! 支持自动 Schema 推断和创建
-//! 
+//!
 //! 本文件已按照新的 trait + 枚举 验证器体系重构：
 //! 1. 实现了 StatementValidator trait，统一接口
 //! 2. 保留了 base_validator.rs 的完整功能：
@@ -18,20 +18,21 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::Expression;
 use crate::core::types::EdgeDirection;
+use crate::core::Expression;
 use crate::core::Value;
-use crate::query::QueryContext;
-use crate::storage::metadata::schema_manager::SchemaManager;
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
-use crate::query::parser::ast::stmt::{CreateStmt, CreateTarget};
-use crate::query::parser::ast::pattern::{Pattern, NodePattern, EdgePattern, PathPattern, PathElement};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
+use crate::query::parser::ast::pattern::{
+    EdgePattern, NodePattern, PathElement, PathPattern, Pattern,
 };
+use crate::query::parser::ast::stmt::{CreateStmt, CreateTarget};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的创建信息
 #[derive(Debug, Clone)]
@@ -79,7 +80,7 @@ pub struct ValidatedPathCreate {
 }
 
 /// CREATE 语句验证器 - 新体系实现
-/// 
+///
 /// 功能完整性保证：
 /// 1. 完整的验证生命周期（参考 base_validator.rs）
 /// 2. 输入/输出列管理
@@ -198,14 +199,46 @@ impl CreateValidator {
 
         // 验证目标
         let patterns = match &stmt.target {
-            CreateTarget::Path { patterns } => {
-                self.validate_patterns(patterns, space_name, schema_manager.as_ref(), &mut missing_tags, &mut missing_edge_types)?
+            CreateTarget::Path { patterns } => self.validate_patterns(
+                patterns,
+                space_name,
+                schema_manager.as_ref(),
+                &mut missing_tags,
+                &mut missing_edge_types,
+            )?,
+            CreateTarget::Node {
+                variable,
+                labels,
+                properties,
+            } => {
+                vec![self.validate_single_node(
+                    variable,
+                    labels,
+                    properties,
+                    space_name,
+                    schema_manager.as_ref(),
+                    &mut missing_tags,
+                )?]
             }
-            CreateTarget::Node { variable, labels, properties } => {
-                vec![self.validate_single_node(variable, labels, properties, space_name, schema_manager.as_ref(), &mut missing_tags)?]
-            }
-            CreateTarget::Edge { variable, edge_type, src, dst, properties, direction } => {
-                vec![self.validate_single_edge(variable, edge_type, src, dst, properties, direction, space_name, schema_manager.as_ref(), &mut missing_edge_types)?]
+            CreateTarget::Edge {
+                variable,
+                edge_type,
+                src,
+                dst,
+                properties,
+                direction,
+            } => {
+                vec![self.validate_single_edge(
+                    variable,
+                    edge_type,
+                    src,
+                    dst,
+                    properties,
+                    direction,
+                    space_name,
+                    schema_manager.as_ref(),
+                    &mut missing_edge_types,
+                )?]
             }
             _ => {
                 return Err(ValidationError::new(
@@ -243,15 +276,25 @@ impl CreateValidator {
 
         for pattern in patterns {
             let validated_pattern = match pattern {
-                Pattern::Node(node) => {
-                    ValidatedPattern::Node(self.validate_node_pattern(node, space_name, schema_manager, missing_tags)?)
-                }
-                Pattern::Edge(edge) => {
-                    ValidatedPattern::Edge(self.validate_edge_pattern(edge, space_name, schema_manager, missing_edge_types)?)
-                }
-                Pattern::Path(path) => {
-                    ValidatedPattern::Path(self.validate_path_pattern(path, space_name, schema_manager, missing_tags, missing_edge_types)?)
-                }
+                Pattern::Node(node) => ValidatedPattern::Node(self.validate_node_pattern(
+                    node,
+                    space_name,
+                    schema_manager,
+                    missing_tags,
+                )?),
+                Pattern::Edge(edge) => ValidatedPattern::Edge(self.validate_edge_pattern(
+                    edge,
+                    space_name,
+                    schema_manager,
+                    missing_edge_types,
+                )?),
+                Pattern::Path(path) => ValidatedPattern::Path(self.validate_path_pattern(
+                    path,
+                    space_name,
+                    schema_manager,
+                    missing_tags,
+                    missing_edge_types,
+                )?),
                 Pattern::Variable(_) => {
                     return Err(ValidationError::new(
                         "Variable pattern is not supported in CREATE statement".to_string(),
@@ -311,12 +354,13 @@ impl CreateValidator {
         missing_edge_types: &mut Vec<String>,
     ) -> Result<ValidatedEdgeCreate, ValidationError> {
         // 验证边类型（取第一个边类型）
-        let edge_type = edge.edge_types.first()
-            .ok_or_else(|| ValidationError::new(
+        let edge_type = edge.edge_types.first().ok_or_else(|| {
+            ValidationError::new(
                 "Edge must specify at least one edge type".to_string(),
                 ValidationErrorType::SemanticError,
-            ))?;
-        
+            )
+        })?;
+
         if let Ok(None) = schema_manager.get_edge_type(space_name, edge_type) {
             if !self.auto_create_schema {
                 return Err(ValidationError::new(
@@ -361,10 +405,20 @@ impl CreateValidator {
         for element in &path.elements {
             match element {
                 PathElement::Node(node) => {
-                    nodes.push(self.validate_node_pattern(node, space_name, schema_manager, missing_tags)?);
+                    nodes.push(self.validate_node_pattern(
+                        node,
+                        space_name,
+                        schema_manager,
+                        missing_tags,
+                    )?);
                 }
                 PathElement::Edge(edge) => {
-                    edges.push(self.validate_edge_pattern(edge, space_name, schema_manager, missing_edge_types)?);
+                    edges.push(self.validate_edge_pattern(
+                        edge,
+                        space_name,
+                        schema_manager,
+                        missing_edge_types,
+                    )?);
                 }
                 PathElement::Alternative(_) => {
                     return Err(ValidationError::new(
@@ -511,10 +565,7 @@ impl CreateValidator {
     }
 
     /// 内部方法：求值表达式（简化版）
-    fn evaluate_expression_internal(
-        &self,
-        expr: &Expression,
-    ) -> Result<Value, ValidationError> {
+    fn evaluate_expression_internal(&self, expr: &Expression) -> Result<Value, ValidationError> {
         match expr {
             Expression::Literal(value) => Ok(value.clone()),
             _ => Err(ValidationError::new(
@@ -525,11 +576,19 @@ impl CreateValidator {
     }
 
     /// 验证具体语句（参考 base_validator.rs 的 validate_impl）
-    fn validate_impl(&mut self, create_stmt: &CreateStmt, space_name: &str) -> Result<(), ValidationError> {
+    fn validate_impl(
+        &mut self,
+        create_stmt: &CreateStmt,
+        space_name: &str,
+    ) -> Result<(), ValidationError> {
         // 根据 CreateTarget 类型处理
         match &create_stmt.target {
             // CREATE SPACE: 是全局语句，不需要空间
-            CreateTarget::Space { name, vid_type, comment: _ } => {
+            CreateTarget::Space {
+                name,
+                vid_type,
+                comment: _,
+            } => {
                 self.no_space_required = true;
 
                 // 获取 SchemaManager
@@ -558,9 +617,9 @@ impl CreateValidator {
                 // 验证 vid_type 是否合法
                 let valid_vid_types = ["INT64", "INT32", "INT16", "INT8", "FIXEDSTRING", "STRING"];
                 let vid_type_upper = vid_type.to_uppercase();
-                let is_valid_vid_type = valid_vid_types.iter().any(|&t| {
-                    vid_type_upper.starts_with(t) || vid_type_upper == t
-                });
+                let is_valid_vid_type = valid_vid_types
+                    .iter()
+                    .any(|&t| vid_type_upper.starts_with(t) || vid_type_upper == t);
 
                 if !is_valid_vid_type {
                     return Err(ValidationError::new(
@@ -593,12 +652,12 @@ impl CreateValidator {
                 Ok(())
             }
             // CREATE TAG/EDGE/INDEX: 需要空间，但当前验证器不支持
-            CreateTarget::Tag { .. } | CreateTarget::EdgeType { .. } | CreateTarget::Index { .. } => {
-                Err(ValidationError::new(
-                    "CreateValidator 不支持 CREATE TAG/EDGE/INDEX，请使用 DDL 验证器".to_string(),
-                    ValidationErrorType::SemanticError,
-                ))
-            }
+            CreateTarget::Tag { .. }
+            | CreateTarget::EdgeType { .. }
+            | CreateTarget::Index { .. } => Err(ValidationError::new(
+                "CreateValidator 不支持 CREATE TAG/EDGE/INDEX，请使用 DDL 验证器".to_string(),
+                ValidationErrorType::SemanticError,
+            )),
             // CREATE Node/Edge/Path: 需要空间，执行 DML 验证
             CreateTarget::Node { .. } | CreateTarget::Edge { .. } | CreateTarget::Path { .. } => {
                 if space_name.is_empty() {
@@ -616,18 +675,20 @@ impl CreateValidator {
                 for (i, pattern) in result.patterns.iter().enumerate() {
                     let (col_name, col_type) = match pattern {
                         ValidatedPattern::Node(node) => {
-                            let name = node.variable.clone()
+                            let name = node
+                                .variable
+                                .clone()
                                 .unwrap_or_else(|| format!("node_{}", i));
                             (name, ValueType::Vertex)
                         }
                         ValidatedPattern::Edge(edge) => {
-                            let name = edge.variable.clone()
+                            let name = edge
+                                .variable
+                                .clone()
                                 .unwrap_or_else(|| format!("edge_{}", i));
                             (name, ValueType::Edge)
                         }
-                        ValidatedPattern::Path(_) => {
-                            (format!("path_{}", i), ValueType::Path)
-                        }
+                        ValidatedPattern::Path(_) => (format!("path_{}", i), ValueType::Path),
                     };
                     self.outputs.push(ColumnDef {
                         name: col_name,
@@ -651,7 +712,7 @@ impl Default for CreateValidator {
 }
 
 /// 实现 StatementValidator trait
-/// 
+///
 /// 完整实现验证生命周期（参考 base_validator.rs）：
 /// 1. 检查是否需要空间（is_global_statement）
 /// 2. 执行具体验证逻辑（validate_impl）
@@ -700,8 +761,7 @@ impl StatementValidator for CreateValidator {
         }
 
         // 步骤 2: 获取空间名称
-        let space_name = qctx.space_name()
-            .unwrap_or_default();
+        let space_name = qctx.space_name().unwrap_or_default();
 
         // 步骤 3: 执行具体验证逻辑
         if let Err(e) = self.validate_impl(&create_stmt, &space_name) {
@@ -735,8 +795,14 @@ impl StatementValidator for CreateValidator {
                         if let Some(ref var) = edge.variable {
                             info.add_alias(var.clone(), AliasType::Edge);
                         }
-                        if !info.semantic_info.referenced_edges.contains(&edge.edge_type) {
-                            info.semantic_info.referenced_edges.push(edge.edge_type.clone());
+                        if !info
+                            .semantic_info
+                            .referenced_edges
+                            .contains(&edge.edge_type)
+                        {
+                            info.semantic_info
+                                .referenced_edges
+                                .push(edge.edge_type.clone());
                         }
                     }
                     ValidatedPattern::Path(path) => {
@@ -754,8 +820,14 @@ impl StatementValidator for CreateValidator {
                             if let Some(ref var) = edge.variable {
                                 info.add_alias(var.clone(), AliasType::Edge);
                             }
-                            if !info.semantic_info.referenced_edges.contains(&edge.edge_type) {
-                                info.semantic_info.referenced_edges.push(edge.edge_type.clone());
+                            if !info
+                                .semantic_info
+                                .referenced_edges
+                                .contains(&edge.edge_type)
+                            {
+                                info.semantic_info
+                                    .referenced_edges
+                                    .push(edge.edge_type.clone());
                             }
                         }
                     }
@@ -817,7 +889,7 @@ mod tests {
     #[test]
     fn test_statement_validator_trait() {
         let validator = CreateValidator::new();
-        
+
         // 测试 trait 方法
         assert_eq!(validator.statement_type(), StatementType::Create);
         assert_eq!(validator.validator_name(), "CREATEValidator");

@@ -8,14 +8,14 @@
 //! - 添加属性索引选择逻辑
 //! - 使用 IndexSelector 自动选择最优索引
 
-use crate::core::Expression;
 use crate::core::value::types::NullType;
-use crate::query::QueryContext;
+use crate::core::Expression;
+use crate::index::Index;
 use crate::query::parser::ast::{LookupStmt, Stmt};
+use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
-use crate::index::Index;
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 pub use crate::query::planner::plan::core::nodes::{
@@ -46,7 +46,7 @@ impl Planner for LookupPlanner {
             Stmt::Lookup(lookup_stmt) => lookup_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "LookupPlanner 需要 Lookup 语句".to_string()
+                    "LookupPlanner 需要 Lookup 语句".to_string(),
                 ));
             }
         };
@@ -75,12 +75,20 @@ impl Planner for LookupPlanner {
         if !validation_info.index_hints.is_empty() {
             let hint = &validation_info.index_hints[0];
             log::debug!("LOOKUP 使用索引提示: {:?}", hint);
-            
+
             // 使用验证器提供的索引提示
-            let index_fields: Vec<crate::index::IndexField> = hint.columns.iter().map(|col| {
-                crate::index::IndexField::new(col.clone(), crate::core::Value::Null(NullType::Null), true)
-            }).collect();
-            
+            let index_fields: Vec<crate::index::IndexField> = hint
+                .columns
+                .iter()
+                .map(|col| {
+                    crate::index::IndexField::new(
+                        col.clone(),
+                        crate::core::Value::Null(NullType::Null),
+                        true,
+                    )
+                })
+                .collect();
+
             selected_index = Some(Index {
                 id: 1,
                 name: hint.index_name.clone(),
@@ -93,14 +101,14 @@ impl Planner for LookupPlanner {
                 is_unique: false,
                 comment: None,
             });
-            
+
             scan_type = ScanType::Range;
-            
+
             // 将列名转换为 IndexLimit
             for column in &hint.columns {
                 scan_limits.push(crate::query::planner::plan::algorithms::IndexLimit::equal(
                     column.clone(),
-                    ""
+                    "",
                 ));
             }
         }
@@ -108,7 +116,7 @@ impl Planner for LookupPlanner {
         // 3. 如果没有索引提示，获取可用的索引列表
         if selected_index.is_none() {
             let available_indexes: Vec<Index> = vec![];
-            
+
             // 使用简单启发式选择索引（选择第一个可用索引）
             if !available_indexes.is_empty() {
                 let index = available_indexes.first().cloned();
@@ -120,13 +128,7 @@ impl Planner for LookupPlanner {
         let index_id = selected_index.as_ref().map(|idx| idx.id).unwrap_or(0);
 
         // 4. 创建 IndexScan 节点
-        let mut index_scan_node = IndexScan::new(
-            -1,
-            space_id,
-            0,
-            index_id,
-            scan_type,
-        );
+        let mut index_scan_node = IndexScan::new(-1, space_id, 0, index_id, scan_type);
 
         // 5. 设置扫描限制和返回列
         index_scan_node.scan_limits = scan_limits;
@@ -182,7 +184,8 @@ impl LookupPlanner {
             let expr = Expression::Variable("*".to_string());
             let meta = crate::core::types::expression::ExpressionMeta::new(expr);
             let id = qctx.expr_context().register_expression(meta);
-            let ctx_expr = crate::core::types::ContextualExpression::new(id, qctx.expr_context_clone());
+            let ctx_expr =
+                crate::core::types::ContextualExpression::new(id, qctx.expr_context_clone());
             columns.push(crate::core::YieldColumn {
                 expression: ctx_expr,
                 alias: "result".to_string(),

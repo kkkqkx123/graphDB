@@ -3,8 +3,10 @@
 use super::pattern::*;
 use super::stmt::*;
 use super::types::*;
+use crate::core::types::expression::{
+    ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+};
 use crate::core::Value;
-use crate::core::types::expression::{Expression, ContextualExpression, ExpressionMeta, ExpressionContext};
 use std::sync::Arc;
 
 /// 表达式工厂 - 用于创建表达式节点
@@ -28,37 +30,76 @@ impl ExprFactory {
     }
 
     /// 创建二元表达式
-    pub fn binary(left: ContextualExpression, op: crate::core::types::operators::BinaryOperator, right: ContextualExpression) -> ContextualExpression {
+    pub fn binary(
+        left: ContextualExpression,
+        op: crate::core::types::operators::BinaryOperator,
+        right: ContextualExpression,
+    ) -> ContextualExpression {
         let ctx = left.context().clone();
-        let left_expr = left.expression().expect("Left expression should exist").expression().clone();
-        let right_expr = right.expression().expect("Right expression should exist").expression().clone();
-        let expr = Expression::Binary { left: Box::new(left_expr), op, right: Box::new(right_expr) };
+        let left_expr = left
+            .expression()
+            .expect("Left expression should exist")
+            .expression()
+            .clone();
+        let right_expr = right
+            .expression()
+            .expect("Right expression should exist")
+            .expression()
+            .clone();
+        let expr = Expression::Binary {
+            left: Box::new(left_expr),
+            op,
+            right: Box::new(right_expr),
+        };
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
     }
 
     /// 创建一元表达式
-    pub fn unary(op: crate::core::types::operators::UnaryOperator, operand: ContextualExpression) -> ContextualExpression {
+    pub fn unary(
+        op: crate::core::types::operators::UnaryOperator,
+        operand: ContextualExpression,
+    ) -> ContextualExpression {
         let ctx = operand.context().clone();
-        let operand_expr = operand.expression().expect("Operand expression should exist").expression().clone();
-        let expr = Expression::Unary { op, operand: Box::new(operand_expr) };
+        let operand_expr = operand
+            .expression()
+            .expect("Operand expression should exist")
+            .expression()
+            .clone();
+        let expr = Expression::Unary {
+            op,
+            operand: Box::new(operand_expr),
+        };
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
     }
 
     /// 创建函数调用表达式
-    pub fn function_call(name: String, args: Vec<ContextualExpression>, _distinct: bool) -> ContextualExpression {
+    pub fn function_call(
+        name: String,
+        args: Vec<ContextualExpression>,
+        _distinct: bool,
+    ) -> ContextualExpression {
         let ctx = if args.is_empty() {
             Arc::new(ExpressionContext::new())
         } else {
             args[0].context().clone()
         };
-        let arg_exprs: Vec<Expression> = args.iter()
-            .map(|arg| arg.expression().expect("Arg expression should exist").expression().clone())
+        let arg_exprs: Vec<Expression> = args
+            .iter()
+            .map(|arg| {
+                arg.expression()
+                    .expect("Arg expression should exist")
+                    .expression()
+                    .clone()
+            })
             .collect();
-        let expr = Expression::Function { name, args: arg_exprs };
+        let expr = Expression::Function {
+            name,
+            args: arg_exprs,
+        };
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
@@ -67,8 +108,15 @@ impl ExprFactory {
     /// 创建属性访问表达式
     pub fn property_access(object: ContextualExpression, property: String) -> ContextualExpression {
         let ctx = object.context().clone();
-        let object_expr = object.expression().expect("Object expression should exist").expression().clone();
-        let expr = Expression::Property { object: Box::new(object_expr), property };
+        let object_expr = object
+            .expression()
+            .expect("Object expression should exist")
+            .expression()
+            .clone();
+        let expr = Expression::Property {
+            object: Box::new(object_expr),
+            property,
+        };
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
@@ -81,8 +129,14 @@ impl ExprFactory {
         } else {
             elements[0].context().clone()
         };
-        let element_exprs: Vec<Expression> = elements.iter()
-            .map(|elem| elem.expression().expect("Element expression should exist").expression().clone())
+        let element_exprs: Vec<Expression> = elements
+            .iter()
+            .map(|elem| {
+                elem.expression()
+                    .expect("Element expression should exist")
+                    .expression()
+                    .clone()
+            })
             .collect();
         let expr = Expression::List(element_exprs);
         let meta = ExpressionMeta::new(expr);
@@ -97,8 +151,18 @@ impl ExprFactory {
         } else {
             pairs[0].1.context().clone()
         };
-        let value_exprs: Vec<(String, Expression)> = pairs.iter()
-            .map(|(key, value)| (key.clone(), value.expression().expect("Value expression should exist").expression().clone()))
+        let value_exprs: Vec<(String, Expression)> = pairs
+            .iter()
+            .map(|(key, value)| {
+                (
+                    key.clone(),
+                    value
+                        .expression()
+                        .expect("Value expression should exist")
+                        .expression()
+                        .clone(),
+                )
+            })
             .collect();
         let expr = Expression::Map(value_exprs);
         let meta = ExpressionMeta::new(expr);
@@ -112,53 +176,104 @@ impl ExprFactory {
         when_then_pairs: Vec<(ContextualExpression, ContextualExpression)>,
         default: Option<ContextualExpression>,
     ) -> ContextualExpression {
-        let ctx = match_expression.as_ref().map(|e| e.context().clone())
+        let ctx = match_expression
+            .as_ref()
+            .map(|e| e.context().clone())
             .or_else(|| when_then_pairs.first().map(|(w, _)| w.context().clone()))
             .or_else(|| default.as_ref().map(|d| d.context().clone()))
             .unwrap_or_else(|| Arc::new(ExpressionContext::new()));
 
         let test_expr = match_expression.map(|e| {
-            Box::new(e.expression().expect("Match expression should exist").expression().clone())
+            Box::new(
+                e.expression()
+                    .expect("Match expression should exist")
+                    .expression()
+                    .clone(),
+            )
         });
-        let conditions = when_then_pairs.iter()
+        let conditions = when_then_pairs
+            .iter()
             .map(|(when, then)| {
-                let when_expr = when.expression().expect("When expression should exist").expression().clone();
-                let then_expr = then.expression().expect("Then expression should exist").expression().clone();
+                let when_expr = when
+                    .expression()
+                    .expect("When expression should exist")
+                    .expression()
+                    .clone();
+                let then_expr = then
+                    .expression()
+                    .expect("Then expression should exist")
+                    .expression()
+                    .clone();
                 (when_expr, then_expr)
             })
             .collect();
         let default_expr = default.map(|d| {
-            Box::new(d.expression().expect("Default expression should exist").expression().clone())
+            Box::new(
+                d.expression()
+                    .expect("Default expression should exist")
+                    .expression()
+                    .clone(),
+            )
         });
-        let expr = Expression::Case { test_expr, conditions, default: default_expr };
+        let expr = Expression::Case {
+            test_expr,
+            conditions,
+            default: default_expr,
+        };
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
     }
 
     /// 创建下标表达式
-    pub fn subscript(collection: ContextualExpression, index: ContextualExpression) -> ContextualExpression {
+    pub fn subscript(
+        collection: ContextualExpression,
+        index: ContextualExpression,
+    ) -> ContextualExpression {
         let ctx = collection.context().clone();
-        let collection_expr = collection.expression().expect("Collection expression should exist").expression().clone();
-        let index_expr = index.expression().expect("Index expression should exist").expression().clone();
-        let expr = Expression::Subscript { collection: Box::new(collection_expr), index: Box::new(index_expr) };
+        let collection_expr = collection
+            .expression()
+            .expect("Collection expression should exist")
+            .expression()
+            .clone();
+        let index_expr = index
+            .expression()
+            .expect("Index expression should exist")
+            .expression()
+            .clone();
+        let expr = Expression::Subscript {
+            collection: Box::new(collection_expr),
+            index: Box::new(index_expr),
+        };
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
     }
 
     /// 创建比较表达式
-    pub fn compare(left: ContextualExpression, op: crate::core::types::operators::BinaryOperator, right: ContextualExpression) -> ContextualExpression {
+    pub fn compare(
+        left: ContextualExpression,
+        op: crate::core::types::operators::BinaryOperator,
+        right: ContextualExpression,
+    ) -> ContextualExpression {
         Self::binary(left, op, right)
     }
 
     /// 创建逻辑表达式
-    pub fn logical(left: ContextualExpression, op: crate::core::types::operators::BinaryOperator, right: ContextualExpression) -> ContextualExpression {
+    pub fn logical(
+        left: ContextualExpression,
+        op: crate::core::types::operators::BinaryOperator,
+        right: ContextualExpression,
+    ) -> ContextualExpression {
         Self::binary(left, op, right)
     }
 
     /// 创建算术表达式
-    pub fn arithmetic(left: ContextualExpression, op: crate::core::types::operators::BinaryOperator, right: ContextualExpression) -> ContextualExpression {
+    pub fn arithmetic(
+        left: ContextualExpression,
+        op: crate::core::types::operators::BinaryOperator,
+        right: ContextualExpression,
+    ) -> ContextualExpression {
         Self::binary(left, op, right)
     }
 }
@@ -237,7 +352,11 @@ impl StmtFactory {
     }
 
     /// 创建 DELETE 语句
-    pub fn delete(target: DeleteTarget, where_clause: Option<ContextualExpression>, span: Span) -> Stmt {
+    pub fn delete(
+        target: DeleteTarget,
+        where_clause: Option<ContextualExpression>,
+        span: Span,
+    ) -> Stmt {
         Stmt::Delete(DeleteStmt {
             span,
             target,
@@ -247,7 +366,11 @@ impl StmtFactory {
     }
 
     /// 创建带 WITH EDGE 选项的 DELETE 语句
-    pub fn delete_with_edge(target: DeleteTarget, where_clause: Option<ContextualExpression>, span: Span) -> Stmt {
+    pub fn delete_with_edge(
+        target: DeleteTarget,
+        where_clause: Option<ContextualExpression>,
+        span: Span,
+    ) -> Stmt {
         Stmt::Delete(DeleteStmt {
             span,
             target,
@@ -490,7 +613,11 @@ impl AstBuilder {
     }
 
     /// 构建简单的 MATCH 查询
-    pub fn build_simple_match(&self, pattern: Pattern, return_expression: ContextualExpression) -> Stmt {
+    pub fn build_simple_match(
+        &self,
+        pattern: Pattern,
+        return_expression: ContextualExpression,
+    ) -> Stmt {
         let return_clause = ReturnClause {
             span: self.span,
             items: vec![ReturnItem::Expression {
@@ -538,7 +665,11 @@ impl AstBuilder {
     }
 
     /// 构建简单的 UPDATE 查询
-    pub fn build_update_vertex(&self, vertex: ContextualExpression, assignments: Vec<Assignment>) -> Stmt {
+    pub fn build_update_vertex(
+        &self,
+        vertex: ContextualExpression,
+        assignments: Vec<Assignment>,
+    ) -> Stmt {
         let set_clause = SetClause {
             span: self.span,
             assignments,
@@ -557,7 +688,7 @@ mod tests {
     #[test]
     fn test_expr_factory() {
         let ctx = Arc::new(ExpressionContext::new());
-        
+
         // 测试常量表达式
         let const_expression = ExprFactory::constant(Value::Int(42), ctx.clone());
         assert!(const_expression.expression().is_some());
@@ -569,7 +700,11 @@ mod tests {
         // 测试二元表达式
         let left = ExprFactory::constant(Value::Int(5), ctx.clone());
         let right = ExprFactory::constant(Value::Int(3), ctx.clone());
-        let binary_expression = ExprFactory::binary(left, crate::core::types::operators::BinaryOperator::Add, right);
+        let binary_expression = ExprFactory::binary(
+            left,
+            crate::core::types::operators::BinaryOperator::Add,
+            right,
+        );
         assert!(binary_expression.expression().is_some());
     }
 }

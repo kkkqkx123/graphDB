@@ -1,10 +1,10 @@
 //! 别名验证策略
 //! 负责验证表达式中的别名引用和可用性
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionMeta;
-use crate::core::types::expression::ExpressionContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionMeta;
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -68,23 +68,34 @@ impl AliasValidationStrategy {
     }
 
     /// 内部方法：从表达式中提取别名名称
-    fn extract_alias_name_internal(&self, expression: &crate::core::types::expression::Expression) -> Option<String> {
+    fn extract_alias_name_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+    ) -> Option<String> {
         match expression {
             crate::core::types::expression::Expression::Variable(name) => Some(name.clone()),
             crate::core::types::expression::Expression::Property { object, .. } => {
                 self.extract_alias_name_internal(object)
             }
             crate::core::types::expression::Expression::Label(name) => Some(name.clone()),
-            crate::core::types::expression::Expression::TagProperty { tag_name, .. } => Some(tag_name.clone()),
-            crate::core::types::expression::Expression::EdgeProperty { edge_name, .. } => Some(edge_name.clone()),
+            crate::core::types::expression::Expression::TagProperty { tag_name, .. } => {
+                Some(tag_name.clone())
+            }
+            crate::core::types::expression::Expression::EdgeProperty { edge_name, .. } => {
+                Some(edge_name.clone())
+            }
             crate::core::types::expression::Expression::LabelTagProperty { tag, .. } => {
                 self.extract_alias_name_internal(tag)
             }
             crate::core::types::expression::Expression::Parameter(name) => Some(name.clone()),
-            crate::core::types::expression::Expression::ListComprehension { variable, .. } => Some(variable.clone()),
-            crate::core::types::expression::Expression::Reduce { accumulator, variable: _, .. } => {
-                Some(accumulator.clone())
+            crate::core::types::expression::Expression::ListComprehension { variable, .. } => {
+                Some(variable.clone())
             }
+            crate::core::types::expression::Expression::Reduce {
+                accumulator,
+                variable: _,
+                ..
+            } => Some(accumulator.clone()),
             crate::core::types::expression::Expression::PathBuild(items) => {
                 if let Some(first) = items.first() {
                     self.extract_alias_name_internal(first)
@@ -129,9 +140,9 @@ impl AliasValidationStrategy {
             crate::core::types::expression::Expression::Binary { left, .. } => {
                 self.extract_alias_name_internal(left)
             }
-            crate::core::types::expression::Expression::Case { test_expr, .. } => {
-                test_expr.as_ref().and_then(|e| self.extract_alias_name_internal(e))
-            }
+            crate::core::types::expression::Expression::Case { test_expr, .. } => test_expr
+                .as_ref()
+                .and_then(|e| self.extract_alias_name_internal(e)),
             crate::core::types::expression::Expression::Literal(_)
             | crate::core::types::expression::Expression::List(_)
             | crate::core::types::expression::Expression::Map(_)

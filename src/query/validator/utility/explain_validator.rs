@@ -10,14 +10,13 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
-use crate::query::parser::ast::stmt::{ExplainStmt, ProfileStmt, ExplainFormat};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
+use crate::query::parser::ast::stmt::{ExplainFormat, ExplainStmt, ProfileStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::Validator;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
 
 /// 验证后的 EXPLAIN 信息
 #[derive(Debug, Clone)]
@@ -44,11 +43,26 @@ impl ExplainValidator {
             inner_validator: None,
             inputs: Vec::new(),
             outputs: vec![
-                ColumnDef { name: "id".to_string(), type_: ValueType::Int },
-                ColumnDef { name: "name".to_string(), type_: ValueType::String },
-                ColumnDef { name: "dependencies".to_string(), type_: ValueType::String },
-                ColumnDef { name: "profiling_data".to_string(), type_: ValueType::String },
-                ColumnDef { name: "operator info".to_string(), type_: ValueType::String },
+                ColumnDef {
+                    name: "id".to_string(),
+                    type_: ValueType::Int,
+                },
+                ColumnDef {
+                    name: "name".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "dependencies".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "profiling_data".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "operator info".to_string(),
+                    type_: ValueType::String,
+                },
             ],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
@@ -60,11 +74,12 @@ impl ExplainValidator {
 
         // 验证内部语句
         self.inner_validator = Some(Box::new(
-            Validator::create_from_stmt(&stmt.statement)
-                .ok_or_else(|| ValidationError::new(
+            Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
+                ValidationError::new(
                     "Failed to create validator for inner statement".to_string(),
                     ValidationErrorType::SemanticError,
-                ))?
+                )
+            })?,
         ));
 
         Ok(())
@@ -83,7 +98,9 @@ impl ExplainValidator {
     pub fn validated_result(&self) -> ValidatedExplain {
         ValidatedExplain {
             format: self.format.clone(),
-            inner_statement_type: self.inner_validator.as_ref()
+            inner_statement_type: self
+                .inner_validator
+                .as_ref()
                 .map(|v| v.as_ref().statement_type().as_str().to_string())
                 .unwrap_or_default(),
         }
@@ -148,7 +165,8 @@ impl StatementValidator for ExplainValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        self.inner_validator.as_ref()
+        self.inner_validator
+            .as_ref()
             .map(|v| v.get_type().is_global_statement())
             .unwrap_or(false)
     }
@@ -187,11 +205,26 @@ impl ProfileValidator {
             inner_validator: None,
             inputs: Vec::new(),
             outputs: vec![
-                ColumnDef { name: "id".to_string(), type_: ValueType::Int },
-                ColumnDef { name: "name".to_string(), type_: ValueType::String },
-                ColumnDef { name: "dependencies".to_string(), type_: ValueType::String },
-                ColumnDef { name: "profiling_data".to_string(), type_: ValueType::String },
-                ColumnDef { name: "operator info".to_string(), type_: ValueType::String },
+                ColumnDef {
+                    name: "id".to_string(),
+                    type_: ValueType::Int,
+                },
+                ColumnDef {
+                    name: "name".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "dependencies".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "profiling_data".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "operator info".to_string(),
+                    type_: ValueType::String,
+                },
             ],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
@@ -203,11 +236,12 @@ impl ProfileValidator {
 
         // 验证内部语句
         self.inner_validator = Some(Box::new(
-            Validator::create_from_stmt(&stmt.statement)
-                .ok_or_else(|| ValidationError::new(
+            Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
+                ValidationError::new(
                     "Failed to create validator for inner statement".to_string(),
                     ValidationErrorType::SemanticError,
-                ))?
+                )
+            })?,
         ));
 
         Ok(())
@@ -226,7 +260,9 @@ impl ProfileValidator {
     pub fn validated_result(&self) -> ValidatedExplain {
         ValidatedExplain {
             format: self.format.clone(),
-            inner_statement_type: self.inner_validator.as_ref()
+            inner_statement_type: self
+                .inner_validator
+                .as_ref()
                 .map(|v| v.as_ref().statement_type().as_str().to_string())
                 .unwrap_or_default(),
         }
@@ -291,7 +327,8 @@ impl StatementValidator for ProfileValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        self.inner_validator.as_ref()
+        self.inner_validator
+            .as_ref()
             .map(|v| v.get_type().is_global_statement())
             .unwrap_or(false)
     }

@@ -1,8 +1,8 @@
 //! 请求上下文模块 - 管理查询请求的上下文信息
 //! 对应原C++中的RequestContext.h
 
-use crate::core::Value;
 use crate::core::ErrorCode;
+use crate::core::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::{Instant, SystemTime};
@@ -59,7 +59,12 @@ impl SessionInfo {
             Some(format!("{}:{}", client_ip, client_port))
         };
 
-        Ok(Self::new(session_id, user_name.to_string(), space_name, graph_addr))
+        Ok(Self::new(
+            session_id,
+            user_name.to_string(),
+            space_name,
+            graph_addr,
+        ))
     }
 
     /// 更新最后访问时间
@@ -105,7 +110,11 @@ impl Response {
     pub fn new(success: bool) -> Self {
         Self {
             success,
-            error_code: if success { ErrorCode::Success } else { ErrorCode::Unknown },
+            error_code: if success {
+                ErrorCode::Success
+            } else {
+                ErrorCode::Unknown
+            },
             data: None,
             error_message: None,
             execution_time_ms: 0,
@@ -202,13 +211,8 @@ impl RequestContext {
         client_ip: &str,
         client_port: u16,
     ) -> Result<Self, String> {
-        let session_info = SessionInfo::from_params(
-            session_id,
-            user_name,
-            None,
-            client_ip,
-            client_port,
-        )?;
+        let session_info =
+            SessionInfo::from_params(session_id, user_name, None, client_ip, client_port)?;
         let request_params = RequestParams::new(query);
         Ok(Self::new(Some(session_info), request_params))
     }
@@ -222,13 +226,8 @@ impl RequestContext {
         client_ip: &str,
         client_port: u16,
     ) -> Result<Self, String> {
-        let session_info = SessionInfo::from_params(
-            session_id,
-            user_name,
-            None,
-            client_ip,
-            client_port,
-        )?;
+        let session_info =
+            SessionInfo::from_params(session_id, user_name, None, client_ip, client_port)?;
         let request_params = RequestParams::new(query).with_parameters(parameters);
         Ok(Self::new(Some(session_info), request_params))
     }
@@ -283,7 +282,9 @@ impl RequestContext {
 
     /// 获取图空间名称
     pub fn space_name(&self) -> Option<&str> {
-        self.session_info.as_ref().and_then(|s| s.space_name.as_deref())
+        self.session_info
+            .as_ref()
+            .and_then(|s| s.space_name.as_deref())
     }
 
     /// 设置图空间名称
@@ -294,20 +295,17 @@ impl RequestContext {
     }
 
     /// 获取图空间ID
-    /// 
+    ///
     /// # 注意
     /// 此方法已废弃，请使用 `QueryContext::space_id()` 获取空间ID。
     /// RequestContext 只保存 space_name，不直接访问元数据服务。
-    /// 
+    ///
     /// # 替代方案
     /// 通过 QueryContext 获取 space_id：
     /// ```rust,ignore
     /// let space_id = query_context.space_id();
     /// ```
-    #[deprecated(
-        since = "0.1.0",
-        note = "请使用 QueryContext::space_id() 替代"
-    )]
+    #[deprecated(since = "0.1.0", note = "请使用 QueryContext::space_id() 替代")]
     pub fn space_id(&self) -> Option<i64> {
         None
     }
@@ -402,7 +400,7 @@ impl Clone for RequestContext {
 }
 
 /// 从 ClientSession 创建 QueryRequestContext
-/// 
+///
 /// 这个转换函数确保 api 层的会话信息能正确传递到 query 层
 pub fn build_query_request_context(
     session: &super::ClientSession,

@@ -2,16 +2,14 @@
 //!
 //! 处理 UNION, UNION ALL, INTERSECT, MINUS 等集合操作语句的查询规划
 
-use crate::query::QueryContext;
 use crate::query::parser::ast::{SetOperationType, Stmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
-    nodes::{
-        ArgumentNode, IntersectNode, MinusNode, UnionNode,
-    },
+    nodes::{ArgumentNode, IntersectNode, MinusNode, UnionNode},
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// 集合操作规划器
@@ -27,12 +25,16 @@ impl SetOperationPlanner {
 }
 
 impl Planner for SetOperationPlanner {
-    fn transform(&mut self, validated: &ValidatedStatement, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+    fn transform(
+        &mut self,
+        validated: &ValidatedStatement,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
         let set_op_stmt = match &validated.stmt {
             Stmt::SetOperation(set_op_stmt) => set_op_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "SetOperationPlanner 需要 SetOperation 语句".to_string()
+                    "SetOperationPlanner 需要 SetOperation 语句".to_string(),
                 ));
             }
         };
@@ -50,54 +52,44 @@ impl Planner for SetOperationPlanner {
                 // UNION (去重) - UnionNode 只接受单个输入，需要特殊处理
                 // 这里我们使用 left_enum 作为主输入，distinct=true
                 let union_node = UnionNode::new(
-                    left_enum,
-                    true, // distinct = true
-                ).map_err(|e| PlannerError::PlanGenerationFailed(format!(
-                    "Failed to create UnionNode: {}",
-                    e
-                )))?;
+                    left_enum, true, // distinct = true
+                )
+                .map_err(|e| {
+                    PlannerError::PlanGenerationFailed(format!("Failed to create UnionNode: {}", e))
+                })?;
                 PlanNodeEnum::Union(union_node)
             }
             SetOperationType::UnionAll => {
                 // UNION ALL (不去重)
                 let union_node = UnionNode::new(
-                    left_enum,
-                    false, // distinct = false
-                ).map_err(|e| PlannerError::PlanGenerationFailed(format!(
-                    "Failed to create UnionNode: {}",
-                    e
-                )))?;
+                    left_enum, false, // distinct = false
+                )
+                .map_err(|e| {
+                    PlannerError::PlanGenerationFailed(format!("Failed to create UnionNode: {}", e))
+                })?;
                 PlanNodeEnum::Union(union_node)
             }
             SetOperationType::Intersect => {
                 // INTERSECT
-                let intersect_node = IntersectNode::new(
-                    left_enum,
-                    right_enum,
-                ).map_err(|e| PlannerError::PlanGenerationFailed(format!(
-                    "Failed to create IntersectNode: {}",
-                    e
-                )))?;
+                let intersect_node = IntersectNode::new(left_enum, right_enum).map_err(|e| {
+                    PlannerError::PlanGenerationFailed(format!(
+                        "Failed to create IntersectNode: {}",
+                        e
+                    ))
+                })?;
                 PlanNodeEnum::Intersect(intersect_node)
             }
             SetOperationType::Minus => {
                 // MINUS
-                let minus_node = MinusNode::new(
-                    left_enum,
-                    right_enum,
-                ).map_err(|e| PlannerError::PlanGenerationFailed(format!(
-                    "Failed to create MinusNode: {}",
-                    e
-                )))?;
+                let minus_node = MinusNode::new(left_enum, right_enum).map_err(|e| {
+                    PlannerError::PlanGenerationFailed(format!("Failed to create MinusNode: {}", e))
+                })?;
                 PlanNodeEnum::Minus(minus_node)
             }
         };
 
         // 创建 SubPlan，使用左输入作为主输入
-        let sub_plan = SubPlan::new(
-            Some(final_node),
-            Some(PlanNodeEnum::Argument(left_arg)),
-        );
+        let sub_plan = SubPlan::new(Some(final_node), Some(PlanNodeEnum::Argument(left_arg)));
 
         Ok(sub_plan)
     }

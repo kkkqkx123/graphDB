@@ -7,16 +7,15 @@
 //! 2. 验证左右子查询的列数和数据类型兼容性
 //! 3. 支持多种集合操作类型
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{SetOperationStmt, SetOperationType};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::Validator;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
+use std::sync::Arc;
 
 /// 验证后的集合操作信息
 #[derive(Debug, Clone)]
@@ -57,20 +56,22 @@ impl SetOperationValidator {
 
         // 创建左子查询验证器
         self.left_validator = Some(Box::new(
-            Validator::create_from_stmt(&stmt.left)
-                .ok_or_else(|| ValidationError::new(
+            Validator::create_from_stmt(&stmt.left).ok_or_else(|| {
+                ValidationError::new(
                     "Failed to create validator for left statement".to_string(),
                     ValidationErrorType::SemanticError,
-                ))?
+                )
+            })?,
         ));
 
         // 创建右子查询验证器
         self.right_validator = Some(Box::new(
-            Validator::create_from_stmt(&stmt.right)
-                .ok_or_else(|| ValidationError::new(
+            Validator::create_from_stmt(&stmt.right).ok_or_else(|| {
+                ValidationError::new(
                     "Failed to create validator for right statement".to_string(),
                     ValidationErrorType::SemanticError,
-                ))?
+                )
+            })?,
         ));
 
         Ok(())
@@ -193,10 +194,14 @@ impl SetOperationValidator {
     pub fn validated_result(&self) -> ValidatedSetOperation {
         ValidatedSetOperation {
             op_type: self.op_type.clone(),
-            left_outputs: self.left_validator.as_ref()
+            left_outputs: self
+                .left_validator
+                .as_ref()
                 .map(|v| v.get_outputs().to_vec())
                 .unwrap_or_default(),
-            right_outputs: self.right_validator.as_ref()
+            right_outputs: self
+                .right_validator
+                .as_ref()
                 .map(|v| v.get_outputs().to_vec())
                 .unwrap_or_default(),
             output_col_names: self.outputs.iter().map(|c| c.name.clone()).collect(),
@@ -223,13 +228,13 @@ impl StatementValidator for SetOperationValidator {
                 ));
             }
         };
-        
+
         // 提取左右子查询语句
         let left_stmt = *set_op_stmt.left.clone();
         let right_stmt = *set_op_stmt.right.clone();
-        
+
         self.validate_impl(set_op_stmt)?;
-        
+
         // 验证左右子查询
         let left_outputs = if let Some(ref mut left) = self.left_validator {
             let result = left.validate(left_stmt, qctx.clone());
@@ -305,10 +310,14 @@ impl StatementValidator for SetOperationValidator {
 
     fn is_global_statement(&self) -> bool {
         // 集合操作是否为全局语句取决于左右子查询
-        let left_global = self.left_validator.as_ref()
+        let left_global = self
+            .left_validator
+            .as_ref()
             .map(|v| v.get_type().is_global_statement())
             .unwrap_or(false);
-        let right_global = self.right_validator.as_ref()
+        let right_global = self
+            .right_validator
+            .as_ref()
             .map(|v| v.get_type().is_global_statement())
             .unwrap_or(false);
         left_global && right_global

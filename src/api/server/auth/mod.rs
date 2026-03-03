@@ -4,4 +4,4 @@
 
 pub mod authenticator;
 
-pub use authenticator::{Authenticator, PasswordAuthenticator, AuthenticatorFactory, UserVerifier};
+pub use authenticator::{Authenticator, AuthenticatorFactory, PasswordAuthenticator, UserVerifier};

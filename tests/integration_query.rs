@@ -10,19 +10,16 @@
 
 mod common;
 
-use common::{
-    TestStorage,
-    assertions::{assert_ok},
-};
+use common::{assertions::assert_ok, TestStorage};
 
+use graphdb::core::StatsManager;
+use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
-use graphdb::query::validator::Validator;
 use graphdb::query::planner::PlannerConfig;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::query::optimizer::OptimizerEngine;
-use graphdb::query::QueryContext;
 use graphdb::query::request_context::{RequestContext as ReqCtx, RequestParams};
-use graphdb::core::StatsManager;
+use graphdb::query::validator::Validator;
+use graphdb::query::QueryContext;
 use graphdb::storage::StorageClient;
 use std::sync::Arc;
 
@@ -41,7 +38,7 @@ fn test_parser_match_statement_basic() {
     // 解析器期望变量名后跟冒号和标签
     let query = "MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
-    
+
     let result = parser.parse();
     // 当前解析器可能有语法限制，我们接受成功或失败
     // 主要是为了测试解析器不会崩溃
@@ -54,7 +51,7 @@ fn test_parser_match_statement_basic() {
 fn test_parser_go_statement() {
     let query = "GO FROM 1 OVER KNOWS";
     let mut parser = Parser::new(query);
-    
+
     let result = parser.parse();
     println!("GO解析结果: {:?}", result);
     // 解析器应该能处理GO语句
@@ -65,7 +62,7 @@ fn test_parser_go_statement() {
 fn test_parser_use_statement() {
     let query = "USE test_space";
     let mut parser = Parser::new(query);
-    
+
     let result = parser.parse();
     println!("USE解析结果: {:?}", result);
     // USE语句应该能成功解析
@@ -79,7 +76,7 @@ fn test_parser_create_tag() {
         "CREATE TAG test_tag(name: STRING)",
         "CREATE TAG IF NOT EXISTS test_tag(name STRING)",
     ];
-    
+
     for query in queries {
         let mut parser = Parser::new(query);
         let result = parser.parse();
@@ -91,12 +88,8 @@ fn test_parser_create_tag() {
 
 #[test]
 fn test_parser_show_statements() {
-    let queries = vec![
-        "SHOW SPACES",
-        "SHOW TAGS",
-        "SHOW EDGES",
-    ];
-    
+    let queries = vec!["SHOW SPACES", "SHOW TAGS", "SHOW EDGES"];
+
     for query in queries {
         let mut parser = Parser::new(query);
         let result = parser.parse();
@@ -110,7 +103,7 @@ fn test_parser_show_statements() {
 fn test_parser_insert_vertex() {
     let query = "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 25)";
     let mut parser = Parser::new(query);
-    
+
     let result = parser.parse();
     println!("INSERT VERTEX解析结果: {:?}", result);
     let _ = result;
@@ -120,7 +113,7 @@ fn test_parser_insert_vertex() {
 fn test_parser_invalid_syntax() {
     let query = "INVALID SYNTAX HERE";
     let mut parser = Parser::new(query);
-    
+
     let result = parser.parse();
     // 无效语法应该返回错误
     println!("无效语法解析结果: {:?}", result);
@@ -140,7 +133,7 @@ fn test_validator_creation() {
 fn test_validator_match_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
-    
+
     // 创建图空间和Schema
     let space_info = common::storage_helpers::create_test_space("validator_test_space");
     {
@@ -152,11 +145,11 @@ fn test_validator_match_basic() {
     let query = "USE validator_test_space; MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
     let stmt = assert_ok(parser.parse());
-    
+
     // 创建验证器并验证（使用新的API）
     let mut validator = Validator::new();
     let query_context = create_test_query_context();
-    
+
     // 验证查询
     let result = validator.validate(&stmt, query_context);
     // 验证结果取决于具体实现，可能成功或返回特定错误
@@ -168,11 +161,11 @@ fn test_validator_go_statement() {
     let query = "GO FROM 1 OVER KNOWS";
     let mut parser = Parser::new(query);
     let stmt = assert_ok(parser.parse());
-    
+
     // 创建验证器并验证（使用新的API）
     let mut validator = Validator::new();
     let query_context = create_test_query_context();
-    
+
     // GO语句验证
     let result = validator.validate(&stmt, query_context);
     assert!(result.is_ok() || result.is_err());
@@ -183,11 +176,11 @@ fn test_validator_use_statement() {
     let query = "USE test_space";
     let mut parser = Parser::new(query);
     let stmt = assert_ok(parser.parse());
-    
+
     // 创建验证器并验证（使用新的API）
     let mut validator = Validator::new();
     let query_context = create_test_query_context();
-    
+
     // USE语句验证
     let result = validator.validate(&stmt, query_context);
     assert!(result.is_ok() || result.is_err());
@@ -206,7 +199,7 @@ fn test_planner_config_creation() {
 fn test_planner_match_statement() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
-    
+
     // 创建图空间
     let space_info = common::storage_helpers::create_test_space("planner_test_space");
     {
@@ -218,18 +211,18 @@ fn test_planner_match_statement() {
     let query = "MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
     let result = parser.parse();
-    
+
     // 如果解析失败，跳过此测试
     if result.is_err() {
         println!("MATCH解析失败，跳过规划器测试: {:?}", result.err());
         return;
     }
-    
+
     let _stmt = result.expect("Failed to parse query");
-    
+
     // 创建查询上下文（使用新的API）
     let _query_context = create_test_query_context();
-    
+
     // 计划生成测试 - 简化版本，只验证创建成功
     assert!(true);
 }
@@ -241,8 +234,12 @@ fn test_pipeline_manager_creation() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
-    
-    let _pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
+
+    let _pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
     // 管道管理器创建成功
 }
 
@@ -251,14 +248,18 @@ fn test_pipeline_manager_create_tag() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
-    
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
-    
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
     // 执行创建标签查询（使用支持的语法）
     // 注意：由于类型名是关键字，CREATE TAG可能无法解析
     let query = "CREATE TAG pipeline_test_tag(name: STRING, age: INT)";
     let result = pipeline_manager.execute_query(query);
-    
+
     // 执行可能成功或失败，取决于具体实现
     println!("CREATE TAG执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -269,7 +270,7 @@ fn test_pipeline_manager_use_space() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
-    
+
     // 先创建空间
     {
         let mut storage_guard = storage.lock();
@@ -277,12 +278,16 @@ fn test_pipeline_manager_use_space() {
         let _ = storage_guard.create_space(&space_info);
     }
 
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
-    
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
     // 执行USE查询
     let query = "USE use_test_space";
     let result = pipeline_manager.execute_query(query);
-    
+
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -293,13 +298,17 @@ fn test_complete_query_flow_show_spaces() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
-    
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
-    
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
     // 执行完整流程：SHOW SPACES
     let query = "SHOW SPACES";
     let result = pipeline_manager.execute_query(query);
-    
+
     // 查询执行应该完成（成功或失败取决于实现）
     match result {
         Ok(_exec_result) => {
@@ -318,13 +327,17 @@ fn test_complete_query_flow_with_metrics() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
-    
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
-    
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
     // 执行带指标收集的查询
     let query = "SHOW SPACES";
     let result = pipeline_manager.execute_query_with_metrics(query);
-    
+
     match result {
         Ok((_exec_result, _metrics)) => {
             // 验证执行结果和指标
@@ -340,17 +353,21 @@ fn test_query_flow_create_and_desc_tag() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
-    
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
-    
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
     // 创建标签
     let create_query = "CREATE TAG desc_test_tag(name: STRING)";
     let create_result = pipeline_manager.execute_query(create_query);
-    
+
     // 描述标签
     let desc_query = "DESC TAG desc_test_tag";
     let desc_result = pipeline_manager.execute_query(desc_query);
-    
+
     // 两个操作都应该完成
     println!("CREATE TAG结果: {:?}", create_result);
     println!("DESC TAG结果: {:?}", desc_result);
@@ -365,13 +382,17 @@ fn test_query_error_invalid_syntax() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
-    
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
-    
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
     // 执行语法错误的查询
     let query = "INVALID SYNTAX HERE";
     let result = pipeline_manager.execute_query(query);
-    
+
     // 应该返回错误
     assert!(result.is_err(), "无效语法应该返回错误");
 }
@@ -381,13 +402,17 @@ fn test_query_error_nonexistent_space() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
-    
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
-    
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
     // 尝试使用不存在空间
     let query = "USE nonexistent_space_xyz";
     let result = pipeline_manager.execute_query(query);
-    
+
     // 可能返回错误，取决于实现
     assert!(result.is_ok() || result.is_err());
 }
@@ -399,13 +424,17 @@ fn test_query_pipeline_performance() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
-    
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
-    
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
     // 执行多次查询测试性能
     let query = "SHOW SPACES";
     let iterations = 10;
-    
+
     for i in 0..iterations {
         let result = pipeline_manager.execute_query(query);
         assert!(result.is_ok() || result.is_err(), "第 {} 次查询执行失败", i);
@@ -420,9 +449,13 @@ fn test_sequential_query_execution() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
-    
-    let mut pipeline_manager = QueryPipelineManager::with_optimizer(storage, stats_manager, Arc::new(OptimizerEngine::default()));
-    
+
+    let mut pipeline_manager = QueryPipelineManager::with_optimizer(
+        storage,
+        stats_manager,
+        Arc::new(OptimizerEngine::default()),
+    );
+
     // 顺序执行多个查询
     for i in 0..5 {
         let query = "SHOW SPACES";

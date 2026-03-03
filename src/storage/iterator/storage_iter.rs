@@ -104,17 +104,24 @@ pub struct VecPairIterator {
 
 impl VecPairIterator {
     pub fn new(keys: Vec<Vec<u8>>, values: Vec<Vec<u8>>) -> Self {
-        Self { keys, values, index: 0, current_index: None }
+        Self {
+            keys,
+            values,
+            index: 0,
+            current_index: None,
+        }
     }
 }
 
 impl StorageIterator for VecPairIterator {
     fn key(&self) -> Option<&[u8]> {
-        self.current_index.and_then(|i| self.keys.get(i).map(|v| v.as_slice()))
+        self.current_index
+            .and_then(|i| self.keys.get(i).map(|v| v.as_slice()))
     }
 
     fn value(&self) -> Option<&[u8]> {
-        self.current_index.and_then(|i| self.values.get(i).map(|v| v.as_slice()))
+        self.current_index
+            .and_then(|i| self.values.get(i).map(|v| v.as_slice()))
     }
 
     fn next(&mut self) -> bool {

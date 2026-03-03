@@ -100,7 +100,11 @@ where
     Err(last_error.expect("至少应该有一个错误"))
 }
 
-pub fn retry_with_strategy<F, T, E>(config: &RetryConfig, strategy: RetryStrategy, mut operation: F) -> Result<T, E>
+pub fn retry_with_strategy<F, T, E>(
+    config: &RetryConfig,
+    strategy: RetryStrategy,
+    mut operation: F,
+) -> Result<T, E>
 where
     F: FnMut() -> Result<T, E>,
     E: Into<StorageError> + Clone + std::fmt::Display,

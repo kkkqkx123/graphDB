@@ -4,9 +4,9 @@
 //!
 //! CPU 密集型操作，使用 Rayon 进行并行化
 
-use std::sync::Arc;
 use parking_lot::Mutex;
 use rayon::prelude::*;
+use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -144,8 +144,10 @@ impl<S: StorageClient> ProjectExecutor<S> {
                             // 对每个投影列进行求值
                             let mut projected_row = Vec::new();
                             for column in &columns {
-                                match ExpressionEvaluator::evaluate(&column.expression, &mut context)
-                                {
+                                match ExpressionEvaluator::evaluate(
+                                    &column.expression,
+                                    &mut context,
+                                ) {
                                     Ok(value) => projected_row.push(value),
                                     Err(_) => return None, // 跳过求值失败的行
                                 }
@@ -406,7 +408,9 @@ mod tests {
         ];
 
         // 不设置 input_executor，直接调用 project_dataset 方法测试
-        let projected_dataset = executor.project_dataset(input_dataset).expect("Projection should succeed");
+        let projected_dataset = executor
+            .project_dataset(input_dataset)
+            .expect("Projection should succeed");
 
         // 验证结果
         assert_eq!(projected_dataset.col_names, vec!["projected_col1"]);
@@ -442,7 +446,9 @@ mod tests {
         ];
 
         // 直接调用 project_dataset 方法测试
-        let projected_dataset = executor.project_dataset(input_dataset).expect("Projection should succeed");
+        let projected_dataset = executor
+            .project_dataset(input_dataset)
+            .expect("Projection should succeed");
 
         // 验证结果
         assert_eq!(projected_dataset.col_names, vec!["sum"]);
@@ -462,10 +468,7 @@ mod tests {
                 "vertex_id".to_string(),
                 Expression::Variable("id".to_string()),
             ),
-            ProjectionColumn::new(
-                "name".to_string(),
-                Expression::Variable("name".to_string()),
-            ),
+            ProjectionColumn::new("name".to_string(), Expression::Variable("name".to_string())),
         ];
 
         let executor = ProjectExecutor::new(1, storage, columns);
@@ -500,7 +503,9 @@ mod tests {
         let vertices = vec![vertex1, vertex2];
 
         // 直接调用 project_vertices 方法测试
-        let projected_dataset = executor.project_vertices(vertices).expect("Projection should succeed");
+        let projected_dataset = executor
+            .project_vertices(vertices)
+            .expect("Projection should succeed");
 
         // 验证结果
         assert_eq!(projected_dataset.col_names, vec!["vertex_id", "name"]);
@@ -562,10 +567,15 @@ mod tests {
         let edges = vec![edge1, edge2];
 
         // 直接调用 project_edges 方法测试
-        let projected_dataset = executor.project_edges(edges).expect("Projection should succeed");
+        let projected_dataset = executor
+            .project_edges(edges)
+            .expect("Projection should succeed");
 
         // 验证结果
-        assert_eq!(projected_dataset.col_names, vec!["src_id", "dst_id", "edge_type"]);
+        assert_eq!(
+            projected_dataset.col_names,
+            vec!["src_id", "dst_id", "edge_type"]
+        );
         assert_eq!(projected_dataset.rows.len(), 2);
         assert_eq!(
             projected_dataset.rows[0],

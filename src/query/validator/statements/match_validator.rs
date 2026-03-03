@@ -4,23 +4,22 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::YieldColumn;
-use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::YieldColumn;
+use crate::query::parser::ast::stmt::{MatchStmt, OrderByClause, ReturnClause, ReturnItem};
+use crate::query::parser::ast::{Pattern, Stmt};
 use crate::query::QueryContext;
-use crate::query::parser::ast::{Stmt, Pattern};
-use crate::query::parser::ast::stmt::{MatchStmt, ReturnClause, ReturnItem, OrderByClause};
 
+use crate::query::validator::strategies::ExpressionValidationStrategy;
+use crate::query::validator::structs::validation_info::{PathAnalysis, ValidationInfo};
 use crate::query::validator::structs::{
     AliasType, MatchStepRange, PaginationContext, Path, QueryPart, ReturnClauseContext,
     UnwindClauseContext, WhereClauseContext, WithClauseContext, YieldClauseContext,
 };
 use crate::query::validator::validator_trait::{
-    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
-    ValueType,
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::query::validator::structs::validation_info::{ValidationInfo, PathAnalysis};
-use crate::query::validator::strategies::ExpressionValidationStrategy;
 
 /// 验证后的MATCH信息
 #[derive(Debug, Clone)]
@@ -108,7 +107,10 @@ impl MatchValidator {
     }
 
     /// 验证完整的 MATCH 语句
-    pub fn validate_match_statement(&mut self, match_stmt: &MatchStmt) -> Result<(), ValidationError> {
+    pub fn validate_match_statement(
+        &mut self,
+        match_stmt: &MatchStmt,
+    ) -> Result<(), ValidationError> {
         // 1. 验证模式不为空
         if match_stmt.patterns.is_empty() {
             return Err(ValidationError::new(
@@ -198,11 +200,15 @@ impl MatchValidator {
                 // 变量模式：检查变量是否已定义
                 if !self.aliases.contains_key(&var_pattern.name) {
                     return Err(ValidationError::new(
-                        format!("第 {} 个模式: 引用了未定义的变量 '{}'", idx + 1, var_pattern.name),
+                        format!(
+                            "第 {} 个模式: 引用了未定义的变量 '{}'",
+                            idx + 1,
+                            var_pattern.name
+                        ),
                         ValidationErrorType::SemanticError,
                     ));
                 }
-                
+
                 // 获取变量类型信息
                 if let Some(alias_type) = self.aliases.get(&var_pattern.name) {
                     // 验证变量类型是否有效（不能是运行时变量）
@@ -223,7 +229,10 @@ impl MatchValidator {
     }
 
     /// 从模式中收集别名（第一遍扫描）
-    fn collect_aliases_from_patterns(&mut self, patterns: &[Pattern]) -> Result<(), ValidationError> {
+    fn collect_aliases_from_patterns(
+        &mut self,
+        patterns: &[Pattern],
+    ) -> Result<(), ValidationError> {
         for pattern in patterns.iter() {
             match pattern {
                 Pattern::Node(node) => {
@@ -248,7 +257,10 @@ impl MatchValidator {
     }
 
     /// 验证 WHERE 子句
-    fn validate_where_clause(&mut self, where_expr: &ContextualExpression) -> Result<(), ValidationError> {
+    fn validate_where_clause(
+        &mut self,
+        where_expr: &ContextualExpression,
+    ) -> Result<(), ValidationError> {
         // 使用表达式验证策略进行验证
         let strategy = ExpressionValidationStrategy::new();
         let context = WhereClauseContext {
@@ -286,7 +298,7 @@ impl MatchValidator {
                     if let Err(e) = self.validate_return_expression(expression, idx) {
                         return Err(e);
                     }
-                    
+
                     // 验证别名（如果存在）
                     if let Some(ref alias_name) = alias {
                         if alias_name.is_empty() {
@@ -337,10 +349,7 @@ impl MatchValidator {
     }
 
     /// 验证 ORDER BY 子句
-    fn validate_order_by(
-        &mut self,
-        order_by: &OrderByClause,
-    ) -> Result<(), ValidationError> {
+    fn validate_order_by(&mut self, order_by: &OrderByClause) -> Result<(), ValidationError> {
         if order_by.items.is_empty() {
             return Err(ValidationError::new(
                 "ORDER BY 子句必须包含至少一个排序项".to_string(),
@@ -431,7 +440,10 @@ impl MatchValidator {
         // 验证 skip < limit
         if context.skip >= context.limit && context.limit > 0 {
             return Err(ValidationError::new(
-                format!("SKIP 值 ({}) 必须小于 LIMIT 值 ({})", context.skip, context.limit),
+                format!(
+                    "SKIP 值 ({}) 必须小于 LIMIT 值 ({})",
+                    context.skip, context.limit
+                ),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -444,7 +456,11 @@ impl MatchValidator {
     pub fn validate_step_range(&self, range: &MatchStepRange) -> Result<(), ValidationError> {
         if range.min() > range.max() {
             return Err(ValidationError::new(
-                format!("步数范围无效: min ({}) 大于 max ({})", range.min(), range.max()),
+                format!(
+                    "步数范围无效: min ({}) 大于 max ({})",
+                    range.min(),
+                    range.max()
+                ),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -517,7 +533,8 @@ impl MatchValidator {
         }
 
         // 添加 unwind 别名
-        self.aliases.insert(context.alias.clone(), AliasType::Variable);
+        self.aliases
+            .insert(context.alias.clone(), AliasType::Variable);
         Ok(())
     }
 
@@ -629,7 +646,7 @@ impl MatchValidator {
     /// 生成输出列
     fn generate_output_columns(&mut self, match_stmt: &MatchStmt) {
         self.outputs.clear();
-        
+
         if let Some(ref return_clause) = match_stmt.return_clause {
             for item in &return_clause.items {
                 match item {
@@ -645,7 +662,8 @@ impl MatchValidator {
                     }
                     ReturnItem::Expression { expression, alias } => {
                         let name = alias.clone().unwrap_or_else(|| {
-                            expression.as_variable()
+                            expression
+                                .as_variable()
                                 .unwrap_or_else(|| format!("col_{}", self.outputs.len()))
                         });
                         let col = ColumnDef {
@@ -713,10 +731,14 @@ impl StatementValidator for MatchValidator {
         for pattern in &match_stmt.patterns {
             if let crate::query::parser::ast::Pattern::Path(path) = pattern {
                 let mut analysis = PathAnalysis::new();
-                analysis.node_count = path.elements.iter()
+                analysis.node_count = path
+                    .elements
+                    .iter()
                     .filter(|e| matches!(e, crate::query::parser::ast::PathElement::Node(_)))
                     .count();
-                analysis.edge_count = path.elements.iter()
+                analysis.edge_count = path
+                    .elements
+                    .iter()
                     .filter(|e| matches!(e, crate::query::parser::ast::PathElement::Edge(_)))
                     .count();
                 info.add_path_analysis(analysis);
@@ -729,7 +751,7 @@ impl StatementValidator for MatchValidator {
                 crate::query::validator::OptimizationHint::PerformanceWarning {
                     message: "查询包含大量别名，可能影响性能".to_string(),
                     severity: crate::query::validator::HintSeverity::Warning,
-                }
+                },
             );
         }
 
@@ -820,8 +842,8 @@ impl MatchValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;
 
@@ -843,7 +865,9 @@ mod tests {
     fn test_match_validator_with_pagination() {
         let validator = MatchValidator::with_pagination(10, 100);
         assert!(validator.pagination.is_some());
-        let ctx = validator.pagination.expect("Failed to get pagination context");
+        let ctx = validator
+            .pagination
+            .expect("Failed to get pagination context");
         assert_eq!(ctx.skip, 10);
         assert_eq!(ctx.limit, 100);
     }
@@ -875,7 +899,8 @@ mod tests {
         assert!(validator.validate_aliases(&[expression], &aliases).is_ok());
 
         // 测试无效的别名引用
-        let invalid_expression = create_contextual_expr(Expression::Variable("invalid".to_string()));
+        let invalid_expression =
+            create_contextual_expr(Expression::Variable("invalid".to_string()));
         assert!(validator
             .validate_aliases(&[invalid_expression], &aliases)
             .is_err());
@@ -885,7 +910,10 @@ mod tests {
     fn test_has_aggregate_expression() {
         let validator = MatchValidator::new();
         let non_agg_expression = create_contextual_expr(Expression::Literal(Value::Int(1)));
-        assert_eq!(validator.has_aggregate_expression(&non_agg_expression), false);
+        assert_eq!(
+            validator.has_aggregate_expression(&non_agg_expression),
+            false
+        );
 
         // 测试有聚合函数的表达式
         let agg_expression = create_contextual_expr(Expression::Function {
@@ -925,12 +953,19 @@ mod tests {
         assert!(validator.validate_pagination(None, None, &ctx).is_ok());
 
         // 测试无效的 skip
-        let invalid_ctx = PaginationContext { skip: -1, limit: 10 };
-        assert!(validator.validate_pagination(None, None, &invalid_ctx).is_err());
+        let invalid_ctx = PaginationContext {
+            skip: -1,
+            limit: 10,
+        };
+        assert!(validator
+            .validate_pagination(None, None, &invalid_ctx)
+            .is_err());
 
         // 测试 skip >= limit
         let invalid_ctx2 = PaginationContext { skip: 10, limit: 5 };
-        assert!(validator.validate_pagination(None, None, &invalid_ctx2).is_err());
+        assert!(validator
+            .validate_pagination(None, None, &invalid_ctx2)
+            .is_err());
     }
 
     #[test]
@@ -974,8 +1009,7 @@ mod tests {
             .expect("收集别名失败");
 
         // 验证变量模式引用已定义的变量
-        let var_pattern =
-            VariablePattern::new("a".to_string(), Span::default());
+        let var_pattern = VariablePattern::new("a".to_string(), Span::default());
         let pattern = Pattern::Variable(var_pattern);
 
         assert!(validator.validate_pattern(&pattern, 0).is_ok());
@@ -989,8 +1023,7 @@ mod tests {
         let mut validator = MatchValidator::new();
 
         // 验证变量模式引用未定义的变量应该失败
-        let var_pattern =
-            VariablePattern::new("undefined".to_string(), Span::default());
+        let var_pattern = VariablePattern::new("undefined".to_string(), Span::default());
         let pattern = Pattern::Variable(var_pattern);
 
         assert!(validator.validate_pattern(&pattern, 0).is_err());
@@ -1004,11 +1037,12 @@ mod tests {
         let mut validator = MatchValidator::new();
 
         // 添加一个运行时别名（如 RETURN 子句中定义的别名）
-        validator.aliases.insert("runtime_alias".to_string(), AliasType::Runtime);
+        validator
+            .aliases
+            .insert("runtime_alias".to_string(), AliasType::Runtime);
 
         // 验证变量模式引用运行时别名应该失败
-        let var_pattern =
-            VariablePattern::new("runtime_alias".to_string(), Span::default());
+        let var_pattern = VariablePattern::new("runtime_alias".to_string(), Span::default());
         let pattern = Pattern::Variable(var_pattern);
 
         let result = validator.validate_pattern(&pattern, 0);
@@ -1025,8 +1059,7 @@ mod tests {
         let mut validator = MatchValidator::new();
 
         // VariablePattern 不应该被收集为别名
-        let var_pattern =
-            VariablePattern::new("var".to_string(), Span::default());
+        let var_pattern = VariablePattern::new("var".to_string(), Span::default());
         let pattern = Pattern::Variable(var_pattern);
 
         validator

@@ -29,17 +29,17 @@
 
 use std::sync::Arc;
 
+use crate::core::types::operators::AggregateFunction;
+use crate::core::types::{ContextualExpression, ExpressionContext};
+use crate::core::Expression;
+use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
+use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
-use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
-use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::core::Expression;
-use crate::core::types::{ContextualExpression, ExpressionContext};
-use crate::core::types::operators::AggregateFunction;
 
 /// 将过滤下推到聚合之前的规则
 #[derive(Debug)]
@@ -60,13 +60,18 @@ impl PushFilterDownAggregateRule {
         group_keys: &[String],
         agg_funcs: &[AggregateFunction],
     ) -> bool {
-        fn check_expr(expr: &Expression, group_keys: &[String], agg_funcs: &[AggregateFunction]) -> bool {
+        fn check_expr(
+            expr: &Expression,
+            group_keys: &[String],
+            agg_funcs: &[AggregateFunction],
+        ) -> bool {
             match expr {
                 // 直接包含聚合表达式
                 Expression::Aggregate { .. } => true,
                 // 二元运算：检查左右两边
                 Expression::Binary { left, right, .. } => {
-                    check_expr(left, group_keys, agg_funcs) || check_expr(right, group_keys, agg_funcs)
+                    check_expr(left, group_keys, agg_funcs)
+                        || check_expr(right, group_keys, agg_funcs)
                 }
                 // 一元运算：检查操作数
                 Expression::Unary { operand, .. } => check_expr(operand, group_keys, agg_funcs),
@@ -78,12 +83,21 @@ impl PushFilterDownAggregateRule {
                     // 检查是否是聚合函数名称
                     if matches!(
                         func_name.as_str(),
-                        "sum" | "avg" | "count" | "max" | "min" | "collect" | "collect_set" | "distinct" | "std"
+                        "sum"
+                            | "avg"
+                            | "count"
+                            | "max"
+                            | "min"
+                            | "collect"
+                            | "collect_set"
+                            | "distinct"
+                            | "std"
                     ) {
                         return true;
                     }
                     // 检查参数中是否包含聚合
-                    args.iter().any(|arg| check_expr(arg, group_keys, agg_funcs))
+                    args.iter()
+                        .any(|arg| check_expr(arg, group_keys, agg_funcs))
                 }
                 // 变量：检查是否是分组键
                 // 如果不是分组键，则可能是聚合输出列
@@ -94,8 +108,9 @@ impl PushFilterDownAggregateRule {
                     }
                     // 检查是否是聚合函数的输出列名
                     for agg_func in agg_funcs {
-                        if agg_func.name() == name || 
-                           agg_func.field_name().map(|f| f == name).unwrap_or(false) {
+                        if agg_func.name() == name
+                            || agg_func.field_name().map(|f| f == name).unwrap_or(false)
+                        {
                             return true;
                         }
                     }
@@ -203,19 +218,25 @@ impl RewriteRule for PushFilterDownAggregateRule {
         let rewritten_ctx_expr = ContextualExpression::new(id, ctx);
 
         // 创建新的 Filter 节点，放在 Aggregate 之前
-        let new_filter = FilterNode::new(agg_input.clone(), rewritten_ctx_expr)
-            .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
-                format!("创建 FilterNode 失败: {:?}", e)
-            ))?;
+        let new_filter = FilterNode::new(agg_input.clone(), rewritten_ctx_expr).map_err(|e| {
+            crate::query::planner::rewrite::result::RewriteError::rewrite_failed(format!(
+                "创建 FilterNode 失败: {:?}",
+                e
+            ))
+        })?;
 
         // 创建新的 Aggregate 节点，输入为新的 Filter 节点
         let new_aggregate = AggregateNode::new(
             PlanNodeEnum::Filter(new_filter),
             group_keys.to_vec(),
             agg_funcs.to_vec(),
-        ).map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
-            format!("创建 AggregateNode 失败: {:?}", e)
-        ))?;
+        )
+        .map_err(|e| {
+            crate::query::planner::rewrite::result::RewriteError::rewrite_failed(format!(
+                "创建 AggregateNode 失败: {:?}",
+                e
+            ))
+        })?;
 
         // 构建转换结果
         let mut result = TransformResult::new();
@@ -228,7 +249,10 @@ impl RewriteRule for PushFilterDownAggregateRule {
 
 impl PushDownRule for PushFilterDownAggregateRule {
     fn can_push_down(&self, node: &PlanNodeEnum, target: &PlanNodeEnum) -> bool {
-        matches!((node, target), (PlanNodeEnum::Filter(_), PlanNodeEnum::Aggregate(_)))
+        matches!(
+            (node, target),
+            (PlanNodeEnum::Filter(_), PlanNodeEnum::Aggregate(_))
+        )
     }
 
     fn push_down(
@@ -267,11 +291,13 @@ mod tests {
             distinct: false,
         };
 
-        assert!(PushFilterDownAggregateRule::has_aggregate_function_reference(
-            &condition,
-            &[],
-            &[AggregateFunction::Count(None)]
-        ));
+        assert!(
+            PushFilterDownAggregateRule::has_aggregate_function_reference(
+                &condition,
+                &[],
+                &[AggregateFunction::Count(None)]
+            )
+        );
     }
 
     #[test]
@@ -279,14 +305,18 @@ mod tests {
         let condition = Expression::Binary {
             op: crate::core::types::operators::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("name".to_string())),
-            right: Box::new(Expression::Literal(crate::core::Value::String("test".to_string()))),
+            right: Box::new(Expression::Literal(crate::core::Value::String(
+                "test".to_string(),
+            ))),
         };
 
-        assert!(!PushFilterDownAggregateRule::has_aggregate_function_reference(
-            &condition,
-            &["name".to_string()],
-            &[]
-        ));
+        assert!(
+            !PushFilterDownAggregateRule::has_aggregate_function_reference(
+                &condition,
+                &["name".to_string()],
+                &[]
+            )
+        );
     }
 
     #[test]
@@ -296,11 +326,13 @@ mod tests {
             args: vec![Expression::Variable("amount".to_string())],
         };
 
-        assert!(PushFilterDownAggregateRule::has_aggregate_function_reference(
-            &condition,
-            &[],
-            &[AggregateFunction::Sum("amount".to_string())]
-        ));
+        assert!(
+            PushFilterDownAggregateRule::has_aggregate_function_reference(
+                &condition,
+                &[],
+                &[AggregateFunction::Sum("amount".to_string())]
+            )
+        );
     }
 
     #[test]
@@ -308,12 +340,14 @@ mod tests {
         let condition = Expression::Binary {
             op: crate::core::types::operators::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("name".to_string())),
-            right: Box::new(Expression::Literal(crate::core::Value::String("test".to_string()))),
+            right: Box::new(Expression::Literal(crate::core::Value::String(
+                "test".to_string(),
+            ))),
         };
 
         let rewritten = PushFilterDownAggregateRule::rewrite_filter_condition(
             &condition,
-            &["name".to_string()]
+            &["name".to_string()],
         );
 
         assert_eq!(rewritten, condition);
@@ -336,7 +370,9 @@ mod tests {
         let condition = Expression::Binary {
             op: crate::core::types::operators::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("category".to_string())),
-            right: Box::new(Expression::Literal(crate::core::Value::String("A".to_string()))),
+            right: Box::new(Expression::Literal(crate::core::Value::String(
+                "A".to_string(),
+            ))),
         };
         let expr_ctx = Arc::new(ExpressionContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
@@ -348,8 +384,7 @@ mod tests {
         // 应用规则
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &filter_enum)
-            .expect("应用规则失败");
+        let result = rule.apply(&mut ctx, &filter_enum).expect("应用规则失败");
 
         // 验证转换成功
         assert!(result.is_some());
@@ -387,8 +422,7 @@ mod tests {
         // 应用规则
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &filter_enum)
-            .expect("应用规则失败");
+        let result = rule.apply(&mut ctx, &filter_enum).expect("应用规则失败");
 
         // 验证转换未执行（因为条件涉及聚合结果）
         assert!(result.is_none());
@@ -404,7 +438,9 @@ mod tests {
         let condition = Expression::Binary {
             op: crate::core::types::operators::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("name".to_string())),
-            right: Box::new(Expression::Literal(crate::core::Value::String("test".to_string()))),
+            right: Box::new(Expression::Literal(crate::core::Value::String(
+                "test".to_string(),
+            ))),
         };
         let expr_ctx = Arc::new(ExpressionContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
@@ -416,8 +452,7 @@ mod tests {
         // 应用规则
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &filter_enum)
-            .expect("应用规则失败");
+        let result = rule.apply(&mut ctx, &filter_enum).expect("应用规则失败");
 
         // 验证转换未执行（因为输入不是 Aggregate）
         assert!(result.is_none());

@@ -195,12 +195,7 @@ impl ExpressionAnalyzer {
     }
 
     /// 递归分析表达式
-    fn analyze_recursive(
-        &self,
-        expr: &Expression,
-        result: &mut ExpressionAnalysis,
-        depth: u32,
-    ) {
+    fn analyze_recursive(&self, expr: &Expression, result: &mut ExpressionAnalysis, depth: u32) {
         // 更新深度和节点计数
         result.depth = result.depth.max(depth);
         result.node_count += 1;
@@ -409,7 +404,11 @@ impl ExpressionAnalyzer {
                 }
             }
 
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 if self.options.check_complexity {
                     result.complexity_score += 5;
                 }
@@ -422,7 +421,9 @@ impl ExpressionAnalyzer {
                 }
             }
 
-            Expression::Label(_) | Expression::TagProperty { .. } | Expression::EdgeProperty { .. } => {
+            Expression::Label(_)
+            | Expression::TagProperty { .. }
+            | Expression::EdgeProperty { .. } => {
                 if self.options.check_complexity {
                     result.complexity_score += 3;
                 }

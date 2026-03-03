@@ -301,7 +301,10 @@ mod tests {
     fn test_error_code_category() {
         assert_eq!(ErrorCode::Success.category(), ErrorCategory::Success);
         assert_eq!(ErrorCode::SyntaxError.category(), ErrorCategory::Syntax);
-        assert_eq!(ErrorCode::ExecutionError.category(), ErrorCategory::Execution);
+        assert_eq!(
+            ErrorCode::ExecutionError.category(),
+            ErrorCategory::Execution
+        );
         assert_eq!(ErrorCode::InternalError.category(), ErrorCategory::System);
     }
 

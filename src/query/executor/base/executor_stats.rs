@@ -217,10 +217,8 @@ impl ExecutorStatsCollector {
             cache_hit_rate: self.stats.cache_hit_rate(),
         };
 
-        let children_snapshots: Vec<ExecutorStatSnapshot> = self.children
-            .into_iter()
-            .map(|c| c.finish().0)
-            .collect();
+        let children_snapshots: Vec<ExecutorStatSnapshot> =
+            self.children.into_iter().map(|c| c.finish().0).collect();
 
         (snapshot, children_snapshots)
     }
@@ -271,7 +269,7 @@ impl QueryStatsCollector {
     pub fn end_executor(&mut self) -> Option<(ExecutorStatSnapshot, Vec<ExecutorStatSnapshot>)> {
         if let Some(collector) = self.stack.pop() {
             let (snapshot, children) = collector.finish();
-            
+
             // 如果有父执行器，将当前统计添加到父执行器
             if let Some(parent) = self.stack.last_mut() {
                 let child_collector = ExecutorStatsCollector {
@@ -292,7 +290,7 @@ impl QueryStatsCollector {
                 // 根执行器
                 self.root_stats.push(snapshot.clone());
             }
-            
+
             Some((snapshot, children))
         } else {
             None
@@ -328,12 +326,12 @@ impl QueryStatsCollector {
     /// 获取所有统计（包括嵌套）
     pub fn get_all_stats(&self) -> Vec<ExecutorStatSnapshot> {
         let mut all_stats = self.root_stats.clone();
-        
+
         for collector in &self.stack {
             let (snapshot, _) = collector.clone().finish();
             all_stats.push(snapshot);
         }
-        
+
         all_stats
     }
 

@@ -3,8 +3,8 @@
 //! 负责跟踪和管理正在运行的查询。
 
 use log::{info, warn};
-use std::collections::HashMap;
 use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::core::error::{ManagerError, ManagerResult};
@@ -137,7 +137,10 @@ impl QueryManager {
         let mut queries = self.queries.lock();
         queries.insert(query_id, query_info);
 
-        info!("Query registered: id={}, session_id={}, query={}", query_id, session_id, query_text);
+        info!(
+            "Query registered: id={}, session_id={}, query={}",
+            query_id, session_id, query_text
+        );
 
         query_id
     }
@@ -147,10 +150,17 @@ impl QueryManager {
         let mut queries = self.queries.lock();
         if let Some(query) = queries.get_mut(&query_id) {
             query.finish();
-            info!("Query finished: id={}, duration={}ms", query_id, query.duration_ms.unwrap_or(0));
+            info!(
+                "Query finished: id={}, duration={}ms",
+                query_id,
+                query.duration_ms.unwrap_or(0)
+            );
             Ok(())
         } else {
-            Err(ManagerError::NotFound(format!("Query {} not found", query_id)))
+            Err(ManagerError::NotFound(format!(
+                "Query {} not found",
+                query_id
+            )))
         }
     }
 
@@ -159,10 +169,17 @@ impl QueryManager {
         let mut queries = self.queries.lock();
         if let Some(query) = queries.get_mut(&query_id) {
             query.fail();
-            warn!("Query failed: id={}, duration={}ms", query_id, query.duration_ms.unwrap_or(0));
+            warn!(
+                "Query failed: id={}, duration={}ms",
+                query_id,
+                query.duration_ms.unwrap_or(0)
+            );
             Ok(())
         } else {
-            Err(ManagerError::NotFound(format!("Query {} not found", query_id)))
+            Err(ManagerError::NotFound(format!(
+                "Query {} not found",
+                query_id
+            )))
         }
     }
 
@@ -174,7 +191,10 @@ impl QueryManager {
             warn!("Query killed: id={}", query_id);
             Ok(())
         } else {
-            Err(ManagerError::NotFound(format!("Query {} not found", query_id)))
+            Err(ManagerError::NotFound(format!(
+                "Query {} not found",
+                query_id
+            )))
         }
     }
 
@@ -204,15 +224,24 @@ impl QueryManager {
     pub fn get_stats(&self) -> QueryStats {
         let queries = self.queries.lock();
         let total = queries.len() as u64;
-        let running = queries.values().filter(|q| q.status == QueryStatus::Running).count() as u64;
-        let finished = queries.values().filter(|q| q.status == QueryStatus::Finished).count() as u64;
-        let failed = queries.values().filter(|q| q.status == QueryStatus::Failed).count() as u64;
-        let killed = queries.values().filter(|q| q.status == QueryStatus::Killed).count() as u64;
-
-        let total_duration: i64 = queries
+        let running = queries
             .values()
-            .filter_map(|q| q.duration_ms)
-            .sum();
+            .filter(|q| q.status == QueryStatus::Running)
+            .count() as u64;
+        let finished = queries
+            .values()
+            .filter(|q| q.status == QueryStatus::Finished)
+            .count() as u64;
+        let failed = queries
+            .values()
+            .filter(|q| q.status == QueryStatus::Failed)
+            .count() as u64;
+        let killed = queries
+            .values()
+            .filter(|q| q.status == QueryStatus::Killed)
+            .count() as u64;
+
+        let total_duration: i64 = queries.values().filter_map(|q| q.duration_ms).sum();
 
         let avg_duration = if total > 0 {
             total_duration / total as i64
@@ -245,9 +274,8 @@ impl QueryManager {
             .collect();
 
         // 按开始时间排序，保留最近的
-        finished_queries.sort_by_key(|id| {
-            queries.get(id).map(|q| q.start_time).unwrap_or(UNIX_EPOCH)
-        });
+        finished_queries
+            .sort_by_key(|id| queries.get(id).map(|q| q.start_time).unwrap_or(UNIX_EPOCH));
 
         let to_remove = finished_queries.len().saturating_sub(keep_count);
         for id in finished_queries.into_iter().take(to_remove) {

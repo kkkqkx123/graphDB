@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use crate::core::{DataSet, Value};
-use crate::storage::iterator::Row;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -60,13 +60,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescSpaceExecutor
 
         match result {
             Ok(Some(space_info)) => {
-                let rows = vec![
-                    vec![
-                        Value::String(space_info.space_name.clone()),
-                        Value::String(format!("{:?}", space_info.vid_type)),
-                        Value::String(space_info.comment.clone().unwrap_or_else(|| "".to_string())),
-                    ]
-                ];
+                let rows = vec![vec![
+                    Value::String(space_info.space_name.clone()),
+                    Value::String(format!("{:?}", space_info.vid_type)),
+                    Value::String(space_info.comment.clone().unwrap_or_else(|| "".to_string())),
+                ]];
 
                 let dataset = DataSet {
                     col_names: vec![
@@ -78,8 +76,14 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescSpaceExecutor
                 };
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            Ok(None) => Ok(ExecutionResult::Error(format!("Space '{}' not found", self.space_name))),
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to describe space: {}", e))),
+            Ok(None) => Ok(ExecutionResult::Error(format!(
+                "Space '{}' not found",
+                self.space_name
+            ))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to describe space: {}",
+                e
+            ))),
         }
     }
 

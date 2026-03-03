@@ -10,8 +10,8 @@
 //! - 更好的缓存局部性
 //! - 编译器可以内联优化
 
-use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::ExecutionPlan;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::result::RewriteResult;
 use crate::query::planner::rewrite::rule_enum::{RewriteRule as RewriteRuleEnum, RuleRegistry};
@@ -271,7 +271,8 @@ impl PlanRewriter {
             }
             // 多输入节点
             PlanNodeEnum::Union(n) => {
-                let deps: Vec<PlanNodeEnum> = n.dependencies()
+                let deps: Vec<PlanNodeEnum> = n
+                    .dependencies()
                     .iter()
                     .map(|dep| dep.clone_plan_node())
                     .collect();
@@ -329,12 +330,12 @@ mod tests {
     #[test]
     fn test_plan_rewriter_add_rule() {
         use crate::query::planner::rewrite::elimination::EliminateFilterRule;
-        
+
         let mut rewriter = PlanRewriter::new();
         assert_eq!(rewriter.rule_count(), 0);
-        
+
         rewriter.add_rule(RewriteRuleEnum::EliminateFilter(EliminateFilterRule));
-        
+
         assert_eq!(rewriter.rule_count(), 1);
     }
 }

@@ -5,8 +5,8 @@
 //! hints, and context support.
 
 use crate::query::QueryError;
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 
 use crate::core::types::Position;
 
@@ -65,10 +65,7 @@ impl ParseError {
         )
     }
 
-    pub fn unexpected_token<T: fmt::Display>(
-        token: T,
-        position: Position,
-    ) -> ParseError {
+    pub fn unexpected_token<T: fmt::Display>(token: T, position: Position) -> ParseError {
         ParseError::new(
             ParseErrorKind::UnexpectedToken,
             format!("Unexpected token: {}", token),
@@ -140,7 +137,11 @@ impl fmt::Display for ParseError {
         }
 
         if !self.expected_tokens.is_empty() {
-            writeln!(f, "\n  Expected one of: {}", self.expected_tokens.join(", "))?;
+            writeln!(
+                f,
+                "\n  Expected one of: {}",
+                self.expected_tokens.join(", ")
+            )?;
         }
 
         if let Some(ref context) = self.context {
@@ -162,11 +163,7 @@ impl Error for ParseError {}
 
 impl From<String> for ParseError {
     fn from(message: String) -> Self {
-        ParseError::new(
-            ParseErrorKind::SyntaxError,
-            message,
-            Position::new(0, 0),
-        )
+        ParseError::new(ParseErrorKind::SyntaxError, message, Position::new(0, 0))
     }
 }
 
@@ -193,9 +190,7 @@ pub struct ParseErrors {
 
 impl ParseErrors {
     pub fn new() -> Self {
-        ParseErrors {
-            errors: Vec::new(),
-        }
+        ParseErrors { errors: Vec::new() }
     }
 
     pub fn add(&mut self, error: ParseError) {
@@ -269,10 +264,7 @@ mod tests {
 
     #[test]
     fn test_parse_error_display() {
-        let error = ParseError::unexpected_token(
-            "IDENTIFIER",
-            Position::new(10, 5),
-        );
+        let error = ParseError::unexpected_token("IDENTIFIER", Position::new(10, 5));
         let display = error.to_string();
         assert!(display.contains("line 10, column 5"));
         assert!(display.contains("Unexpected token: IDENTIFIER"));
@@ -280,10 +272,8 @@ mod tests {
 
     #[test]
     fn test_parse_error_with_hint() {
-        let error = ParseError::syntax_error(
-            "invalid syntax",
-            Position::new(5, 10),
-        ).with_hint("Try adding a semicolon at the end".to_string());
+        let error = ParseError::syntax_error("invalid syntax", Position::new(5, 10))
+            .with_hint("Try adding a semicolon at the end".to_string());
 
         let display = error.to_string();
         assert!(display.contains("Hint"));
@@ -293,10 +283,8 @@ mod tests {
     #[test]
     fn test_parse_error_with_context() {
         let context_error = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
-        let error = ParseError::syntax_error(
-            "error",
-            Position::new(1, 1),
-        ).with_context(context_error);
+        let error =
+            ParseError::syntax_error("error", Position::new(1, 1)).with_context(context_error);
 
         let display = error.to_string();
         assert!(display.contains("Context"));

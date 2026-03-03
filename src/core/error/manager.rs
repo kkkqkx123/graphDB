@@ -50,8 +50,9 @@ impl ManagerError {
     /// 获取错误分类
     pub fn category(&self) -> ErrorCategory {
         match self {
-            ManagerError::StorageError(_)
-            | ManagerError::TimeoutError(_) => ErrorCategory::Retryable,
+            ManagerError::StorageError(_) | ManagerError::TimeoutError(_) => {
+                ErrorCategory::Retryable
+            }
             _ => ErrorCategory::NonRetryable,
         }
     }

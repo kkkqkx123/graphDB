@@ -48,11 +48,7 @@ pub struct SeekResult {
 }
 
 impl SeekStrategyContext {
-    pub fn new(
-        space_id: u64,
-        node_pattern: NodePattern,
-        predicates: Vec<Expression>,
-    ) -> Self {
+    pub fn new(space_id: u64, node_pattern: NodePattern, predicates: Vec<Expression>) -> Self {
         Self {
             space_id,
             node_pattern,
@@ -85,24 +81,24 @@ impl SeekStrategyContext {
     }
 
     pub fn get_index_for_labels(&self, labels: &[String]) -> Option<&IndexInfo> {
-        self.available_indexes.iter().find(|idx| {
-            idx.target_type == "tag" && labels.contains(&idx.target_name)
-        })
+        self.available_indexes
+            .iter()
+            .find(|idx| idx.target_type == "tag" && labels.contains(&idx.target_name))
     }
 
     /// 获取指定属性的索引
     pub fn get_index_for_property(&self, property: &str) -> Option<&IndexInfo> {
-        self.available_indexes.iter().find(|idx| {
-            idx.properties.contains(&property.to_string())
-        })
+        self.available_indexes
+            .iter()
+            .find(|idx| idx.properties.contains(&property.to_string()))
     }
 
     /// 检查是否有属性谓词
     pub fn has_property_predicates(&self) -> bool {
         // 检查谓词中是否包含属性过滤条件
-        self.predicates.iter().any(|pred| {
-            matches!(pred, Expression::Binary { .. })
-        })
+        self.predicates
+            .iter()
+            .any(|pred| matches!(pred, Expression::Binary { .. }))
     }
 
     /// 检查是否有属性索引

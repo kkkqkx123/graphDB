@@ -2,13 +2,13 @@
 //!
 //! 负责处理聚合操作，将右输入中的值根据左输入的键进行聚合
 
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::Expression;
 use crate::core::value::dataset::List;
+use crate::core::Expression;
 use crate::core::{DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
@@ -476,8 +476,8 @@ mod tests {
     use crate::core::Expression;
     use crate::core::Value;
     use crate::storage::MockStorage;
+    use parking_lot::Mutex;
     use std::sync::Arc;
-use parking_lot::Mutex;
 
     #[test]
     fn test_rollup_apply_executor() {
@@ -611,7 +611,11 @@ use parking_lot::Mutex;
             "right".to_string(),
             compare_cols,
             collect_col,
-            vec!["key0".to_string(), "key1".to_string(), "collected".to_string()],
+            vec![
+                "key0".to_string(),
+                "key1".to_string(),
+                "collected".to_string(),
+            ],
             context,
         );
 

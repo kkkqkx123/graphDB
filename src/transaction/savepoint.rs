@@ -165,18 +165,11 @@ impl SavepointManager {
 
         // 获取或创建该事务的序列号生成器
         let mut seq_map = self.sequence_generator.write();
-        let seq_gen = seq_map
-            .entry(txn_id)
-            .or_insert_with(|| AtomicU64::new(1));
+        let seq_gen = seq_map.entry(txn_id).or_insert_with(|| AtomicU64::new(1));
         let sequence = seq_gen.fetch_add(1, Ordering::SeqCst);
         drop(seq_map);
 
-        let savepoint = Arc::new(RwLock::new(Savepoint::new(
-            id,
-            txn_id,
-            name,
-            sequence,
-        )));
+        let savepoint = Arc::new(RwLock::new(Savepoint::new(id, txn_id, name, sequence)));
 
         // 保存保存点
         self.savepoints.write().insert(id, savepoint);
@@ -316,11 +309,7 @@ impl SavepointManager {
     /// # Arguments
     /// * `txn_id` - 事务ID
     /// * `name` - 保存点名称
-    pub fn find_savepoint_by_name(
-        &self,
-        txn_id: TransactionId,
-        name: &str,
-    ) -> Option<SavepointId> {
+    pub fn find_savepoint_by_name(&self, txn_id: TransactionId, name: &str) -> Option<SavepointId> {
         self.txn_savepoints
             .read()
             .get(&txn_id)
@@ -401,10 +390,7 @@ mod tests {
             .expect("创建保存点失败");
 
         assert_eq!(sp_id.value(), 1);
-        assert_eq!(
-            manager.stats().total_created.load(Ordering::Relaxed),
-            1
-        );
+        assert_eq!(manager.stats().total_created.load(Ordering::Relaxed), 1);
     }
 
     #[test]
@@ -412,9 +398,15 @@ mod tests {
         let manager = SavepointManager::new();
         let txn_id: TransactionId = 1;
 
-        let sp1 = manager.create_savepoint(txn_id, None).expect("创建保存点1失败");
-        let sp2 = manager.create_savepoint(txn_id, None).expect("创建保存点2失败");
-        let sp3 = manager.create_savepoint(txn_id, None).expect("创建保存点3失败");
+        let sp1 = manager
+            .create_savepoint(txn_id, None)
+            .expect("创建保存点1失败");
+        let sp2 = manager
+            .create_savepoint(txn_id, None)
+            .expect("创建保存点2失败");
+        let sp3 = manager
+            .create_savepoint(txn_id, None)
+            .expect("创建保存点3失败");
 
         assert_eq!(sp1.value(), 1);
         assert_eq!(sp2.value(), 2);
@@ -429,9 +421,15 @@ mod tests {
         let manager = SavepointManager::new();
         let txn_id: TransactionId = 1;
 
-        let sp1 = manager.create_savepoint(txn_id, None).expect("创建保存点1失败");
-        let sp2 = manager.create_savepoint(txn_id, None).expect("创建保存点2失败");
-        let _sp3 = manager.create_savepoint(txn_id, None).expect("创建保存点3失败");
+        let sp1 = manager
+            .create_savepoint(txn_id, None)
+            .expect("创建保存点1失败");
+        let sp2 = manager
+            .create_savepoint(txn_id, None)
+            .expect("创建保存点2失败");
+        let _sp3 = manager
+            .create_savepoint(txn_id, None)
+            .expect("创建保存点3失败");
 
         // 回滚到sp1，sp2和sp3应该被标记为已回滚
         manager.rollback_to_savepoint(sp1).expect("回滚失败");
@@ -450,7 +448,9 @@ mod tests {
         let manager = SavepointManager::new();
         let txn_id: TransactionId = 1;
 
-        let sp = manager.create_savepoint(txn_id, None).expect("创建保存点失败");
+        let sp = manager
+            .create_savepoint(txn_id, None)
+            .expect("创建保存点失败");
 
         manager.release_savepoint(sp).expect("释放保存点失败");
 
@@ -458,10 +458,7 @@ mod tests {
         let result = manager.rollback_to_savepoint(sp);
         assert!(result.is_err());
 
-        assert_eq!(
-            manager.stats().released_count.load(Ordering::Relaxed),
-            1
-        );
+        assert_eq!(manager.stats().released_count.load(Ordering::Relaxed), 1);
     }
 
     #[test]
@@ -488,8 +485,12 @@ mod tests {
         let manager = SavepointManager::new();
         let txn_id: TransactionId = 1;
 
-        let _sp1 = manager.create_savepoint(txn_id, None).expect("创建保存点1失败");
-        let _sp2 = manager.create_savepoint(txn_id, None).expect("创建保存点2失败");
+        let _sp1 = manager
+            .create_savepoint(txn_id, None)
+            .expect("创建保存点1失败");
+        let _sp2 = manager
+            .create_savepoint(txn_id, None)
+            .expect("创建保存点2失败");
 
         manager.cleanup_transaction(txn_id);
 
@@ -503,8 +504,12 @@ mod tests {
         let txn1: TransactionId = 1;
         let txn2: TransactionId = 2;
 
-        let sp1 = manager.create_savepoint(txn1, None).expect("创建保存点1失败");
-        let sp2 = manager.create_savepoint(txn2, None).expect("创建保存点2失败");
+        let sp1 = manager
+            .create_savepoint(txn1, None)
+            .expect("创建保存点1失败");
+        let sp2 = manager
+            .create_savepoint(txn2, None)
+            .expect("创建保存点2失败");
 
         // 验证每个事务的保存点是独立的
         let active_sps1 = manager.get_active_savepoints(txn1);

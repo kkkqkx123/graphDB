@@ -44,11 +44,11 @@ mod tests {
     #[test]
     fn test_id_generation() {
         NodeIdGenerator::instance().reset();
-        
+
         let id1 = next_node_id();
         let id2 = next_node_id();
         let id3 = next_node_id();
-        
+
         assert_eq!(id1, 1);
         assert_eq!(id2, 2);
         assert_eq!(id3, 3);
@@ -58,10 +58,10 @@ mod tests {
     #[test]
     fn test_singleton() {
         NodeIdGenerator::instance().reset();
-        
+
         let id1 = NodeIdGenerator::instance().next_id();
         let id2 = NodeIdGenerator::instance().next_id();
-        
+
         assert_eq!(id2, id1 + 1);
     }
 }

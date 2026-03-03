@@ -1,12 +1,12 @@
-use super::types::{NullType, Value};
-use super::date_time::{DateValue, DateTimeValue, DurationValue, TimeValue};
 use super::dataset::List;
+use super::date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
+use super::types::{NullType, Value};
 use crate::core::types::DataType;
 use chrono::{Datelike, Timelike};
 
 impl Value {
     /// 转换为布尔值
-    /// 
+    ///
     /// 返回 Value 类型
     /// - 空值和 Null 返回 Null
     /// - 布尔值直接返回
@@ -31,7 +31,7 @@ impl Value {
     }
 
     /// 转换为整数
-    /// 
+    ///
     /// 参考 Nebula-Graph 设计：
     /// - 空值和 Null 返回 Null
     /// - 整数直接返回
@@ -53,19 +53,17 @@ impl Value {
                     Value::Int(*f as i64)
                 }
             }
-            Value::String(s) => {
-                match s.parse::<i64>() {
-                    Ok(i) => Value::Int(i),
-                    Err(_) => Value::Null(NullType::Null),
-                }
-            }
+            Value::String(s) => match s.parse::<i64>() {
+                Ok(i) => Value::Int(i),
+                Err(_) => Value::Null(NullType::Null),
+            },
             Value::Bool(b) => Value::Int(if *b { 1 } else { 0 }),
             _ => Value::Null(NullType::BadData),
         }
     }
 
     /// 转换为浮点数
-    /// 
+    ///
     /// 参考 Nebula-Graph 设计：
     /// - 空值和 Null 返回 Null
     /// - 浮点数直接返回
@@ -76,12 +74,10 @@ impl Value {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
             Value::Float(f) => Value::Float(*f),
             Value::Int(i) => Value::Float(*i as f64),
-            Value::String(s) => {
-                match s.parse::<f64>() {
-                    Ok(f) => Value::Float(f),
-                    Err(_) => Value::Null(NullType::Null),
-                }
-            }
+            Value::String(s) => match s.parse::<f64>() {
+                Ok(f) => Value::Float(f),
+                Err(_) => Value::Null(NullType::Null),
+            },
             Value::Bool(b) => Value::Float(if *b { 1.0 } else { 0.0 }),
             _ => Value::Null(NullType::BadData),
         }
@@ -330,10 +326,22 @@ impl Value {
         let caps = re.captures(s);
 
         if let Some(caps) = caps {
-            let days = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let hours = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let minutes = caps.get(3).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let seconds = caps.get(4).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            let days = caps
+                .get(1)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let hours = caps
+                .get(2)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let minutes = caps
+                .get(3)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let seconds = caps
+                .get(4)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
 
             let total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds;
 
@@ -350,7 +358,13 @@ impl Value {
     fn days_to_date(days: i64) -> DateValue {
         let epoch = match chrono::NaiveDate::from_ymd_opt(1970, 1, 1) {
             Some(date) => date,
-            None => return DateValue { year: 1970, month: 1, day: 1 },
+            None => {
+                return DateValue {
+                    year: 1970,
+                    month: 1,
+                    day: 1,
+                }
+            }
         };
         let date = epoch + chrono::Duration::days(days);
         DateValue {
@@ -364,9 +378,11 @@ impl Value {
     pub fn try_implicit_cast(&self, target_type: &DataType) -> Result<Value, String> {
         match target_type {
             DataType::Bool => Ok(self.to_bool()),
-            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => {
-                Ok(self.to_int())
-            }
+            DataType::Int
+            | DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64 => Ok(self.to_int()),
             DataType::Float | DataType::Double => Ok(self.to_float()),
             DataType::String => self.to_string().map(Value::String),
             DataType::Date => Ok(self.to_date()),
@@ -395,7 +411,12 @@ impl Value {
     pub fn is_valid_date(&self) -> bool {
         match self {
             Value::Date(d) => {
-                d.year >= 0 && d.year <= 9999 && d.month >= 1 && d.month <= 12 && d.day >= 1 && d.day <= 31
+                d.year >= 0
+                    && d.year <= 9999
+                    && d.month >= 1
+                    && d.month <= 12
+                    && d.day >= 1
+                    && d.day <= 31
             }
             _ => false,
         }
@@ -404,10 +425,7 @@ impl Value {
     /// 检查值是否为有效的时间
     pub fn is_valid_time(&self) -> bool {
         match self {
-            Value::Time(t) => {
-                t.hour <= 23 && t.minute <= 59 &&
-                t.sec <= 59 && t.microsec <= 999999
-            }
+            Value::Time(t) => t.hour <= 23 && t.minute <= 59 && t.sec <= 59 && t.microsec <= 999999,
             _ => false,
         }
     }
@@ -416,9 +434,16 @@ impl Value {
     pub fn is_valid_datetime(&self) -> bool {
         match self {
             Value::DateTime(dt) => {
-                dt.year >= 0 && dt.year <= 9999 && dt.month >= 1 && dt.month <= 12 && dt.day >= 1 && dt.day <= 31 &&
-                dt.hour <= 23 && dt.minute <= 59 &&
-                dt.sec <= 59 && dt.microsec <= 999999
+                dt.year >= 0
+                    && dt.year <= 9999
+                    && dt.month >= 1
+                    && dt.month <= 12
+                    && dt.day >= 1
+                    && dt.day <= 31
+                    && dt.hour <= 23
+                    && dt.minute <= 59
+                    && dt.sec <= 59
+                    && dt.microsec <= 999999
             }
             _ => false,
         }
@@ -493,12 +518,18 @@ impl From<std::collections::HashSet<Value>> for Value {
 
 impl From<(i64, &str)> for Value {
     fn from(value: (i64, &str)) -> Self {
-        Value::List(super::dataset::List::from(vec![Value::Int(value.0), Value::String(value.1.to_string())]))
+        Value::List(super::dataset::List::from(vec![
+            Value::Int(value.0),
+            Value::String(value.1.to_string()),
+        ]))
     }
 }
 
 impl From<(i64, String)> for Value {
     fn from(value: (i64, String)) -> Self {
-        Value::List(super::dataset::List::from(vec![Value::Int(value.0), Value::String(value.1)]))
+        Value::List(super::dataset::List::from(vec![
+            Value::Int(value.0),
+            Value::String(value.1),
+        ]))
     }
 }

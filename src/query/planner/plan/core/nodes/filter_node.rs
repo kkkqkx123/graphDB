@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use crate::define_plan_node_with_deps;
-use crate::core::types::{ContextualExpression, SerializableExpression, ExpressionContext};
 use super::plan_node_enum::PlanNodeEnum;
+use crate::core::types::{ContextualExpression, ExpressionContext, SerializableExpression};
+use crate::define_plan_node_with_deps;
 
 define_plan_node_with_deps! {
     pub struct FilterNode {
@@ -35,7 +35,7 @@ impl FilterNode {
             col_names,
         })
     }
-    
+
     /// 获取过滤条件
     pub fn condition(&self) -> &ContextualExpression {
         &self.condition
@@ -46,11 +46,12 @@ impl FilterNode {
         self.condition = condition;
         self.condition_serializable = None;
     }
-    
+
     pub fn prepare_for_serialization(&mut self) {
-        self.condition_serializable = Some(SerializableExpression::from_contextual(&self.condition));
+        self.condition_serializable =
+            Some(SerializableExpression::from_contextual(&self.condition));
     }
-    
+
     pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
         if let Some(ref ser_expr) = self.condition_serializable {
             self.condition = ser_expr.clone().to_contextual(ctx);
@@ -61,9 +62,9 @@ impl FilterNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::{ExpressionContext, ExpressionMeta};
     use crate::core::Expression;
     use std::sync::Arc;
-    use crate::core::types::{ExpressionContext, ExpressionMeta};
 
     #[test]
     fn test_filter_node_creation() {
@@ -78,7 +79,7 @@ mod tests {
         let expr_meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let condition = ContextualExpression::new(id, ctx);
-        
+
         let filter_node = FilterNode::new(start_node_enum, condition)
             .expect("Filter node should be created successfully");
 

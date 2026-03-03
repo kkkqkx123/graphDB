@@ -23,13 +23,13 @@ pub struct VariablePropertyPredicate {
 /// 变量谓词操作类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VariablePredicateOp {
-    Eq,      // =
-    Ne,      // !=
-    Lt,      // <
-    Le,      // <=
-    Gt,      // >
-    Ge,      // >=
-    In,      // IN
+    Eq, // =
+    Ne, // !=
+    Lt, // <
+    Le, // <=
+    Gt, // >
+    Ge, // >=
+    In, // IN
 }
 
 impl VariablePredicateOp {
@@ -88,28 +88,30 @@ impl VariablePropIndexSeek {
 
     /// 检查所有变量是否已绑定
     pub fn all_variables_bound(&self) -> bool {
-        self.predicates.iter().all(|pred| {
-            self.variable_values.contains_key(&pred.variable_name)
-        })
+        self.predicates
+            .iter()
+            .all(|pred| self.variable_values.contains_key(&pred.variable_name))
     }
 
     /// 从表达式列表提取变量属性谓词
-    pub fn extract_predicates(expressions: &[crate::core::Expression]) -> Vec<VariablePropertyPredicate> {
+    pub fn extract_predicates(
+        expressions: &[crate::core::Expression],
+    ) -> Vec<VariablePropertyPredicate> {
         let mut predicates = Vec::new();
-        
+
         for expr in expressions {
             if let Some(pred) = Self::extract_predicate(expr) {
                 predicates.push(pred);
             }
         }
-        
+
         predicates
     }
 
     /// 从单个表达式提取变量属性谓词
     fn extract_predicate(expr: &crate::core::Expression) -> Option<VariablePropertyPredicate> {
         use crate::core::types::operators::BinaryOperator;
-        
+
         match expr {
             crate::core::Expression::Binary { op, left, right } => {
                 let op_str = match op {
@@ -121,9 +123,11 @@ impl VariablePropIndexSeek {
                     BinaryOperator::GreaterThanOrEqual => ">=",
                     _ => return None,
                 };
-                
+
                 // 尝试提取属性名和变量名: v.name = $var
-                if let (Some(prop), Some(var_name)) = (Self::extract_property(left), Self::extract_variable(right)) {
+                if let (Some(prop), Some(var_name)) =
+                    (Self::extract_property(left), Self::extract_variable(right))
+                {
                     if let Some(pred_op) = VariablePredicateOp::from_str(op_str) {
                         return Some(VariablePropertyPredicate {
                             property: prop,
@@ -132,9 +136,11 @@ impl VariablePropIndexSeek {
                         });
                     }
                 }
-                
+
                 // 交换左右尝试: $var = v.name
-                if let (Some(prop), Some(var_name)) = (Self::extract_property(right), Self::extract_variable(left)) {
+                if let (Some(prop), Some(var_name)) =
+                    (Self::extract_property(right), Self::extract_variable(left))
+                {
                     let swapped_op = match op_str {
                         "<" => VariablePredicateOp::Gt,
                         "<=" => VariablePredicateOp::Ge,
@@ -148,7 +154,7 @@ impl VariablePropIndexSeek {
                         variable_name: var_name,
                     });
                 }
-                
+
                 None
             }
             _ => None,
@@ -182,7 +188,10 @@ impl VariablePropIndexSeek {
     }
 
     /// 查找适合变量属性谓词的索引
-    fn find_best_index<'a>(&'a self, context: &'a SeekStrategyContext) -> Option<(&'a IndexInfo, &'a VariablePropertyPredicate)> {
+    fn find_best_index<'a>(
+        &'a self,
+        context: &'a SeekStrategyContext,
+    ) -> Option<(&'a IndexInfo, &'a VariablePropertyPredicate)> {
         for pred in &self.predicates {
             if let Some(index) = context.get_index_for_property(&pred.property) {
                 return Some((index, pred));
@@ -202,10 +211,18 @@ impl VariablePropIndexSeek {
         match pred.op {
             VariablePredicateOp::Eq => value == var_value,
             VariablePredicateOp::Ne => value != var_value,
-            VariablePredicateOp::Lt => Self::compare_values(value, var_value).map(|c| c < 0).unwrap_or(false),
-            VariablePredicateOp::Le => Self::compare_values(value, var_value).map(|c| c <= 0).unwrap_or(false),
-            VariablePredicateOp::Gt => Self::compare_values(value, var_value).map(|c| c > 0).unwrap_or(false),
-            VariablePredicateOp::Ge => Self::compare_values(value, var_value).map(|c| c >= 0).unwrap_or(false),
+            VariablePredicateOp::Lt => Self::compare_values(value, var_value)
+                .map(|c| c < 0)
+                .unwrap_or(false),
+            VariablePredicateOp::Le => Self::compare_values(value, var_value)
+                .map(|c| c <= 0)
+                .unwrap_or(false),
+            VariablePredicateOp::Gt => Self::compare_values(value, var_value)
+                .map(|c| c > 0)
+                .unwrap_or(false),
+            VariablePredicateOp::Ge => Self::compare_values(value, var_value)
+                .map(|c| c >= 0)
+                .unwrap_or(false),
             VariablePredicateOp::In => {
                 // IN 操作需要变量值是列表
                 matches!(var_value, Value::List(list) if list.contains(value))
@@ -235,7 +252,7 @@ impl SeekStrategy for VariablePropIndexSeek {
         // 检查变量是否已绑定
         if !self.all_variables_bound() {
             return Err(StorageError::InvalidInput(
-                "变量属性查找需要所有变量已绑定".to_string()
+                "变量属性查找需要所有变量已绑定".to_string(),
             ));
         }
 
@@ -252,7 +269,7 @@ impl SeekStrategy for VariablePropIndexSeek {
             // 过滤满足所有谓词的顶点
             for vertex in vertices {
                 let mut matches_all = true;
-                
+
                 // 检查主谓词
                 if let Some(prop_value) = vertex.get_property_any(&primary_pred.property) {
                     if !self.value_matches(prop_value, primary_pred) {
@@ -305,10 +322,22 @@ mod tests {
 
     #[test]
     fn test_variable_predicate_op_from_str() {
-        assert_eq!(VariablePredicateOp::from_str("="), Some(VariablePredicateOp::Eq));
-        assert_eq!(VariablePredicateOp::from_str("<"), Some(VariablePredicateOp::Lt));
-        assert_eq!(VariablePredicateOp::from_str(">="), Some(VariablePredicateOp::Ge));
-        assert_eq!(VariablePredicateOp::from_str("IN"), Some(VariablePredicateOp::In));
+        assert_eq!(
+            VariablePredicateOp::from_str("="),
+            Some(VariablePredicateOp::Eq)
+        );
+        assert_eq!(
+            VariablePredicateOp::from_str("<"),
+            Some(VariablePredicateOp::Lt)
+        );
+        assert_eq!(
+            VariablePredicateOp::from_str(">="),
+            Some(VariablePredicateOp::Ge)
+        );
+        assert_eq!(
+            VariablePredicateOp::from_str("IN"),
+            Some(VariablePredicateOp::In)
+        );
         assert_eq!(VariablePredicateOp::from_str("unknown"), None);
     }
 
@@ -331,18 +360,16 @@ mod tests {
 
     #[test]
     fn test_variable_binding() {
-        let mut seek = VariablePropIndexSeek::new(vec![
-            VariablePropertyPredicate {
-                property: "age".to_string(),
-                op: VariablePredicateOp::Gt,
-                variable_name: "minAge".to_string(),
-            }
-        ]);
-        
+        let mut seek = VariablePropIndexSeek::new(vec![VariablePropertyPredicate {
+            property: "age".to_string(),
+            op: VariablePredicateOp::Gt,
+            variable_name: "minAge".to_string(),
+        }]);
+
         assert!(!seek.all_variables_bound());
-        
+
         seek.bind_variable("minAge", Value::Int(18));
-        
+
         assert!(seek.all_variables_bound());
     }
 }

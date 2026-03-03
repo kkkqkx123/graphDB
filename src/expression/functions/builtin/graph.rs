@@ -5,8 +5,8 @@
 use crate::core::error::ExpressionError;
 use crate::core::value::dataset::List;
 use crate::core::value::NullType;
-use crate::core::Value;
 use crate::core::vertex_edge_path::Vertex;
+use crate::core::Value;
 
 /// 图函数枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -329,11 +329,15 @@ mod tests {
         let null_value = Value::Null(NullType::Null);
 
         assert_eq!(
-            GraphFunction::Id.execute(&[null_value.clone()]).expect("id函数应该处理NULL"),
+            GraphFunction::Id
+                .execute(&[null_value.clone()])
+                .expect("id函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
-            GraphFunction::Tags.execute(&[null_value.clone()]).expect("tags函数应该处理NULL"),
+            GraphFunction::Tags
+                .execute(&[null_value.clone()])
+                .expect("tags函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(

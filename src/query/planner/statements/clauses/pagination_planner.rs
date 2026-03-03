@@ -2,15 +2,15 @@
 //!
 //! 负责规划 LIMIT 和 SKIP 子句的执行，实现结果分页。
 
-use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::sort_node::LimitNode;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::planner::statements::match_statement_planner::PaginationInfo;
+use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// LIMIT/SKIP 子句规划器
@@ -31,7 +31,10 @@ fn extract_pagination_info(stmt: &Stmt) -> PaginationInfo {
         let limit = match_stmt.limit.unwrap_or(100);
         return PaginationInfo { skip, limit };
     }
-    PaginationInfo { skip: 0, limit: 100 }
+    PaginationInfo {
+        skip: 0,
+        limit: 100,
+    }
 }
 
 impl ClausePlanner for PaginationPlanner {

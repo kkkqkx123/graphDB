@@ -4,9 +4,7 @@
 //! 注意：算法选择已在Planner阶段完成，此模块只包含具体算法的计划节点
 
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{
-    BinaryInputNode, PlanNode,
-};
+use crate::query::planner::plan::core::nodes::plan_node_traits::{BinaryInputNode, PlanNode};
 
 /// 多源最短路径计划节点
 #[derive(Debug, Clone)]
@@ -168,10 +166,10 @@ pub struct BFSShortest {
     pub output_var: Option<String>,
     pub col_names: Vec<String>,
     pub steps: usize,
-    pub edge_types: Vec<String>,      // 边类型
-    pub with_cycle: bool,             // 是否允许回路（路径中重复访问顶点）
-    pub with_loop: bool,              // 是否允许自环边（A->A）
-    pub reverse: bool,                // 是否反向搜索
+    pub edge_types: Vec<String>, // 边类型
+    pub with_cycle: bool,        // 是否允许回路（路径中重复访问顶点）
+    pub with_loop: bool,         // 是否允许自环边（A->A）
+    pub reverse: bool,           // 是否反向搜索
 }
 
 impl BFSShortest {
@@ -474,10 +472,10 @@ pub struct ShortestPath {
     pub output_var: Option<String>,
     pub col_names: Vec<String>,
     pub edge_types: Vec<String>,
-    pub max_step: usize,             // 最大步数
-    pub weight_expression: Option<String>, // 权重表达式
+    pub max_step: usize,                      // 最大步数
+    pub weight_expression: Option<String>,    // 权重表达式
     pub heuristic_expression: Option<String>, // 启发式表达式
-    pub no_reverse: bool,            // 是否不允许反向
+    pub no_reverse: bool,                     // 是否不允许反向
 }
 
 impl ShortestPath {

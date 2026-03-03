@@ -19,8 +19,8 @@ pub struct BFSShortestExecutor<S: StorageClient + 'static> {
     steps: usize,
     max_depth: Option<usize>,
     edge_types: Vec<String>,
-    with_cycle: bool,  // 是否允许回路（路径中重复访问顶点）
-    with_loop: bool,   // 是否允许自环边
+    with_cycle: bool, // 是否允许回路（路径中重复访问顶点）
+    with_loop: bool,  // 是否允许自环边
     single_shortest: bool,
     limit: usize,
     start_vertex: Value,
@@ -159,7 +159,8 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
                     storage.get_node_edges("default", start_vid, EdgeDirection::Out)?
                 };
                 // 过滤出指定类型的边
-                all_edges.into_iter()
+                all_edges
+                    .into_iter()
                     .filter(|edge| self.edge_types.contains(&edge.edge_type))
                     .collect()
             };
@@ -195,7 +196,8 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
 
                 // 检查无环约束（路径中顶点唯一）
                 if !self.with_cycle {
-                    let in_path = self.left_visited_vids.contains(&dst) || self.right_visited_vids.contains(&dst);
+                    let in_path = self.left_visited_vids.contains(&dst)
+                        || self.right_visited_vids.contains(&dst);
                     if in_path {
                         continue;
                     }
@@ -234,8 +236,11 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             return Ok(false);
         }
 
-        let left_edges = self.all_left_edges.last().expect("Left edges should not be empty");
-        
+        let left_edges = self
+            .all_left_edges
+            .last()
+            .expect("Left edges should not be empty");
+
         // 查找交汇点
         let mut meet_vids: HashSet<Value> = HashSet::new();
         let mut odd_step = true;
@@ -253,7 +258,10 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         // 如果没有找到，尝试与当前步的右边缘匹配
         if meet_vids.is_empty() && !self.all_right_edges.is_empty() {
             odd_step = false;
-            let right_edges = self.all_right_edges.last().expect("Right edges should not be empty");
+            let right_edges = self
+                .all_right_edges
+                .last()
+                .expect("Right edges should not be empty");
             for vid in left_edges.keys() {
                 if right_edges.contains_key(vid) {
                     meet_vids.insert(vid.clone());
@@ -302,15 +310,16 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
 
         // 拼接路径：反转右半部分路径并追加到左半部分
         let mut full_path = left_path;
-        
+
         // 反转右半部分路径的步骤
-        let mut reversed_steps: Vec<crate::core::vertex_edge_path::Step> = right_path.steps.into_iter().rev().collect();
-        
+        let mut reversed_steps: Vec<crate::core::vertex_edge_path::Step> =
+            right_path.steps.into_iter().rev().collect();
+
         // 反转每条边的方向
         for step in &mut reversed_steps {
             std::mem::swap(&mut step.edge.src, &mut step.edge.dst);
         }
-        
+
         // 追加到完整路径
         full_path.steps.extend(reversed_steps);
 
@@ -450,7 +459,7 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
             .collect();
 
         Ok(ExecutionResult::Values(
-            rows.into_iter().flatten().collect()
+            rows.into_iter().flatten().collect(),
         ))
     }
 
@@ -589,15 +598,18 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         let space_name = self.get_space_name(storage)?;
 
         if self.is_edge {
-            let edge_types = storage.list_edge_types(&space_name)
+            let edge_types = storage
+                .list_edge_types(&space_name)
                 .map_err(|e| DBError::Storage(e))?;
-            if let Some(edge_type_info) = edge_types.iter().find(|e| e.edge_type_id == self.tag_id) {
+            if let Some(edge_type_info) = edge_types.iter().find(|e| e.edge_type_id == self.tag_id)
+            {
                 Ok(edge_type_info.edge_type_name.clone())
             } else {
                 Ok(format!("edge_type_{}", self.tag_id.abs()))
             }
         } else {
-            let tags = storage.list_tags(&space_name)
+            let tags = storage
+                .list_tags(&space_name)
                 .map_err(|e| DBError::Storage(e))?;
             if let Some(tag_info) = tags.iter().find(|t| t.tag_id == self.tag_id) {
                 Ok(tag_info.tag_name.clone())
@@ -618,10 +630,13 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             "UNIQUE" => {
                 // 唯一索引查找
                 if let Some(first_limit) = self.scan_limits.first() {
-                    let value = first_limit.begin_value.as_ref()
+                    let value = first_limit
+                        .begin_value
+                        .as_ref()
                         .map(|v| Value::String(v.clone()))
                         .unwrap_or(Value::Null(NullType::Null));
-                    storage.lookup_index(&space_name, &index_name, &value)
+                    storage
+                        .lookup_index(&space_name, &index_name, &value)
                         .map_err(|e| DBError::Storage(e))
                 } else {
                     Ok(Vec::new())
@@ -630,10 +645,13 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             "PREFIX" => {
                 // 前缀索引查找
                 if let Some(first_limit) = self.scan_limits.first() {
-                    let prefix = first_limit.begin_value.as_ref()
+                    let prefix = first_limit
+                        .begin_value
+                        .as_ref()
                         .map(|v| Value::String(v.clone()))
                         .unwrap_or(Value::Null(NullType::Null));
-                    storage.lookup_index(&space_name, &index_name, &prefix)
+                    storage
+                        .lookup_index(&space_name, &index_name, &prefix)
                         .map_err(|e| DBError::Storage(e))
                 } else {
                     Ok(Vec::new())
@@ -649,30 +667,36 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                     let column_name = &first_limit.column;
                     let include_begin = first_limit.include_begin;
                     let include_end = first_limit.include_end;
-                    
+
                     // 获取起始值和结束值
-                    let start_value = first_limit.begin_value.as_ref()
+                    let start_value = first_limit
+                        .begin_value
+                        .as_ref()
                         .map(|v| Value::String(v.clone()));
-                    let end_value = first_limit.end_value.as_ref()
+                    let end_value = first_limit
+                        .end_value
+                        .as_ref()
                         .map(|v| Value::String(v.clone()));
-                    
+
                     // 如果没有起始值，返回空结果
                     let start_val = match start_value {
                         Some(v) => v,
                         None => return Ok(Vec::new()),
                     };
-                    
+
                     // 使用起始值进行前缀查找获取候选结果
-                    let candidates = storage.lookup_index(&space_name, &index_name, &start_val)
+                    let candidates = storage
+                        .lookup_index(&space_name, &index_name, &start_val)
                         .map_err(|e| DBError::Storage(e))?;
-                    
+
                     // 如果有结束值，进行范围过滤
                     if let Some(end_val) = end_value {
                         let filtered: Vec<Value> = candidates
                             .into_iter()
                             .filter(|id| {
                                 // 获取实体的属性值进行比较
-                                match self.get_entity_property_for_filter(storage, id, column_name) {
+                                match self.get_entity_property_for_filter(storage, id, column_name)
+                                {
                                     Some(prop_value) => {
                                         // 比较属性值是否在范围内，考虑边界包含控制
                                         Self::value_in_range(
@@ -698,8 +722,14 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                             let filtered: Vec<Value> = candidates
                                 .into_iter()
                                 .filter(|id| {
-                                    match self.get_entity_property_for_filter(storage, id, column_name) {
-                                        Some(prop_value) => !Self::values_equal(&prop_value, &start_val),
+                                    match self.get_entity_property_for_filter(
+                                        storage,
+                                        id,
+                                        column_name,
+                                    ) {
+                                        Some(prop_value) => {
+                                            !Self::values_equal(&prop_value, &start_val)
+                                        }
                                         None => false,
                                     }
                                 })
@@ -720,12 +750,17 @@ impl<S: StorageClient> IndexScanExecutor<S> {
 
     /// 获取实体的属性值用于范围过滤
     /// 根据ID获取实体的指定属性值
-    fn get_entity_property_for_filter(&self, storage: &S, id: &Value, column_name: &str) -> Option<Value> {
+    fn get_entity_property_for_filter(
+        &self,
+        storage: &S,
+        id: &Value,
+        column_name: &str,
+    ) -> Option<Value> {
         let space_name = match self.get_space_name(storage) {
             Ok(name) => name,
             Err(_) => return None,
         };
-        
+
         if self.is_edge {
             // 边类型：ID格式应该是 src:dst:ranking
             if let Value::String(edge_key) = id {
@@ -737,8 +772,9 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         Ok(name) => name,
                         Err(_) => return None,
                     };
-                    
-                    if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &schema_name) {
+
+                    if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &schema_name)
+                    {
                         // 从边的属性中查找
                         if let Some(value) = edge.props.get(column_name) {
                             return Some(value.clone());
@@ -775,7 +811,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 }
             }
         }
-        
+
         None
     }
 
@@ -794,16 +830,20 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                     if parts.len() >= 2 {
                         let src = Value::String(parts[0].to_string());
                         let dst = Value::String(parts[1].to_string());
-                        if let Some(edge) = storage.get_edge(&space_name, &src, &dst, &schema_name)
-                            .map_err(|e| DBError::Storage(e))? {
+                        if let Some(edge) = storage
+                            .get_edge(&space_name, &src, &dst, &schema_name)
+                            .map_err(|e| DBError::Storage(e))?
+                        {
                             results.push(Value::Edge(edge));
                         }
                     }
                 }
             } else {
                 // 顶点类型
-                if let Some(vertex) = storage.get_vertex(&space_name, &id)
-                    .map_err(|e| DBError::Storage(e))? {
+                if let Some(vertex) = storage
+                    .get_vertex(&space_name, &id)
+                    .map_err(|e| DBError::Storage(e))?
+                {
                     results.push(Value::Vertex(Box::new(vertex)));
                 }
             }
@@ -844,64 +884,62 @@ impl<S: StorageClient> IndexScanExecutor<S> {
 
         entities
             .into_iter()
-            .map(|entity| {
-                match entity {
-                    Value::Vertex(vertex) => {
-                        let mut props = std::collections::HashMap::new();
-                        for col in &self.return_columns {
-                            match col.as_str() {
-                                "vid" => {
-                                    props.insert(col.clone(), (*vertex.vid).clone());
+            .map(|entity| match entity {
+                Value::Vertex(vertex) => {
+                    let mut props = std::collections::HashMap::new();
+                    for col in &self.return_columns {
+                        match col.as_str() {
+                            "vid" => {
+                                props.insert(col.clone(), (*vertex.vid).clone());
+                            }
+                            "id" => {
+                                props.insert(col.clone(), Value::Int(vertex.id));
+                            }
+                            "*" => {
+                                for (k, v) in &vertex.properties {
+                                    props.insert(k.clone(), v.clone());
                                 }
-                                "id" => {
-                                    props.insert(col.clone(), Value::Int(vertex.id));
-                                }
-                                "*" => {
-                                    for (k, v) in &vertex.properties {
-                                        props.insert(k.clone(), v.clone());
-                                    }
-                                }
-                                _ => {
-                                    if let Some(v) = vertex.properties.get(col) {
-                                        props.insert(col.clone(), v.clone());
-                                    }
+                            }
+                            _ => {
+                                if let Some(v) = vertex.properties.get(col) {
+                                    props.insert(col.clone(), v.clone());
                                 }
                             }
                         }
-                        Value::Map(props)
                     }
-                    Value::Edge(edge) => {
-                        let mut props = std::collections::HashMap::new();
-                        for col in &self.return_columns {
-                            match col.as_str() {
-                                "src" => {
-                                    props.insert(col.clone(), (*edge.src).clone());
-                                }
-                                "dst" => {
-                                    props.insert(col.clone(), (*edge.dst).clone());
-                                }
-                                "edge_type" => {
-                                    props.insert(col.clone(), Value::String(edge.edge_type.clone()));
-                                }
-                                "ranking" => {
-                                    props.insert(col.clone(), Value::Int(edge.ranking));
-                                }
-                                "*" => {
-                                    for (k, v) in &edge.props {
-                                        props.insert(k.clone(), v.clone());
-                                    }
-                                }
-                                _ => {
-                                    if let Some(v) = edge.props.get(col) {
-                                        props.insert(col.clone(), v.clone());
-                                    }
-                                }
-                            }
-                        }
-                        Value::Map(props)
-                    }
-                    _ => entity,
+                    Value::Map(props)
                 }
+                Value::Edge(edge) => {
+                    let mut props = std::collections::HashMap::new();
+                    for col in &self.return_columns {
+                        match col.as_str() {
+                            "src" => {
+                                props.insert(col.clone(), (*edge.src).clone());
+                            }
+                            "dst" => {
+                                props.insert(col.clone(), (*edge.dst).clone());
+                            }
+                            "edge_type" => {
+                                props.insert(col.clone(), Value::String(edge.edge_type.clone()));
+                            }
+                            "ranking" => {
+                                props.insert(col.clone(), Value::Int(edge.ranking));
+                            }
+                            "*" => {
+                                for (k, v) in &edge.props {
+                                    props.insert(k.clone(), v.clone());
+                                }
+                            }
+                            _ => {
+                                if let Some(v) = edge.props.get(col) {
+                                    props.insert(col.clone(), v.clone());
+                                }
+                            }
+                        }
+                    }
+                    Value::Map(props)
+                }
+                _ => entity,
             })
             .collect()
     }
@@ -980,12 +1018,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
         };
 
         // 6. 构建返回结果
-        let rows: Vec<Vec<Value>> = limited
-            .into_iter()
-            .map(|v| vec![v])
-            .collect();
+        let rows: Vec<Vec<Value>> = limited.into_iter().map(|v| vec![v]).collect();
 
-        Ok(ExecutionResult::Values(rows.into_iter().flatten().collect()))
+        Ok(ExecutionResult::Values(
+            rows.into_iter().flatten().collect(),
+        ))
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -1007,7 +1044,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
     fn name(&self) -> &str {
         &self.base.name
     }
-    
+
     fn description(&self) -> &str {
         "Index scan executor - scans vertices using index"
     }

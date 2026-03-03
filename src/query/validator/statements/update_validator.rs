@@ -4,17 +4,21 @@
 
 use std::sync::Arc;
 
-use crate::core::error::{DBResult, ValidationError, ValidationError as CoreValidationError, ValidationErrorType};
+use crate::core::error::{
+    DBResult, ValidationError, ValidationError as CoreValidationError, ValidationErrorType,
+};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::core::Value;
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{SetClause, UpdateStmt, UpdateTarget};
-use crate::query::validator::validator_trait::{StatementValidator, StatementType, ValidationResult, ColumnDef, ExpressionProps, ValueType};
 use crate::query::validator::helpers::schema_validator::SchemaValidator;
 use crate::query::validator::structs::validation_info::ValidationInfo;
-use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的更新信息
 #[derive(Debug, Clone)]
@@ -170,7 +174,10 @@ impl UpdateValidator {
         let validated_assignments = match &target_type {
             UpdateTargetType::Vertex(_) => {
                 // Vertex 更新：仅验证赋值语法，不验证属性是否存在
-                self.validate_and_convert_assignments_without_schema(&stmt.set_clause, schema_validator)?
+                self.validate_and_convert_assignments_without_schema(
+                    &stmt.set_clause,
+                    schema_validator,
+                )?
             }
             _ => {
                 // Tag 或 Edge 更新：验证属性存在于 Schema 中
@@ -184,7 +191,14 @@ impl UpdateValidator {
 
         // 提取 YIELD 列名
         let yield_columns = stmt.yield_clause.as_ref().map(|yc| {
-            yc.items.iter().map(|item| item.alias.clone().unwrap_or_else(|| format!("{:?}", item.expression))).collect()
+            yc.items
+                .iter()
+                .map(|item| {
+                    item.alias
+                        .clone()
+                        .unwrap_or_else(|| format!("{:?}", item.expression))
+                })
+                .collect()
         });
 
         Ok(ValidatedUpdate {
@@ -225,7 +239,12 @@ impl UpdateValidator {
             UpdateTarget::Vertex(vid_expr) => {
                 self.validate_vertex_id(vid_expr, "vertex")?;
             }
-            UpdateTarget::Edge { src, dst, edge_type, rank } => {
+            UpdateTarget::Edge {
+                src,
+                dst,
+                edge_type,
+                rank,
+            } => {
                 self.validate_vertex_id(src, "source")?;
                 self.validate_vertex_id(dst, "destination")?;
                 if let Some(rank_expr) = rank {
@@ -270,12 +289,20 @@ impl UpdateValidator {
     ) -> Result<UpdateTargetType, CoreValidationError> {
         match target {
             UpdateTarget::Vertex(vid_expr) => {
-                let vid = self.validate_and_evaluate_vid(vid_expr, vid_type, schema_validator, "vertex")?;
+                let vid =
+                    self.validate_and_evaluate_vid(vid_expr, vid_type, schema_validator, "vertex")?;
                 Ok(UpdateTargetType::Vertex(vid))
             }
-            UpdateTarget::Edge { src, dst, edge_type, rank } => {
-                let src_vid = self.validate_and_evaluate_vid(src, vid_type, schema_validator, "source")?;
-                let dst_vid = self.validate_and_evaluate_vid(dst, vid_type, schema_validator, "destination")?;
+            UpdateTarget::Edge {
+                src,
+                dst,
+                edge_type,
+                rank,
+            } => {
+                let src_vid =
+                    self.validate_and_evaluate_vid(src, vid_type, schema_validator, "source")?;
+                let dst_vid =
+                    self.validate_and_evaluate_vid(dst, vid_type, schema_validator, "destination")?;
                 let rank_val = if let Some(rank_expr) = rank {
                     self.evaluate_rank_contextual(rank_expr, schema_validator)?
                 } else {
@@ -303,7 +330,8 @@ impl UpdateValidator {
                 ));
             }
             UpdateTarget::TagOnVertex { vid, tag_name } => {
-                let vid_val = self.validate_and_evaluate_vid(vid, vid_type, schema_validator, "vertex")?;
+                let vid_val =
+                    self.validate_and_evaluate_vid(vid, vid_type, schema_validator, "vertex")?;
                 Ok(UpdateTargetType::Tag(tag_name.clone(), vid_val))
             }
         }
@@ -311,7 +339,11 @@ impl UpdateValidator {
 
     /// 验证顶点 ID
     /// 优先使用 SchemaValidator 的统一验证方法
-    fn validate_vertex_id(&self, expr: &ContextualExpression, role: &str) -> Result<(), CoreValidationError> {
+    fn validate_vertex_id(
+        &self,
+        expr: &ContextualExpression,
+        role: &str,
+    ) -> Result<(), CoreValidationError> {
         if expr.expression().is_none() {
             return Err(CoreValidationError::new(
                 format!("{} vertex ID is invalid", role),
@@ -323,7 +355,7 @@ impl UpdateValidator {
             let vid_type = crate::core::types::DataType::String;
             let ctx_expr = crate::core::types::ContextualExpression::new(
                 expr.id().clone(),
-                expr.context().clone()
+                expr.context().clone(),
             );
             return schema_validator.validate_vid_expr(&ctx_expr, &vid_type, role);
         }
@@ -383,14 +415,12 @@ impl UpdateValidator {
                 )
             })?;
 
-        schema_validator
-            .validate_vid(&vid, vid_type)
-            .map_err(|e| {
-                CoreValidationError::new(
-                    format!("Invalid {} vertex ID: {}", role, e.message),
-                    e.error_type,
-                )
-            })?;
+        schema_validator.validate_vid(&vid, vid_type).map_err(|e| {
+            CoreValidationError::new(
+                format!("Invalid {} vertex ID: {}", role, e.message),
+                e.error_type,
+            )
+        })?;
 
         Ok(vid)
     }
@@ -426,14 +456,12 @@ impl UpdateValidator {
             ));
         }
 
-        let value = schema_validator
-            .evaluate_expression(expr)
-            .map_err(|e| {
-                CoreValidationError::new(
-                    format!("Failed to evaluate rank: {}", e.message),
-                    e.error_type,
-                )
-            })?;
+        let value = schema_validator.evaluate_expression(expr).map_err(|e| {
+            CoreValidationError::new(
+                format!("Failed to evaluate rank: {}", e.message),
+                e.error_type,
+            )
+        })?;
 
         match value {
             Value::Int(i) => Ok(i),
@@ -459,7 +487,10 @@ impl UpdateValidator {
         for assignment in &set_clause.assignments {
             if !seen.insert(assignment.property.clone()) {
                 return Err(CoreValidationError::new(
-                    format!("Duplicate property assignment for '{}'", assignment.property),
+                    format!(
+                        "Duplicate property assignment for '{}'",
+                        assignment.property
+                    ),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -509,10 +540,7 @@ impl UpdateValidator {
                 .validate_property_type(&assignment.property, &prop_def.data_type, &value)
                 .map_err(|e| {
                     CoreValidationError::new(
-                        format!(
-                            "Property '{}': {}",
-                            assignment.property, e.message
-                        ),
+                        format!("Property '{}': {}", assignment.property, e.message),
                         e.error_type,
                     )
                 })?;
@@ -561,7 +589,10 @@ impl UpdateValidator {
         Ok(result)
     }
 
-    fn validate_property_value(&self, value: &ContextualExpression) -> Result<(), CoreValidationError> {
+    fn validate_property_value(
+        &self,
+        value: &ContextualExpression,
+    ) -> Result<(), CoreValidationError> {
         let expr_meta = match value.expression() {
             Some(e) => e,
             None => {
@@ -572,7 +603,7 @@ impl UpdateValidator {
             }
         };
         let inner_expr = expr_meta.inner();
-        
+
         self.validate_expression_recursive(inner_expr)
     }
 
@@ -640,7 +671,10 @@ impl UpdateValidator {
     }
 
     /// 内部方法：验证表达式
-    fn validate_expression_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<(), CoreValidationError> {
+    fn validate_expression_internal(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> Result<(), CoreValidationError> {
         match expr {
             crate::core::types::expression::Expression::Literal(_) => Ok(()),
             crate::core::types::expression::Expression::Variable(_) => Ok(()),
@@ -651,7 +685,9 @@ impl UpdateValidator {
                 }
                 Ok(())
             }
-            crate::core::types::expression::Expression::Unary { operand, .. } => self.validate_expression_internal(operand),
+            crate::core::types::expression::Expression::Unary { operand, .. } => {
+                self.validate_expression_internal(operand)
+            }
             crate::core::types::expression::Expression::Binary { left, right, .. } => {
                 self.validate_expression_internal(left)?;
                 self.validate_expression_internal(right)?;
@@ -725,7 +761,9 @@ impl StatementValidator for UpdateValidator {
         // 添加语义信息
         match &update_stmt.target {
             UpdateTarget::Vertex(_) => {
-                info.semantic_info.referenced_tags.push("vertex".to_string());
+                info.semantic_info
+                    .referenced_tags
+                    .push("vertex".to_string());
             }
             UpdateTarget::Edge { edge_type, .. } => {
                 if let Some(ref et) = edge_type {
@@ -742,8 +780,14 @@ impl StatementValidator for UpdateValidator {
 
         // 添加引用的属性
         for assignment in &update_stmt.set_clause.assignments {
-            if !info.semantic_info.referenced_properties.contains(&assignment.property) {
-                info.semantic_info.referenced_properties.push(assignment.property.clone());
+            if !info
+                .semantic_info
+                .referenced_properties
+                .contains(&assignment.property)
+            {
+                info.semantic_info
+                    .referenced_properties
+                    .push(assignment.property.clone());
             }
         }
 
@@ -785,10 +829,10 @@ impl Default for UpdateValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
-    use crate::query::parser::ast::stmt::{UpdateTarget, SetClause, Assignment};
+    use crate::query::parser::ast::stmt::{Assignment, SetClause, UpdateTarget};
     use crate::query::parser::ast::Span;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
@@ -798,7 +842,11 @@ mod tests {
         ContextualExpression::new(id, ctx)
     }
 
-    fn create_update_stmt(target: UpdateTarget, assignments: Vec<Assignment>, where_clause: Option<ContextualExpression>) -> UpdateStmt {
+    fn create_update_stmt(
+        target: UpdateTarget,
+        assignments: Vec<Assignment>,
+        where_clause: Option<ContextualExpression>,
+    ) -> UpdateStmt {
         UpdateStmt {
             span: Span::default(),
             target,
@@ -816,10 +864,14 @@ mod tests {
     fn test_validate_vertex_target_valid() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(create_contextual_expr(Expression::Literal(Value::String("v1".to_string())))),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::Literal(Value::String(
+                "v1".to_string(),
+            )))),
             vec![Assignment {
                 property: "name".to_string(),
-                value: create_contextual_expr(Expression::Literal(Value::String("new_name".to_string()))),
+                value: create_contextual_expr(Expression::Literal(Value::String(
+                    "new_name".to_string(),
+                ))),
             }],
             None,
         );
@@ -831,10 +883,14 @@ mod tests {
     fn test_validate_vertex_target_variable() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(create_contextual_expr(Expression::Variable("$vid".to_string()))),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::Variable(
+                "$vid".to_string(),
+            ))),
             vec![Assignment {
                 property: "name".to_string(),
-                value: create_contextual_expr(Expression::Literal(Value::String("new_name".to_string()))),
+                value: create_contextual_expr(Expression::Literal(Value::String(
+                    "new_name".to_string(),
+                ))),
             }],
             None,
         );
@@ -846,10 +902,14 @@ mod tests {
     fn test_validate_vertex_id_empty() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(create_contextual_expr(Expression::Literal(Value::String("".to_string())))),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::Literal(Value::String(
+                "".to_string(),
+            )))),
             vec![Assignment {
                 property: "name".to_string(),
-                value: create_contextual_expr(Expression::Literal(Value::String("new_name".to_string()))),
+                value: create_contextual_expr(Expression::Literal(Value::String(
+                    "new_name".to_string(),
+                ))),
             }],
             None,
         );
@@ -894,15 +954,21 @@ mod tests {
     fn test_validate_duplicate_assignment() {
         let mut validator = UpdateValidator::new();
         let stmt = create_update_stmt(
-            UpdateTarget::Vertex(create_contextual_expr(Expression::Literal(Value::String("v1".to_string())))),
+            UpdateTarget::Vertex(create_contextual_expr(Expression::Literal(Value::String(
+                "v1".to_string(),
+            )))),
             vec![
                 Assignment {
                     property: "name".to_string(),
-                    value: create_contextual_expr(Expression::Literal(Value::String("name1".to_string()))),
+                    value: create_contextual_expr(Expression::Literal(Value::String(
+                        "name1".to_string(),
+                    ))),
                 },
                 Assignment {
                     property: "name".to_string(),
-                    value: create_contextual_expr(Expression::Literal(Value::String("name2".to_string()))),
+                    value: create_contextual_expr(Expression::Literal(Value::String(
+                        "name2".to_string(),
+                    ))),
                 },
             ],
             None,

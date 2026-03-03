@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use crate::query::optimizer::stats::StatisticsManager;
-use crate::core::types::Expression;
 use crate::core::types::BinaryOperator;
+use crate::core::types::Expression;
+use crate::query::optimizer::stats::StatisticsManager;
 
 /// 选择性估计器
 ///
@@ -55,12 +55,12 @@ impl SelectivityEstimator {
         tag_name: Option<&str>,
         property_name: &str,
     ) -> f64 {
-        let stats = self.stats_manager.get_property_stats(tag_name, property_name);
+        let stats = self
+            .stats_manager
+            .get_property_stats(tag_name, property_name);
 
         match stats {
-            Some(s) if s.distinct_values > 0 => {
-                (1.0 / s.distinct_values as f64).min(1.0)
-            }
+            Some(s) if s.distinct_values > 0 => (1.0 / s.distinct_values as f64).min(1.0),
             _ => defaults::EQUALITY,
         }
     }
@@ -76,7 +76,12 @@ impl SelectivityEstimator {
     /// 估计范围条件选择性（带边界值）
     ///
     /// 根据范围大小调整选择性
-    pub fn estimate_range_selectivity_with_bounds(&self, min_val: f64, max_val: f64, range_size: f64) -> f64 {
+    pub fn estimate_range_selectivity_with_bounds(
+        &self,
+        min_val: f64,
+        max_val: f64,
+        range_size: f64,
+    ) -> f64 {
         if max_val <= min_val {
             return defaults::RANGE;
         }
@@ -94,7 +99,7 @@ impl SelectivityEstimator {
         // 如果有具体值，可以尝试根据值的分布调整
         // 这里使用简单的启发式：假设数据均匀分布
         match value {
-            Some(v) if v < 0.0 => 0.1, // 负值通常较少
+            Some(v) if v < 0.0 => 0.1,   // 负值通常较少
             Some(v) if v == 0.0 => 0.05, // 零值通常很少
             _ => defaults::COMPARISON,
         }
@@ -103,7 +108,7 @@ impl SelectivityEstimator {
     /// 估计大于条件选择性
     pub fn estimate_greater_than_selectivity(&self, value: Option<f64>) -> f64 {
         match value {
-            Some(v) if v < 0.0 => 0.9, // 大于负值通常选择大部分数据
+            Some(v) if v < 0.0 => 0.9,   // 大于负值通常选择大部分数据
             Some(v) if v == 0.0 => 0.95, // 大于零通常选择大部分数据
             _ => defaults::COMPARISON,
         }
@@ -119,8 +124,7 @@ impl SelectivityEstimator {
     pub fn estimate_like_selectivity(&self, pattern: &str) -> f64 {
         let has_prefix = pattern.starts_with('%');
         let has_suffix = pattern.ends_with('%');
-        let middle_wildcards = pattern.matches('%').count()
-            + pattern.matches('_').count();
+        let middle_wildcards = pattern.matches('%').count() + pattern.matches('_').count();
 
         match (has_prefix, has_suffix) {
             (true, true) => {
@@ -170,11 +174,7 @@ impl SelectivityEstimator {
     /// 从表达式估计选择性
     ///
     /// 这是主要的入口方法，根据表达式类型分发到具体的估计方法
-    pub fn estimate_from_expression(
-        &self,
-        expr: &Expression,
-        tag_name: Option<&str>,
-    ) -> f64 {
+    pub fn estimate_from_expression(&self, expr: &Expression, tag_name: Option<&str>) -> f64 {
         match expr {
             Expression::Binary { op, left, right } => {
                 self.estimate_binary_expression(op, left, right, tag_name)
@@ -182,9 +182,7 @@ impl SelectivityEstimator {
             Expression::Unary { op, operand } => {
                 self.estimate_unary_expression(op, operand, tag_name)
             }
-            Expression::Function { name, args } => {
-                self.estimate_function_expression(name, args)
-            }
+            Expression::Function { name, args } => self.estimate_function_expression(name, args),
             Expression::Literal(_) => {
                 // 字面量条件的选择性取决于值，通常认为是高选择性
                 0.1
@@ -209,7 +207,8 @@ impl SelectivityEstimator {
         match op {
             BinaryOperator::Equal => {
                 // 尝试从表达式中提取属性名和值
-                let property_name = self.extract_property_name(left)
+                let property_name = self
+                    .extract_property_name(left)
                     .or_else(|| self.extract_property_name(right));
 
                 if let Some(prop) = property_name {
@@ -252,7 +251,8 @@ impl SelectivityEstimator {
                 let left_sel = self.estimate_from_expression(left, tag_name);
                 let right_sel = self.estimate_from_expression(right, tag_name);
                 // OR 的选择性：P(A or B) = P(A) + P(B) - P(A and B)
-                let combined = left_sel + right_sel - left_sel * right_sel * defaults::OR_CORRELATION;
+                let combined =
+                    left_sel + right_sel - left_sel * right_sel * defaults::OR_CORRELATION;
                 combined.min(0.99).max(0.01)
             }
             BinaryOperator::In => {
@@ -278,22 +278,14 @@ impl SelectivityEstimator {
                 let inner = self.estimate_from_expression(expr, tag_name);
                 self.estimate_not_selectivity(inner)
             }
-            UnaryOperator::IsNull => {
-                defaults::IS_NULL
-            }
-            UnaryOperator::IsNotNull => {
-                defaults::IS_NOT_NULL
-            }
+            UnaryOperator::IsNull => defaults::IS_NULL,
+            UnaryOperator::IsNotNull => defaults::IS_NOT_NULL,
             _ => defaults::EQUALITY,
         }
     }
 
     /// 估计函数表达式选择性
-    fn estimate_function_expression(
-        &self,
-        name: &str,
-        args: &[Expression],
-    ) -> f64 {
+    fn estimate_function_expression(&self, name: &str, args: &[Expression]) -> f64 {
         let name_lower = name.to_lowercase();
 
         match name_lower.as_str() {
@@ -308,8 +300,8 @@ impl SelectivityEstimator {
             }
             "exists" => defaults::EXISTS,
             "contains" | "has" => 0.2, // 包含查询通常选择性较高
-            "starts_with" => 0.1, // 前缀匹配
-            "ends_with" => 0.2, // 后缀匹配
+            "starts_with" => 0.1,      // 前缀匹配
+            "ends_with" => 0.2,        // 后缀匹配
             "in" => {
                 let list_size = args.len().saturating_sub(1);
                 self.estimate_in_selectivity(list_size)
@@ -329,13 +321,11 @@ impl SelectivityEstimator {
     /// 从表达式中提取数值
     fn extract_numeric_value(&self, expr: &Expression) -> Option<f64> {
         match expr {
-            Expression::Literal(value) => {
-                match value {
-                    crate::core::value::Value::Int(i) => Some(*i as f64),
-                    crate::core::value::Value::Float(f) => Some(*f),
-                    _ => None,
-                }
-            }
+            Expression::Literal(value) => match value {
+                crate::core::value::Value::Int(i) => Some(*i as f64),
+                crate::core::value::Value::Float(f) => Some(*f),
+                _ => None,
+            },
             _ => None,
         }
     }

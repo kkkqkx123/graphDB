@@ -105,9 +105,9 @@ impl UserInfo {
     pub fn new(username: String, password: String) -> Result<Self, crate::core::StorageError> {
         let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST)
             .map_err(|e| crate::core::StorageError::DbError(format!("密码加密失败: {}", e)))?;
-        
+
         let now = chrono::Utc::now().timestamp_millis();
-        
+
         Ok(Self {
             username,
             password_hash,
@@ -128,7 +128,10 @@ impl UserInfo {
     }
 
     /// 修改密码
-    pub fn change_password(&mut self, new_password: String) -> Result<(), crate::core::StorageError> {
+    pub fn change_password(
+        &mut self,
+        new_password: String,
+    ) -> Result<(), crate::core::StorageError> {
         self.password_hash = bcrypt::hash(new_password, bcrypt::DEFAULT_COST)
             .map_err(|e| crate::core::StorageError::DbError(format!("密码加密失败: {}", e)))?;
         self.password_changed_at = chrono::Utc::now().timestamp_millis();
@@ -283,11 +286,7 @@ pub enum AlterTargetType {
 }
 
 impl SchemaAlterOperation {
-    pub fn new_add_tag_field(
-        space_name: String,
-        tag_name: String,
-        field: PropertyDef,
-    ) -> Self {
+    pub fn new_add_tag_field(space_name: String, tag_name: String, field: PropertyDef) -> Self {
         let field_name = field.name.clone();
         Self {
             space_name,
@@ -302,11 +301,7 @@ impl SchemaAlterOperation {
         }
     }
 
-    pub fn new_remove_tag_field(
-        space_name: String,
-        tag_name: String,
-        field_name: String,
-    ) -> Self {
+    pub fn new_remove_tag_field(space_name: String, tag_name: String, field_name: String) -> Self {
         Self {
             space_name,
             target_type: AlterTargetType::Tag,

@@ -11,8 +11,10 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-use super::types::{AlgorithmStats, DistanceNode, EdgeWeightConfig, SelfLoopDedup, has_duplicate_edges};
 use super::traits::ShortestPathAlgorithm;
+use super::types::{
+    has_duplicate_edges, AlgorithmStats, DistanceNode, EdgeWeightConfig, SelfLoopDedup,
+};
 
 /// Dijkstra最短路径算法
 pub struct Dijkstra<S: StorageClient> {
@@ -47,15 +49,14 @@ impl<S: StorageClient> Dijkstra<S> {
         match &self.weight_config {
             EdgeWeightConfig::Unweighted => 1.0,
             EdgeWeightConfig::Ranking => edge.ranking as f64,
-            EdgeWeightConfig::Property(prop_name) => {
-                edge.get_property(prop_name)
-                    .map(|v| match v {
-                        crate::core::Value::Int(i) => *i as f64,
-                        crate::core::Value::Float(f) => *f,
-                        _ => 1.0,
-                    })
-                    .unwrap_or(1.0)
-            }
+            EdgeWeightConfig::Property(prop_name) => edge
+                .get_property(prop_name)
+                .map(|v| match v {
+                    crate::core::Value::Int(i) => *i as f64,
+                    crate::core::Value::Float(f) => *f,
+                    _ => 1.0,
+                })
+                .unwrap_or(1.0),
         }
     }
 
@@ -217,7 +218,9 @@ impl<S: StorageClient> ShortestPathAlgorithm for Dijkstra<S> {
             self.stats.increment_nodes_visited();
 
             if end_ids.contains(&current.vertex_id) {
-                if let Some(path) = self.reconstruct_path(&current.vertex_id, &previous_map, start_ids)? {
+                if let Some(path) =
+                    self.reconstruct_path(&current.vertex_id, &previous_map, start_ids)?
+                {
                     if !has_duplicate_edges(&path) {
                         result_paths.push(path);
                     }
@@ -244,7 +247,10 @@ impl<S: StorageClient> ShortestPathAlgorithm for Dijkstra<S> {
 
                 if new_distance < *existing_distance {
                     distance_map.insert(neighbor_id.clone(), new_distance);
-                    previous_map.insert(neighbor_id.clone(), (current.vertex_id.clone(), edge.clone()));
+                    previous_map.insert(
+                        neighbor_id.clone(),
+                        (current.vertex_id.clone(), edge.clone()),
+                    );
                     priority_queue.push(Reverse(DistanceNode {
                         distance: new_distance,
                         vertex_id: neighbor_id,
@@ -257,7 +263,9 @@ impl<S: StorageClient> ShortestPathAlgorithm for Dijkstra<S> {
             result_paths.sort_by(|a, b| {
                 let weight_a: f64 = a.steps.iter().map(|s| self.get_edge_weight(&s.edge)).sum();
                 let weight_b: f64 = b.steps.iter().map(|s| self.get_edge_weight(&s.edge)).sum();
-                weight_a.partial_cmp(&weight_b).unwrap_or(std::cmp::Ordering::Equal)
+                weight_a
+                    .partial_cmp(&weight_b)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             });
             result_paths.truncate(1);
         }

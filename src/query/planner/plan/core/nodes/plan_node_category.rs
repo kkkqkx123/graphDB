@@ -59,14 +59,19 @@ impl PlanNodeCategory {
 
     /// 判断是否为根节点（无下游依赖）
     pub fn is_root(&self) -> bool {
-        matches!(self, PlanNodeCategory::ControlFlow | PlanNodeCategory::DataProcessing)
+        matches!(
+            self,
+            PlanNodeCategory::ControlFlow | PlanNodeCategory::DataProcessing
+        )
     }
 
     /// 判断是否支持并行执行
     pub fn supports_parallelism(&self) -> bool {
         matches!(
             self,
-            PlanNodeCategory::Operation | PlanNodeCategory::DataProcessing | PlanNodeCategory::Algorithm
+            PlanNodeCategory::Operation
+                | PlanNodeCategory::DataProcessing
+                | PlanNodeCategory::Algorithm
         )
     }
 }

@@ -1,11 +1,11 @@
 //! 用户管理规划器
 //! 处理用户管理相关的查询规划（CREATE USER、ALTER USER、DROP USER、CHANGE PASSWORD）
 
-use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// 用户管理规划器
@@ -86,11 +86,9 @@ impl Planner for UserManagementPlanner {
     }
 
     fn match_planner(&self, stmt: &Stmt) -> bool {
-        matches!(stmt,
-            Stmt::CreateUser(_) |
-            Stmt::AlterUser(_) |
-            Stmt::DropUser(_) |
-            Stmt::ChangePassword(_)
+        matches!(
+            stmt,
+            Stmt::CreateUser(_) | Stmt::AlterUser(_) | Stmt::DropUser(_) | Stmt::ChangePassword(_)
         )
     }
 }

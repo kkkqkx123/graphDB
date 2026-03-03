@@ -4,8 +4,8 @@
 
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
-use crate::core::Value;
 use crate::core::value::dataset::List;
+use crate::core::Value;
 
 /// 函数求值器
 pub struct FunctionEvaluator;
@@ -40,7 +40,11 @@ impl FunctionEvaluator {
                 Ok(sum)
             }
             AggregateFunction::Avg(_) => {
-                let sum = Self::eval_aggregate_function(&AggregateFunction::Sum("".to_string()), args, distinct)?;
+                let sum = Self::eval_aggregate_function(
+                    &AggregateFunction::Sum("".to_string()),
+                    args,
+                    distinct,
+                )?;
                 let count =
                     Self::eval_aggregate_function(&AggregateFunction::Count(None), args, distinct)?;
                 sum.div(&count)
@@ -68,8 +72,10 @@ impl FunctionEvaluator {
                 if distinct {
                     let unique_values: std::collections::HashSet<_> =
                         args.iter().cloned().collect();
-                    Ok(Value::List(List::from(unique_values.into_iter().collect::<Vec<_>>())))}
-                else {
+                    Ok(Value::List(List::from(
+                        unique_values.into_iter().collect::<Vec<_>>(),
+                    )))
+                } else {
                     Ok(Value::List(List::from(args.to_vec())))
                 }
             }
@@ -167,9 +173,11 @@ impl FunctionEvaluator {
 
                 let n = numeric_values.len() as f64;
                 let mean: f64 = numeric_values.iter().sum::<f64>() / n;
-                let variance: f64 = numeric_values.iter()
+                let variance: f64 = numeric_values
+                    .iter()
                     .map(|value| (value - mean).powi(2))
-                    .sum::<f64>() / n;
+                    .sum::<f64>()
+                    / n;
                 let std_dev = variance.sqrt();
 
                 Ok(Value::Float(std_dev))
@@ -192,7 +200,11 @@ impl FunctionEvaluator {
                 for value in values {
                     match value {
                         Value::Int(v) => result &= v,
-                        _ => return Err(ExpressionError::type_error("All values must be integers for BIT_AND")),
+                        _ => {
+                            return Err(ExpressionError::type_error(
+                                "All values must be integers for BIT_AND",
+                            ))
+                        }
                     }
                 }
 
@@ -216,7 +228,11 @@ impl FunctionEvaluator {
                 for value in values {
                     match value {
                         Value::Int(v) => result |= v,
-                        _ => return Err(ExpressionError::type_error("All values must be integers for BIT_OR")),
+                        _ => {
+                            return Err(ExpressionError::type_error(
+                                "All values must be integers for BIT_OR",
+                            ))
+                        }
                     }
                 }
 
@@ -236,9 +252,7 @@ impl FunctionEvaluator {
                     return Ok(Value::String(String::new()));
                 }
 
-                let result: Vec<String> = values.iter()
-                    .map(|v| format!("{}", v))
-                    .collect();
+                let result: Vec<String> = values.iter().map(|v| format!("{}", v)).collect();
                 Ok(Value::String(result.join(separator)))
             }
         }

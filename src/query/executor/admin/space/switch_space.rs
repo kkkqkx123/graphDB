@@ -85,12 +85,14 @@ impl<S: StorageClient> HasStorage<S> for SwitchSpaceExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_switch_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = SwitchSpaceExecutor::new(1, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -99,7 +101,9 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = SwitchSpaceExecutor::new(2, storage, "test_space".to_string());
 
         assert!(!executor.is_open());
@@ -111,7 +115,9 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let executor = SwitchSpaceExecutor::new(3, storage, "test_space".to_string());
 
         assert_eq!(executor.id(), 3);

@@ -1,7 +1,5 @@
+use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
 use crate::core::StorageError;
-use crate::core::types::{
-    EdgeTypeInfo, SpaceInfo, TagInfo,
-};
 use crate::storage::Schema;
 
 pub trait SchemaManager: Send + Sync + std::fmt::Debug {
@@ -17,7 +15,11 @@ pub trait SchemaManager: Send + Sync + std::fmt::Debug {
     fn drop_tag(&self, space: &str, tag_name: &str) -> Result<bool, StorageError>;
 
     fn create_edge_type(&self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError>;
-    fn get_edge_type(&self, space: &str, edge_type_name: &str) -> Result<Option<EdgeTypeInfo>, StorageError>;
+    fn get_edge_type(
+        &self,
+        space: &str,
+        edge_type_name: &str,
+    ) -> Result<Option<EdgeTypeInfo>, StorageError>;
     fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError>;
     fn drop_edge_type(&self, space: &str, edge_type_name: &str) -> Result<bool, StorageError>;
 

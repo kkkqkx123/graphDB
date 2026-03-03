@@ -2,8 +2,8 @@
 //!
 //! 负责删除数据库用户。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -49,7 +49,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropUserExecutor<
                     Ok(ExecutionResult::Success)
                 } else {
                     Err(crate::core::error::DBError::Storage(
-                        crate::core::StorageError::DbError("User not found".to_string())
+                        crate::core::StorageError::DbError("User not found".to_string()),
                     ))
                 }
             }
@@ -99,12 +99,14 @@ impl<S: StorageClient> HasStorage<S> for DropUserExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_drop_user_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DropUserExecutor::new(1, storage, "test_user".to_string());
 
         let result = executor.execute();
@@ -117,7 +119,9 @@ mod tests {
 
     #[test]
     fn test_drop_user_executor_if_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DropUserExecutor::with_if_exists(2, storage, "test_user".to_string());
 
         let result = executor.execute();
@@ -126,7 +130,9 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DropUserExecutor::new(3, storage, "test_user".to_string());
 
         assert!(!executor.is_open());
@@ -138,7 +144,9 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let executor = DropUserExecutor::new(4, storage, "test_user".to_string());
 
         assert_eq!(executor.id(), 4);

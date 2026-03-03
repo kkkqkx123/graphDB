@@ -3,16 +3,16 @@
 //! 该规则识别 Filter -> GetNeighbors 模式，
 //! 并将过滤条件下推到 GetNeighbors 节点中。
 
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::operators::BinaryOperator;
+use crate::core::types::ContextualExpression;
+use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::core::types::ContextualExpression;
-use crate::core::Expression;
-use crate::core::types::operators::BinaryOperator;
-use crate::core::types::expression::ExpressionMeta;
 
 /// 将过滤条件下推到GetNeighbors操作的规则
 ///
@@ -150,9 +150,9 @@ impl PushDownRule for PushFilterDownGetNbrsRule {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
     use crate::query::planner::plan::core::nodes::graph_scan_node::GetNeighborsNode;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
 
     #[test]
     fn test_rule_name() {
@@ -170,8 +170,8 @@ mod tests {
     #[test]
     fn test_can_push_down() {
         let rule = PushFilterDownGetNbrsRule::new();
-        use std::sync::Arc;
         use crate::core::types::ExpressionContext;
+        use std::sync::Arc;
 
         let start = StartNode::new();
         let start_enum = PlanNodeEnum::Start(start);

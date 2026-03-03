@@ -1,9 +1,9 @@
 //! 聚合验证策略
 //! 负责验证聚合函数的使用和检查表达式是否包含聚合
 
-use crate::core::types::operators::AggregateFunction;
-use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::operators::AggregateFunction;
 
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;
@@ -23,7 +23,10 @@ impl AggregateValidationStrategy {
     }
 
     /// 内部方法：检查 Expression 是否包含聚合函数
-    fn has_aggregate_expression_internal(&self, expression: &crate::core::types::expression::Expression) -> bool {
+    fn has_aggregate_expression_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+    ) -> bool {
         match expression {
             crate::core::types::expression::Expression::Aggregate { .. } => true,
             crate::core::types::expression::Expression::Unary { operand, .. } => {
@@ -33,12 +36,12 @@ impl AggregateValidationStrategy {
                 self.has_aggregate_expression_internal(left)
                     || self.has_aggregate_expression_internal(right)
             }
-            crate::core::types::expression::Expression::Function { args, .. } => {
-                args.iter().any(|arg| self.has_aggregate_expression_internal(arg))
-            }
-            crate::core::types::expression::Expression::List(items) => {
-                items.iter().any(|item| self.has_aggregate_expression_internal(item))
-            }
+            crate::core::types::expression::Expression::Function { args, .. } => args
+                .iter()
+                .any(|arg| self.has_aggregate_expression_internal(arg)),
+            crate::core::types::expression::Expression::List(items) => items
+                .iter()
+                .any(|item| self.has_aggregate_expression_internal(item)),
             crate::core::types::expression::Expression::Map(items) => items
                 .iter()
                 .any(|(_, value)| self.has_aggregate_expression_internal(value)),
@@ -47,12 +50,16 @@ impl AggregateValidationStrategy {
                 conditions,
                 default,
             } => {
-                test_expr.as_ref().map_or(false, |expr| self.has_aggregate_expression_internal(expr))
+                test_expr
+                    .as_ref()
+                    .map_or(false, |expr| self.has_aggregate_expression_internal(expr))
                     || conditions.iter().any(|(cond, val)| {
                         self.has_aggregate_expression_internal(cond)
                             || self.has_aggregate_expression_internal(val)
                     })
-                    || default.as_ref().map_or(false, |d| self.has_aggregate_expression_internal(d))
+                    || default
+                        .as_ref()
+                        .map_or(false, |d| self.has_aggregate_expression_internal(d))
             }
             _ => false,
         }
@@ -78,7 +85,10 @@ impl AggregateValidationStrategy {
     /// 2. 是否有聚合函数嵌套
     /// 3. 特殊属性（*）是否只用于COUNT
     /// 4. 参数表达式是否合法
-    pub fn validate_aggregate_expression(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
+    pub fn validate_aggregate_expression(
+        &self,
+        expression: &ContextualExpression,
+    ) -> Result<(), ValidationError> {
         let expr_meta = match expression.expression() {
             Some(e) => e,
             None => return Ok(()),
@@ -122,14 +132,14 @@ impl AggregateValidationStrategy {
     }
 
     /// 验证通配符属性的使用
-    /// 
+    ///
     /// 根据 nebula-graph 的实现，只有 COUNT 函数允许通配符属性(*)作为参数。
-    /// 
+    ///
     /// 验证规则：
     /// 1. 只检查聚合函数的直接参数（不递归检查嵌套表达式）
     /// 2. 只检查输入属性表达式（$-.prop 或 $var.prop 形式）
     /// 3. 只有 COUNT 函数允许使用通配符属性 `*`
-    /// 
+    ///
     /// 参考：nebula-3.8.0/src/graph/util/ExpressionUtils.cpp:1199-1220
     fn validate_wildcard_property(
         &self,
@@ -137,14 +147,18 @@ impl AggregateValidationStrategy {
         expression: &crate::core::types::expression::Expression,
     ) -> Result<(), ValidationError> {
         let is_count = matches!(func, AggregateFunction::Count(_));
-        
+
         if is_count {
             return Ok(());
         }
-        
-        if let crate::core::types::expression::Expression::Property { object, property } = expression {
+
+        if let crate::core::types::expression::Expression::Property { object, property } =
+            expression
+        {
             if property == "*" {
-                if let crate::core::types::expression::Expression::Variable(var_name) = object.as_ref() {
+                if let crate::core::types::expression::Expression::Variable(var_name) =
+                    object.as_ref()
+                {
                     let ref_type = if var_name == "-" {
                         "输入属性"
                     } else {
@@ -173,7 +187,10 @@ impl AggregateValidationStrategy {
     /// 验证规则：
     /// 1. 递归检查所有子表达式的合法性
     /// 2. 确保参数表达式的结构正确
-    fn validate_expression_in_aggregate(&self, expression: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
+    fn validate_expression_in_aggregate(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+    ) -> Result<(), ValidationError> {
         match expression {
             // 递归检查一元操作（包括各种一元操作符）
             crate::core::types::expression::Expression::Unary { operand, .. } => {
@@ -209,7 +226,8 @@ impl AggregateValidationStrategy {
 
             // 递归检查类型转换表达式
             crate::core::types::expression::Expression::TypeCast {
-                expression: cast_expression, ..
+                expression: cast_expression,
+                ..
             } => {
                 self.validate_expression_in_aggregate(cast_expression)?;
             }
@@ -249,10 +267,10 @@ impl AggregateValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::DataType;
+    use crate::core::types::expression::{ContextualExpression, ExpressionContext, ExpressionMeta};
     use crate::core::types::operators::{AggregateFunction, BinaryOperator};
+    use crate::core::types::DataType;
     use crate::core::Expression;
-    use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ContextualExpression};
     use std::sync::Arc;
 
     #[test]
@@ -271,7 +289,10 @@ mod tests {
         let non_agg_meta = ExpressionMeta::new(non_agg_expr);
         let non_agg_id = expr_ctx.register_expression(non_agg_meta);
         let non_agg_expression = ContextualExpression::new(non_agg_id, expr_ctx.clone());
-        assert_eq!(strategy.has_aggregate_expression(&non_agg_expression), false);
+        assert_eq!(
+            strategy.has_aggregate_expression(&non_agg_expression),
+            false
+        );
 
         let binary_expr = Expression::Binary {
             left: Box::new(Expression::Literal(crate::core::Value::Int(1))),
@@ -294,7 +315,9 @@ mod tests {
         let non_agg_meta = ExpressionMeta::new(non_agg_expr);
         let non_agg_id = expr_ctx.register_expression(non_agg_meta);
         let non_agg_expression = ContextualExpression::new(non_agg_id, expr_ctx);
-        assert!(strategy.validate_unwind_aggregate(&non_agg_expression).is_ok());
+        assert!(strategy
+            .validate_unwind_aggregate(&non_agg_expression)
+            .is_ok());
 
         // 测试包含聚合函数的UNWIND表达式
         // 注意：这里需要一个聚合表达式实例
@@ -593,7 +616,9 @@ mod tests {
             right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
         };
 
-        assert!(strategy.validate_expression_in_aggregate(&expression).is_ok());
+        assert!(strategy
+            .validate_expression_in_aggregate(&expression)
+            .is_ok());
     }
 
     #[test]
@@ -610,7 +635,9 @@ mod tests {
         };
 
         // 应该通过验证
-        assert!(strategy.validate_expression_in_aggregate(&expression).is_ok());
+        assert!(strategy
+            .validate_expression_in_aggregate(&expression)
+            .is_ok());
     }
 
     #[test]
@@ -636,7 +663,9 @@ mod tests {
             default: Some(Box::new(Expression::Literal(crate::core::Value::Int(0)))),
         };
 
-        assert!(strategy.validate_expression_in_aggregate(&expression).is_ok());
+        assert!(strategy
+            .validate_expression_in_aggregate(&expression)
+            .is_ok());
     }
 
     #[test]
@@ -653,7 +682,9 @@ mod tests {
         ]);
 
         // 应该通过验证
-        assert!(strategy.validate_expression_in_aggregate(&expression).is_ok());
+        assert!(strategy
+            .validate_expression_in_aggregate(&expression)
+            .is_ok());
     }
 
     #[test]
@@ -670,7 +701,9 @@ mod tests {
         };
 
         // 应该通过验证
-        assert!(strategy.validate_expression_in_aggregate(&expression).is_ok());
+        assert!(strategy
+            .validate_expression_in_aggregate(&expression)
+            .is_ok());
     }
 
     #[test]
@@ -728,7 +761,7 @@ mod tests {
         let expr_ctx = ExpressionContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
-        
+
         let max_expression = Expression::Aggregate {
             func: AggregateFunction::Max("".to_string()),
             arg: Box::new(Expression::Property {

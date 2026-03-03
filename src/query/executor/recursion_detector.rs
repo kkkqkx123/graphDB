@@ -113,11 +113,11 @@ pub struct ParallelConfig {
 impl Default for ParallelConfig {
     fn default() -> Self {
         Self {
-            max_job_size: 4,              // 默认4个并行任务
-            min_batch_size: 1000,         // 最小批处理1000行
-            enable_parallel: true,        // 默认启用并行
-            parallel_threshold: 10000,    // 数据量超过10000行才并行
-            single_thread_limit: 1000,    // 少于1000行使用单线程
+            max_job_size: 4,           // 默认4个并行任务
+            min_batch_size: 1000,      // 最小批处理1000行
+            enable_parallel: true,     // 默认启用并行
+            parallel_threshold: 10000, // 数据量超过10000行才并行
+            single_thread_limit: 1000, // 少于1000行使用单线程
         }
     }
 }
@@ -350,9 +350,15 @@ mod tests {
     fn test_recursion_path_tracking() {
         let mut detector = RecursionDetector::new(10);
 
-        detector.validate_executor(1, "E1").expect("validate_executor should succeed");
-        detector.validate_executor(2, "E2").expect("validate_executor should succeed");
-        detector.validate_executor(3, "E3").expect("validate_executor should succeed");
+        detector
+            .validate_executor(1, "E1")
+            .expect("validate_executor should succeed");
+        detector
+            .validate_executor(2, "E2")
+            .expect("validate_executor should succeed");
+        detector
+            .validate_executor(3, "E3")
+            .expect("validate_executor should succeed");
 
         let path = detector.get_recursion_path();
         assert_eq!(path, vec!["E1(1)", "E2(2)", "E3(3)"]);

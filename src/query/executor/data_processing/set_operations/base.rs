@@ -2,10 +2,10 @@
 //!
 //! 提供所有集合操作执行器的通用功能和接口
 
+use parking_lot::Mutex;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::core::{DataSet, Value};
 use crate::query::executor::{BaseExecutor, ExecutionResult};
@@ -201,8 +201,7 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::base::Executor<S
 {
     fn execute(
         &mut self,
-    ) -> crate::query::executor::base::DBResult<crate::query::executor::base::ExecutionResult>
-    {
+    ) -> crate::query::executor::base::DBResult<crate::query::executor::base::ExecutionResult> {
         Err(crate::core::error::DBError::Query(
             crate::core::error::QueryError::ExecutionError(
                 "SetExecutor是抽象基类，不能直接执行".to_string(),
@@ -272,7 +271,8 @@ mod tests {
             vec![Value::Int(1), Value::String("a".to_string())], // 重复行
         ];
 
-        let row_set = SetExecutor::<crate::storage::redb_storage::DefaultStorage>::create_row_set(&rows);
+        let row_set =
+            SetExecutor::<crate::storage::redb_storage::DefaultStorage>::create_row_set(&rows);
         assert_eq!(row_set.len(), 2); // 应该只有2个唯一的哈希值
     }
 
@@ -301,7 +301,9 @@ mod tests {
             rows: vec![vec![Value::Int(2), Value::String("Bob".to_string())]],
         };
 
-        let result = SetExecutor::<crate::storage::redb_storage::DefaultStorage>::concat_datasets(left, right);
+        let result = SetExecutor::<crate::storage::redb_storage::DefaultStorage>::concat_datasets(
+            left, right,
+        );
         assert_eq!(result.rows.len(), 2);
         assert_eq!(result.col_names.len(), 2);
     }

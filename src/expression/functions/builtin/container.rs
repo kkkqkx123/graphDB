@@ -228,7 +228,11 @@ fn execute_keys(args: &[Value]) -> Result<Value, ExpressionError> {
             }
         }
         Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-        _ => return Err(ExpressionError::type_error("keys函数需要顶点、边或映射类型")),
+        _ => {
+            return Err(ExpressionError::type_error(
+                "keys函数需要顶点、边或映射类型",
+            ))
+        }
     }
 
     let result: Vec<Value> = keys.into_iter().map(Value::String).collect();
@@ -273,14 +277,18 @@ mod tests {
         let list = Value::List(List {
             values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
         });
-        let result = ContainerFunction::Head.execute(&[list]).expect("head函数执行应该成功");
+        let result = ContainerFunction::Head
+            .execute(&[list])
+            .expect("head函数执行应该成功");
         assert_eq!(result, Value::Int(1));
     }
 
     #[test]
     fn test_head_empty_list() {
         let list = Value::List(List { values: vec![] });
-        let result = ContainerFunction::Head.execute(&[list]).expect("head函数执行应该成功");
+        let result = ContainerFunction::Head
+            .execute(&[list])
+            .expect("head函数执行应该成功");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 
@@ -289,7 +297,9 @@ mod tests {
         let list = Value::List(List {
             values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
         });
-        let result = ContainerFunction::Last.execute(&[list]).expect("last函数执行应该成功");
+        let result = ContainerFunction::Last
+            .execute(&[list])
+            .expect("last函数执行应该成功");
         assert_eq!(result, Value::Int(3));
     }
 
@@ -298,7 +308,9 @@ mod tests {
         let list = Value::List(List {
             values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
         });
-        let result = ContainerFunction::Tail.execute(&[list]).expect("tail函数执行应该成功");
+        let result = ContainerFunction::Tail
+            .execute(&[list])
+            .expect("tail函数执行应该成功");
         assert_eq!(
             result,
             Value::List(List {
@@ -320,7 +332,9 @@ mod tests {
         let list = Value::List(List {
             values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
         });
-        let result = ContainerFunction::Size.execute(&[list]).expect("size函数执行应该成功");
+        let result = ContainerFunction::Size
+            .execute(&[list])
+            .expect("size函数执行应该成功");
         assert_eq!(result, Value::Int(3));
     }
 
@@ -332,7 +346,13 @@ mod tests {
         assert_eq!(
             result,
             Value::List(List {
-                values: vec![Value::Int(1), Value::Int(2), Value::Int(3), Value::Int(4), Value::Int(5)]
+                values: vec![
+                    Value::Int(1),
+                    Value::Int(2),
+                    Value::Int(3),
+                    Value::Int(4),
+                    Value::Int(5)
+                ]
             })
         );
     }
@@ -345,7 +365,14 @@ mod tests {
         assert_eq!(
             result,
             Value::List(List {
-                values: vec![Value::Int(0), Value::Int(2), Value::Int(4), Value::Int(6), Value::Int(8), Value::Int(10)]
+                values: vec![
+                    Value::Int(0),
+                    Value::Int(2),
+                    Value::Int(4),
+                    Value::Int(6),
+                    Value::Int(8),
+                    Value::Int(10)
+                ]
             })
         );
     }
@@ -355,19 +382,27 @@ mod tests {
         let null_value = Value::Null(NullType::Null);
 
         assert_eq!(
-            ContainerFunction::Head.execute(&[null_value.clone()]).expect("head函数应该处理NULL"),
+            ContainerFunction::Head
+                .execute(&[null_value.clone()])
+                .expect("head函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
-            ContainerFunction::Last.execute(&[null_value.clone()]).expect("last函数应该处理NULL"),
+            ContainerFunction::Last
+                .execute(&[null_value.clone()])
+                .expect("last函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
-            ContainerFunction::Tail.execute(&[null_value.clone()]).expect("tail函数应该处理NULL"),
+            ContainerFunction::Tail
+                .execute(&[null_value.clone()])
+                .expect("tail函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
-            ContainerFunction::Size.execute(&[null_value.clone()]).expect("size函数应该处理NULL"),
+            ContainerFunction::Size
+                .execute(&[null_value.clone()])
+                .expect("size函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
     }

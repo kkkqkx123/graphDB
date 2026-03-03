@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use crate::core::{DataSet, Value};
-use crate::storage::iterator::Row;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -57,7 +57,10 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowSpacesExecuto
                 };
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to show spaces: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to show spaces: {}",
+                e
+            ))),
         }
     }
 

@@ -11,17 +11,16 @@
 //!    - DISTINCT 验证
 //! 3. 使用 QueryContext 统一管理上下文
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
 use crate::core::YieldColumn;
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// 验证后的 YIELD 信息
 #[derive(Debug, Clone)]
@@ -185,7 +184,8 @@ impl YieldValidator {
     fn validate_aliases(&self) -> Result<(), ValidationError> {
         for col in &self.yield_columns {
             let alias = col.name();
-            if !alias.starts_with('_') && alias.chars().next().unwrap_or_default().is_ascii_digit() {
+            if !alias.starts_with('_') && alias.chars().next().unwrap_or_default().is_ascii_digit()
+            {
                 return Err(ValidationError::new(
                     format!("别名 '{}' 不能以数字开头", alias),
                     ValidationErrorType::SemanticError,
@@ -211,8 +211,13 @@ impl YieldValidator {
     fn validate_distinct(&self) -> Result<(), ValidationError> {
         if self.distinct && self.yield_columns.len() > 1 {
             let has_non_comparable = self.yield_columns.iter().any(|col| {
-                let col_type = self.deduce_expr_type(&col.expression).unwrap_or(ValueType::Unknown);
-                !matches!(col_type, ValueType::Bool | ValueType::Int | ValueType::Float | ValueType::String)
+                let col_type = self
+                    .deduce_expr_type(&col.expression)
+                    .unwrap_or(ValueType::Unknown);
+                !matches!(
+                    col_type,
+                    ValueType::Bool | ValueType::Int | ValueType::Float | ValueType::String
+                )
             });
             if has_non_comparable {
                 return Err(ValidationError::new(
@@ -225,7 +230,10 @@ impl YieldValidator {
     }
 
     /// 推导表达式类型
-    fn deduce_expr_type(&self, expression: &crate::core::types::expression::contextual::ContextualExpression) -> Result<ValueType, ValidationError> {
+    fn deduce_expr_type(
+        &self,
+        expression: &crate::core::types::expression::contextual::ContextualExpression,
+    ) -> Result<ValueType, ValidationError> {
         if let Some(e) = expression.get_expression() {
             self.deduce_expr_type_internal(&e)
         } else {
@@ -234,7 +242,10 @@ impl YieldValidator {
     }
 
     /// 内部方法：推导表达式类型
-    fn deduce_expr_type_internal(&self, _expression: &crate::core::types::expression::Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_expr_type_internal(
+        &self,
+        _expression: &crate::core::types::expression::Expression,
+    ) -> Result<ValueType, ValidationError> {
         // 简化实现，实际应该根据表达式推导类型
         Ok(ValueType::Unknown)
     }
@@ -247,7 +258,11 @@ impl YieldValidator {
         // 设置输出列
         self.outputs.clear();
         for (i, col) in validated.columns.iter().enumerate() {
-            let col_type = validated.output_types.get(i).cloned().unwrap_or(ValueType::Unknown);
+            let col_type = validated
+                .output_types
+                .get(i)
+                .cloned()
+                .unwrap_or(ValueType::Unknown);
             self.outputs.push(ColumnDef {
                 name: col.name().to_string(),
                 type_: col_type,
@@ -297,7 +312,9 @@ impl StatementValidator for YieldValidator {
             if !column.alias.is_empty() {
                 info.add_alias(column.alias.clone(), AliasType::Expression);
             }
-            info.semantic_info.output_fields.push(format!("{:?}", column.expression));
+            info.semantic_info
+                .output_fields
+                .push(format!("{:?}", column.expression));
         }
 
         // 返回成功的验证结果
@@ -333,9 +350,9 @@ impl StatementValidator for YieldValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Expression, Value};
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::{ExpressionContext, ExpressionMeta};
+    use crate::core::{Expression, Value};
     use std::sync::Arc;
 
     /// 测试辅助函数：创建简单的 ContextualExpression
@@ -390,7 +407,7 @@ mod tests {
     #[test]
     fn test_yield_empty_columns() {
         let mut validator = YieldValidator::new();
-        
+
         // 不添加任何列
         let result = validator.validate_yield();
         assert!(result.is_err());
@@ -433,7 +450,9 @@ mod tests {
 
     #[test]
     fn test_yield_with_distinct() {
-        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use crate::core::types::expression::{
+            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+        };
         use std::sync::Arc;
 
         let mut validator = YieldValidator::new();
@@ -444,10 +463,7 @@ mod tests {
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
-        let col = YieldColumn::new(
-            ctx_expr,
-            "result".to_string(),
-        );
+        let col = YieldColumn::new(ctx_expr, "result".to_string());
         validator.add_yield_column(col);
         validator.set_distinct(true);
 

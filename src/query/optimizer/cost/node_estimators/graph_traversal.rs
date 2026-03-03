@@ -9,12 +9,12 @@
 //! - GetVertices
 //! - GetEdges
 
+use super::{get_input_rows, NodeEstimator};
+use crate::core::error::optimize::CostError;
 use crate::core::types::EdgeDirection;
-use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::core::error::optimize::CostError;
-use super::{NodeEstimator, get_input_rows};
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 图遍历操作估算器
 pub struct GraphTraversalEstimator<'a> {
@@ -69,7 +69,9 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                     EdgeDirection::Both => self.get_avg_degree(edge_type),
                 };
                 let output_rows = (start_rows as f64 * avg_degree) as u64;
-                let cost = self.cost_calculator.calculate_expand_cost(start_rows, edge_type);
+                let cost = self
+                    .cost_calculator
+                    .calculate_expand_cost(start_rows, edge_type);
                 Ok((cost, output_rows.max(1)))
             }
             PlanNodeEnum::ExpandAll(n) => {
@@ -82,7 +84,9 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                     _ => self.get_avg_out_degree(edge_type), // 默认出边
                 };
                 let output_rows = (start_rows as f64 * avg_degree) as u64;
-                let cost = self.cost_calculator.calculate_expand_all_cost(start_rows, edge_type);
+                let cost = self
+                    .cost_calculator
+                    .calculate_expand_all_cost(start_rows, edge_type);
                 Ok((cost, output_rows.max(1)))
             }
             PlanNodeEnum::Traverse(n) => {
@@ -97,13 +101,16 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                 };
                 // 多步遍历的输出行数估算
                 let output_rows = (start_rows as f64 * avg_degree.powi(steps as i32)) as u64;
-                let cost = self.cost_calculator
+                let cost = self
+                    .cost_calculator
                     .calculate_traverse_cost(start_rows, edge_type, steps);
                 Ok((cost, output_rows.max(1)))
             }
             PlanNodeEnum::AppendVertices(_) => {
                 let input_rows_val = get_input_rows(child_estimates, 0);
-                let cost = self.cost_calculator.calculate_append_vertices_cost(input_rows_val);
+                let cost = self
+                    .cost_calculator
+                    .calculate_append_vertices_cost(input_rows_val);
                 // AppendVertices 不改变行数
                 Ok((cost, input_rows_val))
             }
@@ -117,7 +124,8 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                     _ => self.get_avg_out_degree(edge_type), // 默认出边
                 };
                 let output_rows = (start_rows as f64 * avg_degree) as u64;
-                let cost = self.cost_calculator
+                let cost = self
+                    .cost_calculator
                     .calculate_get_neighbors_cost(start_rows, edge_type);
                 Ok((cost, output_rows.max(1)))
             }
@@ -131,9 +139,10 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                 let cost = self.cost_calculator.calculate_get_edges_cost(edge_count);
                 Ok((cost, edge_count))
             }
-            _ => Err(CostError::UnsupportedNodeType(
-                format!("图遍历估算器不支持节点类型: {:?}", std::mem::discriminant(node))
-            )),
+            _ => Err(CostError::UnsupportedNodeType(format!(
+                "图遍历估算器不支持节点类型: {:?}",
+                std::mem::discriminant(node)
+            ))),
         }
     }
 }

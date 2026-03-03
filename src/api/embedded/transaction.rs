@@ -7,7 +7,7 @@ use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::Session;
 use crate::core::Value;
 use crate::storage::StorageClient;
-use crate::transaction::{SavepointId, SavepointInfo, TransactionOptions, DurabilityLevel};
+use crate::transaction::{DurabilityLevel, SavepointId, SavepointInfo, TransactionOptions};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -132,10 +132,7 @@ pub struct Transaction<'sess, S: StorageClient + Clone + 'static> {
 
 impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     /// 创建新的事务
-    pub(crate) fn new(
-        session: &'sess Session<S>,
-        txn_handle: TransactionHandle,
-    ) -> Self {
+    pub(crate) fn new(session: &'sess Session<S>, txn_handle: TransactionHandle) -> Self {
         Self {
             session,
             txn_handle,
@@ -366,12 +363,12 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     fn check_active(&self) -> CoreResult<()> {
         if self.committed {
             return Err(CoreError::TransactionFailed(
-                "事务已提交，不能执行操作".to_string()
+                "事务已提交，不能执行操作".to_string(),
             ));
         }
         if self.rolled_back {
             return Err(CoreError::TransactionFailed(
-                "事务已回滚，不能执行操作".to_string()
+                "事务已回滚，不能执行操作".to_string(),
             ));
         }
         Ok(())

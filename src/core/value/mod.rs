@@ -11,14 +11,14 @@
 
 pub mod comparison;
 pub mod conversion;
-pub mod date_time;
 pub mod dataset;
+pub mod date_time;
 pub mod geography;
 pub mod operations;
 pub mod types;
 
 // 重新导出所有公共类型和功能，保持API兼容性
-pub use types::*;
+pub use dataset::*;
 pub use date_time::*;
 pub use geography::*;
-pub use dataset::*;
+pub use types::*;

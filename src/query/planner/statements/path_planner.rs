@@ -8,17 +8,16 @@
 //! - 支持带权最短路径
 //! - 完善路径过滤逻辑
 
-use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::algorithms::{ShortestPath, AllPaths};
+use crate::query::planner::plan::algorithms::{AllPaths, ShortestPath};
 use crate::query::planner::plan::core::PlanNode;
+use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 pub use crate::query::planner::plan::core::nodes::{
-    ArgumentNode, DedupNode, ExpandAllNode, FilterNode, GetNeighborsNode, ProjectNode,
-    StartNode,
+    ArgumentNode, DedupNode, ExpandAllNode, FilterNode, GetNeighborsNode, ProjectNode, StartNode,
 };
 pub use crate::query::planner::plan::core::PlanNodeEnum;
 
@@ -35,12 +34,16 @@ impl PathPlanner {
 }
 
 impl Planner for PathPlanner {
-    fn transform(&mut self, validated: &ValidatedStatement, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+    fn transform(
+        &mut self,
+        validated: &ValidatedStatement,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
         let find_path_stmt = match &validated.stmt {
             Stmt::FindPath(find_path_stmt) => find_path_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "PathPlanner 需要 FindPath 语句".to_string()
+                    "PathPlanner 需要 FindPath 语句".to_string(),
                 ));
             }
         };
@@ -55,18 +58,10 @@ impl Planner for PathPlanner {
         // 根据查询类型选择不同的计划策略
         let root_node = if self.is_shortest_path_stmt(find_path_stmt) {
             // 最短路径查询
-            self.build_shortest_path_plan(
-                start_node_enum.clone(),
-                edge_types,
-                max_steps,
-            )?
+            self.build_shortest_path_plan(start_node_enum.clone(), edge_types, max_steps)?
         } else {
             // 所有路径查询
-            self.build_all_paths_plan(
-                start_node_enum.clone(),
-                edge_types,
-                max_steps,
-            )?
+            self.build_all_paths_plan(start_node_enum.clone(), edge_types, max_steps)?
         };
 
         let sub_plan = SubPlan {
@@ -95,13 +90,8 @@ impl PathPlanner {
         let right_node_enum = PlanNodeEnum::Start(right_node);
 
         // 创建ShortestPath计划节点
-        let shortest_path_node = ShortestPath::new(
-            2,
-            left_input,
-            right_node_enum,
-            edge_types,
-            max_steps,
-        );
+        let shortest_path_node =
+            ShortestPath::new(2, left_input, right_node_enum, edge_types, max_steps);
 
         Ok(shortest_path_node.into_enum())
     }
@@ -138,8 +128,12 @@ impl PathPlanner {
     }
 
     /// 从语句获取边类型
-    fn get_edge_types_from_stmt(&self, stmt: &crate::query::parser::ast::FindPathStmt) -> Vec<String> {
-        stmt.over.as_ref()
+    fn get_edge_types_from_stmt(
+        &self,
+        stmt: &crate::query::parser::ast::FindPathStmt,
+    ) -> Vec<String> {
+        stmt.over
+            .as_ref()
             .map(|over| over.edge_types.clone())
             .unwrap_or_default()
     }

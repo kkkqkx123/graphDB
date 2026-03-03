@@ -2,8 +2,8 @@
 //!
 //! 提供边类型管理相关的计划节点定义
 
-use crate::define_plan_node;
 use crate::core::types::PropertyDef;
+use crate::define_plan_node;
 
 define_plan_node! {
     pub struct CreateEdgeNode {

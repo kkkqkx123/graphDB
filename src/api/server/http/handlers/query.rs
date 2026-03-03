@@ -1,14 +1,11 @@
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     response::Json as JsonResponse,
 };
 use serde::{Deserialize, Serialize};
 use tokio::task;
 
-use crate::api::server::http::{
-    state::AppState,
-    error::HttpError,
-};
+use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
 
 #[derive(Debug, Deserialize)]
@@ -31,7 +28,7 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> Result<JsonResponse<QueryResponse>, HttpError> {
     let result = task::spawn_blocking(move || {
         let graph_service = state.server.get_graph_service();
-        
+
         // 通过 GraphService 执行查询
         match graph_service.execute(request.session_id, &request.query) {
             Ok(result) => Ok::<_, HttpError>(QueryResponse {
@@ -43,7 +40,7 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
-    
+
     Ok(JsonResponse(result?))
 }
 

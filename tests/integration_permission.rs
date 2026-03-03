@@ -11,13 +11,13 @@ mod common;
 
 use std::sync::Arc;
 
-use graphdb::api::server::{
-    Authenticator, PasswordAuthenticator, PermissionManager, Permission, RoleType,
-    PermissionChecker, Session, SpaceInfo,
-};
 use graphdb::api::server::permission_checker::OperationType;
 use graphdb::api::server::permission_manager::GOD_SPACE_ID;
 use graphdb::api::server::session::ClientSession;
+use graphdb::api::server::{
+    Authenticator, PasswordAuthenticator, Permission, PermissionChecker, PermissionManager,
+    RoleType, Session, SpaceInfo,
+};
 use graphdb::config::AuthConfig;
 
 // ==================== PermissionManager 核心测试 ====================
@@ -45,8 +45,7 @@ fn test_grant_and_revoke_role() {
     assert_eq!(role, Some(RoleType::User), "应该获取到User角色");
 
     // 撤销角色
-    pm.revoke_role("user1", space_id)
-        .expect("撤销角色应该成功");
+    pm.revoke_role("user1", space_id).expect("撤销角色应该成功");
 
     // 验证角色已撤销
     let role_after = pm.get_role("user1", space_id);
@@ -81,9 +80,12 @@ fn test_list_space_users() {
     let space_id = 1i64;
 
     // 给多个用户授予角色
-    pm.grant_role("user1", space_id, RoleType::User).expect("授予User角色应该成功");
-    pm.grant_role("user2", space_id, RoleType::Admin).expect("授予Admin角色应该成功");
-    pm.grant_role("user3", space_id, RoleType::Guest).expect("授予Guest角色应该成功");
+    pm.grant_role("user1", space_id, RoleType::User)
+        .expect("授予User角色应该成功");
+    pm.grant_role("user2", space_id, RoleType::Admin)
+        .expect("授予Admin角色应该成功");
+    pm.grant_role("user3", space_id, RoleType::Guest)
+        .expect("授予Guest角色应该成功");
 
     // 测试 list_space_users 方法
     let space_users = pm.list_space_users(space_id);
@@ -128,14 +130,25 @@ fn test_admin_role_permissions() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
-    pm.grant_role("admin1", space_id, RoleType::Admin).expect("授予Admin角色应该成功");
+    pm.grant_role("admin1", space_id, RoleType::Admin)
+        .expect("授予Admin角色应该成功");
 
     // Admin拥有所有权限
-    assert!(pm.check_permission("admin1", space_id, Permission::Read).is_ok());
-    assert!(pm.check_permission("admin1", space_id, Permission::Write).is_ok());
-    assert!(pm.check_permission("admin1", space_id, Permission::Delete).is_ok());
-    assert!(pm.check_permission("admin1", space_id, Permission::Schema).is_ok());
-    assert!(pm.check_permission("admin1", space_id, Permission::Admin).is_ok());
+    assert!(pm
+        .check_permission("admin1", space_id, Permission::Read)
+        .is_ok());
+    assert!(pm
+        .check_permission("admin1", space_id, Permission::Write)
+        .is_ok());
+    assert!(pm
+        .check_permission("admin1", space_id, Permission::Delete)
+        .is_ok());
+    assert!(pm
+        .check_permission("admin1", space_id, Permission::Schema)
+        .is_ok());
+    assert!(pm
+        .check_permission("admin1", space_id, Permission::Admin)
+        .is_ok());
 }
 
 #[test]
@@ -143,16 +156,27 @@ fn test_dba_role_permissions() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
-    pm.grant_role("dba1", space_id, RoleType::Dba).expect("授予Dba角色应该成功");
+    pm.grant_role("dba1", space_id, RoleType::Dba)
+        .expect("授予Dba角色应该成功");
 
     // Dba拥有读写删和Schema权限
-    assert!(pm.check_permission("dba1", space_id, Permission::Read).is_ok());
-    assert!(pm.check_permission("dba1", space_id, Permission::Write).is_ok());
-    assert!(pm.check_permission("dba1", space_id, Permission::Delete).is_ok());
-    assert!(pm.check_permission("dba1", space_id, Permission::Schema).is_ok());
+    assert!(pm
+        .check_permission("dba1", space_id, Permission::Read)
+        .is_ok());
+    assert!(pm
+        .check_permission("dba1", space_id, Permission::Write)
+        .is_ok());
+    assert!(pm
+        .check_permission("dba1", space_id, Permission::Delete)
+        .is_ok());
+    assert!(pm
+        .check_permission("dba1", space_id, Permission::Schema)
+        .is_ok());
 
     // Dba没有Admin权限
-    assert!(pm.check_permission("dba1", space_id, Permission::Admin).is_err());
+    assert!(pm
+        .check_permission("dba1", space_id, Permission::Admin)
+        .is_err());
 }
 
 #[test]
@@ -160,16 +184,27 @@ fn test_user_role_permissions() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
-    pm.grant_role("user1", space_id, RoleType::User).expect("授予User角色应该成功");
+    pm.grant_role("user1", space_id, RoleType::User)
+        .expect("授予User角色应该成功");
 
     // User拥有读写删权限
-    assert!(pm.check_permission("user1", space_id, Permission::Read).is_ok());
-    assert!(pm.check_permission("user1", space_id, Permission::Write).is_ok());
-    assert!(pm.check_permission("user1", space_id, Permission::Delete).is_ok());
+    assert!(pm
+        .check_permission("user1", space_id, Permission::Read)
+        .is_ok());
+    assert!(pm
+        .check_permission("user1", space_id, Permission::Write)
+        .is_ok());
+    assert!(pm
+        .check_permission("user1", space_id, Permission::Delete)
+        .is_ok());
 
     // User没有Schema和Admin权限
-    assert!(pm.check_permission("user1", space_id, Permission::Schema).is_err());
-    assert!(pm.check_permission("user1", space_id, Permission::Admin).is_err());
+    assert!(pm
+        .check_permission("user1", space_id, Permission::Schema)
+        .is_err());
+    assert!(pm
+        .check_permission("user1", space_id, Permission::Admin)
+        .is_err());
 }
 
 #[test]
@@ -177,16 +212,27 @@ fn test_guest_role_permissions() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
-    pm.grant_role("guest1", space_id, RoleType::Guest).expect("授予Guest角色应该成功");
+    pm.grant_role("guest1", space_id, RoleType::Guest)
+        .expect("授予Guest角色应该成功");
 
     // Guest只有读权限
-    assert!(pm.check_permission("guest1", space_id, Permission::Read).is_ok());
+    assert!(pm
+        .check_permission("guest1", space_id, Permission::Read)
+        .is_ok());
 
     // Guest没有写、删、Schema、Admin权限
-    assert!(pm.check_permission("guest1", space_id, Permission::Write).is_err());
-    assert!(pm.check_permission("guest1", space_id, Permission::Delete).is_err());
-    assert!(pm.check_permission("guest1", space_id, Permission::Schema).is_err());
-    assert!(pm.check_permission("guest1", space_id, Permission::Admin).is_err());
+    assert!(pm
+        .check_permission("guest1", space_id, Permission::Write)
+        .is_err());
+    assert!(pm
+        .check_permission("guest1", space_id, Permission::Delete)
+        .is_err());
+    assert!(pm
+        .check_permission("guest1", space_id, Permission::Schema)
+        .is_err());
+    assert!(pm
+        .check_permission("guest1", space_id, Permission::Admin)
+        .is_err());
 }
 
 // ==================== 角色授予权限测试 ====================
@@ -200,11 +246,21 @@ fn test_god_can_grant_any_role() {
     let session = create_client_session_with_role("root", 0, RoleType::God);
 
     // God可以授予任何角色
-    assert!(checker.can_write_role(&session, space_id, RoleType::God).is_ok());
-    assert!(checker.can_write_role(&session, space_id, RoleType::Admin).is_ok());
-    assert!(checker.can_write_role(&session, space_id, RoleType::Dba).is_ok());
-    assert!(checker.can_write_role(&session, space_id, RoleType::User).is_ok());
-    assert!(checker.can_write_role(&session, space_id, RoleType::Guest).is_ok());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::God)
+        .is_ok());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Admin)
+        .is_ok());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Dba)
+        .is_ok());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::User)
+        .is_ok());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Guest)
+        .is_ok());
 }
 
 #[test]
@@ -214,17 +270,28 @@ fn test_admin_grant_role_permissions() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    pm.grant_role("admin1", space_id, RoleType::Admin).expect("授予Admin角色应该成功");
+    pm.grant_role("admin1", space_id, RoleType::Admin)
+        .expect("授予Admin角色应该成功");
     let session = create_client_session_with_role("admin1", space_id, RoleType::Admin);
 
     // Admin可以授予Dba、User、Guest
-    assert!(checker.can_write_role(&session, space_id, RoleType::Dba).is_ok());
-    assert!(checker.can_write_role(&session, space_id, RoleType::User).is_ok());
-    assert!(checker.can_write_role(&session, space_id, RoleType::Guest).is_ok());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Dba)
+        .is_ok());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::User)
+        .is_ok());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Guest)
+        .is_ok());
 
     // Admin不能授予God或Admin
-    assert!(checker.can_write_role(&session, space_id, RoleType::God).is_err());
-    assert!(checker.can_write_role(&session, space_id, RoleType::Admin).is_err());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::God)
+        .is_err());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Admin)
+        .is_err());
 }
 
 #[test]
@@ -234,17 +301,28 @@ fn test_dba_grant_role_permissions() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    pm.grant_role("dba1", space_id, RoleType::Dba).expect("授予Dba角色应该成功");
+    pm.grant_role("dba1", space_id, RoleType::Dba)
+        .expect("授予Dba角色应该成功");
     let session = create_client_session_with_role("dba1", space_id, RoleType::Dba);
 
     // Dba可以授予User、Guest
-    assert!(checker.can_write_role(&session, space_id, RoleType::User).is_ok());
-    assert!(checker.can_write_role(&session, space_id, RoleType::Guest).is_ok());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::User)
+        .is_ok());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Guest)
+        .is_ok());
 
     // Dba不能授予God、Admin、Dba
-    assert!(checker.can_write_role(&session, space_id, RoleType::God).is_err());
-    assert!(checker.can_write_role(&session, space_id, RoleType::Admin).is_err());
-    assert!(checker.can_write_role(&session, space_id, RoleType::Dba).is_err());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::God)
+        .is_err());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Admin)
+        .is_err());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Dba)
+        .is_err());
 }
 
 #[test]
@@ -254,13 +332,20 @@ fn test_user_cannot_grant_any_role() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    pm.grant_role("user1", space_id, RoleType::User).expect("授予User角色应该成功");
+    pm.grant_role("user1", space_id, RoleType::User)
+        .expect("授予User角色应该成功");
     let session = create_client_session_with_role("user1", space_id, RoleType::User);
 
     // User不能授予任何角色
-    assert!(checker.can_write_role(&session, space_id, RoleType::User).is_err());
-    assert!(checker.can_write_role(&session, space_id, RoleType::Guest).is_err());
-    assert!(checker.can_write_role(&session, space_id, RoleType::Dba).is_err());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::User)
+        .is_err());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Guest)
+        .is_err());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::Dba)
+        .is_err());
 }
 
 #[test]
@@ -270,11 +355,14 @@ fn test_cannot_modify_own_role() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    pm.grant_role("admin1", space_id, RoleType::Admin).expect("授予Admin角色应该成功");
+    pm.grant_role("admin1", space_id, RoleType::Admin)
+        .expect("授予Admin角色应该成功");
     let session = create_client_session_with_role("admin1", space_id, RoleType::Admin);
 
     // 不能修改自己的角色
-    assert!(checker.can_write_role(&session, space_id, RoleType::User).is_err());
+    assert!(checker
+        .can_write_role(&session, space_id, RoleType::User)
+        .is_err());
 }
 
 // ==================== PermissionChecker 测试 ====================
@@ -300,7 +388,11 @@ fn create_test_session(username: &str) -> Session {
     }
 }
 
-fn create_client_session_with_role(username: &str, space_id: i64, role: RoleType) -> Arc<ClientSession> {
+fn create_client_session_with_role(
+    username: &str,
+    space_id: i64,
+    role: RoleType,
+) -> Arc<ClientSession> {
     let session = create_test_session(username);
     let client_session = ClientSession::new(session);
     client_session.set_role(space_id, role);
@@ -325,8 +417,10 @@ fn test_permission_checker_with_disabled_auth() {
 #[test]
 fn test_permission_checker_space_operations() {
     let pm = PermissionManager::new();
-    pm.grant_role("user1", 1, RoleType::User).expect("授予User角色应该成功");
-    pm.grant_role("admin1", 1, RoleType::Admin).expect("授予Admin角色应该成功");
+    pm.grant_role("user1", 1, RoleType::User)
+        .expect("授予User角色应该成功");
+    pm.grant_role("admin1", 1, RoleType::Admin)
+        .expect("授予Admin角色应该成功");
 
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
@@ -348,8 +442,10 @@ fn test_permission_checker_space_operations() {
 #[test]
 fn test_permission_checker_schema_operations() {
     let pm = PermissionManager::new();
-    pm.grant_role("admin1", 1, RoleType::Admin).expect("授予Admin角色应该成功");
-    pm.grant_role("user1", 1, RoleType::User).expect("授予User角色应该成功");
+    pm.grant_role("admin1", 1, RoleType::Admin)
+        .expect("授予Admin角色应该成功");
+    pm.grant_role("user1", 1, RoleType::User)
+        .expect("授予User角色应该成功");
 
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
@@ -369,8 +465,10 @@ fn test_permission_checker_schema_operations() {
 #[test]
 fn test_permission_checker_data_operations() {
     let pm = PermissionManager::new();
-    pm.grant_role("user1", 1, RoleType::User).expect("授予User角色应该成功");
-    pm.grant_role("guest1", 1, RoleType::Guest).expect("授予Guest角色应该成功");
+    pm.grant_role("user1", 1, RoleType::User)
+        .expect("授予User角色应该成功");
+    pm.grant_role("guest1", 1, RoleType::Guest)
+        .expect("授予Guest角色应该成功");
 
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
@@ -390,7 +488,8 @@ fn test_permission_checker_data_operations() {
 #[test]
 fn test_permission_checker_user_operations() {
     let pm = PermissionManager::new();
-    pm.grant_role("admin1", 1, RoleType::Admin).expect("授予Admin角色应该成功");
+    pm.grant_role("admin1", 1, RoleType::Admin)
+        .expect("授予Admin角色应该成功");
 
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
@@ -414,7 +513,8 @@ fn test_permission_checker_user_operations() {
 #[test]
 fn test_permission_checker_role_operations() {
     let pm = PermissionManager::new();
-    pm.grant_role("admin1", 1, RoleType::Admin).expect("授予Admin角色应该成功");
+    pm.grant_role("admin1", 1, RoleType::Admin)
+        .expect("授予Admin角色应该成功");
 
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
@@ -423,23 +523,34 @@ fn test_permission_checker_role_operations() {
     let admin_session = create_client_session_with_role("admin1", 1, RoleType::Admin);
 
     // God可以授予任何角色
-    assert!(checker.can_write_role(&god_session, 1, RoleType::Admin, "target").is_ok());
+    assert!(checker
+        .can_write_role(&god_session, 1, RoleType::Admin, "target")
+        .is_ok());
 
     // Admin可以授予某些角色
-    assert!(checker.can_write_role(&admin_session, 1, RoleType::User, "target").is_ok());
-    assert!(checker.can_write_role(&admin_session, 1, RoleType::Guest, "target").is_ok());
+    assert!(checker
+        .can_write_role(&admin_session, 1, RoleType::User, "target")
+        .is_ok());
+    assert!(checker
+        .can_write_role(&admin_session, 1, RoleType::Guest, "target")
+        .is_ok());
 
     // Admin不能授予God
-    assert!(checker.can_write_role(&admin_session, 1, RoleType::God, "target").is_err());
+    assert!(checker
+        .can_write_role(&admin_session, 1, RoleType::God, "target")
+        .is_err());
 
     // Admin不能修改自己的角色
-    assert!(checker.can_write_role(&admin_session, 1, RoleType::User, "admin1").is_err());
+    assert!(checker
+        .can_write_role(&admin_session, 1, RoleType::User, "admin1")
+        .is_err());
 }
 
 #[test]
 fn test_permission_checker_change_password() {
     let pm = PermissionManager::new();
-    pm.grant_role("user1", 1, RoleType::User).expect("授予User角色应该成功");
+    pm.grant_role("user1", 1, RoleType::User)
+        .expect("授予User角色应该成功");
 
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
@@ -448,37 +559,44 @@ fn test_permission_checker_change_password() {
     let user_session = create_client_session_with_role("user1", 1, RoleType::User);
 
     // 用户可以修改自己的密码
-    assert!(checker.check_permission(
-        &user_session,
-        OperationType::ChangePassword,
-        None,
-        Some("user1"),
-        None
-    ).is_ok());
+    assert!(checker
+        .check_permission(
+            &user_session,
+            OperationType::ChangePassword,
+            None,
+            Some("user1"),
+            None
+        )
+        .is_ok());
 
     // 用户不能修改其他用户的密码
-    assert!(checker.check_permission(
-        &user_session,
-        OperationType::ChangePassword,
-        None,
-        Some("otheruser"),
-        None
-    ).is_err());
+    assert!(checker
+        .check_permission(
+            &user_session,
+            OperationType::ChangePassword,
+            None,
+            Some("otheruser"),
+            None
+        )
+        .is_err());
 
     // God可以修改任何用户的密码
-    assert!(checker.check_permission(
-        &god_session,
-        OperationType::ChangePassword,
-        None,
-        Some("anyuser"),
-        None
-    ).is_ok());
+    assert!(checker
+        .check_permission(
+            &god_session,
+            OperationType::ChangePassword,
+            None,
+            Some("anyuser"),
+            None
+        )
+        .is_ok());
 }
 
 #[test]
 fn test_permission_checker_show_operation() {
     let pm = PermissionManager::new();
-    pm.grant_role("guest1", 1, RoleType::Guest).expect("授予Guest角色应该成功");
+    pm.grant_role("guest1", 1, RoleType::Guest)
+        .expect("授予Guest角色应该成功");
 
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
@@ -486,13 +604,9 @@ fn test_permission_checker_show_operation() {
     let guest_session = create_client_session_with_role("guest1", 1, RoleType::Guest);
 
     // SHOW操作通常允许所有用户
-    assert!(checker.check_permission(
-        &guest_session,
-        OperationType::Show,
-        None,
-        None,
-        None
-    ).is_ok());
+    assert!(checker
+        .check_permission(&guest_session, OperationType::Show, None, None, None)
+        .is_ok());
 }
 
 // ==================== Authenticator 测试 ====================
@@ -500,10 +614,7 @@ fn test_permission_checker_show_operation() {
 #[test]
 fn test_password_authenticator_success() {
     let config = create_test_config();
-    let auth = PasswordAuthenticator::new(
-        |_username: &str, _password: &str| Ok(true),
-        config,
-    );
+    let auth = PasswordAuthenticator::new(|_username: &str, _password: &str| Ok(true), config);
 
     assert!(auth.authenticate("user", "pass").is_ok());
 }
@@ -511,10 +622,7 @@ fn test_password_authenticator_success() {
 #[test]
 fn test_password_authenticator_failure() {
     let config = create_test_config();
-    let auth = PasswordAuthenticator::new(
-        |_username: &str, _password: &str| Ok(false),
-        config,
-    );
+    let auth = PasswordAuthenticator::new(|_username: &str, _password: &str| Ok(false), config);
 
     assert!(auth.authenticate("user", "wrong_pass").is_err());
 }
@@ -542,10 +650,7 @@ fn test_password_authenticator_default() {
 #[test]
 fn test_password_authenticator_empty_credentials() {
     let config = create_test_config();
-    let auth = PasswordAuthenticator::new(
-        |_username: &str, _password: &str| Ok(true),
-        config,
-    );
+    let auth = PasswordAuthenticator::new(|_username: &str, _password: &str| Ok(true), config);
 
     // 空用户名
     assert!(auth.authenticate("", "pass").is_err());
@@ -582,25 +687,31 @@ fn test_password_authenticator_login_attempts_limit() {
         force_change_default_password: false,
     };
 
-    let auth = PasswordAuthenticator::new(
-        |_username: &str, _password: &str| Ok(false),
-        config,
-    );
+    let auth = PasswordAuthenticator::new(|_username: &str, _password: &str| Ok(false), config);
 
     // 第一次失败
     let result1 = auth.authenticate("user", "wrong");
     assert!(result1.is_err());
-    assert!(result1.unwrap_err().to_string().contains("还剩 2 次尝试机会"));
+    assert!(result1
+        .unwrap_err()
+        .to_string()
+        .contains("还剩 2 次尝试机会"));
 
     // 第二次失败
     let result2 = auth.authenticate("user", "wrong");
     assert!(result2.is_err());
-    assert!(result2.unwrap_err().to_string().contains("还剩 1 次尝试机会"));
+    assert!(result2
+        .unwrap_err()
+        .to_string()
+        .contains("还剩 1 次尝试机会"));
 
     // 第三次失败
     let result3 = auth.authenticate("user", "wrong");
     assert!(result3.is_err());
-    assert!(result3.unwrap_err().to_string().contains("已达到最大尝试次数"));
+    assert!(result3
+        .unwrap_err()
+        .to_string()
+        .contains("已达到最大尝试次数"));
 }
 
 // ==================== ClientSession 角色管理测试 ====================
@@ -683,35 +794,63 @@ fn test_complete_permission_workflow() {
     assert!(checker.can_write_space(&root_session).is_ok());
 
     // 2. God创建Admin用户并授予Admin角色
-    checker.permission_manager().grant_role("admin1", space_id, RoleType::Admin).expect("授予Admin角色应该成功");
+    checker
+        .permission_manager()
+        .grant_role("admin1", space_id, RoleType::Admin)
+        .expect("授予Admin角色应该成功");
 
     // 3. Admin创建Dba用户并授予Dba角色
     let admin_session = create_client_session_with_role("admin1", space_id, RoleType::Admin);
-    assert!(checker.can_write_role(&admin_session, space_id, RoleType::Dba).is_ok());
-    checker.permission_manager().grant_role("dba1", space_id, RoleType::Dba).expect("授予Dba角色应该成功");
+    assert!(checker
+        .can_write_role(&admin_session, space_id, RoleType::Dba)
+        .is_ok());
+    checker
+        .permission_manager()
+        .grant_role("dba1", space_id, RoleType::Dba)
+        .expect("授予Dba角色应该成功");
 
     // 4. Dba创建普通用户并授予User角色
     let dba_session = create_client_session_with_role("dba1", space_id, RoleType::Dba);
-    assert!(checker.can_write_role(&dba_session, space_id, RoleType::User).is_ok());
-    checker.permission_manager().grant_role("user1", space_id, RoleType::User).expect("授予User角色应该成功");
+    assert!(checker
+        .can_write_role(&dba_session, space_id, RoleType::User)
+        .is_ok());
+    checker
+        .permission_manager()
+        .grant_role("user1", space_id, RoleType::User)
+        .expect("授予User角色应该成功");
 
     // 5. 验证各用户权限
     // Admin可以管理Schema
-    assert!(checker.permission_manager().check_permission("admin1", space_id, Permission::Schema).is_ok());
+    assert!(checker
+        .permission_manager()
+        .check_permission("admin1", space_id, Permission::Schema)
+        .is_ok());
 
     // Dba可以管理Schema
-    assert!(checker.permission_manager().check_permission("dba1", space_id, Permission::Schema).is_ok());
+    assert!(checker
+        .permission_manager()
+        .check_permission("dba1", space_id, Permission::Schema)
+        .is_ok());
 
     // 普通用户不能管理Schema
-    assert!(checker.permission_manager().check_permission("user1", space_id, Permission::Schema).is_err());
+    assert!(checker
+        .permission_manager()
+        .check_permission("user1", space_id, Permission::Schema)
+        .is_err());
 
     // 6. 列出Space中的所有用户
     let users = checker.permission_manager().list_space_users(space_id);
     assert_eq!(users.len(), 3);
 
     // 7. 撤销角色
-    checker.permission_manager().revoke_role("user1", space_id).expect("撤销角色应该成功");
-    assert_eq!(checker.permission_manager().get_role("user1", space_id), None);
+    checker
+        .permission_manager()
+        .revoke_role("user1", space_id)
+        .expect("撤销角色应该成功");
+    assert_eq!(
+        checker.permission_manager().get_role("user1", space_id),
+        None
+    );
 }
 
 #[test]
@@ -719,8 +858,10 @@ fn test_cross_space_permission_isolation() {
     let pm = PermissionManager::new();
 
     // 用户在不同Space拥有不同角色
-    pm.grant_role("user1", 1, RoleType::Admin).expect("授予Admin角色应该成功");
-    pm.grant_role("user1", 2, RoleType::User).expect("授予User角色应该成功");
+    pm.grant_role("user1", 1, RoleType::Admin)
+        .expect("授予Admin角色应该成功");
+    pm.grant_role("user1", 2, RoleType::User)
+        .expect("授予User角色应该成功");
 
     // 在Space 1（Admin）拥有所有权限
     assert!(pm.check_permission("user1", 1, Permission::Schema).is_ok());

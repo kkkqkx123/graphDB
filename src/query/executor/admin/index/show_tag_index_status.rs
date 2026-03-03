@@ -2,8 +2,8 @@
 //!
 //! 负责显示标签索引的状态信息。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -28,7 +28,12 @@ impl<S: StorageClient> ShowTagIndexStatusExecutor<S> {
         }
     }
 
-    pub fn with_index_name(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String) -> Self {
+    pub fn with_index_name(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_name: String,
+        index_name: String,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ShowTagIndexStatusExecutor".to_string(), storage),
             space_name,
@@ -47,14 +52,21 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagIndexStatu
         match indexes {
             Ok(all_indexes) => {
                 let filtered_indexes: Vec<_> = if let Some(ref name) = self.index_name {
-                    all_indexes.iter().filter(|idx| &idx.name == name).cloned().collect()
+                    all_indexes
+                        .iter()
+                        .filter(|idx| &idx.name == name)
+                        .cloned()
+                        .collect()
                 } else {
                     all_indexes
                 };
 
                 if filtered_indexes.is_empty() {
                     if let Some(ref name) = self.index_name {
-                        return Ok(ExecutionResult::Error(format!("Index '{}' not found", name)));
+                        return Ok(ExecutionResult::Error(format!(
+                            "Index '{}' not found",
+                            name
+                        )));
                     }
                 }
 
@@ -83,7 +95,10 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagIndexStatu
                 };
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to show tag index status: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to show tag index status: {}",
+                e
+            ))),
         }
     }
 
@@ -129,12 +144,14 @@ impl<S: StorageClient> HasStorage<S> for ShowTagIndexStatusExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_show_tag_index_status_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = ShowTagIndexStatusExecutor::new(1, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -143,7 +160,9 @@ mod tests {
 
     #[test]
     fn test_show_tag_index_status_executor_with_name() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = ShowTagIndexStatusExecutor::with_index_name(
             2,
             storage,
@@ -157,7 +176,9 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = ShowTagIndexStatusExecutor::new(3, storage, "test_space".to_string());
 
         assert!(!executor.is_open());
@@ -169,7 +190,9 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let executor = ShowTagIndexStatusExecutor::new(4, storage, "test_space".to_string());
 
         assert_eq!(executor.id(), 4);

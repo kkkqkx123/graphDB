@@ -104,10 +104,7 @@ impl StorageMetricsCollector {
     pub fn snapshot(&self) -> StorageMetricsSnapshot {
         let mut operation_counts = HashMap::new();
         for entry in self.operation_counts.iter() {
-            operation_counts.insert(
-                entry.key().clone(),
-                entry.value().load(Ordering::Relaxed),
-            );
+            operation_counts.insert(entry.key().clone(), entry.value().load(Ordering::Relaxed));
         }
 
         StorageMetricsSnapshot {

@@ -2,8 +2,8 @@
 //!
 //! 负责撤销用户在指定空间的角色权限。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -34,16 +34,19 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RevokeRoleExecuto
         let mut storage_guard = storage.lock();
 
         let space_id = storage_guard.get_space_id(&self.space_name).map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Failed to get space ID: {}", e))
-            )
+            crate::core::error::DBError::Storage(crate::core::error::StorageError::DbError(
+                format!("Failed to get space ID: {}", e),
+            ))
         })?;
 
         let result = storage_guard.revoke_role(&self.username, space_id);
 
         match result {
             Ok(_) => Ok(ExecutionResult::Success),
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to revoke role: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to revoke role: {}",
+                e
+            ))),
         }
     }
 
@@ -89,12 +92,14 @@ impl<S: StorageClient> HasStorage<S> for RevokeRoleExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_revoke_role_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = RevokeRoleExecutor::new(
             1,
             storage,
@@ -108,7 +113,9 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = RevokeRoleExecutor::new(
             2,
             storage,
@@ -125,7 +132,9 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let executor = RevokeRoleExecutor::new(
             3,
             storage,
@@ -135,7 +144,10 @@ mod tests {
 
         assert_eq!(executor.id(), 3);
         assert_eq!(executor.name(), "RevokeRoleExecutor");
-        assert_eq!(executor.description(), "Revokes a role from a user in a space");
+        assert_eq!(
+            executor.description(),
+            "Revokes a role from a user in a space"
+        );
         assert!(executor.stats().num_rows == 0);
     }
 }

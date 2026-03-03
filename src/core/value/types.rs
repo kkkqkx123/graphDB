@@ -55,14 +55,14 @@ use std::hash::Hash;
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum NullType {
-    Null,          // 标准null值
-    NaN,           // 非数字结果
-    BadData,       // 坏数据（解析失败）
-    BadType,       // 类型不匹配
-    ErrOverflow,   // 数值溢出
-    UnknownProp,   // 未知属性
-    DivByZero,     // 除零错误
-    OutOfRange,    // 值超出范围
+    Null,        // 标准null值
+    NaN,         // 非数字结果
+    BadData,     // 坏数据（解析失败）
+    BadType,     // 类型不匹配
+    ErrOverflow, // 数值溢出
+    UnknownProp, // 未知属性
+    DivByZero,   // 除零错误
+    OutOfRange,  // 值超出范围
 }
 
 impl NullType {
@@ -74,7 +74,10 @@ impl NullType {
     }
 
     pub fn is_computational_error(&self) -> bool {
-        matches!(self, NullType::NaN | NullType::DivByZero | NullType::ErrOverflow)
+        matches!(
+            self,
+            NullType::NaN | NullType::DivByZero | NullType::ErrOverflow
+        )
     }
 
     pub fn to_string(&self) -> &str {
@@ -164,7 +167,10 @@ impl Value {
 
     /// 检查值是否为BadNull（BadData 或 BadType）
     pub fn is_bad_null(&self) -> bool {
-        matches!(self, Value::Null(NullType::BadData) | Value::Null(NullType::BadType))
+        matches!(
+            self,
+            Value::Null(NullType::BadData) | Value::Null(NullType::BadType)
+        )
     }
 
     /// 检查值是否为空
@@ -232,9 +238,21 @@ impl Value {
             Value::Date(d) => base_size + d.estimated_size(),
             Value::Time(t) => base_size + t.estimated_size(),
             Value::DateTime(dt) => base_size + dt.estimated_size(),
-            Value::Vertex(v) => base_size + std::mem::size_of::<Box<crate::core::vertex_edge_path::Vertex>>() + v.estimated_size(),
-            Value::Edge(e) => base_size + std::mem::size_of::<crate::core::vertex_edge_path::Edge>() + e.estimated_size(),
-            Value::Path(p) => base_size + std::mem::size_of::<crate::core::vertex_edge_path::Path>() + p.estimated_size(),
+            Value::Vertex(v) => {
+                base_size
+                    + std::mem::size_of::<Box<crate::core::vertex_edge_path::Vertex>>()
+                    + v.estimated_size()
+            }
+            Value::Edge(e) => {
+                base_size
+                    + std::mem::size_of::<crate::core::vertex_edge_path::Edge>()
+                    + e.estimated_size()
+            }
+            Value::Path(p) => {
+                base_size
+                    + std::mem::size_of::<crate::core::vertex_edge_path::Path>()
+                    + p.estimated_size()
+            }
             Value::List(list) => {
                 let mut size = base_size + std::mem::size_of::<super::dataset::List>();
                 size += list.values.capacity() * std::mem::size_of::<Value>();
@@ -244,8 +262,10 @@ impl Value {
                 size
             }
             Value::Map(map) => {
-                let mut size = base_size + std::mem::size_of::<std::collections::HashMap<String, Value>>();
-                size += map.capacity() * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+                let mut size =
+                    base_size + std::mem::size_of::<std::collections::HashMap<String, Value>>();
+                size +=
+                    map.capacity() * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
                 for (k, v) in map {
                     size += k.capacity();
                     size += v.estimated_size();
@@ -320,7 +340,9 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
-            Value::Geography(g) => write!(f, "Geography(lat: {}, lon: {})", g.latitude, g.longitude),
+            Value::Geography(g) => {
+                write!(f, "Geography(lat: {}, lon: {})", g.latitude, g.longitude)
+            }
             Value::Duration(d) => write!(f, "Duration({:?})", d),
             Value::DataSet(ds) => write!(f, "DataSet({:?})", ds),
         }

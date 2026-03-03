@@ -12,10 +12,10 @@
 //! - 使用 AggFunctionManager 管理聚合函数
 //! - 统一处理 NULL 和空值
 
+use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::core::types::operators::AggregateFunction;
 use crate::core::value::{NullType, Value};
@@ -24,14 +24,12 @@ use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
+use crate::query::executor::base::{DBResult, ExecutionResult, Executor, ExecutorStats};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::executor::result_processing::agg_data::AggData;
 use crate::query::executor::result_processing::agg_function_manager::AggFunctionManager;
-use crate::query::executor::base::{
-    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
-};
-use crate::query::executor::base::{DBResult, ExecutionResult, Executor, ExecutorStats};
 use crate::storage::StorageClient;
 
 /// 聚合函数规范
@@ -145,9 +143,9 @@ impl GroupAggregateState {
 
     /// 获取或创建分组的聚合数据
     pub fn get_or_create_agg_data(&mut self, group_key: Vec<Value>) -> &mut Vec<AggData> {
-        self.groups.entry(group_key).or_insert_with(|| {
-            (0..self.agg_func_count).map(|_| AggData::new()).collect()
-        })
+        self.groups
+            .entry(group_key)
+            .or_insert_with(|| (0..self.agg_func_count).map(|_| AggData::new()).collect())
     }
 
     /// 合并另一个 GroupAggregateState
@@ -281,7 +279,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
                     crate::core::error::QueryError::ExecutionError(
                         "Aggregate executor expects DataSet input".to_string(),
                     ),
-                ))
+                )),
             }
         } else {
             Err(crate::core::error::DBError::Query(
@@ -299,9 +297,13 @@ impl<S: StorageClient> AggregateExecutor<S> {
         let total_size = dataset.rows.len();
 
         // 处理 COUNT(*) 的特殊情况（无分组键且只有一个 COUNT(*)）
-        if self.group_keys.is_empty() 
-            && self.aggregate_functions.len() == 1 
-            && matches!(self.aggregate_functions[0].function, AggregateFunction::Count(None)) {
+        if self.group_keys.is_empty()
+            && self.aggregate_functions.len() == 1
+            && matches!(
+                self.aggregate_functions[0].function,
+                AggregateFunction::Count(None)
+            )
+        {
             return self.handle_count_star(dataset);
         }
 
@@ -319,7 +321,9 @@ impl<S: StorageClient> AggregateExecutor<S> {
     ) -> DBResult<crate::core::value::DataSet> {
         let mut result_dataset = crate::core::value::DataSet::new();
         result_dataset.col_names.push("count".to_string());
-        result_dataset.rows.push(vec![Value::Int(dataset.rows.len() as i64)]);
+        result_dataset
+            .rows
+            .push(vec![Value::Int(dataset.rows.len() as i64)]);
         Ok(result_dataset)
     }
 
@@ -341,7 +345,8 @@ impl<S: StorageClient> AggregateExecutor<S> {
             }
 
             // 计算分组键
-            let group_key: Vec<Value> = self.group_keys
+            let group_key: Vec<Value> = self
+                .group_keys
                 .iter()
                 .map(|expr| {
                     ExpressionEvaluator::evaluate(expr, &mut context)
@@ -386,17 +391,17 @@ impl<S: StorageClient> AggregateExecutor<S> {
                 // COUNT(*) - 计数 1
                 Value::Int(1)
             }
-            AggregateFunction::Count(Some(field)) | 
-            AggregateFunction::Sum(field) |
-            AggregateFunction::Avg(field) |
-            AggregateFunction::Max(field) |
-            AggregateFunction::Min(field) |
-            AggregateFunction::Collect(field) |
-            AggregateFunction::CollectSet(field) |
-            AggregateFunction::Distinct(field) |
-            AggregateFunction::Std(field) |
-            AggregateFunction::BitAnd(field) |
-            AggregateFunction::BitOr(field) => {
+            AggregateFunction::Count(Some(field))
+            | AggregateFunction::Sum(field)
+            | AggregateFunction::Avg(field)
+            | AggregateFunction::Max(field)
+            | AggregateFunction::Min(field)
+            | AggregateFunction::Collect(field)
+            | AggregateFunction::CollectSet(field)
+            | AggregateFunction::Distinct(field)
+            | AggregateFunction::Std(field)
+            | AggregateFunction::BitAnd(field)
+            | AggregateFunction::BitOr(field) => {
                 // 从上下文中获取字段值
                 if let Some(val) = context.get_variable(field) {
                     val.clone()
@@ -444,7 +449,9 @@ impl<S: StorageClient> AggregateExecutor<S> {
         &mut self,
         dataset: crate::core::value::DataSet,
     ) -> DBResult<crate::core::value::DataSet> {
-        let batch_size = self.parallel_config.calculate_batch_size(dataset.rows.len());
+        let batch_size = self
+            .parallel_config
+            .calculate_batch_size(dataset.rows.len());
         let aggregate_functions = self.aggregate_functions.clone();
         let group_keys = self.group_keys.clone();
         let col_names = dataset.col_names.clone();
@@ -486,22 +493,24 @@ impl<S: StorageClient> AggregateExecutor<S> {
                         }
 
                         let agg_data = &mut agg_data_list[i];
-                        
+
                         // 获取值
                         let value = match &agg_func.function {
                             AggregateFunction::Count(None) => Value::Int(1),
-                            AggregateFunction::Count(Some(field)) |
-                            AggregateFunction::Sum(field) |
-                            AggregateFunction::Avg(field) |
-                            AggregateFunction::Max(field) |
-                            AggregateFunction::Min(field) |
-                            AggregateFunction::Collect(field) |
-                            AggregateFunction::CollectSet(field) |
-                            AggregateFunction::Distinct(field) |
-                            AggregateFunction::Std(field) |
-                            AggregateFunction::BitAnd(field) |
-                            AggregateFunction::BitOr(field) => {
-                                if let Some(col_index) = col_names.iter().position(|name| name == field) {
+                            AggregateFunction::Count(Some(field))
+                            | AggregateFunction::Sum(field)
+                            | AggregateFunction::Avg(field)
+                            | AggregateFunction::Max(field)
+                            | AggregateFunction::Min(field)
+                            | AggregateFunction::Collect(field)
+                            | AggregateFunction::CollectSet(field)
+                            | AggregateFunction::Distinct(field)
+                            | AggregateFunction::Std(field)
+                            | AggregateFunction::BitAnd(field)
+                            | AggregateFunction::BitOr(field) => {
+                                if let Some(col_index) =
+                                    col_names.iter().position(|name| name == field)
+                                {
                                     if col_index < row.len() {
                                         row[col_index].clone()
                                     } else {
@@ -664,9 +673,11 @@ impl<S: StorageClient> AggregateExecutor<S> {
             for (i, agg_func) in self.aggregate_functions.iter().enumerate() {
                 if i < agg_data_list.len() {
                     let agg_data = &agg_data_list[i];
-                    
+
                     // 处理 COUNT DISTINCT 特殊情况
-                    let agg_value = if agg_func.distinct && matches!(agg_func.function, AggregateFunction::Count(_)) {
+                    let agg_value = if agg_func.distinct
+                        && matches!(agg_func.function, AggregateFunction::Count(_))
+                    {
                         // 使用去重集合的大小作为 COUNT DISTINCT 结果
                         if let Some(uniques) = agg_data.uniques() {
                             Value::Int(uniques.len() as i64)
@@ -676,7 +687,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
                     } else {
                         agg_data.result().clone()
                     };
-                    
+
                     result_row.push(agg_value);
                 } else {
                     result_row.push(Value::Null(NullType::NaN));
@@ -912,7 +923,7 @@ impl<S: StorageClient> HavingExecutor<S> {
                     crate::core::error::QueryError::ExecutionError(
                         "Having executor expects DataSet input".to_string(),
                     ),
-                ))
+                )),
             }
         } else {
             Err(crate::core::error::DBError::Query(
@@ -923,10 +934,7 @@ impl<S: StorageClient> HavingExecutor<S> {
         }
     }
 
-    fn apply_having_condition(
-        &self,
-        dataset: &mut crate::core::value::DataSet,
-    ) -> DBResult<()> {
+    fn apply_having_condition(&self, dataset: &mut crate::core::value::DataSet) -> DBResult<()> {
         let mut filtered_rows = Vec::new();
 
         for row in &dataset.rows {

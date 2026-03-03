@@ -7,15 +7,14 @@
 //! 2. DROP SPACE 是全局语句，其他 DROP 需要选择空间
 //! 3. 验证目标对象是否存在（根据 if_exists 标志）
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{DropStmt, DropTarget};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
+use std::sync::Arc;
 
 /// 验证后的 Drop 信息
 #[derive(Debug, Clone)]
@@ -57,9 +56,10 @@ impl DropValidator {
             space_name: None,
             if_exists: false,
             inputs: Vec::new(),
-            outputs: vec![
-                ColumnDef { name: "Result".to_string(), type_: ValueType::String },
-            ],
+            outputs: vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
         }
@@ -104,7 +104,10 @@ impl DropValidator {
                 self.target_type = DropTargetType::Edge;
                 self.target_name = edges[0].clone();
             }
-            DropTarget::TagIndex { space_name, index_name } => {
+            DropTarget::TagIndex {
+                space_name,
+                index_name,
+            } => {
                 self.target_type = DropTargetType::TagIndex;
                 self.space_name = Some(space_name.clone());
                 self.target_name = index_name.clone();
@@ -122,7 +125,10 @@ impl DropValidator {
                     ));
                 }
             }
-            DropTarget::EdgeIndex { space_name, index_name } => {
+            DropTarget::EdgeIndex {
+                space_name,
+                index_name,
+            } => {
                 self.target_type = DropTargetType::EdgeIndex;
                 self.space_name = Some(space_name.clone());
                 self.target_name = index_name.clone();
@@ -194,12 +200,13 @@ impl StatementValidator for DropValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(drop_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
-        info.semantic_info.dropped_objects = vec![format!("{:?}: {}", self.target_type, self.target_name)];
+        info.semantic_info.dropped_objects =
+            vec![format!("{:?}: {}", self.target_type, self.target_name)];
 
         Ok(ValidationResult::success_with_info(info))
     }

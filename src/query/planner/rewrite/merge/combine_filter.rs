@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use crate::core::Expression;
 use crate::core::types::{ContextualExpression, ExpressionContext};
+use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
@@ -195,7 +195,8 @@ mod tests {
         let top_expr_meta = crate::core::types::expression::ExpressionMeta::new(top_condition);
         let top_id = expr_ctx.register_expression(top_expr_meta);
         let top_ctx_expr = ContextualExpression::new(top_id, expr_ctx);
-        let top_filter = FilterNode::new(child_node.clone(), top_ctx_expr).expect("创建FilterNode失败");
+        let top_filter =
+            FilterNode::new(child_node.clone(), top_ctx_expr).expect("创建FilterNode失败");
         let top_node = PlanNodeEnum::Filter(top_filter);
 
         // 应用规则

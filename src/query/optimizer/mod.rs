@@ -23,88 +23,43 @@
 //! let decision = optimizer.compute_decision(&stmt, sentence_kind);
 //! ```
 
+pub mod analysis;
+pub mod cost;
+pub mod decision;
 pub mod engine;
 pub mod stats;
-pub mod cost;
-pub mod analysis;
 pub mod strategy;
-pub mod decision;
 
 // 重新导出主要类型
 pub use engine::OptimizerEngine;
 
 pub use stats::{
-    StatisticsManager,
-    StatisticsCollector,
-    StatisticsCollection,
-    TagStatistics,
-    EdgeTypeStatistics,
-    PropertyStatistics,
+    EdgeTypeStatistics, PropertyStatistics, StatisticsCollection, StatisticsCollector,
+    StatisticsManager, TagStatistics,
 };
 
-pub use cost::{
-    CostCalculator,
-    CostModelConfig,
-    CostAssigner,
-    SelectivityEstimator,
-};
 pub use crate::core::error::optimize::CostError;
+pub use cost::{CostAssigner, CostCalculator, CostModelConfig, SelectivityEstimator};
 
 // 重新导出分析模块类型
 pub use analysis::{
+    AnalysisOptions, ExpressionAnalysis, ExpressionAnalyzer, ReferenceCountAnalysis,
     ReferenceCountAnalyzer,
-    ReferenceCountAnalysis,
-    ExpressionAnalyzer,
-    ExpressionAnalysis,
-    AnalysisOptions,
 };
 
 pub use strategy::{
-    TraversalStartSelector,
-    CandidateStart,
-    TraversalSelectionReason,
-    IndexSelector,
-    IndexSelection,
-    PropertyPredicate,
-    PredicateOperator,
-    AggregateStrategySelector,
-    AggregateStrategy,
-    AggregateStrategyDecision,
-    AggregateContext,
-    AggregateSelectionReason,
-    JoinOrderOptimizer,
-    JoinOrderResult,
-    TableInfo,
-    JoinCondition,
-    OptimizationMethod,
-    TraversalDirectionOptimizer,
-    TraversalDirection,
-    TraversalDirectionDecision,
-    DirectionContext,
-    DirectionSelectionReason,
-    DegreeInfo,
-    SortEliminationOptimizer,
-    SortEliminationDecision,
-    SortContext,
-    SortKeepReason,
-    TopNConversionReason,
+    AggregateContext, AggregateSelectionReason, AggregateStrategy, AggregateStrategyDecision,
+    AggregateStrategySelector, CandidateStart, DegreeInfo, DirectionContext,
+    DirectionSelectionReason, IndexSelection, IndexSelector, JoinCondition, JoinOrderOptimizer,
+    JoinOrderResult, OptimizationMethod, PredicateOperator, PropertyPredicate, SortContext,
+    SortEliminationDecision, SortEliminationOptimizer, SortKeepReason, TableInfo,
+    TopNConversionReason, TraversalDirection, TraversalDirectionDecision,
+    TraversalDirectionOptimizer, TraversalSelectionReason, TraversalStartSelector,
 };
 
 pub use decision::{
-    AccessPath,
-    EntityType,
-    EntityIndexChoice,
-    IndexChoice,
-    IndexSelectionDecision,
-    JoinAlgorithm,
-    JoinOrderDecision,
-    OptimizationDecision,
-    RewriteRuleId,
+    AccessPath, CachedDecision, DecisionCache, DecisionCacheConfig, DecisionCacheError,
+    DecisionCacheKey, DecisionCacheStats, EntityIndexChoice, EntityType, IndexChoice,
+    IndexSelectionDecision, JoinAlgorithm, JoinOrderDecision, OptimizationDecision, RewriteRuleId,
     TraversalStartDecision,
-    CachedDecision,
-    DecisionCache,
-    DecisionCacheConfig,
-    DecisionCacheError,
-    DecisionCacheKey,
-    DecisionCacheStats,
 };

@@ -21,13 +21,13 @@
 //! - Project 节点的子节点是数据访问节点（ScanVertices、ScanEdges、GetVertices、GetEdges、GetNeighbors）
 //! - Project 节点有列定义
 
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
-use crate::core::types::ContextualExpression;
+use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 投影下推规则
 ///
@@ -193,9 +193,7 @@ impl PushDownRule for ProjectionPushDownRule {
 mod tests {
     use super::*;
     use crate::core::{Expression, YieldColumn};
-    use crate::query::planner::plan::core::nodes::{
-        ProjectNode, ScanVerticesNode, StartNode,
-    };
+    use crate::query::planner::plan::core::nodes::{ProjectNode, ScanVerticesNode, StartNode};
 
     #[test]
     fn test_rule_name() {
@@ -221,10 +219,10 @@ mod tests {
 
     #[test]
     fn test_apply_with_pushable_target() {
-        use std::sync::Arc;
-        use crate::core::types::expression::ExpressionMeta;
         use crate::core::types::expression::ExpressionContext;
-        
+        use crate::core::types::expression::ExpressionMeta;
+        use std::sync::Arc;
+
         let rule = ProjectionPushDownRule::new();
         let mut ctx = RewriteContext::new();
 
@@ -240,12 +238,12 @@ mod tests {
         let name_meta = ExpressionMeta::new(name_expr);
         let name_id = expr_ctx.register_expression(name_meta);
         let name_ctx_expr = ContextualExpression::new(name_id, expr_ctx.clone());
-        
+
         let age_expr = Expression::Variable("age".to_string());
         let age_meta = ExpressionMeta::new(age_expr);
         let age_id = expr_ctx.register_expression(age_meta);
         let age_ctx_expr = ContextualExpression::new(age_id, expr_ctx);
-        
+
         let columns = vec![
             YieldColumn {
                 expression: name_ctx_expr,
@@ -280,10 +278,10 @@ mod tests {
 
     #[test]
     fn test_apply_with_non_pushable_target() {
-        use std::sync::Arc;
-        use crate::core::types::expression::ExpressionMeta;
         use crate::core::types::expression::ExpressionContext;
-        
+        use crate::core::types::expression::ExpressionMeta;
+        use std::sync::Arc;
+
         let rule = ProjectionPushDownRule::new();
         let mut ctx = RewriteContext::new();
 
@@ -293,13 +291,13 @@ mod tests {
 
         // 创建表达式上下文
         let expr_ctx = Arc::new(ExpressionContext::new());
-        
+
         // 创建 Project 节点
         let test_expr = Expression::Variable("test".to_string());
         let test_meta = ExpressionMeta::new(test_expr);
         let test_id = expr_ctx.register_expression(test_meta);
         let test_ctx_expr = ContextualExpression::new(test_id, expr_ctx);
-        
+
         let columns = vec![YieldColumn {
             expression: test_ctx_expr,
             alias: "test".to_string(),
@@ -317,22 +315,22 @@ mod tests {
 
     #[test]
     fn test_push_down_rule_trait() {
-        use std::sync::Arc;
-        use crate::core::types::expression::ExpressionMeta;
         use crate::core::types::expression::ExpressionContext;
-        
+        use crate::core::types::expression::ExpressionMeta;
+        use std::sync::Arc;
+
         let rule = ProjectionPushDownRule::new();
-        
+
         // 创建表达式上下文
         let expr_ctx = Arc::new(ExpressionContext::new());
 
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
-        
+
         let test_expr = Expression::Variable("test".to_string());
         let test_meta = ExpressionMeta::new(test_expr);
         let test_id = expr_ctx.register_expression(test_meta);
         let test_ctx_expr = ContextualExpression::new(test_id, expr_ctx.clone());
-        
+
         let columns = vec![YieldColumn {
             expression: test_ctx_expr,
             alias: "test".to_string(),

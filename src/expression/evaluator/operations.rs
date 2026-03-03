@@ -1,10 +1,10 @@
 use crate::core::error::ExpressionError;
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
+use crate::core::value::dataset::List;
 /// 算术和逻辑运算模块
 ///
 /// 本模块负责处理表达式求值中的算术运算、比较运算、逻辑运算等基础运算操作。
 use crate::core::value::types::Value;
-use crate::core::value::dataset::List;
 use crate::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 
 /// 二元运算求值器
@@ -49,8 +49,12 @@ impl BinaryOperationEvaluator {
             BinaryOperator::EndsWith => Self::eval_ends_with(left, right),
 
             // 访问运算 - 委托给CollectionOperationEvaluator
-            BinaryOperator::Subscript => CollectionOperationEvaluator::eval_subscript_access(left, right),
-            BinaryOperator::Attribute => CollectionOperationEvaluator::eval_attribute_access(left, right),
+            BinaryOperator::Subscript => {
+                CollectionOperationEvaluator::eval_subscript_access(left, right)
+            }
+            BinaryOperator::Attribute => {
+                CollectionOperationEvaluator::eval_attribute_access(left, right)
+            }
 
             // 集合运算
             BinaryOperator::Union => Self::eval_union(left, right),
@@ -140,8 +144,9 @@ impl BinaryOperationEvaluator {
             return Ok(Value::Null(crate::core::value::NullType::BadData));
         }
 
-        if (!left.is_null() && !left.is_empty() && !matches!(left, Value::String(_))) ||
-           (!right.is_null() && !right.is_empty() && !matches!(right, Value::String(_))) {
+        if (!left.is_null() && !left.is_empty() && !matches!(left, Value::String(_)))
+            || (!right.is_null() && !right.is_empty() && !matches!(right, Value::String(_)))
+        {
             return Ok(Value::Null(crate::core::value::NullType::BadData));
         }
 

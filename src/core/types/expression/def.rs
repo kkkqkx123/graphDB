@@ -41,10 +41,7 @@ pub enum Expression {
     },
 
     /// 函数调用
-    Function {
-        name: String,
-        args: Vec<Expression>,
-    },
+    Function { name: String, args: Vec<Expression> },
 
     /// 聚合函数
     Aggregate {
@@ -111,26 +108,17 @@ pub enum Expression {
     /// 标签属性访问
     ///
     /// 用于访问顶点标签上的属性，如 `tagName.propertyName`
-    TagProperty {
-        tag_name: String,
-        property: String,
-    },
+    TagProperty { tag_name: String, property: String },
 
     /// 边属性访问
     ///
     /// 用于访问边类型上的属性
-    EdgeProperty {
-        edge_name: String,
-        property: String,
-    },
+    EdgeProperty { edge_name: String, property: String },
 
     /// 谓词表达式
     ///
     /// 用于实现 FILTER、ALL、ANY、EXISTS 等谓词函数
-    Predicate {
-        func: String,
-        args: Vec<Expression>,
-    },
+    Predicate { func: String, args: Vec<Expression> },
 
     /// Reduce 表达式
     ///

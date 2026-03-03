@@ -7,19 +7,17 @@
 //! 2. 所有权限类语句都是全局语句，不需要预先选择空间
 //! 3. 验证用户存在性和角色合法性
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{
-    CreateUserStmt, AlterUserStmt, DropUserStmt, ChangePasswordStmt,
-    GrantStmt, RevokeStmt, DescribeUserStmt, ShowUsersStmt, ShowRolesStmt,
-    RoleType,
-};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
+    AlterUserStmt, ChangePasswordStmt, CreateUserStmt, DescribeUserStmt, DropUserStmt, GrantStmt,
+    RevokeStmt, RoleType, ShowRolesStmt, ShowUsersStmt,
 };
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
+use std::sync::Arc;
 
 /// 验证后的用户信息
 #[derive(Debug, Clone)]
@@ -49,9 +47,10 @@ impl CreateUserValidator {
             role: None,
             if_not_exists: false,
             inputs: Vec::new(),
-            outputs: vec![
-                ColumnDef { name: "Result".to_string(), type_: ValueType::String },
-            ],
+            outputs: vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
         }
@@ -124,9 +123,9 @@ impl StatementValidator for CreateUserValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(create_user_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.affected_users = vec![self.username.clone()];
@@ -182,9 +181,10 @@ impl DropUserValidator {
             username: String::new(),
             if_exists: false,
             inputs: Vec::new(),
-            outputs: vec![
-                ColumnDef { name: "Result".to_string(), type_: ValueType::String },
-            ],
+            outputs: vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
         }
@@ -232,9 +232,9 @@ impl StatementValidator for DropUserValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(drop_user_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.affected_users = vec![self.username.clone()];
@@ -294,9 +294,10 @@ impl AlterUserValidator {
             new_role: None,
             is_locked: None,
             inputs: Vec::new(),
-            outputs: vec![
-                ColumnDef { name: "Result".to_string(), type_: ValueType::String },
-            ],
+            outputs: vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
         }
@@ -359,9 +360,9 @@ impl StatementValidator for AlterUserValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(alter_user_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.affected_users = vec![self.username.clone()];
@@ -419,9 +420,10 @@ impl ChangePasswordValidator {
             old_password: String::new(),
             new_password: String::new(),
             inputs: Vec::new(),
-            outputs: vec![
-                ColumnDef { name: "Result".to_string(), type_: ValueType::String },
-            ],
+            outputs: vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
         }
@@ -471,7 +473,9 @@ impl StatementValidator for ChangePasswordValidator {
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let change_password_stmt = match stmt {
-            crate::query::parser::ast::Stmt::ChangePassword(change_password_stmt) => change_password_stmt,
+            crate::query::parser::ast::Stmt::ChangePassword(change_password_stmt) => {
+                change_password_stmt
+            }
             _ => {
                 return Err(ValidationError::new(
                     "Expected CHANGE PASSWORD statement".to_string(),
@@ -479,9 +483,9 @@ impl StatementValidator for ChangePasswordValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(change_password_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         if let Some(ref username) = self.username {
@@ -549,9 +553,10 @@ impl GrantValidator {
             space_name: String::new(),
             username: String::new(),
             inputs: Vec::new(),
-            outputs: vec![
-                ColumnDef { name: "Result".to_string(), type_: ValueType::String },
-            ],
+            outputs: vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
         }
@@ -609,9 +614,9 @@ impl StatementValidator for GrantValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(grant_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.affected_users = vec![self.username.clone()];
@@ -669,9 +674,10 @@ impl RevokeValidator {
             space_name: String::new(),
             username: String::new(),
             inputs: Vec::new(),
-            outputs: vec![
-                ColumnDef { name: "Result".to_string(), type_: ValueType::String },
-            ],
+            outputs: vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
         }
@@ -729,9 +735,9 @@ impl StatementValidator for RevokeValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(revoke_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.affected_users = vec![self.username.clone()];
@@ -786,8 +792,14 @@ impl DescribeUserValidator {
             username: String::new(),
             inputs: Vec::new(),
             outputs: vec![
-                ColumnDef { name: "User".to_string(), type_: ValueType::String },
-                ColumnDef { name: "Roles".to_string(), type_: ValueType::String },
+                ColumnDef {
+                    name: "User".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "Roles".to_string(),
+                    type_: ValueType::String,
+                },
             ],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
@@ -828,9 +840,9 @@ impl StatementValidator for DescribeUserValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(describe_user_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.affected_users = vec![self.username.clone()];
@@ -882,9 +894,10 @@ impl ShowUsersValidator {
     pub fn new() -> Self {
         Self {
             inputs: Vec::new(),
-            outputs: vec![
-                ColumnDef { name: "Account".to_string(), type_: ValueType::String },
-            ],
+            outputs: vec![ColumnDef {
+                name: "Account".to_string(),
+                type_: ValueType::String,
+            }],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
         }
@@ -914,9 +927,9 @@ impl StatementValidator for ShowUsersValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(show_users_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.query_type = Some("ShowUsers".to_string());
@@ -971,8 +984,14 @@ impl ShowRolesValidator {
             space_name: None,
             inputs: Vec::new(),
             outputs: vec![
-                ColumnDef { name: "Account".to_string(), type_: ValueType::String },
-                ColumnDef { name: "Role".to_string(), type_: ValueType::String },
+                ColumnDef {
+                    name: "Account".to_string(),
+                    type_: ValueType::String,
+                },
+                ColumnDef {
+                    name: "Role".to_string(),
+                    type_: ValueType::String,
+                },
             ],
             expr_props: ExpressionProps::default(),
             user_defined_vars: Vec::new(),
@@ -986,7 +1005,11 @@ impl ShowRolesValidator {
 }
 
 impl StatementValidator for ShowRolesValidator {
-    fn validate(&mut self, stmt: crate::query::parser::ast::Stmt, _qctx: Arc<QueryContext>) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         let show_roles_stmt = match stmt {
             crate::query::parser::ast::Stmt::ShowRoles(s) => s,
             _ => {
@@ -996,9 +1019,9 @@ impl StatementValidator for ShowRolesValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(show_roles_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         info.semantic_info.query_type = Some("ShowRoles".to_string());

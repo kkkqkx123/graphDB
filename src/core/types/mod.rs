@@ -5,9 +5,9 @@ pub mod metadata;
 pub mod metadata_version;
 pub mod operators;
 pub mod property;
-pub mod span;
-pub mod space;
 pub mod query;
+pub mod space;
+pub mod span;
 pub mod tag;
 
 use bincode::{Decode, Encode};
@@ -47,31 +47,35 @@ pub enum DataType {
 // 从原子模块导出基础Schema类型
 pub use self::edge::EdgeTypeInfo;
 pub use self::property::PropertyDef;
-pub use self::space::{SpaceInfo, generate_space_id, reset_space_id_counter};
+pub use self::space::{generate_space_id, reset_space_id_counter, SpaceInfo};
 pub use self::tag::TagInfo;
 
 // 从metadata_version导出版本类型
-pub use self::metadata_version::{MetadataVersion, SchemaVersion, SchemaHistory};
+pub use self::metadata_version::{MetadataVersion, SchemaHistory, SchemaVersion};
 
 // 从metadata导出其他类型（后续逐步迁移）
 pub use self::metadata::{
-    SchemaChange, SchemaChangeType,
-    ClusterInfo, CharsetInfo,
-    InsertVertexInfo, InsertEdgeInfo, UpdateTarget, UpdateOp, UpdateInfo,
-    PasswordInfo, UserInfo, UserAlterInfo,
-    SchemaExportConfig, SchemaImportResult, ExportFormat,
-    SchemaFieldChange, FieldChangeType, SchemaAlterOperation, AlterTargetType,
+    AlterTargetType, CharsetInfo, ClusterInfo, ExportFormat, FieldChangeType, InsertEdgeInfo,
+    InsertVertexInfo, PasswordInfo, SchemaAlterOperation, SchemaChange, SchemaChangeType,
+    SchemaExportConfig, SchemaFieldChange, SchemaImportResult, UpdateInfo, UpdateOp, UpdateTarget,
+    UserAlterInfo, UserInfo,
 };
 
-pub use self::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression, SerializableExpression, OptimizationFlags};
-pub use self::graph_schema::{EdgeDirection, JoinType, OrderDirection, GraphTypeInference, VertexType, PathInfo, PropertyType, EdgeTypeRef};
+pub use self::expression::{
+    ContextualExpression, Expression, ExpressionContext, ExpressionMeta, OptimizationFlags,
+    SerializableExpression,
+};
+pub use self::graph_schema::{
+    EdgeDirection, EdgeTypeRef, GraphTypeInference, JoinType, OrderDirection, PathInfo,
+    PropertyType, VertexType,
+};
 pub use self::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 pub use self::span::{Position, Span, ToSpan};
 
 pub use EdgeTypeInfo as EdgeTypeSchema;
 
 /// YIELD列定义
-/// 
+///
 /// 表示YIELD子句中的一个输出列
 #[derive(Debug, Clone)]
 pub struct YieldColumn {
@@ -81,7 +85,10 @@ pub struct YieldColumn {
 }
 
 impl YieldColumn {
-    pub fn new(expression: crate::core::types::expression::contextual::ContextualExpression, alias: String) -> Self {
+    pub fn new(
+        expression: crate::core::types::expression::contextual::ContextualExpression,
+        alias: String,
+    ) -> Self {
         Self {
             expression,
             alias,

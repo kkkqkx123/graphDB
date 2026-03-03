@@ -2,20 +2,18 @@
 //!
 //! 实现对查询结果的随机采样功能，支持多种采样方法
 
+use parking_lot::Mutex;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::HashSet;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
 use crate::query::executor::base::InputExecutor;
-use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::base::{
-    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
-};
+use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{ExecutionResult, Executor};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
 
 /// 采样方法

@@ -8,9 +8,7 @@ pub trait ColumnAccess {
     fn get_column_by_name(&self, name: &str) -> Option<&Value>;
 }
 
-pub trait ResultIterator<'a, T: 'a>:
-    Send + Sync + std::fmt::Debug
-{
+pub trait ResultIterator<'a, T: 'a>: Send + Sync + std::fmt::Debug {
     type Row: std::fmt::Debug + Send + Sync;
 
     fn next(&mut self) -> DBResult<Option<Self::Row>>;
@@ -68,11 +66,7 @@ pub trait ResultIterator<'a, T: 'a>:
         Ok(acc)
     }
 
-    fn try_fold<B, F>(
-        &mut self,
-        init: B,
-        mut f: F,
-    ) -> DBResult<B>
+    fn try_fold<B, F>(&mut self, init: B, mut f: F) -> DBResult<B>
     where
         Self: Sized,
         F: FnMut(B, Self::Row) -> DBResult<B>,
@@ -196,10 +190,7 @@ impl<T> Default for EmptyIterator<T> {
 pub struct IteratorFactories;
 
 impl IteratorFactories {
-    pub fn zip<RA, RB, A, B>(
-        a: A,
-        b: B,
-    ) -> super::combinators::ZipIterator<RA, RB, A, B>
+    pub fn zip<RA, RB, A, B>(a: A, b: B) -> super::combinators::ZipIterator<RA, RB, A, B>
     where
         RA: Send + Sync + std::fmt::Debug + 'static,
         RB: Send + Sync + std::fmt::Debug + 'static,
@@ -209,10 +200,7 @@ impl IteratorFactories {
         super::combinators::ZipIterator::new(a, b)
     }
 
-    pub fn chain<R, A, B>(
-        first: A,
-        second: B,
-    ) -> super::combinators::ChainIterator<R, A, B>
+    pub fn chain<R, A, B>(first: A, second: B) -> super::combinators::ChainIterator<R, A, B>
     where
         R: Send + Sync + std::fmt::Debug + 'static,
         A: ResultIterator<'static, R, Row = R>,
@@ -221,10 +209,7 @@ impl IteratorFactories {
         super::combinators::ChainIterator::new(first, second)
     }
 
-    pub fn filter<R, P, I>(
-        iter: I,
-        predicate: P,
-    ) -> super::combinators::FilterIterator<R, P, I>
+    pub fn filter<R, P, I>(iter: I, predicate: P) -> super::combinators::FilterIterator<R, P, I>
     where
         R: Send + Sync + std::fmt::Debug + 'static,
         P: Fn(&R) -> bool + Send + Sync + std::fmt::Debug + 'static,
@@ -233,10 +218,7 @@ impl IteratorFactories {
         super::combinators::FilterIterator::new(iter, predicate)
     }
 
-    pub fn map<R, B, F, I>(
-        iter: I,
-        mapper: F,
-    ) -> super::combinators::MapIterator<R, B, F, I>
+    pub fn map<R, B, F, I>(iter: I, mapper: F) -> super::combinators::MapIterator<R, B, F, I>
     where
         R: Send + Sync + std::fmt::Debug + 'static,
         B: Send + Sync + std::fmt::Debug + 'static,
@@ -246,10 +228,7 @@ impl IteratorFactories {
         super::combinators::MapIterator::new(iter, mapper)
     }
 
-    pub fn take<R, I>(
-        iter: I,
-        n: usize,
-    ) -> super::combinators::TakeIterator<R, I>
+    pub fn take<R, I>(iter: I, n: usize) -> super::combinators::TakeIterator<R, I>
     where
         R: Send + Sync + std::fmt::Debug + 'static,
         I: ResultIterator<'static, R, Row = R>,
@@ -257,10 +236,7 @@ impl IteratorFactories {
         super::combinators::TakeIterator::new(iter, n)
     }
 
-    pub fn skip<R, I>(
-        iter: I,
-        n: usize,
-    ) -> super::combinators::SkipIterator<R, I>
+    pub fn skip<R, I>(iter: I, n: usize) -> super::combinators::SkipIterator<R, I>
     where
         R: Send + Sync + std::fmt::Debug + 'static,
         I: ResultIterator<'static, R, Row = R>,

@@ -38,7 +38,10 @@ impl QueryExecutionState {
 
     /// 检查状态是否允许取消
     pub fn can_cancel(&self) -> bool {
-        matches!(self, QueryExecutionState::Pending | QueryExecutionState::Running)
+        matches!(
+            self,
+            QueryExecutionState::Pending | QueryExecutionState::Running
+        )
     }
 
     /// 获取状态的中文描述
@@ -175,10 +178,14 @@ impl LoopExecutionState {
     pub fn description(&self) -> String {
         match self {
             LoopExecutionState::NotStarted => "未开始".to_string(),
-            LoopExecutionState::Running { iteration } => format!("执行中 (第 {} 次迭代)", iteration),
+            LoopExecutionState::Running { iteration } => {
+                format!("执行中 (第 {} 次迭代)", iteration)
+            }
             LoopExecutionState::Finished => "已完成".to_string(),
             LoopExecutionState::Error(msg) => format!("错误: {}", msg),
-            LoopExecutionState::MaxIterationsReached { max } => format!("达到最大迭代次数 ({})", max),
+            LoopExecutionState::MaxIterationsReached { max } => {
+                format!("达到最大迭代次数 ({})", max)
+            }
         }
     }
 }
@@ -327,7 +334,10 @@ impl OptimizationPhase {
 
     /// 检查是否为逻辑优化阶段
     pub fn is_logical(&self) -> bool {
-        matches!(self, OptimizationPhase::Rewrite | OptimizationPhase::Logical)
+        matches!(
+            self,
+            OptimizationPhase::Rewrite | OptimizationPhase::Logical
+        )
     }
 
     /// 检查是否为物理优化阶段

@@ -36,9 +36,8 @@
 use std::sync::Arc;
 
 use crate::query::optimizer::{
-    CostCalculator, CostModelConfig, SelectivityEstimator, StatisticsManager,
-    SortEliminationOptimizer, ExpressionAnalyzer, ReferenceCountAnalyzer,
-    AggregateStrategySelector,
+    AggregateStrategySelector, CostCalculator, CostModelConfig, ExpressionAnalyzer,
+    ReferenceCountAnalyzer, SelectivityEstimator, SortEliminationOptimizer, StatisticsManager,
 };
 
 /// 优化器引擎
@@ -82,9 +81,8 @@ impl OptimizerEngine {
         let selectivity_estimator = Arc::new(SelectivityEstimator::new(stats_manager.clone()));
 
         // 创建排序消除优化器
-        let sort_elimination_optimizer = Arc::new(SortEliminationOptimizer::new(
-            cost_calculator.clone(),
-        ));
+        let sort_elimination_optimizer =
+            Arc::new(SortEliminationOptimizer::new(cost_calculator.clone()));
 
         // 创建分析器
         let expression_analyzer = ExpressionAnalyzer::new();
@@ -173,9 +171,8 @@ impl OptimizerEngine {
             self.cost_config,
         ));
         // 重新创建排序消除优化器，使用新的代价计算器
-        self.sort_elimination_optimizer = Arc::new(SortEliminationOptimizer::new(
-            self.cost_calculator.clone(),
-        ));
+        self.sort_elimination_optimizer =
+            Arc::new(SortEliminationOptimizer::new(self.cost_calculator.clone()));
         // 重新创建分析器
         self.expression_analyzer = ExpressionAnalyzer::new();
         self.reference_count_analyzer = ReferenceCountAnalyzer::new();

@@ -56,25 +56,25 @@
 //! ```
 
 // 子模块定义
-mod def;
 mod construction;
-mod inspection;
-mod traverse;
-mod display;
-mod type_deduce;
-pub mod expression;
-pub mod utils;
 pub mod context;
 pub mod contextual;
+mod def;
+mod display;
+pub mod expression;
+mod inspection;
 pub mod serializable;
+mod traverse;
+mod type_deduce;
+pub mod utils;
 
 // 统一导出
-pub use def::Expression;
-pub use expression::{ExpressionId, ExpressionMeta};
 pub use context::{ExpressionContext, OptimizationFlags};
 pub use contextual::ContextualExpression;
+pub use def::Expression;
+pub use expression::{ExpressionId, ExpressionMeta};
 pub use serializable::SerializableExpression;
 
 // 重新导出工具类型
-pub use utils::GroupSuite;
 pub use utils::extract_group_suite;
+pub use utils::GroupSuite;

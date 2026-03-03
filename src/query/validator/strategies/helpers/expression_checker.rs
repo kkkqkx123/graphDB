@@ -1,11 +1,11 @@
 //! 表达式检查工具
 //! 负责验证表达式的操作合法性和结构完整性
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionMeta;
-use crate::core::types::expression::ExpressionContext;
-use crate::core::types::DataType;
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::DataType;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -16,7 +16,10 @@ impl ExpressionChecker {
         Self
     }
 
-    pub fn validate_expression_operations(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
+    pub fn validate_expression_operations(
+        &self,
+        expression: &ContextualExpression,
+    ) -> Result<(), ValidationError> {
         if let Some(expr_meta) = expression.expression() {
             let expr = expr_meta.inner();
             self.check_expression_depth_bfs(expression, 100)?;
@@ -29,7 +32,11 @@ impl ExpressionChecker {
         }
     }
 
-    fn validate_expression_operations_recursive(&self, expression: &crate::core::types::expression::Expression, depth: usize) -> Result<(), ValidationError> {
+    fn validate_expression_operations_recursive(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+        depth: usize,
+    ) -> Result<(), ValidationError> {
         if depth > 100 {
             return Err(ValidationError::new(
                 "表达式嵌套层级过深".to_string(),
@@ -47,13 +54,23 @@ impl ExpressionChecker {
             crate::core::types::expression::Expression::Function { name, args } => {
                 self.validate_function_call(name, args, depth)?;
             }
-            crate::core::types::expression::Expression::Aggregate { func, arg, distinct } => {
+            crate::core::types::expression::Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 self.validate_aggregate_operation(func, arg, *distinct, depth)?;
             }
-            crate::core::types::expression::Expression::Property { object: prop_expression, property: name } => {
+            crate::core::types::expression::Expression::Property {
+                object: prop_expression,
+                property: name,
+            } => {
                 self.validate_property_access(prop_expression, name, depth)?;
             }
-            crate::core::types::expression::Expression::Subscript { collection: index_expression, index } => {
+            crate::core::types::expression::Expression::Subscript {
+                collection: index_expression,
+                index,
+            } => {
                 self.validate_index_access(index_expression, index, depth)?;
             }
             crate::core::types::expression::Expression::List(items) => {
@@ -87,13 +104,19 @@ impl ExpressionChecker {
 
         match op {
             crate::core::BinaryOperator::Divide => {
-                if let crate::core::types::expression::Expression::Literal(crate::core::Value::Int(0)) = right {
+                if let crate::core::types::expression::Expression::Literal(
+                    crate::core::Value::Int(0),
+                ) = right
+                {
                     return Err(ValidationError::new(
                         "除数不能为0".to_string(),
                         ValidationErrorType::DivisionByZero,
                     ));
                 }
-                if let crate::core::types::expression::Expression::Literal(crate::core::Value::Float(0.0)) = right {
+                if let crate::core::types::expression::Expression::Literal(
+                    crate::core::Value::Float(0.0),
+                ) = right
+                {
                     return Err(ValidationError::new(
                         "除数不能为0.0".to_string(),
                         ValidationErrorType::DivisionByZero,
@@ -101,7 +124,10 @@ impl ExpressionChecker {
                 }
             }
             crate::core::BinaryOperator::Modulo => {
-                if let crate::core::types::expression::Expression::Literal(crate::core::Value::Int(0)) = right {
+                if let crate::core::types::expression::Expression::Literal(
+                    crate::core::Value::Int(0),
+                ) = right
+                {
                     return Err(ValidationError::new(
                         "模数不能为0".to_string(),
                         ValidationErrorType::DivisionByZero,
@@ -145,10 +171,17 @@ impl ExpressionChecker {
 
         for (i, arg) in args.iter().enumerate() {
             self.validate_expression_operations_recursive(arg, depth + 1)
-                .map_err(|e| ValidationError::new(
-                    format!("函数 {:?} 的第 {} 个参数验证失败: {}", name, i + 1, e.message),
-                    e.error_type,
-                ))?;
+                .map_err(|e| {
+                    ValidationError::new(
+                        format!(
+                            "函数 {:?} 的第 {} 个参数验证失败: {}",
+                            name,
+                            i + 1,
+                            e.message
+                        ),
+                        e.error_type,
+                    )
+                })?;
         }
 
         Ok(())
@@ -167,9 +200,9 @@ impl ExpressionChecker {
 
         if distinct {
             match func {
-                crate::core::AggregateFunction::Count(_) | 
-                crate::core::AggregateFunction::Sum(_) | 
-                crate::core::AggregateFunction::Avg(_) => {}
+                crate::core::AggregateFunction::Count(_)
+                | crate::core::AggregateFunction::Sum(_)
+                | crate::core::AggregateFunction::Avg(_) => {}
                 _ => {
                     return Err(ValidationError::new(
                         format!("聚合函数 {} 不支持 DISTINCT 关键字", func.name()),
@@ -239,7 +272,11 @@ impl ExpressionChecker {
         Ok(())
     }
 
-    fn validate_list_expression(&self, items: &[crate::core::types::expression::Expression], depth: usize) -> Result<(), ValidationError> {
+    fn validate_list_expression(
+        &self,
+        items: &[crate::core::types::expression::Expression],
+        depth: usize,
+    ) -> Result<(), ValidationError> {
         if items.len() > 10000 {
             return Err(ValidationError::new(
                 "列表表达式元素过多".to_string(),
@@ -249,16 +286,22 @@ impl ExpressionChecker {
 
         for (i, item) in items.iter().enumerate() {
             self.validate_expression_operations_recursive(item, depth + 1)
-                .map_err(|e| ValidationError::new(
-                    format!("列表表达式第 {} 个元素验证失败: {}", i + 1, e.message),
-                    e.error_type,
-                ))?;
+                .map_err(|e| {
+                    ValidationError::new(
+                        format!("列表表达式第 {} 个元素验证失败: {}", i + 1, e.message),
+                        e.error_type,
+                    )
+                })?;
         }
 
         Ok(())
     }
 
-    fn validate_map_expression(&self, pairs: &[(String, crate::core::types::expression::Expression)], depth: usize) -> Result<(), ValidationError> {
+    fn validate_map_expression(
+        &self,
+        pairs: &[(String, crate::core::types::expression::Expression)],
+        depth: usize,
+    ) -> Result<(), ValidationError> {
         if pairs.len() > 10000 {
             return Err(ValidationError::new(
                 "映射表达式键值对过多".to_string(),
@@ -278,10 +321,12 @@ impl ExpressionChecker {
 
         for (key, value) in pairs {
             self.validate_expression_operations_recursive(value, depth + 1)
-                .map_err(|e| ValidationError::new(
-                    format!("映射表达式键 {:?} 的值验证失败: {}", key, e.message),
-                    e.error_type,
-                ))?;
+                .map_err(|e| {
+                    ValidationError::new(
+                        format!("映射表达式键 {:?} 的值验证失败: {}", key, e.message),
+                        e.error_type,
+                    )
+                })?;
         }
 
         Ok(())
@@ -290,7 +335,10 @@ impl ExpressionChecker {
     fn validate_case_expression(
         &self,
         operand: &Option<Box<crate::core::types::expression::Expression>>,
-        when_clauses: &[(crate::core::types::expression::Expression, crate::core::types::expression::Expression)],
+        when_clauses: &[(
+            crate::core::types::expression::Expression,
+            crate::core::types::expression::Expression,
+        )],
         else_clause: &Option<Box<crate::core::types::expression::Expression>>,
         depth: usize,
     ) -> Result<(), ValidationError> {
@@ -307,15 +355,27 @@ impl ExpressionChecker {
 
         for (i, (when_expression, then_expression)) in when_clauses.iter().enumerate() {
             self.validate_expression_operations_recursive(when_expression, depth + 1)
-                .map_err(|e| ValidationError::new(
-                    format!("CASE 表达式第 {} 个 WHEN 子句验证失败: {}", i + 1, e.message),
-                    e.error_type,
-                ))?;
+                .map_err(|e| {
+                    ValidationError::new(
+                        format!(
+                            "CASE 表达式第 {} 个 WHEN 子句验证失败: {}",
+                            i + 1,
+                            e.message
+                        ),
+                        e.error_type,
+                    )
+                })?;
             self.validate_expression_operations_recursive(then_expression, depth + 1)
-                .map_err(|e| ValidationError::new(
-                    format!("CASE 表达式第 {} 个 THEN 子句验证失败: {}", i + 1, e.message),
-                    e.error_type,
-                ))?;
+                .map_err(|e| {
+                    ValidationError::new(
+                        format!(
+                            "CASE 表达式第 {} 个 THEN 子句验证失败: {}",
+                            i + 1,
+                            e.message
+                        ),
+                        e.error_type,
+                    )
+                })?;
         }
 
         if let Some(else_expression) = else_clause {
@@ -325,7 +385,10 @@ impl ExpressionChecker {
         Ok(())
     }
 
-    pub fn validate_expression_cycles(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
+    pub fn validate_expression_cycles(
+        &self,
+        expression: &ContextualExpression,
+    ) -> Result<(), ValidationError> {
         if let Some(expr_meta) = expression.expression() {
             let expr = expr_meta.inner();
             let mut visited = HashSet::new();
@@ -389,38 +452,55 @@ impl ExpressionChecker {
         0
     }
 
-    fn calculate_expression_depth_internal(&self, expression: &crate::core::types::expression::Expression) -> usize {
+    fn calculate_expression_depth_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+    ) -> usize {
         match expression {
-            crate::core::types::expression::Expression::Literal(_) | crate::core::types::expression::Expression::Variable(_) => 1,
+            crate::core::types::expression::Expression::Literal(_)
+            | crate::core::types::expression::Expression::Variable(_) => 1,
             crate::core::types::expression::Expression::Binary { left, right, .. } => {
                 let left_depth = self.calculate_expression_depth_internal(left);
                 let right_depth = self.calculate_expression_depth_internal(right);
                 1 + left_depth.max(right_depth)
             }
-            crate::core::types::expression::Expression::Unary { operand, .. } => 1 + self.calculate_expression_depth_internal(operand),
+            crate::core::types::expression::Expression::Unary { operand, .. } => {
+                1 + self.calculate_expression_depth_internal(operand)
+            }
             crate::core::types::expression::Expression::Function { args, .. } => {
-                let max_arg_depth = args.iter()
+                let max_arg_depth = args
+                    .iter()
                     .map(|arg| self.calculate_expression_depth_internal(arg))
                     .max()
                     .unwrap_or(0);
                 1 + max_arg_depth
             }
-            crate::core::types::expression::Expression::Aggregate { arg, .. } => 1 + self.calculate_expression_depth_internal(arg),
-            crate::core::types::expression::Expression::Property { object: prop_expression, .. } => 1 + self.calculate_expression_depth_internal(prop_expression),
-            crate::core::types::expression::Expression::Subscript { collection: index_expression, index } => {
+            crate::core::types::expression::Expression::Aggregate { arg, .. } => {
+                1 + self.calculate_expression_depth_internal(arg)
+            }
+            crate::core::types::expression::Expression::Property {
+                object: prop_expression,
+                ..
+            } => 1 + self.calculate_expression_depth_internal(prop_expression),
+            crate::core::types::expression::Expression::Subscript {
+                collection: index_expression,
+                index,
+            } => {
                 let expr_depth = self.calculate_expression_depth_internal(index_expression);
                 let index_depth = self.calculate_expression_depth_internal(index);
                 1 + expr_depth.max(index_depth)
             }
             crate::core::types::expression::Expression::List(items) => {
-                let max_item_depth = items.iter()
+                let max_item_depth = items
+                    .iter()
                     .map(|item| self.calculate_expression_depth_internal(item))
                     .max()
                     .unwrap_or(0);
                 1 + max_item_depth
             }
             crate::core::types::expression::Expression::Map(pairs) => {
-                let max_value_depth = pairs.iter()
+                let max_value_depth = pairs
+                    .iter()
                     .map(|(_, value)| self.calculate_expression_depth_internal(value))
                     .max()
                     .unwrap_or(0);
@@ -432,20 +512,20 @@ impl ExpressionChecker {
                 default,
             } => {
                 let mut depths = Vec::new();
-                
+
                 if let Some(test_expression) = test_expr {
                     depths.push(self.calculate_expression_depth_internal(test_expression));
                 }
-                
+
                 for (when_expression, then_expression) in conditions {
                     depths.push(self.calculate_expression_depth_internal(when_expression));
                     depths.push(self.calculate_expression_depth_internal(then_expression));
                 }
-                
+
                 if let Some(else_expression) = default {
                     depths.push(self.calculate_expression_depth_internal(else_expression));
                 }
-                
+
                 let max_depth = depths.into_iter().max().unwrap_or(0);
                 1 + max_depth
             }
@@ -453,7 +533,11 @@ impl ExpressionChecker {
         }
     }
 
-    fn check_expression_depth_bfs(&self, expression: &ContextualExpression, max_depth: usize) -> Result<(), ValidationError> {
+    fn check_expression_depth_bfs(
+        &self,
+        expression: &ContextualExpression,
+        max_depth: usize,
+    ) -> Result<(), ValidationError> {
         let depth = self.calculate_expression_depth(expression);
         if depth > max_depth {
             return Err(ValidationError::new(
@@ -480,7 +564,7 @@ mod tests {
     #[test]
     fn test_validate_expression_operations() {
         let checker = ExpressionChecker::new();
-        
+
         let valid_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Literal(Value::Int(1))),
@@ -490,14 +574,14 @@ mod tests {
         let expr_ctx = ExpressionContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
-        
+
         assert!(checker.validate_expression_operations(&ctx_expr).is_ok());
     }
 
     #[test]
     fn test_validate_division_by_zero() {
         let checker = ExpressionChecker::new();
-        
+
         let invalid_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Divide,
             left: Box::new(Expression::Literal(Value::Int(1))),
@@ -507,21 +591,21 @@ mod tests {
         let expr_ctx = ExpressionContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
-        
+
         assert!(checker.validate_expression_operations(&ctx_expr).is_err());
     }
 
     #[test]
     fn test_calculate_expression_depth() {
         let checker = ExpressionChecker::new();
-        
+
         let simple_expression = Expression::Literal(Value::Int(1));
         let meta = ExpressionMeta::new(simple_expression);
         let expr_ctx = ExpressionContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert_eq!(checker.calculate_expression_depth(&ctx_expr), 1);
-        
+
         let nested_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Binary {
@@ -535,7 +619,7 @@ mod tests {
         let expr_ctx = ExpressionContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
-        
+
         assert_eq!(checker.calculate_expression_depth(&ctx_expr), 3);
     }
 }

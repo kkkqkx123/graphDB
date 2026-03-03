@@ -2,14 +2,14 @@
 //!
 //! 负责查看指定边类型的详细信息。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
-use crate::core::DataSet;
 use crate::core::types::graph_schema::PropertyType;
+use crate::core::DataSet;
 use crate::core::Value;
-use crate::storage::iterator::Row;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
 /// 边类型描述信息
@@ -55,7 +55,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeExecutor<
 
         match result {
             Ok(Some(edge_schema)) => {
-                let rows: Vec<Row> = edge_schema.properties
+                let rows: Vec<Row> = edge_schema
+                    .properties
                     .iter()
                     .map(|field| {
                         vec![
@@ -80,9 +81,14 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeExecutor<
                 };
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            Ok(None) => Ok(ExecutionResult::Error(format!("Edge type '{}' not found in space '{}'",
-                self.edge_name, self.space_name))),
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to describe edge type: {}", e))),
+            Ok(None) => Ok(ExecutionResult::Error(format!(
+                "Edge type '{}' not found in space '{}'",
+                self.edge_name, self.space_name
+            ))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to describe edge type: {}",
+                e
+            ))),
         }
     }
 

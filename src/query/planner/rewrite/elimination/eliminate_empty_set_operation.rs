@@ -30,13 +30,13 @@
 //!   Start (空集)
 //! ```
 
-use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::start_node::StartNode;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
+use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
 
 /// 空集操作优化规则
 ///
@@ -134,9 +134,7 @@ impl RewriteRule for EliminateEmptySetOperationRule {
 impl EliminationRule for EliminateEmptySetOperationRule {
     fn can_eliminate(&self, node: &PlanNodeEnum) -> bool {
         match node {
-            PlanNodeEnum::Minus(minus_node) => {
-                self.is_empty_node(minus_node.minus_input())
-            }
+            PlanNodeEnum::Minus(minus_node) => self.is_empty_node(minus_node.minus_input()),
             PlanNodeEnum::Intersect(intersect_node) => {
                 self.is_empty_node(intersect_node.input())
                     || self.is_empty_node(intersect_node.intersect_input())
@@ -175,7 +173,7 @@ mod tests {
     #[test]
     fn test_is_empty_node() {
         let rule = EliminateEmptySetOperationRule::new();
-        
+
         // Start 节点是空集
         let start_node = StartNode::new();
         assert!(rule.is_empty_node(&PlanNodeEnum::Start(start_node)));

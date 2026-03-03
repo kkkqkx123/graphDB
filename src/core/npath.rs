@@ -26,11 +26,11 @@
 //! let extended = Arc::new(NPath::extend(start, edge, next_vertex));
 //! ```
 
-use std::sync::Arc;
 use std::collections::HashSet;
+use std::sync::Arc;
 
-use crate::core::{Vertex, Edge, Path, Value};
 use crate::core::vertex_edge_path::Step;
+use crate::core::{Edge, Path, Value, Vertex};
 
 /// NPath - 链表结构的路径表示
 ///
@@ -271,7 +271,9 @@ impl NPath {
     /// 时间复杂度：O(n*m)，建议先收集顶点再比较
     pub fn has_common_vertices(&self, other: &NPath) -> bool {
         let self_vertices: HashSet<_> = self.iter_vertices().map(|v| v.vid.as_ref()).collect();
-        other.iter_vertices().any(|v| self_vertices.contains(v.vid.as_ref()))
+        other
+            .iter_vertices()
+            .any(|v| self_vertices.contains(v.vid.as_ref()))
     }
 
     /// 收集所有顶点ID
@@ -300,7 +302,11 @@ impl NPath {
     }
 
     /// 计算路径哈希
-    fn compute_hash(vertex: &Arc<Vertex>, edge: Option<&Arc<Edge>>, parent_hash: Option<u64>) -> u64 {
+    fn compute_hash(
+        vertex: &Arc<Vertex>,
+        edge: Option<&Arc<Edge>>,
+        parent_hash: Option<u64>,
+    ) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
@@ -351,7 +357,9 @@ pub struct NPathIter<'a> {
 
 impl<'a> NPathIter<'a> {
     fn new(path: &'a NPath) -> Self {
-        Self { current: Some(path) }
+        Self {
+            current: Some(path),
+        }
     }
 }
 
@@ -374,7 +382,9 @@ pub struct NPathVertexIter<'a> {
 
 impl<'a> NPathVertexIter<'a> {
     fn new(path: &'a NPath) -> Self {
-        Self { current: Some(path) }
+        Self {
+            current: Some(path),
+        }
     }
 }
 
@@ -398,7 +408,9 @@ pub struct NPathEdgeIter<'a> {
 
 impl<'a> NPathEdgeIter<'a> {
     fn new(path: &'a NPath) -> Self {
-        Self { current: Some(path) }
+        Self {
+            current: Some(path),
+        }
     }
 }
 

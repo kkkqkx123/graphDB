@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use crate::query::optimizer::cost::{CostCalculator, SelectivityEstimator};
-use crate::index::Index;
 use crate::core::types::Expression;
+use crate::index::Index;
+use crate::query::optimizer::cost::{CostCalculator, SelectivityEstimator};
 
 /// 索引选择器
 #[derive(Debug)]
@@ -98,7 +98,10 @@ impl IndexSelector {
     ) -> IndexSelection {
         // 如果没有谓词，使用全表扫描
         if predicates.is_empty() {
-            let vertex_count = self.cost_calculator.statistics_manager().get_vertex_count(tag_name);
+            let vertex_count = self
+                .cost_calculator
+                .statistics_manager()
+                .get_vertex_count(tag_name);
             let estimated_cost = self.cost_calculator.calculate_scan_vertices_cost(tag_name);
             return IndexSelection::FullScan {
                 estimated_cost,
@@ -129,7 +132,10 @@ impl IndexSelector {
 
         // 如果没有找到合适的索引，使用全表扫描
         best_selection.unwrap_or_else(|| {
-            let vertex_count = self.cost_calculator.statistics_manager().get_vertex_count(tag_name);
+            let vertex_count = self
+                .cost_calculator
+                .statistics_manager()
+                .get_vertex_count(tag_name);
             let estimated_cost = self.cost_calculator.calculate_scan_vertices_cost(tag_name);
             IndexSelection::FullScan {
                 estimated_cost,
@@ -164,17 +170,18 @@ impl IndexSelector {
                         &predicate.property_name,
                     )
                 }
-                PredicateOperator::LessThan | PredicateOperator::LessThanOrEqual => {
-                    self.selectivity_estimator.estimate_less_than_selectivity(None)
-                }
-                PredicateOperator::GreaterThan | PredicateOperator::GreaterThanOrEqual => {
-                    self.selectivity_estimator.estimate_greater_than_selectivity(None)
-                }
+                PredicateOperator::LessThan | PredicateOperator::LessThanOrEqual => self
+                    .selectivity_estimator
+                    .estimate_less_than_selectivity(None),
+                PredicateOperator::GreaterThan | PredicateOperator::GreaterThanOrEqual => self
+                    .selectivity_estimator
+                    .estimate_greater_than_selectivity(None),
                 PredicateOperator::Like => {
                     // 尝试从表达式中提取模式
                     if let Expression::Literal(value) = &predicate.value {
                         if let crate::core::value::Value::String(pattern) = value {
-                            self.selectivity_estimator.estimate_like_selectivity(pattern)
+                            self.selectivity_estimator
+                                .estimate_like_selectivity(pattern)
                         } else {
                             0.3
                         }
@@ -215,7 +222,10 @@ impl IndexSelector {
         let mut strategies = Vec::new();
 
         // 添加全表扫描作为基准
-        let vertex_count = self.cost_calculator.statistics_manager().get_vertex_count(tag_name);
+        let vertex_count = self
+            .cost_calculator
+            .statistics_manager()
+            .get_vertex_count(tag_name);
         let full_scan_cost = self.cost_calculator.calculate_scan_vertices_cost(tag_name);
         strategies.push(IndexSelection::FullScan {
             estimated_cost: full_scan_cost,

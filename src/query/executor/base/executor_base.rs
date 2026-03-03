@@ -8,10 +8,10 @@ use std::time::Instant;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-use super::execution_context::ExecutionContext;
-use super::execution_result::{ExecutionResult, DBResult};
-use super::executor_stats::ExecutorStats;
 use super::super::executor_enum::ExecutorEnum;
+use super::execution_context::ExecutionContext;
+use super::execution_result::{DBResult, ExecutionResult};
+use super::executor_stats::ExecutorStats;
 
 /// 统一的执行器 trait
 ///
@@ -131,7 +131,12 @@ impl<S: StorageClient> BaseExecutor<S> {
     }
 
     /// 创建带上下文的基础执行器
-    pub fn with_context(id: i64, name: String, storage: Arc<Mutex<S>>, context: ExecutionContext) -> Self {
+    pub fn with_context(
+        id: i64,
+        name: String,
+        storage: Arc<Mutex<S>>,
+        context: ExecutionContext,
+    ) -> Self {
         Self {
             id,
             name,
@@ -144,7 +149,12 @@ impl<S: StorageClient> BaseExecutor<S> {
     }
 
     /// 创建带描述的基础执行器
-    pub fn with_description(id: i64, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
+    pub fn with_description(
+        id: i64,
+        name: String,
+        description: String,
+        storage: Arc<Mutex<S>>,
+    ) -> Self {
         Self {
             id,
             name,

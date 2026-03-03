@@ -17,12 +17,12 @@
 //! let result = func.execute(&[Value::Int(-5)]);
 //! ```
 
-pub mod signature;
-pub mod registry;
 pub mod builtin;
+pub mod registry;
+pub mod signature;
 
-pub use signature::ValueType;
 pub use registry::{global_registry, global_registry_ref, FunctionRegistry};
+pub use signature::ValueType;
 
 // 从 builtin 子模块重新导出函数类型
 pub use builtin::container::ContainerFunction;

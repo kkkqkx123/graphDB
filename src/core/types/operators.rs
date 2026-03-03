@@ -128,7 +128,10 @@ impl BinaryOperator {
     }
 
     pub fn is_logical(&self) -> bool {
-        matches!(self, BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Xor)
+        matches!(
+            self,
+            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Xor
+        )
     }
 }
 
@@ -166,7 +169,10 @@ impl UnaryOperator {
     pub fn precedence(&self) -> u8 {
         match self {
             UnaryOperator::Plus | UnaryOperator::Minus | UnaryOperator::Not => 9,
-            UnaryOperator::IsNull | UnaryOperator::IsNotNull | UnaryOperator::IsEmpty | UnaryOperator::IsNotEmpty => 3,
+            UnaryOperator::IsNull
+            | UnaryOperator::IsNotNull
+            | UnaryOperator::IsEmpty
+            | UnaryOperator::IsNotEmpty => 3,
         }
     }
 
@@ -270,7 +276,10 @@ impl AggregateFunction {
     pub fn is_collection(&self) -> bool {
         matches!(
             self,
-            AggregateFunction::Count(_) | AggregateFunction::Collect(_) | AggregateFunction::CollectSet(_) | AggregateFunction::Distinct(_)
+            AggregateFunction::Count(_)
+                | AggregateFunction::Collect(_)
+                | AggregateFunction::CollectSet(_)
+                | AggregateFunction::Distinct(_)
         )
     }
 

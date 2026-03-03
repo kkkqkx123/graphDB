@@ -21,13 +21,13 @@ use crate::core::error::{ValidationError as CoreValidationError, ValidationError
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::{DataType, EdgeTypeInfo, PropertyDef, TagInfo};
 use crate::core::Value;
-use crate::storage::metadata::schema_manager::SchemaManager;
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::query::validator::validator_trait::ValueType;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
+use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// Schema 验证器
 /// 封装 Schema 相关的所有验证逻辑
-/// 
+///
 /// 注意：这是一个工具验证器，不直接实现 StatementValidator trait
 /// 它被其他语句验证器（如 InsertVerticesValidator, UpdateValidator 等）使用
 #[derive(Debug, Clone)]
@@ -52,12 +52,20 @@ impl SchemaValidator {
     }
 
     /// 获取 Tag 信息
-    pub fn get_tag(&self, space_name: &str, tag_name: &str) -> Result<Option<TagInfo>, CoreValidationError> {
-        self.schema_manager.as_ref().get_tag(space_name, tag_name)
-            .map_err(|e| CoreValidationError::new(
-                format!("获取 Tag 失败: {}", e),
-                ValidationErrorType::SemanticError,
-            ))
+    pub fn get_tag(
+        &self,
+        space_name: &str,
+        tag_name: &str,
+    ) -> Result<Option<TagInfo>, CoreValidationError> {
+        self.schema_manager
+            .as_ref()
+            .get_tag(space_name, tag_name)
+            .map_err(|e| {
+                CoreValidationError::new(
+                    format!("获取 Tag 失败: {}", e),
+                    ValidationErrorType::SemanticError,
+                )
+            })
     }
 
     /// 获取 EdgeType 信息
@@ -66,20 +74,31 @@ impl SchemaValidator {
         space_name: &str,
         edge_type_name: &str,
     ) -> Result<Option<EdgeTypeInfo>, CoreValidationError> {
-        self.schema_manager.as_ref().get_edge_type(space_name, edge_type_name)
-            .map_err(|e| CoreValidationError::new(
-                format!("获取 Edge Type 失败: {}", e),
-                ValidationErrorType::SemanticError,
-            ))
+        self.schema_manager
+            .as_ref()
+            .get_edge_type(space_name, edge_type_name)
+            .map_err(|e| {
+                CoreValidationError::new(
+                    format!("获取 Edge Type 失败: {}", e),
+                    ValidationErrorType::SemanticError,
+                )
+            })
     }
 
     /// 获取 Space 的所有 EdgeType
-    pub fn get_all_edge_types(&self, space_name: &str) -> Result<Vec<EdgeTypeInfo>, CoreValidationError> {
-        self.schema_manager.as_ref().list_edge_types(space_name)
-            .map_err(|e| CoreValidationError::new(
-                format!("获取 Edge Type 列表失败: {}", e),
-                ValidationErrorType::SemanticError,
-            ))
+    pub fn get_all_edge_types(
+        &self,
+        space_name: &str,
+    ) -> Result<Vec<EdgeTypeInfo>, CoreValidationError> {
+        self.schema_manager
+            .as_ref()
+            .list_edge_types(space_name)
+            .map_err(|e| {
+                CoreValidationError::new(
+                    format!("获取 Edge Type 列表失败: {}", e),
+                    ValidationErrorType::SemanticError,
+                )
+            })
     }
 
     /// 验证属性名是否存在于 Schema 中
@@ -171,7 +190,11 @@ impl SchemaValidator {
     pub fn data_type_to_value_type(data_type: &DataType) -> ValueType {
         match data_type {
             DataType::Bool => ValueType::Bool,
-            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => ValueType::Int,
+            DataType::Int
+            | DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64 => ValueType::Int,
             DataType::Float | DataType::Double => ValueType::Float,
             DataType::String | DataType::FixedString(_) => ValueType::String,
             DataType::Date => ValueType::Date,
@@ -233,7 +256,10 @@ impl SchemaValidator {
                     ));
                 } else {
                     // nullable 且无默认值，填充 NULL
-                    result.push((prop_def.name.clone(), Value::Null(crate::core::NullType::default())));
+                    result.push((
+                        prop_def.name.clone(),
+                        Value::Null(crate::core::NullType::default()),
+                    ));
                 }
             }
         }
@@ -285,12 +311,12 @@ impl SchemaValidator {
 
     /// 统一验证 VID 表达式
     /// 根据 Space 的 vid_type 验证表达式，确保类型匹配
-    /// 
+    ///
     /// 参数:
     /// - expr: VID 表达式
     /// - vid_type: Space 定义的 VID 类型
     /// - role: VID 角色描述（如 "source", "destination", "vertex"）
-    /// 
+    ///
     /// 返回:
     /// - Ok(()) 验证通过
     /// - Err(ValidationError) 验证失败
@@ -318,7 +344,7 @@ impl SchemaValidator {
         role: &str,
     ) -> Result<(), CoreValidationError> {
         use crate::core::types::expression::Expression;
-        
+
         match expr {
             Expression::Literal(value) => {
                 // 字面量需要检查空值和类型匹配
@@ -331,16 +357,25 @@ impl SchemaValidator {
                             ));
                         }
                         // 检查类型是否匹配
-                        if !matches!(vid_type, DataType::String | DataType::FixedString(_) | DataType::VID) {
+                        if !matches!(
+                            vid_type,
+                            DataType::String | DataType::FixedString(_) | DataType::VID
+                        ) {
                             return Err(CoreValidationError::new(
-                                format!("{} vertex ID 期望 {:?} 类型, 实际为字符串", role, vid_type),
+                                format!(
+                                    "{} vertex ID 期望 {:?} 类型, 实际为字符串",
+                                    role, vid_type
+                                ),
                                 ValidationErrorType::TypeMismatch,
                             ));
                         }
                     }
                     Value::Int(_) => {
                         // 检查类型是否匹配
-                        if !matches!(vid_type, DataType::Int | DataType::Int64 | DataType::Int32 | DataType::VID) {
+                        if !matches!(
+                            vid_type,
+                            DataType::Int | DataType::Int64 | DataType::Int32 | DataType::VID
+                        ) {
                             return Err(CoreValidationError::new(
                                 format!("{} vertex ID 期望 {:?} 类型, 实际为整数", role, vid_type),
                                 ValidationErrorType::TypeMismatch,
@@ -360,12 +395,10 @@ impl SchemaValidator {
                 // 变量在验证阶段无法确定具体值，假设有效
                 Ok(())
             }
-            _ => {
-                Err(CoreValidationError::new(
-                    format!("{} vertex ID 必须是常量或变量", role),
-                    ValidationErrorType::SemanticError,
-                ))
-            }
+            _ => Err(CoreValidationError::new(
+                format!("{} vertex ID 必须是常量或变量", role),
+                ValidationErrorType::SemanticError,
+            )),
         }
     }
 
@@ -413,7 +446,10 @@ impl SchemaValidator {
     }
 
     /// 内部方法：验证表达式是否为可计算的值
-    fn is_evaluable_expr_internal(&self, expr: &crate::core::types::expression::Expression) -> bool {
+    fn is_evaluable_expr_internal(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> bool {
         use crate::core::types::expression::Expression;
         match expr {
             Expression::Literal(_) => true,
@@ -484,11 +520,17 @@ impl SchemaValidator {
         properties: &[(String, Value)],
     ) -> Result<TagInfo, CoreValidationError> {
         // 检查 Tag 是否已存在
-        if let Some(existing) = self.schema_manager.as_ref().get_tag(space_name, tag_name)
-            .map_err(|e| CoreValidationError::new(
-                format!("获取 Tag 失败: {}", e),
-                ValidationErrorType::SemanticError,
-            ))? {
+        if let Some(existing) = self
+            .schema_manager
+            .as_ref()
+            .get_tag(space_name, tag_name)
+            .map_err(|e| {
+                CoreValidationError::new(
+                    format!("获取 Tag 失败: {}", e),
+                    ValidationErrorType::SemanticError,
+                )
+            })?
+        {
             return Ok(existing);
         }
 
@@ -496,8 +538,7 @@ impl SchemaValidator {
         let mut prop_defs = Vec::new();
         for (prop_name, value) in properties {
             let data_type = Self::infer_data_type(value);
-            let prop_def = PropertyDef::new(prop_name.clone(), data_type)
-                .with_nullable(true); // 自动创建的属性默认可为空
+            let prop_def = PropertyDef::new(prop_name.clone(), data_type).with_nullable(true); // 自动创建的属性默认可为空
             prop_defs.push(prop_def);
         }
 
@@ -512,11 +553,15 @@ impl SchemaValidator {
         };
 
         // 创建 Tag
-        self.schema_manager.as_ref().create_tag(space_name, &tag_info)
-            .map_err(|e| CoreValidationError::new(
-                format!("创建 Tag '{}' 失败: {}", tag_name, e),
-                ValidationErrorType::SemanticError,
-            ))?;
+        self.schema_manager
+            .as_ref()
+            .create_tag(space_name, &tag_info)
+            .map_err(|e| {
+                CoreValidationError::new(
+                    format!("创建 Tag '{}' 失败: {}", tag_name, e),
+                    ValidationErrorType::SemanticError,
+                )
+            })?;
 
         Ok(tag_info)
     }
@@ -530,11 +575,17 @@ impl SchemaValidator {
         properties: &[(String, Value)],
     ) -> Result<EdgeTypeInfo, CoreValidationError> {
         // 检查 Edge Type 是否已存在
-        if let Some(existing) = self.schema_manager.as_ref().get_edge_type(space_name, edge_type_name)
-            .map_err(|e| CoreValidationError::new(
-                format!("获取 Edge Type 失败: {}", e),
-                ValidationErrorType::SemanticError,
-            ))? {
+        if let Some(existing) = self
+            .schema_manager
+            .as_ref()
+            .get_edge_type(space_name, edge_type_name)
+            .map_err(|e| {
+                CoreValidationError::new(
+                    format!("获取 Edge Type 失败: {}", e),
+                    ValidationErrorType::SemanticError,
+                )
+            })?
+        {
             return Ok(existing);
         }
 
@@ -542,8 +593,7 @@ impl SchemaValidator {
         let mut prop_defs = Vec::new();
         for (prop_name, value) in properties {
             let data_type = Self::infer_data_type(value);
-            let prop_def = PropertyDef::new(prop_name.clone(), data_type)
-                .with_nullable(true); // 自动创建的属性默认可为空
+            let prop_def = PropertyDef::new(prop_name.clone(), data_type).with_nullable(true); // 自动创建的属性默认可为空
             prop_defs.push(prop_def);
         }
 
@@ -558,11 +608,15 @@ impl SchemaValidator {
         };
 
         // 创建 Edge Type
-        self.schema_manager.as_ref().create_edge_type(space_name, &edge_info)
-            .map_err(|e| CoreValidationError::new(
-                format!("创建 Edge Type '{}' 失败: {}", edge_type_name, e),
-                ValidationErrorType::SemanticError,
-            ))?;
+        self.schema_manager
+            .as_ref()
+            .create_edge_type(space_name, &edge_info)
+            .map_err(|e| {
+                CoreValidationError::new(
+                    format!("创建 Edge Type '{}' 失败: {}", edge_type_name, e),
+                    ValidationErrorType::SemanticError,
+                )
+            })?;
 
         Ok(edge_info)
     }
@@ -638,8 +692,12 @@ mod tests {
             PropertyDef::new("age".to_string(), DataType::Int),
         ];
 
-        assert!(validator.validate_property_exists("name", &properties).is_ok());
-        assert!(validator.validate_property_exists("age", &properties).is_ok());
+        assert!(validator
+            .validate_property_exists("name", &properties)
+            .is_ok());
+        assert!(validator
+            .validate_property_exists("age", &properties)
+            .is_ok());
     }
 
     #[test]
@@ -657,7 +715,11 @@ mod tests {
         let validator = create_test_validator();
 
         assert!(validator
-            .validate_property_type("name", &DataType::String, &Value::String("test".to_string()))
+            .validate_property_type(
+                "name",
+                &DataType::String,
+                &Value::String("test".to_string())
+            )
             .is_ok());
         assert!(validator
             .validate_property_type("age", &DataType::Int, &Value::Int(25))
@@ -668,7 +730,11 @@ mod tests {
     fn test_validate_property_type_failure() {
         let validator = create_test_validator();
 
-        let result = validator.validate_property_type("age", &DataType::Int, &Value::String("test".to_string()));
+        let result = validator.validate_property_type(
+            "age",
+            &DataType::Int,
+            &Value::String("test".to_string()),
+        );
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("期望类型"));
     }
@@ -688,7 +754,11 @@ mod tests {
         let validator = create_test_validator();
         let prop_def = PropertyDef::new("name".to_string(), DataType::String).with_nullable(false);
 
-        let result = validator.validate_not_null("name", &prop_def, &Value::Null(crate::core::NullType::default()));
+        let result = validator.validate_not_null(
+            "name",
+            &prop_def,
+            &Value::Null(crate::core::NullType::default()),
+        );
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("不能为 NULL"));
     }
@@ -705,12 +775,17 @@ mod tests {
         ];
 
         let provided = vec![("name".to_string(), Value::String("John".to_string()))];
-        let result = validator.fill_default_values(&properties, &provided).expect("Failed to fill default values");
+        let result = validator
+            .fill_default_values(&properties, &provided)
+            .expect("Failed to fill default values");
 
         assert_eq!(result.len(), 3);
         assert_eq!(result[0].0, "name");
         assert_eq!(result[1].0, "email");
-        assert_eq!(result[1].1, Value::String("default@example.com".to_string()));
+        assert_eq!(
+            result[1].1,
+            Value::String("default@example.com".to_string())
+        );
         assert_eq!(result[2].0, "age");
         assert!(matches!(result[2].1, Value::Null(_)));
     }
@@ -728,31 +803,63 @@ mod tests {
     fn test_validate_vid_int() {
         let validator = create_test_validator();
 
-        assert!(validator.validate_vid(&Value::Int(123), &DataType::Int).is_ok());
+        assert!(validator
+            .validate_vid(&Value::Int(123), &DataType::Int)
+            .is_ok());
     }
 
     #[test]
     fn test_is_type_compatible() {
         // 整数兼容
-        assert!(SchemaValidator::is_type_compatible(&DataType::Int, &DataType::Int64));
-        assert!(SchemaValidator::is_type_compatible(&DataType::Int64, &DataType::Int));
+        assert!(SchemaValidator::is_type_compatible(
+            &DataType::Int,
+            &DataType::Int64
+        ));
+        assert!(SchemaValidator::is_type_compatible(
+            &DataType::Int64,
+            &DataType::Int
+        ));
 
         // 浮点数兼容
-        assert!(SchemaValidator::is_type_compatible(&DataType::Float, &DataType::Double));
+        assert!(SchemaValidator::is_type_compatible(
+            &DataType::Float,
+            &DataType::Double
+        ));
 
         // VID 兼容
-        assert!(SchemaValidator::is_type_compatible(&DataType::VID, &DataType::String));
-        assert!(SchemaValidator::is_type_compatible(&DataType::VID, &DataType::Int));
+        assert!(SchemaValidator::is_type_compatible(
+            &DataType::VID,
+            &DataType::String
+        ));
+        assert!(SchemaValidator::is_type_compatible(
+            &DataType::VID,
+            &DataType::Int
+        ));
 
         // 不兼容
-        assert!(!SchemaValidator::is_type_compatible(&DataType::Int, &DataType::String));
-        assert!(!SchemaValidator::is_type_compatible(&DataType::Bool, &DataType::Int));
+        assert!(!SchemaValidator::is_type_compatible(
+            &DataType::Int,
+            &DataType::String
+        ));
+        assert!(!SchemaValidator::is_type_compatible(
+            &DataType::Bool,
+            &DataType::Int
+        ));
     }
 
     #[test]
     fn test_data_type_to_value_type() {
-        assert!(matches!(SchemaValidator::data_type_to_value_type(&DataType::Bool), ValueType::Bool));
-        assert!(matches!(SchemaValidator::data_type_to_value_type(&DataType::Int), ValueType::Int));
-        assert!(matches!(SchemaValidator::data_type_to_value_type(&DataType::String), ValueType::String));
+        assert!(matches!(
+            SchemaValidator::data_type_to_value_type(&DataType::Bool),
+            ValueType::Bool
+        ));
+        assert!(matches!(
+            SchemaValidator::data_type_to_value_type(&DataType::Int),
+            ValueType::Int
+        ));
+        assert!(matches!(
+            SchemaValidator::data_type_to_value_type(&DataType::String),
+            ValueType::String
+        ));
     }
 }

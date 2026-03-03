@@ -7,17 +7,16 @@
 //! 2. 验证分组键和聚合表达式的合法性
 //! 3. 支持 HAVING 子句验证
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::GroupByStmt;
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
+use std::sync::Arc;
 
 /// 验证后的 GroupBy 信息
 #[derive(Debug, Clone)]
@@ -63,13 +62,13 @@ impl GroupByValidator {
     fn validate_impl(&mut self, stmt: GroupByStmt) -> Result<(), ValidationError> {
         // 验证分组键
         self.validate_group_keys(&stmt.group_items)?;
-        
+
         // 验证 YIELD 子句
         self.validate_yield(&stmt.yield_clause)?;
-        
+
         // 语义检查
         self.group_clause_semantic_check()?;
-        
+
         // 验证 HAVING 子句
         if let Some(ref having) = stmt.having_clause {
             self.validate_having(having)?;
@@ -79,7 +78,10 @@ impl GroupByValidator {
         Ok(())
     }
 
-    fn validate_group_keys(&mut self, group_items: &[ContextualExpression]) -> Result<(), ValidationError> {
+    fn validate_group_keys(
+        &mut self,
+        group_items: &[ContextualExpression],
+    ) -> Result<(), ValidationError> {
         if group_items.is_empty() {
             return Err(ValidationError::new(
                 "GROUP BY clause must have at least one key".to_string(),
@@ -108,7 +110,10 @@ impl GroupByValidator {
     }
 
     /// 内部方法：验证分组键
-    fn validate_group_key_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
+    fn validate_group_key_internal(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> Result<(), ValidationError> {
         // 分组键可以是：
         // 1. 列引用
         // 2. 属性访问
@@ -130,20 +135,24 @@ impl GroupByValidator {
         }
     }
 
-    fn validate_yield(&mut self, yield_clause: &crate::query::parser::ast::stmt::YieldClause) -> Result<(), ValidationError> {
+    fn validate_yield(
+        &mut self,
+        yield_clause: &crate::query::parser::ast::stmt::YieldClause,
+    ) -> Result<(), ValidationError> {
         for item in &yield_clause.items {
             let expr = &item.expression;
-            
+
             // 检查表达式中的聚合函数
             if Self::contains_aggregate(expr) {
                 self.agg_output_col_names.push(
-                    item.alias.clone()
-                        .unwrap_or_else(|| Self::expr_to_string(expr))
+                    item.alias
+                        .clone()
+                        .unwrap_or_else(|| Self::expr_to_string(expr)),
                 );
             }
-            
+
             self.group_items.push(expr.clone());
-            
+
             // 保存 yield 列用于语义检查
             self.yield_cols.push(expr.clone());
         }
@@ -165,22 +174,25 @@ impl GroupByValidator {
     }
 
     /// 内部方法：验证 HAVING 表达式
-    fn validate_having_expr_internal(&self, expr: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
+    fn validate_having_expr_internal(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> Result<(), ValidationError> {
         match expr {
             Expression::Binary { op, left, right } => {
                 self.validate_having_expr_internal(left)?;
                 self.validate_having_expr_internal(right)?;
-                
+
                 // 验证比较操作符
                 match op {
-                    crate::core::types::operators::BinaryOperator::Equal |
-                    crate::core::types::operators::BinaryOperator::NotEqual |
-                    crate::core::types::operators::BinaryOperator::LessThan |
-                    crate::core::types::operators::BinaryOperator::GreaterThan |
-                    crate::core::types::operators::BinaryOperator::LessThanOrEqual |
-                    crate::core::types::operators::BinaryOperator::GreaterThanOrEqual |
-                    crate::core::types::operators::BinaryOperator::And |
-                    crate::core::types::operators::BinaryOperator::Or => Ok(()),
+                    crate::core::types::operators::BinaryOperator::Equal
+                    | crate::core::types::operators::BinaryOperator::NotEqual
+                    | crate::core::types::operators::BinaryOperator::LessThan
+                    | crate::core::types::operators::BinaryOperator::GreaterThan
+                    | crate::core::types::operators::BinaryOperator::LessThanOrEqual
+                    | crate::core::types::operators::BinaryOperator::GreaterThanOrEqual
+                    | crate::core::types::operators::BinaryOperator::And
+                    | crate::core::types::operators::BinaryOperator::Or => Ok(()),
                     _ => Err(ValidationError::new(
                         format!("Invalid operator in HAVING clause: {:?}", op),
                         ValidationErrorType::SemanticError,
@@ -194,7 +206,7 @@ impl GroupByValidator {
                     _ => Err(ValidationError::new(
                         format!("Invalid unary operator in HAVING clause: {:?}", op),
                         ValidationErrorType::SemanticError,
-                    ))
+                    )),
                 }
             }
             _ => Ok(()),
@@ -206,10 +218,11 @@ impl GroupByValidator {
         for yield_col in &self.yield_cols {
             if !Self::contains_aggregate(yield_col) {
                 // 非聚合表达式必须在 GROUP BY 中
-                let found = self.group_keys.iter().any(|key| {
-                    Self::expr_equivalent(key, yield_col)
-                });
-                
+                let found = self
+                    .group_keys
+                    .iter()
+                    .any(|key| Self::expr_equivalent(key, yield_col));
+
                 if !found {
                     return Err(ValidationError::new(
                         format!(
@@ -227,7 +240,9 @@ impl GroupByValidator {
 
     fn setup_outputs(&mut self) {
         // 根据 YIELD 子句设置输出列
-        self.outputs = self.group_items.iter()
+        self.outputs = self
+            .group_items
+            .iter()
             .zip(&self.agg_output_col_names)
             .map(|(_, name)| ColumnDef {
                 name: name.clone(),
@@ -263,9 +278,7 @@ impl GroupByValidator {
             Expression::Binary { left, right, .. } => {
                 Self::contains_aggregate_internal(left) || Self::contains_aggregate_internal(right)
             }
-            Expression::Unary { operand, .. } => {
-                Self::contains_aggregate_internal(operand)
-            }
+            Expression::Unary { operand, .. } => Self::contains_aggregate_internal(operand),
             _ => false,
         }
     }
@@ -324,9 +337,9 @@ impl StatementValidator for GroupByValidator {
                 ));
             }
         };
-        
+
         self.validate_impl(group_by_stmt)?;
-        
+
         let mut info = ValidationInfo::new();
 
         for key in &self.group_keys {
@@ -334,7 +347,9 @@ impl StatementValidator for GroupByValidator {
         }
 
         for item in &self.group_items {
-            info.semantic_info.aggregate_functions.push(format!("{:?}", item));
+            info.semantic_info
+                .aggregate_functions
+                .push(format!("{:?}", item));
         }
 
         Ok(ValidationResult::success_with_info(info))

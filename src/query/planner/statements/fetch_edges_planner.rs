@@ -1,7 +1,6 @@
 //! FETCH EDGES查询规划器
 //! 处理FETCH EDGES查询的规划
 
-use crate::query::QueryContext;
 use crate::query::parser::ast::{FetchTarget, Stmt};
 use crate::query::planner::plan::core::nodes::{
     ArgumentNode, FilterNode, GetEdgesNode, ProjectNode,
@@ -9,6 +8,7 @@ use crate::query::planner::plan::core::nodes::{
 use crate::query::planner::plan::core::PlanNodeEnum;
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// FETCH EDGES查询规划器
@@ -33,17 +33,23 @@ impl Planner for FetchEdgesPlanner {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "FetchEdgesPlanner 需要 Fetch 语句".to_string()
+                    "FetchEdgesPlanner 需要 Fetch 语句".to_string(),
                 ));
             }
         };
 
         // 检查是否是 FETCH EDGES
         let (src, dst, edge_type, rank) = match &fetch_stmt.target {
-            FetchTarget::Edges { src, dst, edge_type, rank, .. } => (src, dst, edge_type, rank),
+            FetchTarget::Edges {
+                src,
+                dst,
+                edge_type,
+                rank,
+                ..
+            } => (src, dst, edge_type, rank),
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "FetchEdgesPlanner 需要 FETCH EDGES 语句".to_string()
+                    "FetchEdgesPlanner 需要 FETCH EDGES 语句".to_string(),
                 ));
             }
         };
@@ -56,20 +62,21 @@ impl Planner for FetchEdgesPlanner {
         // 从表达式中提取字符串值
         let src_str = extract_string_from_expr(src)?;
         let dst_str = extract_string_from_expr(dst)?;
-        let rank_str = rank.as_ref().map(|r| extract_string_from_expr(r)).transpose()?.unwrap_or_else(|| "0".to_string());
+        let rank_str = rank
+            .as_ref()
+            .map(|r| extract_string_from_expr(r))
+            .transpose()?
+            .unwrap_or_else(|| "0".to_string());
 
         // 2. 创建获取边的节点
         let get_edges_node = PlanNodeEnum::GetEdges(GetEdgesNode::new(
             1, // space_id
-            &src_str,
-            edge_type,
-            &rank_str,
-            &dst_str,
+            &src_str, edge_type, &rank_str, &dst_str,
         ));
 
         // 3. 创建过滤空边的节点
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::Variable(format!("{} IS NOT EMPTY", var_name))
+            crate::core::Expression::Variable(format!("{} IS NOT EMPTY", var_name)),
         );
         let id = qctx.expr_context().register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, qctx.expr_context_clone());
@@ -105,7 +112,9 @@ impl Planner for FetchEdgesPlanner {
 }
 
 /// 从表达式中提取字符串值
-fn extract_string_from_expr(expr: &crate::core::types::expression::contextual::ContextualExpression) -> Result<String, PlannerError> {
+fn extract_string_from_expr(
+    expr: &crate::core::types::expression::contextual::ContextualExpression,
+) -> Result<String, PlannerError> {
     let expr_meta = match expr.expression() {
         Some(e) => e,
         None => return Err(PlannerError::InvalidOperation("表达式无效".to_string())),
@@ -113,16 +122,20 @@ fn extract_string_from_expr(expr: &crate::core::types::expression::contextual::C
     let inner_expr = expr_meta.inner();
     match inner_expr {
         crate::core::types::expression::Expression::Variable(s) => Ok(s.clone()),
-        crate::core::types::expression::Expression::Literal(v) => {
-            match v {
-                crate::core::Value::String(s) => Ok(s.clone()),
-                crate::core::Value::Int(i) => Ok(i.to_string()),
-                crate::core::Value::Float(f) => Ok(f.to_string()),
-                crate::core::Value::Bool(b) => Ok(b.to_string()),
-                _ => Err(PlannerError::InvalidOperation(format!("无法从字面量提取字符串: {:?}", v))),
-            }
-        }
-        _ => Err(PlannerError::InvalidOperation(format!("无法从表达式提取字符串: {:?}", inner_expr))),
+        crate::core::types::expression::Expression::Literal(v) => match v {
+            crate::core::Value::String(s) => Ok(s.clone()),
+            crate::core::Value::Int(i) => Ok(i.to_string()),
+            crate::core::Value::Float(f) => Ok(f.to_string()),
+            crate::core::Value::Bool(b) => Ok(b.to_string()),
+            _ => Err(PlannerError::InvalidOperation(format!(
+                "无法从字面量提取字符串: {:?}",
+                v
+            ))),
+        },
+        _ => Err(PlannerError::InvalidOperation(format!(
+            "无法从表达式提取字符串: {:?}",
+            inner_expr
+        ))),
     }
 }
 

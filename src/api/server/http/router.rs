@@ -1,30 +1,28 @@
 use axum::{
-    routing::{get, post},
-    Router,
     http::StatusCode,
     middleware,
-};
-use tower_http::{
-    cors::{CorsLayer, Any},
-    trace::TraceLayer,
-    timeout::TimeoutLayer,
-    limit::RequestBodyLimitLayer,
+    routing::{get, post},
+    Router,
 };
 use std::time::Duration;
+use tower_http::{
+    cors::{Any, CorsLayer},
+    limit::RequestBodyLimitLayer,
+    timeout::TimeoutLayer,
+    trace::TraceLayer,
+};
 
 use crate::storage::StorageClient;
 
 use super::{
-    state::AppState,
     handlers::{
-        health,
-        query,
         auth::{login, logout},
+        health, query, schema,
+        session::{create, delete_session, get_session},
         transaction,
-        schema,
-        session::{create, get_session, delete_session},
     },
-    middleware::{logging, error, auth::auth_middleware},
+    middleware::{auth::auth_middleware, error, logging},
+    state::AppState,
 };
 
 /// 创建路由器
@@ -54,11 +52,26 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
         .route("/transactions", post(transaction::begin))
         .route("/transactions/:id/commit", post(transaction::commit))
         .route("/transactions/:id/rollback", post(transaction::rollback))
-        .route("/schema/spaces", post(schema::create_space).get(schema::list_spaces))
-        .route("/schema/spaces/:name", get(schema::get_space).delete(schema::drop_space))
-        .route("/schema/spaces/:name/tags", post(schema::create_tag).get(schema::list_tags))
-        .route("/schema/spaces/:name/edge-types", post(schema::create_edge_type).get(schema::list_edge_types))
-        .layer(middleware::from_fn_with_state(state.clone(), auth_middleware));
+        .route(
+            "/schema/spaces",
+            post(schema::create_space).get(schema::list_spaces),
+        )
+        .route(
+            "/schema/spaces/:name",
+            get(schema::get_space).delete(schema::drop_space),
+        )
+        .route(
+            "/schema/spaces/:name/tags",
+            post(schema::create_tag).get(schema::list_tags),
+        )
+        .route(
+            "/schema/spaces/:name/edge-types",
+            post(schema::create_edge_type).get(schema::list_edge_types),
+        )
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ));
 
     // 合并所有路由，添加版本前缀
     Router::new()

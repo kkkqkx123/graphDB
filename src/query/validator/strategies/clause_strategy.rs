@@ -2,13 +2,15 @@
 //! 负责验证不同查询子句（MATCH、RETURN、WITH、UNWIND等）
 //! 合并原expression_validator和clause_validator的功能
 
+use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::{ContextualExpression, ExpressionContext, ExpressionMeta};
 use crate::core::Expression;
 use crate::core::YieldColumn;
-use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::{ExpressionMeta, ExpressionContext, ContextualExpression};
-use crate::query::validator::structs::{ReturnClauseContext, BoundaryClauseContext, YieldClauseContext, MatchClauseContext};
 use crate::query::validator::structs::alias_structs::AliasType;
-use crate::query::validator::{QueryPart, Path};
+use crate::query::validator::structs::{
+    BoundaryClauseContext, MatchClauseContext, ReturnClauseContext, YieldClauseContext,
+};
+use crate::query::validator::{Path, QueryPart};
 use std::sync::Arc;
 
 /// 子句验证策略
@@ -37,7 +39,8 @@ impl ClauseValidationStrategy {
         let alias_validator = AliasValidationStrategy::new();
 
         for col in &context.yield_clause.yield_columns {
-            alias_validator.validate_aliases(&[col.expression.clone()], &context.aliases_available)?;
+            alias_validator
+                .validate_aliases(&[col.expression.clone()], &context.aliases_available)?;
         }
 
         // 验证分页
@@ -101,7 +104,9 @@ impl ClauseValidationStrategy {
                     BoundaryClauseContext::Unwind(unwind_ctx) => {
                         // 添加Unwind子句的别名
                         columns.push(YieldColumn::new(
-                            self.create_contextual_expression(Expression::Label(unwind_ctx.alias.clone())),
+                            self.create_contextual_expression(Expression::Label(
+                                unwind_ctx.alias.clone(),
+                            )),
                             unwind_ctx.alias.clone(),
                         ));
 
@@ -126,7 +131,9 @@ impl ClauseValidationStrategy {
                         for col in &with_ctx.yield_clause.yield_columns {
                             if !col.alias.is_empty() {
                                 columns.push(YieldColumn::new(
-                                    self.create_contextual_expression(Expression::Label(col.alias.clone())),
+                                    self.create_contextual_expression(Expression::Label(
+                                        col.alias.clone(),
+                                    )),
                                     col.alias.clone(),
                                 ));
                             }
@@ -143,14 +150,18 @@ impl ClauseValidationStrategy {
                 for i in 0..path.edge_infos.len() {
                     if !path.node_infos[i].anonymous {
                         columns.push(YieldColumn::new(
-                            self.create_contextual_expression(Expression::Label(path.node_infos[i].alias.clone())),
+                            self.create_contextual_expression(Expression::Label(
+                                path.node_infos[i].alias.clone(),
+                            )),
                             path.node_infos[i].alias.clone(),
                         ));
                     }
 
                     if !path.edge_infos[i].anonymous {
                         columns.push(YieldColumn::new(
-                            self.create_contextual_expression(Expression::Label(path.edge_infos[i].alias.clone())),
+                            self.create_contextual_expression(Expression::Label(
+                                path.edge_infos[i].alias.clone(),
+                            )),
                             path.edge_infos[i].alias.clone(),
                         ));
                     }
@@ -165,7 +176,9 @@ impl ClauseValidationStrategy {
                 })?;
                 if !last_node.anonymous {
                     columns.push(YieldColumn::new(
-                        self.create_contextual_expression(Expression::Label(last_node.alias.clone())),
+                        self.create_contextual_expression(Expression::Label(
+                            last_node.alias.clone(),
+                        )),
                         last_node.alias.clone(),
                     ));
                 }
@@ -210,7 +223,8 @@ impl ClauseValidationStrategy {
         use super::alias_strategy::AliasValidationStrategy;
         let alias_validator = AliasValidationStrategy::new();
         for col in &context.yield_columns {
-            alias_validator.validate_aliases(&[col.expression.clone()], &context.aliases_available)?;
+            alias_validator
+                .validate_aliases(&[col.expression.clone()], &context.aliases_available)?;
         }
 
         Ok(())
@@ -292,7 +306,9 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    strategy.create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
+                    strategy.create_contextual_expression(Expression::Literal(
+                        crate::core::Value::Int(1),
+                    )),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -332,7 +348,9 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    strategy.create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
+                    strategy.create_contextual_expression(Expression::Literal(
+                        crate::core::Value::Int(1),
+                    )),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -372,7 +390,9 @@ mod tests {
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
-                    strategy.create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
+                    strategy.create_contextual_expression(Expression::Literal(
+                        crate::core::Value::Int(1),
+                    )),
                     "col1".to_string(),
                 )],
                 aliases_available: HashMap::new(),
@@ -439,7 +459,8 @@ mod tests {
 
         let mut yield_context = YieldClauseContext {
             yield_columns: vec![YieldColumn::new(
-                strategy.create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
+                strategy
+                    .create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
                 "col1".to_string(),
             )],
             aliases_available: HashMap::new(),

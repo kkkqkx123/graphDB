@@ -4,15 +4,16 @@
 
 use std::sync::Arc;
 
-use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::validator::StatementType;
+use crate::query::QueryContext;
 
 // 公开导出 ValidatedStatement，供 planner 实现使用
 pub use crate::query::validator::ValidatedStatement;
 
+use crate::query::planner::rewrite::{rewrite_plan, RewriteError};
 use crate::query::planner::statements::delete_planner::DeletePlanner;
 use crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner;
 use crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner;
@@ -28,7 +29,6 @@ use crate::query::planner::statements::subgraph_planner::SubgraphPlanner;
 use crate::query::planner::statements::update_planner::UpdatePlanner;
 use crate::query::planner::statements::use_planner::UsePlanner;
 use crate::query::planner::statements::user_management_planner::UserManagementPlanner;
-use crate::query::planner::rewrite::{rewrite_plan, RewriteError};
 
 /// 规划器配置
 #[derive(Debug, Clone)]
@@ -84,17 +84,17 @@ impl SentenceKind {
             "FETCH VERTICES" => Ok(SentenceKind::FetchVertices),
             "FETCH EDGES" => Ok(SentenceKind::FetchEdges),
             "MAINTAIN" => Ok(SentenceKind::Maintain),
-            "CREATE_USER" | "ALTER_USER" | "DROP_USER" | "CHANGE_PASSWORD" |
-            "CREATE USER" | "ALTER USER" | "DROP USER" | "CHANGE PASSWORD" => {
-                Ok(SentenceKind::UserManagement)
-            }
+            "CREATE_USER" | "ALTER_USER" | "DROP_USER" | "CHANGE_PASSWORD" | "CREATE USER"
+            | "ALTER USER" | "DROP USER" | "CHANGE PASSWORD" => Ok(SentenceKind::UserManagement),
             "CREATE" => Ok(SentenceKind::Create),
             "DROP" => Ok(SentenceKind::Drop),
             "USE" => Ok(SentenceKind::Use),
             "DELETE" => Ok(SentenceKind::Delete),
             "UPDATE" => Ok(SentenceKind::Update),
             "GROUP BY" => Ok(SentenceKind::GroupBy),
-            "SET OPERATION" | "UNION" | "UNION ALL" | "INTERSECT" | "MINUS" => Ok(SentenceKind::SetOperation),
+            "SET OPERATION" | "UNION" | "UNION ALL" | "INTERSECT" | "MINUS" => {
+                Ok(SentenceKind::SetOperation)
+            }
             "SHOW" => Ok(SentenceKind::Show),
             "DESC" => Ok(SentenceKind::Desc),
             "INSERT" | "INSERT VERTEX" | "INSERT EDGE" => Ok(SentenceKind::Insert),
@@ -116,14 +116,22 @@ impl SentenceKind {
             "FETCH" => {
                 if let Stmt::Fetch(fetch_stmt) = stmt {
                     match &fetch_stmt.target {
-                        crate::query::parser::ast::FetchTarget::Vertices { .. } => Ok(SentenceKind::FetchVertices),
-                        crate::query::parser::ast::FetchTarget::Edges { .. } => Ok(SentenceKind::FetchEdges),
+                        crate::query::parser::ast::FetchTarget::Vertices { .. } => {
+                            Ok(SentenceKind::FetchVertices)
+                        }
+                        crate::query::parser::ast::FetchTarget::Edges { .. } => {
+                            Ok(SentenceKind::FetchEdges)
+                        }
                     }
                 } else {
-                    Err(PlannerError::UnsupportedOperation("Invalid FETCH statement".to_string()))
+                    Err(PlannerError::UnsupportedOperation(
+                        "Invalid FETCH statement".to_string(),
+                    ))
                 }
             }
-            "CREATE USER" | "ALTER USER" | "DROP USER" | "CHANGE PASSWORD" => Ok(SentenceKind::UserManagement),
+            "CREATE USER" | "ALTER USER" | "DROP USER" | "CHANGE PASSWORD" => {
+                Ok(SentenceKind::UserManagement)
+            }
             "CREATE" => Ok(SentenceKind::Create),
             "DROP" => Ok(SentenceKind::Drop),
             "USE" => Ok(SentenceKind::Use),
@@ -178,8 +186,9 @@ impl SentenceKind {
             StatementType::FetchVertices => Some(SentenceKind::FetchVertices),
             StatementType::FetchEdges => Some(SentenceKind::FetchEdges),
             // INSERT 语句映射到 Insert
-            StatementType::InsertVertices |
-            StatementType::InsertEdges => Some(SentenceKind::Insert),
+            StatementType::InsertVertices | StatementType::InsertEdges => {
+                Some(SentenceKind::Insert)
+            }
             // DELETE 和 UPDATE 有独立的规划器
             StatementType::Delete => Some(SentenceKind::Delete),
             StatementType::Update => Some(SentenceKind::Update),
@@ -190,56 +199,56 @@ impl SentenceKind {
             // 集合操作有独立的规划器
             StatementType::SetOperation => Some(SentenceKind::SetOperation),
             // 其他DDL和DML操作映射到 Maintain
-            StatementType::Create |
-            StatementType::CreateSpace |
-            StatementType::CreateTag |
-            StatementType::CreateEdge |
-            StatementType::Alter |
-            StatementType::AlterTag |
-            StatementType::AlterEdge |
-            StatementType::Drop |
-            StatementType::DropSpace |
-            StatementType::DropTag |
-            StatementType::DropEdge |
-            StatementType::DescribeSpace |
-            StatementType::DescribeTag |
-            StatementType::DescribeEdge |
-            StatementType::ShowSpaces |
-            StatementType::ShowTags |
-            StatementType::ShowEdges => Some(SentenceKind::Maintain),
+            StatementType::Create
+            | StatementType::CreateSpace
+            | StatementType::CreateTag
+            | StatementType::CreateEdge
+            | StatementType::Alter
+            | StatementType::AlterTag
+            | StatementType::AlterEdge
+            | StatementType::Drop
+            | StatementType::DropSpace
+            | StatementType::DropTag
+            | StatementType::DropEdge
+            | StatementType::DescribeSpace
+            | StatementType::DescribeTag
+            | StatementType::DescribeEdge
+            | StatementType::ShowSpaces
+            | StatementType::ShowTags
+            | StatementType::ShowEdges => Some(SentenceKind::Maintain),
             // 以下类型没有对应的规划器，返回 None
-            StatementType::Unwind |
-            StatementType::Yield |
-            StatementType::OrderBy |
-            StatementType::Limit |
-            StatementType::Assignment |
-            StatementType::Set |
-            StatementType::Pipe |
-            StatementType::Sequential |
-            StatementType::Explain |
-            StatementType::Profile |
-            StatementType::Query |
-            StatementType::Merge |
-            StatementType::Return |
-            StatementType::With |
-            StatementType::Remove |
-            StatementType::UpdateConfigs |
-            StatementType::Show |
-            StatementType::Desc |
-            StatementType::ShowCreate |
-            StatementType::ShowConfigs |
-            StatementType::ShowSessions |
-            StatementType::ShowQueries |
-            StatementType::KillQuery |
-            StatementType::CreateUser |
-            StatementType::DropUser |
-            StatementType::AlterUser |
-            StatementType::Grant |
-            StatementType::Revoke |
-            StatementType::ChangePassword |
-            StatementType::DescribeUser |
-            StatementType::ShowUsers |
-            StatementType::ShowRoles => None,
+            StatementType::Unwind
+            | StatementType::Yield
+            | StatementType::OrderBy
+            | StatementType::Limit
+            | StatementType::Assignment
+            | StatementType::Set
+            | StatementType::Pipe
+            | StatementType::Sequential
+            | StatementType::Explain
+            | StatementType::Profile
+            | StatementType::Query
+            | StatementType::Merge
+            | StatementType::Return
+            | StatementType::With
+            | StatementType::Remove
+            | StatementType::UpdateConfigs
+            | StatementType::Show
+            | StatementType::Desc
+            | StatementType::ShowCreate
+            | StatementType::ShowConfigs
+            | StatementType::ShowSessions
+            | StatementType::ShowQueries
+            | StatementType::KillQuery
+            | StatementType::CreateUser
+            | StatementType::DropUser
+            | StatementType::AlterUser
+            | StatementType::Grant
+            | StatementType::Revoke
+            | StatementType::ChangePassword
+            | StatementType::DescribeUser
+            | StatementType::ShowUsers
+            | StatementType::ShowRoles => None,
         }
     }
 }
@@ -325,15 +334,21 @@ impl PlannerEnum {
             SentenceKind::Lookup => Some(PlannerEnum::Lookup(LookupPlanner::new())),
             SentenceKind::Path => Some(PlannerEnum::Path(PathPlanner::new())),
             SentenceKind::Subgraph => Some(PlannerEnum::Subgraph(SubgraphPlanner::new())),
-            SentenceKind::FetchVertices => Some(PlannerEnum::FetchVertices(FetchVerticesPlanner::new())),
+            SentenceKind::FetchVertices => {
+                Some(PlannerEnum::FetchVertices(FetchVerticesPlanner::new()))
+            }
             SentenceKind::FetchEdges => Some(PlannerEnum::FetchEdges(FetchEdgesPlanner::new())),
             SentenceKind::Maintain => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
-            SentenceKind::UserManagement => Some(PlannerEnum::UserManagement(UserManagementPlanner::new())),
+            SentenceKind::UserManagement => {
+                Some(PlannerEnum::UserManagement(UserManagementPlanner::new()))
+            }
             SentenceKind::Insert => Some(PlannerEnum::Insert(InsertPlanner::new())),
             SentenceKind::Delete => Some(PlannerEnum::Delete(DeletePlanner::new())),
             SentenceKind::Update => Some(PlannerEnum::Update(UpdatePlanner::new())),
             SentenceKind::GroupBy => Some(PlannerEnum::GroupBy(GroupByPlanner::new())),
-            SentenceKind::SetOperation => Some(PlannerEnum::SetOperation(SetOperationPlanner::new())),
+            SentenceKind::SetOperation => {
+                Some(PlannerEnum::SetOperation(SetOperationPlanner::new()))
+            }
             SentenceKind::Use => Some(PlannerEnum::Use(UsePlanner::new())),
             // DDL/DML 操作使用 Maintain 规划器
             SentenceKind::Create | SentenceKind::Drop | SentenceKind::Show | SentenceKind::Desc => {
@@ -344,7 +359,11 @@ impl PlannerEnum {
 
     /// 将验证后的语句转换为执行计划
     /// 可以访问验证阶段收集的信息
-    pub fn transform(&mut self, validated: &ValidatedStatement, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+    pub fn transform(
+        &mut self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
         match self {
             PlannerEnum::Match(planner) => planner.transform(validated, qctx),
             PlannerEnum::Go(planner) => planner.transform(validated, qctx),

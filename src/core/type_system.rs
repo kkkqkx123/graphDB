@@ -2,9 +2,9 @@
 //!
 //! 提供类型兼容性检查、类型优先级和类型转换等核心功能
 
+use crate::core::value::dataset::List;
 use crate::core::DataType;
 use crate::core::Value;
-use crate::core::value::dataset::List;
 
 /// 类型系统工具
 pub struct TypeUtils;
@@ -123,9 +123,7 @@ impl TypeUtils {
                     DataType::Int
                 }
             }
-            "==" | "!=" | "<" | "<=" | ">" | ">=" => {
-                DataType::Bool
-            }
+            "==" | "!=" | "<" | "<=" | ">" | ">=" => DataType::Bool,
             _ => DataType::Empty,
         }
     }
@@ -136,7 +134,7 @@ impl TypeUtils {
     }
 
     /// 检查类型是否可以转换为目标类型
-    /// 
+    ///
     /// 使用 match 表达式实现编译期确定的类型转换规则，
     /// 避免运行时初始化和全局状态
     pub fn can_cast(from: &DataType, to: &DataType) -> bool {
@@ -180,20 +178,12 @@ impl TypeUtils {
     }
 
     /// 获取类型可以转换到的所有目标类型
-    /// 
+    ///
     /// 返回该类型可以转换到的所有目标类型列表
     pub fn get_cast_targets(from: &DataType) -> Vec<DataType> {
         match from {
-            DataType::Int => vec![
-                DataType::Int,
-                DataType::Float,
-                DataType::String,
-            ],
-            DataType::Float => vec![
-                DataType::Float,
-                DataType::Int,
-                DataType::String,
-            ],
+            DataType::Int => vec![DataType::Int, DataType::Float, DataType::String],
+            DataType::Float => vec![DataType::Float, DataType::Int, DataType::String],
             DataType::String => vec![
                 DataType::String,
                 DataType::Int,
@@ -238,7 +228,11 @@ impl TypeUtils {
             DataType::Empty => "empty".to_string(),
             DataType::Null => "null".to_string(),
             DataType::Bool => "bool".to_string(),
-            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => "int".to_string(),
+            DataType::Int
+            | DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64 => "int".to_string(),
             DataType::Float | DataType::Double => "float".to_string(),
             DataType::String => "string".to_string(),
             DataType::FixedString(len) => format!("fixed_string({})", len),
@@ -403,7 +397,10 @@ mod tests {
         use crate::core::value::Value;
 
         assert_eq!(TypeUtils::literal_type(&Value::Int(42)), DataType::Int);
-        assert_eq!(TypeUtils::literal_type(&Value::Float(3.14)), DataType::Float);
+        assert_eq!(
+            TypeUtils::literal_type(&Value::Float(3.14)),
+            DataType::Float
+        );
         assert_eq!(
             TypeUtils::literal_type(&Value::String("test".to_string())),
             DataType::String
@@ -497,8 +494,14 @@ mod tests {
 
     #[test]
     fn test_validate_type_cast() {
-        assert!(TypeUtils::validate_type_cast(&DataType::Int, &DataType::Float));
-        assert!(!TypeUtils::validate_type_cast(&DataType::Int, &DataType::Bool));
+        assert!(TypeUtils::validate_type_cast(
+            &DataType::Int,
+            &DataType::Float
+        ));
+        assert!(!TypeUtils::validate_type_cast(
+            &DataType::Int,
+            &DataType::Bool
+        ));
     }
 
     #[test]

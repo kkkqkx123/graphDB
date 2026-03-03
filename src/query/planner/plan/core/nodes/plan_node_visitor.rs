@@ -1,14 +1,16 @@
 //! PlanNode 访问者模式实现
 
-use super::plan_node_enum::PlanNodeEnum;
-use super::space_nodes::{CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode, SpaceManageInfo};
-use super::tag_nodes::{AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode};
 use super::edge_nodes::{AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode};
 use super::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
+use super::plan_node_enum::PlanNodeEnum;
+use super::space_nodes::{
+    CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode, SpaceManageInfo,
+};
+use super::tag_nodes::{AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode};
 use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode};
 
 pub use super::aggregate_node::AggregateNode;
@@ -19,14 +21,16 @@ pub use super::data_processing_node::{
 };
 pub use super::filter_node::FilterNode;
 pub use super::graph_scan_node::{
-    EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
+    EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
+    ScanVerticesNode,
 };
-pub use super::set_operations_node::{IntersectNode, MinusNode};
 pub use super::join_node::{
-    CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode,
+    CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
+    LeftJoinNode,
 };
 pub use super::project_node::ProjectNode;
 pub use super::sample_node::SampleNode;
+pub use super::set_operations_node::{IntersectNode, MinusNode};
 pub use super::sort_node::{LimitNode, SortNode, TopNNode};
 pub use super::start_node::StartNode;
 pub use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
@@ -250,8 +254,13 @@ impl PlanNodeEnum {
             PlanNodeEnum::AlterUser(node) => visitor.visit_alter_user(node),
             PlanNodeEnum::DropUser(node) => visitor.visit_drop_user(node),
             PlanNodeEnum::ChangePassword(node) => visitor.visit_change_password(node),
-            PlanNodeEnum::InsertVertices(_node) => visitor.visit_create_space(&CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string()))),
-            PlanNodeEnum::InsertEdges(_node) => visitor.visit_create_space(&CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string()))),
+            PlanNodeEnum::InsertVertices(_node) => visitor.visit_create_space(
+                &CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string())),
+            ),
+            PlanNodeEnum::InsertEdges(_node) => visitor.visit_create_space(&CreateSpaceNode::new(
+                -1,
+                SpaceManageInfo::new("".to_string()),
+            )),
         }
     }
 }

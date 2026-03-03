@@ -193,9 +193,9 @@ impl TransactionContext {
 
     /// 获取读事务引用
     pub fn read_txn(&self) -> Result<&redb::ReadTransaction, TransactionError> {
-        self.read_txn
-            .as_ref()
-            .ok_or(TransactionError::Internal("Read transaction not available".to_string()))
+        self.read_txn.as_ref().ok_or(TransactionError::Internal(
+            "Read transaction not available".to_string(),
+        ))
     }
 
     /// 使用写事务执行操作（供存储层调用）
@@ -272,7 +272,10 @@ impl TransactionContext {
     /// 2. 操作完成后立即释放引用
     ///
     /// 建议使用 `with_write_txn` 方法代替
-    pub fn write_txn_mut(&self) -> Result<impl std::ops::DerefMut<Target = redb::WriteTransaction> + '_, TransactionError> {
+    pub fn write_txn_mut(
+        &self,
+    ) -> Result<impl std::ops::DerefMut<Target = redb::WriteTransaction> + '_, TransactionError>
+    {
         if self.read_only {
             return Err(TransactionError::ReadOnlyTransaction);
         }

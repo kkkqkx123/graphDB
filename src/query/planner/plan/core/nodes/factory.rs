@@ -11,14 +11,14 @@ use super::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
 
-use super::sort_node::{LimitNode, SortNode, SortItem};
+use super::sort_node::{LimitNode, SortItem, SortNode};
 use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
-use crate::core::types::EdgeDirection;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::types::ContextualExpression;
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::core::types::EdgeDirection;
 use crate::core::YieldColumn;
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 节点工厂
 ///
@@ -279,7 +279,8 @@ impl PlanNodeFactory {
         compare_cols: Vec<String>,
         collect_col: Option<String>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        let roll_up_apply_node = RollUpApplyNode::new(left_input, right_input, compare_cols, collect_col)?;
+        let roll_up_apply_node =
+            RollUpApplyNode::new(left_input, right_input, compare_cols, collect_col)?;
         Ok(PlanNodeEnum::RollUpApply(roll_up_apply_node))
     }
 
@@ -290,7 +291,8 @@ impl PlanNodeFactory {
         key_cols: Vec<String>,
         is_anti_predicate: bool,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        let pattern_apply_node = PatternApplyNode::new(left_input, right_input, key_cols, is_anti_predicate)?;
+        let pattern_apply_node =
+            PatternApplyNode::new(left_input, right_input, key_cols, is_anti_predicate)?;
         Ok(PlanNodeEnum::PatternApply(pattern_apply_node))
     }
 
@@ -313,7 +315,13 @@ impl PlanNodeFactory {
         use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
 
         // 创建 IndexScan 节点
-        let index_scan_node = IndexScan::new(-1, space_id, tag_id, index_id, ScanType::from_str(scan_type));
+        let index_scan_node = IndexScan::new(
+            -1,
+            space_id,
+            tag_id,
+            index_id,
+            ScanType::from_str(scan_type),
+        );
         Ok(PlanNodeEnum::IndexScan(index_scan_node))
     }
 

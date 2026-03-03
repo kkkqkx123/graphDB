@@ -1,20 +1,22 @@
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-use parking_lot::Mutex;
-    use crate::query::executor::admin::index::{
-        CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
-        RebuildTagIndexExecutor,
-        CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor, ShowEdgeIndexesExecutor,
-        RebuildEdgeIndexExecutor,
-    };
     use crate::index::{Index, IndexType};
-    use crate::storage::test_mock::MockStorage;
+    use crate::query::executor::admin::index::{
+        CreateEdgeIndexExecutor, CreateTagIndexExecutor, DescEdgeIndexExecutor,
+        DescTagIndexExecutor, DropEdgeIndexExecutor, DropTagIndexExecutor,
+        RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, ShowEdgeIndexesExecutor,
+        ShowTagIndexesExecutor,
+    };
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
+    use parking_lot::Mutex;
+    use std::sync::Arc;
 
     #[test]
     fn test_create_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let index = Index::new(
             0,
             "person_name_index".to_string(),
@@ -38,7 +40,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_create_tag_index_executor_with_if_not_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let index = Index::new(
             0,
             "person_name_index".to_string(),
@@ -58,7 +62,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_drop_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DropTagIndexExecutor::new(
             3,
             storage,
@@ -76,7 +82,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_drop_tag_index_executor_with_if_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DropTagIndexExecutor::with_if_exists(
             4,
             storage,
@@ -90,7 +98,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_desc_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DescTagIndexExecutor::new(
             5,
             storage,
@@ -104,7 +114,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_show_tag_indexes_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = ShowTagIndexesExecutor::new(6, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -113,7 +125,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_rebuild_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = RebuildTagIndexExecutor::new(
             7,
             storage,
@@ -131,7 +145,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_create_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let index = Index::new(
             0,
             "knows_weight_index".to_string(),
@@ -155,7 +171,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_create_edge_index_executor_with_if_not_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let index = Index::new(
             0,
             "knows_weight_index".to_string(),
@@ -175,7 +193,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_drop_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DropEdgeIndexExecutor::new(
             10,
             storage,
@@ -193,7 +213,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_drop_edge_index_executor_with_if_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DropEdgeIndexExecutor::with_if_exists(
             11,
             storage,
@@ -207,7 +229,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_desc_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = DescEdgeIndexExecutor::new(
             12,
             storage,
@@ -221,7 +245,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_show_edge_indexes_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = ShowEdgeIndexesExecutor::new(13, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -230,7 +256,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_rebuild_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = RebuildEdgeIndexExecutor::new(
             14,
             storage,
@@ -248,7 +276,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let index = Index::new(
             0,
             "test_index".to_string(),
@@ -270,7 +300,9 @@ use parking_lot::Mutex;
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let index = Index::new(
             0,
             "test_index".to_string(),

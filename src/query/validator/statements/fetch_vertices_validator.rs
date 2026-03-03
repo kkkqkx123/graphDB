@@ -20,14 +20,13 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::core::Value;
-use crate::query::QueryContext;
-use crate::query::parser::ast::Stmt;
 use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
+use crate::query::parser::ast::Stmt;
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的顶点获取信息
@@ -113,7 +112,10 @@ impl FetchVerticesValidator {
     }
 
     /// 验证顶点 ID 列表
-    fn validate_vertex_ids(&self, vertex_ids: &[ContextualExpression]) -> Result<(), ValidationError> {
+    fn validate_vertex_ids(
+        &self,
+        vertex_ids: &[ContextualExpression],
+    ) -> Result<(), ValidationError> {
         if vertex_ids.is_empty() {
             return Err(ValidationError::new(
                 "必须指定至少一个顶点 ID".to_string(),
@@ -134,19 +136,21 @@ impl FetchVerticesValidator {
         // 使用 SchemaValidator 进行统一验证
         // 默认使用 String 类型，因为 FETCH VERTICES 通常使用字符串 VID
         let vid_type = crate::core::types::DataType::String;
-        
+
         if let Some(ref schema_manager) = self.schema_manager {
-            let schema_validator = crate::query::validator::SchemaValidator::new(schema_manager.clone());
-            schema_validator.validate_vid_expr(expr, &vid_type, "vertex")
+            let schema_validator =
+                crate::query::validator::SchemaValidator::new(schema_manager.clone());
+            schema_validator
+                .validate_vid_expr(expr, &vid_type, "vertex")
                 .map_err(|e| ValidationError::new(e.message, e.error_type))?
         } else {
             // 没有 schema_manager 时进行基本验证
             Self::basic_validate_vertex_id(expr)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// 基本顶点 ID 验证（无 SchemaManager 时）
     fn basic_validate_vertex_id(expr: &ContextualExpression) -> Result<(), ValidationError> {
         if expr.expression().is_none() {
@@ -187,7 +191,10 @@ impl FetchVerticesValidator {
     }
 
     /// 验证属性列表子句
-    fn validate_properties_clause(&self, properties: Option<&Vec<String>>) -> Result<(), ValidationError> {
+    fn validate_properties_clause(
+        &self,
+        properties: Option<&Vec<String>>,
+    ) -> Result<(), ValidationError> {
         // 属性列表可以为空，表示获取所有属性
         if let Some(props) = properties {
             let mut prop_set = std::collections::HashSet::new();
@@ -207,13 +214,15 @@ impl FetchVerticesValidator {
     fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
         let expr_meta = match expr.expression() {
             Some(m) => m,
-            None => return Err(ValidationError::new(
-                "表达式无效".to_string(),
-                ValidationErrorType::SemanticError,
-            )),
+            None => {
+                return Err(ValidationError::new(
+                    "表达式无效".to_string(),
+                    ValidationErrorType::SemanticError,
+                ))
+            }
         };
         let inner = expr_meta.inner();
-        
+
         match inner {
             Expression::Literal(v) => Ok(v.clone()),
             Expression::Variable(name) => Ok(Value::String(format!("${}", name))),
@@ -290,13 +299,14 @@ impl StatementValidator for FetchVerticesValidator {
             for prop in props {
                 // 创建 ContextualExpression 表示属性名
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                    crate::core::Expression::Variable(prop.clone())
+                    crate::core::Expression::Variable(prop.clone()),
                 );
                 let id = qctx.expr_context().register_expression(expr_meta);
-                let ctx_expr = crate::core::types::expression::contextual::ContextualExpression::new(
-                    id,
-                    qctx.expr_context().clone()
-                );
+                let ctx_expr =
+                    crate::core::types::expression::contextual::ContextualExpression::new(
+                        id,
+                        qctx.expr_context().clone(),
+                    );
                 validated_columns.push(ValidatedYieldColumn {
                     expression: ctx_expr,
                     alias: prop.clone(),
@@ -336,7 +346,9 @@ impl StatementValidator for FetchVerticesValidator {
         let mut info = ValidationInfo::new();
 
         // 添加语义信息
-        info.semantic_info.referenced_tags.push("vertex".to_string());
+        info.semantic_info
+            .referenced_tags
+            .push("vertex".to_string());
 
         // 11. 返回包含详细信息的验证结果
         Ok(ValidationResult::success_with_info(info))
@@ -371,8 +383,8 @@ impl StatementValidator for FetchVerticesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;
     use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
@@ -414,7 +426,12 @@ mod tests {
             Expression::Literal(Value::String("v1".to_string())),
             Expression::Literal(Value::String("v2".to_string())),
         ];
-        let result = validator.validate_vertex_ids(&vertex_ids.into_iter().map(create_contextual_expr).collect::<Vec<_>>());
+        let result = validator.validate_vertex_ids(
+            &vertex_ids
+                .into_iter()
+                .map(create_contextual_expr)
+                .collect::<Vec<_>>(),
+        );
         assert!(result.is_ok());
     }
 
@@ -422,7 +439,12 @@ mod tests {
     fn test_validate_vertex_ids_with_variable() {
         let validator = FetchVerticesValidator::new();
         let vertex_ids = vec![Expression::Variable("vids".to_string())];
-        let result = validator.validate_vertex_ids(&vertex_ids.into_iter().map(create_contextual_expr).collect::<Vec<_>>());
+        let result = validator.validate_vertex_ids(
+            &vertex_ids
+                .into_iter()
+                .map(create_contextual_expr)
+                .collect::<Vec<_>>(),
+        );
         assert!(result.is_ok());
     }
 
@@ -433,7 +455,12 @@ mod tests {
             Expression::Literal(Value::String("v1".to_string())),
             Expression::Literal(Value::String("".to_string())),
         ];
-        let result = validator.validate_vertex_ids(&vertex_ids.into_iter().map(create_contextual_expr).collect::<Vec<_>>());
+        let result = validator.validate_vertex_ids(
+            &vertex_ids
+                .into_iter()
+                .map(create_contextual_expr)
+                .collect::<Vec<_>>(),
+        );
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("不能为空"));
@@ -467,14 +494,14 @@ mod tests {
     #[test]
     fn test_statement_validator_trait() {
         let validator = FetchVerticesValidator::new();
-        
+
         // 测试 statement_type
         assert_eq!(validator.statement_type(), StatementType::FetchVertices);
-        
+
         // 测试 inputs/outputs
         assert!(validator.inputs().is_empty());
         assert!(validator.outputs().is_empty());
-        
+
         // 测试 user_defined_vars
         assert!(validator.user_defined_vars().is_empty());
     }

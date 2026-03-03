@@ -1,17 +1,14 @@
 use axum::{
-    extract::{Path, State, Json},
+    extract::{Json, Path, State},
     response::Json as JsonResponse,
 };
 use serde::Deserialize;
 use tokio::task;
 
-use crate::api::server::http::{
-    state::AppState,
-    error::HttpError,
-};
-use crate::storage::StorageClient;
-use crate::api::core::{SpaceConfig, PropertyDef};
+use crate::api::core::{PropertyDef, SpaceConfig};
+use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::core::DataType;
+use crate::storage::StorageClient;
 
 // ==================== Space 相关 ====================
 
@@ -138,19 +135,26 @@ pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
         // 获取空间 ID
         let space_id = match schema_api.use_space(&space_name) {
             Ok(id) => id,
-            Err(_) => return Err(HttpError::NotFound(format!("图空间 '{}' 不存在", space_name))),
+            Err(_) => {
+                return Err(HttpError::NotFound(format!(
+                    "图空间 '{}' 不存在",
+                    space_name
+                )))
+            }
         };
 
         // 转换属性定义
-        let properties: Vec<PropertyDef> = request.properties.into_iter().map(|p| {
-            PropertyDef {
+        let properties: Vec<PropertyDef> = request
+            .properties
+            .into_iter()
+            .map(|p| PropertyDef {
                 name: p.name,
                 data_type: parse_data_type(&p.data_type),
                 nullable: p.nullable,
                 default_value: None,
                 comment: None,
-            }
-        }).collect();
+            })
+            .collect();
 
         match schema_api.create_tag(space_id, &request.name, properties) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
@@ -200,19 +204,26 @@ pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
         // 获取空间 ID
         let space_id = match schema_api.use_space(&space_name) {
             Ok(id) => id,
-            Err(_) => return Err(HttpError::NotFound(format!("图空间 '{}' 不存在", space_name))),
+            Err(_) => {
+                return Err(HttpError::NotFound(format!(
+                    "图空间 '{}' 不存在",
+                    space_name
+                )))
+            }
         };
 
         // 转换属性定义
-        let properties: Vec<PropertyDef> = request.properties.into_iter().map(|p| {
-            PropertyDef {
+        let properties: Vec<PropertyDef> = request
+            .properties
+            .into_iter()
+            .map(|p| PropertyDef {
                 name: p.name,
                 data_type: parse_data_type(&p.data_type),
                 nullable: p.nullable,
                 default_value: None,
                 comment: None,
-            }
-        }).collect();
+            })
+            .collect();
 
         match schema_api.create_edge_type(space_id, &request.name, properties) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({

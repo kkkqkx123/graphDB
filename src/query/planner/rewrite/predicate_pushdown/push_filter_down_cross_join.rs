@@ -5,16 +5,16 @@
 
 use std::sync::Arc;
 
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::core::types::{ContextualExpression, ExpressionContext};
+use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::expression_utils::{check_col_name, split_filter};
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
-use crate::core::Expression;
-use crate::core::types::{ContextualExpression, ExpressionContext};
-use crate::query::planner::rewrite::expression_utils::{check_col_name, split_filter};
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将过滤条件下推到交叉连接操作的规则
 ///
@@ -105,14 +105,10 @@ impl RewriteRule for PushFilterDownCrossJoinRule {
         let right_col_names = join.right_input().col_names().to_vec();
 
         // 定义左侧选择器函数
-        let left_picker = |expr: &Expression| -> bool {
-            check_col_name(&left_col_names, expr)
-        };
+        let left_picker = |expr: &Expression| -> bool { check_col_name(&left_col_names, expr) };
 
         // 定义右侧选择器函数
-        let right_picker = |expr: &Expression| -> bool {
-            check_col_name(&right_col_names, expr)
-        };
+        let right_picker = |expr: &Expression| -> bool { check_col_name(&right_col_names, expr) };
 
         // 分割过滤条件
         let (left_picked, left_remained) = split_filter(&filter_expr, left_picker);
@@ -134,10 +130,12 @@ impl RewriteRule for PushFilterDownCrossJoinRule {
             let left_expr_meta = crate::core::types::expression::ExpressionMeta::new(left_filter);
             let left_id = ctx.register_expression(left_expr_meta);
             let left_ctx_expr = ContextualExpression::new(left_id, ctx.clone());
-            let left_filter_node = FilterNode::new(new_left, left_ctx_expr)
-                .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
-                    format!("创建FilterNode失败: {:?}", e)
-                ))?;
+            let left_filter_node = FilterNode::new(new_left, left_ctx_expr).map_err(|e| {
+                crate::query::planner::rewrite::result::RewriteError::rewrite_failed(format!(
+                    "创建FilterNode失败: {:?}",
+                    e
+                ))
+            })?;
             new_left = PlanNodeEnum::Filter(left_filter_node);
         }
 
@@ -147,10 +145,12 @@ impl RewriteRule for PushFilterDownCrossJoinRule {
             let right_expr_meta = crate::core::types::expression::ExpressionMeta::new(right_filter);
             let right_id = ctx.register_expression(right_expr_meta);
             let right_ctx_expr = ContextualExpression::new(right_id, ctx.clone());
-            let right_filter_node = FilterNode::new(new_right, right_ctx_expr)
-                .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
-                    format!("创建FilterNode失败: {:?}", e)
-                ))?;
+            let right_filter_node = FilterNode::new(new_right, right_ctx_expr).map_err(|e| {
+                crate::query::planner::rewrite::result::RewriteError::rewrite_failed(format!(
+                    "创建FilterNode失败: {:?}",
+                    e
+                ))
+            })?;
             new_right = PlanNodeEnum::Filter(right_filter_node);
         }
 
@@ -190,7 +190,10 @@ impl RewriteRule for PushFilterDownCrossJoinRule {
 
 impl PushDownRule for PushFilterDownCrossJoinRule {
     fn can_push_down(&self, node: &PlanNodeEnum, target: &PlanNodeEnum) -> bool {
-        matches!((node, target), (PlanNodeEnum::Filter(_), PlanNodeEnum::CrossJoin(_)))
+        matches!(
+            (node, target),
+            (PlanNodeEnum::Filter(_), PlanNodeEnum::CrossJoin(_))
+        )
     }
 
     fn push_down(
@@ -206,8 +209,8 @@ impl PushDownRule for PushFilterDownCrossJoinRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::join_node::CrossJoinNode;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
 
     #[test]
     fn test_rule_name() {
@@ -237,8 +240,8 @@ mod tests {
         let filter = FilterNode::new(start_enum.clone(), ctx_expr).expect("创建FilterNode失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
-        let join = CrossJoinNode::new(start_enum.clone(), start_enum)
-            .expect("创建CrossJoinNode失败");
+        let join =
+            CrossJoinNode::new(start_enum.clone(), start_enum).expect("创建CrossJoinNode失败");
         let join_enum = PlanNodeEnum::CrossJoin(join);
 
         assert!(rule.can_push_down(&filter_enum, &join_enum));

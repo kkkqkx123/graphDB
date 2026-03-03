@@ -18,9 +18,11 @@ use std::time::Instant;
 
 use rayon::prelude::*;
 
-use crate::core::error::{DBResult, DBError};
+use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, NPath, Path, Value};
-use crate::query::executor::base::{BaseExecutor, EdgeDirection, ExecutorStats, Executor, ExecutionResult};
+use crate::query::executor::base::{
+    BaseExecutor, EdgeDirection, ExecutionResult, Executor, ExecutorStats,
+};
 use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -177,12 +179,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         self
     }
 
-    pub fn with_config(
-        mut self,
-        with_prop: bool,
-        limit: usize,
-        offset: usize,
-    ) -> Self {
+    pub fn with_config(mut self, with_prop: bool, limit: usize, offset: usize) -> Self {
         self.with_prop = with_prop;
         self.limit = limit;
         self.offset = offset;
@@ -201,15 +198,18 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         node_id: &Value,
         direction: EdgeDirection,
     ) -> DBResult<Vec<(Value, Edge)>> {
-        let storage = self.base.storage.as_ref()
+        let storage = self
+            .base
+            .storage
+            .as_ref()
             .expect("AllPathsExecutor storage not set");
         let storage = storage.lock();
 
         let edges = storage
             .get_node_edges("default", node_id, direction)
-            .map_err(|e| DBError::Storage(
-                crate::core::error::StorageError::DbError(e.to_string())
-            ))?;
+            .map_err(|e| {
+                DBError::Storage(crate::core::error::StorageError::DbError(e.to_string()))
+            })?;
 
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
             edges
@@ -263,7 +263,8 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                 continue;
             }
             self.left_visited.insert(current_id.clone());
-            self.left_path_map.insert(current_id.clone(), current_npath.clone());
+            self.left_path_map
+                .insert(current_id.clone(), current_npath.clone());
             self.nodes_visited += 1;
 
             // 检查是否达到 limit
@@ -283,7 +284,10 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     continue;
                 }
 
-                let storage = self.base.storage.as_ref()
+                let storage = self
+                    .base
+                    .storage
+                    .as_ref()
                     .expect("AllPathsExecutor storage not set");
                 let storage = storage.lock();
                 if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
@@ -318,7 +322,8 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                 continue;
             }
             self.right_visited.insert(current_id.clone());
-            self.right_path_map.insert(current_id.clone(), current_npath.clone());
+            self.right_path_map
+                .insert(current_id.clone(), current_npath.clone());
             self.nodes_visited += 1;
 
             // 检查是否达到 limit
@@ -338,7 +343,10 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     continue;
                 }
 
-                let storage = self.base.storage.as_ref()
+                let storage = self
+                    .base
+                    .storage
+                    .as_ref()
                     .expect("AllPathsExecutor storage not set");
                 let storage = storage.lock();
                 if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
@@ -389,14 +397,16 @@ impl<S: StorageClient> AllPathsExecutor<S> {
     /// 左路径：从起点到交汇点
     /// 右路径：从终点到交汇点（需要反转方向）
     fn join_paths(&self, left_path: &NPath, right_path: &NPath) -> Option<NPath> {
-        use crate::core::{Vertex, Edge};
+        use crate::core::{Edge, Vertex};
         use std::sync::Arc;
 
         // 获取两条路径的顶点集合
-        let left_vertices: std::collections::HashSet<_> = left_path.iter_vertices()
+        let left_vertices: std::collections::HashSet<_> = left_path
+            .iter_vertices()
             .map(|v| v.vid.as_ref().clone())
             .collect();
-        let right_vertices: std::collections::HashSet<_> = right_path.iter_vertices()
+        let right_vertices: std::collections::HashSet<_> = right_path
+            .iter_vertices()
             .map(|v| v.vid.as_ref().clone())
             .collect();
 
@@ -431,7 +441,8 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         // 收集右路径的所有步骤（边和顶点）
         // 右路径结构：End <- ... <- A <- Junction（从终点向交汇点扩展）
         // 需要反转为：Junction -> A -> ... -> End
-        let right_steps: Vec<(Arc<Edge>, Arc<Vertex>)> = right_path.iter()
+        let right_steps: Vec<(Arc<Edge>, Arc<Vertex>)> = right_path
+            .iter()
             .filter_map(|node| {
                 if let Some(ref edge) = node.edge() {
                     Some(((*edge).clone(), node.vertex().clone()))
@@ -463,7 +474,10 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
     /// 初始化队列
     fn initialize_queues(&mut self) -> DBResult<()> {
-        let storage = self.base.storage.as_ref()
+        let storage = self
+            .base
+            .storage
+            .as_ref()
             .expect("AllPathsExecutor storage not set");
         let storage = storage.lock();
 
@@ -553,10 +567,19 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
         let execution_time = start_time.elapsed().as_millis() as u64;
 
         // 更新统计信息
-        self.base.get_stats_mut().add_stat("nodes_visited".to_string(), self.nodes_visited.to_string());
-        self.base.get_stats_mut().add_stat("edges_traversed".to_string(), self.edges_traversed.to_string());
-        self.base.get_stats_mut().add_stat("execution_time_ms".to_string(), execution_time.to_string());
-        self.base.get_stats_mut().add_stat("paths_found".to_string(), paths.len().to_string());
+        self.base
+            .get_stats_mut()
+            .add_stat("nodes_visited".to_string(), self.nodes_visited.to_string());
+        self.base.get_stats_mut().add_stat(
+            "edges_traversed".to_string(),
+            self.edges_traversed.to_string(),
+        );
+        self.base
+            .get_stats_mut()
+            .add_stat("execution_time_ms".to_string(), execution_time.to_string());
+        self.base
+            .get_stats_mut()
+            .add_stat("paths_found".to_string(), paths.len().to_string());
 
         Ok(ExecutionResult::Paths(paths))
     }
@@ -597,7 +620,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Value, Edge};
+    use crate::core::{Edge, Value};
     use std::collections::HashMap;
 
     #[test]
@@ -608,7 +631,7 @@ mod tests {
             Value::Int(1),
             "friend".to_string(),
             0,
-            HashMap::new()
+            HashMap::new(),
         );
 
         assert!(dedup.should_include(&edge));

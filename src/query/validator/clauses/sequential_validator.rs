@@ -11,17 +11,16 @@
 //!    - 最大语句数限制
 //! 3. 使用 QueryContext 统一管理上下文
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::DataType;
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::query::QueryContext;
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef,
-    ExpressionProps,
-};
+use crate::core::DataType;
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
+};
+use crate::query::QueryContext;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// 顺序语句定义
 #[derive(Debug, Clone)]
@@ -205,7 +204,9 @@ impl SequentialValidator {
     }
 
     fn is_dml_statement(&self, stmt: &str) -> bool {
-        stmt.starts_with("INSERT") || stmt.starts_with("UPDATE") || stmt.starts_with("DELETE")
+        stmt.starts_with("INSERT")
+            || stmt.starts_with("UPDATE")
+            || stmt.starts_with("DELETE")
             || stmt.starts_with("UPSERT")
     }
 
@@ -219,7 +220,10 @@ impl SequentialValidator {
             }
             if !name.starts_with('$') && !name.starts_with('@') {
                 return Err(ValidationError::new(
-                    format!("Invalid variable name '{}': must start with '$' or '@'", name),
+                    format!(
+                        "Invalid variable name '{}': must start with '$' or '@'",
+                        name
+                    ),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -354,8 +358,12 @@ mod tests {
     #[test]
     fn test_validate_ddl_before_dml() {
         let mut validator = SequentialValidator::new();
-        validator.add_statement(SequentialStatement::new("CREATE TAG person(name string)".to_string()));
-        validator.add_statement(SequentialStatement::new("INSERT VERTEX person(name) VALUES \"1\":(\"Alice\")".to_string()));
+        validator.add_statement(SequentialStatement::new(
+            "CREATE TAG person(name string)".to_string(),
+        ));
+        validator.add_statement(SequentialStatement::new(
+            "INSERT VERTEX person(name) VALUES \"1\":(\"Alice\")".to_string(),
+        ));
 
         let result = validator.validate_sequential();
         assert!(result.is_ok());
@@ -364,8 +372,12 @@ mod tests {
     #[test]
     fn test_validate_ddl_after_dml() {
         let mut validator = SequentialValidator::new();
-        validator.add_statement(SequentialStatement::new("INSERT VERTEX person(name) VALUES \"1\":(\"Alice\")".to_string()));
-        validator.add_statement(SequentialStatement::new("CREATE TAG person(name string)".to_string()));
+        validator.add_statement(SequentialStatement::new(
+            "INSERT VERTEX person(name) VALUES \"1\":(\"Alice\")".to_string(),
+        ));
+        validator.add_statement(SequentialStatement::new(
+            "CREATE TAG person(name string)".to_string(),
+        ));
 
         let result = validator.validate_sequential();
         assert!(result.is_err());
@@ -374,8 +386,12 @@ mod tests {
     #[test]
     fn test_validate_multiple_ddl() {
         let mut validator = SequentialValidator::new();
-        validator.add_statement(SequentialStatement::new("CREATE TAG person(name string)".to_string()));
-        validator.add_statement(SequentialStatement::new("CREATE TAG company(name string)".to_string()));
+        validator.add_statement(SequentialStatement::new(
+            "CREATE TAG person(name string)".to_string(),
+        ));
+        validator.add_statement(SequentialStatement::new(
+            "CREATE TAG company(name string)".to_string(),
+        ));
 
         let result = validator.validate_sequential();
         assert!(result.is_err());
@@ -407,13 +423,17 @@ mod tests {
         assert!(validator.is_query_statement("MATCH (n) RETURN n"));
         assert!(validator.is_query_statement("GO FROM \"1\" OVER edge"));
         assert!(validator.is_query_statement("FETCH PROP ON person \"1\""));
-        assert!(!validator.is_query_statement("INSERT VERTEX person(name) VALUES \"1\":(\"Alice\")"));
+        assert!(
+            !validator.is_query_statement("INSERT VERTEX person(name) VALUES \"1\":(\"Alice\")")
+        );
     }
 
     #[test]
     fn test_is_mutation_statement() {
         let validator = SequentialValidator::new();
-        assert!(validator.is_mutation_statement("INSERT VERTEX person(name) VALUES \"1\":(\"Alice\")"));
+        assert!(
+            validator.is_mutation_statement("INSERT VERTEX person(name) VALUES \"1\":(\"Alice\")")
+        );
         assert!(validator.is_mutation_statement("UPDATE VERTEX \"1\" SET name=\"Bob\""));
         assert!(validator.is_mutation_statement("DELETE VERTEX \"1\""));
         assert!(!validator.is_mutation_statement("MATCH (n) RETURN n"));

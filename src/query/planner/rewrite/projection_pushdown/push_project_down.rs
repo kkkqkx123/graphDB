@@ -21,12 +21,12 @@
 //! - Project 节点的子节点是数据访问节点（ScanVertices、ScanEdges、GetVertices）
 //! - Project 节点有列定义
 
-use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
+use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 向数据源推送投影操作的规则
 ///
@@ -391,18 +391,19 @@ mod tests {
         let scan = ScanVerticesNode::new(1);
         let ctx = Arc::new(ExpressionContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::literal(true)
+            crate::core::Expression::literal(true),
         );
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
-        let filter = FilterNode::new(
-            PlanNodeEnum::ScanVertices(scan.clone()),
-            ctx_expr
-        )
-        .expect("创建 FilterNode 失败");
-        assert!(PushProjectDownRule::is_intermediate_node(&PlanNodeEnum::Filter(filter)));
+        let filter = FilterNode::new(PlanNodeEnum::ScanVertices(scan.clone()), ctx_expr)
+            .expect("创建 FilterNode 失败");
+        assert!(PushProjectDownRule::is_intermediate_node(
+            &PlanNodeEnum::Filter(filter)
+        ));
 
-        assert!(!PushProjectDownRule::is_intermediate_node(&PlanNodeEnum::ScanVertices(scan)));
+        assert!(!PushProjectDownRule::is_intermediate_node(
+            &PlanNodeEnum::ScanVertices(scan)
+        ));
     }
 
     #[test]
@@ -449,7 +450,10 @@ mod tests {
         let get_vertices_enum = PlanNodeEnum::GetVertices(get_vertices);
 
         // 创建 Project 节点
-        let columns = vec![create_yield_column(Expression::Variable("vertex".to_string()), "vertex")];
+        let columns = vec![create_yield_column(
+            Expression::Variable("vertex".to_string()),
+            "vertex",
+        )];
         let project =
             ProjectNode::new(get_vertices_enum.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
@@ -480,7 +484,10 @@ mod tests {
         let start = PlanNodeEnum::Start(start_node);
 
         // 创建 Project 节点
-        let columns = vec![create_yield_column(Expression::Variable("test".to_string()), "test")];
+        let columns = vec![create_yield_column(
+            Expression::Variable("test".to_string()),
+            "test",
+        )];
         let project = ProjectNode::new(start.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
 
@@ -496,7 +503,10 @@ mod tests {
         let rule = PushProjectDownRule::new();
 
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
-        let columns = vec![create_yield_column(Expression::Variable("test".to_string()), "test")];
+        let columns = vec![create_yield_column(
+            Expression::Variable("test".to_string()),
+            "test",
+        )];
         let project = ProjectNode::new(scan.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
 
@@ -516,7 +526,9 @@ mod tests {
         assert!(rule.contains_data_source(&scan));
 
         // 中间节点 -> 数据源
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(crate::core::Expression::literal(true));
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            crate::core::Expression::literal(true),
+        );
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx.clone());
         let filter = FilterNode::new(scan.clone(), ctx_expr).expect("创建 FilterNode 失败");
@@ -538,7 +550,9 @@ mod tests {
         assert!(rule.find_data_source(&scan).is_some());
 
         // 中间节点 -> 数据源
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(crate::core::Expression::literal(true));
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            crate::core::Expression::literal(true),
+        );
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx.clone());
         let filter = FilterNode::new(scan.clone(), ctx_expr).expect("创建 FilterNode 失败");
@@ -564,7 +578,9 @@ mod tests {
         // 创建 Filter 节点
         use std::sync::Arc;
         let ctx = Arc::new(crate::core::types::ExpressionContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(crate::core::Expression::literal(true));
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            crate::core::Expression::literal(true),
+        );
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
         let filter = FilterNode::new(scan.clone(), ctx_expr).expect("创建 FilterNode 失败");
@@ -580,7 +596,9 @@ mod tests {
         let project_enum = PlanNodeEnum::Project(project);
 
         // 应用规则
-        let result = rule.apply(&mut rewrite_ctx, &project_enum).expect("应用规则失败");
+        let result = rule
+            .apply(&mut rewrite_ctx, &project_enum)
+            .expect("应用规则失败");
 
         assert!(result.is_some());
         let transform = result.expect("Failed to apply rewrite rule");
@@ -589,14 +607,12 @@ mod tests {
 
         // 验证新节点是 Filter，其输入是带有投影列的 ScanVertices
         match &transform.new_nodes[0] {
-            PlanNodeEnum::Filter(filter_node) => {
-                match filter_node.input() {
-                    PlanNodeEnum::ScanVertices(scan_node) => {
-                        assert_eq!(scan_node.col_names(), &["id", "name"]);
-                    }
-                    _ => panic!("期望 Filter 的输入是 ScanVertices"),
+            PlanNodeEnum::Filter(filter_node) => match filter_node.input() {
+                PlanNodeEnum::ScanVertices(scan_node) => {
+                    assert_eq!(scan_node.col_names(), &["id", "name"]);
                 }
-            }
+                _ => panic!("期望 Filter 的输入是 ScanVertices"),
+            },
             _ => panic!("期望 Filter 节点"),
         }
     }
@@ -615,9 +631,11 @@ mod tests {
         let dedup_enum = PlanNodeEnum::Dedup(dedup);
 
         // 创建 Project 节点
-        let columns = vec![create_yield_column(Expression::Variable("id".to_string()), "id")];
-        let project =
-            ProjectNode::new(dedup_enum.clone(), columns).expect("创建 ProjectNode 失败");
+        let columns = vec![create_yield_column(
+            Expression::Variable("id".to_string()),
+            "id",
+        )];
+        let project = ProjectNode::new(dedup_enum.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
 
         // 应用规则
@@ -629,14 +647,12 @@ mod tests {
 
         // 验证新节点是 Dedup，其输入是带有投影列的 ScanVertices
         match &transform.new_nodes[0] {
-            PlanNodeEnum::Dedup(dedup_node) => {
-                match dedup_node.input() {
-                    PlanNodeEnum::ScanVertices(scan_node) => {
-                        assert_eq!(scan_node.col_names(), &["id"]);
-                    }
-                    _ => panic!("期望 Dedup 的输入是 ScanVertices"),
+            PlanNodeEnum::Dedup(dedup_node) => match dedup_node.input() {
+                PlanNodeEnum::ScanVertices(scan_node) => {
+                    assert_eq!(scan_node.col_names(), &["id"]);
                 }
-            }
+                _ => panic!("期望 Dedup 的输入是 ScanVertices"),
+            },
             _ => panic!("期望 Dedup 节点"),
         }
     }
@@ -655,9 +671,11 @@ mod tests {
         let limit_enum = PlanNodeEnum::Limit(limit);
 
         // 创建 Project 节点
-        let columns = vec![create_yield_column(Expression::Variable("id".to_string()), "id")];
-        let project =
-            ProjectNode::new(limit_enum.clone(), columns).expect("创建 ProjectNode 失败");
+        let columns = vec![create_yield_column(
+            Expression::Variable("id".to_string()),
+            "id",
+        )];
+        let project = ProjectNode::new(limit_enum.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
 
         // 应用规则
@@ -669,14 +687,12 @@ mod tests {
 
         // 验证新节点是 Limit，其输入是带有投影列的 ScanVertices
         match &transform.new_nodes[0] {
-            PlanNodeEnum::Limit(limit_node) => {
-                match limit_node.input() {
-                    PlanNodeEnum::ScanVertices(scan_node) => {
-                        assert_eq!(scan_node.col_names(), &["id"]);
-                    }
-                    _ => panic!("期望 Limit 的输入是 ScanVertices"),
+            PlanNodeEnum::Limit(limit_node) => match limit_node.input() {
+                PlanNodeEnum::ScanVertices(scan_node) => {
+                    assert_eq!(scan_node.col_names(), &["id"]);
                 }
-            }
+                _ => panic!("期望 Limit 的输入是 ScanVertices"),
+            },
             _ => panic!("期望 Limit 节点"),
         }
     }
@@ -693,15 +709,11 @@ mod tests {
 
         // 创建 Filter 节点
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::literal(true)
+            crate::core::Expression::literal(true),
         );
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx.clone());
-        let filter = FilterNode::new(
-            scan.clone(),
-            ctx_expr
-        )
-        .expect("创建 FilterNode 失败");
+        let filter = FilterNode::new(scan.clone(), ctx_expr).expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         // 创建 Limit 节点
@@ -709,9 +721,11 @@ mod tests {
         let limit_enum = PlanNodeEnum::Limit(limit);
 
         // 创建 Project 节点
-        let columns = vec![create_yield_column(Expression::Variable("id".to_string()), "id")];
-        let project =
-            ProjectNode::new(limit_enum.clone(), columns).expect("创建 ProjectNode 失败");
+        let columns = vec![create_yield_column(
+            Expression::Variable("id".to_string()),
+            "id",
+        )];
+        let project = ProjectNode::new(limit_enum.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
 
         // 应用规则
@@ -723,19 +737,15 @@ mod tests {
 
         // 验证新节点是 Limit，其输入是 Filter，Filter 的输入是带有投影列的 ScanVertices
         match &transform.new_nodes[0] {
-            PlanNodeEnum::Limit(limit_node) => {
-                match limit_node.input() {
-                    PlanNodeEnum::Filter(filter_node) => {
-                        match filter_node.input() {
-                            PlanNodeEnum::ScanVertices(scan_node) => {
-                                assert_eq!(scan_node.col_names(), &["id"]);
-                            }
-                            _ => panic!("期望 Filter 的输入是 ScanVertices"),
-                        }
+            PlanNodeEnum::Limit(limit_node) => match limit_node.input() {
+                PlanNodeEnum::Filter(filter_node) => match filter_node.input() {
+                    PlanNodeEnum::ScanVertices(scan_node) => {
+                        assert_eq!(scan_node.col_names(), &["id"]);
                     }
-                    _ => panic!("期望 Limit 的输入是 Filter"),
-                }
-            }
+                    _ => panic!("期望 Filter 的输入是 ScanVertices"),
+                },
+                _ => panic!("期望 Limit 的输入是 Filter"),
+            },
             _ => panic!("期望 Limit 节点"),
         }
     }

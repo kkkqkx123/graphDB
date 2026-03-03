@@ -6,5 +6,5 @@
 pub mod error;
 pub mod token;
 
-pub use error::{ParseError, ParseErrors, ParseErrorKind};
+pub use error::{ParseError, ParseErrorKind, ParseErrors};
 pub use token::{Token, TokenKind, TokenKindExt};

@@ -2,17 +2,17 @@
 //!
 //! 管理查询从解析、验证、规划到执行整个生命周期中的上下文信息。
 
-use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 
-use crate::query::query_request_context::QueryRequestContext;
+use crate::core::types::expression::ExpressionContext;
+use crate::core::types::CharsetInfo;
 use crate::core::types::SpaceInfo;
 use crate::core::SymbolTable;
 use crate::query::planner::plan::ExecutionPlan;
+use crate::query::query_request_context::QueryRequestContext;
 use crate::query::validator::ValidationInfo;
-use crate::utils::{ObjectPool, IdGenerator};
-use crate::core::types::CharsetInfo;
-use crate::core::types::expression::ExpressionContext;
+use crate::utils::{IdGenerator, ObjectPool};
 
 /// 查询上下文
 ///
@@ -83,7 +83,10 @@ impl QueryContext {
     }
 
     /// 使用指定的表达式上下文创建查询上下文
-    pub fn with_expr_context(rctx: Arc<QueryRequestContext>, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn with_expr_context(
+        rctx: Arc<QueryRequestContext>,
+        expr_context: Arc<ExpressionContext>,
+    ) -> Self {
         Self {
             rctx,
             plan: RwLock::new(None),

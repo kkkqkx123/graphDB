@@ -30,10 +30,12 @@
 
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{SingleInputNode, MultipleInputNode};
+use crate::query::planner::plan::core::nodes::plan_node_traits::{
+    MultipleInputNode, SingleInputNode,
+};
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
 use crate::query::planner::plan::core::nodes::traversal_node::AppendVerticesNode;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
@@ -73,9 +75,9 @@ impl EliminateAppendVerticesRule {
                 self.contains_path_build_internal(left) || self.contains_path_build_internal(right)
             }
             Expression::Unary { operand, .. } => self.contains_path_build_internal(operand),
-            Expression::Function { args, .. } => {
-                args.iter().any(|arg| self.contains_path_build_internal(arg))
-            }
+            Expression::Function { args, .. } => args
+                .iter()
+                .any(|arg| self.contains_path_build_internal(arg)),
             _ => false,
         }
     }
@@ -125,8 +127,7 @@ impl RewriteRule for EliminateAppendVerticesRule {
 
     fn pattern(&self) -> Pattern {
         // 匹配 Project->AppendVertices 模式
-        Pattern::new_with_name("Project")
-            .with_dependency_name("AppendVertices")
+        Pattern::new_with_name("Project").with_dependency_name("AppendVertices")
     }
 
     fn apply(

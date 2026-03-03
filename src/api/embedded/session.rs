@@ -9,7 +9,7 @@ use crate::api::embedded::statement::PreparedStatement;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
 use crate::core::Value;
 use crate::storage::StorageClient;
-use crate::transaction::{TransactionManager, TransactionOptions, SavepointManager};
+use crate::transaction::{SavepointManager, TransactionManager, TransactionOptions};
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -59,9 +59,7 @@ pub(crate) struct GraphDatabaseInner<S: StorageClient + 'static> {
 
 impl<S: StorageClient + Clone + 'static> Session<S> {
     /// 创建新会话
-    pub(crate) fn new(
-        db: Arc<GraphDatabaseInner<S>>,
-    ) -> Self {
+    pub(crate) fn new(db: Arc<GraphDatabaseInner<S>>) -> Self {
         Self {
             db,
             space_id: None,
@@ -195,7 +193,10 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn begin_transaction_with_config(&self, config: TransactionConfig) -> CoreResult<Transaction<S>> {
+    pub fn begin_transaction_with_config(
+        &self,
+        config: TransactionConfig,
+    ) -> CoreResult<Transaction<S>> {
         let options = config.into_options();
         let txn_handle = self.db.txn_api.begin(options)?;
 
@@ -261,7 +262,8 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     pub fn list_spaces(&self) -> CoreResult<Vec<String>> {
         // 通过存储层获取所有空间
         let storage = self.db.storage.lock();
-        let spaces = storage.list_spaces()
+        let spaces = storage
+            .list_spaces()
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
         Ok(spaces.into_iter().map(|s| s.space_name).collect())
     }
@@ -366,11 +368,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # }
     /// ```
     pub fn prepare(&self, query: &str) -> CoreResult<PreparedStatement<S>> {
-        PreparedStatement::new(
-            self.db.query_api.clone(),
-            query.to_string(),
-            self.space_id,
-        )
+        PreparedStatement::new(self.db.query_api.clone(), query.to_string(), self.space_id)
     }
 }
 

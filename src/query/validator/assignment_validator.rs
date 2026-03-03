@@ -10,14 +10,13 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::AssignmentStmt;
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
-use crate::query::validator::validator_enum::{Validator};
+use crate::query::validator::validator_enum::Validator;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
+};
+use crate::query::QueryContext;
 
 /// 验证后的赋值信息
 #[derive(Debug, Clone)]
@@ -56,11 +55,12 @@ impl AssignmentValidator {
 
         // 创建内部语句验证器
         self.inner_validator = Some(Box::new(
-            Validator::create_from_stmt(&stmt.statement)
-                .ok_or_else(|| ValidationError::new(
+            Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
+                ValidationError::new(
                     "Failed to create validator for inner statement".to_string(),
                     ValidationErrorType::SemanticError,
-                ))?
+                )
+            })?,
         ));
 
         Ok(())
@@ -79,7 +79,10 @@ impl AssignmentValidator {
         let first_char = name.chars().next().expect("变量名已验证非空");
         if !first_char.is_ascii_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
-                format!("Variable name '{}' must start with a letter or underscore", name),
+                format!(
+                    "Variable name '{}' must start with a letter or underscore",
+                    name
+                ),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -88,7 +91,10 @@ impl AssignmentValidator {
         for (i, c) in name.chars().enumerate() {
             if i > 0 && !c.is_ascii_alphanumeric() && c != '_' {
                 return Err(ValidationError::new(
-                    format!("Variable name '{}' contains invalid character '{}'", name, c),
+                    format!(
+                        "Variable name '{}' contains invalid character '{}'",
+                        name, c
+                    ),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -110,7 +116,9 @@ impl AssignmentValidator {
     pub fn validated_result(&self) -> ValidatedAssignment {
         ValidatedAssignment {
             variable: self.variable.clone(),
-            inner_statement_type: self.inner_validator.as_ref()
+            inner_statement_type: self
+                .inner_validator
+                .as_ref()
                 .map(|v| v.get_type().as_str().to_string())
                 .unwrap_or_default(),
         }
@@ -168,7 +176,10 @@ impl StatementValidator for AssignmentValidator {
 
         let mut info = ValidationInfo::new();
 
-        info.add_alias(self.variable.clone(), crate::query::validator::structs::AliasType::Variable);
+        info.add_alias(
+            self.variable.clone(),
+            crate::query::validator::structs::AliasType::Variable,
+        );
 
         Ok(ValidationResult::success_with_info(info))
     }
@@ -186,7 +197,8 @@ impl StatementValidator for AssignmentValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        self.inner_validator.as_ref()
+        self.inner_validator
+            .as_ref()
             .map(|v| v.get_type().is_global_statement())
             .unwrap_or(false)
     }

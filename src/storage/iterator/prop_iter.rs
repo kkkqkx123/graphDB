@@ -5,8 +5,8 @@
 //! 支持顶点和边的属性访问
 
 use super::{Iterator, IteratorKind, Row};
+use crate::core::vertex_edge_path::{Edge, Tag};
 use crate::core::{DataSet, Value};
-use crate::core::vertex_edge_path::{Tag, Edge};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -372,7 +372,11 @@ impl Iterator for PropIter {
                     break;
                 }
 
-                if prop_name == "_src" || prop_name == "_dst" || prop_name == "_rank" || prop_name == "_type" {
+                if prop_name == "_src"
+                    || prop_name == "_dst"
+                    || prop_name == "_rank"
+                    || prop_name == "_type"
+                {
                     has_system_props = true;
                 }
             }
@@ -400,7 +404,11 @@ impl Iterator for PropIter {
 
         if let Some(prop_map) = self.ds_index.props_map.get(&edge_name) {
             for (prop_name, &col_id) in prop_map {
-                if prop_name == "_src" || prop_name == "_dst" || prop_name == "_rank" || prop_name == "_type" {
+                if prop_name == "_src"
+                    || prop_name == "_dst"
+                    || prop_name == "_rank"
+                    || prop_name == "_type"
+                {
                     continue;
                 }
 
@@ -410,13 +418,7 @@ impl Iterator for PropIter {
             }
         }
 
-        let constructed_edge = Edge::new(
-            src_vid,
-            dst_vid,
-            edge_name,
-            ranking,
-            edge_props,
-        );
+        let constructed_edge = Edge::new(src_vid, dst_vid, edge_name, ranking, edge_props);
 
         Some(Value::Edge(constructed_edge))
     }

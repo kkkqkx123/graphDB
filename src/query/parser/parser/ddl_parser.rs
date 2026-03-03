@@ -34,7 +34,12 @@ impl DdlParser {
             let (properties, ttl_duration, ttl_col) = self.parse_tag_edge_defs(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                target: CreateTarget::Tag { name, properties, ttl_duration, ttl_col },
+                target: CreateTarget::Tag {
+                    name,
+                    properties,
+                    ttl_duration,
+                    ttl_col,
+                },
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Edge) {
@@ -49,7 +54,12 @@ impl DdlParser {
             let (properties, ttl_duration, ttl_col) = self.parse_tag_edge_defs(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                target: CreateTarget::EdgeType { name, properties, ttl_duration, ttl_col },
+                target: CreateTarget::EdgeType {
+                    name,
+                    properties,
+                    ttl_duration,
+                    ttl_col,
+                },
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Space) {
@@ -138,7 +148,11 @@ impl DdlParser {
     }
 
     /// 解析 CREATE 语句（CREATE token 已被消费）
-    pub fn parse_create_after_token(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+    pub fn parse_create_after_token(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<Stmt, ParseError> {
         if ctx.match_token(TokenKind::Tag) {
             // 解析 IF NOT EXISTS (在 TAG 之后)
             let mut if_not_exists = false;
@@ -151,7 +165,12 @@ impl DdlParser {
             let (properties, ttl_duration, ttl_col) = self.parse_tag_edge_defs(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                target: CreateTarget::Tag { name, properties, ttl_duration, ttl_col },
+                target: CreateTarget::Tag {
+                    name,
+                    properties,
+                    ttl_duration,
+                    ttl_col,
+                },
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Edge) {
@@ -166,7 +185,12 @@ impl DdlParser {
             let (properties, ttl_duration, ttl_col) = self.parse_tag_edge_defs(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                target: CreateTarget::EdgeType { name, properties, ttl_duration, ttl_col },
+                target: CreateTarget::EdgeType {
+                    name,
+                    properties,
+                    ttl_duration,
+                    ttl_col,
+                },
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Space) {
@@ -238,7 +262,11 @@ impl DdlParser {
             ctx.expect_token(TokenKind::RParen)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                target: CreateTarget::Index { name, on, properties },
+                target: CreateTarget::Index {
+                    name,
+                    on,
+                    properties,
+                },
                 if_not_exists,
             }))
         } else {
@@ -343,7 +371,11 @@ impl DdlParser {
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
 
-        Ok(Stmt::Drop(DropStmt { span, target, if_exists: false }))
+        Ok(Stmt::Drop(DropStmt {
+            span,
+            target,
+            if_exists: false,
+        }))
     }
 
     /// 解析 DESC 语句
@@ -395,7 +427,11 @@ impl DdlParser {
     }
 
     /// 解析 DESCRIBE USER 内部方法
-    fn parse_describe_user_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+    fn parse_describe_user_internal(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<Stmt, ParseError> {
         ctx.expect_token(TokenKind::User)?;
 
         let username = ctx.expect_identifier()?;
@@ -403,14 +439,14 @@ impl DdlParser {
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
 
-        Ok(Stmt::DescribeUser(DescribeUserStmt {
-            span,
-            username,
-        }))
+        Ok(Stmt::DescribeUser(DescribeUserStmt { span, username }))
     }
 
     /// 解析 SHOW CREATE 语句
-    pub fn parse_show_create_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+    pub fn parse_show_create_statement(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Show)?;
         ctx.expect_token(TokenKind::Create)?;
@@ -490,7 +526,10 @@ impl DdlParser {
     }
 
     /// 解析 ALTER 操作（ADD/DROP/CHANGE）
-    fn parse_alter_operations(&mut self, ctx: &mut ParseContext) -> Result<(Vec<PropertyDef>, Vec<String>, Vec<PropertyChange>), ParseError> {
+    fn parse_alter_operations(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<(Vec<PropertyDef>, Vec<String>, Vec<PropertyChange>), ParseError> {
         let mut additions = Vec::new();
         let mut deletions = Vec::new();
         let mut changes = Vec::new();
@@ -533,7 +572,11 @@ impl DdlParser {
     }
 
     /// 解析 ALTER USER 内部方法
-    fn parse_alter_user_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+    fn parse_alter_user_internal(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<Stmt, ParseError> {
         ctx.expect_token(TokenKind::User)?;
 
         let username = ctx.expect_identifier()?;
@@ -576,16 +619,19 @@ impl DdlParser {
     }
 
     /// 解析属性定义列表
-    pub fn parse_property_defs(&mut self, ctx: &mut ParseContext) -> Result<Vec<PropertyDef>, ParseError> {
+    pub fn parse_property_defs(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Vec<PropertyDef>, ParseError> {
         let mut defs = Vec::new();
         if ctx.match_token(TokenKind::LParen) {
             while !ctx.match_token(TokenKind::RParen) {
                 let name = ctx.expect_identifier()?;
                 ctx.expect_token(TokenKind::Colon)?;
-                
+
                 // 解析数据类型，支持关键字或标识符
                 let dtype = self.parse_data_type(ctx)?;
-                
+
                 // 解析可选的列属性：NOT NULL / NULL
                 let mut nullable = true;
                 if ctx.check_token(TokenKind::Not) {
@@ -598,19 +644,19 @@ impl DdlParser {
                 } else if ctx.match_token(TokenKind::Null) {
                     nullable = true;
                 }
-                
+
                 // 解析 DEFAULT
                 let mut default = None;
                 if ctx.match_token(TokenKind::Default) {
                     default = Some(self.parse_value_literal(ctx)?);
                 }
-                
+
                 // 解析 COMMENT
                 let mut comment = None;
                 if ctx.match_token(TokenKind::Comment) {
                     comment = Some(ctx.expect_string_literal()?);
                 }
-                
+
                 defs.push(PropertyDef {
                     name,
                     data_type: dtype,
@@ -625,11 +671,14 @@ impl DdlParser {
         }
         Ok(defs)
     }
-    
+
     /// 解析字面量值（用于 DEFAULT）
-    fn parse_value_literal(&mut self, ctx: &mut ParseContext) -> Result<crate::core::Value, ParseError> {
+    fn parse_value_literal(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<crate::core::Value, ParseError> {
         use crate::core::Value;
-        
+
         // 先获取 token 类型的副本，避免借用冲突
         let token_kind = ctx.current_token().kind.clone();
         match token_kind {
@@ -680,14 +729,17 @@ impl DdlParser {
             )),
         }
     }
-    
+
     /// 解析 TAG/EDGE 定义（包括属性定义和 TTL 参数）
     /// 返回 (属性定义列表, TTL_DURATION, TTL_COL)
-    fn parse_tag_edge_defs(&mut self, ctx: &mut ParseContext) -> Result<(Vec<PropertyDef>, Option<i64>, Option<String>), ParseError> {
+    fn parse_tag_edge_defs(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<(Vec<PropertyDef>, Option<i64>, Option<String>), ParseError> {
         let mut properties = Vec::new();
         let mut ttl_duration = None;
         let mut ttl_col = None;
-        
+
         if ctx.match_token(TokenKind::LParen) {
             while !ctx.check_token(TokenKind::RParen) {
                 // 检查是否是 TTL 参数
@@ -704,7 +756,7 @@ impl DdlParser {
                     let prop = self.parse_single_property_def(ctx)?;
                     properties.push(prop);
                 }
-                
+
                 // 检查是否还有更多参数
                 if !ctx.match_token(TokenKind::Comma) {
                     break;
@@ -712,18 +764,21 @@ impl DdlParser {
             }
             ctx.expect_token(TokenKind::RParen)?;
         }
-        
+
         Ok((properties, ttl_duration, ttl_col))
     }
-    
+
     /// 解析单个属性定义
-    fn parse_single_property_def(&mut self, ctx: &mut ParseContext) -> Result<PropertyDef, ParseError> {
+    fn parse_single_property_def(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<PropertyDef, ParseError> {
         let name = ctx.expect_identifier()?;
         ctx.expect_token(TokenKind::Colon)?;
-        
+
         // 解析数据类型，支持关键字或标识符
         let dtype = self.parse_data_type(ctx)?;
-        
+
         // 解析可选的列属性：NOT NULL / NULL
         let mut nullable = true;
         if ctx.check_token(TokenKind::Not) {
@@ -736,19 +791,19 @@ impl DdlParser {
         } else if ctx.match_token(TokenKind::Null) {
             nullable = true;
         }
-        
+
         // 解析 DEFAULT
         let mut default = None;
         if ctx.match_token(TokenKind::Default) {
             default = Some(self.parse_value_literal(ctx)?);
         }
-        
+
         // 解析 COMMENT
         let mut comment = None;
         if ctx.match_token(TokenKind::Comment) {
             comment = Some(ctx.expect_string_literal()?);
         }
-        
+
         Ok(PropertyDef {
             name,
             data_type: dtype,
@@ -763,7 +818,11 @@ impl DdlParser {
         let token = ctx.current_token();
         match token.kind {
             // 支持数据类型关键字
-            TokenKind::Int | TokenKind::Int8 | TokenKind::Int16 | TokenKind::Int32 | TokenKind::Int64 => {
+            TokenKind::Int
+            | TokenKind::Int8
+            | TokenKind::Int16
+            | TokenKind::Int32
+            | TokenKind::Int64 => {
                 ctx.next_token();
                 Ok(DataType::Int)
             }

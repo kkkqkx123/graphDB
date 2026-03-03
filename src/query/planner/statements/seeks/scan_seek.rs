@@ -3,7 +3,7 @@
 //! 全表扫描策略，作为无法使用索引时的回退方案
 
 use super::seek_strategy::SeekStrategy;
-use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern};
+use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
 use crate::core::{StorageError, Vertex};
 use crate::storage::StorageClient;
 
@@ -48,18 +48,20 @@ impl SeekStrategy for ScanSeek {
 impl ScanSeek {
     fn vertex_matches_pattern(&self, vertex: &Vertex, pattern: &NodePattern) -> bool {
         if !pattern.labels.is_empty() {
-            let has_all_labels = pattern.labels.iter().all(|label| {
-                vertex.tags.iter().any(|tag| tag.name == *label)
-            });
+            let has_all_labels = pattern
+                .labels
+                .iter()
+                .all(|label| vertex.tags.iter().any(|tag| tag.name == *label));
             if !has_all_labels {
                 return false;
             }
         }
 
         for (prop_name, prop_value) in &pattern.properties {
-            let found = vertex.get_all_properties().iter().any(|(name, value)| {
-                name == prop_name && **value == *prop_value
-            });
+            let found = vertex
+                .get_all_properties()
+                .iter()
+                .any(|(name, value)| name == prop_name && **value == *prop_value);
             if !found {
                 return false;
             }

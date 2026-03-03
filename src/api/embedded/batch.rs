@@ -173,7 +173,9 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         }
 
         // 获取当前空间名称
-        let space_name = self.session.space_name()
+        let space_name = self
+            .session
+            .space_name()
             .ok_or_else(|| CoreError::InvalidParameter("未选择图空间".to_string()))?;
 
         // 取出缓冲区中的顶点
@@ -208,7 +210,9 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         }
 
         // 获取当前空间名称
-        let space_name = self.session.space_name()
+        let space_name = self
+            .session
+            .space_name()
             .ok_or_else(|| CoreError::InvalidParameter("未选择图空间".to_string()))?;
 
         // 取出缓冲区中的边

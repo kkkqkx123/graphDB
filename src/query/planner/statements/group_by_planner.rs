@@ -2,19 +2,17 @@
 //!
 //! 处理 GROUP BY 语句的查询规划
 
-use crate::query::QueryContext;
-use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::{
-    node_id_generator::next_node_id,
-    nodes::{
-        AggregateNode, ArgumentNode, FilterNode,
-    },
-};
-use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
 use crate::core::types::operators::AggregateFunction;
+use crate::query::parser::ast::Stmt;
+use crate::query::planner::plan::core::{
+    node_id_generator::next_node_id,
+    nodes::{AggregateNode, ArgumentNode, FilterNode},
+};
+use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// GroupBy 操作规划器
@@ -29,7 +27,7 @@ impl GroupByPlanner {
     }
 
     /// 从表达式中提取聚合函数
-    /// 
+    ///
     /// 递归遍历表达式树，收集所有聚合函数。
     /// 参考 nebula-graph 的 ExpressionUtils::collectAll 实现。
     fn extract_aggregate_functions(&self, expr: &ContextualExpression) -> Vec<AggregateFunction> {
@@ -44,7 +42,11 @@ impl GroupByPlanner {
     }
 
     /// 递归收集聚合函数的辅助方法
-    fn collect_aggregate_functions_recursive(&self, expr: &Expression, functions: &mut Vec<AggregateFunction>) {
+    fn collect_aggregate_functions_recursive(
+        &self,
+        expr: &Expression,
+        functions: &mut Vec<AggregateFunction>,
+    ) {
         match expr {
             Expression::Aggregate { func, .. } => {
                 functions.push(func.clone());
@@ -152,21 +154,27 @@ impl GroupByPlanner {
                     self.collect_aggregate_functions_recursive(item, functions);
                 }
             }
-            Expression::Literal(_) | Expression::Variable(_) | Expression::Label(_) | 
-            Expression::TagProperty { .. } | Expression::EdgeProperty { .. } | 
-            Expression::Parameter(_) => {
-            }
+            Expression::Literal(_)
+            | Expression::Variable(_)
+            | Expression::Label(_)
+            | Expression::TagProperty { .. }
+            | Expression::EdgeProperty { .. }
+            | Expression::Parameter(_) => {}
         }
     }
 }
 
 impl Planner for GroupByPlanner {
-    fn transform(&mut self, validated: &ValidatedStatement, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+    fn transform(
+        &mut self,
+        validated: &ValidatedStatement,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
         let group_by_stmt = match &validated.stmt {
             Stmt::GroupBy(group_by_stmt) => group_by_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "GroupByPlanner 需要 GroupBy 语句".to_string()
+                    "GroupByPlanner 需要 GroupBy 语句".to_string(),
                 ));
             }
         };
@@ -176,7 +184,8 @@ impl Planner for GroupByPlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
         // 提取分组键 - 使用表达式描述作为键
-        let group_keys: Vec<String> = group_by_stmt.group_items
+        let group_keys: Vec<String> = group_by_stmt
+            .group_items
             .iter()
             .enumerate()
             .map(|(i, _)| format!("group_key_{}", i))
@@ -194,30 +203,27 @@ impl Planner for GroupByPlanner {
             arg_node_enum.clone(),
             group_keys,
             aggregation_functions,
-        ).map_err(|e| PlannerError::PlanGenerationFailed(format!(
-            "Failed to create AggregateNode: {}",
-            e
-        )))?;
+        )
+        .map_err(|e| {
+            PlannerError::PlanGenerationFailed(format!("Failed to create AggregateNode: {}", e))
+        })?;
 
         let mut final_node = PlanNodeEnum::Aggregate(aggregate_node);
 
         // 如果有 HAVING 子句，添加 FilterNode
         if let Some(ref having_expr) = group_by_stmt.having_clause {
-            let filter_node = FilterNode::new(
-                final_node.clone(),
-                having_expr.clone(),
-            ).map_err(|e| PlannerError::PlanGenerationFailed(format!(
-                "Failed to create FilterNode: {}",
-                e
-            )))?;
+            let filter_node =
+                FilterNode::new(final_node.clone(), having_expr.clone()).map_err(|e| {
+                    PlannerError::PlanGenerationFailed(format!(
+                        "Failed to create FilterNode: {}",
+                        e
+                    ))
+                })?;
             final_node = PlanNodeEnum::Filter(filter_node);
         }
 
         // 创建 SubPlan
-        let sub_plan = SubPlan::new(
-            Some(final_node),
-            Some(arg_node_enum),
-        );
+        let sub_plan = SubPlan::new(Some(final_node), Some(arg_node_enum));
 
         Ok(sub_plan)
     }

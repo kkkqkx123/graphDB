@@ -5,7 +5,9 @@
 use std::sync::Arc;
 
 use super::super::common::{EdgeProp, TagProp};
-use crate::core::types::{EdgeDirection, ContextualExpression, SerializableExpression, ExpressionContext};
+use crate::core::types::{
+    ContextualExpression, EdgeDirection, ExpressionContext, SerializableExpression,
+};
 use crate::core::Expression;
 use crate::define_plan_node;
 use crate::define_plan_node_with_deps;
@@ -60,22 +62,22 @@ impl ExpandNode {
         self.filter = Some(filter);
         self.filter_serializable = None;
     }
-    
+
     pub fn set_filter_string(&mut self, filter: String, ctx: Arc<ExpressionContext>) {
         let expr = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::Variable(filter)
+            crate::core::Expression::Variable(filter),
         );
         let id = ctx.register_expression(expr);
         self.filter = Some(ContextualExpression::new(id, ctx));
         self.filter_serializable = None;
     }
-    
+
     pub fn prepare_for_serialization(&mut self) {
         if let Some(ref ctx_expr) = self.filter {
             self.filter_serializable = Some(SerializableExpression::from_contextual(ctx_expr));
         }
     }
-    
+
     pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
         if let Some(ref ser_expr) = self.filter_serializable {
             self.filter = Some(ser_expr.clone().to_contextual(ctx));
@@ -186,22 +188,22 @@ impl ExpandAllNode {
         self.filter = Some(filter);
         self.filter_serializable = None;
     }
-    
+
     pub fn set_filter_string(&mut self, filter: String, ctx: Arc<ExpressionContext>) {
         let expr = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::Variable(filter)
+            crate::core::Expression::Variable(filter),
         );
         let id = ctx.register_expression(expr);
         self.filter = Some(ContextualExpression::new(id, ctx));
         self.filter_serializable = None;
     }
-    
+
     pub fn prepare_for_serialization(&mut self) {
         if let Some(ref ctx_expr) = self.filter {
             self.filter_serializable = Some(SerializableExpression::from_contextual(ctx_expr));
         }
     }
-    
+
     pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
         if let Some(ref ser_expr) = self.filter_serializable {
             self.filter = Some(ser_expr.clone().to_contextual(ctx));
@@ -321,7 +323,7 @@ impl TraverseNode {
         self.e_filter = Some(filter);
         self.e_filter_serializable = None;
     }
-    
+
     pub fn set_e_filter_expression(&mut self, filter: Expression, ctx: Arc<ExpressionContext>) {
         let expr = crate::core::types::expression::ExpressionMeta::new(filter);
         let id = ctx.register_expression(expr);
@@ -337,7 +339,7 @@ impl TraverseNode {
         self.v_filter = Some(filter);
         self.v_filter_serializable = None;
     }
-    
+
     pub fn set_v_filter_expression(&mut self, filter: Expression, ctx: Arc<ExpressionContext>) {
         let expr = crate::core::types::expression::ExpressionMeta::new(filter);
         let id = ctx.register_expression(expr);
@@ -353,14 +355,18 @@ impl TraverseNode {
         self.first_step_filter = Some(filter);
         self.first_step_filter_serializable = None;
     }
-    
-    pub fn set_first_step_filter_expression(&mut self, filter: Expression, ctx: Arc<ExpressionContext>) {
+
+    pub fn set_first_step_filter_expression(
+        &mut self,
+        filter: Expression,
+        ctx: Arc<ExpressionContext>,
+    ) {
         let expr = crate::core::types::expression::ExpressionMeta::new(filter);
         let id = ctx.register_expression(expr);
         self.first_step_filter = Some(ContextualExpression::new(id, ctx));
         self.first_step_filter_serializable = None;
     }
-    
+
     pub fn prepare_for_serialization(&mut self) {
         if let Some(ref ctx_expr) = self.e_filter {
             self.e_filter_serializable = Some(SerializableExpression::from_contextual(ctx_expr));
@@ -369,10 +375,11 @@ impl TraverseNode {
             self.v_filter_serializable = Some(SerializableExpression::from_contextual(ctx_expr));
         }
         if let Some(ref ctx_expr) = self.first_step_filter {
-            self.first_step_filter_serializable = Some(SerializableExpression::from_contextual(ctx_expr));
+            self.first_step_filter_serializable =
+                Some(SerializableExpression::from_contextual(ctx_expr));
         }
     }
-    
+
     pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
         if let Some(ref ser_expr) = self.e_filter_serializable {
             self.e_filter = Some(ser_expr.clone().to_contextual(ctx.clone()));
@@ -463,10 +470,10 @@ impl AppendVerticesNode {
         self.filter = Some(filter);
         self.filter_serializable = None;
     }
-    
+
     pub fn set_filter_string(&mut self, filter: String, ctx: Arc<ExpressionContext>) {
         let expr = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::Variable(filter)
+            crate::core::Expression::Variable(filter),
         );
         let id = ctx.register_expression(expr);
         self.filter = Some(ContextualExpression::new(id, ctx));
@@ -480,12 +487,12 @@ impl AppendVerticesNode {
     pub fn src_expression(&self) -> Option<&ContextualExpression> {
         self.src_expression.as_ref()
     }
-    
+
     pub fn set_src_expression(&mut self, expr: ContextualExpression) {
         self.src_expression = Some(expr);
         self.src_expression_serializable = None;
     }
-    
+
     pub fn set_src_expression_expression(&mut self, expr: Expression, ctx: Arc<ExpressionContext>) {
         let meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -501,26 +508,27 @@ impl AppendVerticesNode {
         self.v_filter = Some(filter);
         self.v_filter_serializable = None;
     }
-    
+
     pub fn set_v_filter_expression(&mut self, filter: Expression, ctx: Arc<ExpressionContext>) {
         let expr = crate::core::types::expression::ExpressionMeta::new(filter);
         let id = ctx.register_expression(expr);
         self.v_filter = Some(ContextualExpression::new(id, ctx));
         self.v_filter_serializable = None;
     }
-    
+
     pub fn prepare_for_serialization(&mut self) {
         if let Some(ref ctx_expr) = self.filter {
             self.filter_serializable = Some(SerializableExpression::from_contextual(ctx_expr));
         }
         if let Some(ref ctx_expr) = self.src_expression {
-            self.src_expression_serializable = Some(SerializableExpression::from_contextual(ctx_expr));
+            self.src_expression_serializable =
+                Some(SerializableExpression::from_contextual(ctx_expr));
         }
         if let Some(ref ctx_expr) = self.v_filter {
             self.v_filter_serializable = Some(SerializableExpression::from_contextual(ctx_expr));
         }
     }
-    
+
     pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
         if let Some(ref ser_expr) = self.filter_serializable {
             self.filter = Some(ser_expr.clone().to_contextual(ctx.clone()));

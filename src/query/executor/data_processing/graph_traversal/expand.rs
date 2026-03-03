@@ -5,8 +5,8 @@ use std::time::Instant;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
-use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -19,11 +19,11 @@ pub struct ExpandExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
-    pub max_depth: Option<usize>, // 最大扩展深度
+    pub max_depth: Option<usize>,        // 最大扩展深度
     pub step_limits: Option<Vec<usize>>, // 每步的扩展限制
-    pub sample: bool, // 是否启用采样
-    pub sample_limit: Option<usize>, // 采样限制
-    pub with_loop: bool, // 是否允许自环边
+    pub sample: bool,                    // 是否启用采样
+    pub sample_limit: Option<usize>,     // 采样限制
+    pub with_loop: bool,                 // 是否允许自环边
     input_executor: Option<Box<ExecutorEnum<S>>>,
     // 缓存已访问的节点，用于避免循环
     pub visited_nodes: HashSet<Value>,
@@ -121,9 +121,10 @@ impl<S: StorageClient> ExpandExecutor<S> {
             }
 
             // 更新统计信息
-            self.base
-                .get_stats_mut()
-                .add_stat(format!("step_{}_count", step), current_nodes.len().to_string());
+            self.base.get_stats_mut().add_stat(
+                format!("step_{}_count", step),
+                current_nodes.len().to_string(),
+            );
         }
 
         Ok(all_expanded.into_iter().collect())

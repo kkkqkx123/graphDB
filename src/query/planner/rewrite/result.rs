@@ -174,9 +174,10 @@ mod tests {
         let mut result = TransformResult::new();
         assert!(!result.has_new_nodes());
 
-        let node = crate::query::planner::plan::PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        let node =
+            crate::query::planner::plan::PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
         result.add_new_node(node);
-        
+
         assert!(result.has_new_nodes());
         assert!(result.first_new_node().is_some());
     }
@@ -186,9 +187,10 @@ mod tests {
         let mut result = MatchedResult::new();
         assert!(!result.has_matches());
 
-        let node = crate::query::planner::plan::PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        let node =
+            crate::query::planner::plan::PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
         result.add_node(node);
-        
+
         assert!(result.has_matches());
         assert!(result.first_node().is_some());
     }

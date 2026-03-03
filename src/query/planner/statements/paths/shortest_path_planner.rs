@@ -4,7 +4,9 @@
 
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::{Edge, StorageError, Value, Vertex};
-use crate::query::planner::statements::seeks::seek_strategy_base::{NodePattern, SeekStrategyContext, SeekStrategySelector, SeekStrategyType};
+use crate::query::planner::statements::seeks::seek_strategy_base::{
+    NodePattern, SeekStrategyContext, SeekStrategySelector, SeekStrategyType,
+};
 use crate::storage::StorageClient;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -41,7 +43,9 @@ impl ShortestPathPlanner {
             SeekStrategyType::VertexSeek => StartVidSource::VertexSeek(start.clone()),
             SeekStrategyType::IndexSeek => StartVidSource::IndexScan(start.clone()),
             SeekStrategyType::PropIndexSeek => StartVidSource::PropIndexScan(start.clone()),
-            SeekStrategyType::VariablePropIndexSeek => StartVidSource::VariablePropIndexScan(start.clone()),
+            SeekStrategyType::VariablePropIndexSeek => {
+                StartVidSource::VariablePropIndexScan(start.clone())
+            }
             SeekStrategyType::EdgeSeek => StartVidSource::EdgeScan(start.clone()),
             SeekStrategyType::ScanSeek => StartVidSource::FullScan(start.clone()),
         };
@@ -69,138 +73,307 @@ impl ShortestPathPlanner {
 struct DummyStorage;
 
 impl StorageClient for DummyStorage {
-    fn insert_vertex(&mut self, _space: &str, _vertex: crate::core::Vertex) -> Result<Value, crate::core::StorageError> {
+    fn insert_vertex(
+        &mut self,
+        _space: &str,
+        _vertex: crate::core::Vertex,
+    ) -> Result<Value, crate::core::StorageError> {
         Ok(Value::Int(0))
     }
-    fn get_vertex(&self, _space: &str, _id: &Value) -> Result<Option<crate::core::Vertex>, crate::core::StorageError> {
+    fn get_vertex(
+        &self,
+        _space: &str,
+        _id: &Value,
+    ) -> Result<Option<crate::core::Vertex>, crate::core::StorageError> {
         Ok(None)
     }
-    fn update_vertex(&mut self, _space: &str, _vertex: crate::core::Vertex) -> Result<(), crate::core::StorageError> {
+    fn update_vertex(
+        &mut self,
+        _space: &str,
+        _vertex: crate::core::Vertex,
+    ) -> Result<(), crate::core::StorageError> {
         Ok(())
     }
-    fn delete_vertex(&mut self, _space: &str, _id: &Value) -> Result<(), crate::core::StorageError> {
+    fn delete_vertex(
+        &mut self,
+        _space: &str,
+        _id: &Value,
+    ) -> Result<(), crate::core::StorageError> {
         Ok(())
     }
-    fn scan_vertices(&self, _space: &str) -> Result<Vec<crate::core::Vertex>, crate::core::StorageError> {
+    fn scan_vertices(
+        &self,
+        _space: &str,
+    ) -> Result<Vec<crate::core::Vertex>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn scan_vertices_by_tag(&self, _space: &str, _tag: &str) -> Result<Vec<crate::core::Vertex>, crate::core::StorageError> {
+    fn scan_vertices_by_tag(
+        &self,
+        _space: &str,
+        _tag: &str,
+    ) -> Result<Vec<crate::core::Vertex>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn scan_vertices_by_prop(&self, _space: &str, _tag: &str, _prop: &str, _value: &Value) -> Result<Vec<crate::core::Vertex>, crate::core::StorageError> {
+    fn scan_vertices_by_prop(
+        &self,
+        _space: &str,
+        _tag: &str,
+        _prop: &str,
+        _value: &Value,
+    ) -> Result<Vec<crate::core::Vertex>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn insert_edge(&mut self, _space: &str, _edge: crate::core::Edge) -> Result<(), crate::core::StorageError> {
+    fn insert_edge(
+        &mut self,
+        _space: &str,
+        _edge: crate::core::Edge,
+    ) -> Result<(), crate::core::StorageError> {
         Ok(())
     }
-    fn get_edge(&self, _space: &str, _src: &Value, _dst: &Value, _edge_type: &str) -> Result<Option<crate::core::Edge>, crate::core::StorageError> {
+    fn get_edge(
+        &self,
+        _space: &str,
+        _src: &Value,
+        _dst: &Value,
+        _edge_type: &str,
+    ) -> Result<Option<crate::core::Edge>, crate::core::StorageError> {
         Ok(None)
     }
-    fn get_node_edges(&self, _space: &str, _node_id: &Value, _direction: EdgeDirection) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
+    fn get_node_edges(
+        &self,
+        _space: &str,
+        _node_id: &Value,
+        _direction: EdgeDirection,
+    ) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn get_node_edges_filtered(&self, _space: &str, _node_id: &Value, _direction: EdgeDirection, _filter: Option<Box<dyn Fn(&crate::core::Edge) -> bool + Send + Sync>>) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
+    fn get_node_edges_filtered(
+        &self,
+        _space: &str,
+        _node_id: &Value,
+        _direction: EdgeDirection,
+        _filter: Option<Box<dyn Fn(&crate::core::Edge) -> bool + Send + Sync>>,
+    ) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn delete_edge(&mut self, _space: &str, _src: &Value, _dst: &Value, _edge_type: &str) -> Result<(), crate::core::StorageError> {
+    fn delete_edge(
+        &mut self,
+        _space: &str,
+        _src: &Value,
+        _dst: &Value,
+        _edge_type: &str,
+    ) -> Result<(), crate::core::StorageError> {
         Ok(())
     }
-    fn scan_edges_by_type(&self, _space: &str, _edge_type: &str) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
+    fn scan_edges_by_type(
+        &self,
+        _space: &str,
+        _edge_type: &str,
+    ) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn scan_all_edges(&self, _space: &str) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
+    fn scan_all_edges(
+        &self,
+        _space: &str,
+    ) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn batch_insert_vertices(&mut self, _space: &str, _vertices: Vec<crate::core::Vertex>) -> Result<Vec<Value>, crate::core::StorageError> {
+    fn batch_insert_vertices(
+        &mut self,
+        _space: &str,
+        _vertices: Vec<crate::core::Vertex>,
+    ) -> Result<Vec<Value>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn batch_insert_edges(&mut self, _space: &str, _edges: Vec<crate::core::Edge>) -> Result<(), crate::core::StorageError> {
+    fn batch_insert_edges(
+        &mut self,
+        _space: &str,
+        _edges: Vec<crate::core::Edge>,
+    ) -> Result<(), crate::core::StorageError> {
         Ok(())
     }
-    fn create_space(&mut self, _space: &crate::core::types::SpaceInfo) -> Result<bool, crate::core::StorageError> {
+    fn create_space(
+        &mut self,
+        _space: &crate::core::types::SpaceInfo,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
     fn drop_space(&mut self, _space: &str) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn get_space(&self, _space: &str) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
+    fn get_space(
+        &self,
+        _space: &str,
+    ) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
         Ok(None)
     }
-    fn get_space_by_id(&self, _space_id: u64) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
+    fn get_space_by_id(
+        &self,
+        _space_id: u64,
+    ) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
         Ok(None)
     }
     fn list_spaces(&self) -> Result<Vec<crate::core::types::SpaceInfo>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn create_tag(&mut self, _space: &str, _info: &crate::core::types::TagInfo) -> Result<bool, crate::core::StorageError> {
+    fn create_tag(
+        &mut self,
+        _space: &str,
+        _info: &crate::core::types::TagInfo,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn alter_tag(&mut self, _space: &str, _tag_name: &str, _additions: Vec<crate::core::types::PropertyDef>, _deletions: Vec<String>) -> Result<bool, crate::core::StorageError> {
+    fn alter_tag(
+        &mut self,
+        _space: &str,
+        _tag_name: &str,
+        _additions: Vec<crate::core::types::PropertyDef>,
+        _deletions: Vec<String>,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn get_tag(&self, _space: &str, _tag_name: &str) -> Result<Option<crate::core::types::TagInfo>, crate::core::StorageError> {
+    fn get_tag(
+        &self,
+        _space: &str,
+        _tag_name: &str,
+    ) -> Result<Option<crate::core::types::TagInfo>, crate::core::StorageError> {
         Ok(None)
     }
-    fn drop_tag(&mut self, _space: &str, _tag_name: &str) -> Result<bool, crate::core::StorageError> {
+    fn drop_tag(
+        &mut self,
+        _space: &str,
+        _tag_name: &str,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn list_tags(&self, _space: &str) -> Result<Vec<crate::core::types::TagInfo>, crate::core::StorageError> {
+    fn list_tags(
+        &self,
+        _space: &str,
+    ) -> Result<Vec<crate::core::types::TagInfo>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn create_edge_type(&mut self, _space: &str, _info: &crate::core::types::EdgeTypeSchema) -> Result<bool, crate::core::StorageError> {
+    fn create_edge_type(
+        &mut self,
+        _space: &str,
+        _info: &crate::core::types::EdgeTypeSchema,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn alter_edge_type(&mut self, _space: &str, _edge_type_name: &str, _additions: Vec<crate::core::types::PropertyDef>, _deletions: Vec<String>) -> Result<bool, crate::core::StorageError> {
+    fn alter_edge_type(
+        &mut self,
+        _space: &str,
+        _edge_type_name: &str,
+        _additions: Vec<crate::core::types::PropertyDef>,
+        _deletions: Vec<String>,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn get_edge_type(&self, _space: &str, _edge_type_name: &str) -> Result<Option<crate::core::types::EdgeTypeSchema>, crate::core::StorageError> {
+    fn get_edge_type(
+        &self,
+        _space: &str,
+        _edge_type_name: &str,
+    ) -> Result<Option<crate::core::types::EdgeTypeSchema>, crate::core::StorageError> {
         Ok(None)
     }
-    fn drop_edge_type(&mut self, _space: &str, _edge_type_name: &str) -> Result<bool, crate::core::StorageError> {
+    fn drop_edge_type(
+        &mut self,
+        _space: &str,
+        _edge_type_name: &str,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn list_edge_types(&self, _space: &str) -> Result<Vec<crate::core::types::EdgeTypeSchema>, crate::core::StorageError> {
+    fn list_edge_types(
+        &self,
+        _space: &str,
+    ) -> Result<Vec<crate::core::types::EdgeTypeSchema>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn create_tag_index(&mut self, _space: &str, _info: &crate::index::Index) -> Result<bool, crate::core::StorageError> {
+    fn create_tag_index(
+        &mut self,
+        _space: &str,
+        _info: &crate::index::Index,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn drop_tag_index(&mut self, _space: &str, _index_name: &str) -> Result<bool, crate::core::StorageError> {
+    fn drop_tag_index(
+        &mut self,
+        _space: &str,
+        _index_name: &str,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn get_tag_index(&self, _space: &str, _index_name: &str) -> Result<Option<crate::index::Index>, crate::core::StorageError> {
+    fn get_tag_index(
+        &self,
+        _space: &str,
+        _index_name: &str,
+    ) -> Result<Option<crate::index::Index>, crate::core::StorageError> {
         Ok(None)
     }
-    fn list_tag_indexes(&self, _space: &str) -> Result<Vec<crate::index::Index>, crate::core::StorageError> {
+    fn list_tag_indexes(
+        &self,
+        _space: &str,
+    ) -> Result<Vec<crate::index::Index>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn rebuild_tag_index(&mut self, _space: &str, _index_name: &str) -> Result<bool, crate::core::StorageError> {
+    fn rebuild_tag_index(
+        &mut self,
+        _space: &str,
+        _index_name: &str,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn create_edge_index(&mut self, _space: &str, _info: &crate::index::Index) -> Result<bool, crate::core::StorageError> {
+    fn create_edge_index(
+        &mut self,
+        _space: &str,
+        _info: &crate::index::Index,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn drop_edge_index(&mut self, _space: &str, _index_name: &str) -> Result<bool, crate::core::StorageError> {
+    fn drop_edge_index(
+        &mut self,
+        _space: &str,
+        _index_name: &str,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn get_edge_index(&self, _space: &str, _index_name: &str) -> Result<Option<crate::index::Index>, crate::core::StorageError> {
+    fn get_edge_index(
+        &self,
+        _space: &str,
+        _index_name: &str,
+    ) -> Result<Option<crate::index::Index>, crate::core::StorageError> {
         Ok(None)
     }
-    fn list_edge_indexes(&self, _space: &str) -> Result<Vec<crate::index::Index>, crate::core::StorageError> {
+    fn list_edge_indexes(
+        &self,
+        _space: &str,
+    ) -> Result<Vec<crate::index::Index>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn rebuild_edge_index(&mut self, _space: &str, _index_name: &str) -> Result<bool, crate::core::StorageError> {
+    fn rebuild_edge_index(
+        &mut self,
+        _space: &str,
+        _index_name: &str,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn change_password(&mut self, _info: &crate::core::types::PasswordInfo) -> Result<bool, crate::core::StorageError> {
+    fn change_password(
+        &mut self,
+        _info: &crate::core::types::PasswordInfo,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn create_user(&mut self, _info: &crate::core::types::metadata::UserInfo) -> Result<bool, crate::core::StorageError> {
+    fn create_user(
+        &mut self,
+        _info: &crate::core::types::metadata::UserInfo,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn alter_user(&mut self, _info: &crate::core::types::metadata::UserAlterInfo) -> Result<bool, crate::core::StorageError> {
+    fn alter_user(
+        &mut self,
+        _info: &crate::core::types::metadata::UserAlterInfo,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
@@ -220,55 +393,119 @@ impl StorageClient for DummyStorage {
         Ok(true)
     }
 
-    fn alter_space_comment(&mut self, _space_id: u64, _comment: String) -> Result<bool, crate::core::StorageError> {
+    fn alter_space_comment(
+        &mut self,
+        _space_id: u64,
+        _comment: String,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn grant_role(&mut self, _username: &str, _space_id: u64, _role: crate::core::RoleType) -> Result<bool, crate::core::StorageError> {
+    fn grant_role(
+        &mut self,
+        _username: &str,
+        _space_id: u64,
+        _role: crate::core::RoleType,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn revoke_role(&mut self, _username: &str, _space_id: u64) -> Result<bool, crate::core::StorageError> {
+    fn revoke_role(
+        &mut self,
+        _username: &str,
+        _space_id: u64,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn insert_vertex_data(&mut self, _space: &str, _info: &crate::core::types::InsertVertexInfo) -> Result<bool, crate::core::StorageError> {
+    fn insert_vertex_data(
+        &mut self,
+        _space: &str,
+        _info: &crate::core::types::InsertVertexInfo,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn insert_edge_data(&mut self, _space: &str, _info: &crate::core::types::InsertEdgeInfo) -> Result<bool, crate::core::StorageError> {
+    fn insert_edge_data(
+        &mut self,
+        _space: &str,
+        _info: &crate::core::types::InsertEdgeInfo,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn delete_vertex_data(&mut self, _space: &str, _vertex_id: &str) -> Result<bool, crate::core::StorageError> {
+    fn delete_vertex_data(
+        &mut self,
+        _space: &str,
+        _vertex_id: &str,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn delete_edge_data(&mut self, _space: &str, _src: &str, _dst: &str, _rank: i64) -> Result<bool, crate::core::StorageError> {
+    fn delete_edge_data(
+        &mut self,
+        _space: &str,
+        _src: &str,
+        _dst: &str,
+        _rank: i64,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn update_data(&mut self, _space: &str, _info: &crate::core::types::UpdateInfo) -> Result<bool, crate::core::StorageError> {
+    fn update_data(
+        &mut self,
+        _space: &str,
+        _info: &crate::core::types::UpdateInfo,
+    ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn get_vertex_with_schema(&self, _space: &str, _tag_name: &str, _id: &crate::core::Value) -> Result<Option<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+    fn get_vertex_with_schema(
+        &self,
+        _space: &str,
+        _tag_name: &str,
+        _id: &crate::core::Value,
+    ) -> Result<Option<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
         Ok(None)
     }
 
-    fn get_edge_with_schema(&self, _space: &str, _edge_type_name: &str, _src: &crate::core::Value, _dst: &crate::core::Value) -> Result<Option<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+    fn get_edge_with_schema(
+        &self,
+        _space: &str,
+        _edge_type_name: &str,
+        _src: &crate::core::Value,
+        _dst: &crate::core::Value,
+    ) -> Result<Option<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
         Ok(None)
     }
 
-    fn scan_vertices_with_schema(&self, _space: &str, _tag_name: &str) -> Result<Vec<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+    fn scan_vertices_with_schema(
+        &self,
+        _space: &str,
+        _tag_name: &str,
+    ) -> Result<Vec<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
         Ok(Vec::new())
     }
 
-    fn scan_edges_with_schema(&self, _space: &str, _edge_type_name: &str) -> Result<Vec<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+    fn scan_edges_with_schema(
+        &self,
+        _space: &str,
+        _edge_type_name: &str,
+    ) -> Result<Vec<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
         Ok(Vec::new())
     }
 
-    fn lookup_index(&self, _space: &str, _index: &str, _value: &crate::core::Value) -> Result<Vec<crate::core::Value>, crate::core::StorageError> {
+    fn lookup_index(
+        &self,
+        _space: &str,
+        _index: &str,
+        _value: &crate::core::Value,
+    ) -> Result<Vec<crate::core::Value>, crate::core::StorageError> {
         Ok(Vec::new())
     }
 
-    fn lookup_index_with_score(&self, _space: &str, _index: &str, _value: &crate::core::Value) -> Result<Vec<(crate::core::Value, f32)>, crate::core::StorageError> {
+    fn lookup_index_with_score(
+        &self,
+        _space: &str,
+        _index: &str,
+        _value: &crate::core::Value,
+    ) -> Result<Vec<(crate::core::Value, f32)>, crate::core::StorageError> {
         Ok(Vec::new())
     }
 
@@ -290,7 +527,11 @@ impl StorageClient for DummyStorage {
         }
     }
 
-    fn delete_vertex_with_edges(&mut self, _space: &str, _id: &crate::core::Value) -> Result<(), crate::core::StorageError> {
+    fn delete_vertex_with_edges(
+        &mut self,
+        _space: &str,
+        _id: &crate::core::Value,
+    ) -> Result<(), crate::core::StorageError> {
         Ok(())
     }
 
@@ -303,7 +544,10 @@ impl StorageClient for DummyStorage {
         Ok(0)
     }
 
-    fn find_dangling_edges(&self, _space: &str) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
+    fn find_dangling_edges(
+        &self,
+        _space: &str,
+    ) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
         Ok(Vec::new())
     }
 
@@ -404,18 +648,18 @@ impl ShortestPathPlanner {
         start: &StartVidSource,
     ) -> Result<Vec<Value>, PlannerError> {
         match start {
-            StartVidSource::VertexSeek(pattern) => {
-                match &pattern.vid {
-                    Some(vid) => {
-                        let vid_clone: Value = vid.clone();
-                        Ok(vec![vid_clone])
-                    }
-                    None => self.scan_matching_vertices(storage, pattern),
+            StartVidSource::VertexSeek(pattern) => match &pattern.vid {
+                Some(vid) => {
+                    let vid_clone: Value = vid.clone();
+                    Ok(vec![vid_clone])
                 }
-            }
+                None => self.scan_matching_vertices(storage, pattern),
+            },
             StartVidSource::IndexScan(pattern) => self.scan_matching_vertices(storage, pattern),
             StartVidSource::PropIndexScan(pattern) => self.scan_matching_vertices(storage, pattern),
-            StartVidSource::VariablePropIndexScan(pattern) => self.scan_matching_vertices(storage, pattern),
+            StartVidSource::VariablePropIndexScan(pattern) => {
+                self.scan_matching_vertices(storage, pattern)
+            }
             StartVidSource::EdgeScan(pattern) => self.scan_matching_vertices(storage, pattern),
             StartVidSource::FullScan(pattern) => self.scan_matching_vertices(storage, pattern),
         }
@@ -457,18 +701,20 @@ impl ShortestPathPlanner {
 
     fn vertex_matches_pattern(&self, vertex: &Vertex, pattern: &NodePattern) -> bool {
         if !pattern.labels.is_empty() {
-            let has_all_labels = pattern.labels.iter().all(|label| {
-                vertex.tags.iter().any(|tag| tag.name == *label)
-            });
+            let has_all_labels = pattern
+                .labels
+                .iter()
+                .all(|label| vertex.tags.iter().any(|tag| tag.name == *label));
             if !has_all_labels {
                 return false;
             }
         }
 
         for (prop_name, prop_value) in &pattern.properties {
-            let found = vertex.get_all_properties().iter().any(|(name, value)| {
-                name == prop_name && **value == *prop_value
-            });
+            let found = vertex
+                .get_all_properties()
+                .iter()
+                .any(|(name, value)| name == prop_name && **value == *prop_value);
             if !found {
                 return false;
             }
@@ -509,9 +755,7 @@ impl ShortestPathPlanner {
                     edge.src.as_ref().clone()
                 };
 
-                if !config.edge_types.is_empty()
-                    && !config.edge_types.contains(&edge.edge_type)
-                {
+                if !config.edge_types.is_empty() && !config.edge_types.contains(&edge.edge_type) {
                     continue;
                 }
 

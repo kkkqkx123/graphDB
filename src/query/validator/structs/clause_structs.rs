@@ -2,14 +2,14 @@
 
 use super::alias_structs::AliasType;
 use super::path_structs::Path;
+use crate::core::error::ValidationError;
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::OrderDirection;
+use crate::core::DataType;
 use crate::core::Expression;
 use crate::core::YieldColumn;
-use crate::core::DataType;
-use crate::core::error::ValidationError;
-use crate::core::types::OrderDirection;
-use crate::query::validator::QueryPart;
 use crate::query::validator::strategies::helpers::ExpressionValidationContext;
+use crate::query::validator::QueryPart;
 use std::collections::HashMap;
 
 /// Match子句上下文

@@ -12,10 +12,10 @@
 
 use std::sync::Arc;
 
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::types::DataType;
 use crate::core::Value;
-use crate::core::error::{ValidationError, ValidationErrorType};
 
 /// 表达式分析结果
 #[derive(Debug, Clone)]
@@ -132,7 +132,10 @@ impl ExpressionAnalyzer {
         match expr {
             Expression::Literal(value) => {
                 let data_type = value.get_type();
-                Ok(ExpressionAnalysisResult::constant(data_type.clone(), value.clone()))
+                Ok(ExpressionAnalysisResult::constant(
+                    data_type.clone(),
+                    value.clone(),
+                ))
             }
 
             Expression::Variable(name) => {
@@ -158,11 +161,16 @@ impl ExpressionAnalyzer {
                 self.analyze_function_call(name, args, variable_types)
             }
 
-            Expression::Aggregate { func, arg, distinct: _ } => {
-                self.analyze_aggregate_expression(func, arg, variable_types)
-            }
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct: _,
+            } => self.analyze_aggregate_expression(func, arg, variable_types),
 
-            Expression::Property { object, property: _ } => {
+            Expression::Property {
+                object,
+                property: _,
+            } => {
                 // 属性访问表达式，类型取决于对象
                 let obj_result = self.analyze_expression(object, variable_types)?;
                 let mut result = ExpressionAnalysisResult::new(DataType::Empty);
@@ -174,17 +182,20 @@ impl ExpressionAnalyzer {
                 self.analyze_subscript_expression(collection, index, variable_types)
             }
 
-            Expression::List(elements) => {
-                self.analyze_list_expression(elements, variable_types)
-            }
+            Expression::List(elements) => self.analyze_list_expression(elements, variable_types),
 
-            Expression::Map(pairs) => {
-                self.analyze_map_expression(pairs, variable_types)
-            }
+            Expression::Map(pairs) => self.analyze_map_expression(pairs, variable_types),
 
-            Expression::Case { test_expr, conditions, default } => {
-                self.analyze_case_expression(test_expr.as_deref(), conditions, default.as_deref(), variable_types)
-            }
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => self.analyze_case_expression(
+                test_expr.as_deref(),
+                conditions,
+                default.as_deref(),
+                variable_types,
+            ),
 
             _ => Ok(ExpressionAnalysisResult::new(DataType::Empty)),
         }
@@ -230,7 +241,11 @@ impl ExpressionAnalyzer {
 
         // 尝试常量折叠
         let constant_value = if left_result.is_constant && right_result.is_constant {
-            self.fold_binary_constant(op, left_result.constant_value.as_ref(), right_result.constant_value.as_ref())
+            self.fold_binary_constant(
+                op,
+                left_result.constant_value.as_ref(),
+                right_result.constant_value.as_ref(),
+            )
         } else {
             None
         };
@@ -488,13 +503,25 @@ impl ExpressionAnalyzer {
 
     /// 推导算术表达式类型
     fn deduce_arithmetic_type(&self, left: &DataType, right: &DataType) -> DataType {
-        let left_is_numeric = matches!(left,
-            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 |
-            DataType::Float | DataType::Double
+        let left_is_numeric = matches!(
+            left,
+            DataType::Int
+                | DataType::Int8
+                | DataType::Int16
+                | DataType::Int32
+                | DataType::Int64
+                | DataType::Float
+                | DataType::Double
         );
-        let right_is_numeric = matches!(right,
-            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 |
-            DataType::Float | DataType::Double
+        let right_is_numeric = matches!(
+            right,
+            DataType::Int
+                | DataType::Int8
+                | DataType::Int16
+                | DataType::Int32
+                | DataType::Int64
+                | DataType::Float
+                | DataType::Double
         );
 
         if !left_is_numeric || !right_is_numeric {
@@ -693,7 +720,7 @@ impl Default for ExpressionAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::{ExpressionMeta, ExpressionContext};
+    use crate::core::types::expression::{ExpressionContext, ExpressionMeta};
 
     #[test]
     fn test_analyze_literal() {

@@ -54,7 +54,8 @@ fn execute_to_int(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
         Value::Int(i) => Ok(Value::Int(*i)),
         Value::Float(f) => Ok(Value::Int(*f as i64)),
-        Value::String(s) => s.parse::<i64>()
+        Value::String(s) => s
+            .parse::<i64>()
             .map(Value::Int)
             .map_err(|_| ExpressionError::type_error("无法将字符串转换为整数")),
         Value::Bool(b) => Ok(Value::Int(if *b { 1 } else { 0 })),
@@ -67,7 +68,8 @@ fn execute_to_float(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
         Value::Int(i) => Ok(Value::Float(*i as f64)),
         Value::Float(f) => Ok(Value::Float(*f)),
-        Value::String(s) => s.parse::<f64>()
+        Value::String(s) => s
+            .parse::<f64>()
             .map(Value::Float)
             .map_err(|_| ExpressionError::type_error("无法将字符串转换为浮点数")),
         Value::Bool(b) => Ok(Value::Float(if *b { 1.0 } else { 0.0 })),

@@ -2,7 +2,7 @@
 //!
 //! 提供各种测试数据的生成函数
 
-use graphdb::core::vertex_edge_path::{Tag, Vertex, Edge};
+use graphdb::core::vertex_edge_path::{Edge, Tag, Vertex};
 use graphdb::core::Value;
 use std::collections::HashMap;
 

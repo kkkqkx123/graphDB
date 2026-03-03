@@ -4,8 +4,8 @@
 //! 包括顶点索引更新、边索引更新、索引删除等
 //! 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
 
-use crate::core::{StorageError, Value, Edge};
 use crate::core::vertex_edge_path::Tag;
+use crate::core::{Edge, StorageError, Value};
 use crate::index::Index;
 use crate::storage::index::IndexDataManager;
 use crate::storage::metadata::IndexMetadataManager;
@@ -61,7 +61,9 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         tags: &[Tag],
     ) -> Result<(), StorageError> {
         // 获取该空间的所有标签索引
-        let indexes = self.index_metadata_manager.list_tag_indexes(self.space_id)?;
+        let indexes = self
+            .index_metadata_manager
+            .list_tag_indexes(self.space_id)?;
 
         for index in indexes {
             // 检查索引是否关联到当前顶点的某个标签
@@ -111,7 +113,8 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// # Arguments
     /// * `vertex_id` - 顶点ID
     pub fn delete_vertex_indexes(&self, vertex_id: &Value) -> Result<(), StorageError> {
-        self.index_data_manager.delete_vertex_indexes(self.space_id, vertex_id)
+        self.index_data_manager
+            .delete_vertex_indexes(self.space_id, vertex_id)
     }
 
     /// 删除指定标签的索引
@@ -126,7 +129,8 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         vertex_id: &Value,
         tag_name: &str,
     ) -> Result<(), StorageError> {
-        self.index_data_manager.delete_tag_indexes(self.space_id, vertex_id, tag_name)
+        self.index_data_manager
+            .delete_tag_indexes(self.space_id, vertex_id, tag_name)
     }
 
     /// 更新边的所有索引
@@ -137,7 +141,9 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// * `edge` - 边对象
     pub fn update_edge_indexes(&self, edge: &Edge) -> Result<(), StorageError> {
         // 获取该空间的所有边索引
-        let indexes = self.index_metadata_manager.list_edge_indexes(self.space_id)?;
+        let indexes = self
+            .index_metadata_manager
+            .list_edge_indexes(self.space_id)?;
 
         for index in indexes {
             // 检查索引是否关联到当前边的类型
@@ -181,8 +187,10 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     /// # Arguments
     /// * `edge` - 边对象
     pub fn delete_edge_indexes(&self, edge: &Edge) -> Result<(), StorageError> {
-        let indexes = self.index_metadata_manager.list_edge_indexes(self.space_id)?;
-        
+        let indexes = self
+            .index_metadata_manager
+            .list_edge_indexes(self.space_id)?;
+
         let index_names: Vec<String> = indexes
             .into_iter()
             .filter(|idx| idx.schema_name == edge.edge_type)
@@ -333,7 +341,12 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
         space_id: u64,
     ) -> Self {
         Self {
-            updater: IndexUpdater::new(index_data_manager, index_metadata_manager, space_name, space_id),
+            updater: IndexUpdater::new(
+                index_data_manager,
+                index_metadata_manager,
+                space_name,
+                space_id,
+            ),
             pending_vertex_updates: Vec::new(),
             pending_edge_updates: Vec::new(),
             pending_vertex_deletes: Vec::new(),
@@ -370,25 +383,29 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
 
         // 删除顶点索引
         if !self.pending_vertex_deletes.is_empty() {
-            self.updater.batch_delete_vertex_indexes(&self.pending_vertex_deletes)?;
+            self.updater
+                .batch_delete_vertex_indexes(&self.pending_vertex_deletes)?;
             self.pending_vertex_deletes.clear();
         }
 
         // 删除边索引
         if !self.pending_edge_deletes.is_empty() {
-            self.updater.batch_delete_edge_indexes(&self.pending_edge_deletes)?;
+            self.updater
+                .batch_delete_edge_indexes(&self.pending_edge_deletes)?;
             self.pending_edge_deletes.clear();
         }
 
         // 更新顶点索引
         if !self.pending_vertex_updates.is_empty() {
-            self.updater.batch_update_vertex_indexes(&self.pending_vertex_updates)?;
+            self.updater
+                .batch_update_vertex_indexes(&self.pending_vertex_updates)?;
             self.pending_vertex_updates.clear();
         }
 
         // 更新边索引
         if !self.pending_edge_updates.is_empty() {
-            self.updater.batch_update_edge_indexes(&self.pending_edge_updates)?;
+            self.updater
+                .batch_update_edge_indexes(&self.pending_edge_updates)?;
             self.pending_edge_updates.clear();
         }
 
@@ -414,11 +431,7 @@ mod tests {
 
     #[test]
     fn test_index_field_creation() {
-        let field = IndexField::new(
-            "name".to_string(),
-            Value::String("test".to_string()),
-            false,
-        );
+        let field = IndexField::new("name".to_string(), Value::String("test".to_string()), false);
 
         assert_eq!(field.name, "name");
         assert!(!field.is_nullable);

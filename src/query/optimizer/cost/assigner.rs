@@ -30,15 +30,13 @@ use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
 
 use super::{
-    CostCalculator, CostModelConfig, SelectivityEstimator,
-    estimate::NodeCostEstimate,
     child_accessor::ChildAccessor,
+    estimate::NodeCostEstimate,
     node_estimators::{
-        NodeEstimator,
-        ScanEstimator, GraphTraversalEstimator, JoinEstimator,
-        SortLimitEstimator, ControlFlowEstimator,
-        GraphAlgorithmEstimator, DataProcessingEstimator,
+        ControlFlowEstimator, DataProcessingEstimator, GraphAlgorithmEstimator,
+        GraphTraversalEstimator, JoinEstimator, NodeEstimator, ScanEstimator, SortLimitEstimator,
     },
+    CostCalculator, CostModelConfig, SelectivityEstimator,
 };
 
 /// 代价赋值器
@@ -101,7 +99,10 @@ impl CostAssigner {
     /// 为整个执行计划赋值代价并返回详细估算结果
     ///
     /// 返回根节点的代价和行数估算结果
-    pub fn assign_costs_with_estimate(&self, plan: &mut ExecutionPlan) -> CostResult<NodeCostEstimate> {
+    pub fn assign_costs_with_estimate(
+        &self,
+        plan: &mut ExecutionPlan,
+    ) -> CostResult<NodeCostEstimate> {
         match plan.root_mut() {
             Some(root) => self.assign_node_costs_recursive(root),
             None => Ok(NodeCostEstimate::new(0.0, 0.0, 0)),
@@ -123,7 +124,10 @@ impl CostAssigner {
     }
 
     /// 计算子节点的代价和行数估算
-    fn calculate_child_estimates(&self, node: &mut PlanNodeEnum) -> CostResult<Vec<NodeCostEstimate>> {
+    fn calculate_child_estimates(
+        &self,
+        node: &mut PlanNodeEnum,
+    ) -> CostResult<Vec<NodeCostEstimate>> {
         let mut estimates = Vec::new();
         let child_count = node.child_count();
 
@@ -161,80 +165,78 @@ impl CostAssigner {
     ) -> CostResult<(f64, u64)> {
         match node {
             // 扫描操作
-            PlanNodeEnum::ScanVertices(_) |
-            PlanNodeEnum::ScanEdges(_) |
-            PlanNodeEnum::IndexScan(_) |
-            PlanNodeEnum::EdgeIndexScan(_) => {
+            PlanNodeEnum::ScanVertices(_)
+            | PlanNodeEnum::ScanEdges(_)
+            | PlanNodeEnum::IndexScan(_)
+            | PlanNodeEnum::EdgeIndexScan(_) => {
                 let estimator = ScanEstimator::new(&self.cost_calculator);
                 estimator.estimate(node, child_estimates)
             }
 
             // 图遍历操作
-            PlanNodeEnum::Expand(_) |
-            PlanNodeEnum::ExpandAll(_) |
-            PlanNodeEnum::Traverse(_) |
-            PlanNodeEnum::AppendVertices(_) |
-            PlanNodeEnum::GetNeighbors(_) |
-            PlanNodeEnum::GetVertices(_) |
-            PlanNodeEnum::GetEdges(_) => {
+            PlanNodeEnum::Expand(_)
+            | PlanNodeEnum::ExpandAll(_)
+            | PlanNodeEnum::Traverse(_)
+            | PlanNodeEnum::AppendVertices(_)
+            | PlanNodeEnum::GetNeighbors(_)
+            | PlanNodeEnum::GetVertices(_)
+            | PlanNodeEnum::GetEdges(_) => {
                 let estimator = GraphTraversalEstimator::new(&self.cost_calculator);
                 estimator.estimate(node, child_estimates)
             }
 
             // 连接操作
-            PlanNodeEnum::HashInnerJoin(_) |
-            PlanNodeEnum::HashLeftJoin(_) |
-            PlanNodeEnum::InnerJoin(_) |
-            PlanNodeEnum::LeftJoin(_) |
-            PlanNodeEnum::CrossJoin(_) |
-            PlanNodeEnum::FullOuterJoin(_) => {
+            PlanNodeEnum::HashInnerJoin(_)
+            | PlanNodeEnum::HashLeftJoin(_)
+            | PlanNodeEnum::InnerJoin(_)
+            | PlanNodeEnum::LeftJoin(_)
+            | PlanNodeEnum::CrossJoin(_)
+            | PlanNodeEnum::FullOuterJoin(_) => {
                 let estimator = JoinEstimator::new(&self.cost_calculator);
                 estimator.estimate(node, child_estimates)
             }
 
             // 排序和限制操作
-            PlanNodeEnum::Sort(_) |
-            PlanNodeEnum::Limit(_) |
-            PlanNodeEnum::TopN(_) |
-            PlanNodeEnum::Aggregate(_) |
-            PlanNodeEnum::Dedup(_) |
-            PlanNodeEnum::Sample(_) => {
+            PlanNodeEnum::Sort(_)
+            | PlanNodeEnum::Limit(_)
+            | PlanNodeEnum::TopN(_)
+            | PlanNodeEnum::Aggregate(_)
+            | PlanNodeEnum::Dedup(_)
+            | PlanNodeEnum::Sample(_) => {
                 let estimator = SortLimitEstimator::new(&self.cost_calculator);
                 estimator.estimate(node, child_estimates)
             }
 
             // 集合操作 - 无优化决策需求，返回保守估计
-            PlanNodeEnum::Union(_) |
-            PlanNodeEnum::Minus(_) |
-            PlanNodeEnum::Intersect(_) => {
+            PlanNodeEnum::Union(_) | PlanNodeEnum::Minus(_) | PlanNodeEnum::Intersect(_) => {
                 let input_rows: u64 = child_estimates.iter().map(|e| e.output_rows).sum();
                 Ok((1.0, input_rows.max(1)))
             }
 
             // 控制流节点
-            PlanNodeEnum::Loop(_) |
-            PlanNodeEnum::Select(_) |
-            PlanNodeEnum::PassThrough(_) |
-            PlanNodeEnum::Argument(_) => {
+            PlanNodeEnum::Loop(_)
+            | PlanNodeEnum::Select(_)
+            | PlanNodeEnum::PassThrough(_)
+            | PlanNodeEnum::Argument(_) => {
                 let estimator = ControlFlowEstimator::new(&self.cost_calculator, self.config);
                 estimator.estimate(node, child_estimates)
             }
 
             // 图算法
-            PlanNodeEnum::ShortestPath(_) |
-            PlanNodeEnum::AllPaths(_) |
-            PlanNodeEnum::MultiShortestPath(_) |
-            PlanNodeEnum::BFSShortest(_) => {
+            PlanNodeEnum::ShortestPath(_)
+            | PlanNodeEnum::AllPaths(_)
+            | PlanNodeEnum::MultiShortestPath(_)
+            | PlanNodeEnum::BFSShortest(_) => {
                 let estimator = GraphAlgorithmEstimator::new(&self.cost_calculator);
                 estimator.estimate(node, child_estimates)
             }
 
             // 数据处理
-            PlanNodeEnum::Filter(_) |
-            PlanNodeEnum::Project(_) |
-            PlanNodeEnum::Unwind(_) |
-            PlanNodeEnum::DataCollect(_) |
-            PlanNodeEnum::Start(_) => {
+            PlanNodeEnum::Filter(_)
+            | PlanNodeEnum::Project(_)
+            | PlanNodeEnum::Unwind(_)
+            | PlanNodeEnum::DataCollect(_)
+            | PlanNodeEnum::Start(_) => {
                 let estimator = DataProcessingEstimator::new(
                     &self.cost_calculator,
                     &self.selectivity_estimator,

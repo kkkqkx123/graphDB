@@ -3,19 +3,19 @@
 //! 验证 INSERT EDGES 语句的语义正确性
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::{Value, NullType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
-use crate::query::QueryContext;
+use crate::core::{NullType, Value};
 use crate::query::parser::ast::stmt::InsertTarget;
 use crate::query::parser::ast::Stmt;
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::QueryContext;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use std::collections::HashSet;
 use std::sync::Arc;
-use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的边插入信息
 #[derive(Debug, Clone)]
@@ -96,17 +96,19 @@ impl InsertEdgesValidator {
         role: &str,
     ) -> Result<(), ValidationError> {
         let vid_type = crate::core::types::DataType::String;
-        
+
         if let Some(ref schema_manager) = self.schema_manager {
-            let schema_validator = crate::query::validator::SchemaValidator::new(schema_manager.clone());
-            schema_validator.validate_vid_expr(expr, &vid_type, role)
+            let schema_validator =
+                crate::query::validator::SchemaValidator::new(schema_manager.clone());
+            schema_validator
+                .validate_vid_expr(expr, &vid_type, role)
                 .map_err(|e| ValidationError::new(e.message, e.error_type))
         } else {
             // 没有 schema_manager 时进行基本验证
             Self::basic_validate_vertex_id_format(expr, role)
         }
     }
-    
+
     /// 基本顶点 ID 验证（无 SchemaManager 时）
     fn basic_validate_vertex_id_format(
         expr: &ContextualExpression,
@@ -191,8 +193,7 @@ impl InsertEdgesValidator {
                 return Err(ValidationError::new(
                     format!(
                         "Error in edge property '{}': {}",
-                        prop_names[prop_idx],
-                        e.message
+                        prop_names[prop_idx], e.message
                     ),
                     e.error_type,
                 ));
@@ -301,9 +302,11 @@ impl StatementValidator for InsertEdgesValidator {
 
         // 3. 验证语句类型
         let (edge_name, prop_names, edges) = match &insert_stmt.target {
-            InsertTarget::Edge { edge_name, prop_names, edges } => {
-                (edge_name.clone(), prop_names.clone(), edges.clone())
-            }
+            InsertTarget::Edge {
+                edge_name,
+                prop_names,
+                edges,
+            } => (edge_name.clone(), prop_names.clone(), edges.clone()),
             InsertTarget::Vertices { .. } => {
                 return Err(ValidationError::new(
                     "Expected INSERT EDGES but got INSERT VERTICES".to_string(),
@@ -403,8 +406,8 @@ impl StatementValidator for InsertEdgesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
     use crate::query::query_request_context::QueryRequestContext;
@@ -454,7 +457,9 @@ mod tests {
             create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
             create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             None,
-            vec![create_contextual_expr(Expression::Literal(Value::String("value".to_string())))],
+            vec![create_contextual_expr(Expression::Literal(Value::String(
+                "value".to_string(),
+            )))],
         );
 
         let qctx = create_test_query_context();
@@ -475,7 +480,7 @@ mod tests {
             None,
             vec![
                 create_contextual_expr(Expression::Literal(Value::String("val1".to_string()))),
-                create_contextual_expr(Expression::Literal(Value::String("val2".to_string())))
+                create_contextual_expr(Expression::Literal(Value::String("val2".to_string()))),
             ],
         );
 
@@ -495,7 +500,9 @@ mod tests {
             create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
             create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
             None,
-            vec![create_contextual_expr(Expression::Literal(Value::String("val1".to_string())))],
+            vec![create_contextual_expr(Expression::Literal(Value::String(
+                "val1".to_string(),
+            )))],
         );
 
         let qctx = create_test_query_context();
@@ -540,7 +547,9 @@ mod tests {
         let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("destination vertex ID cannot be empty"));
+        assert!(err
+            .message
+            .contains("destination vertex ID cannot be empty"));
     }
 
     #[test]
@@ -593,7 +602,9 @@ mod tests {
         let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("source vertex ID must be a string constant or variable"));
+        assert!(err
+            .message
+            .contains("source vertex ID must be a string constant or variable"));
     }
 
     #[test]
@@ -621,7 +632,9 @@ mod tests {
             vec![],
             create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
             create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
-            Some(create_contextual_expr(Expression::Variable("$rank".to_string()))),
+            Some(create_contextual_expr(Expression::Variable(
+                "$rank".to_string(),
+            ))),
             vec![],
         );
 
@@ -638,7 +651,9 @@ mod tests {
             vec![],
             create_contextual_expr(Expression::Literal(Value::String("v1".to_string()))),
             create_contextual_expr(Expression::Literal(Value::String("v2".to_string()))),
-            Some(create_contextual_expr(Expression::Literal(Value::String("invalid".to_string())))),
+            Some(create_contextual_expr(Expression::Literal(Value::String(
+                "invalid".to_string(),
+            )))),
             vec![],
         );
 
@@ -646,7 +661,9 @@ mod tests {
         let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("Rank must be an integer constant or variable"));
+        assert!(err
+            .message
+            .contains("Rank must be an integer constant or variable"));
     }
 
     #[test]
@@ -660,7 +677,7 @@ mod tests {
             None,
             vec![
                 create_contextual_expr(Expression::Literal(Value::Int(2020))),
-                create_contextual_expr(Expression::Literal(Value::String("best".to_string())))
+                create_contextual_expr(Expression::Literal(Value::String("best".to_string()))),
             ],
         );
 
@@ -685,13 +702,15 @@ mod tests {
         let result = validator.validate(Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("Expected INSERT EDGES but got INSERT VERTICES"));
+        assert!(err
+            .message
+            .contains("Expected INSERT EDGES but got INSERT VERTICES"));
     }
 
     #[test]
     fn test_insert_edges_validator_trait_interface() {
         let validator = InsertEdgesValidator::new();
-        
+
         assert_eq!(validator.statement_type(), StatementType::InsertEdges);
         assert!(validator.inputs().is_empty());
         assert!(validator.user_defined_vars().is_empty());

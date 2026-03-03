@@ -3,7 +3,7 @@
 //! 使用标签或属性索引进行高效查找
 
 use super::seek_strategy::SeekStrategy;
-use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern};
+use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
 use crate::core::{StorageError, Vertex};
 use crate::storage::StorageClient;
 
@@ -47,25 +47,29 @@ impl SeekStrategy for IndexSeek {
     }
 
     fn supports(&self, context: &SeekStrategyContext) -> bool {
-        context.get_index_for_labels(&context.node_pattern.labels).is_some()
+        context
+            .get_index_for_labels(&context.node_pattern.labels)
+            .is_some()
     }
 }
 
 impl IndexSeek {
     fn vertex_matches_pattern(&self, vertex: &Vertex, pattern: &NodePattern) -> bool {
         if !pattern.labels.is_empty() {
-            let has_all_labels = pattern.labels.iter().all(|label| {
-                vertex.tags.iter().any(|tag| tag.name == *label)
-            });
+            let has_all_labels = pattern
+                .labels
+                .iter()
+                .all(|label| vertex.tags.iter().any(|tag| tag.name == *label));
             if !has_all_labels {
                 return false;
             }
         }
 
         for (prop_name, prop_value) in &pattern.properties {
-            let found = vertex.get_all_properties().iter().any(|(name, value)| {
-                name == prop_name && **value == *prop_value
-            });
+            let found = vertex
+                .get_all_properties()
+                .iter()
+                .any(|(name, value)| name == prop_name && **value == *prop_value);
             if !found {
                 return false;
             }
@@ -77,8 +81,8 @@ impl IndexSeek {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::seek_strategy_base::IndexInfo;
+    use super::*;
 
     #[test]
     fn test_index_seek_new() {

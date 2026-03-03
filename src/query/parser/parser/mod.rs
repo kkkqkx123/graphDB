@@ -3,9 +3,9 @@
 //! 负责解析查询语句的顶层结构，包括语句、表达式、模式等。
 
 mod expr_parser;
-mod stmt_parser;
 mod parse_context;
 mod parser;
+mod stmt_parser;
 
 // 子模块解析器
 mod clause_parser;
@@ -19,9 +19,9 @@ mod util_stmt_parser;
 mod tests;
 
 pub use expr_parser::ExprParser;
-pub use stmt_parser::StmtParser;
 pub use parse_context::ParseContext;
 pub use parser::{Parser, ParserResult};
+pub use stmt_parser::StmtParser;
 
 // 导出子模块解析器
 pub use clause_parser::ClauseParser;

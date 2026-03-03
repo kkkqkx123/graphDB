@@ -2,8 +2,8 @@
 //!
 //! 负责处理列表展开操作，将列表中的每个元素展开为单独的行
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, Value};
@@ -109,10 +109,10 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     let unwind_value =
                         ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                             .map_err(|e| {
-                                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                    e.to_string(),
-                                ))
-                            })?;
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     // 提取列表
                     let list_values = self.extract_list(&unwind_value);
@@ -142,10 +142,10 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     let unwind_value =
                         ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                             .map_err(|e| {
-                                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                    e.to_string(),
-                                ))
-                            })?;
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -171,10 +171,10 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     let unwind_value =
                         ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                             .map_err(|e| {
-                                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                    e.to_string(),
-                                ))
-                            })?;
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -197,13 +197,12 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 expr_context.set_variable("_".to_string(), empty_value.clone());
 
                 let unwind_value =
-                    ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context).map_err(
-                        |e| {
+                    ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
+                        .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
                             ))
-                        },
-                    )?;
+                        })?;
 
                 let list_values = self.extract_list(&unwind_value);
 
@@ -223,10 +222,10 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     let unwind_value =
                         ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                             .map_err(|e| {
-                                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                    e.to_string(),
-                                ))
-                            })?;
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                     let list_values = self.extract_list(&unwind_value);
 
@@ -249,13 +248,15 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     for value in row {
                         expr_context.set_variable("_".to_string(), value.clone());
 
-                        let unwind_value =
-                            ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
-                                .map_err(|e| {
-                                    DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                        e.to_string(),
-                                    ))
-                                })?;
+                        let unwind_value = ExpressionEvaluator::evaluate(
+                            &self.unwind_expression,
+                            &mut expr_context,
+                        )
+                        .map_err(|e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        })?;
 
                         let list_values = self.extract_list(&unwind_value);
 
@@ -358,15 +359,19 @@ mod tests {
     use super::*;
     use crate::core::{Expression, List, Value};
     use crate::storage::MockStorage;
+    use parking_lot::Mutex;
     use std::sync::Arc;
-use parking_lot::Mutex;
 
     #[test]
     fn test_unwind_executor() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建输入数据
-        let list_value = Value::List(List::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
+        let list_value = Value::List(List::from(vec![
+            Value::Int(1),
+            Value::Int(2),
+            Value::Int(3),
+        ]));
 
         let input_result = ExecutionResult::Values(vec![list_value]);
 
@@ -396,17 +401,29 @@ use parking_lot::Mutex;
             assert_eq!(values.len(), 6);
             assert_eq!(
                 values[0],
-                Value::List(List::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]))
+                Value::List(List::from(vec![
+                    Value::Int(1),
+                    Value::Int(2),
+                    Value::Int(3)
+                ]))
             );
             assert_eq!(values[1], Value::Int(1));
             assert_eq!(
                 values[2],
-                Value::List(List::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]))
+                Value::List(List::from(vec![
+                    Value::Int(1),
+                    Value::Int(2),
+                    Value::Int(3)
+                ]))
             );
             assert_eq!(values[3], Value::Int(2));
             assert_eq!(
                 values[4],
-                Value::List(List::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]))
+                Value::List(List::from(vec![
+                    Value::Int(1),
+                    Value::Int(2),
+                    Value::Int(3)
+                ]))
             );
             assert_eq!(values[5], Value::Int(3));
         } else {

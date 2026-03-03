@@ -34,7 +34,11 @@ pub trait HeuristicRule: std::fmt::Debug + Send + Sync {
     /// - `Ok(Some(node))`: 重写成功，返回新节点
     /// - `Ok(None)`: 不匹配，保持原节点
     /// - `Err(e)`: 重写失败
-    fn apply(&self, ctx: &mut RewriteContext, node: &PlanNodeEnum) -> RewriteResult<Option<PlanNodeEnum>>;
+    fn apply(
+        &self,
+        ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<PlanNodeEnum>>;
 }
 
 /// 将 HeuristicRule 适配为 RewriteRule 的包装器
@@ -127,9 +131,9 @@ mod tests {
     fn test_heuristic_rule_adapter() {
         let rule = TestHeuristicRule;
         let adapter = rule.into_opt_rule();
-        
+
         assert_eq!(adapter.name(), "TestHeuristicRule");
-        
+
         let node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
         assert!(adapter.matches(&node));
     }
@@ -139,8 +143,10 @@ mod tests {
         let rule = TestHeuristicRule;
         let mut ctx = RewriteContext::new();
         let node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
-        
-        let result = rule.apply(&mut ctx, &node).expect("Failed to apply rewrite rule");
+
+        let result = rule
+            .apply(&mut ctx, &node)
+            .expect("Failed to apply rewrite rule");
         assert!(result.is_some());
     }
 }

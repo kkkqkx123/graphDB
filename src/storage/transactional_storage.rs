@@ -5,9 +5,11 @@
 use std::sync::Arc;
 
 use crate::core::{Edge, StorageError, Value, Vertex};
-use crate::storage::{RedbStorage, RedbWriter};
 use crate::storage::operations::writer::{EdgeWriter, VertexWriter};
-use crate::transaction::{TransactionContext, TransactionId, TransactionManager, TransactionOptions};
+use crate::storage::{RedbStorage, RedbWriter};
+use crate::transaction::{
+    TransactionContext, TransactionId, TransactionManager, TransactionOptions,
+};
 
 /// 事务感知存储
 ///
@@ -108,7 +110,10 @@ impl TransactionalStorage {
     ///
     /// # Returns
     /// * `Ok(TransactionId)` - 事务ID
-    pub fn begin_transaction(&self, options: TransactionOptions) -> Result<TransactionId, StorageError> {
+    pub fn begin_transaction(
+        &self,
+        options: TransactionOptions,
+    ) -> Result<TransactionId, StorageError> {
         self.txn_manager
             .begin_transaction(options)
             .map_err(|e| StorageError::DbError(format!("开始事务失败: {}", e)))
@@ -193,7 +198,11 @@ impl<'a> TransactionalStorageClient<'a> {
     }
 
     /// 批量插入顶点
-    pub fn batch_insert_vertices(&mut self, space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+    pub fn batch_insert_vertices(
+        &mut self,
+        space: &str,
+        vertices: Vec<Vertex>,
+    ) -> Result<Vec<Value>, StorageError> {
         let mut writer = self.get_writer()?;
         writer.batch_insert_vertices(space, vertices)
     }
@@ -205,19 +214,34 @@ impl<'a> TransactionalStorageClient<'a> {
     }
 
     /// 删除边
-    pub fn delete_edge(&mut self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
+    pub fn delete_edge(
+        &mut self,
+        space: &str,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<(), StorageError> {
         let mut writer = self.get_writer()?;
         writer.delete_edge(space, src, dst, edge_type)
     }
 
     /// 批量插入边
-    pub fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
+    pub fn batch_insert_edges(
+        &mut self,
+        space: &str,
+        edges: Vec<Edge>,
+    ) -> Result<(), StorageError> {
         let mut writer = self.get_writer()?;
         writer.batch_insert_edges(space, edges)
     }
 
     /// 删除标签
-    pub fn delete_tags(&mut self, space: &str, vertex_id: &Value, tag_names: &[String]) -> Result<usize, StorageError> {
+    pub fn delete_tags(
+        &mut self,
+        space: &str,
+        vertex_id: &Value,
+        tag_names: &[String],
+    ) -> Result<usize, StorageError> {
         let mut writer = self.get_writer()?;
         writer.delete_tags(space, vertex_id, tag_names)
     }
@@ -226,28 +250,27 @@ impl<'a> TransactionalStorageClient<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::vertex_edge_path::Tag;
     use std::sync::Arc;
     use tempfile::TempDir;
-    use crate::core::vertex_edge_path::Tag;
 
     fn create_test_storage() -> (RedbStorage, Arc<TransactionManager>, TempDir) {
         use std::sync::atomic::{AtomicU64, Ordering};
-        
+
         // 使用静态计数器确保每次调用使用不同的文件名
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let counter = COUNTER.fetch_add(1, Ordering::SeqCst);
-        
+
         let temp_dir = TempDir::new().expect("创建临时目录失败");
         // 使用计数器生成唯一的数据库文件名
         let db_path = temp_dir.path().join(format!("test_{}.db", counter));
-        
+
         // 先创建 RedbStorage，它会创建数据库
-        let storage = RedbStorage::new_with_path(db_path.clone())
-            .expect("创建存储失败");
-        
+        let storage = RedbStorage::new_with_path(db_path.clone()).expect("创建存储失败");
+
         // 从 RedbStorage 获取数据库实例
         let db = Arc::clone(storage.get_db());
-        
+
         let txn_manager = Arc::new(TransactionManager::new(db, Default::default()));
         (storage, txn_manager, temp_dir)
     }
@@ -256,7 +279,14 @@ mod tests {
     fn test_transactional_storage_creation() {
         let (storage, txn_manager, _temp) = create_test_storage();
         let transactional = TransactionalStorage::new(storage, txn_manager);
-        assert!(transactional.transaction_manager().stats().total_transactions.load(std::sync::atomic::Ordering::Relaxed) == 0);
+        assert!(
+            transactional
+                .transaction_manager()
+                .stats()
+                .total_transactions
+                .load(std::sync::atomic::Ordering::Relaxed)
+                == 0
+        );
     }
 
     #[test]
@@ -303,12 +333,10 @@ mod tests {
         );
 
         // 在事务中插入顶点
-        let result = transactional.execute_in_transaction(
-            TransactionOptions::default(),
-            |client| {
+        let result = transactional
+            .execute_in_transaction(TransactionOptions::default(), |client| {
                 client.insert_vertex("test_space", vertex)
-            },
-        );
+            });
 
         assert!(result.is_ok(), "事务执行失败: {:?}", result.err());
     }
@@ -329,7 +357,11 @@ mod tests {
         assert!(result.is_err());
         // 验证事务已中止
         assert_eq!(
-            transactional.transaction_manager().stats().aborted_transactions.load(std::sync::atomic::Ordering::Relaxed),
+            transactional
+                .transaction_manager()
+                .stats()
+                .aborted_transactions
+                .load(std::sync::atomic::Ordering::Relaxed),
             1
         );
     }

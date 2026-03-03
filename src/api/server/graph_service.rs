@@ -1,16 +1,18 @@
 use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
 use crate::api::server::permission::PermissionManager;
-use crate::api::server::session::{ClientSession, GraphSessionManager, SpaceInfo, build_query_request_context};
+use crate::api::server::session::{
+    build_query_request_context, ClientSession, GraphSessionManager, SpaceInfo,
+};
 use crate::config::Config;
-use crate::storage::StorageClient;
 use crate::core::error::{SessionError, SessionResult};
-use crate::core::{Permission, StatsManager, MetricType};
+use crate::core::{MetricType, Permission, StatsManager};
+use crate::query::{OptimizerEngine, QueryPipelineManager};
+use crate::storage::StorageClient;
 use crate::transaction::{SavepointManager, TransactionManager};
-use crate::query::{QueryPipelineManager, OptimizerEngine};
-use std::sync::Arc;
-use parking_lot::Mutex;
-use std::time::Duration;
 use log::{info, warn};
+use parking_lot::Mutex;
+use std::sync::Arc;
+use std::time::Duration;
 
 pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
@@ -19,7 +21,7 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
     permission_manager: Arc<PermissionManager>,
     pub stats_manager: Arc<StatsManager>,
     storage: Arc<S>,
-    
+
     // 事务管理相关
     transaction_manager: Option<Arc<TransactionManager>>,
     savepoint_manager: Option<Arc<SavepointManager>>,
@@ -43,7 +45,13 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         transaction_manager: Arc<TransactionManager>,
         savepoint_manager: Arc<SavepointManager>,
     ) -> Arc<Self> {
-        Self::create_service(config, storage, Some(transaction_manager), Some(savepoint_manager), true)
+        Self::create_service(
+            config,
+            storage,
+            Some(transaction_manager),
+            Some(savepoint_manager),
+            true,
+        )
     }
 
     /// 内部构造函数，提取公共逻辑
@@ -159,7 +167,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 session.set_space(space_info);
             }
         }
-        
+
         // 自动提交模式处理
         if result.is_ok() && session.is_auto_commit() {
             if let Some(txn_id) = session.current_transaction() {
@@ -172,10 +180,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 }
             }
         }
-        
+
         result
     }
-    
+
     fn get_space_info(&self, space_name: &str) -> Result<SpaceInfo, String> {
         // 从存储中获取空间信息
         match self.storage.get_space(space_name) {
@@ -232,16 +240,14 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
 
         // 从客户端会话中提取空间信息
-        let space_info = session.space().map(|s| {
-            crate::core::types::SpaceInfo {
-                space_name: s.name.clone(),
-                space_id: s.id as u64,
-                vid_type: crate::core::types::DataType::String,
-                tags: Vec::new(),
-                edge_types: Vec::new(),
-                version: crate::core::types::MetadataVersion::default(),
-                comment: None,
-            }
+        let space_info = session.space().map(|s| crate::core::types::SpaceInfo {
+            space_name: s.name.clone(),
+            space_id: s.id as u64,
+            vid_type: crate::core::types::DataType::String,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: crate::core::types::MetadataVersion::default(),
+            comment: None,
         });
 
         // 从会话创建 QueryRequestContext
@@ -304,32 +310,41 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     }
 
     /// 获取指定会话的详细信息
-    pub async fn get_session_info(&self, session_id: i64) -> Option<crate::api::server::session::SessionInfo> {
+    pub async fn get_session_info(
+        &self,
+        session_id: i64,
+    ) -> Option<crate::api::server::session::SessionInfo> {
         self.session_manager.get_session_info(session_id).await
     }
 
     /// 终止会话（KILL SESSION）
     pub async fn kill_session(&self, session_id: i64, current_user: &str) -> SessionResult<()> {
         // 获取当前会话以检查权限
-        let current_session = self.session_manager.find_session(session_id)
+        let current_session = self
+            .session_manager
+            .find_session(session_id)
             .ok_or(SessionError::SessionNotFound(session_id))?;
-        
+
         let is_admin = current_session.is_admin();
-        
-        self.session_manager.kill_session(session_id, current_user, is_admin).await
+
+        self.session_manager
+            .kill_session(session_id, current_user, is_admin)
+            .await
     }
 
     /// 终止查询（KILL QUERY）
     pub fn kill_query(&self, session_id: i64, query_id: u32) -> SessionResult<()> {
-        let session = self.session_manager.find_session(session_id)
+        let session = self
+            .session_manager
+            .find_session(session_id)
             .ok_or(SessionError::SessionNotFound(session_id))?;
-        
+
         match session.kill_query(query_id) {
             Ok(()) => {
                 self.stats_manager.dec_value(MetricType::NumActiveQueries);
                 Ok(())
-            },
-            Err(e) => Err(SessionError::ManagerError(e.to_string()))
+            }
+            Err(e) => Err(SessionError::ManagerError(e.to_string())),
         }
     }
 
@@ -341,7 +356,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return Err("会话已有活跃事务".to_string());
         }
 
-        let txn_manager = self.transaction_manager.as_ref()
+        let txn_manager = self
+            .transaction_manager
+            .as_ref()
             .ok_or("事务管理器未初始化")?;
 
         let options = session.transaction_options();
@@ -351,17 +368,18 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 session.set_auto_commit(false);
                 info!("会话 {} 开始事务 {}", session.id(), txn_id);
                 Ok(format!("事务 {} 已开始", txn_id))
-            },
+            }
             Err(e) => Err(format!("开始事务失败: {}", e)),
         }
     }
 
     /// 处理 COMMIT 语句
     fn handle_commit_transaction(&self, session: &Arc<ClientSession>) -> Result<String, String> {
-        let txn_id = session.current_transaction()
-            .ok_or("没有活跃事务可提交")?;
+        let txn_id = session.current_transaction().ok_or("没有活跃事务可提交")?;
 
-        let txn_manager = self.transaction_manager.as_ref()
+        let txn_manager = self
+            .transaction_manager
+            .as_ref()
             .ok_or("事务管理器未初始化")?;
 
         match txn_manager.commit_transaction(txn_id) {
@@ -370,13 +388,17 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 session.set_auto_commit(true);
                 info!("会话 {} 提交事务 {}", session.id(), txn_id);
                 Ok(format!("事务 {} 已提交", txn_id))
-            },
+            }
             Err(e) => Err(format!("提交事务失败: {}", e)),
         }
     }
 
     /// 处理 ROLLBACK 语句
-    fn handle_rollback_transaction(&self, session: &Arc<ClientSession>, stmt: &str) -> Result<String, String> {
+    fn handle_rollback_transaction(
+        &self,
+        session: &Arc<ClientSession>,
+        stmt: &str,
+    ) -> Result<String, String> {
         let trimmed = stmt.trim().to_uppercase();
 
         // 检查是否是 ROLLBACK TO SAVEPOINT
@@ -384,10 +406,11 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return self.handle_rollback_to_savepoint(session, stmt);
         }
 
-        let txn_id = session.current_transaction()
-            .ok_or("没有活跃事务可回滚")?;
+        let txn_id = session.current_transaction().ok_or("没有活跃事务可回滚")?;
 
-        let txn_manager = self.transaction_manager.as_ref()
+        let txn_manager = self
+            .transaction_manager
+            .as_ref()
             .ok_or("事务管理器未初始化")?;
 
         match txn_manager.abort_transaction(txn_id) {
@@ -396,17 +419,20 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 session.set_auto_commit(true);
                 info!("会话 {} 回滚事务 {}", session.id(), txn_id);
                 Ok(format!("事务 {} 已回滚", txn_id))
-            },
+            }
             Err(e) => Err(format!("回滚事务失败: {}", e)),
         }
     }
 
     /// 处理 SAVEPOINT 语句
     fn handle_savepoint(&self, session: &Arc<ClientSession>, stmt: &str) -> Result<String, String> {
-        let txn_id = session.current_transaction()
+        let txn_id = session
+            .current_transaction()
             .ok_or("必须先开始事务才能创建保存点")?;
 
-        let savepoint_manager = self.savepoint_manager.as_ref()
+        let savepoint_manager = self
+            .savepoint_manager
+            .as_ref()
             .ok_or("保存点管理器未初始化")?;
 
         // 解析保存点名称
@@ -419,20 +445,32 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         match savepoint_manager.create_savepoint(txn_id, Some(savepoint_name.clone())) {
             Ok(savepoint_id) => {
                 session.push_savepoint(savepoint_id);
-                info!("会话 {} 在事务 {} 中创建保存点 {} (ID: {})", 
-                    session.id(), txn_id, savepoint_name, savepoint_id);
+                info!(
+                    "会话 {} 在事务 {} 中创建保存点 {} (ID: {})",
+                    session.id(),
+                    txn_id,
+                    savepoint_name,
+                    savepoint_id
+                );
                 Ok(format!("保存点 {} 已创建", savepoint_name))
-            },
+            }
             Err(e) => Err(format!("创建保存点失败: {}", e)),
         }
     }
 
     /// 处理 ROLLBACK TO SAVEPOINT 语句
-    fn handle_rollback_to_savepoint(&self, session: &Arc<ClientSession>, stmt: &str) -> Result<String, String> {
-        let txn_id = session.current_transaction()
+    fn handle_rollback_to_savepoint(
+        &self,
+        session: &Arc<ClientSession>,
+        stmt: &str,
+    ) -> Result<String, String> {
+        let txn_id = session
+            .current_transaction()
             .ok_or("必须先开始事务才能回滚到保存点")?;
 
-        let savepoint_manager = self.savepoint_manager.as_ref()
+        let savepoint_manager = self
+            .savepoint_manager
+            .as_ref()
             .ok_or("保存点管理器未初始化")?;
 
         // 解析保存点名称
@@ -443,15 +481,20 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let savepoint_name = parts[parts.len() - 1];
 
         // 通过名称查找保存点ID
-        let savepoint_id = savepoint_manager.find_savepoint_by_name(txn_id, savepoint_name)
+        let savepoint_id = savepoint_manager
+            .find_savepoint_by_name(txn_id, savepoint_name)
             .ok_or_else(|| format!("保存点 '{}' 未找到", savepoint_name))?;
 
         match savepoint_manager.rollback_to_savepoint(savepoint_id) {
             Ok(()) => {
-                info!("会话 {} 在事务 {} 中回滚到保存点 {}", 
-                    session.id(), txn_id, savepoint_name);
+                info!(
+                    "会话 {} 在事务 {} 中回滚到保存点 {}",
+                    session.id(),
+                    txn_id,
+                    savepoint_name
+                );
                 Ok(format!("已回滚到保存点 {}", savepoint_name))
-            },
+            }
             Err(e) => Err(format!("回滚到保存点失败: {}", e)),
         }
     }
@@ -506,7 +549,12 @@ mod tests {
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
         // 验证服务创建成功
-        assert!(!graph_service.get_session_manager().is_out_of_connections().await);
+        assert!(
+            !graph_service
+                .get_session_manager()
+                .is_out_of_connections()
+                .await
+        );
     }
 
     #[tokio::test]
@@ -551,7 +599,10 @@ mod tests {
         graph_service.signout(session_id).await;
 
         // 验证会话已注销
-        assert!(graph_service.get_session_manager().find_session(session_id).is_none());
+        assert!(graph_service
+            .get_session_manager()
+            .find_session(session_id)
+            .is_none());
     }
 
     #[tokio::test]
@@ -613,7 +664,10 @@ mod tests {
         assert!(result.is_ok());
 
         // 验证会话已终止
-        assert!(graph_service.get_session_manager().find_session(session_id).is_none());
+        assert!(graph_service
+            .get_session_manager()
+            .find_session(session_id)
+            .is_none());
     }
 
     #[tokio::test]
@@ -636,14 +690,41 @@ mod tests {
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
         // 测试各种语句的权限提取
-        assert_eq!(graph_service.extract_permission_from_statement("SELECT * FROM user"), Permission::Read);
-        assert_eq!(graph_service.extract_permission_from_statement("MATCH (n) RETURN n"), Permission::Read);
-        assert_eq!(graph_service.extract_permission_from_statement("INSERT INTO user VALUES (1, 'test')"), Permission::Write);
-        assert_eq!(graph_service.extract_permission_from_statement("CREATE TAG user(name string)"), Permission::Write);
-        assert_eq!(graph_service.extract_permission_from_statement("DELETE FROM user WHERE id = 1"), Permission::Delete);
-        assert_eq!(graph_service.extract_permission_from_statement("DROP TAG user"), Permission::Delete);
-        assert_eq!(graph_service.extract_permission_from_statement("ALTER TAG user ADD COLUMN age int"), Permission::Schema);
-        assert_eq!(graph_service.extract_permission_from_statement("ADD HOSTS 127.0.0.1:9779"), Permission::Schema);
-        assert_eq!(graph_service.extract_permission_from_statement("UNKNOWN STATEMENT"), Permission::Read);
+        assert_eq!(
+            graph_service.extract_permission_from_statement("SELECT * FROM user"),
+            Permission::Read
+        );
+        assert_eq!(
+            graph_service.extract_permission_from_statement("MATCH (n) RETURN n"),
+            Permission::Read
+        );
+        assert_eq!(
+            graph_service.extract_permission_from_statement("INSERT INTO user VALUES (1, 'test')"),
+            Permission::Write
+        );
+        assert_eq!(
+            graph_service.extract_permission_from_statement("CREATE TAG user(name string)"),
+            Permission::Write
+        );
+        assert_eq!(
+            graph_service.extract_permission_from_statement("DELETE FROM user WHERE id = 1"),
+            Permission::Delete
+        );
+        assert_eq!(
+            graph_service.extract_permission_from_statement("DROP TAG user"),
+            Permission::Delete
+        );
+        assert_eq!(
+            graph_service.extract_permission_from_statement("ALTER TAG user ADD COLUMN age int"),
+            Permission::Schema
+        );
+        assert_eq!(
+            graph_service.extract_permission_from_statement("ADD HOSTS 127.0.0.1:9779"),
+            Permission::Schema
+        );
+        assert_eq!(
+            graph_service.extract_permission_from_statement("UNKNOWN STATEMENT"),
+            Permission::Read
+        );
     }
 }

@@ -1,11 +1,10 @@
 //! 值运算模块
 //!
 //! 此模块包含的值运算方法当前未被项目使用。
+use super::date_time::{DateTimeValue, DateValue, DurationValue};
 /// 算术运算方法保留供将来使用，如果确认不需要可以安全移除。
 /// 当前聚合运算逻辑实现在 query/executor/aggregation.rs 中。
-
 use super::types::Value;
-use super::date_time::{DateValue, DateTimeValue, DurationValue};
 
 impl Value {
     /// 加法运算
@@ -303,7 +302,13 @@ impl Value {
     }
 
     /// 检查点是否在矩形区域内
-    pub fn geo_in_bbox(&self, min_lat: f64, max_lat: f64, min_lon: f64, max_lon: f64) -> Result<Value, String> {
+    pub fn geo_in_bbox(
+        &self,
+        min_lat: f64,
+        max_lat: f64,
+        min_lon: f64,
+        max_lon: f64,
+    ) -> Result<Value, String> {
         match self {
             Value::Geography(geo) => {
                 let result = geo.in_bbox(min_lat, max_lat, min_lon, max_lon);
@@ -354,8 +359,10 @@ impl Value {
         let days_a = date_a.to_days();
         let days_b = date_b.to_days();
 
-        let total_seconds_a = days_a * 86400 + a.hour as i64 * 3600 + a.minute as i64 * 60 + a.sec as i64;
-        let total_seconds_b = days_b * 86400 + b.hour as i64 * 3600 + b.minute as i64 * 60 + b.sec as i64;
+        let total_seconds_a =
+            days_a * 86400 + a.hour as i64 * 3600 + a.minute as i64 * 60 + a.sec as i64;
+        let total_seconds_b =
+            days_b * 86400 + b.hour as i64 * 3600 + b.minute as i64 * 60 + b.sec as i64;
 
         let diff_seconds = total_seconds_a - total_seconds_b;
         let diff_microseconds = a.microsec as i32 - b.microsec as i32;

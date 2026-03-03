@@ -52,38 +52,86 @@ impl PlanNodeEnum {
             PlanNodeEnum::MultiShortestPath(_) => vec![],
 
             // SingleInputNode: 有一个子节点
-            PlanNodeEnum::Project(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::Filter(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
+            PlanNodeEnum::Project(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
+            PlanNodeEnum::Filter(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
             PlanNodeEnum::Sort(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::Limit(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
+            PlanNodeEnum::Limit(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
             PlanNodeEnum::TopN(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::Sample(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::Dedup(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::DataCollect(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::Aggregate(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::Unwind(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::Assign(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::PatternApply(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::RollUpApply(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
-            PlanNodeEnum::Traverse(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
+            PlanNodeEnum::Sample(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
+            PlanNodeEnum::Dedup(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
+            PlanNodeEnum::DataCollect(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
+            PlanNodeEnum::Aggregate(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
+            PlanNodeEnum::Unwind(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
+            PlanNodeEnum::Assign(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
+            PlanNodeEnum::PatternApply(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
+            PlanNodeEnum::RollUpApply(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
+            PlanNodeEnum::Traverse(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
 
             // BinaryInputNode: 有两个子节点
-            PlanNodeEnum::InnerJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
-            PlanNodeEnum::LeftJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
-            PlanNodeEnum::CrossJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
-            PlanNodeEnum::HashInnerJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
-            PlanNodeEnum::HashLeftJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
-            PlanNodeEnum::FullOuterJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
+            PlanNodeEnum::InnerJoin(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
+            PlanNodeEnum::LeftJoin(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
+            PlanNodeEnum::CrossJoin(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
+            PlanNodeEnum::HashInnerJoin(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
+            PlanNodeEnum::HashLeftJoin(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
+            PlanNodeEnum::FullOuterJoin(node) => vec![
+                super::plan_node_traits::BinaryInputNode::left_input(node),
+                super::plan_node_traits::BinaryInputNode::right_input(node),
+            ],
 
             // MultipleInputNode: 有多个子节点
             PlanNodeEnum::Expand(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
-            PlanNodeEnum::ExpandAll(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
-            PlanNodeEnum::AppendVertices(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
+            PlanNodeEnum::ExpandAll(node) => {
+                node.dependencies().iter().map(|b| b.as_ref()).collect()
+            }
+            PlanNodeEnum::AppendVertices(node) => {
+                node.dependencies().iter().map(|b| b.as_ref()).collect()
+            }
 
             // UnionNode: 使用 dependencies() 获取所有子节点
             PlanNodeEnum::Union(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
             PlanNodeEnum::Minus(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
-            PlanNodeEnum::Intersect(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
+            PlanNodeEnum::Intersect(node) => {
+                node.dependencies().iter().map(|b| b.as_ref()).collect()
+            }
 
             // ControlFlowNode
             PlanNodeEnum::Argument(_) => vec![],
@@ -93,7 +141,7 @@ impl PlanNodeEnum {
                     children.push(body.as_ref());
                 }
                 children
-            },
+            }
             PlanNodeEnum::PassThrough(_) => vec![],
             PlanNodeEnum::Select(node) => {
                 let mut children = Vec::new();
@@ -104,7 +152,7 @@ impl PlanNodeEnum {
                     children.push(else_branch.as_ref());
                 }
                 children
-            },
+            }
         }
     }
 }

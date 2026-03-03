@@ -1,7 +1,7 @@
 //! PlanNode trait 实现
 
-use crate::query::core::{NodeType, NodeCategory, NodeTypeMapping};
 use super::plan_node_enum::PlanNodeEnum;
+use crate::query::core::{NodeCategory, NodeType, NodeTypeMapping};
 
 /// PlanNodeEnum 的 NodeType trait 实现
 ///

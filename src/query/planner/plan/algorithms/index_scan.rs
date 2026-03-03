@@ -1,13 +1,13 @@
 //! 搜索算法相关的计划节点
 //! 包含索引扫描等搜索相关操作
 
-use crate::core::types::graph_schema::OrderDirection;
 use crate::core::types::expression::ContextualExpression;
+use crate::core::types::graph_schema::OrderDirection;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     PlanNode, PlanNodeClonable, ZeroInputNode,
 };
+use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 
 /// 排序项定义
 #[derive(Debug, Clone, PartialEq)]
@@ -143,8 +143,8 @@ pub struct IndexScan {
     pub scan_limits: Vec<IndexLimit>, // 索引扫描限制
     pub filter: Option<ContextualExpression>,
     pub return_columns: Vec<String>,
-    pub limit: Option<i64>,           // 限制返回的记录数量
-    pub order_by: Vec<OrderByItem>,   // 排序条件（用于TopN下推）
+    pub limit: Option<i64>,         // 限制返回的记录数量
+    pub order_by: Vec<OrderByItem>, // 排序条件（用于TopN下推）
 }
 
 impl IndexScan {
@@ -167,8 +167,20 @@ impl IndexScan {
     }
 
     /// 从字符串创建新的 IndexScan
-    pub fn new_with_str(id: i64, space_id: u64, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
-        Self::new(id, space_id, tag_id, index_id, ScanType::from_str(scan_type))
+    pub fn new_with_str(
+        id: i64,
+        space_id: u64,
+        tag_id: i32,
+        index_id: i32,
+        scan_type: &str,
+    ) -> Self {
+        Self::new(
+            id,
+            space_id,
+            tag_id,
+            index_id,
+            ScanType::from_str(scan_type),
+        )
     }
 
     pub fn set_limit(&mut self, limit: i64) {

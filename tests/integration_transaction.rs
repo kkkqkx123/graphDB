@@ -13,16 +13,16 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use graphdb::transaction::{
-    SavepointManager, TransactionManager, TransactionManagerConfig, TransactionOptions, TwoPhaseCoordinator,
-    TransactionState,
-};
 use graphdb::storage::transactional_storage::TransactionalStorage;
+use graphdb::transaction::{
+    SavepointManager, TransactionManager, TransactionManagerConfig, TransactionOptions,
+    TransactionState, TwoPhaseCoordinator,
+};
 
 /// 创建测试用事务管理器
 fn create_test_transaction_manager() -> Arc<TransactionManager> {
-    use tempfile::TempDir;
     use redb::Database;
+    use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("test_txn.db");
@@ -62,8 +62,13 @@ fn test_transaction_lifecycle_commit() {
         .expect("开始事务失败");
 
     // 验证事务状态
-    let info = txn_manager.get_transaction_info(txn_id).expect("获取事务信息失败");
-    assert!(matches!(info.state, TransactionState::Active), "事务应该是活跃的");
+    let info = txn_manager
+        .get_transaction_info(txn_id)
+        .expect("获取事务信息失败");
+    assert!(
+        matches!(info.state, TransactionState::Active),
+        "事务应该是活跃的"
+    );
 
     // 提交事务
     txn_manager
@@ -85,9 +90,7 @@ fn test_transaction_lifecycle_abort() {
         .expect("开始事务失败");
 
     // 中止事务
-    txn_manager
-        .abort_transaction(txn_id)
-        .expect("中止事务失败");
+    txn_manager.abort_transaction(txn_id).expect("中止事务失败");
 
     // 验证事务已结束
     let info = txn_manager.get_transaction_info(txn_id);
@@ -206,10 +209,18 @@ fn test_two_phase_commit_success() {
 
     // 所有参与者投票准备
     coordinator
-        .record_vote(two_phase_id, "resource1", graphdb::transaction::ParticipantVote::Ready)
+        .record_vote(
+            two_phase_id,
+            "resource1",
+            graphdb::transaction::ParticipantVote::Ready,
+        )
         .expect("记录投票失败");
     coordinator
-        .record_vote(two_phase_id, "resource2", graphdb::transaction::ParticipantVote::Ready)
+        .record_vote(
+            two_phase_id,
+            "resource2",
+            graphdb::transaction::ParticipantVote::Ready,
+        )
         .expect("记录投票失败");
 
     // 验证可以提交
@@ -249,10 +260,18 @@ fn test_two_phase_commit_abort() {
 
     // 一个参与者投票准备，另一个投票中止
     coordinator
-        .record_vote(two_phase_id, "resource1", graphdb::transaction::ParticipantVote::Ready)
+        .record_vote(
+            two_phase_id,
+            "resource1",
+            graphdb::transaction::ParticipantVote::Ready,
+        )
         .expect("记录投票失败");
     coordinator
-        .record_vote(two_phase_id, "resource2", graphdb::transaction::ParticipantVote::Abort)
+        .record_vote(
+            two_phase_id,
+            "resource2",
+            graphdb::transaction::ParticipantVote::Abort,
+        )
         .expect("记录投票失败");
 
     // 验证不能提交，但可以中止
@@ -325,8 +344,8 @@ fn test_concurrent_transactions() {
 
 #[test]
 fn test_transaction_timeout() {
-    use tempfile::TempDir;
     use redb::Database;
+    use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("test_timeout.db");
@@ -363,7 +382,9 @@ fn test_transaction_stats() {
 
     // 记录初始统计
     let initial_stats = txn_manager.stats();
-    let initial_total = initial_stats.total_transactions.load(std::sync::atomic::Ordering::Relaxed);
+    let initial_total = initial_stats
+        .total_transactions
+        .load(std::sync::atomic::Ordering::Relaxed);
 
     // 开始并提交一些事务
     for _ in 0..3 {
@@ -380,16 +401,20 @@ fn test_transaction_stats() {
         let txn_id = txn_manager
             .begin_transaction(TransactionOptions::default())
             .expect("开始事务失败");
-        txn_manager
-            .abort_transaction(txn_id)
-            .expect("中止事务失败");
+        txn_manager.abort_transaction(txn_id).expect("中止事务失败");
     }
 
     // 验证统计
     let stats = txn_manager.stats();
-    let total = stats.total_transactions.load(std::sync::atomic::Ordering::Relaxed);
-    let committed = stats.committed_transactions.load(std::sync::atomic::Ordering::Relaxed);
-    let aborted = stats.aborted_transactions.load(std::sync::atomic::Ordering::Relaxed);
+    let total = stats
+        .total_transactions
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let committed = stats
+        .committed_transactions
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let aborted = stats
+        .aborted_transactions
+        .load(std::sync::atomic::Ordering::Relaxed);
     assert_eq!(total, initial_total + 5, "总事务数应该增加5");
     assert_eq!(committed, 3, "已提交事务数应该是3");
     assert_eq!(aborted, 2, "已中止事务数应该是2");
@@ -399,8 +424,8 @@ fn test_transaction_stats() {
 
 #[test]
 fn test_transactional_storage_integration() {
-    use tempfile::TempDir;
     use graphdb::storage::redb_storage::RedbStorage;
+    use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("test.db");
@@ -410,31 +435,30 @@ fn test_transactional_storage_integration() {
     let txn_manager = create_test_transaction_manager();
 
     // 创建事务感知存储
-    let transactional_storage =
-        TransactionalStorage::new(storage, Arc::clone(&txn_manager));
+    let transactional_storage = TransactionalStorage::new(storage, Arc::clone(&txn_manager));
 
     // 在事务中执行操作
-    let result = transactional_storage.execute_in_transaction(
-        TransactionOptions::default(),
-        |_client| {
+    let result =
+        transactional_storage.execute_in_transaction(TransactionOptions::default(), |_client| {
             // 这里可以执行存储操作
             // 例如：client.insert_vertex(...)
             Ok(42) // 返回一个测试值
-        },
-    );
+        });
 
     assert_eq!(result.expect("执行事务失败"), 42, "应该返回正确的值");
 
     // 验证事务已提交
     let stats = txn_manager.stats();
-    let committed = stats.committed_transactions.load(std::sync::atomic::Ordering::Relaxed);
+    let committed = stats
+        .committed_transactions
+        .load(std::sync::atomic::Ordering::Relaxed);
     assert_eq!(committed, 1, "应该有1个已提交的事务");
 }
 
 #[test]
 fn test_transactional_storage_rollback() {
-    use tempfile::TempDir;
     use graphdb::storage::redb_storage::RedbStorage;
+    use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("test_rollback.db");
@@ -442,24 +466,27 @@ fn test_transactional_storage_rollback() {
     let storage = RedbStorage::new_with_path(db_path).expect("创建存储失败");
     let txn_manager = create_test_transaction_manager();
 
-    let transactional_storage =
-        TransactionalStorage::new(storage, Arc::clone(&txn_manager));
+    let transactional_storage = TransactionalStorage::new(storage, Arc::clone(&txn_manager));
 
     // 在事务中执行会失败的操作
-    let result: Result<i32, _> = transactional_storage.execute_in_transaction(
-        TransactionOptions::default(),
-        |_client| {
+    let result: Result<i32, _> =
+        transactional_storage.execute_in_transaction(TransactionOptions::default(), |_client| {
             // 模拟操作失败
-            Err(graphdb::storage::StorageError::DbError("测试错误".to_string()))
-        },
-    );
+            Err(graphdb::storage::StorageError::DbError(
+                "测试错误".to_string(),
+            ))
+        });
 
     assert!(result.is_err(), "操作应该失败");
 
     // 验证事务已中止
     let stats = txn_manager.stats();
-    let aborted = stats.aborted_transactions.load(std::sync::atomic::Ordering::Relaxed);
-    let committed = stats.committed_transactions.load(std::sync::atomic::Ordering::Relaxed);
+    let aborted = stats
+        .aborted_transactions
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let committed = stats
+        .committed_transactions
+        .load(std::sync::atomic::Ordering::Relaxed);
     assert_eq!(aborted, 1, "应该有1个已中止的事务");
     assert_eq!(committed, 0, "不应该有已提交的事务");
 }
@@ -486,7 +513,9 @@ fn test_complex_transaction_scenario() {
 
     // 获取保存点统计
     let stats = savepoint_manager.stats();
-    let total_created = stats.total_created.load(std::sync::atomic::Ordering::Relaxed);
+    let total_created = stats
+        .total_created
+        .load(std::sync::atomic::Ordering::Relaxed);
     assert_eq!(total_created, 2, "应该创建了2个保存点");
 
     // 回滚到第一个保存点
@@ -496,7 +525,9 @@ fn test_complex_transaction_scenario() {
 
     // 验证统计更新
     let stats = savepoint_manager.stats();
-    let rollback_count = stats.rollback_count.load(std::sync::atomic::Ordering::Relaxed);
+    let rollback_count = stats
+        .rollback_count
+        .load(std::sync::atomic::Ordering::Relaxed);
     assert_eq!(rollback_count, 1, "应该有1次回滚");
 
     // 提交事务
@@ -509,8 +540,5 @@ fn test_complex_transaction_scenario() {
 
     // 验证保存点已被清理（通过获取活跃保存点列表）
     let active_savepoints = savepoint_manager.get_active_savepoints(txn_id);
-    assert!(
-        active_savepoints.is_empty(),
-        "保存点应该已被清理"
-    );
+    assert!(active_savepoints.is_empty(), "保存点应该已被清理");
 }

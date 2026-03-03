@@ -4,14 +4,14 @@
 //! 支持索引联动更新、内存锁、批量操作
 
 use super::{BatchDmlContext, DmlProcessor, DmlResult, LockGuard, LockType, MemoryLockManager};
-use crate::core::{StorageError, Value, Vertex};
 use crate::core::vertex_edge_path::Tag;
-use crate::storage::StorageClient;
+use crate::core::{StorageError, Value, Vertex};
 use crate::storage::index::IndexDataManager;
 use crate::storage::metadata::IndexMetadataManager;
+use crate::storage::StorageClient;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 /// 顶点插入处理器
 ///
@@ -26,7 +26,9 @@ pub struct VertexInsertProcessor<S: StorageClient, I: IndexDataManager, M: Index
     space_id: u64,
 }
 
-impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexInsertProcessor<S, I, M> {
+impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager>
+    VertexInsertProcessor<S, I, M>
+{
     pub fn new(
         storage: Arc<Mutex<S>>,
         lock_manager: Arc<Mutex<MemoryLockManager>>,
@@ -103,14 +105,16 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexInser
     /// 检查顶点是否存在
     fn vertex_exists(&self, vid: &Value) -> Result<bool, StorageError> {
         let storage = self.storage.lock();
-        storage.get_vertex(&self.context.space_name, vid)
+        storage
+            .get_vertex(&self.context.space_name, vid)
             .map(|v| v.is_some())
     }
 
     /// 更新索引
     fn update_indexes(&self, vid: &Value, tag: &Tag) -> Result<(), StorageError> {
         // 获取该标签的所有索引
-        let indexes = self.index_metadata_manager
+        let indexes = self
+            .index_metadata_manager
             .list_tag_indexes(self.space_id)
             .map_err(|e| StorageError::StorageError(format!("获取索引失败: {}", e)))?;
 
@@ -120,19 +124,19 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexInser
                 // 构建索引属性值
                 let mut index_props: Vec<(String, Value)> = Vec::new();
                 for field in &index.fields {
-                    if let Some((prop_name, prop_value)) = tag.properties.iter()
-                        .find(|(name, _)| name.as_str() == field.name.as_str()) {
+                    if let Some((prop_name, prop_value)) = tag
+                        .properties
+                        .iter()
+                        .find(|(name, _)| name.as_str() == field.name.as_str())
+                    {
                         index_props.push((prop_name.clone(), prop_value.clone()));
                     }
                 }
 
                 // 更新索引
-                self.index_data_manager.update_vertex_indexes(
-                    self.space_id,
-                    vid,
-                    &index.name,
-                    &index_props,
-                ).map_err(|e| StorageError::StorageError(format!("更新索引失败: {}", e)))?;
+                self.index_data_manager
+                    .update_vertex_indexes(self.space_id, vid, &index.name, &index_props)
+                    .map_err(|e| StorageError::StorageError(format!("更新索引失败: {}", e)))?;
             }
         }
 
@@ -140,7 +144,12 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexInser
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static, M: IndexMetadataManager + Send + Sync + 'static> DmlProcessor for VertexInsertProcessor<S, I, M> {
+impl<
+        S: StorageClient + Send + Sync + 'static,
+        I: IndexDataManager + Send + Sync + 'static,
+        M: IndexMetadataManager + Send + Sync + 'static,
+    > DmlProcessor for VertexInsertProcessor<S, I, M>
+{
     fn execute(&mut self) -> Result<DmlResult, StorageError> {
         if self.vertices.is_empty() {
             return Ok(DmlResult::success(0));
@@ -222,7 +231,9 @@ pub struct VertexUpdateItem {
     pub condition: Option<String>, // WHERE 条件表达式字符串
 }
 
-impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexUpdateProcessor<S, I, M> {
+impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager>
+    VertexUpdateProcessor<S, I, M>
+{
     pub fn new(
         storage: Arc<Mutex<S>>,
         lock_manager: Arc<Mutex<MemoryLockManager>>,
@@ -266,7 +277,8 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexUpdat
     /// 更新索引
     fn update_indexes(&self, vid: &Value, tag: &Tag) -> Result<(), StorageError> {
         // 获取该标签的所有索引
-        let indexes = self.index_metadata_manager
+        let indexes = self
+            .index_metadata_manager
             .list_tag_indexes(self.space_id)
             .map_err(|e| StorageError::StorageError(format!("获取索引失败: {}", e)))?;
 
@@ -276,19 +288,19 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexUpdat
                 // 构建索引属性值
                 let mut index_props: Vec<(String, Value)> = Vec::new();
                 for field in &index.fields {
-                    if let Some((prop_name, prop_value)) = tag.properties.iter()
-                        .find(|(name, _)| name.as_str() == field.name.as_str()) {
+                    if let Some((prop_name, prop_value)) = tag
+                        .properties
+                        .iter()
+                        .find(|(name, _)| name.as_str() == field.name.as_str())
+                    {
                         index_props.push((prop_name.clone(), prop_value.clone()));
                     }
                 }
 
                 // 更新索引
-                self.index_data_manager.update_vertex_indexes(
-                    self.space_id,
-                    vid,
-                    &index.name,
-                    &index_props,
-                ).map_err(|e| StorageError::StorageError(format!("更新索引失败: {}", e)))?;
+                self.index_data_manager
+                    .update_vertex_indexes(self.space_id, vid, &index.name, &index_props)
+                    .map_err(|e| StorageError::StorageError(format!("更新索引失败: {}", e)))?;
             }
         }
 
@@ -296,7 +308,12 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexUpdat
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static, M: IndexMetadataManager + Send + Sync + 'static> DmlProcessor for VertexUpdateProcessor<S, I, M> {
+impl<
+        S: StorageClient + Send + Sync + 'static,
+        I: IndexDataManager + Send + Sync + 'static,
+        M: IndexMetadataManager + Send + Sync + 'static,
+    > DmlProcessor for VertexUpdateProcessor<S, I, M>
+{
     fn execute(&mut self) -> Result<DmlResult, StorageError> {
         if self.updates.is_empty() {
             return Ok(DmlResult::success(0));
@@ -359,7 +376,10 @@ impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync
                 None => {
                     // UPSERT 语义：如果不存在则插入
                     if self.insertable {
-                        let tag_name = update.tag_name.clone().unwrap_or_else(|| "default".to_string());
+                        let tag_name = update
+                            .tag_name
+                            .clone()
+                            .unwrap_or_else(|| "default".to_string());
                         let tag = Tag::new(tag_name, update.properties.clone());
                         let vertex = Vertex::new_with_properties(
                             update.vid.clone(),
@@ -431,9 +451,9 @@ impl<S: StorageClient, I: IndexDataManager> VertexDeleteProcessor<S, I> {
     /// 删除关联边
     fn delete_related_edges(&self, vid: &Value) -> Result<usize, StorageError> {
         use crate::core::EdgeDirection;
-        
+
         let mut storage = self.storage.lock();
-        
+
         // 获取所有关联边
         let edges = storage.get_node_edges(&self.context.space_name, vid, EdgeDirection::Both)?;
         let mut deleted_count = 0;
@@ -453,14 +473,15 @@ impl<S: StorageClient, I: IndexDataManager> VertexDeleteProcessor<S, I> {
 
     /// 删除索引
     fn delete_indexes(&self, vid: &Value) -> Result<(), StorageError> {
-        self.index_data_manager.delete_vertex_indexes(
-            self.space_id,
-            vid,
-        ).map_err(|e| StorageError::StorageError(format!("删除索引失败: {}", e)))
+        self.index_data_manager
+            .delete_vertex_indexes(self.space_id, vid)
+            .map_err(|e| StorageError::StorageError(format!("删除索引失败: {}", e)))
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static> DmlProcessor for VertexDeleteProcessor<S, I> {
+impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static>
+    DmlProcessor for VertexDeleteProcessor<S, I>
+{
     fn execute(&mut self) -> Result<DmlResult, StorageError> {
         if self.vertex_ids.is_empty() {
             return Ok(DmlResult::success(0));
@@ -505,7 +526,10 @@ impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync
             }
         }
 
-        Ok(DmlResult::success_with_stats(deleted_count, deleted_edges_count))
+        Ok(DmlResult::success_with_stats(
+            deleted_count,
+            deleted_edges_count,
+        ))
     }
 }
 
@@ -561,15 +585,15 @@ impl<S: StorageClient, I: IndexDataManager> TagDeleteProcessor<S, I> {
 
     /// 删除标签索引
     fn delete_tag_indexes(&self, vid: &Value, tag_name: &str) -> Result<(), StorageError> {
-        self.index_data_manager.delete_tag_indexes(
-            self.space_id,
-            vid,
-            tag_name,
-        ).map_err(|e| StorageError::StorageError(format!("删除标签索引失败: {}", e)))
+        self.index_data_manager
+            .delete_tag_indexes(self.space_id, vid, tag_name)
+            .map_err(|e| StorageError::StorageError(format!("删除标签索引失败: {}", e)))
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static> DmlProcessor for TagDeleteProcessor<S, I> {
+impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static>
+    DmlProcessor for TagDeleteProcessor<S, I>
+{
     fn execute(&mut self) -> Result<DmlResult, StorageError> {
         if self.items.is_empty() {
             return Ok(DmlResult::success(0));
@@ -594,14 +618,18 @@ impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync
                 Some(mut vertex) => {
                     // 删除指定标签
                     let original_count = vertex.tags.len();
-                    
+
                     // 获取要删除的标签名称
-                    let tags_to_remove: Vec<String> = vertex.tags.iter()
+                    let tags_to_remove: Vec<String> = vertex
+                        .tags
+                        .iter()
                         .filter(|tag| item.tag_names.contains(&tag.name))
                         .map(|tag| tag.name.clone())
                         .collect();
-                    
-                    vertex.tags.retain(|tag| !item.tag_names.contains(&tag.name));
+
+                    vertex
+                        .tags
+                        .retain(|tag| !item.tag_names.contains(&tag.name));
                     let removed_count = original_count - vertex.tags.len();
 
                     if removed_count > 0 {
@@ -611,7 +639,7 @@ impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync
                                 return Ok(DmlResult::error(format!("删除标签索引失败: {}", e)));
                             }
                         }
-                        
+
                         // 保存更新后的顶点
                         storage.update_vertex(&self.context.space_name, vertex)?;
                         deleted_count += removed_count;

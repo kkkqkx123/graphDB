@@ -87,7 +87,8 @@ impl ValidationInfo {
     /// 从 ExpressionContext 获取类型信息，确保单一数据源。
     /// 所有类型信息在验证阶段通过 ExpressionAnalyzer 存储到 ExpressionContext。
     pub fn get_expr_type(&self, expr: &ContextualExpression) -> Option<ValueType> {
-        expr.data_type().map(|data_type| ValueType::from_data_type(&data_type))
+        expr.data_type()
+            .map(|data_type| ValueType::from_data_type(&data_type))
     }
 
     /// 使用 ExpressionAnalyzer 分析表达式
@@ -96,7 +97,10 @@ impl ValidationInfo {
         &mut self,
         expr: &ContextualExpression,
         variable_types: Option<&std::collections::HashMap<String, crate::core::DataType>>,
-    ) -> Result<crate::query::validator::ExpressionAnalysisResult, crate::core::error::ValidationError> {
+    ) -> Result<
+        crate::query::validator::ExpressionAnalysisResult,
+        crate::core::error::ValidationError,
+    > {
         use crate::query::validator::ExpressionAnalyzer;
 
         let analyzer = ExpressionAnalyzer::new();
@@ -322,5 +326,3 @@ pub struct AggregateCallInfo {
     /// 别名
     pub alias: Option<String>,
 }
-
-

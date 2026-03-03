@@ -2,13 +2,15 @@
 mod tests {
     use crate::core::{Edge, Value, Vertex};
     use crate::query::executor::base::EdgeDirection;
-    use crate::query::executor::data_processing::graph_traversal::algorithms::{EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType};
+    use crate::query::executor::base::Executor;
+    use crate::query::executor::data_processing::graph_traversal::algorithms::{
+        EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType,
+    };
     use crate::query::executor::data_processing::graph_traversal::factory::GraphTraversalExecutorFactory;
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
-    use crate::query::executor::base::Executor;
     use crate::storage::{MockStorage, StorageClient};
+    use parking_lot::Mutex;
     use std::sync::Arc;
-use parking_lot::Mutex;
 
     fn create_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
         let storage = Arc::new(Mutex::new(MockStorage));
@@ -88,10 +90,7 @@ use parking_lot::Mutex;
         // 测试基本功能
         assert_eq!(executor.name(), "ExpandExecutor");
         assert_eq!(executor.id(), 1);
-        assert!(matches!(
-            executor.get_edge_direction(),
-            EdgeDirection::Out
-        ));
+        assert!(matches!(executor.get_edge_direction(), EdgeDirection::Out));
         assert!(executor.get_edge_types().is_some());
         assert_eq!(executor.get_max_depth(), Some(1));
     }
@@ -128,10 +127,7 @@ use parking_lot::Mutex;
 
         assert_eq!(executor.name(), "TraverseExecutor");
         assert_eq!(executor.id(), 3);
-        assert!(matches!(
-            executor.get_edge_direction(),
-            EdgeDirection::Out
-        ));
+        assert!(matches!(executor.get_edge_direction(), EdgeDirection::Out));
         assert!(executor.get_edge_types().is_some());
         assert_eq!(executor.get_max_depth(), Some(3));
     }
@@ -152,10 +148,7 @@ use parking_lot::Mutex;
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 4);
-        assert!(matches!(
-            executor.get_edge_direction(),
-            EdgeDirection::Out
-        ));
+        assert!(matches!(executor.get_edge_direction(), EdgeDirection::Out));
         assert!(executor.get_edge_types().is_none());
     }
 
@@ -262,7 +255,8 @@ use parking_lot::Mutex;
             None,
             Some(10),
             ShortestPathAlgorithmType::Dijkstra,
-        ).with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
+        )
+        .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 5);
@@ -282,7 +276,8 @@ use parking_lot::Mutex;
             None,
             Some(10),
             ShortestPathAlgorithmType::Dijkstra,
-        ).with_weight_config(EdgeWeightConfig::Ranking);
+        )
+        .with_weight_config(EdgeWeightConfig::Ranking);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 6);
@@ -302,7 +297,8 @@ use parking_lot::Mutex;
             None,
             Some(10),
             ShortestPathAlgorithmType::BFS,
-        ).with_weight_config(EdgeWeightConfig::Unweighted);
+        )
+        .with_weight_config(EdgeWeightConfig::Unweighted);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 7);
@@ -322,22 +318,26 @@ use parking_lot::Mutex;
             let mut props_a = std::collections::HashMap::new();
             props_a.insert("lat".to_string(), Value::Float(0.0));
             props_a.insert("lon".to_string(), Value::Float(0.0));
-            let vertex_a = Vertex::new_with_properties(Value::String("A".to_string()), vec![], props_a);
+            let vertex_a =
+                Vertex::new_with_properties(Value::String("A".to_string()), vec![], props_a);
 
             let mut props_b = std::collections::HashMap::new();
             props_b.insert("lat".to_string(), Value::Float(3.0));
             props_b.insert("lon".to_string(), Value::Float(4.0));
-            let vertex_b = Vertex::new_with_properties(Value::String("B".to_string()), vec![], props_b);
+            let vertex_b =
+                Vertex::new_with_properties(Value::String("B".to_string()), vec![], props_b);
 
             let mut props_c = std::collections::HashMap::new();
             props_c.insert("lat".to_string(), Value::Float(6.0));
             props_c.insert("lon".to_string(), Value::Float(8.0));
-            let vertex_c = Vertex::new_with_properties(Value::String("C".to_string()), vec![], props_c);
+            let vertex_c =
+                Vertex::new_with_properties(Value::String("C".to_string()), vec![], props_c);
 
             let mut props_d = std::collections::HashMap::new();
             props_d.insert("lat".to_string(), Value::Float(1.0));
             props_d.insert("lon".to_string(), Value::Float(1.0));
-            let vertex_d = Vertex::new_with_properties(Value::String("D".to_string()), vec![], props_d);
+            let vertex_d =
+                Vertex::new_with_properties(Value::String("D".to_string()), vec![], props_d);
 
             let id_a = storage_lock
                 .insert_vertex(space, vertex_a)
@@ -426,7 +426,10 @@ use parking_lot::Mutex;
             ShortestPathAlgorithmType::AStar,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
-        .with_heuristic_config(HeuristicFunction::PropertyDistance("lat".to_string(), "lon".to_string()));
+        .with_heuristic_config(HeuristicFunction::PropertyDistance(
+            "lat".to_string(),
+            "lon".to_string(),
+        ));
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 8);
@@ -526,7 +529,10 @@ use parking_lot::Mutex;
         // 带权图应该使用Dijkstra或A*算法
         let algorithm = executor.get_algorithm();
         assert!(
-            matches!(algorithm, ShortestPathAlgorithmType::Dijkstra | ShortestPathAlgorithmType::AStar),
+            matches!(
+                algorithm,
+                ShortestPathAlgorithmType::Dijkstra | ShortestPathAlgorithmType::AStar
+            ),
             "带权图应该使用Dijkstra或A*算法"
         );
     }

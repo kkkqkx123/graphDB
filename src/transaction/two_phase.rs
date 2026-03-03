@@ -71,9 +71,7 @@ impl TwoPhaseState {
     pub fn can_abort(&self) -> bool {
         matches!(
             self,
-            TwoPhaseState::Preparing
-                | TwoPhaseState::AllPrepared
-                | TwoPhaseState::VoteAbort
+            TwoPhaseState::Preparing | TwoPhaseState::AllPrepared | TwoPhaseState::VoteAbort
         )
     }
 
@@ -219,10 +217,7 @@ impl TwoPhaseTransaction {
 
     /// 检查是否所有参与者都已投票
     fn check_all_voted(&mut self) {
-        let all_voted = self
-            .participants
-            .values()
-            .all(|p| p.vote.is_some());
+        let all_voted = self.participants.values().all(|p| p.vote.is_some());
 
         if all_voted && matches!(self.state, TwoPhaseState::Preparing) {
             // 检查是否有任何中止投票
@@ -339,7 +334,9 @@ impl TwoPhaseCoordinator {
 
         let txn = TwoPhaseTransaction::new(id, txn_id, participant_ids, timeout);
 
-        self.transactions.write().insert(id, Arc::new(RwLock::new(txn)));
+        self.transactions
+            .write()
+            .insert(id, Arc::new(RwLock::new(txn)));
         self.txn_to_2pc.write().insert(txn_id, id);
 
         Ok(id)
@@ -423,7 +420,9 @@ impl TwoPhaseCoordinator {
         let mut txn_write = txn.write();
 
         if !txn_write.state.can_commit() {
-            return Err(TransactionError::InvalidStateForCommit(TransactionState::Prepared));
+            return Err(TransactionError::InvalidStateForCommit(
+                TransactionState::Prepared,
+            ));
         }
 
         txn_write.state = TwoPhaseState::Committing;
@@ -469,7 +468,9 @@ impl TwoPhaseCoordinator {
         let mut txn_write = txn.write();
 
         if !txn_write.state.can_abort() {
-            return Err(TransactionError::InvalidStateForAbort(TransactionState::Prepared));
+            return Err(TransactionError::InvalidStateForAbort(
+                TransactionState::Prepared,
+            ));
         }
 
         txn_write.state = TwoPhaseState::Aborting;

@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{PlanNode, PlanNodeClonable};
+use crate::core::types::{ContextualExpression, ExpressionContext, SerializableExpression};
 use crate::define_plan_node;
-use crate::core::types::{ContextualExpression, SerializableExpression, ExpressionContext};
 
 define_plan_node! {
     pub struct ArgumentNode {
@@ -115,16 +115,17 @@ impl SelectNode {
     pub fn condition(&self) -> &ContextualExpression {
         &self.condition
     }
-    
+
     pub fn set_condition(&mut self, condition: ContextualExpression) {
         self.condition = condition;
         self.condition_serializable = None;
     }
-    
+
     pub fn prepare_for_serialization(&mut self) {
-        self.condition_serializable = Some(SerializableExpression::from_contextual(&self.condition));
+        self.condition_serializable =
+            Some(SerializableExpression::from_contextual(&self.condition));
     }
-    
+
     pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
         if let Some(ref ser_expr) = self.condition_serializable {
             self.condition = ser_expr.clone().to_contextual(ctx);
@@ -257,16 +258,17 @@ impl LoopNode {
     pub fn condition(&self) -> &ContextualExpression {
         &self.condition
     }
-    
+
     pub fn set_condition(&mut self, condition: ContextualExpression) {
         self.condition = condition;
         self.condition_serializable = None;
     }
-    
+
     pub fn prepare_for_serialization(&mut self) {
-        self.condition_serializable = Some(SerializableExpression::from_contextual(&self.condition));
+        self.condition_serializable =
+            Some(SerializableExpression::from_contextual(&self.condition));
     }
-    
+
     pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
         if let Some(ref ser_expr) = self.condition_serializable {
             self.condition = ser_expr.clone().to_contextual(ctx);
@@ -364,7 +366,7 @@ mod tests {
     fn test_select_node_creation() {
         let ctx = Arc::new(ExpressionContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::Variable("condition".to_string())
+            crate::core::Expression::Variable("condition".to_string()),
         );
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
@@ -379,7 +381,7 @@ mod tests {
     fn test_loop_node_creation() {
         let ctx = Arc::new(ExpressionContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::Variable("condition".to_string())
+            crate::core::Expression::Variable("condition".to_string()),
         );
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);

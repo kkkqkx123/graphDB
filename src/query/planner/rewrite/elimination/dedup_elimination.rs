@@ -21,12 +21,12 @@
 //! - Dedup 节点的子节点为 IndexScan、GetVertices 或 GetEdges
 //! - 这些操作本身就保证结果的唯一性
 
-use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
+use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
 
 /// 消除重复操作的规则
 ///
@@ -46,7 +46,7 @@ impl DedupEliminationRule {
         if child.is_index_scan() {
             return true;
         }
-        
+
         // 根据节点类型判断
         match child {
             // 主键查询保证唯一性
@@ -57,9 +57,7 @@ impl DedupEliminationRule {
                 // 如果扫描有唯一性约束（如主键扫描）
                 node.limit().map_or(false, |l| l == 1)
             }
-            PlanNodeEnum::ScanEdges(node) => {
-                node.limit().map_or(false, |l| l == 1)
-            }
+            PlanNodeEnum::ScanEdges(node) => node.limit().map_or(false, |l| l == 1),
             // 其他保证唯一性的节点
             PlanNodeEnum::Start(_) => true,
             _ => false,
@@ -151,7 +149,7 @@ mod tests {
     #[test]
     fn test_child_guarantees_uniqueness() {
         let rule = DedupEliminationRule::new();
-        
+
         // Start 节点保证唯一性
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         assert!(rule.child_guarantees_uniqueness(&PlanNodeEnum::Start(start_node)));

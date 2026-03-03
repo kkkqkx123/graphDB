@@ -12,53 +12,53 @@
 
 use std::sync::Arc;
 
-use crate::query::QueryContext;
-use crate::query::parser::ast::{Stmt, FetchTarget, CreateTarget};
+use crate::query::parser::ast::{CreateTarget, FetchTarget, Stmt};
 use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ExpressionProps,
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
+use crate::query::QueryContext;
 
 // 导入具体验证器
+use crate::query::validator::assignment_validator::AssignmentValidator;
+use crate::query::validator::clauses::group_by_validator::GroupByValidator;
+use crate::query::validator::clauses::limit_validator::LimitValidator;
+use crate::query::validator::clauses::order_by_validator::OrderByValidator;
+use crate::query::validator::clauses::return_validator::ReturnValidator;
+use crate::query::validator::clauses::sequential_validator::SequentialValidator;
+use crate::query::validator::clauses::with_validator::WithValidator;
+use crate::query::validator::clauses::yield_validator::YieldValidator;
 use crate::query::validator::ddl::admin_validator::{
-    ShowValidator, DescValidator, ShowCreateValidator, ShowConfigsValidator,
-    ShowSessionsValidator, ShowQueriesValidator, KillQueryValidator,
-};
-use crate::query::validator::utility::acl_validator::{
-    CreateUserValidator, DropUserValidator, AlterUserValidator, ChangePasswordValidator,
-    GrantValidator, RevokeValidator, DescribeUserValidator, ShowUsersValidator, ShowRolesValidator,
+    DescValidator, KillQueryValidator, ShowConfigsValidator, ShowCreateValidator,
+    ShowQueriesValidator, ShowSessionsValidator, ShowValidator,
 };
 use crate::query::validator::ddl::alter_validator::AlterValidator;
-use crate::query::validator::assignment_validator::AssignmentValidator;
+use crate::query::validator::ddl::drop_validator::DropValidator;
+use crate::query::validator::dml::pipe_validator::PipeValidator;
+use crate::query::validator::dml::query_validator::QueryValidator;
+use crate::query::validator::dml::set_operation_validator::SetOperationValidator;
+use crate::query::validator::dml::use_validator::UseValidator;
 use crate::query::validator::statements::create_validator::CreateValidator;
 use crate::query::validator::statements::delete_validator::DeleteValidator;
-use crate::query::validator::ddl::drop_validator::DropValidator;
-use crate::query::validator::utility::explain_validator::{ExplainValidator, ProfileValidator};
 use crate::query::validator::statements::fetch_edges_validator::FetchEdgesValidator;
 use crate::query::validator::statements::fetch_vertices_validator::FetchVerticesValidator;
 use crate::query::validator::statements::find_path_validator::FindPathValidator;
 use crate::query::validator::statements::get_subgraph_validator::GetSubgraphValidator;
 use crate::query::validator::statements::go_validator::GoValidator;
-use crate::query::validator::clauses::group_by_validator::GroupByValidator;
 use crate::query::validator::statements::insert_edges_validator::InsertEdgesValidator;
 use crate::query::validator::statements::insert_vertices_validator::InsertVerticesValidator;
-use crate::query::validator::clauses::limit_validator::LimitValidator;
 use crate::query::validator::statements::lookup_validator::LookupValidator;
 use crate::query::validator::statements::match_validator::MatchValidator;
-use crate::query::validator::clauses::order_by_validator::OrderByValidator;
-use crate::query::validator::dml::pipe_validator::PipeValidator;
-use crate::query::validator::clauses::sequential_validator::SequentialValidator;
-use crate::query::validator::dml::set_operation_validator::SetOperationValidator;
+use crate::query::validator::statements::merge_validator::MergeValidator;
+use crate::query::validator::statements::remove_validator::RemoveValidator;
 use crate::query::validator::statements::set_validator::SetValidator;
 use crate::query::validator::statements::unwind_validator::UnwindValidator;
 use crate::query::validator::statements::update_validator::UpdateValidator;
-use crate::query::validator::dml::use_validator::UseValidator;
-use crate::query::validator::clauses::yield_validator::YieldValidator;
+use crate::query::validator::utility::acl_validator::{
+    AlterUserValidator, ChangePasswordValidator, CreateUserValidator, DescribeUserValidator,
+    DropUserValidator, GrantValidator, RevokeValidator, ShowRolesValidator, ShowUsersValidator,
+};
+use crate::query::validator::utility::explain_validator::{ExplainValidator, ProfileValidator};
 use crate::query::validator::utility::update_config_validator::UpdateConfigsValidator;
-use crate::query::validator::statements::merge_validator::MergeValidator;
-use crate::query::validator::clauses::return_validator::ReturnValidator;
-use crate::query::validator::clauses::with_validator::WithValidator;
-use crate::query::validator::statements::remove_validator::RemoveValidator;
-use crate::query::validator::dml::query_validator::QueryValidator;
 
 /// 统一验证器枚举
 ///
@@ -239,61 +239,155 @@ impl Validator {
     }
 
     /// 验证语句
-    pub fn validate(
-        &mut self,
-        stmt: Stmt,
-        qctx: Arc<QueryContext>,
-    ) -> ValidationResult {
+    pub fn validate(&mut self, stmt: Stmt, qctx: Arc<QueryContext>) -> ValidationResult {
         match self {
-            Validator::Show(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Desc(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::ShowCreate(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::ShowConfigs(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::ShowSessions(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::ShowQueries(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::KillQuery(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::CreateUser(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::DropUser(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::AlterUser(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::ChangePassword(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Grant(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Revoke(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::DescribeUser(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::ShowUsers(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::ShowRoles(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Alter(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Drop(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Create(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Use(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Set(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Assignment(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Pipe(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Query(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::SetOperation(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Match(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Lookup(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Go(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::FindPath(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::GetSubgraph(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::FetchVertices(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::FetchEdges(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::InsertVertices(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::InsertEdges(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Update(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Delete(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Merge(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Remove(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Unwind(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::OrderBy(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::GroupBy(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Yield(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Return(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::With(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Limit(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Sequential(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Explain(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::Profile(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
-            Validator::UpdateConfig(v) => v.validate(stmt, qctx).unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Show(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Desc(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::ShowCreate(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::ShowConfigs(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::ShowSessions(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::ShowQueries(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::KillQuery(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::CreateUser(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::DropUser(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::AlterUser(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::ChangePassword(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Grant(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Revoke(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::DescribeUser(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::ShowUsers(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::ShowRoles(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Alter(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Drop(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Create(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Use(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Set(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Assignment(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Pipe(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Query(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::SetOperation(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Match(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Lookup(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Go(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::FindPath(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::GetSubgraph(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::FetchVertices(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::FetchEdges(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::InsertVertices(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::InsertEdges(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Update(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Delete(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Merge(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Remove(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Unwind(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::OrderBy(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::GroupBy(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Yield(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Return(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::With(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Limit(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Sequential(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Explain(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::Profile(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::UpdateConfig(v) => v
+                .validate(stmt, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
         }
     }
 
@@ -486,7 +580,9 @@ impl Validator {
             StatementType::CreateUser => Validator::CreateUser(CreateUserValidator::new()),
             StatementType::DropUser => Validator::DropUser(DropUserValidator::new()),
             StatementType::AlterUser => Validator::AlterUser(AlterUserValidator::new()),
-            StatementType::ChangePassword => Validator::ChangePassword(ChangePasswordValidator::new()),
+            StatementType::ChangePassword => {
+                Validator::ChangePassword(ChangePasswordValidator::new())
+            }
             StatementType::Grant => Validator::Grant(GrantValidator::new()),
             StatementType::Revoke => Validator::Revoke(RevokeValidator::new()),
             StatementType::DescribeUser => Validator::DescribeUser(DescribeUserValidator::new()),
@@ -508,7 +604,9 @@ impl Validator {
             StatementType::GetSubgraph => Validator::GetSubgraph(GetSubgraphValidator::new()),
             StatementType::FetchVertices => Validator::FetchVertices(FetchVerticesValidator::new()),
             StatementType::FetchEdges => Validator::FetchEdges(FetchEdgesValidator::new()),
-            StatementType::InsertVertices => Validator::InsertVertices(InsertVerticesValidator::new()),
+            StatementType::InsertVertices => {
+                Validator::InsertVertices(InsertVerticesValidator::new())
+            }
             StatementType::InsertEdges => Validator::InsertEdges(InsertEdgesValidator::new()),
             StatementType::Update => Validator::Update(UpdateValidator::new()),
             StatementType::Delete => Validator::Delete(DeleteValidator::new()),

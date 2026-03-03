@@ -21,18 +21,18 @@
 //! );
 //! ```
 
-use crate::core::{QueryMetrics, QueryProfile, StatsManager, ErrorInfo, ErrorType, QueryPhase};
-use crate::query::QueryContext;
 use crate::core::error::{DBError, DBResult, QueryError};
-use crate::query::executor::factory::ExecutorFactory;
+use crate::core::{ErrorInfo, ErrorType, QueryMetrics, QueryPhase, QueryProfile, StatsManager};
 use crate::query::executor::base::ExecutionResult;
-use crate::query::parser::Parser;
+use crate::query::executor::factory::ExecutorFactory;
 use crate::query::optimizer::OptimizerEngine;
-use crate::query::validator::{ValidatedStatement, ValidationInfo};
+use crate::query::parser::Parser;
 use crate::query::query_request_context::QueryRequestContext;
+use crate::query::validator::{ValidatedStatement, ValidationInfo};
+use crate::query::QueryContext;
 use crate::storage::StorageClient;
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 use std::time::Instant;
 
 /// 查询管道管理器
@@ -93,7 +93,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         ));
 
         // 验证查询并获取验证信息
-        let validation_info = self.validate_query(query_context.clone(), parser_result.stmt.clone())?;
+        let validation_info =
+            self.validate_query(query_context.clone(), parser_result.stmt.clone())?;
         query_context.set_validation_info(validation_info.clone());
 
         // 创建验证后的语句
@@ -124,7 +125,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let parser_result = self.parse_into_context(query_text)?;
 
         // 验证查询并获取验证信息
-        let validation_info = self.validate_query(query_context.clone(), parser_result.stmt.clone())?;
+        let validation_info =
+            self.validate_query(query_context.clone(), parser_result.stmt.clone())?;
         query_context.set_validation_info(validation_info.clone());
 
         // 创建验证后的语句
@@ -139,7 +141,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         &mut self,
         query_text: &str,
     ) -> DBResult<(ExecutionResult, QueryMetrics)> {
-        self.execute_query_with_session(query_text, 0).map(|(result, metrics, _)| (result, metrics))
+        self.execute_query_with_session(query_text, 0)
+            .map(|(result, metrics, _)| (result, metrics))
     }
 
     pub fn execute_query_with_session(
@@ -158,9 +161,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let total_start = Instant::now();
         let mut metrics = QueryMetrics::new();
         let mut profile = QueryProfile::new(session_id, query_text.to_string());
-        
+
         let query_context = Arc::new(self.create_query_context(query_text)?);
-        
+
         let parse_start = Instant::now();
         let parser_result = match self.parse_into_context(query_text) {
             Ok(result) => {
@@ -170,28 +173,33 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
             Err(e) => {
                 profile.stages.parse_ms = parse_start.elapsed().as_millis() as u64;
-                profile.mark_failed_with_info(
-                    ErrorInfo::new(ErrorType::ParseError, QueryPhase::Parse, e.to_string())
-                );
+                profile.mark_failed_with_info(ErrorInfo::new(
+                    ErrorType::ParseError,
+                    QueryPhase::Parse,
+                    e.to_string(),
+                ));
                 profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
                 self.stats_manager.record_query_profile(profile.clone());
                 return Err(e);
             }
         };
-        
+
         let validate_start = Instant::now();
-        let validation_info = match self.validate_query(query_context.clone(), parser_result.stmt.clone()) {
-            Ok(info) => info,
-            Err(e) => {
-                profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
-                profile.mark_failed_with_info(
-                    ErrorInfo::new(ErrorType::ValidationError, QueryPhase::Validate, e.to_string())
-                );
-                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
-                self.stats_manager.record_query_profile(profile.clone());
-                return Err(e);
-            }
-        };
+        let validation_info =
+            match self.validate_query(query_context.clone(), parser_result.stmt.clone()) {
+                Ok(info) => info,
+                Err(e) => {
+                    profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
+                    profile.mark_failed_with_info(ErrorInfo::new(
+                        ErrorType::ValidationError,
+                        QueryPhase::Validate,
+                        e.to_string(),
+                    ));
+                    profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                    self.stats_manager.record_query_profile(profile.clone());
+                    return Err(e);
+                }
+            };
         query_context.set_validation_info(validation_info.clone());
         profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
         metrics.record_validate_time(validate_start.elapsed());
@@ -209,33 +217,38 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
             Err(e) => {
                 profile.stages.plan_ms = plan_start.elapsed().as_millis() as u64;
-                profile.mark_failed_with_info(
-                    ErrorInfo::new(ErrorType::PlanningError, QueryPhase::Plan, e.to_string())
-                );
+                profile.mark_failed_with_info(ErrorInfo::new(
+                    ErrorType::PlanningError,
+                    QueryPhase::Plan,
+                    e.to_string(),
+                ));
                 profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
                 self.stats_manager.record_query_profile(profile.clone());
                 return Err(e);
             }
         };
-        
+
         let optimize_start = Instant::now();
-        let optimized_plan = match self.optimize_execution_plan(query_context.clone(), execution_plan) {
-            Ok(plan) => {
-                profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
-                metrics.record_optimize_time(optimize_start.elapsed());
-                plan
-            }
-            Err(e) => {
-                profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
-                profile.mark_failed_with_info(
-                    ErrorInfo::new(ErrorType::OptimizationError, QueryPhase::Optimize, e.to_string())
-                );
-                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
-                self.stats_manager.record_query_profile(profile.clone());
-                return Err(e);
-            }
-        };
-        
+        let optimized_plan =
+            match self.optimize_execution_plan(query_context.clone(), execution_plan) {
+                Ok(plan) => {
+                    profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
+                    metrics.record_optimize_time(optimize_start.elapsed());
+                    plan
+                }
+                Err(e) => {
+                    profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
+                    profile.mark_failed_with_info(ErrorInfo::new(
+                        ErrorType::OptimizationError,
+                        QueryPhase::Optimize,
+                        e.to_string(),
+                    ));
+                    profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                    self.stats_manager.record_query_profile(profile.clone());
+                    return Err(e);
+                }
+            };
+
         let execute_start = Instant::now();
         let result = match self.execute_plan(query_context, optimized_plan) {
             Ok(result) => {
@@ -247,21 +260,23 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             }
             Err(e) => {
                 profile.stages.execute_ms = execute_start.elapsed().as_millis() as u64;
-                profile.mark_failed_with_info(
-                    ErrorInfo::new(ErrorType::ExecutionError, QueryPhase::Execute, e.to_string())
-                );
+                profile.mark_failed_with_info(ErrorInfo::new(
+                    ErrorType::ExecutionError,
+                    QueryPhase::Execute,
+                    e.to_string(),
+                ));
                 profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
                 self.stats_manager.record_query_profile(profile.clone());
                 return Err(e);
             }
         };
-        
+
         profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
         metrics.record_total_time(total_start.elapsed());
-        
+
         self.stats_manager.record_query_metrics(&metrics);
         self.stats_manager.record_query_profile(profile.clone());
-        
+
         Ok((result, metrics, profile))
     }
 
@@ -273,7 +288,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     }
 
     /// 从 QueryRequestContext 创建查询上下文
-    /// 
+    ///
     /// 这个方法允许 api 层传递会话信息到 query 层
     pub fn create_query_context_with_request(
         &self,
@@ -287,7 +302,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_text: &str,
     ) -> DBResult<crate::query::parser::ParserResult> {
         let mut parser = Parser::new(query_text);
-        parser.parse()
+        parser
+            .parse()
             .map_err(|e| DBError::from(QueryError::pipeline_parse_error(e)))
     }
 
@@ -311,7 +327,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         if validation_result.success {
             Ok(validation_result.info.unwrap_or_default())
         } else {
-            let error_msg = validation_result.errors
+            let error_msg = validation_result
+                .errors
                 .iter()
                 .map(|e| e.to_string())
                 .collect::<Vec<_>>()
@@ -331,15 +348,18 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
 
         // 生成执行计划，使用验证后的语句
-        let plan = if let Some(mut planner_enum) = crate::query::planner::planner::PlannerEnum::from_sentence_kind(kind) {
-            let sub_plan = planner_enum.transform(validated, query_context.clone())
+        let plan = if let Some(mut planner_enum) =
+            crate::query::planner::planner::PlannerEnum::from_sentence_kind(kind)
+        {
+            let sub_plan = planner_enum
+                .transform(validated, query_context.clone())
                 .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
             crate::query::planner::plan::ExecutionPlan::new(sub_plan.root().clone())
         } else {
             return Err(DBError::from(QueryError::pipeline_planning_error(
                 crate::query::planner::planner::PlannerError::NoSuitablePlanner(
-                    "No suitable planner found".to_string()
-                )
+                    "No suitable planner found".to_string(),
+                ),
             )));
         };
 
@@ -353,19 +373,25 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         // 使用 planner rewrite 规则进行优化
         use crate::query::planner::rewrite::rewrite_plan;
-        
+
         let rewritten_plan = rewrite_plan(plan)
             .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
-        
+
         // 使用优化器的分析器分析重写后的计划
         if let Some(ref root) = rewritten_plan.root {
             // 引用计数分析 - 识别被多次引用的子计划
-            let ref_analysis = self.optimizer_engine.reference_count_analyzer().analyze(root);
+            let ref_analysis = self
+                .optimizer_engine
+                .reference_count_analyzer()
+                .analyze(root);
             if ref_analysis.repeated_count() > 0 {
-                log::debug!("发现 {} 个被多次引用的子计划", ref_analysis.repeated_count());
+                log::debug!(
+                    "发现 {} 个被多次引用的子计划",
+                    ref_analysis.repeated_count()
+                );
             }
         }
-        
+
         Ok(rewritten_plan)
     }
 

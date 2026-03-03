@@ -49,62 +49,64 @@ impl RegexFunction {
     }
 
     /// 执行函数（带缓存）
-    pub fn execute_with_cache(&self, args: &[Value], cache: &mut CacheManager) -> Result<Value, ExpressionError> {
+    pub fn execute_with_cache(
+        &self,
+        args: &[Value],
+        cache: &mut CacheManager,
+    ) -> Result<Value, ExpressionError> {
         match self {
-            RegexFunction::RegexMatch => {
-                match (&args[0], &args[1]) {
-                    (Value::String(s), Value::String(pattern)) => {
-                        if let Some(regex) = cache.get_regex(pattern) {
-                            Ok(Value::Bool(regex.is_match(s)))
-                        } else {
-                            Err(ExpressionError::new(
-                                ExpressionErrorType::InvalidOperation,
-                                format!("无效的正则表达式: {}", pattern),
-                            ))
-                        }
+            RegexFunction::RegexMatch => match (&args[0], &args[1]) {
+                (Value::String(s), Value::String(pattern)) => {
+                    if let Some(regex) = cache.get_regex(pattern) {
+                        Ok(Value::Bool(regex.is_match(s)))
+                    } else {
+                        Err(ExpressionError::new(
+                            ExpressionErrorType::InvalidOperation,
+                            format!("无效的正则表达式: {}", pattern),
+                        ))
                     }
-                    (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                    _ => Err(ExpressionError::type_error("regex_match函数需要字符串类型")),
                 }
-            }
-            RegexFunction::RegexReplace => {
-                match (&args[0], &args[1], &args[2]) {
-                    (Value::String(s), Value::String(pattern), Value::String(replacement)) => {
-                        if let Some(regex) = cache.get_regex(pattern) {
-                            Ok(Value::String(regex.replace_all(s, replacement.as_str()).to_string()))
-                        } else {
-                            Err(ExpressionError::new(
-                                ExpressionErrorType::InvalidOperation,
-                                format!("无效的正则表达式: {}", pattern),
-                            ))
-                        }
+                (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("regex_match函数需要字符串类型")),
+            },
+            RegexFunction::RegexReplace => match (&args[0], &args[1], &args[2]) {
+                (Value::String(s), Value::String(pattern), Value::String(replacement)) => {
+                    if let Some(regex) = cache.get_regex(pattern) {
+                        Ok(Value::String(
+                            regex.replace_all(s, replacement.as_str()).to_string(),
+                        ))
+                    } else {
+                        Err(ExpressionError::new(
+                            ExpressionErrorType::InvalidOperation,
+                            format!("无效的正则表达式: {}", pattern),
+                        ))
                     }
-                    (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
-                        Ok(Value::Null(NullType::Null))
-                    }
-                    _ => Err(ExpressionError::type_error("regex_replace函数需要字符串类型")),
                 }
-            }
-            RegexFunction::RegexFind => {
-                match (&args[0], &args[1]) {
-                    (Value::String(s), Value::String(pattern)) => {
-                        if let Some(regex) = cache.get_regex(pattern) {
-                            if let Some(matched) = regex.find(s) {
-                                Ok(Value::String(matched.as_str().to_string()))
-                            } else {
-                                Ok(Value::Null(NullType::Null))
-                            }
-                        } else {
-                            Err(ExpressionError::new(
-                                ExpressionErrorType::InvalidOperation,
-                                format!("无效的正则表达式: {}", pattern),
-                            ))
-                        }
-                    }
-                    (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                    _ => Err(ExpressionError::type_error("regex_find函数需要字符串类型")),
+                (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
+                    Ok(Value::Null(NullType::Null))
                 }
-            }
+                _ => Err(ExpressionError::type_error(
+                    "regex_replace函数需要字符串类型",
+                )),
+            },
+            RegexFunction::RegexFind => match (&args[0], &args[1]) {
+                (Value::String(s), Value::String(pattern)) => {
+                    if let Some(regex) = cache.get_regex(pattern) {
+                        if let Some(matched) = regex.find(s) {
+                            Ok(Value::String(matched.as_str().to_string()))
+                        } else {
+                            Ok(Value::Null(NullType::Null))
+                        }
+                    } else {
+                        Err(ExpressionError::new(
+                            ExpressionErrorType::InvalidOperation,
+                            format!("无效的正则表达式: {}", pattern),
+                        ))
+                    }
+                }
+                (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("regex_find函数需要字符串类型")),
+            },
         }
     }
 }

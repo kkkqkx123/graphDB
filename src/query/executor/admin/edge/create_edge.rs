@@ -2,8 +2,8 @@
 //!
 //! 负责在指定图空间中创建新的边类型。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::types::{EdgeTypeSchema, PropertyDef};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -11,7 +11,8 @@ use crate::storage::StorageClient;
 
 impl EdgeTypeSchema {
     pub fn from_executor(executor_info: &ExecutorEdgeInfo) -> Self {
-        let properties: Vec<PropertyDef> = executor_info.properties
+        let properties: Vec<PropertyDef> = executor_info
+            .properties
             .iter()
             .map(|p| PropertyDef {
                 name: p.name.clone(),
@@ -21,7 +22,7 @@ impl EdgeTypeSchema {
                 comment: None,
             })
             .collect();
-        
+
         Self {
             edge_type_id: 0,
             edge_type_name: executor_info.edge_name.clone(),
@@ -84,7 +85,11 @@ impl<S: StorageClient> CreateEdgeExecutor<S> {
     }
 
     /// 创建带 IF NOT EXISTS 选项的 CreateEdgeExecutor
-    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, edge_info: ExecutorEdgeInfo) -> Self {
+    pub fn with_if_not_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        edge_info: ExecutorEdgeInfo,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateEdgeExecutor".to_string(), storage),
             edge_info,
@@ -107,11 +112,16 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeExecuto
                 if self.if_not_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Edge type '{}' already exists in space '{}'",
-                        self.edge_info.edge_name, self.edge_info.space_name)))
+                    Ok(ExecutionResult::Error(format!(
+                        "Edge type '{}' already exists in space '{}'",
+                        self.edge_info.edge_name, self.edge_info.space_name
+                    )))
                 }
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to create edge type: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to create edge type: {}",
+                e
+            ))),
         }
     }
 

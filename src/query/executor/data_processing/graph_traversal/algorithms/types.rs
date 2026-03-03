@@ -48,10 +48,7 @@ pub type Interims = HashMap<Value, HashMap<Value, Vec<Path>>>;
 pub fn create_termination_map(start_vids: &[Value], end_vids: &[Value]) -> TerminationMap {
     let mut map = HashMap::new();
     for src in start_vids {
-        let pairs: Vec<(Value, bool)> = end_vids
-            .iter()
-            .map(|dst| (dst.clone(), true))
-            .collect();
+        let pairs: Vec<(Value, bool)> = end_vids.iter().map(|dst| (dst.clone(), true)).collect();
         map.insert(src.clone(), pairs);
     }
     map
@@ -145,7 +142,10 @@ impl PartialEq for DistanceNode {
 
 impl Ord for DistanceNode {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        other.distance.partial_cmp(&self.distance).unwrap_or(std::cmp::Ordering::Equal)
+        other
+            .distance
+            .partial_cmp(&self.distance)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 
@@ -284,16 +284,19 @@ impl HeuristicFunction {
                 };
 
                 if let (Some(c_props), Some(t_props)) = (current_props, target_props) {
-                    if let (Some((c_lat, c_lon)), Some((t_lat, t_lon))) = (get_coords(c_props), get_coords(t_props)) {
+                    if let (Some((c_lat, c_lon)), Some((t_lat, t_lon))) =
+                        (get_coords(c_props), get_coords(t_props))
+                    {
                         const EARTH_RADIUS_KM: f64 = 6371.0;
                         let to_rad = |deg: f64| deg * std::f64::consts::PI / 180.0;
-                        
+
                         let lat1 = to_rad(c_lat);
                         let lat2 = to_rad(t_lat);
                         let dlat = to_rad(t_lat - c_lat);
                         let dlon = to_rad(t_lon - c_lon);
-                        
-                        let a = (dlat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (dlon / 2.0).sin().powi(2);
+
+                        let a = (dlat / 2.0).sin().powi(2)
+                            + lat1.cos() * lat2.cos() * (dlon / 2.0).sin().powi(2);
                         let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
                         EARTH_RADIUS_KM * c
                     } else {

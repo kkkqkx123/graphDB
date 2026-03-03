@@ -188,7 +188,9 @@ impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>> fo
     }
 }
 
-impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>> for GetNeighborsIterator {
+impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>>
+    for GetNeighborsIterator
+{
     type Row = Vec<Value>;
 
     fn next(&mut self) -> crate::core::DBResult<Option<Self::Row>> {
@@ -293,7 +295,9 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let row1 = iter.next().expect("Expected iterator to have at least one row");
+        let row1 = iter
+            .next()
+            .expect("Expected iterator to have at least one row");
         assert!(row1.is_some());
         assert_eq!(row1.expect("Expected row to exist")[0], Value::Int(1));
 
@@ -301,7 +305,9 @@ mod tests {
         assert!(row2.is_some());
         assert_eq!(row2.expect("Expected row to exist")[0], Value::Int(2));
 
-        let row3 = iter.next().expect("Expected iterator to have a third row (which should be None)");
+        let row3 = iter
+            .next()
+            .expect("Expected iterator to have a third row (which should be None)");
         assert!(row3.is_none());
     }
 
@@ -310,11 +316,20 @@ mod tests {
         let rows = vec![vec![Value::Int(1)]];
         let mut iter = DefaultIterator::new(rows);
 
-        iter.next().expect("Expected iterator to have at least one row");
-        assert_eq!(iter.next().expect("Expected iterator to have a second row"), None);
+        iter.next()
+            .expect("Expected iterator to have at least one row");
+        assert_eq!(
+            iter.next().expect("Expected iterator to have a second row"),
+            None
+        );
 
         iter.reset();
-        assert_eq!(iter.next().expect("Expected iterator to have a row").expect("Expected row to exist")[0], Value::Int(1));
+        assert_eq!(
+            iter.next()
+                .expect("Expected iterator to have a row")
+                .expect("Expected row to exist")[0],
+            Value::Int(1)
+        );
     }
 
     #[test]
@@ -329,11 +344,17 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let row1 = iter.next().expect("Expected iterator to have a row").expect("Expected row to exist");
+        let row1 = iter
+            .next()
+            .expect("Expected iterator to have a row")
+            .expect("Expected row to exist");
         assert_eq!(row1[0], Value::Int(1));
         assert_eq!(row1[1], Value::String("edge1".to_string()));
 
-        let row2 = iter.next().expect("Expected iterator to have a row").expect("Expected row to exist");
+        let row2 = iter
+            .next()
+            .expect("Expected iterator to have a row")
+            .expect("Expected row to exist");
         assert_eq!(row2[0], Value::Int(2));
         assert_eq!(row2[1], Value::String("edge2".to_string()));
     }
@@ -341,7 +362,10 @@ mod tests {
     #[test]
     fn test_prop_iterator() {
         let props = vec![
-            vec![Value::String("name".to_string()), Value::String("Alice".to_string())],
+            vec![
+                Value::String("name".to_string()),
+                Value::String("Alice".to_string()),
+            ],
             vec![Value::String("age".to_string()), Value::Int(25)],
         ];
 
@@ -349,10 +373,16 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let prop1 = iter.next().expect("Expected iterator to have a row").expect("Expected row to exist");
+        let prop1 = iter
+            .next()
+            .expect("Expected iterator to have a row")
+            .expect("Expected row to exist");
         assert_eq!(prop1[0], Value::String("name".to_string()));
 
-        let prop2 = iter.next().expect("Expected iterator to have a row").expect("Expected row to exist");
+        let prop2 = iter
+            .next()
+            .expect("Expected iterator to have a row")
+            .expect("Expected row to exist");
         assert_eq!(prop2[0], Value::String("age".to_string()));
     }
 

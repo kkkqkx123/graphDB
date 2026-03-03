@@ -17,13 +17,12 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
-use crate::query::QueryContext;
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
 
 /// SET 语句类型
 #[derive(Debug, Clone, PartialEq)]
@@ -44,7 +43,11 @@ pub struct SetItem {
 
 impl SetItem {
     /// 创建新的 SET 项
-    pub fn new(statement_type: SetStatementType, target: ContextualExpression, value: ContextualExpression) -> Self {
+    pub fn new(
+        statement_type: SetStatementType,
+        target: ContextualExpression,
+        value: ContextualExpression,
+    ) -> Self {
         Self {
             statement_type,
             target,
@@ -291,13 +294,15 @@ impl SetValidator {
     fn validate_set_priority(&self, value: &ContextualExpression) -> Result<(), ValidationError> {
         let expr_meta = match value.expression() {
             Some(m) => m,
-            None => return Err(ValidationError::new(
-                "SET 优先级表达式无效".to_string(),
-                ValidationErrorType::SemanticError,
-            )),
+            None => {
+                return Err(ValidationError::new(
+                    "SET 优先级表达式无效".to_string(),
+                    ValidationErrorType::SemanticError,
+                ))
+            }
         };
         let expr = expr_meta.inner();
-        
+
         match expr {
             Expression::Literal(lit) => {
                 if let crate::core::Value::Int(n) = lit {
@@ -370,7 +375,11 @@ impl SetValidator {
                     self.validate_expression(value)?;
                 }
             }
-            Expression::Case { conditions, default, .. } => {
+            Expression::Case {
+                conditions,
+                default,
+                ..
+            } => {
                 for (condition, expr) in conditions {
                     self.validate_expression(condition)?;
                     self.validate_expression(expr)?;
@@ -386,7 +395,11 @@ impl SetValidator {
                 self.validate_expression(collection)?;
                 self.validate_expression(index)?;
             }
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 self.validate_expression(collection)?;
                 if let Some(start_expr) = start {
                     self.validate_expression(start_expr)?;
@@ -410,10 +423,7 @@ impl SetValidator {
     /// # 重构变更
     /// - 移除 AstContext 参数
     /// - 接收 Arc<QueryContext> 参数
-    fn validate_impl(
-        &mut self,
-        _qctx: Arc<QueryContext>,
-    ) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, _qctx: Arc<QueryContext>) -> Result<(), ValidationError> {
         // 执行 SET 验证
         self.validate_set()?;
 
@@ -508,8 +518,8 @@ impl StatementValidator for SetValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;
 
@@ -545,7 +555,7 @@ mod tests {
     #[test]
     fn test_set_variable_validation() {
         let mut validator = SetValidator::new();
-        
+
         // 测试有效的变量设置
         let item = SetItem::new(
             SetStatementType::SetVariable,
@@ -553,7 +563,7 @@ mod tests {
             create_contextual_expr(Expression::Literal(Value::Int(42))),
         );
         validator.add_set_item(item);
-        
+
         let result = validator.validate_set();
         assert!(result.is_ok());
     }
@@ -561,7 +571,7 @@ mod tests {
     #[test]
     fn test_set_variable_invalid_name() {
         let mut validator = SetValidator::new();
-        
+
         // 测试无效的变量名（不以 $ 开头）
         let item = SetItem::new(
             SetStatementType::SetVariable,
@@ -569,7 +579,7 @@ mod tests {
             create_contextual_expr(Expression::Literal(Value::Int(42))),
         );
         validator.add_set_item(item);
-        
+
         let result = validator.validate_set();
         assert!(result.is_err());
     }
@@ -577,7 +587,7 @@ mod tests {
     #[test]
     fn test_set_priority_validation() {
         let mut validator = SetValidator::new();
-        
+
         // 测试有效的优先级设置
         let item = SetItem::new(
             SetStatementType::SetPriority,
@@ -585,7 +595,7 @@ mod tests {
             create_contextual_expr(Expression::Literal(Value::Int(5))),
         );
         validator.add_set_item(item);
-        
+
         let result = validator.validate_set();
         assert!(result.is_ok());
     }
@@ -593,7 +603,7 @@ mod tests {
     #[test]
     fn test_set_priority_negative() {
         let mut validator = SetValidator::new();
-        
+
         // 测试无效的优先级（负数）
         let item = SetItem::new(
             SetStatementType::SetPriority,
@@ -601,7 +611,7 @@ mod tests {
             create_contextual_expr(Expression::Literal(Value::Int(-1))),
         );
         validator.add_set_item(item);
-        
+
         let result = validator.validate_set();
         assert!(result.is_err());
     }

@@ -2,8 +2,8 @@
 //!
 //! 负责授予用户在指定空间的角色权限。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::RoleType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -21,7 +21,13 @@ pub struct GrantRoleExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> GrantRoleExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, username: String, space_name: String, role: RoleType) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        username: String,
+        space_name: String,
+        role: RoleType,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "GrantRoleExecutor".to_string(), storage),
             username,
@@ -37,16 +43,19 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GrantRoleExecutor
         let mut storage_guard = storage.lock();
 
         let space_id = storage_guard.get_space_id(&self.space_name).map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Failed to get space ID: {}", e))
-            )
+            crate::core::error::DBError::Storage(crate::core::error::StorageError::DbError(
+                format!("Failed to get space ID: {}", e),
+            ))
         })?;
 
         let result = storage_guard.grant_role(&self.username, space_id, self.role);
 
         match result {
             Ok(_) => Ok(ExecutionResult::Success),
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to grant role: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to grant role: {}",
+                e
+            ))),
         }
     }
 
@@ -92,12 +101,14 @@ impl<S: StorageClient> HasStorage<S> for GrantRoleExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_grant_role_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = GrantRoleExecutor::new(
             1,
             storage,
@@ -112,7 +123,9 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let mut executor = GrantRoleExecutor::new(
             2,
             storage,
@@ -130,7 +143,9 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let executor = GrantRoleExecutor::new(
             3,
             storage,

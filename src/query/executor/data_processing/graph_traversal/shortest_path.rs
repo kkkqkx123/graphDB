@@ -5,11 +5,11 @@
 
 use std::sync::Arc;
 
-use crate::core::{Path, Value};
 use crate::core::error::DBResult;
+use crate::core::{Path, Value};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
-use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -141,8 +141,8 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
         match self.algorithm_type {
             ShortestPathAlgorithmType::BFS => {
-                let mut algorithm = BidirectionalBFS::new(storage)
-                    .with_edge_direction(self.edge_direction);
+                let mut algorithm =
+                    BidirectionalBFS::new(storage).with_edge_direction(self.edge_direction);
                 let paths = algorithm.find_paths(
                     &self.start_vertex_ids,
                     &self.end_vertex_ids,

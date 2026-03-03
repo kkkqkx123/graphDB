@@ -2,8 +2,10 @@
 //!
 //! 提供统一的方式来访问各种计划节点的子节点
 
+use crate::query::planner::plan::core::nodes::plan_node_traits::{
+    MultipleInputNode, SingleInputNode,
+};
 use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{MultipleInputNode, SingleInputNode};
 
 /// 子节点访问器 trait
 ///
@@ -57,56 +59,106 @@ impl ChildAccessor for PlanNodeEnum {
 
             // ==================== 单输入节点 ====================
             PlanNodeEnum::Project(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::Filter(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::Sort(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::Limit(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::TopN(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::Sample(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::Dedup(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::DataCollect(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::Aggregate(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::Unwind(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::Assign(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::PatternApply(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::RollUpApply(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::Traverse(n) => {
-                if index == 0 { Some(n.input_mut()) } else { None }
+                if index == 0 {
+                    Some(n.input_mut())
+                } else {
+                    None
+                }
             }
-            PlanNodeEnum::Union(n) => {
-                n.dependencies_mut().get_mut(index).map(|b| b.as_mut())
-            }
-            PlanNodeEnum::Minus(n) => {
-                n.dependencies_mut().get_mut(index).map(|b| b.as_mut())
-            }
-            PlanNodeEnum::Intersect(n) => {
-                n.dependencies_mut().get_mut(index).map(|b| b.as_mut())
-            }
+            PlanNodeEnum::Union(n) => n.dependencies_mut().get_mut(index).map(|b| b.as_mut()),
+            PlanNodeEnum::Minus(n) => n.dependencies_mut().get_mut(index).map(|b| b.as_mut()),
+            PlanNodeEnum::Intersect(n) => n.dependencies_mut().get_mut(index).map(|b| b.as_mut()),
 
             // ==================== 多输入节点 ====================
             PlanNodeEnum::Expand(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
@@ -117,7 +169,11 @@ impl ChildAccessor for PlanNodeEnum {
 
             // ==================== 控制流节点 ====================
             PlanNodeEnum::Loop(n) => {
-                if index == 0 { n.body_mut().as_mut().map(|b| b.as_mut()) } else { None }
+                if index == 0 {
+                    n.body_mut().as_mut().map(|b| b.as_mut())
+                } else {
+                    None
+                }
             }
             PlanNodeEnum::Select(n) => match index {
                 0 => n.if_branch_mut().as_mut().map(|b| b.as_mut()),

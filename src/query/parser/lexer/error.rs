@@ -1,5 +1,5 @@
-pub use crate::query::parser::{Token, TokenKind};
 pub use super::lexer::Lexer;
+pub use crate::query::parser::{Token, TokenKind};
 
 use crate::core::types::Position;
 
@@ -27,17 +27,11 @@ impl LexError {
     }
 
     pub fn invalid_escape_sequence(sequence: String, position: Position) -> Self {
-        LexError::new(
-            format!("Invalid escape sequence: \\{}", sequence),
-            position,
-        )
+        LexError::new(format!("Invalid escape sequence: \\{}", sequence), position)
     }
 
     pub fn unexpected_character(ch: char, position: Position) -> Self {
-        LexError::new(
-            format!("Unexpected character: '{}'", ch),
-            position,
-        )
+        LexError::new(format!("Unexpected character: '{}'", ch), position)
     }
 
     pub fn unexpected_end_of_input(position: Position) -> Self {

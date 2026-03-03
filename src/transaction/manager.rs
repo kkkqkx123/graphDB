@@ -57,10 +57,15 @@ impl TransactionManager {
     }
 
     /// 开始新事务
-    pub fn begin_transaction(&self, options: TransactionOptions) -> Result<TransactionId, TransactionError> {
+    pub fn begin_transaction(
+        &self,
+        options: TransactionOptions,
+    ) -> Result<TransactionId, TransactionError> {
         // 检查管理器是否仍在运行
         if !self.running.load() {
-            return Err(TransactionError::Internal("Transaction manager is shutting down".to_string()));
+            return Err(TransactionError::Internal(
+                "Transaction manager is shutting down".to_string(),
+            ));
         }
 
         // 检查并发事务数限制
@@ -75,28 +80,25 @@ impl TransactionManager {
         // 创建事务上下文
         // 对于读写事务，延迟创建redb写事务，避免阻塞
         let context = if options.read_only {
-            let read_txn = self.db.begin_read()
+            let read_txn = self
+                .db
+                .begin_read()
                 .map_err(|e| TransactionError::BeginFailed(e.to_string()))?;
-            
-            Arc::new(TransactionContext::new_readonly(
-                txn_id,
-                timeout,
-                read_txn,
-            ))
+
+            Arc::new(TransactionContext::new_readonly(txn_id, timeout, read_txn))
         } else {
             // 检查是否已有redb写事务
             if self.has_redb_write_txn.load() {
                 return Err(TransactionError::WriteTransactionConflict);
             }
-            
+
             // 尝试获取redb写事务
             self.has_redb_write_txn.store(true);
-            let write_txn = self.db.begin_write()
-                .map_err(|e| {
-                    self.has_redb_write_txn.store(false);
-                    TransactionError::BeginFailed(e.to_string())
-                })?;
-            
+            let write_txn = self.db.begin_write().map_err(|e| {
+                self.has_redb_write_txn.store(false);
+                TransactionError::BeginFailed(e.to_string())
+            })?;
+
             Arc::new(TransactionContext::new_writable(
                 txn_id,
                 timeout,
@@ -114,7 +116,10 @@ impl TransactionManager {
     }
 
     /// 获取事务上下文
-    pub fn get_context(&self, txn_id: TransactionId) -> Result<Arc<TransactionContext>, TransactionError> {
+    pub fn get_context(
+        &self,
+        txn_id: TransactionId,
+    ) -> Result<Arc<TransactionContext>, TransactionError> {
         self.active_transactions
             .get(&txn_id)
             .map(|entry| entry.value().clone())
@@ -133,7 +138,9 @@ impl TransactionManager {
     pub fn commit_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
         // 从DashMap中移除事务并获取所有权
         let context = {
-            let entry = self.active_transactions.get(&txn_id)
+            let entry = self
+                .active_transactions
+                .get(&txn_id)
                 .ok_or(TransactionError::TransactionNotFound(txn_id))?;
             let ctx = entry.value().clone();
             drop(entry);
@@ -164,20 +171,21 @@ impl TransactionManager {
         // 提交redb事务
         if !context.read_only {
             let mut write_txn = context.take_write_txn()?;
-            
+
             // 设置持久性级别
             let durability: redb::Durability = context.durability.into();
             write_txn.set_durability(durability);
-            
+
             // 如果启用2PC，设置两阶段提交
             if context.two_phase_commit {
                 write_txn.set_two_phase_commit(true);
             }
-            
+
             // 提交事务
-            write_txn.commit()
+            write_txn
+                .commit()
                 .map_err(|e| TransactionError::CommitFailed(e.to_string()))?;
-            
+
             // 释放redb写事务标记
             self.has_redb_write_txn.store(false);
         }
@@ -192,7 +200,10 @@ impl TransactionManager {
     }
 
     /// 中止事务（内部版本，不操作HashMap）
-    fn abort_transaction_internal(&self, context: Arc<TransactionContext>) -> Result<(), TransactionError> {
+    fn abort_transaction_internal(
+        &self,
+        context: Arc<TransactionContext>,
+    ) -> Result<(), TransactionError> {
         if !context.state().can_abort() {
             return Err(TransactionError::InvalidStateForAbort(context.state()));
         }
@@ -216,7 +227,9 @@ impl TransactionManager {
     pub fn abort_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
         // 从DashMap中移除事务并获取所有权
         let context = {
-            let entry = self.active_transactions.get(&txn_id)
+            let entry = self
+                .active_transactions
+                .get(&txn_id)
                 .ok_or(TransactionError::TransactionNotFound(txn_id))?;
             let ctx = entry.value().clone();
             drop(entry);
@@ -360,7 +373,10 @@ mod tests {
 
     fn create_test_manager() -> (TransactionManager, Arc<Database>, TempDir) {
         let temp_dir = TempDir::new().expect("Failed to create temporary directory");
-        let db = Arc::new(Database::create(temp_dir.path().join("test.db")).expect("Failed to create test database"));
+        let db = Arc::new(
+            Database::create(temp_dir.path().join("test.db"))
+                .expect("Failed to create test database"),
+        );
         let config = TransactionManagerConfig {
             auto_cleanup: false, // 禁用后台清理，避免测试中的死锁
             ..TransactionManagerConfig::default()
@@ -373,30 +389,43 @@ mod tests {
     fn test_begin_and_commit_transaction() {
         let (manager, _db, _temp) = create_test_manager();
 
-        let txn_id = manager.begin_transaction(TransactionOptions::default())
+        let txn_id = manager
+            .begin_transaction(TransactionOptions::default())
             .expect("Failed to begin transaction");
 
         assert!(manager.is_transaction_active(txn_id));
 
-        manager.commit_transaction(txn_id)
+        manager
+            .commit_transaction(txn_id)
             .expect("Failed to commit transaction");
 
         assert!(!manager.is_transaction_active(txn_id));
-        assert_eq!(manager.stats().committed_transactions.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            manager
+                .stats()
+                .committed_transactions
+                .load(Ordering::Relaxed),
+            1
+        );
     }
 
     #[test]
     fn test_begin_and_abort_transaction() {
         let (manager, _db, _temp) = create_test_manager();
 
-        let txn_id = manager.begin_transaction(TransactionOptions::default())
+        let txn_id = manager
+            .begin_transaction(TransactionOptions::default())
             .expect("Failed to begin transaction");
 
-        manager.abort_transaction(txn_id)
+        manager
+            .abort_transaction(txn_id)
             .expect("Failed to abort transaction");
 
         assert!(!manager.is_transaction_active(txn_id));
-        assert_eq!(manager.stats().aborted_transactions.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            manager.stats().aborted_transactions.load(Ordering::Relaxed),
+            1
+        );
     }
 
     #[test]
@@ -404,13 +433,17 @@ mod tests {
         let (manager, _db, _temp) = create_test_manager();
 
         let options = TransactionOptions::new().read_only();
-        let txn_id = manager.begin_transaction(options)
+        let txn_id = manager
+            .begin_transaction(options)
             .expect("Failed to begin readonly transaction");
 
-        let context = manager.get_context(txn_id).expect("Failed to get transaction context");
+        let context = manager
+            .get_context(txn_id)
+            .expect("Failed to get transaction context");
         assert!(context.read_only);
 
-        manager.commit_transaction(txn_id)
+        manager
+            .commit_transaction(txn_id)
             .expect("Failed to commit readonly transaction");
     }
 
@@ -419,22 +452,31 @@ mod tests {
         let (manager, _db, _temp) = create_test_manager();
 
         let result = manager.get_context(9999);
-        assert!(matches!(result, Err(TransactionError::TransactionNotFound(9999))));
+        assert!(matches!(
+            result,
+            Err(TransactionError::TransactionNotFound(9999))
+        ));
     }
 
     #[test]
     fn test_invalid_state_transition() {
         let (manager, _db, _temp) = create_test_manager();
 
-        let txn_id = manager.begin_transaction(TransactionOptions::default())
+        let txn_id = manager
+            .begin_transaction(TransactionOptions::default())
             .expect("Failed to begin transaction");
 
         // 提交事务
-        manager.commit_transaction(txn_id).expect("Failed to commit transaction");
+        manager
+            .commit_transaction(txn_id)
+            .expect("Failed to commit transaction");
 
         // 再次提交应该失败
         let result = manager.commit_transaction(txn_id);
-        assert!(matches!(result, Err(TransactionError::TransactionNotFound(_))));
+        assert!(matches!(
+            result,
+            Err(TransactionError::TransactionNotFound(_))
+        ));
     }
 
     #[test]
@@ -443,62 +485,106 @@ mod tests {
 
         // 由于redb的单写者限制，我们只能顺序执行事务
         // 第一个事务
-        let txn1 = manager.begin_transaction(TransactionOptions::default()).expect("Failed to begin transaction");
+        let txn1 = manager
+            .begin_transaction(TransactionOptions::default())
+            .expect("Failed to begin transaction");
         assert!(manager.is_transaction_active(txn1));
-        manager.commit_transaction(txn1).expect("Failed to commit transaction");
+        manager
+            .commit_transaction(txn1)
+            .expect("Failed to commit transaction");
         assert!(!manager.is_transaction_active(txn1));
 
         // 第二个事务
-        let txn2 = manager.begin_transaction(TransactionOptions::default()).expect("Failed to begin transaction");
+        let txn2 = manager
+            .begin_transaction(TransactionOptions::default())
+            .expect("Failed to begin transaction");
         assert!(manager.is_transaction_active(txn2));
-        manager.abort_transaction(txn2).expect("Failed to abort transaction");
+        manager
+            .abort_transaction(txn2)
+            .expect("Failed to abort transaction");
         assert!(!manager.is_transaction_active(txn2));
 
         // 第三个事务
-        let txn3 = manager.begin_transaction(TransactionOptions::default()).expect("Failed to begin transaction");
+        let txn3 = manager
+            .begin_transaction(TransactionOptions::default())
+            .expect("Failed to begin transaction");
         assert!(manager.is_transaction_active(txn3));
-        manager.commit_transaction(txn3).expect("Failed to commit transaction");
+        manager
+            .commit_transaction(txn3)
+            .expect("Failed to commit transaction");
         assert!(!manager.is_transaction_active(txn3));
 
-        assert_eq!(manager.stats().committed_transactions.load(Ordering::Relaxed), 2);
-        assert_eq!(manager.stats().aborted_transactions.load(Ordering::Relaxed), 1);
+        assert_eq!(
+            manager
+                .stats()
+                .committed_transactions
+                .load(Ordering::Relaxed),
+            2
+        );
+        assert_eq!(
+            manager.stats().aborted_transactions.load(Ordering::Relaxed),
+            1
+        );
     }
-    
+
     #[test]
     fn test_write_transaction_conflict() {
         let (manager, _db, _temp) = create_test_manager();
-        
+
         // 开始第一个写事务
-        let txn1 = manager.begin_transaction(TransactionOptions::default()).expect("Failed to begin transaction");
-        
+        let txn1 = manager
+            .begin_transaction(TransactionOptions::default())
+            .expect("Failed to begin transaction");
+
         // 尝试开始第二个写事务应该失败（因为redb只支持单写者）
         let result = manager.begin_transaction(TransactionOptions::default());
-        assert!(matches!(result, Err(TransactionError::WriteTransactionConflict)));
-        
+        assert!(matches!(
+            result,
+            Err(TransactionError::WriteTransactionConflict)
+        ));
+
         // 提交第一个事务
-        manager.commit_transaction(txn1).expect("Failed to commit transaction");
-        
+        manager
+            .commit_transaction(txn1)
+            .expect("Failed to commit transaction");
+
         // 现在可以开始新的事务了
-        let txn2 = manager.begin_transaction(TransactionOptions::default()).expect("Failed to begin transaction");
-        manager.commit_transaction(txn2).expect("Failed to commit transaction");
+        let txn2 = manager
+            .begin_transaction(TransactionOptions::default())
+            .expect("Failed to begin transaction");
+        manager
+            .commit_transaction(txn2)
+            .expect("Failed to commit transaction");
     }
-    
+
     #[test]
     fn test_multiple_readonly_transactions() {
         let (manager, _db, _temp) = create_test_manager();
-        
+
         // 只读事务可以并发
         let options = TransactionOptions::new().read_only();
-        let txn1 = manager.begin_transaction(options.clone()).expect("Failed to begin transaction");
-        let txn2 = manager.begin_transaction(options.clone()).expect("Failed to begin transaction");
-        let txn3 = manager.begin_transaction(options).expect("Failed to begin transaction");
-        
+        let txn1 = manager
+            .begin_transaction(options.clone())
+            .expect("Failed to begin transaction");
+        let txn2 = manager
+            .begin_transaction(options.clone())
+            .expect("Failed to begin transaction");
+        let txn3 = manager
+            .begin_transaction(options)
+            .expect("Failed to begin transaction");
+
         assert!(manager.is_transaction_active(txn1));
         assert!(manager.is_transaction_active(txn2));
         assert!(manager.is_transaction_active(txn3));
-        
-        manager.commit_transaction(txn1).expect("Failed to commit transaction");
-        manager.commit_transaction(txn2).expect("Failed to commit transaction");
-        manager.commit_transaction(txn3).expect("Failed to commit transaction");
+
+        manager
+            .commit_transaction(txn1)
+            .expect("Failed to commit transaction");
+        manager
+            .commit_transaction(txn2)
+            .expect("Failed to commit transaction");
+        manager
+            .commit_transaction(txn3)
+            .expect("Failed to commit transaction");
     }
 }

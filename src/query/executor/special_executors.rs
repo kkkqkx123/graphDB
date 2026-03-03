@@ -1,10 +1,10 @@
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::error::DBResult;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
-use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
 
 /// ArgumentExecutor - 参数执行器
@@ -61,9 +61,10 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ArgumentExecutor<S> {
             Ok(result.clone())
         } else {
             // 变量不存在，返回错误
-            Err(crate::core::error::DBError::Internal(
-                format!("变量 '{}' 未定义", self.var)
-            ))
+            Err(crate::core::error::DBError::Internal(format!(
+                "变量 '{}' 未定义",
+                self.var
+            )))
         }
     }
 
@@ -284,8 +285,8 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for DataCollectExecutor<S>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::core::Value;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_argument_executor_creation() {
@@ -300,15 +301,18 @@ mod tests {
     fn test_argument_executor_with_variable() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let mut executor = ArgumentExecutor::<MockStorage>::new(1, storage, "my_var");
-        
+
         // 设置变量值
-        executor.set_variable("my_var".to_string(), Value::String("test_value".to_string()));
-        
+        executor.set_variable(
+            "my_var".to_string(),
+            Value::String("test_value".to_string()),
+        );
+
         // 执行并验证结果
         executor.open().expect("打开执行器失败");
         let result = executor.execute().expect("执行失败");
         executor.close().expect("关闭执行器失败");
-        
+
         match result {
             ExecutionResult::Values(values) => {
                 assert_eq!(values.len(), 1);
@@ -322,16 +326,16 @@ mod tests {
     fn test_argument_executor_with_result() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let mut executor = ArgumentExecutor::<MockStorage>::new(1, storage, "my_result");
-        
+
         // 设置中间结果
         let test_result = ExecutionResult::Values(vec![Value::Int(42)]);
         executor.set_result("my_result".to_string(), test_result.clone());
-        
+
         // 执行并验证结果
         executor.open().expect("打开执行器失败");
         let result = executor.execute().expect("执行失败");
         executor.close().expect("关闭执行器失败");
-        
+
         match result {
             ExecutionResult::Values(values) => {
                 assert_eq!(values.len(), 1);
@@ -345,12 +349,12 @@ mod tests {
     fn test_argument_executor_variable_not_found() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let mut executor = ArgumentExecutor::<MockStorage>::new(1, storage, "undefined_var");
-        
+
         // 执行时应该返回错误，因为变量未定义
         executor.open().expect("打开执行器失败");
         let result = executor.execute();
         executor.close().expect("关闭执行器失败");
-        
+
         assert!(result.is_err(), "当变量未定义时应该返回错误");
     }
 

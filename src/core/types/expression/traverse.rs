@@ -261,13 +261,20 @@ impl Expression {
                 name: name.clone(),
                 args: args.iter().map(|arg| arg.transform(transformer)).collect(),
             },
-            Expression::Aggregate { func, arg, distinct } => Expression::Aggregate {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => Expression::Aggregate {
                 func: func.clone(),
                 arg: Box::new(arg.transform(transformer)),
                 distinct: *distinct,
             },
             Expression::List(items) => Expression::List(
-                items.iter().map(|item| item.transform(transformer)).collect(),
+                items
+                    .iter()
+                    .map(|item| item.transform(transformer))
+                    .collect(),
             ),
             Expression::Map(pairs) => Expression::Map(
                 pairs
@@ -280,7 +287,9 @@ impl Expression {
                 conditions,
                 default,
             } => Expression::Case {
-                test_expr: test_expr.as_ref().map(|e| Box::new(e.transform(transformer))),
+                test_expr: test_expr
+                    .as_ref()
+                    .map(|e| Box::new(e.transform(transformer))),
                 conditions: conditions
                     .iter()
                     .map(|(cond, val)| (cond.transform(transformer), val.transform(transformer)))
@@ -307,9 +316,12 @@ impl Expression {
                 start: start.as_ref().map(|e| Box::new(e.transform(transformer))),
                 end: end.as_ref().map(|e| Box::new(e.transform(transformer))),
             },
-            Expression::Path(items) => {
-                Expression::Path(items.iter().map(|item| item.transform(transformer)).collect())
-            }
+            Expression::Path(items) => Expression::Path(
+                items
+                    .iter()
+                    .map(|item| item.transform(transformer))
+                    .collect(),
+            ),
             Expression::Label(_) => self.clone(),
             Expression::ListComprehension {
                 variable,
@@ -346,7 +358,10 @@ impl Expression {
                 mapping: Box::new(mapping.transform(transformer)),
             },
             Expression::PathBuild(items) => Expression::PathBuild(
-                items.iter().map(|item| item.transform(transformer)).collect(),
+                items
+                    .iter()
+                    .map(|item| item.transform(transformer))
+                    .collect(),
             ),
             Expression::Parameter(_) => self.clone(),
         }

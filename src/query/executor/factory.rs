@@ -3,52 +3,56 @@
 //! 负责根据执行计划创建对应的执行器实例
 //! 采用直接匹配模式，简单高效，易于维护
 
-use crate::core::{EdgeDirection, Value};
 use crate::core::error::{DBError, QueryError};
-use crate::query::QueryContext;
+use crate::core::{EdgeDirection, Value};
+use crate::query::executor::base::executor_stats::QueryStatsCollector;
 use crate::query::executor::base::Executor;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     JoinNode, MultipleInputNode, SingleInputNode,
 };
-use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
-use crate::query::executor::base::executor_stats::QueryStatsCollector;
+use crate::query::QueryContext;
 
 use crate::storage::StorageClient;
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 // 导入已实现的执行器
 use crate::query::executor::base::{ExecutionContext, StartExecutor};
-use crate::query::executor::data_access::{AllPathsExecutor, GetNeighborsExecutor, GetVerticesExecutor, ScanEdgesExecutor};
+use crate::query::executor::data_access::{
+    AllPathsExecutor, GetNeighborsExecutor, GetVerticesExecutor, ScanEdgesExecutor,
+};
+use crate::query::executor::data_processing::set_operations::{IntersectExecutor, MinusExecutor};
 use crate::query::executor::data_processing::{
     graph_traversal::{ExpandAllExecutor, TraverseExecutor},
     CrossJoinExecutor, ExpandExecutor, FullOuterJoinExecutor, InnerJoinExecutor, LeftJoinExecutor,
     UnionExecutor,
 };
-use crate::query::executor::data_processing::set_operations::{IntersectExecutor, MinusExecutor};
 use crate::query::executor::logic::LoopExecutor;
 use crate::query::executor::logic::SelectExecutor;
 use crate::query::executor::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
 use crate::query::executor::result_processing::{
-    AggregateExecutor, AppendVerticesExecutor, AssignExecutor, DedupExecutor, FilterExecutor, LimitExecutor,
-    PatternApplyExecutor, ProjectExecutor, RollUpApplyExecutor, SampleExecutor, SampleMethod, SortExecutor,
-    TopNExecutor, UnwindExecutor,
+    AggregateExecutor, AppendVerticesExecutor, AssignExecutor, DedupExecutor, FilterExecutor,
+    LimitExecutor, PatternApplyExecutor, ProjectExecutor, RollUpApplyExecutor, SampleExecutor,
+    SampleMethod, SortExecutor, TopNExecutor, UnwindExecutor,
 };
 use crate::query::executor::search_executors::{BFSShortestExecutor, IndexScanExecutor};
-use crate::query::executor::special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
+use crate::query::executor::special_executors::{
+    ArgumentExecutor, DataCollectExecutor, PassThroughExecutor,
+};
 
 use crate::query::executor::admin::{
-    CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor,
-    CreateTagExecutor, AlterTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
-    CreateEdgeExecutor, AlterEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
-    CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
-    CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor, ShowEdgeIndexesExecutor,
-    RebuildTagIndexExecutor, RebuildEdgeIndexExecutor,
-    CreateUserExecutor, AlterUserExecutor, DropUserExecutor, ChangePasswordExecutor,
+    AlterEdgeExecutor, AlterTagExecutor, AlterUserExecutor, ChangePasswordExecutor,
+    CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateSpaceExecutor, CreateTagExecutor,
+    CreateTagIndexExecutor, CreateUserExecutor, DescEdgeExecutor, DescEdgeIndexExecutor,
+    DescSpaceExecutor, DescTagExecutor, DescTagIndexExecutor, DropEdgeExecutor,
+    DropEdgeIndexExecutor, DropSpaceExecutor, DropTagExecutor, DropTagIndexExecutor,
+    DropUserExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, ShowEdgeIndexesExecutor,
+    ShowEdgesExecutor, ShowSpacesExecutor, ShowTagIndexesExecutor, ShowTagsExecutor,
 };
 
 /// 从 PlanNode 提取顶点 ID 列表
@@ -158,7 +162,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
     }
 
     /// 结束收集执行器统计
-    pub fn end_executor_stats(&self) -> Option<crate::query::executor::base::executor_stats::ExecutorStatSnapshot> {
+    pub fn end_executor_stats(
+        &self,
+    ) -> Option<crate::query::executor::base::executor_stats::ExecutorStatSnapshot> {
         if let Some(ref collector) = self.stats_collector {
             let mut c = collector.lock();
             return c.end_executor().map(|(snapshot, _)| snapshot);
@@ -196,7 +202,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
     /// - None: 无权图
     /// - "ranking": 使用边的ranking作为权重
     /// - 其他字符串: 使用指定属性名作为权重
-    fn parse_weight_config(weight_expr: &Option<String>) -> crate::query::executor::data_processing::graph_traversal::algorithms::EdgeWeightConfig {
+    fn parse_weight_config(
+        weight_expr: &Option<String>,
+    ) -> crate::query::executor::data_processing::graph_traversal::algorithms::EdgeWeightConfig
+    {
         use crate::query::executor::data_processing::graph_traversal::algorithms::EdgeWeightConfig;
 
         match weight_expr {
@@ -218,7 +227,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
     /// - None: 零启发式（退化为Dijkstra）
     /// - "distance(lat,lon)": 使用顶点的经纬度属性计算欧几里得距离
     /// - "scale(factor)": 使用固定缩放因子
-    fn parse_heuristic_config(heuristic_expr: &Option<String>) -> crate::query::executor::data_processing::graph_traversal::algorithms::HeuristicFunction {
+    fn parse_heuristic_config(
+        heuristic_expr: &Option<String>,
+    ) -> crate::query::executor::data_processing::graph_traversal::algorithms::HeuristicFunction
+    {
         use crate::query::executor::data_processing::graph_traversal::algorithms::HeuristicFunction;
 
         match heuristic_expr {
@@ -228,7 +240,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
                 // 解析 distance(lat,lon) 格式
                 if expr_lower.starts_with("distance(") && expr_lower.ends_with(')') {
-                    let inner = &expr_lower[9..expr_lower.len()-1];
+                    let inner = &expr_lower[9..expr_lower.len() - 1];
                     let parts: Vec<&str> = inner.split(',').collect();
                     if parts.len() == 2 {
                         return HeuristicFunction::PropertyDistance(
@@ -240,7 +252,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
                 // 解析 scale(factor) 格式
                 if expr_lower.starts_with("scale(") && expr_lower.ends_with(')') {
-                    let inner = &expr_lower[6..expr_lower.len()-1];
+                    let inner = &expr_lower[6..expr_lower.len() - 1];
                     if let Ok(factor) = inner.parse::<f64>() {
                         return HeuristicFunction::ScaleFactor(factor);
                     }
@@ -312,10 +324,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
     /// 分析执行计划的生命周期和安全性
     ///
     /// 使用DFS遍历执行计划树，检测循环引用并验证安全性
-    pub fn analyze_plan_lifecycle(
-        &mut self,
-        root: &PlanNodeEnum,
-    ) -> Result<(), QueryError> {
+    pub fn analyze_plan_lifecycle(&mut self, root: &PlanNodeEnum) -> Result<(), QueryError> {
         self.recursion_detector.reset();
         self.analyze_plan_node(root, 0)?;
         Ok(())
@@ -407,7 +416,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 self.analyze_plan_node(n.left_input(), loop_layers)?;
                 self.analyze_plan_node(n.right_input(), loop_layers)?;
             }
-            
+
             // 并集节点
             PlanNodeEnum::Union(n) => {
                 self.analyze_plan_node(n.input(), loop_layers)?;
@@ -475,17 +484,19 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         N: JoinNode,
     {
         let (left_var, right_var) = Self::extract_join_vars(node);
-        
-        let hash_keys: Vec<crate::core::Expression> = node.hash_keys()
+
+        let hash_keys: Vec<crate::core::Expression> = node
+            .hash_keys()
             .iter()
             .filter_map(|ctx_expr| ctx_expr.get_expression())
             .collect();
-        
-        let probe_keys: Vec<crate::core::Expression> = node.probe_keys()
+
+        let probe_keys: Vec<crate::core::Expression> = node
+            .probe_keys()
             .iter()
             .filter_map(|ctx_expr| ctx_expr.get_expression())
             .collect();
-        
+
         let executor = InnerJoinExecutor::new(
             node.id(),
             storage,
@@ -508,17 +519,19 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         N: JoinNode,
     {
         let (left_var, right_var) = Self::extract_join_vars(node);
-        
-        let hash_keys: Vec<crate::core::Expression> = node.hash_keys()
+
+        let hash_keys: Vec<crate::core::Expression> = node
+            .hash_keys()
             .iter()
             .filter_map(|ctx_expr| ctx_expr.get_expression())
             .collect();
-        
-        let probe_keys: Vec<crate::core::Expression> = node.probe_keys()
+
+        let probe_keys: Vec<crate::core::Expression> = node
+            .probe_keys()
             .iter()
             .filter_map(|ctx_expr| ctx_expr.get_expression())
             .collect();
-        
+
         let executor = LeftJoinExecutor::new(
             node.id(),
             storage,
@@ -541,17 +554,19 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         N: JoinNode,
     {
         let (left_var, right_var) = Self::extract_join_vars(node);
-        
-        let hash_keys: Vec<crate::core::Expression> = node.hash_keys()
+
+        let hash_keys: Vec<crate::core::Expression> = node
+            .hash_keys()
             .iter()
             .filter_map(|ctx_expr| ctx_expr.get_expression())
             .collect();
-        
-        let probe_keys: Vec<crate::core::Expression> = node.probe_keys()
+
+        let probe_keys: Vec<crate::core::Expression> = node
+            .probe_keys()
             .iter()
             .filter_map(|ctx_expr| ctx_expr.get_expression())
             .collect();
-        
+
         let executor = FullOuterJoinExecutor::new(
             node.id(),
             storage,
@@ -634,7 +649,11 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let executor = GetVerticesExecutor::new(
                     node.id(),
                     storage,
-                    if vertex_ids.is_empty() { None } else { Some(vertex_ids) },
+                    if vertex_ids.is_empty() {
+                        None
+                    } else {
+                        Some(vertex_ids)
+                    },
                     None,
                     node.expression().and_then(|e| e.get_expression()),
                     node.limit().map(|l| l as usize),
@@ -660,7 +679,8 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::Filter(node) => {
-                let mut executor = FilterExecutor::new(node.id(), storage, node.condition().clone());
+                let mut executor =
+                    FilterExecutor::new(node.id(), storage, node.condition().clone());
                 executor = executor.with_parallel_config(self.config.parallel_config.clone());
                 Ok(ExecutorEnum::Filter(executor))
             }
@@ -782,7 +802,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::HashInnerJoin(node) => self.create_inner_join_executor(&node, storage),
             PlanNodeEnum::LeftJoin(node) => self.create_left_join_executor(&node, storage),
             PlanNodeEnum::HashLeftJoin(node) => self.create_left_join_executor(&node, storage),
-            PlanNodeEnum::FullOuterJoin(node) => self.create_full_outer_join_executor(&node, storage),
+            PlanNodeEnum::FullOuterJoin(node) => {
+                self.create_full_outer_join_executor(&node, storage)
+            }
             PlanNodeEnum::CrossJoin(node) => {
                 let left_var = node
                     .left_input()
@@ -802,7 +824,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 );
                 Ok(ExecutorEnum::CrossJoin(executor))
             }
-            
+
             // 并集执行器
             PlanNodeEnum::Union(node) => {
                 let input_var = node
@@ -810,12 +832,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("union_{}", node.id()));
-                let executor = UnionExecutor::new(
-                    node.id(),
-                    storage,
-                    input_var.clone(),
-                    input_var,
-                );
+                let executor = UnionExecutor::new(node.id(), storage, input_var.clone(), input_var);
                 Ok(ExecutorEnum::Union(executor))
             }
 
@@ -830,12 +847,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", node.id()));
-                let executor = MinusExecutor::new(
-                    node.id(),
-                    storage,
-                    left_var,
-                    right_var,
-                );
+                let executor = MinusExecutor::new(node.id(), storage, left_var, right_var);
                 Ok(ExecutorEnum::Minus(executor))
             }
 
@@ -850,12 +862,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", node.id()));
-                let executor = IntersectExecutor::new(
-                    node.id(),
-                    storage,
-                    left_var,
-                    right_var,
-                );
+                let executor = IntersectExecutor::new(node.id(), storage, left_var, right_var);
                 Ok(ExecutorEnum::Intersect(executor))
             }
 
@@ -993,10 +1000,13 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 数据转换执行器
             PlanNodeEnum::Unwind(node) => {
-                let unwind_expression = node.list_expression()
+                let unwind_expression = node
+                    .list_expression()
                     .expression()
                     .map(|meta| meta.inner().clone())
-                    .ok_or_else(|| QueryError::ExecutionError("表达式不存在于上下文中".to_string()))?;
+                    .ok_or_else(|| {
+                        QueryError::ExecutionError("表达式不存在于上下文中".to_string())
+                    })?;
                 let executor = UnwindExecutor::new(
                     node.id(),
                     storage,
@@ -1010,9 +1020,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::Assign(node) => {
                 let mut parsed_assignments = Vec::new();
                 for (var_name, ctx_expr) in node.assignments() {
-                    let expression = ctx_expr.expression()
+                    let expression = ctx_expr
+                        .expression()
                         .map(|meta| meta.inner().clone())
-                        .ok_or_else(|| QueryError::ExecutionError("表达式不存在于上下文中".to_string()))?;
+                        .ok_or_else(|| {
+                            QueryError::ExecutionError("表达式不存在于上下文中".to_string())
+                        })?;
                     parsed_assignments.push((var_name.clone(), expression));
                 }
                 let executor = AssignExecutor::new(node.id(), storage, parsed_assignments);
@@ -1021,11 +1034,13 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // AppendVertices执行器 - 追加顶点到路径结果
             PlanNodeEnum::AppendVertices(node) => {
-                let input_var = node.input_var()
+                let input_var = node
+                    .input_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("input_{}", node.id()));
 
-                let src_expression = node.src_expression()
+                let src_expression = node
+                    .src_expression()
                     .and_then(|ctx_expr| ctx_expr.expression())
                     .map(|meta| meta.inner().clone())
                     .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
@@ -1046,20 +1061,24 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // RollUpApply执行器 - 分组聚合收集
             PlanNodeEnum::RollUpApply(node) => {
-                let left_input_var = node.left_input_var()
+                let left_input_var = node
+                    .left_input_var()
                     .cloned()
                     .unwrap_or_else(|| format!("left_{}", node.id()));
-                let right_input_var = node.right_input_var()
+                let right_input_var = node
+                    .right_input_var()
                     .cloned()
                     .unwrap_or_else(|| format!("right_{}", node.id()));
 
                 // 列名直接转换为变量表达式，不需要解析
-                let compare_cols: Vec<crate::core::Expression> = node.compare_cols()
+                let compare_cols: Vec<crate::core::Expression> = node
+                    .compare_cols()
                     .iter()
                     .map(|col| crate::core::Expression::Variable(col.clone()))
                     .collect();
 
-                let collect_col = node.collect_col()
+                let collect_col = node
+                    .collect_col()
                     .map(|col| crate::core::Expression::Variable(col.clone()))
                     .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
 
@@ -1077,15 +1096,18 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // PatternApply执行器 - 模式匹配应用
             PlanNodeEnum::PatternApply(node) => {
-                let left_input_var = node.left_input_var()
+                let left_input_var = node
+                    .left_input_var()
                     .cloned()
                     .unwrap_or_else(|| format!("left_{}", node.id()));
-                let right_input_var = node.right_input_var()
+                let right_input_var = node
+                    .right_input_var()
                     .cloned()
                     .unwrap_or_else(|| format!("right_{}", node.id()));
 
                 // 列名直接转换为变量表达式，不需要解析
-                let key_cols: Vec<crate::core::Expression> = node.key_cols()
+                let key_cols: Vec<crate::core::Expression> = node
+                    .key_cols()
                     .iter()
                     .map(|col| crate::core::Expression::Variable(col.clone()))
                     .collect();
@@ -1104,25 +1126,20 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 循环执行器
             PlanNodeEnum::Loop(node) => {
-                let body = node.body()
+                let body = node
+                    .body()
                     .as_ref()
-                    .ok_or_else(|| QueryError::ExecutionError(
-                        "Loop节点缺少body".to_string(),
-                    ))?;
-                
+                    .ok_or_else(|| QueryError::ExecutionError("Loop节点缺少body".to_string()))?;
+
                 let body_executor = self.create_executor(body, storage.clone(), context)?;
-                
-                let condition = node.condition()
+
+                let condition = node
+                    .condition()
                     .expression()
                     .map(|meta| meta.inner().clone());
-                
-                let executor = LoopExecutor::new(
-                    node.id(),
-                    storage,
-                    condition,
-                    body_executor,
-                    None,
-                );
+
+                let executor =
+                    LoopExecutor::new(node.id(), storage, condition, body_executor, None);
                 Ok(ExecutorEnum::Loop(executor))
             }
 
@@ -1200,8 +1217,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.id(),
                     storage,
                     node.space_id(),
-                    node.edge_type().chars().fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)), // 将 edge_type 转换为 tag_id
-                    node.index_name().chars().fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)), // 将 index_name 转换为 index_id
+                    node.edge_type()
+                        .chars()
+                        .fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)), // 将 edge_type 转换为 tag_id
+                    node.index_name()
+                        .chars()
+                        .fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)), // 将 index_name 转换为 index_id
                     node.scan_type().as_str(),
                     node.scan_limits().to_vec(),
                     node.filter().and_then(|f| f.get_expression()),
@@ -1213,31 +1234,28 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::Select(node) => {
-                let condition = node.condition()
+                let condition = node
+                    .condition()
                     .expression()
                     .map(|meta| meta.inner().clone())
-                    .unwrap_or_else(|| crate::core::Expression::Literal(crate::core::Value::Bool(true)));
+                    .unwrap_or_else(|| {
+                        crate::core::Expression::Literal(crate::core::Value::Bool(true))
+                    });
 
-                let if_branch = node.if_branch()
-                    .as_ref()
-                    .ok_or_else(|| QueryError::ExecutionError(
-                        "Select节点缺少if_branch".to_string(),
-                    ))?;
+                let if_branch = node.if_branch().as_ref().ok_or_else(|| {
+                    QueryError::ExecutionError("Select节点缺少if_branch".to_string())
+                })?;
 
                 let if_executor = self.create_executor(if_branch, storage.clone(), context)?;
 
-                let else_executor = node.else_branch()
+                let else_executor = node
+                    .else_branch()
                     .as_ref()
                     .map(|branch| self.create_executor(branch, storage.clone(), context))
                     .transpose()?;
 
-                let executor = SelectExecutor::new(
-                    node.id(),
-                    storage,
-                    condition,
-                    if_executor,
-                    else_executor,
-                );
+                let executor =
+                    SelectExecutor::new(node.id(), storage, condition, if_executor, else_executor);
                 Ok(ExecutorEnum::Select(executor))
             }
 
@@ -1253,12 +1271,14 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::DropSpace(node) => {
-                let executor = DropSpaceExecutor::new(node.id(), storage, node.space_name().to_string());
+                let executor =
+                    DropSpaceExecutor::new(node.id(), storage, node.space_name().to_string());
                 Ok(ExecutorEnum::DropSpace(executor))
             }
 
             PlanNodeEnum::DescSpace(node) => {
-                let executor = DescSpaceExecutor::new(node.id(), storage, node.space_name().to_string());
+                let executor =
+                    DescSpaceExecutor::new(node.id(), storage, node.space_name().to_string());
                 Ok(ExecutorEnum::DescSpace(executor))
             }
 
@@ -1282,10 +1302,8 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             PlanNodeEnum::AlterTag(node) => {
                 use crate::query::executor::admin::tag::alter_tag::{AlterTagInfo, AlterTagItem};
-                let mut alter_info = AlterTagInfo::new(
-                    node.info().space_name.clone(),
-                    node.info().tag_name.clone(),
-                );
+                let mut alter_info =
+                    AlterTagInfo::new(node.info().space_name.clone(), node.info().tag_name.clone());
                 for prop in node.info().additions.iter() {
                     let item = AlterTagItem::add_property(prop.clone());
                     alter_info = alter_info.with_items(vec![item]);
@@ -1362,7 +1380,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::AlterEdge(node) => {
-                use crate::query::executor::admin::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem};
+                use crate::query::executor::admin::edge::alter_edge::{
+                    AlterEdgeInfo, AlterEdgeItem,
+                };
                 let mut alter_info = AlterEdgeInfo::new(
                     node.info().space_name.clone(),
                     node.info().edge_name.clone(),
@@ -1486,10 +1506,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             // 用户管理执行器
             PlanNodeEnum::CreateUser(node) => {
                 use crate::core::types::UserInfo;
-                let user_info = UserInfo::new(
-                    node.username().to_string(),
-                    node.password().to_string(),
-                ).map_err(|e| DBError::Storage(e))?;
+                let user_info =
+                    UserInfo::new(node.username().to_string(), node.password().to_string())
+                        .map_err(|e| DBError::Storage(e))?;
                 let executor = CreateUserExecutor::new(node.id(), storage, user_info);
                 Ok(ExecutorEnum::CreateUser(executor))
             }
@@ -1505,11 +1524,8 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::DropUser(node) => {
-                let executor = DropUserExecutor::new(
-                    node.id(),
-                    storage,
-                    node.username().to_string(),
-                );
+                let executor =
+                    DropUserExecutor::new(node.id(), storage, node.username().to_string());
                 Ok(ExecutorEnum::DropUser(executor))
             }
 
@@ -1555,16 +1571,15 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
         // 检查查询是否被终止
         if query_context.is_killed() {
-            return Err(QueryError::ExecutionError(
-                "查询已被终止".to_string()
-            ));
+            return Err(QueryError::ExecutionError("查询已被终止".to_string()));
         }
 
         // 创建执行上下文
         let execution_context = ExecutionContext::new();
 
         // 递归构建执行树并执行
-        let mut executor = self.build_and_create_executor(root_node, storage, &execution_context)?;
+        let mut executor =
+            self.build_and_create_executor(root_node, storage, &execution_context)?;
 
         // 执行根执行器
         let result = executor
@@ -1610,9 +1625,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage));
         let context = ExecutionContext::new();
 
-        let start_node = PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
-        );
+        let start_node =
+            PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
 
         let result = factory.create_executor(&start_node, storage, &context);
         assert!(result.is_ok());
@@ -1621,9 +1635,8 @@ mod tests {
     #[test]
     fn test_analyze_plan_lifecycle() {
         let mut factory = ExecutorFactory::<MockStorage>::new();
-        let start_node = PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
-        );
+        let start_node =
+            PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
 
         let result = factory.analyze_plan_lifecycle(&start_node);
         assert!(result.is_ok());

@@ -1,6 +1,6 @@
-use crate::core::value::Value;
-use crate::core::result::{Result, ResultState};
 use crate::core::result::iterator_enum::ResultIteratorEnum;
+use crate::core::result::{Result, ResultState};
+use crate::core::value::Value;
 
 /// ResultBuilder
 ///
@@ -62,7 +62,12 @@ impl ResultBuilder {
     }
 
     pub fn build_with_iterator(self, iterator: ResultIteratorEnum) -> Result {
-        Result::from_builder(self.rows, self.col_names, ResultState::Completed, Some(iterator))
+        Result::from_builder(
+            self.rows,
+            self.col_names,
+            ResultState::Completed,
+            Some(iterator),
+        )
     }
 
     pub fn build_empty(self) -> Result {
@@ -120,9 +125,8 @@ mod tests {
     #[test]
     fn test_result_builder_col_names() {
         let col_names = vec!["id".to_string(), "name".to_string()];
-        let builder = ResultBuilder::new()
-            .col_names(col_names.clone());
-        
+        let builder = ResultBuilder::new().col_names(col_names.clone());
+
         assert_eq!(builder.col_count(), 2);
     }
 
@@ -131,7 +135,7 @@ mod tests {
         let builder = ResultBuilder::new()
             .add_col_name("id".to_string())
             .add_col_name("name".to_string());
-        
+
         assert_eq!(builder.col_count(), 2);
     }
 
@@ -141,10 +145,9 @@ mod tests {
             vec![Value::Int(1), Value::String("Alice".to_string())],
             vec![Value::Int(2), Value::String("Bob".to_string())],
         ];
-        
-        let builder = ResultBuilder::new()
-            .rows(rows.clone());
-        
+
+        let builder = ResultBuilder::new().rows(rows.clone());
+
         assert_eq!(builder.row_count(), 2);
     }
 
@@ -153,25 +156,23 @@ mod tests {
         let builder = ResultBuilder::new()
             .add_row(vec![Value::Int(1)])
             .add_row(vec![Value::Int(2)]);
-        
+
         assert_eq!(builder.row_count(), 2);
     }
 
     #[test]
     fn test_result_builder_build() {
         let col_names = vec!["id".to_string(), "name".to_string()];
-        let rows = vec![
-            vec![Value::Int(1), Value::String("Alice".to_string())],
-        ];
-        
-        let result = ResultBuilder::new()
-            .col_names(col_names)
-            .rows(rows)
-            .build();
-        
+        let rows = vec![vec![Value::Int(1), Value::String("Alice".to_string())]];
+
+        let result = ResultBuilder::new().col_names(col_names).rows(rows).build();
+
         assert_eq!(result.col_count(), 2);
         assert_eq!(result.row_count(), 1);
-        assert_eq!(result.state(), crate::core::result::result::ResultState::Completed);
+        assert_eq!(
+            result.state(),
+            crate::core::result::result::ResultState::Completed
+        );
     }
 
     #[test]
@@ -192,11 +193,9 @@ mod tests {
     #[test]
     fn test_result_builder_build_empty() {
         let col_names = vec!["id".to_string()];
-        
-        let result = ResultBuilder::new()
-            .col_names(col_names)
-            .build_empty();
-        
+
+        let result = ResultBuilder::new().col_names(col_names).build_empty();
+
         assert_eq!(result.col_count(), 1);
         assert_eq!(result.row_count(), 0);
         assert!(result.is_empty());
@@ -206,12 +205,12 @@ mod tests {
     fn test_result_builder_build_from_rows() {
         let col_names = vec!["id".to_string()];
         let rows = vec![vec![Value::Int(1)]];
-        
+
         let result = ResultBuilder::new()
             .col_names(col_names)
             .rows(rows)
             .build_from_rows();
-        
+
         assert_eq!(result.row_count(), 1);
     }
 
@@ -221,7 +220,7 @@ mod tests {
             .add_col_name("id".to_string())
             .add_row(vec![Value::Int(1)])
             .clear();
-        
+
         assert_eq!(builder.col_count(), 0);
         assert_eq!(builder.row_count(), 0);
         assert!(builder.is_empty());
@@ -233,7 +232,7 @@ mod tests {
             .add_col_name("id".to_string())
             .add_row(vec![Value::Int(1)])
             .reset();
-        
+
         assert_eq!(builder.col_count(), 0);
         assert_eq!(builder.row_count(), 0);
         assert!(builder.is_empty());
@@ -246,7 +245,7 @@ mod tests {
             .add_row(vec![Value::Int(1), Value::String("Alice".to_string())])
             .add_row(vec![Value::Int(2), Value::String("Bob".to_string())])
             .build();
-        
+
         assert_eq!(result.row_count(), 2);
         assert_eq!(result.col_count(), 2);
     }

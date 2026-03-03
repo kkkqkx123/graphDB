@@ -2,11 +2,11 @@
 //!
 //! 提供表达式处理和操作的工具函数
 
-use crate::core::Expression;
-use crate::core::types::operators::BinaryOperator;
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::operators::BinaryOperator;
+use crate::core::Expression;
 use std::sync::Arc;
 
 /// 检查表达式是否包含指定的属性名
@@ -27,7 +27,11 @@ pub fn check_col_name(property_names: &[String], expr: &Expression) -> bool {
         Expression::Function { args, .. } => {
             args.iter().any(|arg| check_col_name(property_names, arg))
         }
-        Expression::Case { conditions, default, .. } => {
+        Expression::Case {
+            conditions,
+            default,
+            ..
+        } => {
             let has_in_conditions = conditions.iter().any(|(when, then)| {
                 check_col_name(property_names, when) || check_col_name(property_names, then)
             });
@@ -117,18 +121,34 @@ fn rewrite_expression_with_map(
                 }
             }
             Expression::Property {
-                object: Box::new(rewrite_expression_with_map(object, rewrite_map, expr_context)),
+                object: Box::new(rewrite_expression_with_map(
+                    object,
+                    rewrite_map,
+                    expr_context,
+                )),
                 property: property.clone(),
             }
         }
         Expression::Binary { left, op, right } => Expression::Binary {
-            left: Box::new(rewrite_expression_with_map(left, rewrite_map, expr_context.clone())),
+            left: Box::new(rewrite_expression_with_map(
+                left,
+                rewrite_map,
+                expr_context.clone(),
+            )),
             op: *op,
-            right: Box::new(rewrite_expression_with_map(right, rewrite_map, expr_context)),
+            right: Box::new(rewrite_expression_with_map(
+                right,
+                rewrite_map,
+                expr_context,
+            )),
         },
         Expression::Unary { op, operand } => Expression::Unary {
             op: *op,
-            operand: Box::new(rewrite_expression_with_map(operand, rewrite_map, expr_context)),
+            operand: Box::new(rewrite_expression_with_map(
+                operand,
+                rewrite_map,
+                expr_context,
+            )),
         },
         Expression::Function { name, args } => Expression::Function {
             name: name.clone(),
@@ -137,7 +157,11 @@ fn rewrite_expression_with_map(
                 .map(|arg| rewrite_expression_with_map(arg, rewrite_map, expr_context.clone()))
                 .collect(),
         },
-        Expression::Aggregate { func, arg, distinct } => Expression::Aggregate {
+        Expression::Aggregate {
+            func,
+            arg,
+            distinct,
+        } => Expression::Aggregate {
             func: func.clone(),
             arg: Box::new(rewrite_expression_with_map(arg, rewrite_map, expr_context)),
             distinct: *distinct,
@@ -149,7 +173,12 @@ fn rewrite_expression_with_map(
         ),
         Expression::Map(map) => Expression::Map(
             map.iter()
-                .map(|(k, v)| (k.clone(), rewrite_expression_with_map(v, rewrite_map, expr_context.clone())))
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        rewrite_expression_with_map(v, rewrite_map, expr_context.clone()),
+                    )
+                })
                 .collect(),
         ),
         Expression::Case {
@@ -157,9 +186,13 @@ fn rewrite_expression_with_map(
             conditions,
             default,
         } => Expression::Case {
-            test_expr: test_expr
-                .as_ref()
-                .map(|e| Box::new(rewrite_expression_with_map(e, rewrite_map, expr_context.clone()))),
+            test_expr: test_expr.as_ref().map(|e| {
+                Box::new(rewrite_expression_with_map(
+                    e,
+                    rewrite_map,
+                    expr_context.clone(),
+                ))
+            }),
             conditions: conditions
                 .iter()
                 .map(|(w, t)| {
@@ -173,13 +206,28 @@ fn rewrite_expression_with_map(
                 .as_ref()
                 .map(|e| Box::new(rewrite_expression_with_map(e, rewrite_map, expr_context))),
         },
-        Expression::TypeCast { expression, target_type } => Expression::TypeCast {
-            expression: Box::new(rewrite_expression_with_map(expression, rewrite_map, expr_context)),
+        Expression::TypeCast {
+            expression,
+            target_type,
+        } => Expression::TypeCast {
+            expression: Box::new(rewrite_expression_with_map(
+                expression,
+                rewrite_map,
+                expr_context,
+            )),
             target_type: target_type.clone(),
         },
         Expression::Subscript { collection, index } => Expression::Subscript {
-            collection: Box::new(rewrite_expression_with_map(collection, rewrite_map, expr_context.clone())),
-            index: Box::new(rewrite_expression_with_map(index, rewrite_map, expr_context)),
+            collection: Box::new(rewrite_expression_with_map(
+                collection,
+                rewrite_map,
+                expr_context.clone(),
+            )),
+            index: Box::new(rewrite_expression_with_map(
+                index,
+                rewrite_map,
+                expr_context,
+            )),
         },
         _ => expr.clone(),
     }
@@ -197,14 +245,20 @@ fn rewrite_expression_with_map(
 ///
 /// # 返回
 /// (选中的部分, 剩余的部分)
-pub fn split_filter<F>(condition: &Expression, picker: F) -> (Option<Expression>, Option<Expression>)
+pub fn split_filter<F>(
+    condition: &Expression,
+    picker: F,
+) -> (Option<Expression>, Option<Expression>)
 where
     F: Fn(&Expression) -> bool,
 {
     split_filter_impl(condition, &picker)
 }
 
-fn split_filter_impl<F>(condition: &Expression, picker: &F) -> (Option<Expression>, Option<Expression>)
+fn split_filter_impl<F>(
+    condition: &Expression,
+    picker: &F,
+) -> (Option<Expression>, Option<Expression>)
 where
     F: Fn(&Expression) -> bool,
 {
@@ -287,7 +341,11 @@ fn extract_property_refs_recursive(expr: &Expression, props: &mut Vec<String>) {
                 extract_property_refs_recursive(arg, props);
             }
         }
-        Expression::Case { conditions, default, .. } => {
+        Expression::Case {
+            conditions,
+            default,
+            ..
+        } => {
             for (when, then) in conditions {
                 extract_property_refs_recursive(when, props);
                 extract_property_refs_recursive(then, props);
@@ -351,21 +409,21 @@ mod tests {
     #[test]
     fn test_check_col_name() {
         let property_names = vec!["a".to_string(), "b".to_string()];
-        
+
         // 简单属性引用
         let expr = Expression::Property {
             object: Box::new(Expression::Variable("v".to_string())),
             property: "a".to_string(),
         };
         assert!(check_col_name(&property_names, &expr));
-        
+
         // 不在列表中的属性
         let expr = Expression::Property {
             object: Box::new(Expression::Variable("v".to_string())),
             property: "c".to_string(),
         };
         assert!(!check_col_name(&property_names, &expr));
-        
+
         // 二元表达式
         let expr = Expression::Binary {
             op: BinaryOperator::Equal,
@@ -428,7 +486,8 @@ mod tests {
 
         // 验证剩余的部分包含 c
         assert!(remained.is_some());
-        let remained_props = extract_property_refs(&remained.expect("Failed to get remained expression"));
+        let remained_props =
+            extract_property_refs(&remained.expect("Failed to get remained expression"));
         assert!(remained_props.contains(&"c".to_string()));
     }
 

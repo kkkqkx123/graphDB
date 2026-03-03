@@ -157,10 +157,16 @@ impl AggData {
     }
 
     /// 获取所有字段的可变引用（用于聚合函数内部）
-    /// 
+    ///
     /// 返回 (result, cnt, sum, avg, deviation) 的可变引用
     pub fn get_all_mut(&mut self) -> (&mut Value, &mut Value, &mut Value, &mut Value, &mut Value) {
-        (&mut self.result, &mut self.cnt, &mut self.sum, &mut self.avg, &mut self.deviation)
+        (
+            &mut self.result,
+            &mut self.cnt,
+            &mut self.sum,
+            &mut self.avg,
+            &mut self.deviation,
+        )
     }
 }
 

@@ -200,7 +200,8 @@ impl ExpressionParser {
                 (end_part, false)
             };
 
-            if let (Ok(start), Ok(end)) = (start_str.parse::<i64>(), end_str.trim().parse::<i64>()) {
+            if let (Ok(start), Ok(end)) = (start_str.parse::<i64>(), end_str.trim().parse::<i64>())
+            {
                 if end > start {
                     let count = if inclusive {
                         end - start + 1
@@ -228,7 +229,8 @@ impl ExpressionParser {
                 (end_part, false)
             };
 
-            if let (Ok(start), Ok(end)) = (start_str.parse::<i64>(), end_str.trim().parse::<i64>()) {
+            if let (Ok(start), Ok(end)) = (start_str.parse::<i64>(), end_str.trim().parse::<i64>())
+            {
                 if end > start {
                     let count = if inclusive {
                         end - start + 1

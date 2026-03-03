@@ -6,9 +6,8 @@
 use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::{NullType, Value};
 use crate::query::parser::ast::{
-    DeleteStmt, FetchStmt, FromClause, GoStmt, InsertStmt, LookupStmt,
-    MatchStmt, Pattern, ReturnClause, ReturnItem, SetClause, Stmt, UpdateStmt,
-    YieldClause,
+    DeleteStmt, FetchStmt, FromClause, GoStmt, InsertStmt, LookupStmt, MatchStmt, Pattern,
+    ReturnClause, ReturnItem, SetClause, Stmt, UpdateStmt, YieldClause,
 };
 
 /// 参数化结果
@@ -76,11 +75,11 @@ impl ParameterizingTransformer {
     }
 
     /// 参数化多个表达式
-    pub fn parameterize_many(&mut self, exprs: &[ContextualExpression]) -> Vec<ParameterizedResult> {
-        exprs
-            .iter()
-            .map(|expr| self.parameterize(expr))
-            .collect()
+    pub fn parameterize_many(
+        &mut self,
+        exprs: &[ContextualExpression],
+    ) -> Vec<ParameterizedResult> {
+        exprs.iter().map(|expr| self.parameterize(expr)).collect()
     }
 
     fn transform_with_params(
@@ -120,7 +119,11 @@ impl ParameterizingTransformer {
                     args: new_args,
                 }
             }
-            Expression::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 let new_arg = self.transform_with_params(arg, result);
                 Expression::Aggregate {
                     func: func.clone(),
@@ -454,10 +457,7 @@ impl TemplateExtractor {
         let mut parts = Vec::new();
 
         match &stmt.target {
-            crate::query::parser::ast::FetchTarget::Vertices {
-                ids,
-                properties,
-            } => {
+            crate::query::parser::ast::FetchTarget::Vertices { ids, properties } => {
                 parts.push("FETCH VERTEX".to_string());
 
                 // 参数化顶点ID
@@ -555,7 +555,11 @@ impl TemplateExtractor {
                         })
                         .collect();
 
-                    parts.push(format!("{}: {}", vid_template, tag_values_templates.join(", ")));
+                    parts.push(format!(
+                        "{}: {}",
+                        vid_template,
+                        tag_values_templates.join(", ")
+                    ));
                 }
             }
             crate::query::parser::ast::InsertTarget::Edge {
@@ -634,10 +638,7 @@ impl TemplateExtractor {
                     .collect();
                 parts.push(id_templates.join(", "));
             }
-            crate::query::parser::ast::DeleteTarget::Edges {
-                edge_type,
-                edges,
-            } => {
+            crate::query::parser::ast::DeleteTarget::Edges { edge_type, edges } => {
                 if let Some(et) = edge_type {
                     parts.push(format!("DELETE EDGE {}", et));
                 } else {
@@ -856,10 +857,8 @@ impl TemplateExtractor {
                             Self::pattern_to_template(&Pattern::Edge(e.clone()))
                         }
                         crate::query::parser::ast::PathElement::Alternative(patterns) => {
-                            let alts: Vec<String> = patterns
-                                .iter()
-                                .map(Self::pattern_to_template)
-                                .collect();
+                            let alts: Vec<String> =
+                                patterns.iter().map(Self::pattern_to_template).collect();
                             format!("({})", alts.join(" | "))
                         }
                         crate::query::parser::ast::PathElement::Optional(elem) => {
@@ -921,13 +920,15 @@ impl TemplateExtractor {
                 format!("({}{})", op, Self::expr_to_template_string(operand))
             }
             Expression::Function { name, args } => {
-                let arg_strs: Vec<String> = args
-                    .iter()
-                    .map(Self::expr_to_template_string)
-                    .collect();
+                let arg_strs: Vec<String> =
+                    args.iter().map(Self::expr_to_template_string).collect();
                 format!("{}({})", name, arg_strs.join(", "))
             }
-            Expression::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 let distinct_str = if *distinct { "DISTINCT " } else { "" };
                 format!(
                     "{}({}{})",
@@ -937,10 +938,8 @@ impl TemplateExtractor {
                 )
             }
             Expression::List(items) => {
-                let item_strs: Vec<String> = items
-                    .iter()
-                    .map(Self::expr_to_template_string)
-                    .collect();
+                let item_strs: Vec<String> =
+                    items.iter().map(Self::expr_to_template_string).collect();
                 format!("[{}]", item_strs.join(", "))
             }
             Expression::Map(pairs) => {

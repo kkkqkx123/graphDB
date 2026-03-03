@@ -8,10 +8,10 @@
 //! - 添加属性投影支持
 
 use crate::core::types::{ContextualExpression, EdgeDirection};
-use crate::query::QueryContext;
 use crate::query::parser::ast::{GoStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 pub use crate::query::planner::plan::core::nodes::{
@@ -42,7 +42,7 @@ impl Planner for GoPlanner {
             Stmt::Go(go_stmt) => go_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
-                    "GoPlanner 需要 Go 语句".to_string()
+                    "GoPlanner 需要 Go 语句".to_string(),
                 ));
             }
         };
@@ -58,7 +58,10 @@ impl Planner for GoPlanner {
         // 2. 使用路径分析信息
         for path_analysis in &validation_info.path_analysis {
             if path_analysis.edge_count > 5 {
-                log::warn!("GO 路径包含 {} 条边，可能影响性能", path_analysis.edge_count);
+                log::warn!(
+                    "GO 路径包含 {} 条边，可能影响性能",
+                    path_analysis.edge_count
+                );
             }
         }
 
@@ -83,11 +86,7 @@ impl Planner for GoPlanner {
             ("both", vec![])
         };
 
-        let expand_all_node = ExpandAllNode::new(
-            1,
-            edge_types,
-            direction_str,
-        );
+        let expand_all_node = ExpandAllNode::new(1, edge_types, direction_str);
 
         let input_for_join = PlanNodeEnum::ExpandAll(expand_all_node);
 
@@ -147,7 +146,7 @@ impl GoPlanner {
             }
         } else {
             let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                crate::core::Expression::Variable("_expandall_dst".to_string())
+                crate::core::Expression::Variable("_expandall_dst".to_string()),
             );
             let id = qctx.expr_context().register_expression(expr_meta);
             let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
@@ -158,7 +157,7 @@ impl GoPlanner {
             });
 
             let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                crate::core::Expression::Variable("_expandall_props".to_string())
+                crate::core::Expression::Variable("_expandall_props".to_string()),
             );
             let id = qctx.expr_context().register_expression(expr_meta);
             let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
@@ -171,7 +170,7 @@ impl GoPlanner {
 
         if columns.is_empty() {
             let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                crate::core::Expression::Variable("*".to_string())
+                crate::core::Expression::Variable("*".to_string()),
             );
             let id = qctx.expr_context().register_expression(expr_meta);
             let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());

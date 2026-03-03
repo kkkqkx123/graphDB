@@ -25,9 +25,9 @@ pub struct EdgePattern {
 /// 边方向
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EdgeDirection {
-    Outgoing,  // ->
-    Incoming,  // <-
-    Both,      // -
+    Outgoing, // ->
+    Incoming, // <-
+    Both,     // -
 }
 
 impl EdgeDirection {
@@ -87,7 +87,10 @@ impl EdgeSeek {
 
         // 检查属性
         for (prop_name, prop_value) in &self.edge_pattern.properties {
-            let found = edge.get_property(prop_name).map(|v| v == prop_value).unwrap_or(false);
+            let found = edge
+                .get_property(prop_name)
+                .map(|v| v == prop_value)
+                .unwrap_or(false);
             if !found {
                 return false;
             }
@@ -117,8 +120,7 @@ impl SeekStrategy for EdgeSeek {
                 for edge in edges {
                     if self.edge_matches_pattern(&edge) {
                         // 使用边的唯一标识: src->dst@edge_type
-                        let edge_id = format!("{}->{}@{}", 
-                            edge.src, edge.dst, edge.edge_type);
+                        let edge_id = format!("{}->{}@{}", edge.src, edge.dst, edge.edge_type);
                         edge_ids.push(Value::String(edge_id));
                     }
                 }
@@ -130,8 +132,7 @@ impl SeekStrategy for EdgeSeek {
 
             for edge in edges {
                 if self.edge_matches_pattern(&edge) {
-                    let edge_id = format!("{}->{}@{}", 
-                        edge.src, edge.dst, edge.edge_type);
+                    let edge_id = format!("{}->{}@{}", edge.src, edge.dst, edge.edge_type);
                     edge_ids.push(Value::String(edge_id));
                 }
             }
@@ -163,7 +164,11 @@ pub struct EdgeSeekResult {
 }
 
 impl EdgeSeekResult {
-    pub fn from_seek_result(result: SeekResult, start_vids: Vec<Value>, end_vids: Vec<Value>) -> Self {
+    pub fn from_seek_result(
+        result: SeekResult,
+        start_vids: Vec<Value>,
+        end_vids: Vec<Value>,
+    ) -> Self {
         Self {
             base: result,
             start_vids,
@@ -178,7 +183,10 @@ mod tests {
 
     #[test]
     fn test_edge_direction_from_str() {
-        assert_eq!(EdgeDirection::from_str("OUT"), Some(EdgeDirection::Outgoing));
+        assert_eq!(
+            EdgeDirection::from_str("OUT"),
+            Some(EdgeDirection::Outgoing)
+        );
         assert_eq!(EdgeDirection::from_str("->"), Some(EdgeDirection::Outgoing));
         assert_eq!(EdgeDirection::from_str("IN"), Some(EdgeDirection::Incoming));
         assert_eq!(EdgeDirection::from_str("<-"), Some(EdgeDirection::Incoming));
@@ -198,21 +206,13 @@ mod tests {
         });
 
         // 测试边类型匹配
-        let edge = crate::core::Edge::new_empty(
-            Value::Int(1),
-            Value::Int(2),
-            "KNOWS".to_string(),
-            0,
-        );
+        let edge =
+            crate::core::Edge::new_empty(Value::Int(1), Value::Int(2), "KNOWS".to_string(), 0);
         assert!(seek.edge_matches_pattern(&edge));
 
         // 测试边类型不匹配
-        let edge2 = crate::core::Edge::new_empty(
-            Value::Int(1),
-            Value::Int(2),
-            "FOLLOWS".to_string(),
-            0,
-        );
+        let edge2 =
+            crate::core::Edge::new_empty(Value::Int(1), Value::Int(2), "FOLLOWS".to_string(), 0);
         assert!(!seek.edge_matches_pattern(&edge2));
     }
 
@@ -226,20 +226,12 @@ mod tests {
             properties: vec![],
         });
 
-        let edge = crate::core::Edge::new_empty(
-            Value::Int(1),
-            Value::Int(2),
-            "KNOWS".to_string(),
-            0,
-        );
+        let edge =
+            crate::core::Edge::new_empty(Value::Int(1), Value::Int(2), "KNOWS".to_string(), 0);
         assert!(seek.edge_matches_pattern(&edge));
 
-        let edge2 = crate::core::Edge::new_empty(
-            Value::Int(3),
-            Value::Int(2),
-            "KNOWS".to_string(),
-            0,
-        );
+        let edge2 =
+            crate::core::Edge::new_empty(Value::Int(3), Value::Int(2), "KNOWS".to_string(), 0);
         assert!(!seek.edge_matches_pattern(&edge2));
     }
 }

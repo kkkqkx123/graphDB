@@ -8,8 +8,8 @@
 //! 参考 nebula-graph 的 ObjectPool 设计，采用工厂模式 + 线程安全设计
 
 use std::collections::VecDeque;
-use std::sync::{Arc, RwLock};
 use std::fmt::Debug;
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct ObjectPool<T> {
@@ -221,8 +221,7 @@ mod tests {
 
     #[test]
     fn test_thread_safe_clone() {
-        let pool: ThreadSafeObjectPool<i32> =
-            ThreadSafeObjectPool::new(|| 42, 10);
+        let pool: ThreadSafeObjectPool<i32> = ThreadSafeObjectPool::new(|| 42, 10);
 
         let obj = pool.acquire();
         assert_eq!(obj, 42);

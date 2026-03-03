@@ -23,14 +23,14 @@
 //!
 //! - 过滤条件为永假式（如 FALSE、null 等）
 
-use crate::core::{Expression, Value};
 use crate::core::types::operators::BinaryOperator;
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::core::{Expression, Value};
 use crate::query::planner::plan::core::nodes::start_node::StartNode;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
+use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
 
 /// 消除永假式过滤操作的规则
 ///
@@ -72,11 +72,11 @@ impl EliminateFilterRule {
                         Expression::Variable(b),
                     ) if a == b => true,
                     // a = b 其中 a 和 b 是不同的常量
-                    (
-                        Expression::Literal(a),
-                        BinaryOperator::Equal,
-                        Expression::Literal(b),
-                    ) if a != b => true,
+                    (Expression::Literal(a), BinaryOperator::Equal, Expression::Literal(b))
+                        if a != b =>
+                    {
+                        true
+                    }
                     _ => false,
                 }
             }
@@ -187,7 +187,9 @@ mod tests {
         assert!(!rule.is_contradiction(&Expression::Literal(Value::Bool(true))));
 
         // 测试 null
-        assert!(rule.is_contradiction(&Expression::Literal(Value::Null(crate::core::value::NullType::Null))));
+        assert!(rule.is_contradiction(&Expression::Literal(Value::Null(
+            crate::core::value::NullType::Null
+        ))));
 
         // 测试 1 = 0
         assert!(rule.is_contradiction(&Expression::Binary {

@@ -10,16 +10,16 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use graphdb::api::server::session::{
-    ClientSession, GraphSessionManager, QueryManager, QueryStatus,
-    DEFAULT_SESSION_IDLE_TIMEOUT, Session, SpaceInfo,
-};
-use graphdb::api::server::graph_service::GraphService;
 use graphdb::api::server::auth::{Authenticator, PasswordAuthenticator};
-use graphdb::api::server::permission::{PermissionManager, Permission};
-use graphdb::core::{RoleType, QueryMetrics, StatsManager, MetricType};
+use graphdb::api::server::graph_service::GraphService;
+use graphdb::api::server::permission::{Permission, PermissionManager};
+use graphdb::api::server::session::{
+    ClientSession, GraphSessionManager, QueryManager, QueryStatus, Session, SpaceInfo,
+    DEFAULT_SESSION_IDLE_TIMEOUT,
+};
 use graphdb::config::Config;
-use graphdb::storage::{RedbStorage, DefaultStorage};
+use graphdb::core::{MetricType, QueryMetrics, RoleType, StatsManager};
+use graphdb::storage::{DefaultStorage, RedbStorage};
 
 // ==================== 会话管理测试 ====================
 
@@ -207,8 +207,17 @@ fn test_client_session_space_management() {
     };
     client_session.set_space(space.clone());
 
-    assert_eq!(client_session.space().expect("Failed to get space info").name, "test_space");
-    assert_eq!(client_session.space().expect("Failed to get space info").id, 1);
+    assert_eq!(
+        client_session
+            .space()
+            .expect("Failed to get space info")
+            .name,
+        "test_space"
+    );
+    assert_eq!(
+        client_session.space().expect("Failed to get space info").id,
+        1
+    );
 }
 
 #[test]
@@ -311,8 +320,12 @@ fn test_register_and_get_query() {
     let query_manager = QueryManager::new();
 
     // 注册查询
-    let query_id = query_manager
-        .register_query(1, "testuser".to_string(), Some("test_space".to_string()), "SELECT * FROM users".to_string());
+    let query_id = query_manager.register_query(
+        1,
+        "testuser".to_string(),
+        Some("test_space".to_string()),
+        "SELECT * FROM users".to_string(),
+    );
 
     // 获取查询信息
     let query_info = query_manager.get_query(query_id).expect("获取查询失败");
@@ -329,8 +342,12 @@ fn test_register_and_get_query() {
 fn test_query_status_transitions() {
     let query_manager = QueryManager::new();
 
-    let query_id = query_manager
-        .register_query(1, "testuser".to_string(), None, "SELECT * FROM users".to_string());
+    let query_id = query_manager.register_query(
+        1,
+        "testuser".to_string(),
+        None,
+        "SELECT * FROM users".to_string(),
+    );
 
     // 标记为完成
     query_manager.finish_query(query_id).expect("标记完成失败");
@@ -339,8 +356,8 @@ fn test_query_status_transitions() {
     assert!(query_info.duration_ms.is_some());
 
     // 注册新查询并标记为失败
-    let query_id2 = query_manager
-        .register_query(1, "testuser".to_string(), None, "INVALID QUERY".to_string());
+    let query_id2 =
+        query_manager.register_query(1, "testuser".to_string(), None, "INVALID QUERY".to_string());
 
     query_manager.fail_query(query_id2).expect("标记失败失败");
     let query_info2 = query_manager.get_query(query_id2).expect("获取查询失败");
@@ -351,8 +368,12 @@ fn test_query_status_transitions() {
 fn test_kill_query() {
     let query_manager = QueryManager::new();
 
-    let query_id = query_manager
-        .register_query(1, "testuser".to_string(), None, "SELECT * FROM users".to_string());
+    let query_id = query_manager.register_query(
+        1,
+        "testuser".to_string(),
+        None,
+        "SELECT * FROM users".to_string(),
+    );
 
     // 终止查询
     query_manager.kill_query(query_id).expect("终止查询失败");
@@ -366,12 +387,9 @@ fn test_get_queries_by_session() {
     let query_manager = QueryManager::new();
 
     // 为不同会话注册查询
-    query_manager
-        .register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
-    query_manager
-        .register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string());
-    query_manager
-        .register_query(2, "user2".to_string(), None, "SELECT * FROM t3".to_string());
+    query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
+    query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string());
+    query_manager.register_query(2, "user2".to_string(), None, "SELECT * FROM t3".to_string());
 
     // 获取所有查询并按会话过滤
     let all_queries = query_manager.get_all_queries();
@@ -390,18 +408,21 @@ fn test_get_queries_by_session() {
 fn test_get_queries_by_user() {
     let query_manager = QueryManager::new();
 
-    query_manager
-        .register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
-    query_manager
-        .register_query(2, "user1".to_string(), None, "SELECT * FROM t2".to_string());
-    query_manager
-        .register_query(3, "user2".to_string(), None, "SELECT * FROM t3".to_string());
+    query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
+    query_manager.register_query(2, "user1".to_string(), None, "SELECT * FROM t2".to_string());
+    query_manager.register_query(3, "user2".to_string(), None, "SELECT * FROM t3".to_string());
 
     let all_queries = query_manager.get_all_queries();
-    let user1_queries: Vec<_> = all_queries.iter().filter(|q| q.user_name == "user1").collect();
+    let user1_queries: Vec<_> = all_queries
+        .iter()
+        .filter(|q| q.user_name == "user1")
+        .collect();
     assert_eq!(user1_queries.len(), 2);
 
-    let user2_queries: Vec<_> = all_queries.iter().filter(|q| q.user_name == "user2").collect();
+    let user2_queries: Vec<_> = all_queries
+        .iter()
+        .filter(|q| q.user_name == "user2")
+        .collect();
     assert_eq!(user2_queries.len(), 1);
 }
 
@@ -409,10 +430,10 @@ fn test_get_queries_by_user() {
 fn test_get_running_queries() {
     let query_manager = QueryManager::new();
 
-    let query_id1 = query_manager
-        .register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
-    let query_id2 = query_manager
-        .register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string());
+    let query_id1 =
+        query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
+    let query_id2 =
+        query_manager.register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string());
 
     // 完成第一个查询
     query_manager.finish_query(query_id1).expect("标记完成失败");
@@ -478,9 +499,7 @@ fn test_custom_user_verifier() {
     };
 
     let authenticator = PasswordAuthenticator::new(
-        |username: &str, password: &str| {
-            Ok(username == "testuser" && password == "testpass")
-        },
+        |username: &str, password: &str| Ok(username == "testuser" && password == "testpass"),
         config,
     );
 
@@ -545,7 +564,9 @@ fn test_grant_and_revoke_role() {
         .is_err());
 
     // 撤销角色
-    permission_manager.revoke_role("testuser", 1).expect("撤销角色失败");
+    permission_manager
+        .revoke_role("testuser", 1)
+        .expect("撤销角色失败");
     assert!(permission_manager.get_role("testuser", 1).is_none());
 }
 
@@ -684,10 +705,10 @@ fn create_test_config() -> Config {
 fn test_graph_service_creation() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
-    
+
     let mut config = create_test_config();
     config.database.storage_path = db_path.to_string_lossy().to_string();
-    
+
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
 
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
@@ -700,10 +721,10 @@ fn test_graph_service_creation() {
 fn test_graph_service_authentication() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
-    
+
     let mut config = create_test_config();
     config.database.storage_path = db_path.to_string_lossy().to_string();
-    
+
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
@@ -720,10 +741,10 @@ fn test_graph_service_authentication() {
 fn test_graph_service_signout() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
-    
+
     let mut config = create_test_config();
     config.database.storage_path = db_path.to_string_lossy().to_string();
-    
+
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
@@ -734,23 +755,29 @@ fn test_graph_service_signout() {
     let session_id = session.id();
 
     // 验证会话存在
-    assert!(graph_service.get_session_manager().find_session(session_id).is_some());
+    assert!(graph_service
+        .get_session_manager()
+        .find_session(session_id)
+        .is_some());
 
     // 登出
     graph_service.signout(session_id);
 
     // 验证会话已移除
-    assert!(graph_service.get_session_manager().find_session(session_id).is_none());
+    assert!(graph_service
+        .get_session_manager()
+        .find_session(session_id)
+        .is_none());
 }
 
 #[test]
 fn test_graph_service_execute_query() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
-    
+
     let mut config = create_test_config();
     config.database.storage_path = db_path.to_string_lossy().to_string();
-    
+
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
@@ -769,10 +796,10 @@ fn test_graph_service_execute_query() {
 fn test_graph_service_invalid_session() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
-    
+
     let mut config = create_test_config();
     config.database.storage_path = db_path.to_string_lossy().to_string();
-    
+
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
@@ -785,10 +812,10 @@ fn test_graph_service_invalid_session() {
 fn test_graph_service_list_sessions() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
-    
+
     let mut config = create_test_config();
     config.database.storage_path = db_path.to_string_lossy().to_string();
-    
+
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
@@ -811,10 +838,10 @@ fn test_graph_service_list_sessions() {
 fn test_graph_service_kill_session() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
-    
+
     let mut config = create_test_config();
     config.database.storage_path = db_path.to_string_lossy().to_string();
-    
+
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
@@ -829,7 +856,10 @@ fn test_graph_service_kill_session() {
     assert!(result.is_ok());
 
     // 验证会话已终止
-    assert!(graph_service.get_session_manager().find_session(admin_session_id).is_none());
+    assert!(graph_service
+        .get_session_manager()
+        .find_session(admin_session_id)
+        .is_none());
 }
 
 // ==================== API模块功能集成测试 ====================
@@ -838,10 +868,10 @@ fn test_graph_service_kill_session() {
 fn test_full_session_lifecycle() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
-    
+
     let mut config = create_test_config();
     config.database.storage_path = db_path.to_string_lossy().to_string();
-    
+
     let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
@@ -852,7 +882,10 @@ fn test_full_session_lifecycle() {
     let session_id = session.id();
 
     // 2. 验证会话存在
-    assert!(graph_service.get_session_manager().find_session(session_id).is_some());
+    assert!(graph_service
+        .get_session_manager()
+        .find_session(session_id)
+        .is_some());
 
     // 3. 执行查询
     let _ = graph_service.execute(session_id, "SHOW SPACES");
@@ -860,19 +893,25 @@ fn test_full_session_lifecycle() {
     // 4. 获取会话信息
     let session_info = graph_service.get_session_info(session_id);
     assert!(session_info.is_some());
-    assert_eq!(session_info.expect("Failed to get session info").user_name, "root");
+    assert_eq!(
+        session_info.expect("Failed to get session info").user_name,
+        "root"
+    );
 
     // 5. 登出
     graph_service.signout(session_id);
 
     // 6. 验证会话已移除
-    assert!(graph_service.get_session_manager().find_session(session_id).is_none());
+    assert!(graph_service
+        .get_session_manager()
+        .find_session(session_id)
+        .is_none());
 }
 
 #[test]
 fn test_concurrent_session_operations() {
     use std::thread;
-    
+
     let session_manager = GraphSessionManager::new(
         "127.0.0.1:9669".to_string(),
         100,
@@ -925,13 +964,12 @@ fn test_query_manager_concurrent_operations() {
     for i in 0..10 {
         let manager = Arc::clone(&query_manager);
         let handle = thread::spawn(move || {
-            manager
-                .register_query(
-                    1,
-                    "testuser".to_string(),
-                    None,
-                    format!("SELECT * FROM table{}", i),
-                )
+            manager.register_query(
+                1,
+                "testuser".to_string(),
+                None,
+                format!("SELECT * FROM table{}", i),
+            )
         });
         handles.push(handle);
     }

@@ -3,16 +3,14 @@
 //! 负责将 YIELD 子句转换为执行计划节点
 //! 支持 YIELD ... WHERE ... 语法
 
-use crate::query::QueryContext;
+use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
+use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::plan::core::nodes::{
-    FilterNode, LimitNode, PlanNodeEnum, ProjectNode,
-};
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
-use crate::core::YieldColumn;
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// YIELD 子句规划器
@@ -54,8 +52,7 @@ impl YieldClausePlanner {
 
         // 3. 处理分页（LIMIT/SKIP）
         if limit.is_some() || skip.is_some() {
-            current_plan =
-                self.apply_pagination(current_plan, skip, limit)?;
+            current_plan = self.apply_pagination(current_plan, skip, limit)?;
         }
 
         Ok(current_plan)
@@ -144,7 +141,17 @@ impl YieldClausePlanner {
     /// - YieldItem 到 YieldColumn 的完整转换
     /// - 聚合表达式检测
     /// - 别名处理
-    fn extract_yield_info(stmt: &Stmt) -> Result<(Vec<YieldColumn>, Option<crate::core::types::ContextualExpression>, Option<usize>, Option<usize>), PlannerError> {
+    fn extract_yield_info(
+        stmt: &Stmt,
+    ) -> Result<
+        (
+            Vec<YieldColumn>,
+            Option<crate::core::types::ContextualExpression>,
+            Option<usize>,
+            Option<usize>,
+        ),
+        PlannerError,
+    > {
         use crate::query::parser::ast::Stmt;
 
         // YIELD 可能作为独立语句或子句出现在其他语句中
@@ -159,7 +166,12 @@ impl YieldClausePlanner {
                     let yield_columns = Self::convert_yield_items(&yield_clause.items)?;
                     let skip = yield_clause.skip.as_ref().map(|s| s.count as usize);
                     let limit = yield_clause.limit.as_ref().map(|l| l.count as usize);
-                    Ok((yield_columns, yield_clause.where_clause.clone(), skip, limit))
+                    Ok((
+                        yield_columns,
+                        yield_clause.where_clause.clone(),
+                        skip,
+                        limit,
+                    ))
                 } else {
                     Ok((vec![], None, None, None))
                 }
@@ -176,7 +188,9 @@ impl YieldClausePlanner {
     }
 
     /// 转换 YieldItem 列表到 YieldColumn 列表
-    fn convert_yield_items(items: &[crate::query::parser::ast::stmt::YieldItem]) -> Result<Vec<YieldColumn>, PlannerError> {
+    fn convert_yield_items(
+        items: &[crate::query::parser::ast::stmt::YieldItem],
+    ) -> Result<Vec<YieldColumn>, PlannerError> {
         let yield_columns: Vec<YieldColumn> = items
             .iter()
             .map(|item| {
@@ -202,7 +216,7 @@ impl YieldClausePlanner {
     /// 当用户没有指定别名时，根据表达式生成默认别名
     fn generate_default_alias(expression: &crate::core::Expression) -> String {
         use crate::core::Expression;
-        
+
         match expression {
             Expression::Variable(name) => name.clone(),
             Expression::Property { object, property } => {
@@ -224,7 +238,7 @@ impl YieldClausePlanner {
     #[allow(dead_code)]
     fn has_aggregate_expression(expression: &crate::core::Expression) -> bool {
         use crate::core::Expression;
-        
+
         match expression {
             Expression::Function { name, .. } => {
                 // 常见的聚合函数
@@ -235,9 +249,7 @@ impl YieldClausePlanner {
             Expression::Binary { left, right, .. } => {
                 Self::has_aggregate_expression(left) || Self::has_aggregate_expression(right)
             }
-            Expression::Unary { operand, .. } => {
-                Self::has_aggregate_expression(operand)
-            }
+            Expression::Unary { operand, .. } => Self::has_aggregate_expression(operand),
             _ => false,
         }
     }

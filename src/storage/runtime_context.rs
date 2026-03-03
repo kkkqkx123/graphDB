@@ -5,8 +5,8 @@
 //! - 计划上下文（PlanContext）
 //! - 运行时上下文（RuntimeContext）
 
-use crate::storage::StorageClient;
 use crate::storage::metadata::SchemaManager;
+use crate::storage::StorageClient;
 use std::sync::Arc;
 
 /// 存储环境
@@ -53,7 +53,10 @@ impl RuntimeContext {
 
     /// 创建简单的运行时上下文（用于不需要完整PlanContext的场景）
     pub fn new_simple() -> Arc<Self> {
-        let storage = Arc::new(crate::storage::redb_storage::DefaultStorage::new().expect("Failed to create DefaultStorage"));
+        let storage = Arc::new(
+            crate::storage::redb_storage::DefaultStorage::new()
+                .expect("Failed to create DefaultStorage"),
+        );
         let storage_env = Arc::new(StorageEnv {
             storage_engine: storage.clone(),
             schema_manager: storage.schema_manager.clone(),

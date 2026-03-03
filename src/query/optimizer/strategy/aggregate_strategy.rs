@@ -20,9 +20,9 @@
 
 use std::sync::Arc;
 
+use crate::query::optimizer::analysis::ExpressionAnalyzer;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::decision::OptimizationDecision;
-use crate::query::optimizer::analysis::ExpressionAnalyzer;
 
 /// 聚合策略类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -80,10 +80,7 @@ pub enum SelectionReason {
     /// 大数据量，排序聚合避免内存溢出
     LargeDataSet,
     /// 基于代价计算的选择
-    CostBased {
-        hash_cost: f64,
-        sort_cost: f64,
-    },
+    CostBased { hash_cost: f64, sort_cost: f64 },
 }
 
 /// 聚合策略选择器
@@ -119,11 +116,7 @@ pub struct AggregateContext {
 
 impl AggregateContext {
     /// 创建新的聚合上下文
-    pub fn new(
-        input_rows: u64,
-        group_keys: Vec<String>,
-        agg_function_count: usize,
-    ) -> Self {
+    pub fn new(input_rows: u64, group_keys: Vec<String>, agg_function_count: usize) -> Self {
         Self {
             input_rows,
             group_keys,
@@ -150,7 +143,11 @@ impl AggregateContext {
     }
 
     /// 设置表达式特性
-    pub fn with_expression_analysis(mut self, is_deterministic: bool, complexity_score: u32) -> Self {
+    pub fn with_expression_analysis(
+        mut self,
+        is_deterministic: bool,
+        complexity_score: u32,
+    ) -> Self {
         self.is_deterministic = is_deterministic;
         self.complexity_score = complexity_score;
         self
@@ -240,8 +237,7 @@ impl AggregateStrategySelector {
 
         // 检查内存限制
         let hash_memory = self.estimate_hash_memory_usage(context, group_by_cardinality);
-        let memory_constrained =
-            context.memory_limit > 0 && hash_memory > context.memory_limit;
+        let memory_constrained = context.memory_limit > 0 && hash_memory > context.memory_limit;
 
         // 决策逻辑
         let (strategy, reason) = if memory_constrained {
@@ -266,7 +262,10 @@ impl AggregateStrategySelector {
             } else {
                 (
                     AggregateStrategy::HashAggregate,
-                    SelectionReason::CostBased { hash_cost, sort_cost },
+                    SelectionReason::CostBased {
+                        hash_cost,
+                        sort_cost,
+                    },
                 )
             }
         } else if group_by_cardinality > context.input_rows / 10 {
@@ -280,12 +279,18 @@ impl AggregateStrategySelector {
             if hash_cost <= sort_cost {
                 (
                     AggregateStrategy::HashAggregate,
-                    SelectionReason::CostBased { hash_cost, sort_cost },
+                    SelectionReason::CostBased {
+                        hash_cost,
+                        sort_cost,
+                    },
                 )
             } else {
                 (
                     AggregateStrategy::SortAggregate,
-                    SelectionReason::CostBased { hash_cost, sort_cost },
+                    SelectionReason::CostBased {
+                        hash_cost,
+                        sort_cost,
+                    },
                 )
             }
         };
@@ -304,9 +309,7 @@ impl AggregateStrategySelector {
             estimated_cost,
             estimated_memory_bytes: match strategy {
                 AggregateStrategy::HashAggregate => hash_memory,
-                AggregateStrategy::SortAggregate => {
-                    self.estimate_sort_memory_usage(context)
-                }
+                AggregateStrategy::SortAggregate => self.estimate_sort_memory_usage(context),
                 AggregateStrategy::StreamingAggregate => {
                     self.estimate_streaming_memory_usage(context)
                 }
@@ -371,9 +374,11 @@ impl AggregateStrategySelector {
     /// 计算排序聚合代价
     fn calculate_sort_aggregate_cost(&self, context: &AggregateContext) -> f64 {
         // 排序代价 + 聚合代价
-        let sort_cost = self
-            .cost_calculator
-            .calculate_sort_cost(context.input_rows, context.group_keys.len(), None);
+        let sort_cost = self.cost_calculator.calculate_sort_cost(
+            context.input_rows,
+            context.group_keys.len(),
+            None,
+        );
 
         // 排序后的聚合代价较低（数据已分组）
         let agg_cost = context.input_rows as f64
@@ -440,11 +445,7 @@ impl AggregateStrategySelector {
     }
 
     /// 更新优化决策中的聚合策略信息
-    pub fn update_decision(
-        &self,
-        decision: &mut OptimizationDecision,
-        context: &AggregateContext,
-    ) {
+    pub fn update_decision(&self, decision: &mut OptimizationDecision, context: &AggregateContext) {
         let strategy_decision = self.select_strategy(context);
 
         // 将聚合策略信息编码到决策的 rewrite_rules 中

@@ -2,8 +2,8 @@
 //!
 //! 负责修改已存在标签的属性定义。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::types::PropertyDef;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -97,21 +97,34 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterTagExecutor<
         let storage = self.get_storage();
         let mut storage_guard = storage.lock();
 
-        let items: Vec<String> = self.alter_info.items.iter().filter_map(|item| {
-            match item.op {
+        let items: Vec<String> = self
+            .alter_info
+            .items
+            .iter()
+            .filter_map(|item| match item.op {
                 AlterTagOp::Add => item.property.as_ref().map(|p| p.name.clone()),
                 AlterTagOp::Drop => item.property_name.clone(),
                 AlterTagOp::Change => item.property_name.clone(),
-            }
-        }).collect();
-        
-        let result = storage_guard.alter_tag(&self.alter_info.space_name, &self.alter_info.tag_name, Vec::new(), items);
+            })
+            .collect();
+
+        let result = storage_guard.alter_tag(
+            &self.alter_info.space_name,
+            &self.alter_info.tag_name,
+            Vec::new(),
+            items,
+        );
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),
-            Ok(false) => Ok(ExecutionResult::Error(format!("Tag '{}' not found in space '{}'",
-                self.alter_info.tag_name, self.alter_info.space_name))),
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to alter tag: {}", e))),
+            Ok(false) => Ok(ExecutionResult::Error(format!(
+                "Tag '{}' not found in space '{}'",
+                self.alter_info.tag_name, self.alter_info.space_name
+            ))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to alter tag: {}",
+                e
+            ))),
         }
     }
 

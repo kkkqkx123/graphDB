@@ -2,12 +2,12 @@
 //!
 //! 提供与传输层无关的查询执行功能
 
-use crate::query::{QueryPipelineManager, OptimizerEngine};
-use crate::storage::StorageClient;
-use crate::api::core::{CoreResult, CoreError, QueryContext, QueryResult, Row, ExecutionMetadata};
+use crate::api::core::{CoreError, CoreResult, ExecutionMetadata, QueryContext, QueryResult, Row};
 use crate::core::StatsManager;
-use std::sync::Arc;
+use crate::query::{OptimizerEngine, QueryPipelineManager};
+use crate::storage::StorageClient;
 use parking_lot::Mutex;
+use std::sync::Arc;
 use std::time::Instant;
 
 /// 通用查询 API - 核心层
@@ -21,7 +21,11 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());
         Self {
-            pipeline_manager: QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer_engine),
+            pipeline_manager: QueryPipelineManager::with_optimizer(
+                storage,
+                stats_manager,
+                optimizer_engine,
+            ),
         }
     }
 
@@ -33,11 +37,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     ///
     /// # 返回
     /// 结构化查询结果
-    pub fn execute(
-        &mut self,
-        query: &str,
-        ctx: QueryContext,
-    ) -> CoreResult<QueryResult> {
+    pub fn execute(&mut self, query: &str, ctx: QueryContext) -> CoreResult<QueryResult> {
         let start_time = Instant::now();
 
         // 构建空间信息
@@ -112,11 +112,14 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             crate::query::executor::base::ExecutionResult::Values(values) => {
                 // 处理值列表结果
                 let column = "value".to_string();
-                let rows: Vec<Row> = values.into_iter().map(|v| {
-                    let mut row = Row::new();
-                    row.insert(column.clone(), v);
-                    row
-                }).collect();
+                let rows: Vec<Row> = values
+                    .into_iter()
+                    .map(|v| {
+                        let mut row = Row::new();
+                        row.insert(column.clone(), v);
+                        row
+                    })
+                    .collect();
 
                 Ok(QueryResult {
                     columns: vec![column],
@@ -126,11 +129,17 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             }
             crate::query::executor::base::ExecutionResult::Vertices(vertices) => {
                 // 处理顶点结果 - Value::Vertex 需要 Box<Vertex>
-                let rows: Vec<Row> = vertices.into_iter().map(|v| {
-                    let mut row = Row::new();
-                    row.insert("vertex".to_string(), crate::core::Value::Vertex(Box::new(v)));
-                    row
-                }).collect();
+                let rows: Vec<Row> = vertices
+                    .into_iter()
+                    .map(|v| {
+                        let mut row = Row::new();
+                        row.insert(
+                            "vertex".to_string(),
+                            crate::core::Value::Vertex(Box::new(v)),
+                        );
+                        row
+                    })
+                    .collect();
 
                 Ok(QueryResult {
                     columns: vec!["vertex".to_string()],
@@ -140,11 +149,14 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             }
             crate::query::executor::base::ExecutionResult::Edges(edges) => {
                 // 处理边结果 - Value::Edge 不需要 Box
-                let rows: Vec<Row> = edges.into_iter().map(|e| {
-                    let mut row = Row::new();
-                    row.insert("edge".to_string(), crate::core::Value::Edge(e));
-                    row
-                }).collect();
+                let rows: Vec<Row> = edges
+                    .into_iter()
+                    .map(|e| {
+                        let mut row = Row::new();
+                        row.insert("edge".to_string(), crate::core::Value::Edge(e));
+                        row
+                    })
+                    .collect();
 
                 Ok(QueryResult {
                     columns: vec!["edge".to_string()],
@@ -173,8 +185,8 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                     metadata: ExecutionMetadata::default(),
                 })
             }
-            crate::query::executor::base::ExecutionResult::Empty |
-            crate::query::executor::base::ExecutionResult::Success => {
+            crate::query::executor::base::ExecutionResult::Empty
+            | crate::query::executor::base::ExecutionResult::Success => {
                 // 空结果
                 Ok(QueryResult {
                     columns: Vec::new(),
@@ -195,11 +207,14 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             }
             crate::query::executor::base::ExecutionResult::Paths(paths) => {
                 // 路径结果 - Value::Path 不需要 Box
-                let rows: Vec<Row> = paths.into_iter().map(|p| {
-                    let mut row = Row::new();
-                    row.insert("path".to_string(), crate::core::Value::Path(p));
-                    row
-                }).collect();
+                let rows: Vec<Row> = paths
+                    .into_iter()
+                    .map(|p| {
+                        let mut row = Row::new();
+                        row.insert("path".to_string(), crate::core::Value::Path(p));
+                        row
+                    })
+                    .collect();
 
                 Ok(QueryResult {
                     columns: vec!["path".to_string()],

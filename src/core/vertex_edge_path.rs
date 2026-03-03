@@ -33,19 +33,19 @@ impl Tag {
     /// 估算标签的内存使用大小
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
-        
+
         // 计算 name 的实际大小（包括堆分配）
         size += std::mem::size_of::<String>() + self.name.capacity();
-        
+
         // 计算 HashMap 的容量开销
-        size += self.properties.capacity() * 
-               (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
-        
+        size += self.properties.capacity()
+            * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+
         for (k, v) in &self.properties {
             size += k.capacity();
             size += v.estimated_size();
         }
-        
+
         size
     }
 }
@@ -291,36 +291,36 @@ impl Vertex {
     /// 估算顶点的内存使用大小
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
-        
+
         // 计算 vid 的实际大小（包括 Box 的堆分配和 Value 的内容）
         size += std::mem::size_of::<Box<Value>>() + self.vid.estimated_size();
-        
+
         // 计算 Vec<Tag> 的容量开销
         size += self.tags.capacity() * std::mem::size_of::<Tag>();
-        
+
         for tag in &self.tags {
             // 计算 String 的实际大小（包括堆分配）
             size += std::mem::size_of::<String>() + tag.name.capacity();
-            
+
             // 计算 HashMap 的容量开销
-            size += tag.properties.capacity() * 
-                   (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
-            
+            size += tag.properties.capacity()
+                * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+
             for (k, v) in &tag.properties {
                 size += k.capacity();
                 size += v.estimated_size();
             }
         }
-        
+
         // 计算 HashMap<String, Value> 的容量开销
-        size += self.properties.capacity() * 
-               (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
-        
+        size += self.properties.capacity()
+            * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+
         for (k, v) in &self.properties {
             size += k.capacity();
             size += v.estimated_size();
         }
-        
+
         size
     }
 }
@@ -421,23 +421,23 @@ impl Edge {
     /// 估算边的内存使用大小
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
-        
+
         // 计算 src 和 dst 的实际大小（包括 Box 的堆分配和 Value 的内容）
         size += std::mem::size_of::<Box<Value>>() + self.src.estimated_size();
         size += std::mem::size_of::<Box<Value>>() + self.dst.estimated_size();
-        
+
         // 计算 edge_type 的实际大小（包括堆分配）
         size += std::mem::size_of::<String>() + self.edge_type.capacity();
-        
+
         // 计算 HashMap 的容量开销
-        size += self.props.capacity() * 
-               (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
-        
+        size +=
+            self.props.capacity() * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+
         for (k, v) in &self.props {
             size += k.capacity();
             size += v.estimated_size();
         }
-        
+
         size
     }
 }
@@ -531,7 +531,12 @@ impl Step {
     pub fn new(dst: Vertex, edge_type: String, _edge_name: String, ranking: i64) -> Self {
         // 创建一个空的边，稍后在构建路径时填充
         use crate::core::NullType;
-        let edge = Edge::new_empty(Value::Null(NullType::Null), Value::Null(NullType::Null), edge_type, ranking);
+        let edge = Edge::new_empty(
+            Value::Null(NullType::Null),
+            Value::Null(NullType::Null),
+            edge_type,
+            ranking,
+        );
         Self {
             dst: Box::new(dst),
             edge: Box::new(edge),
@@ -564,11 +569,11 @@ impl Step {
     /// 估算步骤的内存使用大小
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
-        
+
         // 计算 dst 和 edge 的实际大小（包括 Box 的堆分配和内容）
         size += std::mem::size_of::<Box<Vertex>>() + self.dst.estimated_size();
         size += std::mem::size_of::<Box<Edge>>() + self.edge.estimated_size();
-        
+
         size
     }
 }
@@ -632,17 +637,17 @@ impl Path {
     /// 估算路径的内存使用大小
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
-        
+
         // 计算 src 的实际大小（包括 Box 的堆分配和 Vertex 的内容）
         size += std::mem::size_of::<Box<Vertex>>() + self.src.estimated_size();
-        
+
         // 计算 Vec<Step> 的容量开销
         size += self.steps.capacity() * std::mem::size_of::<Step>();
-        
+
         for step in &self.steps {
             size += step.estimated_size();
         }
-        
+
         size
     }
 
@@ -678,20 +683,21 @@ impl Path {
 
     /// 检查路径中是否有重复的边
     pub fn has_duplicate_edges(&self) -> bool {
-        let mut seen_edges: std::collections::HashSet<(Value, Value, String)> = std::collections::HashSet::new();
-        
+        let mut seen_edges: std::collections::HashSet<(Value, Value, String)> =
+            std::collections::HashSet::new();
+
         for step in &self.steps {
             let edge_key = (
                 (*step.edge.src).clone(),
                 (*step.edge.dst).clone(),
                 step.edge.edge_type.clone(),
             );
-            
+
             if !seen_edges.insert(edge_key) {
                 return true;
             }
         }
-        
+
         false
     }
 
@@ -703,7 +709,7 @@ impl Path {
 
         // 将步骤反转
         self.steps.reverse();
-        
+
         // 更新每一步的边方向
         for step in &mut self.steps {
             // 交换边的src和dst
@@ -725,7 +731,7 @@ impl Path {
 
         // 获取other路径的反向步骤
         let mut other_steps: Vec<Step> = other.steps.into_iter().rev().collect();
-        
+
         // 反转每条边的方向
         for step in &mut other_steps {
             std::mem::swap(&mut step.edge.src, &mut step.edge.dst);

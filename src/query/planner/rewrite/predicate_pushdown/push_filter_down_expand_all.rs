@@ -4,11 +4,11 @@
 //! 并将过滤条件下推到 ExpandAll 节点中。
 
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将过滤条件下推到ExpandAll操作的规则
 ///
@@ -96,7 +96,10 @@ impl RewriteRule for PushFilterDownExpandAllRule {
 
 impl PushDownRule for PushFilterDownExpandAllRule {
     fn can_push_down(&self, node: &PlanNodeEnum, target: &PlanNodeEnum) -> bool {
-        matches!((node, target), (PlanNodeEnum::Filter(_), PlanNodeEnum::ExpandAll(_)))
+        matches!(
+            (node, target),
+            (PlanNodeEnum::Filter(_), PlanNodeEnum::ExpandAll(_))
+        )
     }
 
     fn push_down(
@@ -112,9 +115,9 @@ impl PushDownRule for PushFilterDownExpandAllRule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::Expression;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::traversal_node::ExpandAllNode;
-    use crate::core::Expression;
 
     #[test]
     fn test_rule_name() {
@@ -132,8 +135,8 @@ mod tests {
     #[test]
     fn test_can_push_down() {
         let rule = PushFilterDownExpandAllRule::new();
-        use std::sync::Arc;
         use crate::core::types::ExpressionContext;
+        use std::sync::Arc;
 
         let start = StartNode::new();
         let start_enum = PlanNodeEnum::Start(start);
@@ -145,8 +148,9 @@ mod tests {
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
         let filter = crate::query::planner::plan::core::nodes::filter_node::FilterNode::new(
             start_enum.clone(),
-            ctx_expr
-        ).expect("创建FilterNode失败");
+            ctx_expr,
+        )
+        .expect("创建FilterNode失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         let expand_all = ExpandAllNode::new(1, vec![], "OUT");

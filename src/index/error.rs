@@ -37,19 +37,13 @@ mod tests {
     #[test]
     fn test_index_error_creation() {
         let error = IndexError::IndexCreationError("创建失败".to_string());
-        assert_eq!(
-            format!("{}", error),
-            "索引创建错误: 创建失败"
-        );
+        assert_eq!(format!("{}", error), "索引创建错误: 创建失败");
     }
 
     #[test]
     fn test_index_error_not_found() {
         let error = IndexError::IndexNotFound("test_index".to_string());
-        assert_eq!(
-            format!("{}", error),
-            "索引不存在: test_index"
-        );
+        assert_eq!(format!("{}", error), "索引不存在: test_index");
     }
 
     #[test]

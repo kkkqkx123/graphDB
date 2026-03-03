@@ -244,21 +244,13 @@ impl FingerprintCalculator {
     }
 
     /// 哈希单输入节点的子节点
-    fn hash_single_input<T: SingleInputNode>(
-        &self,
-        node: &T,
-        hasher: &mut DefaultHasher,
-    ) {
+    fn hash_single_input<T: SingleInputNode>(&self, node: &T, hasher: &mut DefaultHasher) {
         let input_fp = self.calculate_fingerprint(node.input());
         input_fp.hash(hasher);
     }
 
     /// 哈希双输入节点的子节点
-    fn hash_binary_input<T: BinaryInputNode>(
-        &self,
-        node: &T,
-        hasher: &mut DefaultHasher,
-    ) {
+    fn hash_binary_input<T: BinaryInputNode>(&self, node: &T, hasher: &mut DefaultHasher) {
         let left_fp = self.calculate_fingerprint(node.left_input());
         let right_fp = self.calculate_fingerprint(node.right_input());
         left_fp.hash(hasher);

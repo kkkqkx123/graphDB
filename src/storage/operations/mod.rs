@@ -1,7 +1,7 @@
 pub mod reader;
-pub mod writer;
 pub mod redb_operations;
+pub mod writer;
 
 pub use reader::{EdgeReader, ScanResult, VertexReader};
-pub use writer::{EdgeWriter, VertexWriter};
 pub use redb_operations::{RedbReader, RedbWriter, WriteTxnExecutor};
+pub use writer::{EdgeWriter, VertexWriter};

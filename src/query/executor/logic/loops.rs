@@ -3,8 +3,8 @@
 //! 包含循环控制相关的执行器
 //!
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -14,11 +14,11 @@ use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::core::LoopExecutionState;
 use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
-use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
 // 使用新的类型别名（LoopState 是 LoopExecutionState 的别名，用于向后兼容）
@@ -81,8 +81,8 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
     fn evaluate_condition(&mut self) -> DBResult<bool> {
         match &self.condition {
             Some(expression) => {
-                let result =
-                    ExpressionEvaluator::evaluate(expression, &mut self.loop_context).map_err(|e| {
+                let result = ExpressionEvaluator::evaluate(expression, &mut self.loop_context)
+                    .map_err(|e| {
                         DBError::Expression(crate::core::error::ExpressionError::function_error(
                             e.to_string(),
                         ))
@@ -223,9 +223,19 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
             && all_paths.is_empty()
         {
             if all_datasets.len() == 1 {
-                ExecutionResult::DataSet(all_datasets.into_iter().next().expect("Failed to get next dataset"))
+                ExecutionResult::DataSet(
+                    all_datasets
+                        .into_iter()
+                        .next()
+                        .expect("Failed to get next dataset"),
+                )
             } else {
-                ExecutionResult::DataSet(all_datasets.first().cloned().expect("Failed to get first dataset"))
+                ExecutionResult::DataSet(
+                    all_datasets
+                        .first()
+                        .cloned()
+                        .expect("Failed to get first dataset"),
+                )
             }
         } else {
             let mut mixed_values = Vec::new();
@@ -263,9 +273,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.validate_no_self_reference()?;
 
-        self.safety_validator.validate_loop_config(self.max_iterations)?;
+        self.safety_validator
+            .validate_loop_config(self.max_iterations)?;
 
-        self.recursion_detector.validate_executor(self.body_executor.id(), self.body_executor.name())?;
+        self.recursion_detector
+            .validate_executor(self.body_executor.id(), self.body_executor.name())?;
 
         self.loop_state = LoopExecutionState::Running { iteration: 0 };
         self.results.clear();
@@ -275,7 +287,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
 
         while self.should_continue() {
             self.current_iteration += 1;
-            self.loop_state = LoopExecutionState::Running { iteration: self.current_iteration };
+            self.loop_state = LoopExecutionState::Running {
+                iteration: self.current_iteration,
+            };
 
             self.loop_context.set_variable(
                 "__iteration".to_string(),
@@ -457,7 +471,7 @@ impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
             storage,
             None,
             body_executor,
-            Some(((end - start).abs() / step.abs() +1) as usize),
+            Some(((end - start).abs() / step.abs() + 1) as usize),
         );
 
         executor.set_loop_variable(loop_var.clone(), Value::Int(start));
@@ -480,7 +494,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
         let mut results = Vec::new();
 
         while (self.step > 0 && current <= self.end) || (self.step < 0 && current >= self.end) {
-            self.inner.set_loop_variable(self.loop_var.clone(), Value::Int(current));
+            self.inner
+                .set_loop_variable(self.loop_var.clone(), Value::Int(current));
 
             let result = self.inner.execute_iteration()?;
             results.push(result);
@@ -492,7 +507,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
 
         self.inner.results = results;
         self.inner.loop_state = LoopState::Finished;
-        self.inner.current_iteration = ((self.end - self.start).abs() / self.step.abs() + 1) as usize;
+        self.inner.current_iteration =
+            ((self.end - self.start).abs() / self.step.abs() + 1) as usize;
         Ok(self.inner.collect_results())
     }
 
@@ -569,7 +585,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
         let mut context = crate::expression::DefaultExpressionContext::new();
 
         let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
-            .map_err(|e| DBError::Expression(crate::core::error::ExpressionError::function_error(e.to_string())))?;
+            .map_err(|e| {
+                DBError::Expression(crate::core::error::ExpressionError::function_error(
+                    e.to_string(),
+                ))
+            })?;
 
         let condition_value = match condition_result {
             Value::Bool(b) => b,
@@ -645,7 +665,10 @@ impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> HasStorage<S> for SelectExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("SelectExecutor storage should be set")
+        self.base
+            .storage
+            .as_ref()
+            .expect("SelectExecutor storage should be set")
     }
 }
 
@@ -654,8 +677,8 @@ mod tests {
     use super::*;
     use crate::core::BinaryOperator;
     use crate::storage::test_mock::MockStorage;
+    use parking_lot::Mutex;
     use std::sync::Arc;
-use parking_lot::Mutex;
 
     #[test]
     fn test_while_loop_executor() {
@@ -668,15 +691,13 @@ use parking_lot::Mutex;
             Expression::int(3),
         );
 
-        let body_executor = ExecutorEnum::Base(BaseExecutor::new(2, "TestExecutor".to_string(), storage_clone));
+        let body_executor = ExecutorEnum::Base(BaseExecutor::new(
+            2,
+            "TestExecutor".to_string(),
+            storage_clone,
+        ));
 
-        let mut executor = WhileLoopExecutor::new(
-            1,
-            storage,
-            condition,
-            body_executor,
-            Some(5),
-        );
+        let mut executor = WhileLoopExecutor::new(1, storage, condition, body_executor, Some(5));
 
         let result = executor.execute().expect("Failed to execute");
 
@@ -694,7 +715,11 @@ use parking_lot::Mutex;
         let storage = Arc::new(Mutex::new(MockStorage));
         let storage_clone = storage.clone();
 
-        let body_executor = ExecutorEnum::Base(BaseExecutor::new(2, "TestExecutor".to_string(), storage_clone));
+        let body_executor = ExecutorEnum::Base(BaseExecutor::new(
+            2,
+            "TestExecutor".to_string(),
+            storage_clone,
+        ));
 
         let mut executor =
             ForLoopExecutor::new(1, storage, "i".to_string(), 1, 3, 1, body_executor);

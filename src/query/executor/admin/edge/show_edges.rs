@@ -2,12 +2,12 @@
 //!
 //! 负责列出指定图空间中的所有边类型。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::{DataSet, Value};
-use crate::storage::iterator::Row;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
 /// 列出边类型执行器
@@ -40,9 +40,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgesExecutor
             Ok(edge_schemas) => {
                 let rows: Vec<Row> = edge_schemas
                     .iter()
-                    .map(|schema| {
-                        vec![Value::String(schema.edge_type_name.clone())]
-                    })
+                    .map(|schema| vec![Value::String(schema.edge_type_name.clone())])
                     .collect();
 
                 let dataset = DataSet {
@@ -51,7 +49,10 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgesExecutor
                 };
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to show edge types: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to show edge types: {}",
+                e
+            ))),
         }
     }
 

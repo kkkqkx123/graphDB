@@ -46,139 +46,58 @@ pub mod expression_analyzer;
 
 // 导出数据结构
 pub use structs::{
-    AliasType,
-    MatchClauseContext,
-    MatchStepRange,
-    PaginationContext,
-    Path,
-    QueryPart,
-    ReturnClauseContext,
-    UnwindClauseContext,
-    WhereClauseContext,
-    WithClauseContext,
-    YieldClauseContext,
-    ValidatedStatement,
-    ValidationInfo,
-    PathAnalysis,
-    OptimizationHint,
-    IndexHint,
-    SemanticInfo,
-    AggregateCallInfo,
-    ClauseKind,
-    HintSeverity,
+    AggregateCallInfo, AliasType, ClauseKind, HintSeverity, IndexHint, MatchClauseContext,
+    MatchStepRange, OptimizationHint, PaginationContext, Path, PathAnalysis, QueryPart,
+    ReturnClauseContext, SemanticInfo, UnwindClauseContext, ValidatedStatement, ValidationInfo,
+    WhereClauseContext, WithClauseContext, YieldClauseContext,
 };
 
 // 从 core 重新导出 YieldColumn
 pub use crate::core::YieldColumn;
 
 // 导出新的验证器体系（trait + 枚举）
+pub use validator_enum::{Validator, ValidatorCollection};
 pub use validator_trait::{
-    StatementType,
-    StatementValidator,
-    ValidationResult,
-    is_global_statement_type,
-    ColumnDef,
-    ValueType,
-    ExpressionProps,
-    InputProperty,
-    VarProperty,
-    TagProperty,
-    EdgeProperty,
-};
-pub use validator_enum::{
-    Validator,
-    ValidatorCollection,
+    is_global_statement_type, ColumnDef, EdgeProperty, ExpressionProps, InputProperty,
+    StatementType, StatementValidator, TagProperty, ValidationResult, ValueType, VarProperty,
 };
 
 // 导出语句级验证器
 pub use statements::{
-    MatchValidator,
-    CreateValidator,
-    InsertVerticesValidator,
-    InsertEdgesValidator,
-    UpdateValidator,
-    DeleteValidator,
-    MergeValidator,
-    RemoveValidator,
-    SetValidator,
-    SetItem,
-    SetStatementType,
-    ValidatedSet,
-    ValidatedSetItem,
-    UnwindValidator,
-    ValidatedUnwind,
-    LookupValidator,
-    FetchVerticesValidator,
-    FetchEdgesValidator,
-    GoValidator,
-    FindPathValidator,
-    GetSubgraphValidator,
+    CreateValidator, DeleteValidator, FetchEdgesValidator, FetchVerticesValidator,
+    FindPathValidator, GetSubgraphValidator, GoValidator, InsertEdgesValidator,
+    InsertVerticesValidator, LookupValidator, MatchValidator, MergeValidator, RemoveValidator,
+    SetItem, SetStatementType, SetValidator, UnwindValidator, UpdateValidator, ValidatedSet,
+    ValidatedSetItem, ValidatedUnwind,
 };
 
 // 导出子句级验证器
 pub use clauses::{
-    GroupByValidator,
-    ValidatedGroupBy,
-    OrderByValidator,
-    OrderColumn,
-    LimitValidator,
+    GroupByValidator, LimitValidator, OrderByValidator, OrderColumn, ReturnValidator,
+    SequentialStatement, SequentialValidator, ValidatedGroupBy, ValidatedYield, WithValidator,
     YieldValidator,
-    ValidatedYield,
-    ReturnValidator,
-    WithValidator,
-    SequentialValidator,
-    SequentialStatement,
 };
 
 // 导出 DDL 验证器
 pub use ddl::{
-    DropValidator,
-    ValidatedDrop,
-    DropTargetType,
-    AlterValidator,
-    ValidatedAlter,
-    AlterTargetType,
-    ShowValidator,
-    DescValidator,
-    ShowCreateValidator,
-    ShowConfigsValidator,
-    ShowSessionsValidator,
-    ShowQueriesValidator,
-    KillQueryValidator,
-    ValidatedShow,
-    ShowTargetType,
-    ValidatedDesc,
-    DescTargetType,
+    AlterTargetType, AlterValidator, DescTargetType, DescValidator, DropTargetType, DropValidator,
+    KillQueryValidator, ShowConfigsValidator, ShowCreateValidator, ShowQueriesValidator,
+    ShowSessionsValidator, ShowTargetType, ShowValidator, ValidatedAlter, ValidatedDesc,
+    ValidatedDrop, ValidatedShow,
 };
 
 // 导出 DML 验证器
 pub use dml::{
-    UseValidator,
-    ValidatedUse,
-    PipeValidator,
-    ColumnInfo,
-    QueryValidator,
-    SetOperationValidator,
-    ValidatedSetOperation,
+    ColumnInfo, PipeValidator, QueryValidator, SetOperationValidator, UseValidator,
+    ValidatedSetOperation, ValidatedUse,
 };
 
 // 导出工具验证器
 pub use utility::{
-    ExplainValidator,
-    ProfileValidator,
-    ValidatedExplain,
-    CreateUserValidator,
-    DropUserValidator,
-    AlterUserValidator,
-    ChangePasswordValidator,
-    GrantValidator,
-    RevokeValidator,
-    DescribeUserValidator,
-    ShowUsersValidator,
-    ShowRolesValidator,
-    ValidatedUser,
-    ValidatedGrant,
-    UpdateConfigsValidator,
+    AlterUserValidator, ChangePasswordValidator, CreateUserValidator, DescribeUserValidator,
+    DropUserValidator, ExplainValidator, GrantValidator, ProfileValidator, RevokeValidator,
+    ShowRolesValidator, ShowUsersValidator, UpdateConfigsValidator, ValidatedExplain,
+    ValidatedGrant, ValidatedUser,
 };
 
 // 导出辅助工具
@@ -188,4 +107,4 @@ pub use helpers::SchemaValidator;
 pub use assignment_validator::{AssignmentValidator, ValidatedAssignment};
 
 // 导出表达式分析器
-pub use expression_analyzer::{ExpressionAnalyzer, ExpressionAnalysisResult};
+pub use expression_analyzer::{ExpressionAnalysisResult, ExpressionAnalyzer};

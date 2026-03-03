@@ -4,13 +4,13 @@
 //! 支持索引联动更新、内存锁、批量操作、双向边处理
 
 use super::{BatchDmlContext, DmlProcessor, DmlResult, LockGuard, LockType, MemoryLockManager};
-use crate::core::{StorageError, Value, Edge};
-use crate::storage::StorageClient;
+use crate::core::{Edge, StorageError, Value};
 use crate::storage::index::IndexDataManager;
 use crate::storage::metadata::IndexMetadataManager;
+use crate::storage::StorageClient;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 /// 边插入处理器
 ///
@@ -81,7 +81,12 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeInsertP
             // 保留第一个出现的
             let mut unique = Vec::new();
             for edge in &self.edges {
-                let key = (edge.src.clone(), edge.dst.clone(), edge.edge_type.clone(), edge.rank);
+                let key = (
+                    edge.src.clone(),
+                    edge.dst.clone(),
+                    edge.edge_type.clone(),
+                    edge.rank,
+                );
                 if !seen.contains_key(&key) {
                     seen.insert(key, true);
                     unique.push(edge.clone());
@@ -92,7 +97,12 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeInsertP
             // 保留最后一个出现的
             let mut unique = Vec::new();
             for edge in self.edges.iter().rev() {
-                let key = (edge.src.clone(), edge.dst.clone(), edge.edge_type.clone(), edge.rank);
+                let key = (
+                    edge.src.clone(),
+                    edge.dst.clone(),
+                    edge.edge_type.clone(),
+                    edge.rank,
+                );
                 if !seen.contains_key(&key) {
                     seen.insert(key, true);
                     unique.push(edge.clone());
@@ -122,19 +132,21 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeInsertP
     /// 检查边是否存在
     fn edge_exists(&self, item: &EdgeInsertItem) -> Result<bool, StorageError> {
         let storage = self.storage.lock();
-        storage.get_edge(
-            &self.context.space_name,
-            &item.src,
-            &item.dst,
-            &item.edge_type,
-        )
-        .map(|e| e.is_some())
+        storage
+            .get_edge(
+                &self.context.space_name,
+                &item.src,
+                &item.dst,
+                &item.edge_type,
+            )
+            .map(|e| e.is_some())
     }
 
     /// 更新索引
     fn update_indexes(&self, edge: &Edge) -> Result<(), StorageError> {
         // 获取该空间的所有边索引
-        let indexes = self.index_metadata_manager
+        let indexes = self
+            .index_metadata_manager
             .list_edge_indexes(self.space_id)
             .map_err(|e| StorageError::StorageError(format!("获取边索引失败: {}", e)))?;
 
@@ -150,13 +162,15 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeInsertP
                 }
 
                 // 更新索引
-                self.index_data_manager.update_edge_indexes(
-                    self.space_id,
-                    &edge.src,
-                    &edge.dst,
-                    &index.name,
-                    &index_props,
-                ).map_err(|e| StorageError::StorageError(format!("更新边索引失败: {}", e)))?;
+                self.index_data_manager
+                    .update_edge_indexes(
+                        self.space_id,
+                        &edge.src,
+                        &edge.dst,
+                        &index.name,
+                        &index_props,
+                    )
+                    .map_err(|e| StorageError::StorageError(format!("更新边索引失败: {}", e)))?;
             }
         }
 
@@ -164,7 +178,12 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeInsertP
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static, M: IndexMetadataManager + Send + Sync + 'static> DmlProcessor for EdgeInsertProcessor<S, I, M> {
+impl<
+        S: StorageClient + Send + Sync + 'static,
+        I: IndexDataManager + Send + Sync + 'static,
+        M: IndexMetadataManager + Send + Sync + 'static,
+    > DmlProcessor for EdgeInsertProcessor<S, I, M>
+{
     fn execute(&mut self) -> Result<DmlResult, StorageError> {
         if self.edges.is_empty() {
             return Ok(DmlResult::success(0));
@@ -304,7 +323,8 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeUpdateP
     /// 更新索引
     fn update_indexes(&self, edge: &Edge) -> Result<(), StorageError> {
         // 获取该空间的所有边索引
-        let indexes = self.index_metadata_manager
+        let indexes = self
+            .index_metadata_manager
             .list_edge_indexes(self.space_id)
             .map_err(|e| StorageError::StorageError(format!("获取边索引失败: {}", e)))?;
 
@@ -320,13 +340,15 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeUpdateP
                 }
 
                 // 更新索引
-                self.index_data_manager.update_edge_indexes(
-                    self.space_id,
-                    &edge.src,
-                    &edge.dst,
-                    &index.name,
-                    &index_props,
-                ).map_err(|e| StorageError::StorageError(format!("更新边索引失败: {}", e)))?;
+                self.index_data_manager
+                    .update_edge_indexes(
+                        self.space_id,
+                        &edge.src,
+                        &edge.dst,
+                        &index.name,
+                        &index_props,
+                    )
+                    .map_err(|e| StorageError::StorageError(format!("更新边索引失败: {}", e)))?;
             }
         }
 
@@ -334,7 +356,12 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeUpdateP
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static, M: IndexMetadataManager + Send + Sync + 'static> DmlProcessor for EdgeUpdateProcessor<S, I, M> {
+impl<
+        S: StorageClient + Send + Sync + 'static,
+        I: IndexDataManager + Send + Sync + 'static,
+        M: IndexMetadataManager + Send + Sync + 'static,
+    > DmlProcessor for EdgeUpdateProcessor<S, I, M>
+{
     fn execute(&mut self) -> Result<DmlResult, StorageError> {
         if self.updates.is_empty() {
             return Ok(DmlResult::success(0));
@@ -479,22 +506,26 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeDeleteP
 
     /// 删除索引
     fn delete_indexes(&self, edge: &Edge) -> Result<(), StorageError> {
-        let indexes = self.index_metadata_manager.list_edge_indexes(self.space_id)?;
+        let indexes = self
+            .index_metadata_manager
+            .list_edge_indexes(self.space_id)?;
         let index_names: Vec<String> = indexes
             .into_iter()
             .filter(|idx| idx.schema_name == edge.edge_type)
             .map(|idx| idx.name)
             .collect();
-        self.index_data_manager.delete_edge_indexes(
-            self.space_id,
-            &edge.src,
-            &edge.dst,
-            &index_names,
-        ).map_err(|e| StorageError::StorageError(format!("删除边索引失败: {}", e)))
+        self.index_data_manager
+            .delete_edge_indexes(self.space_id, &edge.src, &edge.dst, &index_names)
+            .map_err(|e| StorageError::StorageError(format!("删除边索引失败: {}", e)))
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static, M: IndexMetadataManager + Send + Sync + 'static> DmlProcessor for EdgeDeleteProcessor<S, I, M> {
+impl<
+        S: StorageClient + Send + Sync + 'static,
+        I: IndexDataManager + Send + Sync + 'static,
+        M: IndexMetadataManager + Send + Sync + 'static,
+    > DmlProcessor for EdgeDeleteProcessor<S, I, M>
+{
     fn execute(&mut self) -> Result<DmlResult, StorageError> {
         if self.edges.is_empty() {
             return Ok(DmlResult::success(0));

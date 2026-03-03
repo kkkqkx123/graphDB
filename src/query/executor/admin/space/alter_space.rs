@@ -25,7 +25,12 @@ pub struct AlterSpaceExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> AlterSpaceExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, options: Vec<SpaceAlterOption>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_name: String,
+        options: Vec<SpaceAlterOption>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AlterSpaceExecutor".to_string(), storage),
             space_name,
@@ -40,16 +45,19 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterSpaceExecuto
         let mut storage_guard = storage.lock();
 
         let space_id = storage_guard.get_space_id(&self.space_name).map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Failed to get space ID: {}", e))
-            )
+            crate::core::error::DBError::Storage(crate::core::error::StorageError::DbError(
+                format!("Failed to get space ID: {}", e),
+            ))
         })?;
 
         for option in &self.options {
             match option {
                 SpaceAlterOption::Comment(comment) => {
                     if let Err(e) = storage_guard.alter_space_comment(space_id, comment.clone()) {
-                        return Ok(ExecutionResult::Error(format!("Failed to alter comment: {}", e)));
+                        return Ok(ExecutionResult::Error(format!(
+                            "Failed to alter comment: {}",
+                            e
+                        )));
                     }
                 }
             }
@@ -100,21 +108,16 @@ impl<S: StorageClient> HasStorage<S> for AlterSpaceExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_alter_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let options = vec![
-            SpaceAlterOption::Comment("test".to_string()),
-        ];
-        let mut executor = AlterSpaceExecutor::new(
-            1,
-            storage,
-            "test_space".to_string(),
-            options,
-        );
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let options = vec![SpaceAlterOption::Comment("test".to_string())];
+        let mut executor = AlterSpaceExecutor::new(1, storage, "test_space".to_string(), options);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -122,14 +125,11 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let options = vec![SpaceAlterOption::Comment("test".to_string())];
-        let mut executor = AlterSpaceExecutor::new(
-            2,
-            storage,
-            "test_space".to_string(),
-            options,
-        );
+        let mut executor = AlterSpaceExecutor::new(2, storage, "test_space".to_string(), options);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -140,14 +140,11 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let options = vec![SpaceAlterOption::Comment("test".to_string())];
-        let executor = AlterSpaceExecutor::new(
-            3,
-            storage,
-            "test_space".to_string(),
-            options,
-        );
+        let executor = AlterSpaceExecutor::new(3, storage, "test_space".to_string(), options);
 
         assert_eq!(executor.id(), 3);
         assert_eq!(executor.name(), "AlterSpaceExecutor");

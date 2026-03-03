@@ -26,6 +26,6 @@ pub use query_pipeline_manager::QueryPipelineManager;
 // Re-export new QueryContext
 pub use query_context::QueryContext;
 // Re-export QueryManager
-pub use query_manager::{QueryManager, QueryInfo, QueryStatus, QueryStats};
+pub use query_manager::{QueryInfo, QueryManager, QueryStats, QueryStatus};
 // Re-export OptimizerEngine
 pub use optimizer::OptimizerEngine;

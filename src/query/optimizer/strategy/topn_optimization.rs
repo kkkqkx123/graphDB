@@ -236,9 +236,7 @@ impl SortEliminationOptimizer {
 
         if limit_ratio < self.topn_threshold || input_rows > 10000 {
             let original_cost = self.calculate_sort_cost(input_rows, sort_items.len());
-            let topn_cost = self
-                .cost_calculator
-                .calculate_topn_cost(input_rows, limit);
+            let topn_cost = self.cost_calculator.calculate_topn_cost(input_rows, limit);
 
             if topn_cost < original_cost {
                 return Some((topn_cost, original_cost));
@@ -301,8 +299,7 @@ mod tests {
     fn test_with_topn_threshold() {
         let stats_manager = Arc::new(StatisticsManager::new());
         let cost_calculator = Arc::new(CostCalculator::new(stats_manager));
-        let optimizer = SortEliminationOptimizer::new(cost_calculator)
-            .with_topn_threshold(0.2);
+        let optimizer = SortEliminationOptimizer::new(cost_calculator).with_topn_threshold(0.2);
 
         assert_eq!(optimizer.topn_threshold, 0.2);
     }
@@ -311,8 +308,7 @@ mod tests {
     fn test_with_min_limit() {
         let stats_manager = Arc::new(StatisticsManager::new());
         let cost_calculator = Arc::new(CostCalculator::new(stats_manager));
-        let optimizer = SortEliminationOptimizer::new(cost_calculator)
-            .with_min_limit(10);
+        let optimizer = SortEliminationOptimizer::new(cost_calculator).with_min_limit(10);
 
         assert_eq!(optimizer.min_limit_for_topn, 10);
     }
@@ -322,12 +318,11 @@ mod tests {
         let stats_manager = Arc::new(StatisticsManager::new());
         let cost_calculator = Arc::new(CostCalculator::new(stats_manager));
 
-        let optimizer1 = SortEliminationOptimizer::new(cost_calculator.clone())
-            .with_topn_threshold(2.0); // 超过 1.0
+        let optimizer1 =
+            SortEliminationOptimizer::new(cost_calculator.clone()).with_topn_threshold(2.0); // 超过 1.0
         assert_eq!(optimizer1.topn_threshold, 1.0);
 
-        let optimizer2 = SortEliminationOptimizer::new(cost_calculator)
-            .with_topn_threshold(0.0001); // 小于 0.001
+        let optimizer2 = SortEliminationOptimizer::new(cost_calculator).with_topn_threshold(0.0001); // 小于 0.001
         assert_eq!(optimizer2.topn_threshold, 0.001);
     }
 
@@ -337,7 +332,8 @@ mod tests {
         let sort_node = SortNode::new(
             crate::query::planner::plan::PlanNodeEnum::Start(start_node),
             vec![SortItem::asc("name".to_string())],
-        ).expect("Failed to create SortNode");
+        )
+        .expect("Failed to create SortNode");
 
         let context = SortContext::new(sort_node, 1000);
         assert_eq!(context.input_rows, 1000);
@@ -351,10 +347,10 @@ mod tests {
         let sort_node = SortNode::new(
             crate::query::planner::plan::PlanNodeEnum::Start(start_node),
             vec![SortItem::asc("name".to_string())],
-        ).expect("Failed to create SortNode");
+        )
+        .expect("Failed to create SortNode");
 
-        let context = SortContext::new(sort_node, 1000)
-            .with_limit(10);
+        let context = SortContext::new(sort_node, 1000).with_limit(10);
 
         assert!(context.has_limit_child);
         assert_eq!(context.limit_value, Some(10));

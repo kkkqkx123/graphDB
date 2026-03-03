@@ -18,20 +18,31 @@ impl UserParser {
     }
 
     /// 解析 CREATE USER 语句
-    pub fn parse_create_user_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+    pub fn parse_create_user_statement(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::CreateUser)?;
         self.parse_create_user_internal(ctx, start_span)
     }
 
     /// 解析 CREATE USER 语句（CREATE token 已被消费）
-    pub fn parse_create_user_statement_after_create(&mut self, ctx: &mut ParseContext, start_span: Span) -> Result<Stmt, ParseError> {
+    pub fn parse_create_user_statement_after_create(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: Span,
+    ) -> Result<Stmt, ParseError> {
         ctx.expect_token(TokenKind::User)?;
         self.parse_create_user_internal(ctx, start_span)
     }
 
     /// 解析 CREATE USER 语句的内部实现
-    fn parse_create_user_internal(&mut self, ctx: &mut ParseContext, start_span: Span) -> Result<Stmt, ParseError> {
+    fn parse_create_user_internal(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: Span,
+    ) -> Result<Stmt, ParseError> {
         let mut if_not_exists = false;
         if ctx.match_token(TokenKind::If) {
             ctx.expect_token(TokenKind::Not)?;
@@ -40,11 +51,11 @@ impl UserParser {
         }
 
         let username = ctx.expect_identifier()?;
-        
+
         // 支持 WITH PASSWORD 语法
         ctx.match_token(TokenKind::With);
         ctx.expect_token(TokenKind::Password)?;
-        
+
         let password = ctx.expect_string_literal()?;
 
         let mut role = None;
@@ -66,7 +77,10 @@ impl UserParser {
     }
 
     /// 解析 ALTER USER 语句
-    pub fn parse_alter_user_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+    pub fn parse_alter_user_statement(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::AlterUser)?;
         self.parse_alter_user_internal(ctx, start_span)
@@ -120,7 +134,10 @@ impl UserParser {
     }
 
     /// 解析 DROP USER 语句
-    pub fn parse_drop_user_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+    pub fn parse_drop_user_statement(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::DropUser)?;
 
@@ -143,7 +160,10 @@ impl UserParser {
     }
 
     /// 解析 CHANGE PASSWORD 语句
-    pub fn parse_change_password_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+    pub fn parse_change_password_statement(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::ChangePassword)?;
 
@@ -223,13 +243,9 @@ impl UserParser {
             _ => ctx.expect_identifier()?,
         };
 
-        role_str.parse::<RoleType>().map_err(|e| {
-            ParseError::new(
-                ParseErrorKind::SyntaxError,
-                e,
-                ctx.current_position(),
-            )
-        })
+        role_str
+            .parse::<RoleType>()
+            .map_err(|e| ParseError::new(ParseErrorKind::SyntaxError, e, ctx.current_position()))
     }
 
     /// 解析 GRANT 语句
@@ -304,7 +320,10 @@ impl UserParser {
 
     /// 解析 DESCRIBE USER 语句
     /// 语法: DESCRIBE USER <username>
-    pub fn parse_describe_user_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+    pub fn parse_describe_user_statement(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Desc)?;
         ctx.expect_token(TokenKind::User)?;
@@ -314,15 +333,15 @@ impl UserParser {
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
 
-        Ok(Stmt::DescribeUser(DescribeUserStmt {
-            span,
-            username,
-        }))
+        Ok(Stmt::DescribeUser(DescribeUserStmt { span, username }))
     }
 
     /// 解析 SHOW USERS 语句
     /// 语法: SHOW USERS
-    pub fn parse_show_users_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+    pub fn parse_show_users_statement(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Show)?;
         ctx.expect_token(TokenKind::Users)?;
@@ -335,7 +354,10 @@ impl UserParser {
 
     /// 解析 SHOW ROLES 语句
     /// 语法: SHOW ROLES [IN <space_name>]
-    pub fn parse_show_roles_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+    pub fn parse_show_roles_statement(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Show)?;
         ctx.expect_token(TokenKind::Roles)?;

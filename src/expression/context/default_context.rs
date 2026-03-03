@@ -65,9 +65,14 @@ impl crate::expression::evaluator::traits::ExpressionContext for DefaultExpressi
 
     fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
         let registry = global_registry_ref();
-        registry.get_builtin(name)
+        registry
+            .get_builtin(name)
             .map(|f| crate::expression::functions::FunctionRef::Builtin(f))
-            .or_else(|| registry.get_custom(name).map(|f| crate::expression::functions::FunctionRef::Custom(f)))
+            .or_else(|| {
+                registry
+                    .get_custom(name)
+                    .map(|f| crate::expression::functions::FunctionRef::Custom(f))
+            })
     }
 
     fn supports_cache(&self) -> bool {

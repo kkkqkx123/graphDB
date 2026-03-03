@@ -2,16 +2,16 @@
 //!
 //! 实现基于哈希的左外连接算法，支持单键和多键连接
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, NullType, Value};
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,
     hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
-use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
 /// 左外连接执行器
@@ -97,9 +97,12 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
                 for &right_idx in right_indices {
                     if right_idx < build_dataset.rows.len() {
                         let right_row = &build_dataset.rows[right_idx];
-                        let new_row = self
-                            .base_executor
-                            .new_row(left_row.clone(), right_row.clone(), &left_dataset.col_names, &right_dataset.col_names);
+                        let new_row = self.base_executor.new_row(
+                            left_row.clone(),
+                            right_row.clone(),
+                            &left_dataset.col_names,
+                            &right_dataset.col_names,
+                        );
                         result.rows.push(new_row);
                     }
                 }
@@ -175,9 +178,12 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
                 for &right_idx in right_indices {
                     if right_idx < build_dataset.rows.len() {
                         let right_row = &build_dataset.rows[right_idx];
-                        let new_row = self
-                            .base_executor
-                            .new_row(left_row.clone(), right_row.clone(), &left_dataset.col_names, &right_dataset.col_names);
+                        let new_row = self.base_executor.new_row(
+                            left_row.clone(),
+                            right_row.clone(),
+                            &left_dataset.col_names,
+                            &right_dataset.col_names,
+                        );
                         result.rows.push(new_row);
                     }
                 }

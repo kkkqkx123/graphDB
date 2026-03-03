@@ -2,11 +2,11 @@
 //!
 //! 负责显示数据库的统计信息。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
-use crate::core::{StatsManager, QueryStatus};
 use crate::core::{DataSet, Value};
+use crate::core::{QueryStatus, StatsManager};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
@@ -65,19 +65,19 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
     /// 解析统计类型字符串
     fn parse_stats_type(stats_type: &str) -> ShowStatsType {
         let parts: Vec<&str> = stats_type.split_whitespace().collect();
-        
+
         match parts.as_slice() {
             ["queries"] | ["queries", "recent"] => ShowStatsType::RecentQueries { limit: 10 },
-            ["queries", "recent", limit] => ShowStatsType::RecentQueries { 
-                limit: limit.parse().unwrap_or(10) 
+            ["queries", "recent", limit] => ShowStatsType::RecentQueries {
+                limit: limit.parse().unwrap_or(10),
             },
             ["slow", "queries"] => ShowStatsType::SlowQueries { limit: 10 },
-            ["slow", "queries", limit] => ShowStatsType::SlowQueries { 
-                limit: limit.parse().unwrap_or(10) 
+            ["slow", "queries", limit] => ShowStatsType::SlowQueries {
+                limit: limit.parse().unwrap_or(10),
             },
             ["executors"] => ShowStatsType::Executors,
-            ["query", trace_id] => ShowStatsType::QueryDetail { 
-                trace_id: trace_id.to_string() 
+            ["query", trace_id] => ShowStatsType::QueryDetail {
+                trace_id: trace_id.to_string(),
             },
             ["query"] => ShowStatsType::Query,
             ["storage"] => ShowStatsType::Storage,
@@ -175,8 +175,12 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
     fn show_query_stats(&self) -> DataSet {
         let rows = if let Some(stats_manager) = Self::get_stats_manager() {
             // 使用 Metrics 获取查询统计
-            let total_queries = stats_manager.get_value(crate::core::stats::MetricType::NumQueries).unwrap_or(0);
-            let active_queries = stats_manager.get_value(crate::core::stats::MetricType::NumActiveQueries).unwrap_or(0);
+            let total_queries = stats_manager
+                .get_value(crate::core::stats::MetricType::NumQueries)
+                .unwrap_or(0);
+            let active_queries = stats_manager
+                .get_value(crate::core::stats::MetricType::NumActiveQueries)
+                .unwrap_or(0);
 
             vec![
                 vec![
@@ -273,7 +277,11 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
                 .get_executor_stats_summary()
                 .into_iter()
                 .map(|(executor_type, (total_time, total_rows, count))| {
-                    let avg_time = if count > 0 { total_time / count as u64 } else { 0 };
+                    let avg_time = if count > 0 {
+                        total_time / count as u64
+                    } else {
+                        0
+                    };
                     vec![
                         Value::String(executor_type),
                         Value::Int(count as i64),
@@ -383,7 +391,10 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
         // 查询未找到
         DataSet {
             col_names: vec!["Message".to_string()],
-            rows: vec![vec![Value::String(format!("Query {} not found in cache", trace_id))]],
+            rows: vec![vec![Value::String(format!(
+                "Query {} not found in cache",
+                trace_id
+            ))]],
         }
     }
 

@@ -1,7 +1,7 @@
 //! 路径相关数据结构
 
-use crate::core::Expression;
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::Expression;
 
 /// 路径信息
 #[derive(Debug, Clone)]
@@ -81,10 +81,10 @@ pub struct EdgeInfo {
     pub types: Vec<String>,
     pub props: Option<ContextualExpression>,
     pub anonymous: bool,
-    pub filter: Option<ContextualExpression>,    // 边过滤条件
-    pub direction: Direction,          // 边方向
-    pub range: Option<MatchStepRange>, // 步数范围
-    pub edge_types: Vec<i32>,          // 边类型ID
+    pub filter: Option<ContextualExpression>, // 边过滤条件
+    pub direction: Direction,                 // 边方向
+    pub range: Option<MatchStepRange>,        // 步数范围
+    pub edge_types: Vec<i32>,                 // 边类型ID
 }
 
 /// 边的方向

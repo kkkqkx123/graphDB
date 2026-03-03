@@ -26,13 +26,13 @@
 //! 只要检测到输入有序且与排序要求匹配，就直接消除排序。
 //! 基于代价的 TopN 转换决策保留在 strategy::sort_elimination 模块中。
 
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::{SortNode, SortItem};
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::{SortItem, SortNode};
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
+use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
 
 /// 排序消除规则
 ///
@@ -103,11 +103,7 @@ impl EliminateSortRule {
     /// 检查两个排序是否兼容
     ///
     /// 如果外层排序是内层排序的前缀，则可以消除外层排序
-    fn check_sort_compatibility(
-        &self,
-        outer_items: &[SortItem],
-        inner_items: &[SortItem],
-    ) -> bool {
+    fn check_sort_compatibility(&self, outer_items: &[SortItem], inner_items: &[SortItem]) -> bool {
         if outer_items.is_empty() {
             return true;
         }
@@ -204,9 +200,7 @@ impl EliminationRule for EliminateSortRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::{
-        SortItem, SortNode, StartNode,
-    };
+    use crate::query::planner::plan::core::nodes::{SortItem, SortNode, StartNode};
 
     #[test]
     fn test_eliminate_sort_rule_name() {
@@ -221,7 +215,8 @@ mod tests {
             SortNode::new(
                 PlanNodeEnum::Start(StartNode::new()),
                 vec![SortItem::asc("name".to_string())],
-            ).expect("Failed to create SortNode")
+            )
+            .expect("Failed to create SortNode")
         )));
     }
 

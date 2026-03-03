@@ -7,17 +7,23 @@
 //! - 索引联动更新
 //! - 内存锁机制
 
-pub mod vertex_processor;
 pub mod edge_processor;
 pub mod lock_manager;
+pub mod vertex_processor;
 
-pub use vertex_processor::{VertexInsertProcessor, VertexUpdateProcessor, VertexDeleteProcessor, TagDeleteProcessor, TagDeleteItem, VertexUpdateItem};
-pub use edge_processor::{EdgeInsertProcessor, EdgeUpdateProcessor, EdgeDeleteProcessor, EdgeInsertItem, EdgeUpdateItem, EdgeDeleteItem};
-pub use lock_manager::{MemoryLockManager, LockType, LockGuard};
+pub use edge_processor::{
+    EdgeDeleteItem, EdgeDeleteProcessor, EdgeInsertItem, EdgeInsertProcessor, EdgeUpdateItem,
+    EdgeUpdateProcessor,
+};
+pub use lock_manager::{LockGuard, LockType, MemoryLockManager};
+pub use vertex_processor::{
+    TagDeleteItem, TagDeleteProcessor, VertexDeleteProcessor, VertexInsertProcessor,
+    VertexUpdateItem, VertexUpdateProcessor,
+};
 
 use crate::core::StorageError;
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 /// DML 操作结果
 #[derive(Debug, Clone)]

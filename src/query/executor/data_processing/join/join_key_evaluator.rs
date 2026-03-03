@@ -3,10 +3,10 @@
 //! 专门用于Join操作的键求值，支持表达式求值到可哈希的Value类型
 
 use crate::core::error::ExpressionError;
+use crate::core::types::expression::Expression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
-use crate::core::types::expression::Expression;
 
 /// Join键求值器
 ///
@@ -74,7 +74,10 @@ mod tests {
     #[test]
     fn test_get_variable_name() {
         let var_expression = Expression::Variable("name".to_string());
-        assert_eq!(JoinKeyEvaluator::get_variable_name(&var_expression), Some("name"));
+        assert_eq!(
+            JoinKeyEvaluator::get_variable_name(&var_expression),
+            Some("name")
+        );
 
         let lit_expression = Expression::Literal(Value::Int(42));
         assert_eq!(JoinKeyEvaluator::get_variable_name(&lit_expression), None);
@@ -98,7 +101,8 @@ mod tests {
             object: Box::new(Expression::Variable("person".to_string())),
             property: "age".to_string(),
         };
-        let (object, property) = JoinKeyEvaluator::get_property_info(&prop_expression).expect("get_property_info should succeed");
+        let (object, property) = JoinKeyEvaluator::get_property_info(&prop_expression)
+            .expect("get_property_info should succeed");
         assert!(matches!(object, Expression::Variable(_)));
         assert_eq!(property, "age");
     }

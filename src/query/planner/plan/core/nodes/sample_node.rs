@@ -44,8 +44,8 @@ mod tests {
     fn test_sample_node_creation() {
         let start_node = PlanNodeEnum::Start(StartNode::new());
 
-        let sample_node = SampleNode::new(start_node, 10)
-            .expect("SampleNode creation should succeed");
+        let sample_node =
+            SampleNode::new(start_node, 10).expect("SampleNode creation should succeed");
 
         assert_eq!(sample_node.type_name(), "SampleNode");
         assert_eq!(sample_node.dependencies().len(), 1);

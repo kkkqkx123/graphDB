@@ -1,42 +1,35 @@
 pub mod error;
+pub mod npath;
 pub mod result;
 pub mod type_system;
 pub mod value;
 pub mod vertex_edge_path;
-pub mod npath;
 
 // 新增的子模块
-pub mod types;
-pub mod symbol;
 pub mod permission;
 pub mod stats;
+pub mod symbol;
+pub mod types;
 
 // 错误和结果类型
 pub use error::{
-    DBError, DBResult, GraphDBResult,
-    ExpressionError, ExpressionErrorType, ExpressionPosition,
-    QueryError, QueryResult,
-    StorageError, StorageResult,
-    SessionError, SessionResult,
-    PermissionError, PermissionResult,
-    ManagerError, ManagerResult,
-    ValidationError, ValidationErrorType,
-    SchemaValidationError, SchemaValidationResult,
-    PlanNodeVisitError,
-    ErrorCategory,
+    DBError, DBResult, ErrorCategory, ExpressionError, ExpressionErrorType, ExpressionPosition,
+    GraphDBResult, ManagerError, ManagerResult, PermissionError, PermissionResult,
+    PlanNodeVisitError, QueryError, QueryResult, SchemaValidationError, SchemaValidationResult,
+    SessionError, SessionResult, StorageError, StorageResult, ValidationError, ValidationErrorType,
 };
 
 // 对外错误码
-pub use error::{ErrorCode, PublicError, ToPublicError};
 pub use error::codes::ErrorCategory as CodeErrorCategory;
+pub use error::{ErrorCode, PublicError, ToPublicError};
 
 // Result 系统
-pub use result::{ResultBuilder, DefaultIterator, GetNeighborsIterator, PropIterator};
+pub use result::{DefaultIterator, GetNeighborsIterator, PropIterator, ResultBuilder};
 
 // 核心数据类型
+pub use npath::{NPath, NPathEdgeIter, NPathIter, NPathVertexIter};
 pub use value::*;
 pub use vertex_edge_path::{Edge, Path, Step, Vertex};
-pub use npath::{NPath, NPathIter, NPathVertexIter, NPathEdgeIter};
 
 // 表达式系统类型
 pub use types::expression::Expression;
@@ -58,4 +51,7 @@ pub use type_system::TypeUtils;
 pub use permission::{Permission, RoleType};
 
 // 统计类型
-pub use stats::{StatsManager, QueryMetrics, QueryProfile, MetricType, MetricValue, QueryPhase, ErrorType, ErrorInfo, ErrorSummary, QueryStatus};
+pub use stats::{
+    ErrorInfo, ErrorSummary, ErrorType, MetricType, MetricValue, QueryMetrics, QueryPhase,
+    QueryProfile, QueryStatus, StatsManager,
+};

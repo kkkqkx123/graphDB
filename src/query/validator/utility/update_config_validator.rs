@@ -7,12 +7,12 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionMeta;
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::UpdateConfigsStmt;
+use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::QueryContext;
 
 /// Update Configs 语句验证器
 #[derive(Debug)]
@@ -45,7 +45,10 @@ impl UpdateConfigsValidator {
             let upper = m.to_uppercase();
             if !valid_modules.contains(&upper.as_str()) {
                 return Err(ValidationError::new(
-                    format!("Invalid config module: {}. Valid modules are: GRAPH, META, STORAGE, ALL", m),
+                    format!(
+                        "Invalid config module: {}. Valid modules are: GRAPH, META, STORAGE, ALL",
+                        m
+                    ),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -74,10 +77,7 @@ impl UpdateConfigsValidator {
     }
 
     /// 验证配置值
-    fn validate_config_value(
-        &self,
-        value: &ContextualExpression,
-    ) -> Result<(), ValidationError> {
+    fn validate_config_value(&self, value: &ContextualExpression) -> Result<(), ValidationError> {
         if let Some(e) = value.get_expression() {
             self.validate_config_value_internal(&e)
         } else {
@@ -161,7 +161,9 @@ impl StatementValidator for UpdateConfigsValidator {
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         let update_configs_stmt = match stmt {
-            crate::query::parser::ast::Stmt::UpdateConfigs(update_configs_stmt) => update_configs_stmt,
+            crate::query::parser::ast::Stmt::UpdateConfigs(update_configs_stmt) => {
+                update_configs_stmt
+            }
             _ => {
                 return Err(ValidationError::new(
                     "Expected UPDATE CONFIGS statement".to_string(),
@@ -210,8 +212,8 @@ mod tests {
     use super::*;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::Expression;
-    use crate::core::Value;
     use crate::core::types::expression::ExpressionContext;
+    use crate::core::Value;
 
     #[test]
     fn test_update_configs_validator_new() {
@@ -223,26 +225,32 @@ mod tests {
     #[test]
     fn test_validate_module() {
         let validator = UpdateConfigsValidator::new();
-        
+
         // 有效模块
-        assert!(validator.validate_module(&Some("GRAPH".to_string())).is_ok());
+        assert!(validator
+            .validate_module(&Some("GRAPH".to_string()))
+            .is_ok());
         assert!(validator.validate_module(&Some("META".to_string())).is_ok());
-        assert!(validator.validate_module(&Some("STORAGE".to_string())).is_ok());
+        assert!(validator
+            .validate_module(&Some("STORAGE".to_string()))
+            .is_ok());
         assert!(validator.validate_module(&Some("ALL".to_string())).is_ok());
         assert!(validator.validate_module(&None).is_ok());
-        
+
         // 无效模块
-        assert!(validator.validate_module(&Some("INVALID".to_string())).is_err());
+        assert!(validator
+            .validate_module(&Some("INVALID".to_string()))
+            .is_err());
     }
 
     #[test]
     fn test_validate_config_name() {
         let validator = UpdateConfigsValidator::new();
-        
+
         // 有效配置名
         assert!(validator.validate_config_name("max_connections").is_ok());
         assert!(validator.validate_config_name("timeout_ms").is_ok());
-        
+
         // 无效配置名
         assert!(validator.validate_config_name("").is_err());
         assert!(validator.validate_config_name("invalid-name").is_err());

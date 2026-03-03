@@ -3,50 +3,45 @@
 //! 提供数据库管理功能，包括空间管理、标签管理、边类型管理、索引管理、数据变更、用户管理、查询管理等。
 //! 针对单节点部署进行了简化，移除了分布式相关功能。
 
-pub mod space;
-pub mod tag;
+pub mod analyze;
 pub mod edge;
 pub mod index;
-pub mod user;
 pub mod query_management;
-pub mod analyze;
+pub mod space;
+pub mod tag;
+pub mod user;
 
 pub use self::space::{
-    CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor, SwitchSpaceExecutor,
-    AlterSpaceExecutor, ClearSpaceExecutor,
+    AlterSpaceExecutor, ClearSpaceExecutor, CreateSpaceExecutor, DescSpaceExecutor,
+    DropSpaceExecutor, ShowSpacesExecutor, SwitchSpaceExecutor,
 };
 
 pub use self::tag::{
-    CreateTagExecutor, AlterTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
+    AlterTagExecutor, CreateTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
 };
 
 pub use self::tag::alter_tag::{AlterTagInfo, AlterTagItem, AlterTagOp};
 
 pub use self::edge::{
-    CreateEdgeExecutor, AlterEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
+    AlterEdgeExecutor, CreateEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
 };
 
 pub use self::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem, AlterEdgeOp};
 
 pub use self::index::{
-    CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
-    CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor, ShowEdgeIndexesExecutor,
-    RebuildTagIndexExecutor, RebuildEdgeIndexExecutor,
-    ShowTagIndexStatusExecutor, ShowEdgeIndexStatusExecutor,
+    CreateEdgeIndexExecutor, CreateTagIndexExecutor, DescEdgeIndexExecutor, DescTagIndexExecutor,
+    DropEdgeIndexExecutor, DropTagIndexExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor,
+    ShowEdgeIndexStatusExecutor, ShowEdgeIndexesExecutor, ShowTagIndexStatusExecutor,
+    ShowTagIndexesExecutor,
 };
 
 pub use self::user::{
-    CreateUserExecutor, AlterUserExecutor, DropUserExecutor, ChangePasswordExecutor,
+    AlterUserExecutor, ChangePasswordExecutor, CreateUserExecutor, DropUserExecutor,
     GrantRoleExecutor, RevokeRoleExecutor,
 };
 
-pub use self::query_management::{
-    ShowStatsExecutor,
-};
+pub use self::query_management::ShowStatsExecutor;
 
-pub use self::analyze::{
-    AnalyzeExecutor,
-    AnalyzeTarget,
-};
+pub use self::analyze::{AnalyzeExecutor, AnalyzeTarget};
 
 pub use crate::core::types::PasswordInfo;

@@ -3,7 +3,7 @@
 //! 提供完善的查询结果处理能力，扩展核心层的 QueryResult 和 Row
 
 use crate::api::core::{CoreError, CoreResult, QueryResult as CoreQueryResult, Row as CoreRow};
-use crate::core::{Value, Vertex, Edge, Path};
+use crate::core::{Edge, Path, Value, Vertex};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -281,4 +281,3 @@ impl Default for ResultMetadata {
         }
     }
 }
-

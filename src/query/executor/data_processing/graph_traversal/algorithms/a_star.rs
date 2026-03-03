@@ -11,8 +11,10 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-use super::types::{AlgorithmStats, EdgeWeightConfig, HeuristicFunction, SelfLoopDedup, has_duplicate_edges};
 use super::traits::ShortestPathAlgorithm;
+use super::types::{
+    has_duplicate_edges, AlgorithmStats, EdgeWeightConfig, HeuristicFunction, SelfLoopDedup,
+};
 
 /// A*算法节点
 #[derive(Debug, Clone)]
@@ -36,7 +38,10 @@ impl PartialEq for AStarNode {
 
 impl Ord for AStarNode {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        other.f_cost.partial_cmp(&self.f_cost).unwrap_or(std::cmp::Ordering::Equal)
+        other
+            .f_cost
+            .partial_cmp(&self.f_cost)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 
@@ -88,15 +93,14 @@ impl<S: StorageClient> AStar<S> {
         match &self.weight_config {
             EdgeWeightConfig::Unweighted => 1.0,
             EdgeWeightConfig::Ranking => edge.ranking as f64,
-            EdgeWeightConfig::Property(prop_name) => {
-                edge.get_property(prop_name)
-                    .map(|v| match v {
-                        crate::core::Value::Int(i) => *i as f64,
-                        crate::core::Value::Float(f) => *f,
-                        _ => 1.0,
-                    })
-                    .unwrap_or(1.0)
-            }
+            EdgeWeightConfig::Property(prop_name) => edge
+                .get_property(prop_name)
+                .map(|v| match v {
+                    crate::core::Value::Int(i) => *i as f64,
+                    crate::core::Value::Float(f) => *f,
+                    _ => 1.0,
+                })
+                .unwrap_or(1.0),
         }
     }
 
@@ -312,7 +316,9 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
 
             // 检查是否到达终点
             if end_ids.contains(&current.vertex_id) {
-                if let Some(path) = self.reconstruct_path(&current.vertex_id, &previous_map, start_ids)? {
+                if let Some(path) =
+                    self.reconstruct_path(&current.vertex_id, &previous_map, start_ids)?
+                {
                     if !has_duplicate_edges(&path) {
                         result_paths.push(path);
                     }
@@ -341,7 +347,10 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
 
                 if tentative_g_cost < *existing_g_cost {
                     g_cost_map.insert(neighbor_id.clone(), tentative_g_cost);
-                    previous_map.insert(neighbor_id.clone(), (current.vertex_id.clone(), edge.clone()));
+                    previous_map.insert(
+                        neighbor_id.clone(),
+                        (current.vertex_id.clone(), edge.clone()),
+                    );
 
                     let h_cost = self.calculate_heuristic(&neighbor_id, end_ids)?;
                     let f_cost = tentative_g_cost + h_cost;

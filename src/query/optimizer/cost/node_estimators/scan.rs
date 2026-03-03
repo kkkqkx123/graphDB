@@ -6,12 +6,12 @@
 //! - IndexScan
 //! - EdgeIndexScan
 
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
+use super::NodeEstimator;
+use crate::core::error::optimize::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::core::error::optimize::CostError;
-use super::NodeEstimator;
+use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 扫描操作估算器
 pub struct ScanEstimator<'a> {
@@ -68,7 +68,11 @@ impl<'a> ScanEstimator<'a> {
     /// 从 IndexScan 节点获取标签名称
     fn get_tag_name_from_index_scan(&self, node: &IndexScan) -> String {
         // 尝试通过 tag_id 获取标签名称
-        if let Some(tag_name) = self.cost_calculator.statistics_manager().get_tag_name_by_id(node.tag_id) {
+        if let Some(tag_name) = self
+            .cost_calculator
+            .statistics_manager()
+            .get_tag_name_by_id(node.tag_id)
+        {
             return tag_name;
         }
 
@@ -102,13 +106,19 @@ impl<'a> NodeEstimator for ScanEstimator<'a> {
         match node {
             PlanNodeEnum::ScanVertices(n) => {
                 let tag_name = n.tag().map(|s| s.as_str()).unwrap_or("default");
-                let row_count = self.cost_calculator.statistics_manager().get_vertex_count(tag_name);
+                let row_count = self
+                    .cost_calculator
+                    .statistics_manager()
+                    .get_vertex_count(tag_name);
                 let cost = self.cost_calculator.calculate_scan_vertices_cost(tag_name);
                 Ok((cost, row_count.max(1)))
             }
             PlanNodeEnum::ScanEdges(n) => {
                 let edge_type = n.edge_type().unwrap_or_else(|| "default".to_string());
-                let row_count = self.cost_calculator.statistics_manager().get_edge_count(&edge_type);
+                let row_count = self
+                    .cost_calculator
+                    .statistics_manager()
+                    .get_edge_count(&edge_type);
                 let cost = self.cost_calculator.calculate_scan_edges_cost(&edge_type);
                 Ok((cost, row_count.max(1)))
             }
@@ -116,24 +126,35 @@ impl<'a> NodeEstimator for ScanEstimator<'a> {
                 let selectivity = self.estimate_index_scan_selectivity(n);
                 let tag_name = self.get_tag_name_from_index_scan(n);
                 let property_name = self.get_property_name_from_index_scan(n);
-                let table_rows = self.cost_calculator.statistics_manager().get_vertex_count(&tag_name);
+                let table_rows = self
+                    .cost_calculator
+                    .statistics_manager()
+                    .get_vertex_count(&tag_name);
                 let output_rows = (selectivity * table_rows as f64).max(1.0) as u64;
-                let cost = self.cost_calculator
-                    .calculate_index_scan_cost(&tag_name, &property_name, selectivity);
+                let cost = self.cost_calculator.calculate_index_scan_cost(
+                    &tag_name,
+                    &property_name,
+                    selectivity,
+                );
                 Ok((cost, output_rows))
             }
             PlanNodeEnum::EdgeIndexScan(n) => {
                 let edge_type = n.edge_type();
                 let selectivity = self.estimate_edge_index_scan_selectivity(n);
-                let edge_count = self.cost_calculator.statistics_manager().get_edge_count(edge_type);
+                let edge_count = self
+                    .cost_calculator
+                    .statistics_manager()
+                    .get_edge_count(edge_type);
                 let output_rows = (selectivity * edge_count as f64).max(1.0) as u64;
-                let cost = self.cost_calculator
+                let cost = self
+                    .cost_calculator
                     .calculate_edge_index_scan_cost(edge_type, selectivity);
                 Ok((cost, output_rows))
             }
-            _ => Err(CostError::UnsupportedNodeType(
-                format!("扫描估算器不支持节点类型: {:?}", std::mem::discriminant(node))
-            )),
+            _ => Err(CostError::UnsupportedNodeType(format!(
+                "扫描估算器不支持节点类型: {:?}",
+                std::mem::discriminant(node)
+            ))),
         }
     }
 }

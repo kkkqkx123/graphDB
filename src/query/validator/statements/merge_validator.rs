@@ -7,14 +7,14 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{MergeStmt, SetClause};
 use crate::query::parser::ast::Pattern;
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::query::validator::structs::validation_info::ValidationInfo;
-use crate::query::validator::structs::AliasType;
+use crate::query::QueryContext;
 
 /// Merge 语句验证器
 #[derive(Debug)]
@@ -155,7 +155,10 @@ impl MergeValidator {
         let first_char = name.chars().next().expect("变量名已验证非空");
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
-                format!("Variable name must start with a letter or underscore: {}", name),
+                format!(
+                    "Variable name must start with a letter or underscore: {}",
+                    name
+                ),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -176,7 +179,10 @@ impl MergeValidator {
         let first_char = name.chars().next().expect("属性名已验证非空");
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
-                format!("Property name must start with a letter or underscore: {}", name),
+                format!(
+                    "Property name must start with a letter or underscore: {}",
+                    name
+                ),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -207,10 +213,7 @@ impl MergeValidator {
     }
 
     /// 验证属性表达式
-    fn validate_properties(
-        &self,
-        props: &ContextualExpression,
-    ) -> Result<(), ValidationError> {
+    fn validate_properties(&self, props: &ContextualExpression) -> Result<(), ValidationError> {
         if let Some(e) = props.get_expression() {
             self.validate_properties_internal(&e)
         } else {
@@ -221,10 +224,7 @@ impl MergeValidator {
         }
     }
 
-    fn validate_properties_internal(
-        &self,
-        props: &Expression,
-    ) -> Result<(), ValidationError> {
+    fn validate_properties_internal(&self, props: &Expression) -> Result<(), ValidationError> {
         match props {
             Expression::Map(items) => {
                 if items.is_empty() {
@@ -233,7 +233,7 @@ impl MergeValidator {
                         ValidationErrorType::SemanticError,
                     ));
                 }
-                
+
                 for (key, value) in items {
                     self.validate_property_name(key)?;
                     self.validate_expression_recursive(value)?;
@@ -248,10 +248,7 @@ impl MergeValidator {
     }
 
     /// 验证属性值
-    fn validate_property_value(
-        &self,
-        value: &ContextualExpression,
-    ) -> Result<(), ValidationError> {
+    fn validate_property_value(&self, value: &ContextualExpression) -> Result<(), ValidationError> {
         if let Some(e) = value.get_expression() {
             self.validate_property_value_internal(&e)
         } else {
@@ -262,13 +259,10 @@ impl MergeValidator {
         }
     }
 
-    fn validate_property_value_internal(
-        &self,
-        value: &Expression,
-    ) -> Result<(), ValidationError> {
+    fn validate_property_value_internal(&self, value: &Expression) -> Result<(), ValidationError> {
         self.validate_expression_recursive(value)
     }
-    
+
     /// 递归验证表达式
     fn validate_expression_recursive(&self, expr: &Expression) -> Result<(), ValidationError> {
         match expr {
@@ -336,12 +330,19 @@ impl MergeValidator {
                 self.validate_expression_recursive(expression)?;
                 Ok(())
             }
-            Expression::Subscript { collection, index, .. } => {
+            Expression::Subscript {
+                collection, index, ..
+            } => {
                 self.validate_expression_recursive(collection)?;
                 self.validate_expression_recursive(index)?;
                 Ok(())
             }
-            Expression::Range { collection, start, end, .. } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+                ..
+            } => {
                 self.validate_expression_recursive(collection)?;
                 if let Some(s) = start {
                     self.validate_expression_recursive(s)?;
@@ -358,7 +359,12 @@ impl MergeValidator {
                 Ok(())
             }
             Expression::Label(_) => Ok(()),
-            Expression::ListComprehension { source, filter, map, .. } => {
+            Expression::ListComprehension {
+                source,
+                filter,
+                map,
+                ..
+            } => {
                 self.validate_expression_recursive(source)?;
                 if let Some(f) = filter {
                     self.validate_expression_recursive(f)?;
@@ -380,7 +386,12 @@ impl MergeValidator {
                 }
                 Ok(())
             }
-            Expression::Reduce { initial, source, mapping, .. } => {
+            Expression::Reduce {
+                initial,
+                source,
+                mapping,
+                ..
+            } => {
                 self.validate_expression_recursive(initial)?;
                 self.validate_expression_recursive(source)?;
                 self.validate_expression_recursive(mapping)?;
@@ -441,12 +452,10 @@ impl MergeValidator {
 
     fn setup_outputs(&mut self) {
         // MERGE 语句返回创建的/匹配的节点或边
-        self.outputs = vec![
-            ColumnDef {
-                name: "result".to_string(),
-                type_: ValueType::Vertex, // 可能是顶点或边
-            },
-        ];
+        self.outputs = vec![ColumnDef {
+            name: "result".to_string(),
+            type_: ValueType::Vertex, // 可能是顶点或边
+        }];
     }
 
     fn extract_pattern_info(&self, pattern: &Pattern, info: &mut ValidationInfo) {
@@ -484,7 +493,11 @@ impl MergeValidator {
         }
     }
 
-    fn extract_path_element_info(&self, element: &crate::query::parser::ast::PathElement, info: &mut ValidationInfo) {
+    fn extract_path_element_info(
+        &self,
+        element: &crate::query::parser::ast::PathElement,
+        info: &mut ValidationInfo,
+    ) {
         use crate::query::parser::ast::PathElement;
 
         match element {
@@ -600,12 +613,12 @@ mod tests {
     #[test]
     fn test_validate_variable_name() {
         let validator = MergeValidator::new();
-        
+
         // 有效变量名
         assert!(validator.validate_variable_name("n").is_ok());
         assert!(validator.validate_variable_name("node1").is_ok());
         assert!(validator.validate_variable_name("_node").is_ok());
-        
+
         // 无效变量名
         assert!(validator.validate_variable_name("").is_err());
         assert!(validator.validate_variable_name("1node").is_err());
@@ -614,10 +627,10 @@ mod tests {
     #[test]
     fn test_validate_label_name() {
         let validator = MergeValidator::new();
-        
+
         // 有效标签名
         assert!(validator.validate_label_name("Person").is_ok());
-        
+
         // 无效标签名
         assert!(validator.validate_label_name("").is_err());
     }

@@ -2,13 +2,13 @@
 //!
 //! 提供标签索引的创建、删除、描述和列出功能。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::{DataSet, Value};
 use crate::index::{Index, IndexType};
-use crate::storage::iterator::Row;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
 /// 标签索引描述信息
@@ -87,21 +87,43 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagIndexExe
                 if self.if_not_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Index '{}' already exists", self.index_info.name)))
+                    Ok(ExecutionResult::Error(format!(
+                        "Index '{}' already exists",
+                        self.index_info.name
+                    )))
                 }
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to create tag index: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to create tag index: {}",
+                e
+            ))),
         }
     }
 
-    fn open(&mut self) -> crate::query::executor::base::DBResult<()> { self.base.open() }
-    fn close(&mut self) -> crate::query::executor::base::DBResult<()> { self.base.close() }
-    fn is_open(&self) -> bool { self.base.is_open() }
-    fn id(&self) -> i64 { self.base.id }
-    fn name(&self) -> &str { "CreateTagIndexExecutor" }
-    fn description(&self) -> &str { "Creates a tag index" }
-    fn stats(&self) -> &crate::query::executor::base::ExecutorStats { self.base.get_stats() }
-    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
+    fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.open()
+    }
+    fn close(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.close()
+    }
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+    fn name(&self) -> &str {
+        "CreateTagIndexExecutor"
+    }
+    fn description(&self) -> &str {
+        "Creates a tag index"
+    }
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
+        self.base.get_stats()
+    }
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ShowTagIndexesExecutor<S> {
@@ -135,7 +157,12 @@ impl<S: StorageClient> DropTagIndexExecutor<S> {
         }
     }
 
-    pub fn with_if_exists(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String) -> Self {
+    pub fn with_if_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_name: String,
+        index_name: String,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropTagIndexExecutor".to_string(), storage),
             space_name,
@@ -158,21 +185,43 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagIndexExecu
                 if self.if_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Index '{}' not found", self.index_name)))
+                    Ok(ExecutionResult::Error(format!(
+                        "Index '{}' not found",
+                        self.index_name
+                    )))
                 }
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to drop tag index: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to drop tag index: {}",
+                e
+            ))),
         }
     }
 
-    fn open(&mut self) -> crate::query::executor::base::DBResult<()> { self.base.open() }
-    fn close(&mut self) -> crate::query::executor::base::DBResult<()> { self.base.close() }
-    fn is_open(&self) -> bool { self.base.is_open() }
-    fn id(&self) -> i64 { self.base.id }
-    fn name(&self) -> &str { "DropTagIndexExecutor" }
-    fn description(&self) -> &str { "Drops a tag index" }
-    fn stats(&self) -> &crate::query::executor::base::ExecutorStats { self.base.get_stats() }
-    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
+    fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.open()
+    }
+    fn close(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.close()
+    }
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+    fn name(&self) -> &str {
+        "DropTagIndexExecutor"
+    }
+    fn description(&self) -> &str {
+        "Drops a tag index"
+    }
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
+        self.base.get_stats()
+    }
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropTagIndexExecutor<S> {
@@ -209,34 +258,59 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescTagIndexExecu
         match result {
             Ok(Some(desc)) => {
                 let desc = TagIndexDesc::from_metadata(&desc);
-                let rows = vec![
-                    vec![
-                        Value::String(desc.index_name),
-                        Value::String(desc.tag_name),
-                        Value::String(desc.fields.join(", ")),
-                        Value::String(desc.comment.unwrap_or_else(|| "".to_string())),
-                    ]
-                ];
+                let rows = vec![vec![
+                    Value::String(desc.index_name),
+                    Value::String(desc.tag_name),
+                    Value::String(desc.fields.join(", ")),
+                    Value::String(desc.comment.unwrap_or_else(|| "".to_string())),
+                ]];
 
                 let dataset = DataSet {
-                    col_names: vec!["Index Name".to_string(), "Tag Name".to_string(), "Fields".to_string(), "Comment".to_string()],
+                    col_names: vec![
+                        "Index Name".to_string(),
+                        "Tag Name".to_string(),
+                        "Fields".to_string(),
+                        "Comment".to_string(),
+                    ],
                     rows,
                 };
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            Ok(None) => Ok(ExecutionResult::Error(format!("Index '{}' not found", self.index_name))),
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to describe tag index: {}", e))),
+            Ok(None) => Ok(ExecutionResult::Error(format!(
+                "Index '{}' not found",
+                self.index_name
+            ))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to describe tag index: {}",
+                e
+            ))),
         }
     }
 
-    fn open(&mut self) -> crate::query::executor::base::DBResult<()> { self.base.open() }
-    fn close(&mut self) -> crate::query::executor::base::DBResult<()> { self.base.close() }
-    fn is_open(&self) -> bool { self.base.is_open() }
-    fn id(&self) -> i64 { self.base.id }
-    fn name(&self) -> &str { "DescTagIndexExecutor" }
-    fn description(&self) -> &str { "Describes a tag index" }
-    fn stats(&self) -> &crate::query::executor::base::ExecutorStats { self.base.get_stats() }
-    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
+    fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.open()
+    }
+    fn close(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.close()
+    }
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+    fn name(&self) -> &str {
+        "DescTagIndexExecutor"
+    }
+    fn description(&self) -> &str {
+        "Describes a tag index"
+    }
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
+        self.base.get_stats()
+    }
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }
 
 impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescTagIndexExecutor<S> {
@@ -283,21 +357,44 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagIndexesExe
                     .collect();
 
                 let dataset = DataSet {
-                    col_names: vec!["Index Name".to_string(), "Tag Name".to_string(), "Fields".to_string()],
+                    col_names: vec![
+                        "Index Name".to_string(),
+                        "Tag Name".to_string(),
+                        "Fields".to_string(),
+                    ],
                     rows,
                 };
                 Ok(ExecutionResult::DataSet(dataset))
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to show tag indexes: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to show tag indexes: {}",
+                e
+            ))),
         }
     }
 
-    fn open(&mut self) -> crate::query::executor::base::DBResult<()> { self.base.open() }
-    fn close(&mut self) -> crate::query::executor::base::DBResult<()> { self.base.close() }
-    fn is_open(&self) -> bool { self.base.is_open() }
-    fn id(&self) -> i64 { self.base.id }
-    fn name(&self) -> &str { "ShowTagIndexesExecutor" }
-    fn description(&self) -> &str { "Shows all tag indexes" }
-    fn stats(&self) -> &crate::query::executor::base::ExecutorStats { self.base.get_stats() }
-    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
+    fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.open()
+    }
+    fn close(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.close()
+    }
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+    fn name(&self) -> &str {
+        "ShowTagIndexesExecutor"
+    }
+    fn description(&self) -> &str {
+        "Shows all tag indexes"
+    }
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
+        self.base.get_stats()
+    }
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
+        self.base.get_stats_mut()
+    }
 }

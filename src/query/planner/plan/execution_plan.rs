@@ -60,7 +60,7 @@ impl ExecutionPlan {
     pub fn set_format(&mut self, format: String) {
         self.format = format;
     }
-    
+
     /// 计算计划中的节点数量
     /// 递归遍历整个执行计划树，统计所有节点
     pub fn node_count(&self) -> usize {

@@ -6,13 +6,13 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::RemoveStmt;
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::query::validator::structs::validation_info::ValidationInfo;
-use crate::query::validator::structs::AliasType;
+use crate::query::QueryContext;
 
 /// Remove 语句验证器
 #[derive(Debug)]
@@ -37,15 +37,13 @@ impl RemoveValidator {
     }
 
     /// 验证移除项
-    fn validate_remove_item(
-        &self,
-        item: &ContextualExpression,
-    ) -> Result<(), ValidationError> {
-        let expr_meta = item.expression()
-            .ok_or_else(|| ValidationError::new(
+    fn validate_remove_item(&self, item: &ContextualExpression) -> Result<(), ValidationError> {
+        let expr_meta = item.expression().ok_or_else(|| {
+            ValidationError::new(
                 "移除项表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
-            ))?;
+            )
+        })?;
         let expr = expr_meta.inner();
         self.validate_remove_item_internal(expr)
     }
@@ -63,9 +61,7 @@ impl RemoveValidator {
                 self.validate_property_access_internal(object, property)
             }
             // 变量本身: REMOVE n (移除节点)
-            Expression::Variable(var) => {
-                self.validate_variable_remove(var)
-            }
+            Expression::Variable(var) => self.validate_variable_remove(var),
             _ => Err(ValidationError::new(
                 format!("Invalid REMOVE expression: {:?}", item),
                 ValidationErrorType::SemanticError,
@@ -79,11 +75,12 @@ impl RemoveValidator {
         object: &ContextualExpression,
         property: &str,
     ) -> Result<(), ValidationError> {
-        let expr_meta = object.expression()
-            .ok_or_else(|| ValidationError::new(
+        let expr_meta = object.expression().ok_or_else(|| {
+            ValidationError::new(
                 "属性访问对象表达式无效".to_string(),
                 ValidationErrorType::SemanticError,
-            ))?;
+            )
+        })?;
         let expr = expr_meta.inner();
         self.validate_property_access_internal(expr, property)
     }
@@ -161,12 +158,10 @@ impl RemoveValidator {
 
     fn setup_outputs(&mut self) {
         // REMOVE 语句返回被移除的项数
-        self.outputs = vec![
-            ColumnDef {
-                name: "removed_count".to_string(),
-                type_: ValueType::Int,
-            },
-        ];
+        self.outputs = vec![ColumnDef {
+            name: "removed_count".to_string(),
+            type_: ValueType::Int,
+        }];
     }
 
     /// 设置输入列（从父查询传递的列）
@@ -211,8 +206,13 @@ impl StatementValidator for RemoveValidator {
             if let Some(expr_meta) = item.expression() {
                 let expr = expr_meta.inner();
                 match expr {
-                    crate::core::types::expression::Expression::Property { object, property: _ } => {
-                        if let crate::core::types::expression::Expression::Variable(var_name) = object.as_ref() {
+                    crate::core::types::expression::Expression::Property {
+                        object,
+                        property: _,
+                    } => {
+                        if let crate::core::types::expression::Expression::Variable(var_name) =
+                            object.as_ref()
+                        {
                             info.add_alias(var_name.clone(), AliasType::Node);
                         }
                     }
@@ -256,8 +256,8 @@ impl StatementValidator for RemoveValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {

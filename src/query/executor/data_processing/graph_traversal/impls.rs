@@ -103,7 +103,9 @@ impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPat
         // 验证算法选择是否有效
         let algorithm = self.get_algorithm();
         match algorithm {
-            ShortestPathAlgorithmType::BFS | ShortestPathAlgorithmType::Dijkstra | ShortestPathAlgorithmType::AStar => {
+            ShortestPathAlgorithmType::BFS
+            | ShortestPathAlgorithmType::Dijkstra
+            | ShortestPathAlgorithmType::AStar => {
                 // 所有枚举变体都是有效的
             }
         }

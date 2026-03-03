@@ -8,7 +8,7 @@ use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::{GraphDatabaseInner, Session};
 use crate::core::Value;
 use crate::storage::{RedbStorage, StorageClient};
-use crate::transaction::{TransactionManager, TransactionManagerConfig, SavepointManager};
+use crate::transaction::{SavepointManager, TransactionManager, TransactionManagerConfig};
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::Path;
@@ -83,16 +83,14 @@ impl GraphDatabase<RedbStorage> {
     /// - 失败时返回错误
     pub fn open_with_config(config: DatabaseConfig) -> CoreResult<Self> {
         let storage = if config.is_memory() {
-            RedbStorage::new().map_err(|e| {
-                CoreError::StorageError(format!("初始化内存存储失败: {}", e))
-            })?
+            RedbStorage::new()
+                .map_err(|e| CoreError::StorageError(format!("初始化内存存储失败: {}", e)))?
         } else {
-            let path = config.path().ok_or_else(|| {
-                CoreError::StorageError("数据库路径为空".to_string())
-            })?;
-            RedbStorage::new_with_path(path.to_path_buf()).map_err(|e| {
-                CoreError::StorageError(format!("初始化存储失败: {}", e))
-            })?
+            let path = config
+                .path()
+                .ok_or_else(|| CoreError::StorageError("数据库路径为空".to_string()))?;
+            RedbStorage::new_with_path(path.to_path_buf())
+                .map_err(|e| CoreError::StorageError(format!("初始化存储失败: {}", e)))?
         };
 
         let storage = Arc::new(Mutex::new(storage));
@@ -115,10 +113,7 @@ impl GraphDatabase<RedbStorage> {
             storage,
         });
 
-        Ok(Self {
-            inner,
-            config,
-        })
+        Ok(Self { inner, config })
     }
 }
 

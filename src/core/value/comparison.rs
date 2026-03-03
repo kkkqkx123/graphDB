@@ -1,7 +1,7 @@
-use super::types::{NullType, Value};
-use super::date_time::{DateValue, DateTimeValue, DurationValue, TimeValue};
 use super::dataset::DataSet;
+use super::date_time::{DateTimeValue, DateValue, DurationValue, TimeValue};
 use super::geography::GeographyValue;
+use super::types::{NullType, Value};
 use crate::core::DataType;
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
@@ -388,7 +388,11 @@ impl Value {
             DataType::Empty => 0,
             DataType::Null => 1,
             DataType::Bool => 2,
-            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => 3,
+            DataType::Int
+            | DataType::Int8
+            | DataType::Int16
+            | DataType::Int32
+            | DataType::Int64 => 3,
             DataType::Float | DataType::Double => 4,
             DataType::String => 5,
             DataType::FixedString(_) => 5,

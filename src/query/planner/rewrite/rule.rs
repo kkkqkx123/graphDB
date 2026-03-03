@@ -223,7 +223,7 @@ mod tests {
     fn test_rule_matches() {
         let rule = TestRule;
         let node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
-        
+
         assert!(rule.matches(&node));
     }
 
@@ -231,7 +231,7 @@ mod tests {
     fn test_rule_wrapper() {
         let rule = TestRule;
         let wrapper = rule.into_wrapper();
-        
+
         assert_eq!(wrapper.name(), "TestRule");
     }
 }

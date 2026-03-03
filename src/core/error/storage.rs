@@ -46,10 +46,7 @@ pub enum StorageError {
 
 impl StorageError {
     pub fn is_retryable(&self) -> bool {
-        matches!(
-            self,
-            StorageError::LockTimeout(_) | StorageError::Deadlock
-        )
+        matches!(self, StorageError::LockTimeout(_) | StorageError::Deadlock)
     }
 }
 
@@ -90,9 +87,9 @@ impl ToPublicError for StorageError {
 
     fn to_error_code(&self) -> ErrorCode {
         match self {
-            StorageError::NodeNotFound(_) | StorageError::EdgeNotFound(_) | StorageError::NotFound(_) => {
-                ErrorCode::ResourceNotFound
-            }
+            StorageError::NodeNotFound(_)
+            | StorageError::EdgeNotFound(_)
+            | StorageError::NotFound(_) => ErrorCode::ResourceNotFound,
             StorageError::AlreadyExists(_) => ErrorCode::ResourceAlreadyExists,
             StorageError::InvalidInput(_) => ErrorCode::InvalidInput,
             StorageError::LockTimeout(_) => ErrorCode::Timeout,

@@ -147,10 +147,10 @@ mod tests {
 
     #[test]
     fn test_merge_get_vertices_and_project() {
-        use std::sync::Arc;
-        use crate::core::types::expression::ExpressionMeta;
         use crate::core::types::expression::ExpressionContext;
-        
+        use crate::core::types::expression::ExpressionMeta;
+        use std::sync::Arc;
+
         // 创建起始节点
         let start = PlanNodeEnum::Start(StartNode::new());
 
@@ -162,7 +162,7 @@ mod tests {
         let vid_meta = ExpressionMeta::new(vid_expr);
         let vid_id = expr_ctx.register_expression(vid_meta);
         let vid_ctx_expr = ContextualExpression::new(vid_id, expr_ctx);
-        
+
         let columns = vec![YieldColumn {
             expression: vid_ctx_expr,
             alias: "v".to_string(),
@@ -184,11 +184,10 @@ mod tests {
         // 应用规则
         let rule = MergeGetVerticesAndProjectRule::new();
         let mut ctx = RewriteContext::new();
-        let result = rule.apply(&mut ctx, &get_vertices_node).expect("应用规则失败");
+        let result = rule
+            .apply(&mut ctx, &get_vertices_node)
+            .expect("应用规则失败");
 
-        assert!(
-            result.is_some(),
-            "应该成功合并GetVertices和Project节点"
-        );
+        assert!(result.is_some(), "应该成功合并GetVertices和Project节点");
     }
 }

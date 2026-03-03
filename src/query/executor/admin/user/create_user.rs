@@ -2,8 +2,8 @@
 //!
 //! 负责创建新的数据库用户。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::types::UserInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -50,7 +50,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateUserExecuto
                     Ok(ExecutionResult::Success)
                 } else {
                     Err(crate::core::error::DBError::Storage(
-                        crate::core::StorageError::DbError("User already exists".to_string())
+                        crate::core::StorageError::DbError("User already exists".to_string()),
                     ))
                 }
             }
@@ -100,12 +100,14 @@ impl<S: StorageClient> HasStorage<S> for CreateUserExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_create_user_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
             .expect("Failed to create user info");
         let mut executor = CreateUserExecutor::new(1, storage, user_info);
@@ -120,7 +122,9 @@ mod tests {
 
     #[test]
     fn test_create_user_executor_if_not_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
             .expect("Failed to create user info");
         let mut executor = CreateUserExecutor::with_if_not_exists(2, storage, user_info);
@@ -131,7 +135,9 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
             .expect("Failed to create user info");
         let mut executor = CreateUserExecutor::new(3, storage, user_info);
@@ -145,7 +151,9 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
             .expect("Failed to create user info");
         let executor = CreateUserExecutor::new(4, storage, user_info);

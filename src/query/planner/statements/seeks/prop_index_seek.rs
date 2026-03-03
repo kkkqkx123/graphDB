@@ -23,13 +23,13 @@ pub struct PropertyPredicate {
 /// 谓词操作类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PredicateOp {
-    Eq,      // =
-    Ne,      // !=
-    Lt,      // <
-    Le,      // <=
-    Gt,      // >
-    Ge,      // >=
-    In,      // IN
+    Eq,         // =
+    Ne,         // !=
+    Lt,         // <
+    Le,         // <=
+    Gt,         // >
+    Ge,         // >=
+    In,         // IN
     StartsWith, // STARTS WITH
 }
 
@@ -51,7 +51,10 @@ impl PredicateOp {
 
     /// 检查是否为范围操作
     pub fn is_range(&self) -> bool {
-        matches!(self, PredicateOp::Lt | PredicateOp::Le | PredicateOp::Gt | PredicateOp::Ge)
+        matches!(
+            self,
+            PredicateOp::Lt | PredicateOp::Le | PredicateOp::Gt | PredicateOp::Ge
+        )
     }
 
     /// 检查是否为等值操作
@@ -74,20 +77,20 @@ impl PropIndexSeek {
     /// 从表达式列表提取属性谓词
     pub fn extract_predicates(expressions: &[crate::core::Expression]) -> Vec<PropertyPredicate> {
         let mut predicates = Vec::new();
-        
+
         for expr in expressions {
             if let Some(pred) = Self::extract_predicate(expr) {
                 predicates.push(pred);
             }
         }
-        
+
         predicates
     }
 
     /// 从单个表达式提取属性谓词
     fn extract_predicate(expr: &crate::core::Expression) -> Option<PropertyPredicate> {
         use crate::core::types::operators::BinaryOperator;
-        
+
         match expr {
             crate::core::Expression::Binary { op, left, right } => {
                 let op_str = match op {
@@ -99,9 +102,11 @@ impl PropIndexSeek {
                     BinaryOperator::GreaterThanOrEqual => ">=",
                     _ => return None,
                 };
-                
+
                 // 尝试提取属性名和值
-                if let (Some(prop), Some(val)) = (Self::extract_property(left), Self::extract_value(right)) {
+                if let (Some(prop), Some(val)) =
+                    (Self::extract_property(left), Self::extract_value(right))
+                {
                     if let Some(pred_op) = PredicateOp::from_str(op_str) {
                         return Some(PropertyPredicate {
                             property: prop,
@@ -110,9 +115,11 @@ impl PropIndexSeek {
                         });
                     }
                 }
-                
+
                 // 交换左右尝试
-                if let (Some(prop), Some(val)) = (Self::extract_property(right), Self::extract_value(left)) {
+                if let (Some(prop), Some(val)) =
+                    (Self::extract_property(right), Self::extract_value(left))
+                {
                     let swapped_op = match op_str {
                         "<" => PredicateOp::Gt,
                         "<=" => PredicateOp::Ge,
@@ -126,7 +133,7 @@ impl PropIndexSeek {
                         value: val,
                     });
                 }
-                
+
                 None
             }
             _ => None,
@@ -157,7 +164,10 @@ impl PropIndexSeek {
     }
 
     /// 查找适合属性谓词的索引
-    fn find_best_index<'a>(&'a self, context: &'a SeekStrategyContext) -> Option<(&'a IndexInfo, &'a PropertyPredicate)> {
+    fn find_best_index<'a>(
+        &'a self,
+        context: &'a SeekStrategyContext,
+    ) -> Option<(&'a IndexInfo, &'a PropertyPredicate)> {
         for pred in &self.predicates {
             if let Some(index) = context.get_index_for_property(&pred.property) {
                 return Some((index, pred));
@@ -171,10 +181,18 @@ impl PropIndexSeek {
         match pred.op {
             PredicateOp::Eq => value == &pred.value,
             PredicateOp::Ne => value != &pred.value,
-            PredicateOp::Lt => Self::compare_values(value, &pred.value).map(|c| c < 0).unwrap_or(false),
-            PredicateOp::Le => Self::compare_values(value, &pred.value).map(|c| c <= 0).unwrap_or(false),
-            PredicateOp::Gt => Self::compare_values(value, &pred.value).map(|c| c > 0).unwrap_or(false),
-            PredicateOp::Ge => Self::compare_values(value, &pred.value).map(|c| c >= 0).unwrap_or(false),
+            PredicateOp::Lt => Self::compare_values(value, &pred.value)
+                .map(|c| c < 0)
+                .unwrap_or(false),
+            PredicateOp::Le => Self::compare_values(value, &pred.value)
+                .map(|c| c <= 0)
+                .unwrap_or(false),
+            PredicateOp::Gt => Self::compare_values(value, &pred.value)
+                .map(|c| c > 0)
+                .unwrap_or(false),
+            PredicateOp::Ge => Self::compare_values(value, &pred.value)
+                .map(|c| c >= 0)
+                .unwrap_or(false),
             PredicateOp::In => {
                 // IN 操作需要值是列表
                 matches!(&pred.value, Value::List(list) if list.contains(value))
@@ -221,7 +239,7 @@ impl SeekStrategy for PropIndexSeek {
             // 过滤满足所有谓词的顶点
             for vertex in vertices {
                 let mut matches_all = true;
-                
+
                 // 检查主谓词
                 if let Some(prop_value) = vertex.get_property_any(&primary_pred.property) {
                     if !self.value_matches(prop_value, primary_pred) {
@@ -278,7 +296,10 @@ mod tests {
         assert_eq!(PredicateOp::from_str("<"), Some(PredicateOp::Lt));
         assert_eq!(PredicateOp::from_str(">="), Some(PredicateOp::Ge));
         assert_eq!(PredicateOp::from_str("IN"), Some(PredicateOp::In));
-        assert_eq!(PredicateOp::from_str("STARTS WITH"), Some(PredicateOp::StartsWith));
+        assert_eq!(
+            PredicateOp::from_str("STARTS WITH"),
+            Some(PredicateOp::StartsWith)
+        );
         assert_eq!(PredicateOp::from_str("unknown"), None);
     }
 
@@ -292,7 +313,7 @@ mod tests {
 
         let pred = PropIndexSeek::extract_predicate(&expr);
         assert!(pred.is_some());
-        
+
         let pred = pred.expect("Failed to extract predicate");
         assert_eq!(pred.property, "age");
         assert_eq!(pred.op, PredicateOp::Eq);
@@ -302,13 +323,13 @@ mod tests {
     #[test]
     fn test_value_matches() {
         let seek = PropIndexSeek::new(vec![]);
-        
+
         let pred = PropertyPredicate {
             property: "age".to_string(),
             op: PredicateOp::Gt,
             value: Value::Int(18),
         };
-        
+
         assert!(seek.value_matches(&Value::Int(20), &pred));
         assert!(!seek.value_matches(&Value::Int(18), &pred));
         assert!(!seek.value_matches(&Value::Int(15), &pred));

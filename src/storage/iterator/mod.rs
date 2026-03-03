@@ -13,21 +13,24 @@
 //! - CompositeIter: 组合迭代器
 //! - Predicate: 谓词下推支持
 
+pub mod composite;
 pub mod default_iter;
 pub mod get_neighbors_iter;
+pub mod predicate;
 pub mod prop_iter;
 pub mod sequential_iter;
 pub mod storage_iter;
-pub mod composite;
-pub mod predicate;
 
+pub use composite::{CompositeIter, FilterIter, MapIter, SkipIter, TakeIter};
 pub use default_iter::DefaultIter;
 pub use get_neighbors_iter::GetNeighborsIter;
+pub use predicate::{
+    CompareOp, CompoundPredicate, Expression, LogicalOp, PredicateEnum, PredicateOptimizer,
+    PushdownResult, SimplePredicate,
+};
 pub use prop_iter::PropIter;
 pub use sequential_iter::SequentialIter;
 pub use storage_iter::VecPairIterator;
-pub use composite::{CompositeIter, FilterIter, MapIter, TakeIter, SkipIter};
-pub use predicate::{PredicateEnum, Expression, SimplePredicate, CompoundPredicate, PredicateOptimizer, PushdownResult, CompareOp, LogicalOp};
 
 /// 存储引擎迭代器接口
 /// 用于底层KV存储的迭代操作

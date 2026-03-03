@@ -2,16 +2,17 @@
 //!
 //! 负责在指定图空间中创建新的标签。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
-use crate::core::types::{TagInfo, PropertyDef};
+use crate::core::types::{PropertyDef, TagInfo};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
 impl TagInfo {
     pub fn from_executor(executor_info: &ExecutorTagInfo) -> Self {
-        let properties: Vec<PropertyDef> = executor_info.properties
+        let properties: Vec<PropertyDef> = executor_info
+            .properties
             .iter()
             .map(|p| PropertyDef {
                 name: p.name.clone(),
@@ -21,7 +22,7 @@ impl TagInfo {
                 comment: None,
             })
             .collect();
-        
+
         Self {
             tag_id: 0,
             tag_name: executor_info.tag_name.clone(),
@@ -107,11 +108,16 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor
                 if self.if_not_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Tag '{}' already exists in space '{}'",
-                        self.tag_info.tag_name, self.tag_info.space_name)))
+                    Ok(ExecutionResult::Error(format!(
+                        "Tag '{}' already exists in space '{}'",
+                        self.tag_info.tag_name, self.tag_info.space_name
+                    )))
                 }
             }
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to create tag: {}", e))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to create tag: {}",
+                e
+            ))),
         }
     }
 

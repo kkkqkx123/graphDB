@@ -3,9 +3,9 @@
 //! 负责处理模式匹配操作，支持 EXISTS 和 NOT EXISTS 语义
 //! 将左输入数据与右输入数据进行键匹配
 
+use parking_lot::Mutex;
 use std::collections::HashSet;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -24,10 +24,7 @@ fn execution_result_to_values(result: &ExecutionResult) -> Result<Vec<Value>, DB
             .iter()
             .map(|v| Value::Vertex(Box::new(v.clone())))
             .collect()),
-        ExecutionResult::Edges(edges) => Ok(edges
-            .iter()
-            .map(|e| Value::Edge(e.clone()))
-            .collect()),
+        ExecutionResult::Edges(edges) => Ok(edges.iter().map(|e| Value::Edge(e.clone())).collect()),
         _ => Err(DBError::Query(
             crate::core::error::QueryError::ExecutionError(
                 "Unsupported result type for PatternApply".to_string(),
@@ -133,7 +130,9 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
 
             for col in &self.key_cols {
                 let val = ExpressionEvaluator::evaluate(col, &mut expr_context).map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string()))
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
                 })?;
                 key_list.values.push(val);
             }
@@ -155,10 +154,13 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
                 continue;
             }
 
-            let val = ExpressionEvaluator::evaluate(&self.key_cols[0], &mut expr_context)
-                .map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string()))
-                })?;
+            let val = ExpressionEvaluator::evaluate(&self.key_cols[0], &mut expr_context).map_err(
+                |e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                },
+            )?;
             valid_keys.insert(val);
         }
 
@@ -239,9 +241,11 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
         for value in left_values {
             expr_context.set_variable("_".to_string(), value.clone());
 
-            let key_val = ExpressionEvaluator::evaluate(&self.key_cols[0], expr_context)
-                .map_err(|e| {
-                    DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string()))
+            let key_val =
+                ExpressionEvaluator::evaluate(&self.key_cols[0], expr_context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
                 })?;
 
             let apply_flag = (valid_keys.contains(&key_val)) ^ self.is_anti_predicate;
@@ -273,10 +277,11 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
             };
 
             for col in &self.key_cols {
-                let val = ExpressionEvaluator::evaluate(col, expr_context)
-                    .map_err(|e| {
-                        DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string()))
-                    })?;
+                let val = ExpressionEvaluator::evaluate(col, expr_context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                })?;
                 key_list.values.push(val);
             }
 
@@ -349,8 +354,8 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage
 mod tests {
     use super::*;
     use crate::storage::MockStorage;
+    use parking_lot::Mutex;
     use std::sync::Arc;
-use parking_lot::Mutex;
 
     #[test]
     fn test_pattern_apply_single_key_positive() {
@@ -360,14 +365,8 @@ use parking_lot::Mutex;
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(2), Value::Int(4)];
 
-        context.set_result(
-            "left".to_string(),
-            ExecutionResult::Values(left_values),
-        );
-        context.set_result(
-            "right".to_string(),
-            ExecutionResult::Values(right_values),
-        );
+        context.set_result("left".to_string(), ExecutionResult::Values(left_values));
+        context.set_result("right".to_string(), ExecutionResult::Values(right_values));
 
         let key_cols = vec![Expression::variable("_")];
         let mut executor = PatternApplyExecutor::with_context(
@@ -398,14 +397,8 @@ use parking_lot::Mutex;
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(2), Value::Int(4)];
 
-        context.set_result(
-            "left".to_string(),
-            ExecutionResult::Values(left_values),
-        );
-        context.set_result(
-            "right".to_string(),
-            ExecutionResult::Values(right_values),
-        );
+        context.set_result("left".to_string(), ExecutionResult::Values(left_values));
+        context.set_result("right".to_string(), ExecutionResult::Values(right_values));
 
         let key_cols = vec![Expression::variable("_")];
         let mut executor = PatternApplyExecutor::with_context(
@@ -437,14 +430,8 @@ use parking_lot::Mutex;
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values = vec![Value::Int(10), Value::Int(20)];
 
-        context.set_result(
-            "left".to_string(),
-            ExecutionResult::Values(left_values),
-        );
-        context.set_result(
-            "right".to_string(),
-            ExecutionResult::Values(right_values),
-        );
+        context.set_result("left".to_string(), ExecutionResult::Values(left_values));
+        context.set_result("right".to_string(), ExecutionResult::Values(right_values));
 
         let mut executor = PatternApplyExecutor::with_context(
             1,
@@ -473,14 +460,8 @@ use parking_lot::Mutex;
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values: Vec<Value> = vec![];
 
-        context.set_result(
-            "left".to_string(),
-            ExecutionResult::Values(left_values),
-        );
-        context.set_result(
-            "right".to_string(),
-            ExecutionResult::Values(right_values),
-        );
+        context.set_result("left".to_string(), ExecutionResult::Values(left_values));
+        context.set_result("right".to_string(), ExecutionResult::Values(right_values));
 
         let mut executor = PatternApplyExecutor::with_context(
             1,

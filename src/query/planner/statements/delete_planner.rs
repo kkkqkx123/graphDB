@@ -2,18 +2,16 @@
 //!
 //! 处理 DELETE VERTEX/EDGE/TAG 语句的查询规划
 
-use crate::query::QueryContext;
+use crate::core::types::ContextualExpression;
+use crate::core::YieldColumn;
 use crate::query::parser::ast::{DeleteStmt, DeleteTarget, Stmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
-    nodes::{
-        ArgumentNode, ProjectNode,
-    },
+    nodes::{ArgumentNode, ProjectNode},
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::core::YieldColumn;
-use crate::core::types::ContextualExpression;
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// 删除操作规划器
@@ -68,7 +66,7 @@ impl Planner for DeletePlanner {
         let yield_columns = match &delete_stmt.target {
             DeleteTarget::Vertices(..) => {
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                    crate::core::Expression::Variable("deleted_vertices".to_string())
+                    crate::core::Expression::Variable("deleted_vertices".to_string()),
                 );
                 let id = qctx.expr_context().register_expression(expr_meta);
                 let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
@@ -80,7 +78,7 @@ impl Planner for DeletePlanner {
             }
             DeleteTarget::Edges { .. } => {
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                    crate::core::Expression::Variable("deleted_edges".to_string())
+                    crate::core::Expression::Variable("deleted_edges".to_string()),
                 );
                 let id = qctx.expr_context().register_expression(expr_meta);
                 let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
@@ -92,7 +90,7 @@ impl Planner for DeletePlanner {
             }
             DeleteTarget::Tags { .. } => {
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                    crate::core::Expression::Variable("deleted_tags".to_string())
+                    crate::core::Expression::Variable("deleted_tags".to_string()),
                 );
                 let id = qctx.expr_context().register_expression(expr_meta);
                 let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
@@ -104,7 +102,7 @@ impl Planner for DeletePlanner {
             }
             DeleteTarget::Index(..) => {
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                    crate::core::Expression::Variable("deleted_index".to_string())
+                    crate::core::Expression::Variable("deleted_index".to_string()),
                 );
                 let id = qctx.expr_context().register_expression(expr_meta);
                 let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
@@ -117,21 +115,14 @@ impl Planner for DeletePlanner {
         };
 
         // 创建投影节点输出删除结果
-        let project_node = ProjectNode::new(
-            arg_node_enum.clone(),
-            yield_columns,
-        ).map_err(|e| PlannerError::PlanGenerationFailed(format!(
-            "Failed to create ProjectNode: {}",
-            e
-        )))?;
+        let project_node = ProjectNode::new(arg_node_enum.clone(), yield_columns).map_err(|e| {
+            PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
+        })?;
 
         let final_node = PlanNodeEnum::Project(project_node);
 
         // 创建 SubPlan
-        let sub_plan = SubPlan::new(
-            Some(final_node),
-            Some(arg_node_enum),
-        );
+        let sub_plan = SubPlan::new(Some(final_node), Some(arg_node_enum));
 
         Ok(sub_plan)
     }

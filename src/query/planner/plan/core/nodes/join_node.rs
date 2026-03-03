@@ -3,8 +3,8 @@
 //! 包含各种连接节点类型，如内连接、左连接等
 
 use crate::core::types::ContextualExpression;
-use crate::define_join_node;
 use crate::define_binary_input_node;
+use crate::define_join_node;
 
 define_join_node! {
     pub struct InnerJoinNode {
@@ -192,8 +192,8 @@ impl FullOuterJoinNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
 
     fn create_test_start_node(_id: i64) -> PlanNodeEnum {
         PlanNodeEnum::Start(StartNode::new())

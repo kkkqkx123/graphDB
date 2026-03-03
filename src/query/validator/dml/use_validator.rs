@@ -12,13 +12,12 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
+};
+use crate::query::QueryContext;
 
 /// 验证后的 USE 信息
 #[derive(Debug, Clone)]
@@ -124,20 +123,20 @@ impl UseValidator {
 
         if self.space_name.starts_with('_') {
             return Err(ValidationError::new(
-                format!(
-                    "空间名 '{}' 不能以下划线开头",
-                    self.space_name
-                ),
+                format!("空间名 '{}' 不能以下划线开头", self.space_name),
                 ValidationErrorType::SemanticError,
             ));
         }
 
-        if self.space_name.chars().next().unwrap_or_default().is_ascii_digit() {
+        if self
+            .space_name
+            .chars()
+            .next()
+            .unwrap_or_default()
+            .is_ascii_digit()
+        {
             return Err(ValidationError::new(
-                format!(
-                    "空间名 '{}' 不能以数字开头",
-                    self.space_name
-                ),
+                format!("空间名 '{}' 不能以数字开头", self.space_name),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -146,10 +145,7 @@ impl UseValidator {
         for c in self.space_name.chars() {
             if invalid_chars.contains(&c) {
                 return Err(ValidationError::new(
-                    format!(
-                        "空间名 '{}' 包含非法字符 '{}'",
-                        self.space_name, c
-                    ),
+                    format!("空间名 '{}' 包含非法字符 '{}'", self.space_name, c),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -157,10 +153,7 @@ impl UseValidator {
 
         if self.space_name.len() > 64 {
             return Err(ValidationError::new(
-                format!(
-                    "空间名 '{}' 超过最大长度 64 个字符",
-                    self.space_name
-                ),
+                format!("空间名 '{}' 超过最大长度 64 个字符", self.space_name),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -284,13 +277,13 @@ mod tests {
     #[test]
     fn test_use_validation() {
         let mut validator = UseValidator::new();
-        
+
         // 设置有效的空间名
         validator.set_space_name("test_space".to_string());
-        
+
         let result = validator.validate_use();
         assert!(result.is_ok());
-        
+
         let validated = result.expect("Failed to validate use");
         assert_eq!(validated.space_name, "test_space");
     }
@@ -298,7 +291,7 @@ mod tests {
     #[test]
     fn test_use_empty_space_name() {
         let mut validator = UseValidator::new();
-        
+
         // 不设置空间名
         let result = validator.validate_use();
         assert!(result.is_err());
@@ -307,7 +300,7 @@ mod tests {
     #[test]
     fn test_use_invalid_space_name_start_with_digit() {
         let mut validator = UseValidator::new();
-        
+
         // 以数字开头的空间名
         validator.set_space_name("1space".to_string());
         let result = validator.validate_use();
@@ -317,7 +310,7 @@ mod tests {
     #[test]
     fn test_use_invalid_space_name_start_with_underscore() {
         let mut validator = UseValidator::new();
-        
+
         // 以下划线开头的空间名
         validator.set_space_name("_space".to_string());
         let result = validator.validate_use();
@@ -327,7 +320,7 @@ mod tests {
     #[test]
     fn test_use_invalid_space_name_with_space() {
         let mut validator = UseValidator::new();
-        
+
         // 包含空格的空间名
         validator.set_space_name("test space".to_string());
         let result = validator.validate_use();
@@ -337,7 +330,7 @@ mod tests {
     #[test]
     fn test_use_invalid_space_name_too_long() {
         let mut validator = UseValidator::new();
-        
+
         // 超过 64 个字符的空间名
         let long_name = "a".repeat(65);
         validator.set_space_name(long_name);

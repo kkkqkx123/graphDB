@@ -2,14 +2,14 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::base::{BaseExecutor, ExecutorStats};
+use crate::core::types::expression::ContextualExpression;
 use crate::core::{Edge, Value, Vertex};
-use crate::index::Index;
 use crate::expression::context::DefaultExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
+use crate::index::Index;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
-use crate::core::types::expression::ContextualExpression;
 use parking_lot::Mutex;
 
 // Executor for inserting new vertices/edges
@@ -68,11 +68,7 @@ impl<S: StorageClient> InsertExecutor<S> {
     }
 
     /// 创建带 IF NOT EXISTS 选项的 InsertExecutor（用于边）
-    pub fn with_edges_if_not_exists(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        edge_data: Vec<Edge>,
-    ) -> Self {
+    pub fn with_edges_if_not_exists(id: i64, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
             vertex_data: None,
@@ -321,13 +317,22 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                 };
 
                 let should_update = if let Some(ref expression) = condition_expression {
-                    self.evaluate_condition(&expression, update.vertex_id.clone(), None, None, None, &update.properties)?
+                    self.evaluate_condition(
+                        &expression,
+                        update.vertex_id.clone(),
+                        None,
+                        None,
+                        None,
+                        &update.properties,
+                    )?
                 } else {
                     true
                 };
 
                 if should_update {
-                    if let Some(mut vertex) = storage.get_vertex(&self.space_name, &update.vertex_id)? {
+                    if let Some(mut vertex) =
+                        storage.get_vertex(&self.space_name, &update.vertex_id)?
+                    {
                         for (key, value) in &update.properties {
                             vertex.properties.insert(key.clone(), value.clone());
                         }
@@ -360,18 +365,36 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
                 };
 
                 let should_update = if let Some(ref expression) = condition_expression {
-                    self.evaluate_condition(&expression, update.src.clone(), Some(update.dst.clone()), Some(&update.edge_type), None, &update.properties)?
+                    self.evaluate_condition(
+                        &expression,
+                        update.src.clone(),
+                        Some(update.dst.clone()),
+                        Some(&update.edge_type),
+                        None,
+                        &update.properties,
+                    )?
                 } else {
                     true
                 };
 
                 if should_update {
-                    let edge_key = (update.src.clone(), update.dst.clone(), update.edge_type.clone());
-                    if let Some(mut edge) = storage.get_edge(&self.space_name, &edge_key.0, &edge_key.1, &edge_key.2)? {
+                    let edge_key = (
+                        update.src.clone(),
+                        update.dst.clone(),
+                        update.edge_type.clone(),
+                    );
+                    if let Some(mut edge) =
+                        storage.get_edge(&self.space_name, &edge_key.0, &edge_key.1, &edge_key.2)?
+                    {
                         for (key, value) in &update.properties {
                             edge.props.insert(key.clone(), value.clone());
                         }
-                        storage.delete_edge(&self.space_name, &edge_key.0, &edge_key.1, &edge_key.2)?;
+                        storage.delete_edge(
+                            &self.space_name,
+                            &edge_key.0,
+                            &edge_key.1,
+                            &edge_key.2,
+                        )?;
                         storage.insert_edge(&self.space_name, edge)?;
                         update_result.returned_props = update.properties.clone();
                     } else if self.insertable {
@@ -409,23 +432,27 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
             context.set_variable("DST".to_string(), dst_val);
         }
         if let Some(etype) = edge_type {
-            context.set_variable("edge_type".to_string(), crate::core::Value::String(etype.to_string()));
+            context.set_variable(
+                "edge_type".to_string(),
+                crate::core::Value::String(etype.to_string()),
+            );
         }
         for (key, value) in properties {
             context.set_variable(key.clone(), value.clone());
         }
 
-        let result = ExpressionEvaluator::evaluate(expression, &mut context)
-            .map_err(|e| {
-                crate::core::error::DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(format!("条件求值失败: {}", e)),
-                )
-            })?;
+        let result = ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
+            crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                format!("条件求值失败: {}", e),
+            ))
+        })?;
 
         match result {
             crate::core::Value::Bool(b) => Ok(b),
             _ => Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError("条件表达式必须返回布尔值".to_string()),
+                crate::core::error::QueryError::ExecutionError(
+                    "条件表达式必须返回布尔值".to_string(),
+                ),
             )),
         }
     }
@@ -544,7 +571,10 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                         let result = ExpressionEvaluator::evaluate(expression, &mut context)
                             .map_err(|e| {
                                 crate::core::error::DBError::Query(
-                                    crate::core::error::QueryError::ExecutionError(format!("条件求值失败: {}", e)),
+                                    crate::core::error::QueryError::ExecutionError(format!(
+                                        "条件求值失败: {}",
+                                        e
+                                    )),
                                 )
                             })?;
 
@@ -562,17 +592,30 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                 if should_delete {
                     // 如果启用了级联删除，先删除关联边
                     if self.with_edge {
-                        let edges = storage.get_node_edges(&self.space_name, id, crate::core::EdgeDirection::Both)
+                        let edges = storage
+                            .get_node_edges(&self.space_name, id, crate::core::EdgeDirection::Both)
                             .map_err(|e| {
                                 crate::core::error::DBError::Storage(
-                                    crate::core::error::StorageError::StorageError(format!("获取关联边失败: {}", e))
+                                    crate::core::error::StorageError::StorageError(format!(
+                                        "获取关联边失败: {}",
+                                        e
+                                    )),
                                 )
                             })?;
                         for edge in edges {
-                            storage.delete_edge(&self.space_name, &edge.src, &edge.dst, &edge.edge_type)
+                            storage
+                                .delete_edge(
+                                    &self.space_name,
+                                    &edge.src,
+                                    &edge.dst,
+                                    &edge.edge_type,
+                                )
                                 .map_err(|e| {
                                     crate::core::error::DBError::Storage(
-                                        crate::core::error::StorageError::StorageError(format!("删除关联边失败: {}", e))
+                                        crate::core::error::StorageError::StorageError(format!(
+                                            "删除关联边失败: {}",
+                                            e
+                                        )),
                                     )
                                 })?;
                             total_deleted += 1;
@@ -590,11 +633,15 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
             let mut storage = self.get_storage().lock();
             for (src, dst, edge_type) in edges {
                 let should_delete = if let Some(ref expression) = condition_expression {
-                    if let Ok(Some(edge)) = storage.get_edge(&self.space_name, src, dst, edge_type) {
+                    if let Ok(Some(edge)) = storage.get_edge(&self.space_name, src, dst, edge_type)
+                    {
                         let mut context = DefaultExpressionContext::new();
                         context.set_variable("SRC".to_string(), src.clone());
                         context.set_variable("DST".to_string(), dst.clone());
-                        context.set_variable("edge_type".to_string(), crate::core::Value::String(edge_type.clone()));
+                        context.set_variable(
+                            "edge_type".to_string(),
+                            crate::core::Value::String(edge_type.clone()),
+                        );
                         for (key, value) in &edge.props {
                             context.set_variable(key.clone(), value.clone());
                         }
@@ -602,7 +649,10 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                         let result = ExpressionEvaluator::evaluate(expression, &mut context)
                             .map_err(|e| {
                                 crate::core::error::DBError::Query(
-                                    crate::core::error::QueryError::ExecutionError(format!("条件求值失败: {}", e)),
+                                    crate::core::error::QueryError::ExecutionError(format!(
+                                        "条件求值失败: {}",
+                                        e
+                                    )),
                                 )
                             })?;
 
@@ -617,7 +667,11 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                     true
                 };
 
-                if should_delete && storage.delete_edge(&self.space_name, src, dst, edge_type).is_ok() {
+                if should_delete
+                    && storage
+                        .delete_edge(&self.space_name, src, dst, edge_type)
+                        .is_ok()
+                {
                     total_deleted += 1;
                 }
             }
@@ -724,9 +778,11 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
             // 如果是删除所有标签模式，先获取顶点的所有标签名
             let tag_names_to_delete = if self.delete_all_tags {
                 match storage.get_vertex(&self.space_name, vertex_id) {
-                    Ok(Some(vertex)) => {
-                        vertex.tags.iter().map(|tag| tag.name.clone()).collect::<Vec<_>>()
-                    }
+                    Ok(Some(vertex)) => vertex
+                        .tags
+                        .iter()
+                        .map(|tag| tag.name.clone())
+                        .collect::<Vec<_>>(),
                     Ok(None) => {
                         // 顶点不存在，跳过
                         continue;
@@ -838,7 +894,9 @@ impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
     fn do_execute(&mut self) -> DBResult<()> {
         let mut storage = self.get_storage().lock();
 
-        let target_name = self.tag_name.clone()
+        let target_name = self
+            .tag_name
+            .clone()
             .or_else(|| Some(self.index_name.clone()))
             .unwrap_or_default();
 

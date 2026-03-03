@@ -1,14 +1,14 @@
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, Value};
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,
     hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
-use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
 
 /// 全外连接执行器

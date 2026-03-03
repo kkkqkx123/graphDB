@@ -11,17 +11,16 @@
 //!    - 表达式引用收集
 //! 3. 使用 QueryContext 统一管理上下文
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::OrderDirection;
-use crate::query::QueryContext;
-use crate::query::validator::validator_trait::{
-    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
-    ExpressionProps,
-};
 use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use crate::query::QueryContext;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// 排序列定义
 #[derive(Debug, Clone)]
@@ -80,7 +79,8 @@ impl OrderByValidator {
     pub fn set_input_columns(&mut self, columns: HashMap<String, ValueType>) {
         self.input_columns = columns;
         // 同步到 inputs
-        self.inputs = self.input_columns
+        self.inputs = self
+            .input_columns
             .iter()
             .map(|(name, type_)| ColumnDef {
                 name: name.clone(),
@@ -142,10 +142,7 @@ impl OrderByValidator {
             let expr_type = self.deduce_expr_type(&col.expression)?;
             if !self.is_comparable_type(&expr_type) {
                 return Err(ValidationError::new(
-                    format!(
-                        "ORDER BY expression type {:?} is not comparable",
-                        expr_type
-                    ),
+                    format!("ORDER BY expression type {:?} is not comparable", expr_type),
                     ValidationErrorType::TypeError,
                 ));
             }
@@ -158,10 +155,7 @@ impl OrderByValidator {
             if let Some(alias) = &col.alias {
                 if !self.input_columns.contains_key(alias) {
                     return Err(ValidationError::new(
-                        format!(
-                            "ORDER BY alias '{}' not found in input columns",
-                            alias
-                        ),
+                        format!("ORDER BY alias '{}' not found in input columns", alias),
                         ValidationErrorType::SemanticError,
                     ));
                 }
@@ -192,22 +186,23 @@ impl OrderByValidator {
     }
 
     /// 内部方法：检查表达式是否为空
-    fn expression_is_empty_internal(&self, expression: &crate::core::types::expression::Expression) -> bool {
+    fn expression_is_empty_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+    ) -> bool {
         use crate::core::types::expression::Expression;
 
         match expression {
-            Expression::Literal(value) => {
-                match value {
-                    crate::core::Value::Null(_) => true,
-                    crate::core::Value::String(s) => s.is_empty(),
-                    _ => false,
-                }
+            Expression::Literal(value) => match value {
+                crate::core::Value::Null(_) => true,
+                crate::core::Value::String(s) => s.is_empty(),
+                _ => false,
             },
             Expression::Variable(name) => name.is_empty(),
             Expression::Function { name, args } => name.is_empty() && args.is_empty(),
             Expression::Binary { left, right, .. } => {
                 self.expression_is_empty_internal(left) && self.expression_is_empty_internal(right)
-            },
+            }
             Expression::Unary { operand, .. } => self.expression_is_empty_internal(operand),
             Expression::List(items) => items.is_empty(),
             Expression::Map(pairs) => pairs.is_empty(),
@@ -223,7 +218,10 @@ impl OrderByValidator {
         }
     }
 
-    fn deduce_expr_type(&self, expression: &ContextualExpression) -> Result<ValueType, ValidationError> {
+    fn deduce_expr_type(
+        &self,
+        expression: &ContextualExpression,
+    ) -> Result<ValueType, ValidationError> {
         if let Some(e) = expression.get_expression() {
             self.deduce_expr_type_internal(&e)
         } else {
@@ -232,28 +230,29 @@ impl OrderByValidator {
     }
 
     /// 内部方法：推导表达式类型
-    fn deduce_expr_type_internal(&self, expression: &crate::core::types::expression::Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_expr_type_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+    ) -> Result<ValueType, ValidationError> {
         use crate::core::types::expression::Expression;
 
         match expression {
-            Expression::Literal(value) => {
-                match value {
-                    crate::core::Value::Bool(_) => Ok(ValueType::Bool),
-                    crate::core::Value::Int(_) => Ok(ValueType::Int),
-                    crate::core::Value::Float(_) => Ok(ValueType::Float),
-                    crate::core::Value::String(_) => Ok(ValueType::String),
-                    crate::core::Value::Date(_) => Ok(ValueType::Date),
-                    crate::core::Value::Time(_) => Ok(ValueType::Time),
-                    crate::core::Value::DateTime(_) => Ok(ValueType::DateTime),
-                    crate::core::Value::Null(_) => Ok(ValueType::Null),
-                    crate::core::Value::Vertex(_) => Ok(ValueType::Vertex),
-                    crate::core::Value::Edge(_) => Ok(ValueType::Edge),
-                    crate::core::Value::Path(_) => Ok(ValueType::Path),
-                    crate::core::Value::List(_) => Ok(ValueType::List),
-                    crate::core::Value::Map(_) => Ok(ValueType::Map),
-                    crate::core::Value::Set(_) => Ok(ValueType::Set),
-                    _ => Ok(ValueType::Unknown),
-                }
+            Expression::Literal(value) => match value {
+                crate::core::Value::Bool(_) => Ok(ValueType::Bool),
+                crate::core::Value::Int(_) => Ok(ValueType::Int),
+                crate::core::Value::Float(_) => Ok(ValueType::Float),
+                crate::core::Value::String(_) => Ok(ValueType::String),
+                crate::core::Value::Date(_) => Ok(ValueType::Date),
+                crate::core::Value::Time(_) => Ok(ValueType::Time),
+                crate::core::Value::DateTime(_) => Ok(ValueType::DateTime),
+                crate::core::Value::Null(_) => Ok(ValueType::Null),
+                crate::core::Value::Vertex(_) => Ok(ValueType::Vertex),
+                crate::core::Value::Edge(_) => Ok(ValueType::Edge),
+                crate::core::Value::Path(_) => Ok(ValueType::Path),
+                crate::core::Value::List(_) => Ok(ValueType::List),
+                crate::core::Value::Map(_) => Ok(ValueType::Map),
+                crate::core::Value::Set(_) => Ok(ValueType::Set),
+                _ => Ok(ValueType::Unknown),
             },
             Expression::Variable(name) => {
                 // 尝试从输入列中获取类型
@@ -262,7 +261,7 @@ impl OrderByValidator {
                 } else {
                     Ok(ValueType::Unknown) // 如果找不到对应列，则返回未知类型
                 }
-            },
+            }
             Expression::Binary { left, op, right } => {
                 // 对于比较操作，结果是布尔类型
                 match op {
@@ -292,29 +291,35 @@ impl OrderByValidator {
                         let right_type = self.deduce_expr_type_internal(right)?;
 
                         // 如果任一操作数是浮点数，则结果为浮点数
-                        if matches!(left_type, ValueType::Float) || matches!(right_type, ValueType::Float) {
+                        if matches!(left_type, ValueType::Float)
+                            || matches!(right_type, ValueType::Float)
+                        {
                             Ok(ValueType::Float)
-                        } else if matches!(left_type, ValueType::Int) || matches!(right_type, ValueType::Int) {
+                        } else if matches!(left_type, ValueType::Int)
+                            || matches!(right_type, ValueType::Int)
+                        {
                             Ok(ValueType::Int)
                         } else {
                             Ok(ValueType::Unknown)
                         }
-                    },
+                    }
                     // 字符串连接操作返回字符串
                     crate::core::BinaryOperator::StringConcat => Ok(ValueType::String),
                     // 其他操作返回未知类型
                     _ => Ok(ValueType::Unknown),
                 }
-            },
-            Expression::Unary { op, operand } => {
-                match op {
-                    crate::core::UnaryOperator::Not => Ok(ValueType::Bool),
-                    crate::core::UnaryOperator::IsNull | crate::core::UnaryOperator::IsNotNull => Ok(ValueType::Bool),
-                    crate::core::UnaryOperator::IsEmpty | crate::core::UnaryOperator::IsNotEmpty => Ok(ValueType::Bool),
-                    crate::core::UnaryOperator::Plus | crate::core::UnaryOperator::Minus => {
-                        let operand_type = self.deduce_expr_type_internal(operand)?;
-                        Ok(operand_type)
-                    }
+            }
+            Expression::Unary { op, operand } => match op {
+                crate::core::UnaryOperator::Not => Ok(ValueType::Bool),
+                crate::core::UnaryOperator::IsNull | crate::core::UnaryOperator::IsNotNull => {
+                    Ok(ValueType::Bool)
+                }
+                crate::core::UnaryOperator::IsEmpty | crate::core::UnaryOperator::IsNotEmpty => {
+                    Ok(ValueType::Bool)
+                }
+                crate::core::UnaryOperator::Plus | crate::core::UnaryOperator::Minus => {
+                    let operand_type = self.deduce_expr_type_internal(operand)?;
+                    Ok(operand_type)
                 }
             },
             Expression::Function { name, args: _ } => {
@@ -328,15 +333,13 @@ impl OrderByValidator {
                     "floor" | "ceil" | "round" => Ok(ValueType::Int),
                     _ => Ok(ValueType::Unknown),
                 }
-            },
-            Expression::Aggregate { func, .. } => {
-                match func {
-                    crate::core::AggregateFunction::Count(_) => Ok(ValueType::Int),
-                    crate::core::AggregateFunction::Sum(_) => Ok(ValueType::Float),
-                    crate::core::AggregateFunction::Avg(_) => Ok(ValueType::Float),
-                    crate::core::AggregateFunction::Collect(_) => Ok(ValueType::List),
-                    _ => Ok(ValueType::Unknown),
-                }
+            }
+            Expression::Aggregate { func, .. } => match func {
+                crate::core::AggregateFunction::Count(_) => Ok(ValueType::Int),
+                crate::core::AggregateFunction::Sum(_) => Ok(ValueType::Float),
+                crate::core::AggregateFunction::Avg(_) => Ok(ValueType::Float),
+                crate::core::AggregateFunction::Collect(_) => Ok(ValueType::List),
+                _ => Ok(ValueType::Unknown),
             },
             Expression::List(_) => Ok(ValueType::List),
             Expression::Map(_) => Ok(ValueType::Map),
@@ -345,16 +348,21 @@ impl OrderByValidator {
                 // 根据目标类型转换
                 match target_type {
                     crate::core::DataType::Bool => Ok(ValueType::Bool),
-                    crate::core::DataType::Int | crate::core::DataType::Int8 | crate::core::DataType::Int16 |
-                    crate::core::DataType::Int32 | crate::core::DataType::Int64 => Ok(ValueType::Int),
-                    crate::core::DataType::Float | crate::core::DataType::Double => Ok(ValueType::Float),
+                    crate::core::DataType::Int
+                    | crate::core::DataType::Int8
+                    | crate::core::DataType::Int16
+                    | crate::core::DataType::Int32
+                    | crate::core::DataType::Int64 => Ok(ValueType::Int),
+                    crate::core::DataType::Float | crate::core::DataType::Double => {
+                        Ok(ValueType::Float)
+                    }
                     crate::core::DataType::String => Ok(ValueType::String),
                     crate::core::DataType::Date => Ok(ValueType::Date),
                     crate::core::DataType::Time => Ok(ValueType::Time),
                     crate::core::DataType::DateTime => Ok(ValueType::DateTime),
                     _ => Ok(ValueType::Unknown),
                 }
-            },
+            }
             // 属性表达式统一处理
             Expression::Property { object, property } => {
                 if let Expression::Variable(var_name) = object.as_ref() {
@@ -367,7 +375,7 @@ impl OrderByValidator {
                 } else {
                     Ok(ValueType::Unknown)
                 }
-            },
+            }
             Expression::Subscript { .. } => Ok(ValueType::Unknown),
             Expression::Range { .. } => Ok(ValueType::List),
             Expression::Path(_) => Ok(ValueType::Path),
@@ -386,9 +394,14 @@ impl OrderByValidator {
     fn is_comparable_type(&self, type_: &ValueType) -> bool {
         matches!(
             type_,
-            ValueType::Bool | ValueType::Int | ValueType::Float |
-            ValueType::String | ValueType::Date | ValueType::Time |
-            ValueType::DateTime | ValueType::Null
+            ValueType::Bool
+                | ValueType::Int
+                | ValueType::Float
+                | ValueType::String
+                | ValueType::Date
+                | ValueType::Time
+                | ValueType::DateTime
+                | ValueType::Null
         )
     }
 
@@ -403,7 +416,11 @@ impl OrderByValidator {
     }
 
     // 辅助函数：递归收集表达式中的列引用
-    fn collect_refs_internal(&self, expression: &crate::core::types::expression::Expression, refs: &mut Vec<String>) {
+    fn collect_refs_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+        refs: &mut Vec<String>,
+    ) {
         use crate::core::types::expression::Expression;
 
         match expression {
@@ -411,33 +428,37 @@ impl OrderByValidator {
                 if !refs.contains(name) {
                     refs.push(name.clone());
                 }
-            },
+            }
             Expression::Function { args, .. } => {
                 for arg in args {
                     self.collect_refs_internal(arg, refs);
                 }
-            },
+            }
             Expression::Binary { left, right, .. } => {
                 self.collect_refs_internal(left, refs);
                 self.collect_refs_internal(right, refs);
-            },
+            }
             Expression::Unary { operand, .. } => {
                 self.collect_refs_internal(operand, refs);
-            },
+            }
             Expression::Aggregate { arg, .. } => {
                 self.collect_refs_internal(arg, refs);
-            },
+            }
             Expression::List(items) => {
                 for item in items {
                     self.collect_refs_internal(item, refs);
                 }
-            },
+            }
             Expression::Map(pairs) => {
                 for (_, value) in pairs {
                     self.collect_refs_internal(value, refs);
                 }
-            },
-            Expression::Case { test_expr, conditions, default } => {
+            }
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
                 if let Some(test_expression) = test_expr {
                     self.collect_refs_internal(test_expression, refs);
                 }
@@ -448,15 +469,19 @@ impl OrderByValidator {
                 if let Some(default_expression) = default {
                     self.collect_refs_internal(default_expression, refs);
                 }
-            },
+            }
             Expression::TypeCast { expression, .. } => {
                 self.collect_refs_internal(expression, refs);
-            },
+            }
             Expression::Subscript { collection, index } => {
                 self.collect_refs_internal(collection, refs);
                 self.collect_refs_internal(index, refs);
-            },
-            Expression::Range { collection, start, end } => {
+            }
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 self.collect_refs_internal(collection, refs);
                 if let Some(start_expression) = start {
                     self.collect_refs_internal(start_expression, refs);
@@ -464,39 +489,44 @@ impl OrderByValidator {
                 if let Some(end_expression) = end {
                     self.collect_refs_internal(end_expression, refs);
                 }
-            },
+            }
             // 属性表达式统一处理
             Expression::Property { object, property } => {
                 self.collect_refs_internal(object, refs);
                 if !refs.contains(property) {
                     refs.push(property.clone());
                 }
-            },
-            Expression::Literal(_) => {},
-            Expression::Path(_) => {},
-            Expression::Label(_) => {},
-            Expression::ListComprehension { .. } => {},
+            }
+            Expression::Literal(_) => {}
+            Expression::Path(_) => {}
+            Expression::Label(_) => {}
+            Expression::ListComprehension { .. } => {}
             Expression::LabelTagProperty { tag, .. } => {
                 self.collect_refs_internal(tag, refs);
-            },
-            Expression::TagProperty { .. } => {},
-            Expression::EdgeProperty { .. } => {},
+            }
+            Expression::TagProperty { .. } => {}
+            Expression::EdgeProperty { .. } => {}
             Expression::Predicate { args, .. } => {
                 for arg in args {
                     self.collect_refs_internal(arg, refs);
                 }
-            },
-            Expression::Reduce { initial, source, mapping, .. } => {
+            }
+            Expression::Reduce {
+                initial,
+                source,
+                mapping,
+                ..
+            } => {
                 self.collect_refs_internal(initial, refs);
                 self.collect_refs_internal(source, refs);
                 self.collect_refs_internal(mapping, refs);
-            },
+            }
             Expression::PathBuild(exprs) => {
                 for expr in exprs {
                     self.collect_refs_internal(expr, refs);
                 }
-            },
-            Expression::Parameter(_) => {},
+            }
+            Expression::Parameter(_) => {}
         }
     }
 }
@@ -530,7 +560,9 @@ impl StatementValidator for OrderByValidator {
         let mut info = ValidationInfo::new();
 
         for col in &self.order_columns {
-            info.semantic_info.ordering_fields.push(format!("{:?}", col.expression));
+            info.semantic_info
+                .ordering_fields
+                .push(format!("{:?}", col.expression));
         }
 
         Ok(ValidationResult::success_with_info(info))
@@ -576,7 +608,9 @@ mod tests {
 
     #[test]
     fn test_add_order_column() {
-        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use crate::core::types::expression::{
+            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+        };
         use std::sync::Arc;
 
         let mut validator = OrderByValidator::new();
@@ -603,7 +637,9 @@ mod tests {
 
     #[test]
     fn test_validate_valid_column() {
-        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use crate::core::types::expression::{
+            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+        };
         use std::sync::Arc;
 
         let mut validator = OrderByValidator::new();

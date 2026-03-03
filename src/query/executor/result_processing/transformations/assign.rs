@@ -2,8 +2,8 @@
 //!
 //! 负责处理变量赋值操作，将表达式的结果赋值给变量
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -63,11 +63,12 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
         // 执行每个赋值项
         for (var_name, expression) in &self.assign_items {
             // 计算表达式的值
-            let value = ExpressionEvaluator::evaluate(expression, &mut expr_context).map_err(|e| {
-                DBError::Query(crate::core::error::QueryError::ExecutionError(
-                    e.to_string(),
-                ))
-            })?;
+            let value =
+                ExpressionEvaluator::evaluate(expression, &mut expr_context).map_err(|e| {
+                    DBError::Query(crate::core::error::QueryError::ExecutionError(
+                        e.to_string(),
+                    ))
+                })?;
 
             // 根据值的类型设置到执行上下文中
             match &value {
@@ -84,14 +85,17 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
                 }
                 _ => {
                     // 其他类型直接设置为结果
-                    self.base
-                        .context
-                        .set_result(var_name.clone(), ExecutionResult::Values(vec![value.clone()]));
+                    self.base.context.set_result(
+                        var_name.clone(),
+                        ExecutionResult::Values(vec![value.clone()]),
+                    );
                 }
             }
 
             // 同时设置变量以便后续使用
-            self.base.context.set_variable(var_name.clone(), value.clone());
+            self.base
+                .context
+                .set_variable(var_name.clone(), value.clone());
 
             // 同时更新表达式上下文，以便后续表达式可以使用这个变量
             expr_context.set_variable(var_name.clone(), value);
@@ -157,8 +161,8 @@ mod tests {
     use crate::core::Expression;
     use crate::core::Value;
     use crate::storage::MockStorage;
+    use parking_lot::Mutex;
     use std::sync::Arc;
-use parking_lot::Mutex;
 
     #[test]
     fn test_assign_executor() {

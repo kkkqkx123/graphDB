@@ -19,23 +19,20 @@ pub mod impls;
 pub mod shortest_path;
 pub mod tests;
 pub mod traits;
-pub mod traverse;
 pub mod traversal_utils;
+pub mod traverse;
 
 // 重新导出主要类型
+pub use all_paths::AllPathsExecutor;
 pub use expand::ExpandExecutor;
 pub use expand_all::ExpandAllExecutor;
-pub use all_paths::{
-    AllPathsExecutor,
-};
 pub use shortest_path::ShortestPathExecutor;
 pub use traverse::TraverseExecutor;
 
 // 导出算法模块
 pub use algorithms::{
-    AStar, AlgorithmContext, AlgorithmStats, BidirectionalBFS, Dijkstra,
-    PathFindingAlgorithm, ShortestPathAlgorithm, ShortestPathAlgorithmType,
-    TraversalAlgorithm,
+    AStar, AlgorithmContext, AlgorithmStats, BidirectionalBFS, Dijkstra, PathFindingAlgorithm,
+    ShortestPathAlgorithm, ShortestPathAlgorithmType, TraversalAlgorithm,
 };
 
 // 导出通用特征和工厂

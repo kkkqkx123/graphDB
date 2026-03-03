@@ -10,17 +10,19 @@
 mod common;
 
 use common::{
+    assertions::{assert_count, assert_none, assert_ok, assert_some},
+    storage_helpers::{create_test_space, knows_edge_type_info, person_tag_info},
     TestStorage,
-    assertions::{assert_ok, assert_count, assert_some, assert_none},
-    storage_helpers::{create_test_space, person_tag_info, knows_edge_type_info},
 };
-use graphdb::core::{Value, Vertex, Edge};
-use graphdb::index::{Index, IndexType, IndexField, IndexStatus};
+use graphdb::core::{Edge, Value, Vertex};
+use graphdb::index::{Index, IndexField, IndexStatus, IndexType};
 use graphdb::storage::StorageClient;
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
-fn get_storage(storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>) -> parking_lot::MutexGuard<graphdb::storage::redb_storage::RedbStorage> {
+fn get_storage(
+    storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>,
+) -> parking_lot::MutexGuard<graphdb::storage::redb_storage::RedbStorage> {
     storage.lock()
 }
 
@@ -42,7 +44,11 @@ fn test_create_tag_index_metadata() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -78,7 +84,11 @@ fn test_create_tag_index_duplicate() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -107,7 +117,11 @@ fn test_drop_tag_index_metadata() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -140,7 +154,11 @@ fn test_list_tag_indexes() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -165,8 +183,14 @@ fn test_list_tag_indexes() {
     assert_count(&indexes, 2, "索引");
 
     let index_names: Vec<&str> = indexes.iter().map(|i| i.name.as_str()).collect();
-    assert!(index_names.contains(&"person_name_idx"), "应该包含 person_name_idx");
-    assert!(index_names.contains(&"person_age_idx"), "应该包含 person_age_idx");
+    assert!(
+        index_names.contains(&"person_name_idx"),
+        "应该包含 person_name_idx"
+    );
+    assert!(
+        index_names.contains(&"person_age_idx"),
+        "应该包含 person_age_idx"
+    );
 }
 
 #[test]
@@ -185,7 +209,11 @@ fn test_drop_tag_indexes_by_tag() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -205,10 +233,16 @@ fn test_drop_tag_indexes_by_tag() {
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index1));
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index2));
 
-    get_storage(&storage).drop_tag_index("test_space", "person_name_idx").expect("删除标签索引应该成功");
-    get_storage(&storage).drop_tag_index("test_space", "person_age_idx").expect("删除标签索引应该成功");
+    get_storage(&storage)
+        .drop_tag_index("test_space", "person_name_idx")
+        .expect("删除标签索引应该成功");
+    get_storage(&storage)
+        .drop_tag_index("test_space", "person_age_idx")
+        .expect("删除标签索引应该成功");
 
-    let indexes = get_storage(&storage).list_tag_indexes("test_space").expect("列出索引应该成功");
+    let indexes = get_storage(&storage)
+        .list_tag_indexes("test_space")
+        .expect("列出索引应该成功");
     assert_count(&indexes, 0, "索引");
 }
 
@@ -230,7 +264,11 @@ fn test_create_edge_index_metadata() {
         "knows_since_idx".to_string(),
         0,
         "KNOWS".to_string(),
-        vec![IndexField::new("since".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "since".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["since".to_string()],
         IndexType::EdgeIndex,
         false,
@@ -266,7 +304,11 @@ fn test_drop_edge_index_metadata() {
         "knows_since_idx".to_string(),
         0,
         "KNOWS".to_string(),
-        vec![IndexField::new("since".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "since".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["since".to_string()],
         IndexType::EdgeIndex,
         false,
@@ -299,7 +341,11 @@ fn test_list_edge_indexes() {
         "knows_since_idx".to_string(),
         0,
         "KNOWS".to_string(),
-        vec![IndexField::new("since".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "since".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["since".to_string()],
         IndexType::EdgeIndex,
         false,
@@ -310,7 +356,11 @@ fn test_list_edge_indexes() {
         "knows_weight_idx".to_string(),
         0,
         "KNOWS".to_string(),
-        vec![IndexField::new("weight".to_string(), Value::Float(0.0), false)],
+        vec![IndexField::new(
+            "weight".to_string(),
+            Value::Float(0.0),
+            false,
+        )],
         vec!["weight".to_string()],
         IndexType::EdgeIndex,
         false,
@@ -324,8 +374,14 @@ fn test_list_edge_indexes() {
     assert_count(&indexes, 2, "索引");
 
     let index_names: Vec<&str> = indexes.iter().map(|i| i.name.as_str()).collect();
-    assert!(index_names.contains(&"knows_since_idx"), "应该包含 knows_since_idx");
-    assert!(index_names.contains(&"knows_weight_idx"), "应该包含 knows_weight_idx");
+    assert!(
+        index_names.contains(&"knows_since_idx"),
+        "应该包含 knows_since_idx"
+    );
+    assert!(
+        index_names.contains(&"knows_weight_idx"),
+        "应该包含 knows_weight_idx"
+    );
 }
 
 // ==================== 索引数据管理测试 ====================
@@ -346,7 +402,11 @@ fn test_update_vertex_indexes() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -360,9 +420,15 @@ fn test_update_vertex_indexes() {
     let tag = graphdb::core::vertex_edge_path::Tag::new("Person".to_string(), props);
     let vertex = Vertex::new(vertex_id.clone(), vec![tag]);
 
-    get_storage(&storage).insert_vertex("test_space", vertex).expect("插入顶点应该成功");
+    get_storage(&storage)
+        .insert_vertex("test_space", vertex)
+        .expect("插入顶点应该成功");
 
-    let retrieved = get_storage(&storage).lookup_index("test_space", "person_name_idx", &Value::String("Alice".to_string()));
+    let retrieved = get_storage(&storage).lookup_index(
+        "test_space",
+        "person_name_idx",
+        &Value::String("Alice".to_string()),
+    );
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert!(vertex_ids.contains(&vertex_id), "索引应该包含顶点 ID");
 }
@@ -383,7 +449,11 @@ fn test_update_edge_indexes() {
         "knows_since_idx".to_string(),
         0,
         "KNOWS".to_string(),
-        vec![IndexField::new("since".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "since".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["since".to_string()],
         IndexType::EdgeIndex,
         false,
@@ -398,9 +468,15 @@ fn test_update_edge_indexes() {
     props.insert("since".to_string(), Value::String("2024-01-01".to_string()));
     let edge = Edge::new(src.clone(), dst.clone(), edge_type.to_string(), 0, props);
 
-    get_storage(&storage).insert_edge("test_space", edge).expect("插入边应该成功");
+    get_storage(&storage)
+        .insert_edge("test_space", edge)
+        .expect("插入边应该成功");
 
-    let retrieved = get_storage(&storage).lookup_index("test_space", "knows_since_idx", &Value::String("2024-01-01".to_string()));
+    let retrieved = get_storage(&storage).lookup_index(
+        "test_space",
+        "knows_since_idx",
+        &Value::String("2024-01-01".to_string()),
+    );
     let src_ids = retrieved.expect("索引查询应该成功");
     assert!(src_ids.contains(&src), "索引应该包含源顶点 ID");
 }
@@ -421,7 +497,11 @@ fn test_delete_vertex_indexes() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -439,9 +519,16 @@ fn test_delete_vertex_indexes() {
 
     assert_ok(get_storage(&storage).delete_vertex("test_space", &vertex_id));
 
-    let retrieved = get_storage(&storage).lookup_index("test_space", "person_name_idx", &Value::String("Alice".to_string()));
+    let retrieved = get_storage(&storage).lookup_index(
+        "test_space",
+        "person_name_idx",
+        &Value::String("Alice".to_string()),
+    );
     let vertex_ids = retrieved.expect("索引查询应该成功");
-    assert!(!vertex_ids.contains(&vertex_id), "索引不应该包含已删除的顶点 ID");
+    assert!(
+        !vertex_ids.contains(&vertex_id),
+        "索引不应该包含已删除的顶点 ID"
+    );
 }
 
 #[test]
@@ -460,7 +547,11 @@ fn test_delete_edge_indexes() {
         "knows_since_idx".to_string(),
         0,
         "KNOWS".to_string(),
-        vec![IndexField::new("since".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "since".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["since".to_string()],
         IndexType::EdgeIndex,
         false,
@@ -479,7 +570,11 @@ fn test_delete_edge_indexes() {
 
     assert_ok(get_storage(&storage).delete_edge("test_space", &src, &dst, edge_type));
 
-    let retrieved = get_storage(&storage).lookup_index("test_space", "knows_since_idx", &Value::String("2024-01-01".to_string()));
+    let retrieved = get_storage(&storage).lookup_index(
+        "test_space",
+        "knows_since_idx",
+        &Value::String("2024-01-01".to_string()),
+    );
     let src_ids = retrieved.expect("索引查询应该成功");
     assert!(!src_ids.contains(&src), "索引不应该包含已删除边的源顶点 ID");
 }
@@ -502,7 +597,11 @@ fn test_index_exact_query() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -524,7 +623,11 @@ fn test_index_exact_query() {
         assert_ok(get_storage(&storage).insert_vertex("test_space", vertex));
     }
 
-    let retrieved = get_storage(&storage).lookup_index("test_space", "person_name_idx", &Value::String("Alice".to_string()));
+    let retrieved = get_storage(&storage).lookup_index(
+        "test_space",
+        "person_name_idx",
+        &Value::String("Alice".to_string()),
+    );
     let vertex_ids = retrieved.expect("索引精确查询应该成功");
     assert_count(&vertex_ids, 1, "匹配的顶点");
     assert_eq!(vertex_ids[0], Value::Int(1), "应该返回 Alice 的顶点 ID");
@@ -568,7 +671,8 @@ fn test_index_query_multiple_matches() {
         assert_ok(get_storage(&storage).insert_vertex("test_space", vertex));
     }
 
-    let retrieved = get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
+    let retrieved =
+        get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert_count(&vertex_ids, 2, "匹配的顶点");
     assert!(vertex_ids.contains(&Value::Int(1)), "应该包含顶点 1");
@@ -591,7 +695,11 @@ fn test_index_query_no_match() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -607,7 +715,11 @@ fn test_index_query_no_match() {
 
     assert_ok(get_storage(&storage).insert_vertex("test_space", vertex));
 
-    let retrieved = get_storage(&storage).lookup_index("test_space", "person_name_idx", &Value::String("Bob".to_string()));
+    let retrieved = get_storage(&storage).lookup_index(
+        "test_space",
+        "person_name_idx",
+        &Value::String("Bob".to_string()),
+    );
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert_count(&vertex_ids, 0, "匹配的顶点");
 }
@@ -630,7 +742,11 @@ fn test_index_status_active() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -643,7 +759,11 @@ fn test_index_status_active() {
     assert_some(&index_opt);
 
     let retrieved_index = index_opt.expect("索引应该存在");
-    assert_eq!(retrieved_index.status, IndexStatus::Active, "新创建的索引应该是 Active 状态");
+    assert_eq!(
+        retrieved_index.status,
+        IndexStatus::Active,
+        "新创建的索引应该是 Active 状态"
+    );
 }
 
 #[test]
@@ -662,7 +782,11 @@ fn test_unique_index() {
         "person_name_unique_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         true,
@@ -709,9 +833,21 @@ fn test_composite_index() {
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
     let vertices = vec![
-        (Value::Int(1), Value::String("Alice".to_string()), Value::Int(30)),
-        (Value::Int(2), Value::String("Alice".to_string()), Value::Int(25)),
-        (Value::Int(3), Value::String("Bob".to_string()), Value::Int(30)),
+        (
+            Value::Int(1),
+            Value::String("Alice".to_string()),
+            Value::Int(30),
+        ),
+        (
+            Value::Int(2),
+            Value::String("Alice".to_string()),
+            Value::Int(25),
+        ),
+        (
+            Value::Int(3),
+            Value::String("Bob".to_string()),
+            Value::Int(30),
+        ),
     ];
 
     for (vid, name, age) in &vertices {
@@ -723,7 +859,11 @@ fn test_composite_index() {
         assert_ok(get_storage(&storage).insert_vertex("test_space", vertex));
     }
 
-    let retrieved = get_storage(&storage).lookup_index("test_space", "person_name_age_idx", &Value::String("Alice".to_string()));
+    let retrieved = get_storage(&storage).lookup_index(
+        "test_space",
+        "person_name_age_idx",
+        &Value::String("Alice".to_string()),
+    );
     let vertex_ids = retrieved.expect("复合索引查询应该成功");
     assert_count(&vertex_ids, 2, "匹配的顶点（两个 Alice）");
     assert!(vertex_ids.contains(&Value::Int(1)), "应该包含顶点 1");
@@ -734,9 +874,9 @@ fn test_composite_index() {
 
 #[test]
 fn test_index_selector_chooses_optimal_index() {
-    use graphdb::query::optimizer::IndexSelector;
-    use graphdb::core::Expression;
     use graphdb::core::types::operators::BinaryOperator;
+    use graphdb::core::Expression;
+    use graphdb::query::optimizer::IndexSelector;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
@@ -753,7 +893,11 @@ fn test_index_selector_chooses_optimal_index() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -855,13 +999,15 @@ fn test_index_range_query_with_boundaries() {
         scan_type: ScanType::Range,
     };
     // 注意：这里使用存储层的范围查询能力
-    let retrieved = get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(25));
+    let retrieved =
+        get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(25));
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert!(vertex_ids.contains(&Value::Int(2)), ">= 25 应该包含 25");
 
     // 测试 > (不包含边界): age > 25，应该返回 30, 35, 40
     // 注意：当前存储层实现可能不支持边界控制，这里验证基本功能
-    let retrieved = get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
+    let retrieved =
+        get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert!(vertex_ids.contains(&Value::Int(3)), "应该包含 30");
 }
@@ -886,7 +1032,11 @@ fn test_scan_type_unique() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,
@@ -910,7 +1060,11 @@ fn test_scan_type_unique() {
     }
 
     // 等值查询应该返回所有匹配的顶点
-    let retrieved = get_storage(&storage).lookup_index("test_space", "person_name_idx", &Value::String("Alice".to_string()));
+    let retrieved = get_storage(&storage).lookup_index(
+        "test_space",
+        "person_name_idx",
+        &Value::String("Alice".to_string()),
+    );
     let vertex_ids = retrieved.expect("索引查询应该成功");
     assert_count(&vertex_ids, 2, "匹配的 Alice");
     assert!(vertex_ids.contains(&Value::Int(1)), "应该包含顶点 1");
@@ -953,7 +1107,8 @@ fn test_scan_type_range() {
     }
 
     // 验证范围查询的基本功能
-    let retrieved = get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
+    let retrieved =
+        get_storage(&storage).lookup_index("test_space", "person_age_idx", &Value::Int(30));
     let vertex_ids = retrieved.expect("范围查询应该成功");
     assert!(vertex_ids.contains(&Value::Int(30)), "应该包含年龄 30");
 }
@@ -976,7 +1131,11 @@ fn test_scan_type_full() {
         "person_name_idx".to_string(),
         0,
         "Person".to_string(),
-        vec![IndexField::new("name".to_string(), Value::String("".to_string()), false)],
+        vec![IndexField::new(
+            "name".to_string(),
+            Value::String("".to_string()),
+            false,
+        )],
         vec!["name".to_string()],
         IndexType::TagIndex,
         false,

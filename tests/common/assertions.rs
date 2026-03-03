@@ -8,7 +8,10 @@ pub fn assert_ok<T, E: std::fmt::Debug>(result: Result<T, E>) -> T {
 }
 
 /// 断言结果失败并匹配错误消息
-pub fn assert_err_with<T: std::fmt::Debug, E: std::fmt::Display>(result: Result<T, E>, expected_msg: &str) {
+pub fn assert_err_with<T: std::fmt::Debug, E: std::fmt::Display>(
+    result: Result<T, E>,
+    expected_msg: &str,
+) {
     let err = result.expect_err("操作应该失败");
     let err_str = err.to_string();
     assert!(
@@ -37,10 +40,7 @@ where
     F: FnOnce(&T) -> bool,
 {
     let value = result.expect("操作应该成功");
-    assert!(
-        predicate(&value),
-        "结果不满足预期条件"
-    );
+    assert!(predicate(&value), "结果不满足预期条件");
 }
 
 /// 断言 Option 是 Some 并返回内部值

@@ -4,11 +4,11 @@
 //!
 //! CPU 密集型操作，使用 Rayon 进行并行化
 
+use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -16,12 +16,10 @@ use crate::core::{DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::ParallelConfig;
-use crate::query::executor::base::{
-    BaseResultProcessor, ResultProcessor, ResultProcessorContext,
-};
-use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
 /// 排序顺序枚举
@@ -166,7 +164,9 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
 
         // 解析表达式为列索引
         for (i, expression) in expressions_to_parse {
-            if let Some(column_index) = self.parse_expression_to_column_index(&expression, col_names)? {
+            if let Some(column_index) =
+                self.parse_expression_to_column_index(&expression, col_names)?
+            {
                 self.sort_keys[i].column_index = Some(column_index);
             }
         }
@@ -181,7 +181,10 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
         col_names: &[String],
     ) -> DBResult<Option<usize>> {
         match expression {
-            Expression::Property { object: _, property } => {
+            Expression::Property {
+                object: _,
+                property,
+            } => {
                 // 查找属性名对应的列索引
                 for (index, col_name) in col_names.iter().enumerate() {
                     if col_name == property {
@@ -561,7 +564,9 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     /// - Scatter: 将数据分成多个块，每块在一个线程中排序
     /// - Gather: 使用k路归并合并排序后的块
     fn execute_parallel_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
-        let batch_size = self.parallel_config.calculate_batch_size(data_set.rows.len());
+        let batch_size = self
+            .parallel_config
+            .calculate_batch_size(data_set.rows.len());
         let sort_keys = self.sort_keys.clone();
 
         // 检查是否所有排序键都使用列索引（并行排序需要）
@@ -615,7 +620,9 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                     let mut rows_with_sort_values: Vec<(Vec<Value>, Vec<Value>)> = chunk
                         .into_iter()
                         .map(|row| {
-                            let sort_values = self.calculate_sort_values(&row, &col_names).unwrap_or_default();
+                            let sort_values = self
+                                .calculate_sort_values(&row, &col_names)
+                                .unwrap_or_default();
                             (row, sort_values)
                         })
                         .collect();
@@ -635,7 +642,10 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                         Ordering::Equal
                     });
 
-                    rows_with_sort_values.into_iter().map(|(row, _)| row).collect()
+                    rows_with_sort_values
+                        .into_iter()
+                        .map(|(row, _)| row)
+                        .collect()
                 })
                 .collect()
         };
@@ -692,7 +702,9 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
                 match self.sort_values.partial_cmp(&other.sort_values) {
                     Some(Ordering::Equal) | None => {
                         // 如果排序值相等，使用chunk_idx和row_idx作为稳定排序的依据
-                        other.chunk_idx.cmp(&self.chunk_idx)
+                        other
+                            .chunk_idx
+                            .cmp(&self.chunk_idx)
                             .then_with(|| other.row_idx.cmp(&self.row_idx))
                     }
                     Some(ordering) => ordering.reverse(), // 反转以实现小顶堆
@@ -707,10 +719,8 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
         }
 
         let mut result = Vec::new();
-        let mut chunk_iters: Vec<std::vec::IntoIter<Vec<Value>>> = sorted_chunks
-            .into_iter()
-            .map(|c| c.into_iter())
-            .collect();
+        let mut chunk_iters: Vec<std::vec::IntoIter<Vec<Value>>> =
+            sorted_chunks.into_iter().map(|c| c.into_iter()).collect();
 
         // 创建虚拟列名用于计算排序值
         let col_names: Vec<String> = if !chunk_iters.is_empty() && all_use_column_index {
@@ -718,7 +728,8 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             Vec::new()
         } else {
             // 获取第一行的长度来确定列数
-            let first_row_len = chunk_iters.iter()
+            let first_row_len = chunk_iters
+                .iter()
                 .filter_map(|iter| iter.as_slice().first().map(|row| row.len()))
                 .next()
                 .unwrap_or(0);
@@ -965,10 +976,13 @@ mod tests {
 
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
+        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config)
+            .expect("SortExecutor::new should succeed");
 
         // 执行排序
-        executor.execute_sort(&mut data_set).expect("execute_sort should succeed");
+        executor
+            .execute_sort(&mut data_set)
+            .expect("execute_sort should succeed");
 
         // 验证排序结果（升序：分数从低到高）
         assert_eq!(data_set.rows.len(), 5);
@@ -988,10 +1002,13 @@ mod tests {
 
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(3), config).expect("SortExecutor::new should succeed");
+        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(3), config)
+            .expect("SortExecutor::new should succeed");
 
         // 执行排序
-        executor.execute_sort(&mut data_set).expect("execute_sort should succeed");
+        executor
+            .execute_sort(&mut data_set)
+            .expect("execute_sort should succeed");
 
         // 验证Top-N结果
         assert_eq!(data_set.rows.len(), 3); // 只保留前3个
@@ -1011,10 +1028,13 @@ mod tests {
 
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(2), config).expect("SortExecutor::new should succeed");
+        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(2), config)
+            .expect("SortExecutor::new should succeed");
 
         // 执行排序
-        executor.execute_sort(&mut data_set).expect("execute_sort should succeed");
+        executor
+            .execute_sort(&mut data_set)
+            .expect("execute_sort should succeed");
 
         // 验证Top-N结果
         assert_eq!(data_set.rows.len(), 2); // 只保留前2个
@@ -1036,8 +1056,11 @@ mod tests {
 
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
-        executor.execute_sort(&mut data_set).expect("execute_sort should succeed");
+        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config)
+            .expect("SortExecutor::new should succeed");
+        executor
+            .execute_sort(&mut data_set)
+            .expect("execute_sort should succeed");
 
         // 验证多列排序结果
         assert_eq!(data_set.rows.len(), 5);
@@ -1063,7 +1086,8 @@ mod tests {
         let config = SortConfig::default();
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
+        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config)
+            .expect("SortExecutor::new should succeed");
 
         // 验证多列排序结果应该会返回错误，因为列索引超出范围
         let result = executor.execute_sort(&mut data_set);
@@ -1083,13 +1107,16 @@ mod tests {
 
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
+        let executor = SortExecutor::new(1, storage, sort_keys, None, config)
+            .expect("SortExecutor::new should succeed");
 
         // 测试列索引比较功能
         let row1 = &data_set.rows[0]; // Alice: 85.5
         let row2 = &data_set.rows[1]; // Bob: 92.0
 
-        let result = executor.compare_by_column_indices(row1, row2).expect("compare_by_column_indices should succeed");
+        let result = executor
+            .compare_by_column_indices(row1, row2)
+            .expect("compare_by_column_indices should succeed");
         assert_eq!(result, Ordering::Less); // 85.5 < 92.0
     }
 }

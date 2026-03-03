@@ -2,8 +2,8 @@
 //!
 //! 负责修改用户密码。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::types::PasswordInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -21,7 +21,13 @@ pub struct ChangePasswordExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> ChangePasswordExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, username: Option<String>, old_password: String, new_password: String) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        username: Option<String>,
+        old_password: String,
+        new_password: String,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ChangePasswordExecutor".to_string(), storage),
             username,
@@ -45,7 +51,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ChangePasswordExe
         match result {
             Ok(true) => Ok(ExecutionResult::Success),
             Ok(false) => Err(crate::core::error::DBError::Storage(
-                crate::core::StorageError::DbError("Failed to change password".to_string())
+                crate::core::StorageError::DbError("Failed to change password".to_string()),
             )),
             Err(e) => Err(crate::core::error::DBError::Storage(e)),
         }
@@ -93,12 +99,14 @@ impl<S: StorageClient> HasStorage<S> for ChangePasswordExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_change_password_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建MockStorage应该成功")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("创建MockStorage应该成功"),
+        ));
         let mut executor = ChangePasswordExecutor::new(
             1,
             storage,
@@ -117,7 +125,9 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建MockStorage应该成功")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("创建MockStorage应该成功"),
+        ));
         let mut executor = ChangePasswordExecutor::new(
             2,
             storage,
@@ -135,7 +145,9 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建MockStorage应该成功")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("创建MockStorage应该成功"),
+        ));
         let executor = ChangePasswordExecutor::new(
             3,
             storage,

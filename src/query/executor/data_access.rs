@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::base::{BaseExecutor, ExecutorStats};
-use crate::core::{Value, vertex_edge_path};
+use crate::core::{vertex_edge_path, Value};
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -100,12 +100,13 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                 for id in ids {
                     match storage.get_vertex("default", id) {
                         Ok(Some(vertex)) => {
-                            let include_vertex = if let Some(ref tag_filter_expression) = self.tag_filter {
-                                crate::query::executor::tag_filter::TagFilterProcessor
+                            let include_vertex =
+                                if let Some(ref tag_filter_expression) = self.tag_filter {
+                                    crate::query::executor::tag_filter::TagFilterProcessor
                                     ::process_tag_filter(tag_filter_expression, &vertex)
-                            } else {
-                                true
-                            };
+                                } else {
+                                    true
+                                };
 
                             if include_vertex {
                                 result_vertices.push(vertex);
@@ -622,7 +623,8 @@ impl<S: StorageClient> GetPropExecutor<S> {
                         if let Some(value) = vertex.get_property_any(prop_name) {
                             props.push(value.clone());
                         } else {
-                            props.push(crate::core::Value::Null(crate::core::value::NullType::Null));
+                            props
+                                .push(crate::core::Value::Null(crate::core::value::NullType::Null));
                         }
                     }
                 }
@@ -639,7 +641,8 @@ impl<S: StorageClient> GetPropExecutor<S> {
                         if let Some(value) = edge.get_property(prop_name) {
                             props.push(value.clone());
                         } else {
-                            props.push(crate::core::Value::Null(crate::core::value::NullType::Null));
+                            props
+                                .push(crate::core::Value::Null(crate::core::value::NullType::Null));
                         }
                     }
                 }
@@ -740,7 +743,12 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         let mut results = Vec::new();
 
         if let Some((prop_name, prop_value)) = &self.index_condition {
-            let scan_results = storage.scan_vertices_by_prop("default", &self.index_name, prop_name, prop_value)?;
+            let scan_results = storage.scan_vertices_by_prop(
+                "default",
+                &self.index_name,
+                prop_name,
+                prop_value,
+            )?;
 
             for vertex in scan_results {
                 results.push(crate::core::Value::Vertex(Box::new(vertex)));
@@ -810,11 +818,12 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
 
         let mut all_paths: Vec<Path> = Vec::new();
 
-        let start_vertex_obj = if let Some(vertex) = storage.get_vertex("default", &self.start_vertex)? {
-            vertex
-        } else {
-            return Ok(ExecutionResult::Values(vec![]));
-        };
+        let start_vertex_obj =
+            if let Some(vertex) = storage.get_vertex("default", &self.start_vertex)? {
+                vertex
+            } else {
+                return Ok(ExecutionResult::Values(vec![]));
+            };
 
         let mut current_paths: Vec<Path> = vec![Path {
             src: Box::new(start_vertex_obj.clone()),
@@ -899,10 +908,7 @@ impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
 
 impl<S: StorageClient> HasStorage<S> for AllPathsExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("存储未初始化")
+        self.base.storage.as_ref().expect("存储未初始化")
     }
 }
 

@@ -72,20 +72,11 @@ impl TraversalDirection {
 #[derive(Debug, Clone)]
 pub enum DirectionSelectionReason {
     /// 出度小于入度
-    OutDegreeLower {
-        out_degree: f64,
-        in_degree: f64,
-    },
+    OutDegreeLower { out_degree: f64, in_degree: f64 },
     /// 入度小于出度
-    InDegreeLower {
-        in_degree: f64,
-        out_degree: f64,
-    },
+    InDegreeLower { in_degree: f64, out_degree: f64 },
     /// 度数相等或接近
-    DegreesEqual {
-        out_degree: f64,
-        in_degree: f64,
-    },
+    DegreesEqual { out_degree: f64, in_degree: f64 },
     /// 基于代价比较的选择
     CostBased {
         forward_cost: f64,
@@ -151,7 +142,7 @@ impl TraversalDirectionOptimizer {
     pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
         Self {
             cost_calculator,
-            super_node_threshold: 1000.0, // 默认超级节点阈值
+            super_node_threshold: 1000.0,   // 默认超级节点阈值
             degree_equality_threshold: 0.1, // 10% 差异视为相等
         }
     }
@@ -389,7 +380,10 @@ impl TraversalDirectionOptimizer {
 
     /// 快速方向选择（简化版本，用于决策缓存）
     pub fn select_direction_quick(&self, edge_type: &str) -> TraversalDirection {
-        let stats = self.cost_calculator.statistics_manager().get_edge_stats(edge_type);
+        let stats = self
+            .cost_calculator
+            .statistics_manager()
+            .get_edge_stats(edge_type);
 
         match stats {
             Some(s) => {
@@ -413,7 +407,10 @@ impl TraversalDirectionOptimizer {
 
     /// 检查是否需要双向遍历
     pub fn should_use_bidirectional(&self, edge_type: &str) -> bool {
-        let stats = self.cost_calculator.statistics_manager().get_edge_stats(edge_type);
+        let stats = self
+            .cost_calculator
+            .statistics_manager()
+            .get_edge_stats(edge_type);
 
         match stats {
             Some(s) => {

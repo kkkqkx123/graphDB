@@ -2,12 +2,14 @@
 //!
 //! 提供高性能的预编译查询支持，包括查询计划缓存、参数绑定、批量执行等功能
 
-use crate::api::core::{CoreError, CoreResult, QueryContext, QueryApi};
+use crate::api::core::{CoreError, CoreResult, QueryApi, QueryContext};
 use crate::api::embedded::result::QueryResult;
-use crate::core::{DataType, Value};
 use crate::core::types::expression::{ContextualExpression, Expression};
-use crate::query::parser::ast::stmt::{Stmt, MatchStmt, GoStmt, InsertStmt, UpdateStmt, DeleteStmt};
-use crate::query::parser::ast::pattern::{Pattern, PathElement};
+use crate::core::{DataType, Value};
+use crate::query::parser::ast::pattern::{PathElement, Pattern};
+use crate::query::parser::ast::stmt::{
+    DeleteStmt, GoStmt, InsertStmt, MatchStmt, Stmt, UpdateStmt,
+};
 use crate::query::parser::parser::Parser;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -94,7 +96,8 @@ impl ExecutionStats {
         let ms = duration.as_millis() as u64;
         self.execution_count += 1;
         self.total_execution_time_ms += ms;
-        self.avg_execution_time_ms = self.total_execution_time_ms as f64 / self.execution_count as f64;
+        self.avg_execution_time_ms =
+            self.total_execution_time_ms as f64 / self.execution_count as f64;
         self.min_execution_time_ms = self.min_execution_time_ms.min(ms);
         self.max_execution_time_ms = self.max_execution_time_ms.max(ms);
         self.last_execution_time = Some(Instant::now());
@@ -211,9 +214,10 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
             Err(e) => {
                 // 解析失败，返回错误
                 // 预编译语句要求查询必须是有效的
-                Err(CoreError::QueryExecutionFailed(
-                    format!("查询解析失败: {:?}", e)
-                ))
+                Err(CoreError::QueryExecutionFailed(format!(
+                    "查询解析失败: {:?}",
+                    e
+                )))
             }
         }
     }
@@ -270,7 +274,10 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
     }
 
     /// 从 INSERT 语句中提取参数
-    fn extract_params_from_insert(insert_stmt: &InsertStmt, params: &mut HashMap<String, DataType>) {
+    fn extract_params_from_insert(
+        insert_stmt: &InsertStmt,
+        params: &mut HashMap<String, DataType>,
+    ) {
         use crate::query::parser::ast::stmt::InsertTarget;
 
         match &insert_stmt.target {
@@ -302,7 +309,10 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
     }
 
     /// 从 UPDATE 语句中提取参数
-    fn extract_params_from_update(update_stmt: &UpdateStmt, params: &mut HashMap<String, DataType>) {
+    fn extract_params_from_update(
+        update_stmt: &UpdateStmt,
+        params: &mut HashMap<String, DataType>,
+    ) {
         use crate::query::parser::ast::stmt::UpdateTarget;
 
         // 从更新目标中提取参数
@@ -338,7 +348,10 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
     }
 
     /// 从 DELETE 语句中提取参数
-    fn extract_params_from_delete(delete_stmt: &DeleteStmt, params: &mut HashMap<String, DataType>) {
+    fn extract_params_from_delete(
+        delete_stmt: &DeleteStmt,
+        params: &mut HashMap<String, DataType>,
+    ) {
         use crate::query::parser::ast::stmt::DeleteTarget;
 
         // 从删除目标中提取参数
@@ -423,7 +436,10 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
     }
 
     /// 从表达式中递归提取参数
-    fn extract_params_from_expr(expr: &ContextualExpression, params: &mut HashMap<String, DataType>) {
+    fn extract_params_from_expr(
+        expr: &ContextualExpression,
+        params: &mut HashMap<String, DataType>,
+    ) {
         let expr_meta = match expr.expression() {
             Some(e) => e,
             None => return,
@@ -441,7 +457,13 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 } else {
                     name.clone()
                 };
-                if !param_name.is_empty() && (param_name.chars().next().map_or(false, |c| c.is_lowercase()) || param_name.contains('_')) {
+                if !param_name.is_empty()
+                    && (param_name
+                        .chars()
+                        .next()
+                        .map_or(false, |c| c.is_lowercase())
+                        || param_name.contains('_'))
+                {
                     if !params.contains_key(param_name.as_str()) {
                         params.insert(param_name, DataType::String);
                     }
@@ -472,7 +494,11 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                     Self::extract_params_from_expression(value, params);
                 }
             }
-            Expression::Case { test_expr, conditions, default } => {
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
                 if let Some(test) = test_expr {
                     Self::extract_params_from_expression(test, params);
                 }
@@ -491,7 +517,11 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 Self::extract_params_from_expression(collection, params);
                 Self::extract_params_from_expression(index, params);
             }
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 Self::extract_params_from_expression(collection, params);
                 if let Some(s) = start {
                     Self::extract_params_from_expression(s, params);
@@ -505,7 +535,12 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                     Self::extract_params_from_expression(item, params);
                 }
             }
-            Expression::ListComprehension { source, filter, map, .. } => {
+            Expression::ListComprehension {
+                source,
+                filter,
+                map,
+                ..
+            } => {
                 Self::extract_params_from_expression(source, params);
                 if let Some(f) = filter {
                     Self::extract_params_from_expression(f, params);
@@ -535,7 +570,13 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 } else {
                     name.clone()
                 };
-                if !param_name.is_empty() && (param_name.chars().next().map_or(false, |c| c.is_lowercase()) || param_name.contains('_')) {
+                if !param_name.is_empty()
+                    && (param_name
+                        .chars()
+                        .next()
+                        .map_or(false, |c| c.is_lowercase())
+                        || param_name.contains('_'))
+                {
                     if !params.contains_key(&param_name) {
                         params.insert(param_name, DataType::Empty);
                     }
@@ -566,7 +607,11 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                     Self::extract_params_from_expression(value, params);
                 }
             }
-            Expression::Case { test_expr, conditions, default } => {
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
                 if let Some(test) = test_expr {
                     Self::extract_params_from_expression(test, params);
                 }
@@ -585,7 +630,11 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                 Self::extract_params_from_expression(collection, params);
                 Self::extract_params_from_expression(index, params);
             }
-            Expression::Range { collection, start, end } => {
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
                 Self::extract_params_from_expression(collection, params);
                 if let Some(s) = start {
                     Self::extract_params_from_expression(s, params);
@@ -599,7 +648,12 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
                     Self::extract_params_from_expression(item, params);
                 }
             }
-            Expression::ListComprehension { source, filter, map, .. } => {
+            Expression::ListComprehension {
+                source,
+                filter,
+                map,
+                ..
+            } => {
                 Self::extract_params_from_expression(source, params);
                 if let Some(f) = filter {
                     Self::extract_params_from_expression(f, params);
@@ -627,18 +681,17 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
     pub fn bind(&mut self, name: &str, value: Value) -> CoreResult<()> {
         // 检查参数是否存在
         if !self.parameter_types.contains_key(name) {
-            return Err(CoreError::InvalidParameter(
-                format!("未知参数: {}", name)
-            ));
+            return Err(CoreError::InvalidParameter(format!("未知参数: {}", name)));
         }
 
         // 类型检查
         if self.config.enable_type_check {
             if let Some(expected_type) = self.parameter_types.get(name) {
                 if !Self::type_matches(&value, expected_type) {
-                    return Err(CoreError::InvalidParameter(
-                        format!("类型不匹配: 期望 {:?}, 实际 {:?}", expected_type, value)
-                    ));
+                    return Err(CoreError::InvalidParameter(format!(
+                        "类型不匹配: 期望 {:?}, 实际 {:?}",
+                        expected_type, value
+                    )));
                 }
             }
         }
@@ -810,9 +863,7 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
     fn check_all_parameters_bound(&self) -> CoreResult<()> {
         for (name, _) in &self.parameter_types {
             if !self.bound_params.contains_key(name) {
-                return Err(CoreError::InvalidParameter(
-                    format!("参数未绑定: {}", name)
-                ));
+                return Err(CoreError::InvalidParameter(format!("参数未绑定: {}", name)));
             }
         }
         Ok(())
@@ -895,16 +946,11 @@ impl<S: StorageClient + Clone + 'static> PreparedStatementBuilder<S> {
 
     /// 构建预编译语句
     pub fn build(self) -> CoreResult<PreparedStatement<S>> {
-        let query = self.query.ok_or_else(|| {
-            CoreError::InvalidParameter("查询语句不能为空".to_string())
-        })?;
+        let query = self
+            .query
+            .ok_or_else(|| CoreError::InvalidParameter("查询语句不能为空".to_string()))?;
 
-        PreparedStatement::with_config(
-            self.query_api,
-            query,
-            self.space_id,
-            self.config,
-        )
+        PreparedStatement::with_config(self.query_api, query, self.space_id, self.config)
     }
 }
 
@@ -917,8 +963,8 @@ mod tests {
     fn test_extract_parameters_insert() {
         // 测试 INSERT 语句中的参数提取
         let query = "INSERT VERTEX Person(name, age) VALUES $id:($name, $age)";
-        let params = PreparedStatement::<RedbStorage>::extract_parameters(query)
-            .expect("解析查询失败");
+        let params =
+            PreparedStatement::<RedbStorage>::extract_parameters(query).expect("解析查询失败");
 
         assert!(params.contains_key("id"), "应该包含 id 参数");
         assert!(params.contains_key("name"), "应该包含 name 参数");
@@ -930,8 +976,8 @@ mod tests {
     fn test_extract_parameters_update() {
         // 测试 UPDATE 语句中的参数提取
         let query = "UPDATE $vid SET age = $new_age";
-        let params = PreparedStatement::<RedbStorage>::extract_parameters(query)
-            .expect("解析查询失败");
+        let params =
+            PreparedStatement::<RedbStorage>::extract_parameters(query).expect("解析查询失败");
 
         assert!(params.contains_key("vid"), "应该包含 vid 参数");
         assert!(params.contains_key("new_age"), "应该包含 new_age 参数");
@@ -942,8 +988,8 @@ mod tests {
     fn test_extract_parameters_delete() {
         // 测试 DELETE 语句中的参数提取
         let query = "DELETE VERTEX $vid";
-        let params = PreparedStatement::<RedbStorage>::extract_parameters(query)
-            .expect("解析查询失败");
+        let params =
+            PreparedStatement::<RedbStorage>::extract_parameters(query).expect("解析查询失败");
 
         assert!(params.contains_key("vid"), "应该包含 vid 参数");
         assert_eq!(params.len(), 1);
@@ -962,8 +1008,8 @@ mod tests {
     fn test_extract_parameters_none() {
         // 测试没有参数的查询
         let query = "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)";
-        let params = PreparedStatement::<RedbStorage>::extract_parameters(query)
-            .expect("解析查询失败");
+        let params =
+            PreparedStatement::<RedbStorage>::extract_parameters(query).expect("解析查询失败");
 
         assert!(params.is_empty(), "没有参数的查询应该返回空映射");
     }

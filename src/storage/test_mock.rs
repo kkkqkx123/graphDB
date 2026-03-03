@@ -3,31 +3,28 @@
 //! 提供统一的Mock存储引擎实现，避免在各个测试模块中重复实现
 
 #[cfg(test)]
-use crate::core::value::NullType;
+use crate::core::error::StorageError;
 #[cfg(test)]
-use crate::core::{
-    vertex_edge_path::Edge,
-    EdgeDirection, Value,
+use crate::core::types::{
+    EdgeTypeSchema, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
+    TagInfo, UpdateInfo,
 };
+#[cfg(test)]
+use crate::core::types::{UserAlterInfo, UserInfo};
+#[cfg(test)]
+use crate::core::value::NullType;
 #[cfg(test)]
 use crate::core::vertex_edge_path::Vertex;
 #[cfg(test)]
-use crate::core::error::StorageError;
-#[cfg(test)]
-use crate::storage::StorageClient;
-#[cfg(test)]
 use crate::core::RoleType;
 #[cfg(test)]
-use crate::core::types::{
-    EdgeTypeSchema, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
-    PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
-};
-#[cfg(test)]
-use crate::core::types::{UserInfo, UserAlterInfo};
+use crate::core::{vertex_edge_path::Edge, EdgeDirection, Value};
 #[cfg(test)]
 use crate::index::Index;
 #[cfg(test)]
 use crate::storage::Schema;
+#[cfg(test)]
+use crate::storage::StorageClient;
 
 /// 测试用Mock存储引擎
 #[cfg(test)]
@@ -101,7 +98,11 @@ impl StorageClient for MockStorage {
         Ok(Vec::new())
     }
 
-    fn scan_edges_by_type(&self, _space: &str, _edge_type: &str) -> Result<Vec<Edge>, StorageError> {
+    fn scan_edges_by_type(
+        &self,
+        _space: &str,
+        _edge_type: &str,
+    ) -> Result<Vec<Edge>, StorageError> {
         Ok(Vec::new())
     }
 
@@ -179,7 +180,11 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
-    fn alter_space_comment(&mut self, _space_id: u64, _comment: String) -> Result<bool, StorageError> {
+    fn alter_space_comment(
+        &mut self,
+        _space_id: u64,
+        _comment: String,
+    ) -> Result<bool, StorageError> {
         Ok(true)
     }
 
@@ -251,11 +256,7 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
-    fn get_tag_index(
-        &self,
-        _space: &str,
-        _index: &str,
-    ) -> Result<Option<Index>, StorageError> {
+    fn get_tag_index(&self, _space: &str, _index: &str) -> Result<Option<Index>, StorageError> {
         Ok(None)
     }
 
@@ -275,11 +276,7 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
-    fn get_edge_index(
-        &self,
-        _space: &str,
-        _index: &str,
-    ) -> Result<Option<Index>, StorageError> {
+    fn get_edge_index(&self, _space: &str, _index: &str) -> Result<Option<Index>, StorageError> {
         Ok(None)
     }
 
@@ -317,7 +314,11 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
-    fn insert_edge_data(&mut self, _space: &str, _info: &InsertEdgeInfo) -> Result<bool, StorageError> {
+    fn insert_edge_data(
+        &mut self,
+        _space: &str,
+        _info: &InsertEdgeInfo,
+    ) -> Result<bool, StorageError> {
         Ok(true)
     }
 
@@ -355,7 +356,12 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
-    fn grant_role(&mut self, _username: &str, _space_id: u64, _role: RoleType) -> Result<bool, StorageError> {
+    fn grant_role(
+        &mut self,
+        _username: &str,
+        _space_id: u64,
+        _role: RoleType,
+    ) -> Result<bool, StorageError> {
         Ok(true)
     }
 

@@ -263,10 +263,11 @@ impl GraphTypeInference {
         match prop_name.to_lowercase().as_str() {
             "id" => Some(DataType::Int),
             "name" | "title" | "desc" | "description" => Some(DataType::String),
-            "age" | "count" | "size" | "year" | "month" | "day" | 
-            "hour" | "minute" | "second" => Some(DataType::Int),
-            "price" | "score" | "rate" | "ratio" | "percent" | 
-            "weight" | "height" | "width" | "length" => Some(DataType::Float),
+            "age" | "count" | "size" | "year" | "month" | "day" | "hour" | "minute" | "second" => {
+                Some(DataType::Int)
+            }
+            "price" | "score" | "rate" | "ratio" | "percent" | "weight" | "height" | "width"
+            | "length" => Some(DataType::Float),
             "created_at" | "updated_at" | "birthday" | "date" | "time" | "datetime" => {
                 Some(DataType::DateTime)
             }
@@ -291,7 +292,7 @@ mod tests {
     #[test]
     fn test_deduce_vertex_type() {
         let inference = GraphTypeInference::new();
-        
+
         let vertex_type = inference.deduce_vertex_type("person", Some(1));
         assert_eq!(vertex_type.tag_name, "person");
         assert_eq!(vertex_type.tag_id, Some(1));
@@ -301,7 +302,7 @@ mod tests {
     #[test]
     fn test_deduce_edge_type() {
         let inference = GraphTypeInference::new();
-        
+
         let edge_type = inference.deduce_edge_type("knows", 2);
         assert_eq!(edge_type.edge_name, "knows");
         assert_eq!(edge_type.edge_type, 2);
@@ -312,7 +313,7 @@ mod tests {
     #[test]
     fn test_deduce_path_type() {
         let inference = GraphTypeInference::new();
-        
+
         let path_info = inference.deduce_path_type(PathType::ShortestPath, Some((1, 3)));
         assert_eq!(path_info.path_type, PathType::ShortestPath);
         assert_eq!(path_info.steps, Some((1, 3)));
@@ -323,15 +324,39 @@ mod tests {
     #[test]
     fn test_deduce_property_type() {
         let inference = GraphTypeInference::new();
-        
-        assert_eq!(inference.deduce_property_type("id", "person"), Some(DataType::Int));
-        assert_eq!(inference.deduce_property_type("name", "person"), Some(DataType::String));
-        assert_eq!(inference.deduce_property_type("age", "person"), Some(DataType::Int));
-        assert_eq!(inference.deduce_property_type("price", "product"), Some(DataType::Float));
-        assert_eq!(inference.deduce_property_type("created_at", "person"), Some(DataType::DateTime));
-        assert_eq!(inference.deduce_property_type("active", "person"), Some(DataType::Bool));
-        assert_eq!(inference.deduce_property_type("tags", "person"), Some(DataType::List));
-        assert_eq!(inference.deduce_property_type("properties", "person"), Some(DataType::Map));
+
+        assert_eq!(
+            inference.deduce_property_type("id", "person"),
+            Some(DataType::Int)
+        );
+        assert_eq!(
+            inference.deduce_property_type("name", "person"),
+            Some(DataType::String)
+        );
+        assert_eq!(
+            inference.deduce_property_type("age", "person"),
+            Some(DataType::Int)
+        );
+        assert_eq!(
+            inference.deduce_property_type("price", "product"),
+            Some(DataType::Float)
+        );
+        assert_eq!(
+            inference.deduce_property_type("created_at", "person"),
+            Some(DataType::DateTime)
+        );
+        assert_eq!(
+            inference.deduce_property_type("active", "person"),
+            Some(DataType::Bool)
+        );
+        assert_eq!(
+            inference.deduce_property_type("tags", "person"),
+            Some(DataType::List)
+        );
+        assert_eq!(
+            inference.deduce_property_type("properties", "person"),
+            Some(DataType::Map)
+        );
         assert_eq!(inference.deduce_property_type("unknown", "person"), None);
     }
 }

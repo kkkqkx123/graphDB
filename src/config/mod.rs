@@ -272,11 +272,12 @@ impl Config {
         if storage_path.starts_with('~') {
             if let Some(home_dir) = env::home_dir() {
                 let relative_path = &storage_path[1..];
-                let absolute_path = if relative_path.starts_with('/') || relative_path.starts_with('\\') {
-                    home_dir.join(&relative_path[1..])
-                } else {
-                    home_dir.join(relative_path)
-                };
+                let absolute_path =
+                    if relative_path.starts_with('/') || relative_path.starts_with('\\') {
+                        home_dir.join(&relative_path[1..])
+                    } else {
+                        home_dir.join(relative_path)
+                    };
                 return Ok(absolute_path.to_string_lossy().into_owned());
             }
             return Err("无法获取用户主目录".into());
@@ -442,7 +443,9 @@ enabled_rules = ["RemoveUselessNodeRule"]
 "#;
 
         let mut temp_file = NamedTempFile::new().expect("Failed to create temporary file");
-        temp_file.write_all(config_content.as_bytes()).expect("Failed to write config file");
+        temp_file
+            .write_all(config_content.as_bytes())
+            .expect("Failed to write config file");
 
         let config = Config::load(temp_file.path()).expect("Failed to load config");
 

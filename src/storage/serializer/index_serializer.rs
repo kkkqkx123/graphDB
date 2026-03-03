@@ -8,9 +8,8 @@ pub fn index_to_bytes(index: &Index) -> Result<Vec<u8>, StorageError> {
 }
 
 pub fn index_from_bytes(bytes: &[u8]) -> Result<Index, StorageError> {
-    let (index, _): (Index, usize) =
-        bincode::decode_from_slice(bytes, bincode::config::standard())
-            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+    let (index, _): (Index, usize) = bincode::decode_from_slice(bytes, bincode::config::standard())
+        .map_err(|e| StorageError::SerializeError(e.to_string()))?;
     Ok(index)
 }
 

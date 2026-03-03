@@ -25,9 +25,9 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use crate::core::Expression;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::decision::{JoinAlgorithm, JoinOrderDecision};
-use crate::core::Expression;
 
 /// 表信息
 #[derive(Debug, Clone)]
@@ -266,10 +266,7 @@ impl JoinOrderOptimizer {
                             last_table: table.id.clone(),
                             total_cost,
                             output_rows,
-                            join_tree: format!(
-                                "Join({}, {})",
-                                left_solution.join_tree, table.id
-                            ),
+                            join_tree: format!("Join({}, {})", left_solution.join_tree, table.id),
                         };
 
                         if best_solution
@@ -349,7 +346,10 @@ impl JoinOrderOptimizer {
                         &condition_map,
                     );
 
-                    if best_next.as_ref().map_or(true, |(_, best_cost, _)| cost < *best_cost) {
+                    if best_next
+                        .as_ref()
+                        .map_or(true, |(_, best_cost, _)| cost < *best_cost)
+                    {
                         best_next = Some((table_id.clone(), cost, output_rows));
                     }
                 }
@@ -399,10 +399,7 @@ impl JoinOrderOptimizer {
     }
 
     /// 构建连接条件查找表
-    fn build_condition_map(
-        &self,
-        conditions: &[JoinCondition],
-    ) -> HashMap<(String, String), f64> {
+    fn build_condition_map(&self, conditions: &[JoinCondition]) -> HashMap<(String, String), f64> {
         let mut map = HashMap::new();
         for cond in conditions {
             let key = (cond.left_table.clone(), cond.right_table.clone());
@@ -597,10 +594,13 @@ impl JoinOrderOptimizer {
             if i < result.algorithms.len() {
                 decision.add_join_step(table.clone(), result.algorithms[i].clone());
             } else {
-                decision.add_join_step(table.clone(), JoinAlgorithm::HashJoin {
-                    build_side: "default".to_string(),
-                    probe_side: "default".to_string(),
-                });
+                decision.add_join_step(
+                    table.clone(),
+                    JoinAlgorithm::HashJoin {
+                        build_side: "default".to_string(),
+                        probe_side: "default".to_string(),
+                    },
+                );
             }
         }
 
@@ -664,7 +664,10 @@ mod tests {
 
         // 使用DP（表数量 <= 8）
         let result = optimizer.optimize_join_order(&tables, &conditions);
-        assert_eq!(result.optimization_method, OptimizationMethod::DynamicProgramming);
+        assert_eq!(
+            result.optimization_method,
+            OptimizationMethod::DynamicProgramming
+        );
         assert_eq!(result.order.len(), 3);
     }
 
@@ -680,8 +683,7 @@ mod tests {
 
     #[test]
     fn test_condition_with_selectivity() {
-        let condition = JoinCondition::new("A".to_string(), "B".to_string())
-            .with_selectivity(0.25);
+        let condition = JoinCondition::new("A".to_string(), "B".to_string()).with_selectivity(0.25);
 
         assert_eq!(condition.selectivity, 0.25);
     }

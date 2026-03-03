@@ -3,10 +3,10 @@
 //! 提供 ResultIteratorEnum 枚举，包含所有具体迭代器类型
 //! 避免动态分发的性能开销
 
+use crate::core::result::iterator::{DefaultIterator, GetNeighborsIterator, PropIterator};
+use crate::core::result::result_iterator::ResultIterator;
 use crate::core::value::Value;
 use crate::core::DBResult;
-use crate::core::result::result_iterator::ResultIterator;
-use crate::core::result::iterator::{DefaultIterator, GetNeighborsIterator, PropIterator};
 
 /// 结果迭代器枚举 - 使用静态分发
 ///
@@ -129,7 +129,7 @@ impl ResultIteratorEnum {
             ResultIteratorEnum::Default(iter) => iter.reset(),
             ResultIteratorEnum::GetNeighbors(iter) => iter.reset(),
             ResultIteratorEnum::Prop(iter) => iter.reset(),
-            ResultIteratorEnum::Empty => {},
+            ResultIteratorEnum::Empty => {}
         }
     }
 }
@@ -210,7 +210,10 @@ mod tests {
     #[test]
     fn test_prop_iterator_enum() {
         let props = vec![
-            vec![Value::String("name".to_string()), Value::String("Alice".to_string())],
+            vec![
+                Value::String("name".to_string()),
+                Value::String("Alice".to_string()),
+            ],
             vec![Value::String("age".to_string()), Value::Int(25)],
         ];
 

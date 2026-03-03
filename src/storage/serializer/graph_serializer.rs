@@ -1,6 +1,6 @@
-use crate::core::{Vertex, Edge};
-use bincode;
 use crate::core::StorageError;
+use crate::core::{Edge, Vertex};
+use bincode;
 
 pub fn vertex_to_bytes(vertex: &Vertex) -> Result<Vec<u8>, StorageError> {
     bincode::encode_to_vec(vertex, bincode::config::standard())
@@ -20,8 +20,7 @@ pub fn edge_to_bytes(edge: &Edge) -> Result<Vec<u8>, StorageError> {
 }
 
 pub fn edge_from_bytes(bytes: &[u8]) -> Result<Edge, StorageError> {
-    let (edge, _): (Edge, usize) =
-        bincode::decode_from_slice(bytes, bincode::config::standard())
-            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+    let (edge, _): (Edge, usize) = bincode::decode_from_slice(bytes, bincode::config::standard())
+        .map_err(|e| StorageError::SerializeError(e.to_string()))?;
     Ok(edge)
 }

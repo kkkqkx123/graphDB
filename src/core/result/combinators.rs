@@ -468,7 +468,8 @@ where
     }
 
     fn nth(&mut self, n: usize) -> DBResult<Option<R>> {
-        self.iter.nth(n + self.target_skip.saturating_sub(self.skipped))
+        self.iter
+            .nth(n + self.target_skip.saturating_sub(self.skipped))
     }
 
     fn last(&mut self) -> DBResult<Option<R>> {

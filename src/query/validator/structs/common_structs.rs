@@ -1,10 +1,10 @@
 //! 通用数据结构
 
-use crate::query::validator::structs::{AliasType, QueryPart};
 use crate::core::error::ValidationError;
 use crate::core::DataType;
-use crate::query::validator::validator_trait::ColumnDef;
 use crate::query::validator::strategies::helpers::ExpressionValidationContext;
+use crate::query::validator::structs::{AliasType, QueryPart};
+use crate::query::validator::validator_trait::ColumnDef;
 use std::collections::HashMap;
 
 /// 验证上下文实现

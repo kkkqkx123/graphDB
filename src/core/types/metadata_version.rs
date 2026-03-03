@@ -1,6 +1,6 @@
 //! 元数据版本管理类型
 
-use crate::core::types::{TagInfo, EdgeTypeInfo};
+use crate::core::types::{EdgeTypeInfo, TagInfo};
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 

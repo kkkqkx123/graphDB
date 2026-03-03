@@ -2,10 +2,10 @@
 //!
 //! 管理表达式求值过程中的各种缓存，包括正则表达式缓存、表达式解析缓存、日期时间解析缓存等
 
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::value::{DateTimeValue, DateValue, TimeValue};
 use regex::Regex;
 use std::collections::HashMap;
-use crate::core::types::expression::ExpressionMeta;
-use crate::core::value::{DateValue, TimeValue, DateTimeValue};
 
 /// 缓存管理器
 ///
@@ -227,7 +227,11 @@ mod tests {
     fn test_date_cache() {
         let mut cache = CacheManager::new();
 
-        let date = DateValue { year: 2024, month: 1, day: 15 };
+        let date = DateValue {
+            year: 2024,
+            month: 1,
+            day: 15,
+        };
         cache.set_date("2024-01-15".to_string(), date);
 
         let retrieved = cache.get_date("2024-01-15");
@@ -240,7 +244,12 @@ mod tests {
     fn test_time_cache() {
         let mut cache = CacheManager::new();
 
-        let time = TimeValue { hour: 14, minute: 30, sec: 0, microsec: 0 };
+        let time = TimeValue {
+            hour: 14,
+            minute: 30,
+            sec: 0,
+            microsec: 0,
+        };
         cache.set_time("14:30:00".to_string(), time);
 
         let retrieved = cache.get_time("14:30:00");
@@ -275,8 +284,18 @@ mod tests {
         let mut cache = CacheManager::new();
 
         cache.get_regex(r"\d+");
-        cache.set_expression("test".to_string(), ExpressionMeta::new(crate::core::types::expression::Expression::literal(1)));
-        cache.set_date("2024-01-15".to_string(), DateValue { year: 2024, month: 1, day: 15 });
+        cache.set_expression(
+            "test".to_string(),
+            ExpressionMeta::new(crate::core::types::expression::Expression::literal(1)),
+        );
+        cache.set_date(
+            "2024-01-15".to_string(),
+            DateValue {
+                year: 2024,
+                month: 1,
+                day: 15,
+            },
+        );
 
         assert!(cache.total_count() > 0);
         cache.clear();

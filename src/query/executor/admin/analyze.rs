@@ -6,10 +6,10 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
-use crate::core::{DataSet, Value};
 use crate::core::types::EdgeDirection;
+use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::query::optimizer::stats::{StatisticsManager, TagStatistics, EdgeTypeStatistics};
+use crate::query::optimizer::stats::{EdgeTypeStatistics, StatisticsManager, TagStatistics};
 use crate::storage::StorageClient;
 
 /// 分析目标类型
@@ -22,7 +22,10 @@ pub enum AnalyzeTarget {
     /// 分析指定边类型
     EdgeType(String),
     /// 分析指定属性
-    Property { tag: Option<String>, property: String },
+    Property {
+        tag: Option<String>,
+        property: String,
+    },
 }
 
 /// 分析执行器
@@ -47,11 +50,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
     }
 
     /// 创建带目标的 AnalyzeExecutor
-    pub fn with_target(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        target: AnalyzeTarget,
-    ) -> Self {
+    pub fn with_target(id: i64, storage: Arc<Mutex<S>>, target: AnalyzeTarget) -> Self {
         Self {
             base: BaseExecutor::new(id, "AnalyzeExecutor".to_string(), storage),
             target,
@@ -84,9 +83,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
 
         if stats.vertex_count > 0 {
             // 计算平均顶点大小
-            let total_size: usize = vertices.iter()
-                .map(|v| v.estimated_size())
-                .sum();
+            let total_size: usize = vertices.iter().map(|v| v.estimated_size()).sum();
             stats.avg_vertex_size = total_size / vertices.len();
 
             // 计算平均度数
@@ -187,8 +184,9 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
                 // 获取所有标签
                 let tags = storage_guard.list_tags(space)?;
                 for tag_info in &tags {
-                    let stats = self.collect_tag_stats(&*storage_guard, space, &tag_info.tag_name)?;
-                    
+                    let stats =
+                        self.collect_tag_stats(&*storage_guard, space, &tag_info.tag_name)?;
+
                     // 更新统计信息管理器
                     {
                         let manager = self.stats_manager.lock();
@@ -207,7 +205,11 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
                 // 获取所有边类型
                 let edge_types = storage_guard.list_edge_types(space)?;
                 for edge_type_info in &edge_types {
-                    let stats = self.collect_edge_stats(&*storage_guard, space, &edge_type_info.edge_type_name)?;
+                    let stats = self.collect_edge_stats(
+                        &*storage_guard,
+                        space,
+                        &edge_type_info.edge_type_name,
+                    )?;
 
                     // 更新统计信息管理器
                     {
@@ -263,11 +265,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
                 // 目前简化实现，返回基本信息
                 rows.push(vec![
                     Value::String("PROPERTY".to_string()),
-                    Value::String(format!(
-                        "{}.{}",
-                        tag.as_deref().unwrap_or("*"),
-                        property
-                    )),
+                    Value::String(format!("{}.{}", tag.as_deref().unwrap_or("*"), property)),
                     Value::Int(0),
                     Value::Float(0.0),
                     Value::Float(0.0),

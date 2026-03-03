@@ -2,16 +2,16 @@
 //! 用于验证 WITH 语句（Cypher 风格的管道子句）
 //! 参考 nebula-graph MatchValidator.cpp 中的 With 子句验证
 
-use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::query::QueryContext;
-use crate::query::parser::ast::stmt::{WithStmt, ReturnItem};
+use crate::query::parser::ast::stmt::{ReturnItem, WithStmt};
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::query::validator::structs::validation_info::ValidationInfo;
-use crate::query::validator::structs::AliasType;
+use crate::query::QueryContext;
+use std::sync::Arc;
 
 /// With 语句验证器
 #[derive(Debug)]
@@ -60,7 +60,8 @@ impl WithValidator {
                 self.validate_expression(expression)?;
 
                 // 确定列名
-                let name = alias.clone()
+                let name = alias
+                    .clone()
                     .or_else(|| self.infer_column_name(expression))
                     .unwrap_or_else(|| "column".to_string());
 
@@ -73,10 +74,7 @@ impl WithValidator {
     }
 
     /// 验证表达式
-    fn validate_expression(
-        &self,
-        expr: &ContextualExpression,
-    ) -> Result<(), ValidationError> {
+    fn validate_expression(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
         if let Some(e) = expr.get_expression() {
             self.validate_expression_internal(&e)
         } else {
@@ -98,7 +96,9 @@ impl WithValidator {
             Expression::Literal(_) => Ok(()),
             Expression::Variable(var) => {
                 // 检查变量是否来自输入
-                if !self.inputs.iter().any(|c| &c.name == var) && !self.user_defined_vars.iter().any(|v| v == var) {
+                if !self.inputs.iter().any(|c| &c.name == var)
+                    && !self.user_defined_vars.iter().any(|v| v == var)
+                {
                     return Err(ValidationError::new(
                         format!("Variable '{}' not available in WITH clause", var),
                         ValidationErrorType::SemanticError,
@@ -116,16 +116,12 @@ impl WithValidator {
                 }
                 Ok(())
             }
-            Expression::Function { name, args } => {
-                self.validate_function_call_internal(name, args)
-            }
+            Expression::Function { name, args } => self.validate_function_call_internal(name, args),
             Expression::Binary { left, right, .. } => {
                 self.validate_expression_internal(left)?;
                 self.validate_expression_internal(right)
             }
-            Expression::Unary { operand, .. } => {
-                self.validate_expression_internal(operand)
-            }
+            Expression::Unary { operand, .. } => self.validate_expression_internal(operand),
             _ => Ok(()),
         }
     }
@@ -161,11 +157,11 @@ impl WithValidator {
         if let Some(e) = where_clause.get_expression() {
             use crate::core::types::expression::Expression;
             match e {
-                Expression::Literal(_) |
-                Expression::Variable(_) |
-                Expression::Binary { .. } |
-                Expression::Unary { .. } |
-                Expression::Function { .. } => Ok(()),
+                Expression::Literal(_)
+                | Expression::Variable(_)
+                | Expression::Binary { .. }
+                | Expression::Unary { .. }
+                | Expression::Function { .. } => Ok(()),
                 _ => Err(ValidationError::new(
                     "WHERE clause must be a boolean expression".to_string(),
                     ValidationErrorType::TypeError,
@@ -180,10 +176,7 @@ impl WithValidator {
     }
 
     /// 推断列名
-    fn infer_column_name(
-        &self,
-        expr: &ContextualExpression,
-    ) -> Option<String> {
+    fn infer_column_name(&self, expr: &ContextualExpression) -> Option<String> {
         if let Some(e) = expr.get_expression() {
             self.infer_column_name_internal(&e)
         } else {
@@ -207,10 +200,7 @@ impl WithValidator {
     }
 
     /// 推断表达式类型
-    fn infer_expression_type(
-        &self,
-        expr: &ContextualExpression,
-    ) -> ValueType {
+    fn infer_expression_type(&self, expr: &ContextualExpression) -> ValueType {
         if let Some(e) = expr.get_expression() {
             self.infer_expression_type_internal(&e)
         } else {
@@ -260,7 +250,11 @@ impl WithValidator {
     }
 
     /// 验证 SKIP 和 LIMIT
-    fn validate_skip_limit(&self, skip: Option<usize>, limit: Option<usize>) -> Result<(), ValidationError> {
+    fn validate_skip_limit(
+        &self,
+        skip: Option<usize>,
+        limit: Option<usize>,
+    ) -> Result<(), ValidationError> {
         if let Some(s) = skip {
             if s > 1_000_000 {
                 return Err(ValidationError::new(
@@ -367,7 +361,9 @@ impl StatementValidator for WithValidator {
                     if let Some(ref alias_name) = alias {
                         info.add_alias(alias_name.clone(), AliasType::CTE);
                     }
-                    info.semantic_info.output_fields.push(format!("{:?}", expression));
+                    info.semantic_info
+                        .output_fields
+                        .push(format!("{:?}", expression));
                 }
                 ReturnItem::All => {
                     info.semantic_info.output_fields.push("*".to_string());
@@ -420,14 +416,18 @@ mod tests {
     fn test_validate_return_item_all() {
         let validator = WithValidator::new();
         let item = ReturnItem::All;
-        let col = validator.validate_return_item(&item).expect("Failed to validate return item");
+        let col = validator
+            .validate_return_item(&item)
+            .expect("Failed to validate return item");
         assert_eq!(col.name, "*");
         assert_eq!(col.type_, ValueType::Map);
     }
 
     #[test]
     fn test_validate_where_clause() {
-        use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+        use crate::core::types::expression::{
+            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+        };
         use std::sync::Arc;
 
         let validator = WithValidator::new();
@@ -457,11 +457,13 @@ mod tests {
     #[test]
     fn test_validate_skip_limit() {
         let validator = WithValidator::new();
-        
+
         // 有效值
         assert!(validator.validate_skip_limit(Some(10), Some(100)).is_ok());
-        
+
         // 超过最大值
-        assert!(validator.validate_skip_limit(Some(2_000_000), None).is_err());
+        assert!(validator
+            .validate_skip_limit(Some(2_000_000), None)
+            .is_err());
     }
 }

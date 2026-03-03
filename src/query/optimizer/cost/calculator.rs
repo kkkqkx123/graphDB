@@ -107,11 +107,7 @@ impl CostCalculator {
     }
 
     /// 计算边索引扫描代价
-    pub fn calculate_edge_index_scan_cost(
-        &self,
-        edge_type: &str,
-        selectivity: f64,
-    ) -> f64 {
+    pub fn calculate_edge_index_scan_cost(&self, edge_type: &str, selectivity: f64) -> f64 {
         let edge_count = self.stats_manager.get_edge_count(edge_type);
         let matching_rows = (selectivity * edge_count as f64).max(1.0) as u64;
 
@@ -276,7 +272,8 @@ impl CostCalculator {
         // 探测代价
         let probe_cost = right_rows as f64 * self.config.cpu_tuple_cost;
         // 哈希构建开销
-        let hash_overhead = left_rows as f64 * self.config.hash_build_overhead * self.config.cpu_operator_cost;
+        let hash_overhead =
+            left_rows as f64 * self.config.hash_build_overhead * self.config.cpu_operator_cost;
 
         build_cost + probe_cost + hash_overhead
     }
@@ -351,14 +348,20 @@ impl CostCalculator {
             if limit_u > 0 && input_rows > limit_u * 10 {
                 // Top-N 算法：使用堆排序，复杂度 O(n log k)
                 let k = limit_u as f64;
-                return rows * k.log2().max(1.0) * sort_columns as f64
-                    * self.config.cpu_operator_cost * self.config.sort_comparison_cost;
+                return rows
+                    * k.log2().max(1.0)
+                    * sort_columns as f64
+                    * self.config.cpu_operator_cost
+                    * self.config.sort_comparison_cost;
             }
         }
 
         // 标准排序：O(n log n)
         let comparisons = rows * rows.log2().max(1.0);
-        let cpu_cost = comparisons * sort_columns as f64 * self.config.cpu_operator_cost * self.config.sort_comparison_cost;
+        let cpu_cost = comparisons
+            * sort_columns as f64
+            * self.config.cpu_operator_cost
+            * self.config.sort_comparison_cost;
 
         // 判断是否使用外部排序
         if input_rows > self.config.memory_sort_threshold {
@@ -568,7 +571,8 @@ impl CostCalculator {
             let cached_pages = self.config.effective_cache_pages;
             let disk_pages = pages - cached_pages;
 
-            let cached_cost = cached_pages as f64 * self.config.seq_page_cost * self.config.cache_hit_cost_factor;
+            let cached_cost =
+                cached_pages as f64 * self.config.seq_page_cost * self.config.cache_hit_cost_factor;
             let disk_cost = disk_pages as f64 * self.config.seq_page_cost;
 
             cached_cost + disk_cost

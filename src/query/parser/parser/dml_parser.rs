@@ -9,9 +9,9 @@ use crate::query::parser::ast::stmt::*;
 use crate::query::parser::core::error::ParseError;
 use crate::query::parser::core::token::TokenKindExt;
 use crate::query::parser::parser::clause_parser::ClauseParser;
-use crate::query::parser::parser::ExprParser;
 use crate::query::parser::parser::parse_context::ParseContext;
 use crate::query::parser::parser::traversal_parser::TraversalParser;
+use crate::query::parser::parser::ExprParser;
 use crate::query::parser::TokenKind;
 
 /// 数据修改解析器
@@ -40,13 +40,17 @@ impl DmlParser {
     }
 
     /// 在 UPDATE token 已被消费后解析 UPDATE 语句
-    pub fn parse_update_after_token(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
-        use crate::query::parser::ast::stmt::{UpdateStmt, UpdateTarget, SetClause};
+    pub fn parse_update_after_token(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<Stmt, ParseError> {
+        use crate::query::parser::ast::stmt::{SetClause, UpdateStmt, UpdateTarget};
         use crate::query::parser::parser::clause_parser::ClauseParser;
 
         // 检查是否是 UPSERT 语法
         let is_upsert = ctx.is_upsert_mode();
-        
+
         let target = if ctx.match_token(TokenKind::Vertex) {
             self.parse_update_vertex(ctx)?
         } else if ctx.match_token(TokenKind::Edge) {
@@ -107,7 +111,7 @@ impl DmlParser {
         // 检查是否是 UPSERT EDGE 语法：src -> dst @rank OF edge_type
         // 还是 UPDATE EDGE 语法：OF edge_type FROM src TO dst [@rank]
         let is_upsert = ctx.is_upsert_mode();
-        
+
         if is_upsert {
             // UPSERT EDGE 语法：src -> dst [@rank] OF edge_type
             // 注意：EDGE token 已经在 parse_update_after_token 中被消费了
@@ -201,14 +205,11 @@ impl DmlParser {
                 }
             }
 
-            DeleteTarget::Edges {
-                edge_type,
-                edges,
-            }
+            DeleteTarget::Edges { edge_type, edges }
         } else if ctx.match_token(TokenKind::Tag) {
             // DELETE TAG tag_name [, tag_name ...] FROM vid [, vid ...]
             let mut tags = vec![];
-            
+
             // 检查是否是通配符 *
             if ctx.match_token(TokenKind::Star) {
                 tags.push("*".to_string());
@@ -222,10 +223,10 @@ impl DmlParser {
                     }
                 }
             }
-            
+
             // 期望 FROM 关键字
             ctx.expect_token(TokenKind::From)?;
-            
+
             // 解析顶点 ID 列表
             let mut vids = vec![];
             loop {
@@ -234,11 +235,11 @@ impl DmlParser {
                     break;
                 }
             }
-            
+
             let is_all_tags = tags.iter().any(|t| t == "*");
-            
-            DeleteTarget::Tags { 
-                tag_names: tags, 
+
+            DeleteTarget::Tags {
+                tag_names: tags,
                 vertex_ids: vids,
                 is_all_tags,
             }
@@ -257,8 +258,8 @@ impl DmlParser {
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
 
-        Ok(Stmt::Delete(DeleteStmt { 
-            span, 
+        Ok(Stmt::Delete(DeleteStmt {
+            span,
             target,
             where_clause: None,
             with_edge: false,
@@ -267,7 +268,6 @@ impl DmlParser {
 
     /// 解析 INSERT 语句
     pub fn parse_insert_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
-
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Insert)?;
 
@@ -288,7 +288,11 @@ impl DmlParser {
     }
 
     /// 解析 INSERT VERTEX
-    fn parse_insert_vertex(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+    fn parse_insert_vertex(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget, TagInsertSpec, VertexRow};
 
         // 解析 IF NOT EXISTS（可选）
@@ -323,7 +327,7 @@ impl DmlParser {
                 loop {
                     let tag_name = ctx.expect_identifier()?;
                     let mut prop_names = vec![];
-                    
+
                     // 检查是否有属性名列表
                     if ctx.match_token(TokenKind::LParen) {
                         loop {
@@ -335,13 +339,13 @@ impl DmlParser {
                         }
                         ctx.expect_token(TokenKind::RParen)?;
                     }
-                    
+
                     tags.push(TagInsertSpec {
                         tag_name,
                         prop_names,
                         is_default_props: false,
                     });
-                    
+
                     // 检查是否有更多标签
                     if !ctx.match_token(TokenKind::Comma) {
                         break;
@@ -396,7 +400,11 @@ impl DmlParser {
     }
 
     /// 解析 INSERT EDGE
-    fn parse_insert_edge(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+    fn parse_insert_edge(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget};
 
         // 解析边类型和属性名列表
@@ -484,9 +492,7 @@ impl DmlParser {
 
         let pattern = TraversalParser::new().parse_pattern(ctx)?;
 
-        let on_create = if ctx.match_token(TokenKind::On)
-            && ctx.match_token(TokenKind::Create)
-        {
+        let on_create = if ctx.match_token(TokenKind::On) && ctx.match_token(TokenKind::Create) {
             Some(ClauseParser::new().parse_set_clause(ctx)?)
         } else {
             None
@@ -507,7 +513,10 @@ impl DmlParser {
     }
 
     /// 解析表达式
-    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
+    fn parse_expression(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<ContextualExpression, ParseError> {
         let mut expr_parser = ExprParser::new(ctx);
         expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
@@ -517,14 +526,18 @@ impl DmlParser {
     ///   CREATE (n:Label {prop: value})
     ///   CREATE (a)-[:Type {prop: value}]->(b)
     ///   CREATE (a:Label1)-[:Type]->(b:Label2)
-    pub fn parse_create_data_after_token(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+    pub fn parse_create_data_after_token(
+        &mut self,
+        ctx: &mut ParseContext,
+        start_span: crate::query::parser::ast::types::Span,
+    ) -> Result<Stmt, ParseError> {
         // 解析模式列表（支持多个模式用逗号分隔）
         let mut patterns = Vec::new();
-        
+
         loop {
             let pattern = self.parse_create_pattern(ctx)?;
             patterns.push(pattern);
-            
+
             if !ctx.match_token(TokenKind::Comma) {
                 break;
             }
@@ -541,17 +554,20 @@ impl DmlParser {
     }
 
     /// 解析 CREATE 语句中的模式
-    fn parse_create_pattern(&mut self, ctx: &mut ParseContext) -> Result<crate::query::parser::ast::pattern::Pattern, ParseError> {
+    fn parse_create_pattern(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<crate::query::parser::ast::pattern::Pattern, ParseError> {
         use crate::query::parser::ast::pattern::*;
 
         // 解析起始节点
         let start_node = self.parse_node_pattern(ctx)?;
-        
+
         // 检查是否有边模式（使用 Arrow 或 LeftArrow）
         if ctx.check_token(TokenKind::Arrow) || ctx.check_token(TokenKind::LeftArrow) {
             let edge = self.parse_edge_pattern(ctx)?;
             let end_node = self.parse_node_pattern(ctx)?;
-            
+
             // 构建路径模式
             let span = ctx.merge_span(start_node.span.start, end_node.span.end);
             let elements = vec![
@@ -559,10 +575,7 @@ impl DmlParser {
                 PathElement::Edge(edge),
                 PathElement::Node(end_node),
             ];
-            Ok(Pattern::Path(PathPattern {
-                span,
-                elements,
-            }))
+            Ok(Pattern::Path(PathPattern { span, elements }))
         } else {
             // 只有节点模式
             Ok(Pattern::Node(start_node))
@@ -570,19 +583,22 @@ impl DmlParser {
     }
 
     /// 解析节点模式: (var:Label {prop: value})
-    fn parse_node_pattern(&mut self, ctx: &mut ParseContext) -> Result<crate::query::parser::ast::pattern::NodePattern, ParseError> {
+    fn parse_node_pattern(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<crate::query::parser::ast::pattern::NodePattern, ParseError> {
         use crate::query::parser::ast::pattern::*;
 
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::LParen)?;
-        
+
         // 可选的变量名
         let variable = if ctx.current_token().kind.is_identifier() {
             Some(ctx.expect_identifier()?)
         } else {
             None
         };
-        
+
         // 可选的标签列表
         let mut labels = Vec::new();
         if ctx.match_token(TokenKind::Colon) {
@@ -593,7 +609,7 @@ impl DmlParser {
                 }
             }
         }
-        
+
         // 可选的属性映射
         let properties = if ctx.match_token(TokenKind::LBrace) {
             let props = self.parse_property_map(ctx)?;
@@ -602,12 +618,12 @@ impl DmlParser {
         } else {
             None
         };
-        
+
         ctx.expect_token(TokenKind::RParen)?;
-        
+
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
-        
+
         Ok(NodePattern {
             span,
             variable,
@@ -618,11 +634,14 @@ impl DmlParser {
     }
 
     /// 解析边模式: -[:Type {prop: value}]-> 或 <-[:Type {prop: value}]-
-    fn parse_edge_pattern(&mut self, ctx: &mut ParseContext) -> Result<crate::query::parser::ast::pattern::EdgePattern, ParseError> {
+    fn parse_edge_pattern(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<crate::query::parser::ast::pattern::EdgePattern, ParseError> {
         use crate::query::parser::ast::pattern::*;
 
         let start_span = ctx.current_span();
-        
+
         // 确定方向（使用 Arrow、LeftArrow、RightArrow）
         let direction = if ctx.match_token(TokenKind::LeftArrow) {
             // <- 开始，表示入边
@@ -637,23 +656,23 @@ impl DmlParser {
             // 默认双向
             EdgeDirection::Both
         };
-        
+
         // 解析边类型和属性 [:Type {prop: value}]
         ctx.expect_token(TokenKind::LBracket)?;
-        
+
         // 可选的变量名
         let variable = if ctx.current_token().kind.is_identifier() {
             Some(ctx.expect_identifier()?)
         } else {
             None
         };
-        
+
         // 可选的边类型
         let mut edge_types = Vec::new();
         if ctx.match_token(TokenKind::Colon) {
             edge_types.push(ctx.expect_identifier()?);
         }
-        
+
         // 可选的属性映射
         let properties = if ctx.match_token(TokenKind::LBrace) {
             let props = self.parse_property_map(ctx)?;
@@ -662,12 +681,12 @@ impl DmlParser {
         } else {
             None
         };
-        
+
         ctx.expect_token(TokenKind::RBracket)?;
-        
+
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
-        
+
         Ok(EdgePattern {
             span,
             variable,
@@ -680,35 +699,44 @@ impl DmlParser {
     }
 
     /// 解析属性映射: {prop1: value1, prop2: value2}
-    fn parse_property_map(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
+    fn parse_property_map(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<ContextualExpression, ParseError> {
         let _start_span = ctx.current_span();
         let mut properties = Vec::new();
-        
+
         if !ctx.check_token(TokenKind::RBrace) {
             loop {
                 let key = ctx.expect_identifier()?;
                 ctx.expect_token(TokenKind::Colon)?;
                 let value = self.parse_expression(ctx)?;
-                let value_expr = value.expression()
-                    .ok_or_else(|| ParseError::new_simple(
-                        "Expression not registered in context".to_string(),
-                        ctx.current_position()
-                    ))?
+                let value_expr = value
+                    .expression()
+                    .ok_or_else(|| {
+                        ParseError::new_simple(
+                            "Expression not registered in context".to_string(),
+                            ctx.current_position(),
+                        )
+                    })?
                     .inner()
                     .clone();
                 properties.push((key, value_expr));
-                
+
                 if !ctx.match_token(TokenKind::Comma) {
                     break;
                 }
             }
         }
-        
+
         // 创建 Map 表达式并注册到上下文
         let expr = CoreExpression::Map(properties);
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.expression_context().register_expression(expr_meta);
-        Ok(ContextualExpression::new(id, ctx.expression_context_clone()))
+        Ok(ContextualExpression::new(
+            id,
+            ctx.expression_context_clone(),
+        ))
     }
 }
 

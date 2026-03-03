@@ -34,7 +34,11 @@ impl RoleType {
             RoleType::God => true,
             RoleType::Admin => matches!(
                 permission,
-                Permission::Read | Permission::Write | Permission::Delete | Permission::Schema | Permission::Admin
+                Permission::Read
+                    | Permission::Write
+                    | Permission::Delete
+                    | Permission::Schema
+                    | Permission::Admin
             ),
             RoleType::Dba => matches!(
                 permission,
@@ -52,7 +56,10 @@ impl RoleType {
     pub fn can_grant(&self, target_role: RoleType) -> bool {
         match self {
             RoleType::God => target_role != RoleType::God,
-            RoleType::Admin => matches!(target_role, RoleType::Dba | RoleType::User | RoleType::Guest),
+            RoleType::Admin => matches!(
+                target_role,
+                RoleType::Dba | RoleType::User | RoleType::Guest
+            ),
             RoleType::Dba => matches!(target_role, RoleType::User | RoleType::Guest),
             _ => false,
         }

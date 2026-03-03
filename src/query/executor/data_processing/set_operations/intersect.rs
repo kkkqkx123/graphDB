@@ -2,8 +2,8 @@
 //!
 //! 实现INTERSECT操作，返回两个数据集的交集（只存在于两个数据集中的行）
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::error::QueryError;
 use crate::core::{DataSet, Value};
@@ -142,8 +142,8 @@ mod tests {
 
     // 创建测试用的存储引擎
     fn create_test_storage() -> Arc<Mutex<crate::storage::test_mock::MockStorage>> {
-        let storage = crate::storage::test_mock::MockStorage::new()
-            .expect("Failed to create test storage");
+        let storage =
+            crate::storage::test_mock::MockStorage::new().expect("Failed to create test storage");
         Arc::new(Mutex::new(storage))
     }
 

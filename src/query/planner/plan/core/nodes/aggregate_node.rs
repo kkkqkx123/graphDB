@@ -2,8 +2,8 @@
 //!
 //! AggregateNode 用于对输入数据进行聚合操作
 
-use crate::define_plan_node_with_deps;
 use crate::core::types::operators::AggregateFunction;
+use crate::define_plan_node_with_deps;
 
 define_plan_node_with_deps! {
     pub struct AggregateNode {

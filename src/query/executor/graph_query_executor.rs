@@ -4,19 +4,22 @@
 //! 支持MATCH、CREATE、DELETE等图操作语句
 
 use crate::core::error::{DBError, DBResult, QueryError};
-use crate::core::Value as CoreValue;
-use crate::query::QueryContext;
-use crate::query::executor::admin as admin_executor;
-use crate::query::executor::factory::ExecutorFactory;
-use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
-use crate::query::parser::ast::stmt::{AlterStmt, ChangePasswordStmt, CreateUserStmt, AlterUserStmt, DropUserStmt, DescStmt, DropStmt, Stmt};
 use crate::core::types::{UserAlterInfo, UserInfo};
+use crate::core::Value as CoreValue;
+use crate::query::executor::admin as admin_executor;
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::factory::ExecutorFactory;
+use crate::query::parser::ast::stmt::{
+    AlterStmt, AlterUserStmt, ChangePasswordStmt, CreateUserStmt, DescStmt, DropStmt, DropUserStmt,
+    Stmt,
+};
 use crate::query::planner::planner::{Planner, ValidatedStatement};
 use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
 use crate::query::validator::ValidationInfo;
+use crate::query::QueryContext;
 use crate::storage::StorageClient;
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 /// 图查询执行器
 ///
@@ -93,10 +96,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
     /// 执行具体的语句
     #[allow(dead_code)]
-    fn execute_statement(
-        &mut self,
-        statement: Stmt,
-    ) -> Result<ExecutionResult, DBError> {
+    fn execute_statement(&mut self, statement: Stmt) -> Result<ExecutionResult, DBError> {
         match statement {
             Stmt::Match(clause) => self.execute_match(clause),
             Stmt::Create(clause) => self.execute_create(clause),
@@ -145,7 +145,10 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         }
     }
 
-    fn execute_match(&mut self, clause: crate::query::parser::ast::stmt::MatchStmt) -> Result<ExecutionResult, DBError> {
+    fn execute_match(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::MatchStmt,
+    ) -> Result<ExecutionResult, DBError> {
         let _id = self.id;
 
         let qctx = Arc::new(QueryContext::default());
@@ -155,41 +158,59 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         let validated = ValidatedStatement::new(Stmt::Match(clause), validation_info);
 
         let mut planner = MatchStatementPlanner::new();
-        let plan = planner.transform(&validated, qctx)
+        let plan = planner
+            .transform(&validated, qctx)
             .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
-        let root_node = plan.root()
+        let root_node = plan
+            .root()
             .as_ref()
             .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
             .clone();
 
         let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
-        let mut executor = executor_factory.create_executor(&root_node, self.storage.clone(), &Default::default())
+        let mut executor = executor_factory
+            .create_executor(&root_node, self.storage.clone(), &Default::default())
             .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
-        executor.open()
+        executor
+            .open()
             .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
-        let result = executor.execute()
+        let result = executor
+            .execute()
             .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
-        executor.close()
+        executor
+            .close()
             .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
         Ok(result)
     }
 
-    fn execute_create(&mut self, clause: crate::query::parser::ast::stmt::CreateStmt) -> Result<ExecutionResult, DBError> {
-        use crate::query::parser::ast::stmt::CreateTarget;
-        use crate::query::executor::admin::tag::create_tag::{CreateTagExecutor, ExecutorTagInfo};
-        use crate::query::executor::admin::edge::create_edge::{CreateEdgeExecutor, ExecutorEdgeInfo};
-        use crate::query::executor::admin::space::create_space::{CreateSpaceExecutor, ExecutorSpaceInfo};
-        use crate::query::executor::admin::index::tag_index::CreateTagIndexExecutor;
-        use crate::query::executor::admin::index::edge_index::CreateEdgeIndexExecutor;
+    fn execute_create(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::CreateStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::index::{Index, IndexType};
+        use crate::query::executor::admin::edge::create_edge::{
+            CreateEdgeExecutor, ExecutorEdgeInfo,
+        };
+        use crate::query::executor::admin::index::edge_index::CreateEdgeIndexExecutor;
+        use crate::query::executor::admin::index::tag_index::CreateTagIndexExecutor;
+        use crate::query::executor::admin::space::create_space::{
+            CreateSpaceExecutor, ExecutorSpaceInfo,
+        };
+        use crate::query::executor::admin::tag::create_tag::{CreateTagExecutor, ExecutorTagInfo};
+        use crate::query::parser::ast::stmt::CreateTarget;
 
         match clause.target {
-            CreateTarget::Tag { name, properties, ttl_duration: _, ttl_col: _ } => {
+            CreateTarget::Tag {
+                name,
+                properties,
+                ttl_duration: _,
+                ttl_col: _,
+            } => {
                 let tag_info = ExecutorTagInfo::new("default".to_string(), name.clone())
                     .with_properties(properties);
                 let mut executor = if clause.if_not_exists {
@@ -200,7 +221,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            CreateTarget::EdgeType { name, properties, ttl_duration: _, ttl_col: _ } => {
+            CreateTarget::EdgeType {
+                name,
+                properties,
+                ttl_duration: _,
+                ttl_col: _,
+            } => {
                 let edge_info = ExecutorEdgeInfo::new("default".to_string(), name.clone())
                     .with_properties(properties);
                 let mut executor = if clause.if_not_exists {
@@ -211,18 +237,30 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            CreateTarget::Space { name, vid_type, comment: _ } => {
+            CreateTarget::Space {
+                name,
+                vid_type,
+                comment: _,
+            } => {
                 let mut space_info = ExecutorSpaceInfo::new(name);
                 space_info.vid_type = vid_type;
                 let mut executor = if clause.if_not_exists {
-                    CreateSpaceExecutor::with_if_not_exists(self.id, self.storage.clone(), space_info)
+                    CreateSpaceExecutor::with_if_not_exists(
+                        self.id,
+                        self.storage.clone(),
+                        space_info,
+                    )
                 } else {
                     CreateSpaceExecutor::new(self.id, self.storage.clone(), space_info)
                 };
                 executor.open()?;
                 executor.execute()
             }
-            CreateTarget::Index { name, on, properties } => {
+            CreateTarget::Index {
+                name,
+                on,
+                properties,
+            } => {
                 if on.starts_with("tag:") {
                     let tag_name = on.strip_prefix("tag:").unwrap_or(&on);
                     let index_info = Index::new(
@@ -236,7 +274,11 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                         false,
                     );
                     let mut executor = if clause.if_not_exists {
-                        CreateTagIndexExecutor::with_if_not_exists(self.id, self.storage.clone(), index_info)
+                        CreateTagIndexExecutor::with_if_not_exists(
+                            self.id,
+                            self.storage.clone(),
+                            index_info,
+                        )
                     } else {
                         CreateTagIndexExecutor::new(self.id, self.storage.clone(), index_info)
                     };
@@ -255,16 +297,21 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                         false,
                     );
                     let mut executor = if clause.if_not_exists {
-                        CreateEdgeIndexExecutor::with_if_not_exists(self.id, self.storage.clone(), index_info)
+                        CreateEdgeIndexExecutor::with_if_not_exists(
+                            self.id,
+                            self.storage.clone(),
+                            index_info,
+                        )
                     } else {
                         CreateEdgeIndexExecutor::new(self.id, self.storage.clone(), index_info)
                     };
                     executor.open()?;
                     executor.execute()
                 } else {
-                    Err(DBError::Query(QueryError::ExecutionError(
-                        format!("Unsupported index target: {}", on)
-                    )))
+                    Err(DBError::Query(QueryError::ExecutionError(format!(
+                        "Unsupported index target: {}",
+                        on
+                    ))))
                 }
             }
             CreateTarget::Node { .. } | CreateTarget::Edge { .. } | CreateTarget::Path { .. } => {
@@ -277,25 +324,33 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 let validated = ValidatedStatement::new(Stmt::Create(clause), validation_info);
 
                 let mut planner = CreatePlanner::new();
-                let plan = planner.transform(&validated, qctx)
+                let plan = planner
+                    .transform(&validated, qctx)
                     .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
-                let root_node = plan.root()
+                let root_node = plan
+                    .root()
                     .as_ref()
-                    .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
+                    .ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError("执行计划为空".to_string()))
+                    })?
                     .clone();
 
                 let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
-                let mut executor = executor_factory.create_executor(&root_node, self.storage.clone(), &Default::default())
+                let mut executor = executor_factory
+                    .create_executor(&root_node, self.storage.clone(), &Default::default())
                     .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
-                executor.open()
+                executor
+                    .open()
                     .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
-                let result = executor.execute()
+                let result = executor
+                    .execute()
                     .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
-                executor.close()
+                executor
+                    .close()
                     .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
                 Ok(result)
@@ -303,21 +358,26 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         }
     }
 
-    fn execute_delete(&mut self, clause: crate::query::parser::ast::stmt::DeleteStmt) -> Result<ExecutionResult, DBError> {
-        use crate::query::executor::data_modification::DeleteExecutor;
-        use crate::query::parser::ast::stmt::DeleteTarget;
+    fn execute_delete(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::DeleteStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
         use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::data_modification::DeleteExecutor;
+        use crate::query::parser::ast::stmt::DeleteTarget;
 
         match clause.target {
             DeleteTarget::Vertices(vertex_exprs) => {
                 let mut vertex_ids = Vec::new();
                 for ctx_expr in vertex_exprs {
-                    let expr = ctx_expr.get_expression()
-                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
+                    let expr = ctx_expr.get_expression().ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError("表达式不存在".to_string()))
+                    })?;
                     let mut context = DefaultExpressionContext::new();
-                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context)
-                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
+                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
+                        DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e)))
+                    })?;
                     vertex_ids.push(vid);
                 }
 
@@ -334,28 +394,55 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             DeleteTarget::Edges { edge_type, edges } => {
                 let mut edge_ids = Vec::new();
                 for (src_ctx_expr, dst_ctx_expr, rank_ctx_expr) in edges {
-                    let src_expr = src_ctx_expr.get_expression()
-                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
+                    let src_expr = src_ctx_expr.get_expression().ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError("表达式不存在".to_string()))
+                    })?;
                     let mut src_context = DefaultExpressionContext::new();
-                    let src = ExpressionEvaluator::evaluate(&src_expr, &mut src_context)
-                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("源顶点ID求值失败: {}", e))))?;
+                    let src = ExpressionEvaluator::evaluate(&src_expr, &mut src_context).map_err(
+                        |e| {
+                            DBError::Query(QueryError::ExecutionError(format!(
+                                "源顶点ID求值失败: {}",
+                                e
+                            )))
+                        },
+                    )?;
 
-                    let dst_expr = dst_ctx_expr.get_expression()
-                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
+                    let dst_expr = dst_ctx_expr.get_expression().ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError("表达式不存在".to_string()))
+                    })?;
                     let mut dst_context = DefaultExpressionContext::new();
-                    let dst = ExpressionEvaluator::evaluate(&dst_expr, &mut dst_context)
-                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("目标顶点ID求值失败: {}", e))))?;
+                    let dst = ExpressionEvaluator::evaluate(&dst_expr, &mut dst_context).map_err(
+                        |e| {
+                            DBError::Query(QueryError::ExecutionError(format!(
+                                "目标顶点ID求值失败: {}",
+                                e
+                            )))
+                        },
+                    )?;
 
                     let _rank = match rank_ctx_expr {
                         Some(ref r) => {
-                            let rank_expr = r.get_expression()
-                                .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
+                            let rank_expr = r.get_expression().ok_or_else(|| {
+                                DBError::Query(QueryError::ExecutionError(
+                                    "表达式不存在".to_string(),
+                                ))
+                            })?;
                             let mut rank_context = DefaultExpressionContext::new();
-                            let rank_val = ExpressionEvaluator::evaluate(&rank_expr, &mut rank_context)
-                                .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("rank求值失败: {}", e))))?;
+                            let rank_val =
+                                ExpressionEvaluator::evaluate(&rank_expr, &mut rank_context)
+                                    .map_err(|e| {
+                                        DBError::Query(QueryError::ExecutionError(format!(
+                                            "rank求值失败: {}",
+                                            e
+                                        )))
+                                    })?;
                             match rank_val {
                                 crate::core::Value::Int(i) => Some(i),
-                                _ => return Err(DBError::Query(QueryError::ExecutionError("rank必须是整数".to_string()))),
+                                _ => {
+                                    return Err(DBError::Query(QueryError::ExecutionError(
+                                        "rank必须是整数".to_string(),
+                                    )))
+                                }
                             }
                         }
                         None => None,
@@ -364,36 +451,33 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     edge_ids.push((src, dst, edge_type_str));
                 }
 
-                let mut executor = DeleteExecutor::new(
-                    self.id,
-                    self.storage.clone(),
-                    None,
-                    Some(edge_ids),
-                    None,
-                );
+                let mut executor =
+                    DeleteExecutor::new(self.id, self.storage.clone(), None, Some(edge_ids), None);
                 executor.open()?;
                 executor.execute()
             }
-            DeleteTarget::Tags { tag_names, vertex_ids: vertex_id_exprs, is_all_tags } => {
+            DeleteTarget::Tags {
+                tag_names,
+                vertex_ids: vertex_id_exprs,
+                is_all_tags,
+            } => {
                 use crate::query::executor::data_modification::DeleteTagExecutor;
 
                 let mut vertex_ids = Vec::new();
                 for ctx_expr in vertex_id_exprs {
-                    let expr = ctx_expr.get_expression()
-                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
+                    let expr = ctx_expr.get_expression().ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError("表达式不存在".to_string()))
+                    })?;
                     let mut context = DefaultExpressionContext::new();
-                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context)
-                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
+                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
+                        DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e)))
+                    })?;
                     vertex_ids.push(vid);
                 }
 
-                let executor = DeleteTagExecutor::new(
-                    self.id,
-                    self.storage.clone(),
-                    tag_names,
-                    vertex_ids,
-                )
-                .with_space("default".to_string());
+                let executor =
+                    DeleteTagExecutor::new(self.id, self.storage.clone(), tag_names, vertex_ids)
+                        .with_space("default".to_string());
 
                 // 支持删除所有 Tag 的标志
                 let mut executor = if is_all_tags {
@@ -405,35 +489,46 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            DeleteTarget::Index(index_name) => {
-                Err(DBError::Query(QueryError::ExecutionError(
-                    format!("DELETE INDEX {} 未实现", index_name)
-                )))
-            }
+            DeleteTarget::Index(index_name) => Err(DBError::Query(QueryError::ExecutionError(
+                format!("DELETE INDEX {} 未实现", index_name),
+            ))),
         }
     }
 
-    fn execute_update(&mut self, clause: crate::query::parser::ast::stmt::UpdateStmt) -> Result<ExecutionResult, DBError> {
-        use crate::query::executor::data_modification::{UpdateExecutor, VertexUpdate, EdgeUpdate};
-        use crate::query::parser::ast::stmt::UpdateTarget;
+    fn execute_update(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::UpdateStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
         use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::data_modification::{EdgeUpdate, UpdateExecutor, VertexUpdate};
+        use crate::query::parser::ast::stmt::UpdateTarget;
 
         match clause.target {
             UpdateTarget::Vertex(vid_expr) => {
                 let mut context = DefaultExpressionContext::new();
-                let vid_expr_inner = vid_expr.expression()
-                    .ok_or_else(|| DBError::Query(QueryError::ExecutionError("顶点ID表达式无效".to_string())))?;
+                let vid_expr_inner = vid_expr.expression().ok_or_else(|| {
+                    DBError::Query(QueryError::ExecutionError("顶点ID表达式无效".to_string()))
+                })?;
                 let vid = ExpressionEvaluator::evaluate(vid_expr_inner.inner(), &mut context)
-                    .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
+                    .map_err(|e| {
+                        DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e)))
+                    })?;
 
                 let mut properties = std::collections::HashMap::new();
                 for assignment in &clause.set_clause.assignments {
                     let mut prop_context = DefaultExpressionContext::new();
-                    let value_expr_inner = assignment.value.expression()
-                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("属性值表达式无效".to_string())))?;
-                    let value = ExpressionEvaluator::evaluate(value_expr_inner.inner(), &mut prop_context)
-                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("属性值求值失败: {}", e))))?;
+                    let value_expr_inner = assignment.value.expression().ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError("属性值表达式无效".to_string()))
+                    })?;
+                    let value =
+                        ExpressionEvaluator::evaluate(value_expr_inner.inner(), &mut prop_context)
+                            .map_err(|e| {
+                                DBError::Query(QueryError::ExecutionError(format!(
+                                    "属性值求值失败: {}",
+                                    e
+                                )))
+                            })?;
                     properties.insert(assignment.property.clone(), value);
                 }
 
@@ -457,29 +552,63 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            UpdateTarget::Edge { src, dst, edge_type, rank } => {
+            UpdateTarget::Edge {
+                src,
+                dst,
+                edge_type,
+                rank,
+            } => {
                 let mut src_context = DefaultExpressionContext::new();
-                let src_expr_inner = src.expression()
-                    .ok_or_else(|| DBError::Query(QueryError::ExecutionError("源顶点ID表达式无效".to_string())))?;
-                let src_val = ExpressionEvaluator::evaluate(src_expr_inner.inner(), &mut src_context)
-                    .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("源顶点ID求值失败: {}", e))))?;
+                let src_expr_inner = src.expression().ok_or_else(|| {
+                    DBError::Query(QueryError::ExecutionError("源顶点ID表达式无效".to_string()))
+                })?;
+                let src_val =
+                    ExpressionEvaluator::evaluate(src_expr_inner.inner(), &mut src_context)
+                        .map_err(|e| {
+                            DBError::Query(QueryError::ExecutionError(format!(
+                                "源顶点ID求值失败: {}",
+                                e
+                            )))
+                        })?;
 
                 let mut dst_context = DefaultExpressionContext::new();
-                let dst_expr_inner = dst.expression()
-                    .ok_or_else(|| DBError::Query(QueryError::ExecutionError("目标顶点ID表达式无效".to_string())))?;
-                let dst_val = ExpressionEvaluator::evaluate(dst_expr_inner.inner(), &mut dst_context)
-                    .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("目标顶点ID求值失败: {}", e))))?;
+                let dst_expr_inner = dst.expression().ok_or_else(|| {
+                    DBError::Query(QueryError::ExecutionError(
+                        "目标顶点ID表达式无效".to_string(),
+                    ))
+                })?;
+                let dst_val =
+                    ExpressionEvaluator::evaluate(dst_expr_inner.inner(), &mut dst_context)
+                        .map_err(|e| {
+                            DBError::Query(QueryError::ExecutionError(format!(
+                                "目标顶点ID求值失败: {}",
+                                e
+                            )))
+                        })?;
 
                 let rank_val = match rank {
                     Some(ref r) => {
                         let mut rank_context = DefaultExpressionContext::new();
-                        let rank_expr_inner = r.expression()
-                            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("rank表达式无效".to_string())))?;
-                        let rank_val = ExpressionEvaluator::evaluate(rank_expr_inner.inner(), &mut rank_context)
-                            .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("rank求值失败: {}", e))))?;
+                        let rank_expr_inner = r.expression().ok_or_else(|| {
+                            DBError::Query(QueryError::ExecutionError("rank表达式无效".to_string()))
+                        })?;
+                        let rank_val = ExpressionEvaluator::evaluate(
+                            rank_expr_inner.inner(),
+                            &mut rank_context,
+                        )
+                        .map_err(|e| {
+                            DBError::Query(QueryError::ExecutionError(format!(
+                                "rank求值失败: {}",
+                                e
+                            )))
+                        })?;
                         match rank_val {
                             crate::core::Value::Int(i) => Some(i),
-                            _ => return Err(DBError::Query(QueryError::ExecutionError("rank必须是整数".to_string()))),
+                            _ => {
+                                return Err(DBError::Query(QueryError::ExecutionError(
+                                    "rank必须是整数".to_string(),
+                                )))
+                            }
                         }
                     }
                     None => None,
@@ -488,10 +617,17 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 let mut properties = std::collections::HashMap::new();
                 for assignment in &clause.set_clause.assignments {
                     let mut prop_context = DefaultExpressionContext::new();
-                    let value_expr_inner = assignment.value.expression()
-                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("属性值表达式无效".to_string())))?;
-                    let value = ExpressionEvaluator::evaluate(value_expr_inner.inner(), &mut prop_context)
-                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("属性值求值失败: {}", e))))?;
+                    let value_expr_inner = assignment.value.expression().ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError("属性值表达式无效".to_string()))
+                    })?;
+                    let value =
+                        ExpressionEvaluator::evaluate(value_expr_inner.inner(), &mut prop_context)
+                            .map_err(|e| {
+                                DBError::Query(QueryError::ExecutionError(format!(
+                                    "属性值求值失败: {}",
+                                    e
+                                )))
+                            })?;
                     properties.insert(assignment.property.clone(), value);
                 }
 
@@ -516,38 +652,54 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            _ => Err(DBError::Query(QueryError::ExecutionError(
-                format!("UPDATE {:?} 未实现", clause.target)
-            )))
+            _ => Err(DBError::Query(QueryError::ExecutionError(format!(
+                "UPDATE {:?} 未实现",
+                clause.target
+            )))),
         }
     }
 
     #[allow(dead_code)]
-    fn execute_query(&mut self, _clause: crate::query::parser::ast::stmt::QueryStmt) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError("QUERY语句执行未实现".to_string())))
+    fn execute_query(
+        &mut self,
+        _clause: crate::query::parser::ast::stmt::QueryStmt,
+    ) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError(
+            "QUERY语句执行未实现".to_string(),
+        )))
     }
 
     #[allow(dead_code)]
-    fn execute_go(&mut self, _clause: crate::query::parser::ast::stmt::GoStmt) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError("GO语句执行未实现".to_string())))
+    fn execute_go(
+        &mut self,
+        _clause: crate::query::parser::ast::stmt::GoStmt,
+    ) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError(
+            "GO语句执行未实现".to_string(),
+        )))
     }
 
-    fn execute_fetch(&mut self, clause: crate::query::parser::ast::stmt::FetchStmt) -> Result<ExecutionResult, DBError> {
-        use crate::query::parser::ast::stmt::FetchTarget;
-        use crate::query::executor::data_access::GetVerticesExecutor;
-        use crate::query::executor::data_access::GetEdgesExecutor;
+    fn execute_fetch(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::FetchStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
         use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::data_access::GetEdgesExecutor;
+        use crate::query::executor::data_access::GetVerticesExecutor;
+        use crate::query::parser::ast::stmt::FetchTarget;
 
         match clause.target {
             FetchTarget::Vertices { ids, properties: _ } => {
                 let mut vertex_ids = Vec::new();
                 for ctx_expr in ids {
-                    let expr = ctx_expr.get_expression()
-                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("表达式不存在".to_string())))?;
+                    let expr = ctx_expr.get_expression().ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError("表达式不存在".to_string()))
+                    })?;
                     let mut context = DefaultExpressionContext::new();
-                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context)
-                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
+                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context).map_err(|e| {
+                        DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e)))
+                    })?;
                     vertex_ids.push(vid);
                 }
 
@@ -562,21 +714,27 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            FetchTarget::Edges { src: _, dst: _, edge_type, rank: _, properties: _ } => {
-                let mut executor = GetEdgesExecutor::new(
-                    self.id,
-                    self.storage.clone(),
-                    Some(edge_type),
-                );
+            FetchTarget::Edges {
+                src: _,
+                dst: _,
+                edge_type,
+                rank: _,
+                properties: _,
+            } => {
+                let mut executor =
+                    GetEdgesExecutor::new(self.id, self.storage.clone(), Some(edge_type));
                 executor.open()?;
                 executor.execute()
             }
         }
     }
 
-    fn execute_lookup(&mut self, clause: crate::query::parser::ast::stmt::LookupStmt) -> Result<ExecutionResult, DBError> {
-        use crate::query::parser::ast::stmt::LookupTarget;
+    fn execute_lookup(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::LookupStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::query::executor::data_access::IndexScanExecutor;
+        use crate::query::parser::ast::stmt::LookupTarget;
 
         match clause.target {
             LookupTarget::Tag(tag_name) => {
@@ -591,18 +749,19 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            LookupTarget::Edge(edge_name) => {
-                Err(DBError::Query(QueryError::ExecutionError(
-                    format!("LOOKUP ON EDGE {} 未实现", edge_name)
-                )))
-            }
+            LookupTarget::Edge(edge_name) => Err(DBError::Query(QueryError::ExecutionError(
+                format!("LOOKUP ON EDGE {} 未实现", edge_name),
+            ))),
         }
     }
 
-    fn execute_find_path(&mut self, clause: crate::query::parser::ast::stmt::FindPathStmt) -> Result<ExecutionResult, DBError> {
-        use crate::query::executor::data_processing::graph_traversal::AllPathsExecutor;
-        use crate::query::executor::base::EdgeDirection;
+    fn execute_find_path(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::FindPathStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::core::Value;
+        use crate::query::executor::base::EdgeDirection;
+        use crate::query::executor::data_processing::graph_traversal::AllPathsExecutor;
 
         let storage = self.storage.clone();
 
@@ -611,13 +770,23 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         let mut context = DefaultExpressionContext::new();
 
-        let left_start_ids: Vec<Value> = clause.from.vertices.iter()
+        let left_start_ids: Vec<Value> = clause
+            .from
+            .vertices
+            .iter()
             .map(|ctx_expr| {
-                let expr = ctx_expr.get_expression()
-                    .unwrap_or_else(|| crate::core::types::expression::Expression::Literal(Value::Null(crate::core::NullType::default())));
+                let expr = ctx_expr.get_expression().unwrap_or_else(|| {
+                    crate::core::types::expression::Expression::Literal(Value::Null(
+                        crate::core::NullType::default(),
+                    ))
+                });
                 match expr {
-                    crate::core::types::expression::Expression::Literal(Value::Int(n)) => Value::Int(n),
-                    crate::core::types::expression::Expression::Literal(Value::String(s)) => Value::String(s),
+                    crate::core::types::expression::Expression::Literal(Value::Int(n)) => {
+                        Value::Int(n)
+                    }
+                    crate::core::types::expression::Expression::Literal(Value::String(s)) => {
+                        Value::String(s)
+                    }
                     _ => {
                         let val = ExpressionEvaluator::evaluate(&expr, &mut context)
                             .unwrap_or_else(|_| Value::Null(crate::core::NullType::default()));
@@ -627,11 +796,16 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             })
             .collect();
 
-        let to_expr = clause.to.get_expression()
-            .unwrap_or_else(|| crate::core::types::expression::Expression::Literal(Value::Null(crate::core::NullType::default())));
+        let to_expr = clause.to.get_expression().unwrap_or_else(|| {
+            crate::core::types::expression::Expression::Literal(Value::Null(
+                crate::core::NullType::default(),
+            ))
+        });
         let right_start_ids: Vec<Value> = vec![match to_expr {
             crate::core::types::expression::Expression::Literal(Value::Int(n)) => Value::Int(n),
-            crate::core::types::expression::Expression::Literal(Value::String(s)) => Value::String(s),
+            crate::core::types::expression::Expression::Literal(Value::String(s)) => {
+                Value::String(s)
+            }
             _ => {
                 let val = ExpressionEvaluator::evaluate(&to_expr, &mut context)
                     .unwrap_or_else(|_| Value::Null(crate::core::NullType::default()));
@@ -672,8 +846,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         )
         .with_config(
             false, // with_prop
-            limit,
-            offset,
+            limit, offset,
         )
         .with_loop(clause.with_loop);
 
@@ -685,23 +858,28 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 let result = ExecutionResult::from_result(core_result);
                 Ok(result)
             }
-            Err(e) => Err(DBError::Query(QueryError::ExecutionError(format!("FIND PATH执行失败: {:?}", e)))),
+            Err(e) => Err(DBError::Query(QueryError::ExecutionError(format!(
+                "FIND PATH执行失败: {:?}",
+                e
+            )))),
         }
     }
 
-    fn execute_use(&mut self, clause: crate::query::parser::ast::stmt::UseStmt) -> Result<ExecutionResult, DBError> {
+    fn execute_use(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::UseStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::query::executor::admin::space::switch_space::SwitchSpaceExecutor;
 
-        let mut executor = SwitchSpaceExecutor::new(
-            self.id,
-            self.storage.clone(),
-            clause.space,
-        );
+        let mut executor = SwitchSpaceExecutor::new(self.id, self.storage.clone(), clause.space);
         executor.open()?;
         executor.execute()
     }
 
-    fn execute_show(&mut self, clause: crate::query::parser::ast::stmt::ShowStmt) -> Result<ExecutionResult, DBError> {
+    fn execute_show(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::ShowStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::query::parser::ast::stmt::ShowTarget;
 
         match clause.target {
@@ -713,71 +891,77 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             }
             ShowTarget::Tags => {
                 use crate::query::executor::admin::tag::show_tags::ShowTagsExecutor;
-                let mut executor = ShowTagsExecutor::new(self.id, self.storage.clone(), String::new());
+                let mut executor =
+                    ShowTagsExecutor::new(self.id, self.storage.clone(), String::new());
                 executor.open()?;
                 executor.execute()
             }
             ShowTarget::Edges => {
                 use crate::query::executor::admin::edge::show_edges::ShowEdgesExecutor;
-                let mut executor = ShowEdgesExecutor::new(self.id, self.storage.clone(), String::new());
+                let mut executor =
+                    ShowEdgesExecutor::new(self.id, self.storage.clone(), String::new());
                 executor.open()?;
                 executor.execute()
             }
             ShowTarget::Tag(tag_name) => {
                 use crate::query::executor::admin::tag::desc_tag::DescTagExecutor;
-                let mut executor = DescTagExecutor::new(self.id, self.storage.clone(), String::new(), tag_name);
+                let mut executor =
+                    DescTagExecutor::new(self.id, self.storage.clone(), String::new(), tag_name);
                 executor.open()?;
                 executor.execute()
             }
             ShowTarget::Edge(edge_name) => {
                 use crate::query::executor::admin::edge::desc_edge::DescEdgeExecutor;
-                let mut executor = DescEdgeExecutor::new(self.id, self.storage.clone(), String::new(), edge_name);
+                let mut executor =
+                    DescEdgeExecutor::new(self.id, self.storage.clone(), String::new(), edge_name);
                 executor.open()?;
                 executor.execute()
             }
             ShowTarget::Indexes => {
-                use crate::query::executor::admin::index::ShowTagIndexesExecutor;
                 use crate::query::executor::admin::index::ShowEdgeIndexesExecutor;
-                let mut tag_executor = ShowTagIndexesExecutor::new(self.id, self.storage.clone(), String::new());
+                use crate::query::executor::admin::index::ShowTagIndexesExecutor;
+                let mut tag_executor =
+                    ShowTagIndexesExecutor::new(self.id, self.storage.clone(), String::new());
                 tag_executor.open()?;
                 let tag_result = tag_executor.execute();
-                
-                let mut edge_executor = ShowEdgeIndexesExecutor::new(self.id, self.storage.clone(), String::new());
+
+                let mut edge_executor =
+                    ShowEdgeIndexesExecutor::new(self.id, self.storage.clone(), String::new());
                 edge_executor.open()?;
                 let edge_result = edge_executor.execute();
-                
+
                 match (tag_result, edge_result) {
-                    (Ok(ExecutionResult::DataSet(mut tag_dataset)), Ok(ExecutionResult::DataSet(edge_dataset))) => {
+                    (
+                        Ok(ExecutionResult::DataSet(mut tag_dataset)),
+                        Ok(ExecutionResult::DataSet(edge_dataset)),
+                    ) => {
                         tag_dataset.rows.extend(edge_dataset.rows);
                         Ok(ExecutionResult::DataSet(tag_dataset))
                     }
                     _ => Err(DBError::Query(QueryError::ExecutionError(
-                        "SHOW INDEXES 执行失败".to_string()
-                    )))
+                        "SHOW INDEXES 执行失败".to_string(),
+                    ))),
                 }
             }
-            ShowTarget::Index(index_name) => {
-                Err(DBError::Query(QueryError::ExecutionError(
-                    format!("SHOW INDEX {} 未实现", index_name)
-                )))
-            }
-            ShowTarget::Users => {
-                Err(DBError::Query(QueryError::ExecutionError(
-                    "SHOW USERS 未实现".to_string()
-                )))
-            }
-            ShowTarget::Roles => {
-                Err(DBError::Query(QueryError::ExecutionError(
-                    "SHOW ROLES 未实现".to_string()
-                )))
-            }
+            ShowTarget::Index(index_name) => Err(DBError::Query(QueryError::ExecutionError(
+                format!("SHOW INDEX {} 未实现", index_name),
+            ))),
+            ShowTarget::Users => Err(DBError::Query(QueryError::ExecutionError(
+                "SHOW USERS 未实现".to_string(),
+            ))),
+            ShowTarget::Roles => Err(DBError::Query(QueryError::ExecutionError(
+                "SHOW ROLES 未实现".to_string(),
+            ))),
         }
     }
 
-    fn execute_show_create(&mut self, clause: crate::query::parser::ast::stmt::ShowCreateStmt) -> Result<ExecutionResult, DBError> {
+    fn execute_show_create(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::ShowCreateStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::core::result::Result as CoreResult;
         use crate::core::Value as CoreValue;
-        
+
         // 构建 SHOW CREATE 语句的字符串表示
         let ddl = match &clause.target {
             crate::query::parser::ast::stmt::ShowCreateTarget::Space(name) => {
@@ -793,13 +977,16 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 format!("CREATE INDEX IF NOT EXISTS {} ON ...", name)
             }
         };
-        
+
         let rows = vec![vec![CoreValue::String(ddl)]];
         let core_result = CoreResult::from_rows(rows, vec!["create_statement".to_string()]);
         Ok(ExecutionResult::from_result(core_result))
     }
 
-    fn execute_explain(&mut self, clause: crate::query::parser::ast::stmt::ExplainStmt) -> Result<ExecutionResult, DBError> {
+    fn execute_explain(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::ExplainStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::core::result::Result as CoreResult;
         use crate::core::Value as CoreValue;
         use crate::query::parser::ast::stmt::ExplainFormat;
@@ -821,12 +1008,18 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             "  4. Execute Query".to_string(),
         ];
 
-        let rows = plan.into_iter().map(|s| vec![CoreValue::String(s)]).collect();
+        let rows = plan
+            .into_iter()
+            .map(|s| vec![CoreValue::String(s)])
+            .collect();
         let core_result = CoreResult::from_rows(rows, vec!["plan".to_string()]);
         Ok(ExecutionResult::from_result(core_result))
     }
 
-    fn execute_profile(&mut self, clause: crate::query::parser::ast::stmt::ProfileStmt) -> Result<ExecutionResult, DBError> {
+    fn execute_profile(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::ProfileStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::core::result::Result as CoreResult;
         use crate::core::Value as CoreValue;
         use crate::query::parser::ast::stmt::ExplainFormat;
@@ -857,21 +1050,30 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             format!("  - Execute: {:?}", elapsed),
         ];
 
-        let rows = profile_info.into_iter().map(|s| vec![CoreValue::String(s)]).collect();
+        let rows = profile_info
+            .into_iter()
+            .map(|s| vec![CoreValue::String(s)])
+            .collect();
         let core_result = CoreResult::from_rows(rows, vec!["profile".to_string()]);
         Ok(ExecutionResult::from_result(core_result))
     }
 
-    fn execute_assignment(&mut self, clause: crate::query::parser::ast::stmt::AssignmentStmt) -> Result<ExecutionResult, DBError> {
+    fn execute_assignment(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::AssignmentStmt,
+    ) -> Result<ExecutionResult, DBError> {
         let _var_name = clause.variable.clone();
 
         // 执行右侧语句，暂时不存储变量
         self.execute_statement(*clause.statement)
     }
 
-    fn execute_set_operation(&mut self, clause: crate::query::parser::ast::stmt::SetOperationStmt) -> Result<ExecutionResult, DBError> {
-        use crate::query::parser::ast::stmt::SetOperationType;
+    fn execute_set_operation(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::SetOperationStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::core::result::Result as CoreResult;
+        use crate::query::parser::ast::stmt::SetOperationType;
 
         let left_result = self.execute_statement(*clause.left)?;
         let right_result = self.execute_statement(*clause.right)?;
@@ -890,56 +1092,74 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     .collect();
 
                 let result_rows: Vec<Vec<CoreValue>> = match clause.op_type {
-                    SetOperationType::Union => {
-                        left_rows.union(&right_rows)
-                            .map(|s| vec![CoreValue::String(s.clone())])
-                            .collect()
-                    }
+                    SetOperationType::Union => left_rows
+                        .union(&right_rows)
+                        .map(|s| vec![CoreValue::String(s.clone())])
+                        .collect(),
                     SetOperationType::UnionAll => {
-                        let mut all: Vec<_> = left_data.rows().iter()
+                        let mut all: Vec<_> = left_data
+                            .rows()
+                            .iter()
                             .map(|r| vec![CoreValue::String(format!("{:?}", r))])
                             .collect();
-                        all.extend(right_data.rows().iter()
-                            .map(|r| vec![CoreValue::String(format!("{:?}", r))]));
+                        all.extend(
+                            right_data
+                                .rows()
+                                .iter()
+                                .map(|r| vec![CoreValue::String(format!("{:?}", r))]),
+                        );
                         all
                     }
-                    SetOperationType::Intersect => {
-                        left_rows.intersection(&right_rows)
-                            .map(|s| vec![CoreValue::String(s.clone())])
-                            .collect()
-                    }
-                    SetOperationType::Minus => {
-                        left_rows.difference(&right_rows)
-                            .map(|s| vec![CoreValue::String(s.clone())])
-                            .collect()
-                    }
+                    SetOperationType::Intersect => left_rows
+                        .intersection(&right_rows)
+                        .map(|s| vec![CoreValue::String(s.clone())])
+                        .collect(),
+                    SetOperationType::Minus => left_rows
+                        .difference(&right_rows)
+                        .map(|s| vec![CoreValue::String(s.clone())])
+                        .collect(),
                 };
 
                 let core_result = CoreResult::from_rows(result_rows, vec!["result".to_string()]);
                 Ok(ExecutionResult::from_result(core_result))
             }
-            _ => Ok(ExecutionResult::Success)
+            _ => Ok(ExecutionResult::Success),
         }
     }
 
-    fn execute_subgraph(&mut self, clause: crate::query::parser::ast::stmt::SubgraphStmt) -> Result<ExecutionResult, DBError> {
-        use crate::query::executor::data_processing::graph_traversal::algorithms::{SubgraphExecutor, SubgraphConfig};
-        use crate::query::executor::base::EdgeDirection;
+    fn execute_subgraph(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::SubgraphStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::core::Value;
         use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
         use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::base::EdgeDirection;
+        use crate::query::executor::data_processing::graph_traversal::algorithms::{
+            SubgraphConfig, SubgraphExecutor,
+        };
 
         let storage = self.storage.clone();
 
         let mut context = DefaultExpressionContext::new();
 
-        let start_vids: Vec<Value> = clause.from.vertices.iter()
+        let start_vids: Vec<Value> = clause
+            .from
+            .vertices
+            .iter()
             .map(|ctx_expr| {
-                let expr = ctx_expr.get_expression()
-                    .unwrap_or_else(|| crate::core::types::expression::Expression::Literal(Value::Null(crate::core::NullType::default())));
+                let expr = ctx_expr.get_expression().unwrap_or_else(|| {
+                    crate::core::types::expression::Expression::Literal(Value::Null(
+                        crate::core::NullType::default(),
+                    ))
+                });
                 match expr {
-                    crate::core::types::expression::Expression::Literal(Value::Int(n)) => Value::Int(n),
-                    crate::core::types::expression::Expression::Literal(Value::String(s)) => Value::String(s),
+                    crate::core::types::expression::Expression::Literal(Value::Int(n)) => {
+                        Value::Int(n)
+                    }
+                    crate::core::types::expression::Expression::Literal(Value::String(s)) => {
+                        Value::String(s)
+                    }
                     _ => {
                         let val = ExpressionEvaluator::evaluate(&expr, &mut context)
                             .unwrap_or(Value::Null(crate::core::NullType::default()));
@@ -950,7 +1170,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             .collect();
 
         if start_vids.is_empty() {
-            return Err(DBError::Query(QueryError::ExecutionError("子图查询需要至少一个起始顶点".to_string())));
+            return Err(DBError::Query(QueryError::ExecutionError(
+                "子图查询需要至少一个起始顶点".to_string(),
+            )));
         }
 
         // 解析步数 - 使用 IN/OUT 步数的最大值
@@ -958,7 +1180,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             crate::query::parser::ast::stmt::Steps::Fixed(n) => n,
             crate::query::parser::ast::stmt::Steps::Range { min, max } => min.max(max),
             crate::query::parser::ast::stmt::Steps::Variable(_) => {
-                return Err(DBError::Query(QueryError::ExecutionError("子图查询不支持变量步数".to_string())));
+                return Err(DBError::Query(QueryError::ExecutionError(
+                    "子图查询不支持变量步数".to_string(),
+                )));
             }
         };
 
@@ -977,37 +1201,37 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         let edge_types = clause.over.as_ref().map(|over| over.edge_types.clone());
 
         // 创建子图执行器配置
-        let mut config = SubgraphConfig::new(steps)
-            .with_direction(edge_direction);
+        let mut config = SubgraphConfig::new(steps).with_direction(edge_direction);
 
         if let Some(types) = edge_types {
             config = config.with_edge_types(types);
         }
 
         // 创建并执行子图查询
-        let mut executor = SubgraphExecutor::new(
-            self.id,
-            storage,
-            start_vids,
-            config,
-        );
+        let mut executor = SubgraphExecutor::new(self.id, storage, start_vids, config);
 
         executor.open()?;
 
         match executor.execute() {
             Ok(execution_result) => Ok(execution_result),
-            Err(e) => Err(DBError::Query(QueryError::ExecutionError(format!("子图查询执行失败: {:?}", e)))),
+            Err(e) => Err(DBError::Query(QueryError::ExecutionError(format!(
+                "子图查询执行失败: {:?}",
+                e
+            )))),
         }
     }
 
-    fn execute_insert(&mut self, clause: crate::query::parser::ast::stmt::InsertStmt) -> Result<ExecutionResult, DBError> {
-        use crate::query::executor::data_modification::InsertExecutor;
-        use crate::query::parser::ast::stmt::InsertTarget;
-        use crate::core::Vertex;
-        use crate::core::Edge;
+    fn execute_insert(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::InsertStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::core::vertex_edge_path::Tag;
+        use crate::core::Edge;
+        use crate::core::Vertex;
         use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
         use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::data_modification::InsertExecutor;
+        use crate::query::parser::ast::stmt::InsertTarget;
 
         match clause.target {
             InsertTarget::Vertices { tags, values } => {
@@ -1015,39 +1239,52 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
                 // 暂时只支持单 Tag 插入
                 let tag_spec = tags.first().ok_or_else(|| {
-                    DBError::Query(QueryError::ExecutionError("INSERT VERTEX 必须指定至少一个 Tag".to_string()))
+                    DBError::Query(QueryError::ExecutionError(
+                        "INSERT VERTEX 必须指定至少一个 Tag".to_string(),
+                    ))
                 })?;
                 let tag_name = &tag_spec.tag_name;
                 let prop_names = &tag_spec.prop_names;
 
                 for row in values {
                     let mut context = DefaultExpressionContext::new();
-                    let vid_expr = row.vid.get_expression()
-                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("顶点ID表达式不存在".to_string())))?;
-                    let vid = ExpressionEvaluator::evaluate(&vid_expr, &mut context)
-                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("表达式求值失败: {}", e))))?;
+                    let vid_expr = row.vid.get_expression().ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError("顶点ID表达式不存在".to_string()))
+                    })?;
+                    let vid =
+                        ExpressionEvaluator::evaluate(&vid_expr, &mut context).map_err(|e| {
+                            DBError::Query(QueryError::ExecutionError(format!(
+                                "表达式求值失败: {}",
+                                e
+                            )))
+                        })?;
 
                     // 暂时只处理第一个 Tag 的值
                     let prop_values = row.tag_values.into_iter().next().unwrap_or_default();
-                    
+
                     let mut properties = std::collections::HashMap::new();
                     for (i, prop_name) in prop_names.iter().enumerate() {
                         if i < prop_values.len() {
                             let mut prop_context = DefaultExpressionContext::new();
-                            let prop_expr = prop_values[i].get_expression()
-                                .ok_or_else(|| DBError::Query(QueryError::ExecutionError("属性表达式不存在".to_string())))?;
-                            let prop_value = ExpressionEvaluator::evaluate(&prop_expr, &mut prop_context)
-                                .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("属性值求值失败: {}", e))))?;
+                            let prop_expr = prop_values[i].get_expression().ok_or_else(|| {
+                                DBError::Query(QueryError::ExecutionError(
+                                    "属性表达式不存在".to_string(),
+                                ))
+                            })?;
+                            let prop_value =
+                                ExpressionEvaluator::evaluate(&prop_expr, &mut prop_context)
+                                    .map_err(|e| {
+                                        DBError::Query(QueryError::ExecutionError(format!(
+                                            "属性值求值失败: {}",
+                                            e
+                                        )))
+                                    })?;
                             properties.insert(prop_name.clone(), prop_value);
                         }
                     }
 
                     let tag = Tag::new(tag_name.clone(), std::collections::HashMap::new());
-                    let vertex = Vertex::new_with_properties(
-                        vid,
-                        vec![tag],
-                        properties,
-                    );
+                    let vertex = Vertex::new_with_properties(vid, vec![tag], properties);
                     vertices.push(vertex);
                 }
 
@@ -1059,42 +1296,73 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                         vertices,
                     )
                 } else {
-                    InsertExecutor::with_vertices(
-                        self.id,
-                        self.storage.clone(),
-                        vertices,
-                    )
+                    InsertExecutor::with_vertices(self.id, self.storage.clone(), vertices)
                 };
 
                 executor.open()?;
                 executor.execute()
             }
-            InsertTarget::Edge { edge_name, prop_names, edges } => {
+            InsertTarget::Edge {
+                edge_name,
+                prop_names,
+                edges,
+            } => {
                 let mut edge_list = Vec::new();
 
                 for (src_ctx_expr, dst_ctx_expr, rank_ctx_expr, prop_values) in edges {
                     let mut src_context = DefaultExpressionContext::new();
-                    let src_expr = src_ctx_expr.get_expression()
-                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("源顶点ID表达式不存在".to_string())))?;
-                    let src = ExpressionEvaluator::evaluate(&src_expr, &mut src_context)
-                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("源顶点ID求值失败: {}", e))))?;
+                    let src_expr = src_ctx_expr.get_expression().ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError(
+                            "源顶点ID表达式不存在".to_string(),
+                        ))
+                    })?;
+                    let src = ExpressionEvaluator::evaluate(&src_expr, &mut src_context).map_err(
+                        |e| {
+                            DBError::Query(QueryError::ExecutionError(format!(
+                                "源顶点ID求值失败: {}",
+                                e
+                            )))
+                        },
+                    )?;
 
                     let mut dst_context = DefaultExpressionContext::new();
-                    let dst_expr = dst_ctx_expr.get_expression()
-                        .ok_or_else(|| DBError::Query(QueryError::ExecutionError("目标顶点ID表达式不存在".to_string())))?;
-                    let dst = ExpressionEvaluator::evaluate(&dst_expr, &mut dst_context)
-                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("目标顶点ID求值失败: {}", e))))?;
+                    let dst_expr = dst_ctx_expr.get_expression().ok_or_else(|| {
+                        DBError::Query(QueryError::ExecutionError(
+                            "目标顶点ID表达式不存在".to_string(),
+                        ))
+                    })?;
+                    let dst = ExpressionEvaluator::evaluate(&dst_expr, &mut dst_context).map_err(
+                        |e| {
+                            DBError::Query(QueryError::ExecutionError(format!(
+                                "目标顶点ID求值失败: {}",
+                                e
+                            )))
+                        },
+                    )?;
 
                     let rank = match rank_ctx_expr {
                         Some(ref r) => {
                             let mut rank_context = DefaultExpressionContext::new();
-                            let rank_expr = r.get_expression()
-                                .ok_or_else(|| DBError::Query(QueryError::ExecutionError("rank表达式不存在".to_string())))?;
-                            let rank_val = ExpressionEvaluator::evaluate(&rank_expr, &mut rank_context)
-                                .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("rank求值失败: {}", e))))?;
+                            let rank_expr = r.get_expression().ok_or_else(|| {
+                                DBError::Query(QueryError::ExecutionError(
+                                    "rank表达式不存在".to_string(),
+                                ))
+                            })?;
+                            let rank_val =
+                                ExpressionEvaluator::evaluate(&rank_expr, &mut rank_context)
+                                    .map_err(|e| {
+                                        DBError::Query(QueryError::ExecutionError(format!(
+                                            "rank求值失败: {}",
+                                            e
+                                        )))
+                                    })?;
                             match rank_val {
                                 crate::core::Value::Int(i) => i,
-                                _ => return Err(DBError::Query(QueryError::ExecutionError("rank必须是整数".to_string()))),
+                                _ => {
+                                    return Err(DBError::Query(QueryError::ExecutionError(
+                                        "rank必须是整数".to_string(),
+                                    )))
+                                }
                             }
                         }
                         None => 0,
@@ -1104,29 +1372,29 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     for (i, prop_name) in prop_names.iter().enumerate() {
                         if i < prop_values.len() {
                             let mut prop_context = DefaultExpressionContext::new();
-                            let prop_expr = prop_values[i].get_expression()
-                                .ok_or_else(|| DBError::Query(QueryError::ExecutionError("属性表达式不存在".to_string())))?;
-                            let prop_value = ExpressionEvaluator::evaluate(&prop_expr, &mut prop_context)
-                                .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("属性值求值失败: {}", e))))?;
+                            let prop_expr = prop_values[i].get_expression().ok_or_else(|| {
+                                DBError::Query(QueryError::ExecutionError(
+                                    "属性表达式不存在".to_string(),
+                                ))
+                            })?;
+                            let prop_value =
+                                ExpressionEvaluator::evaluate(&prop_expr, &mut prop_context)
+                                    .map_err(|e| {
+                                        DBError::Query(QueryError::ExecutionError(format!(
+                                            "属性值求值失败: {}",
+                                            e
+                                        )))
+                                    })?;
                             properties.insert(prop_name.clone(), prop_value);
                         }
                     }
 
-                    let edge = Edge::new(
-                        src,
-                        dst,
-                        edge_name.clone(),
-                        rank,
-                        properties,
-                    );
+                    let edge = Edge::new(src, dst, edge_name.clone(), rank, properties);
                     edge_list.push(edge);
                 }
 
-                let mut executor = InsertExecutor::with_edges(
-                    self.id,
-                    self.storage.clone(),
-                    edge_list,
-                );
+                let mut executor =
+                    InsertExecutor::with_edges(self.id, self.storage.clone(), edge_list);
                 executor.open()?;
                 executor.execute()
             }
@@ -1134,15 +1402,24 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     }
 
     #[allow(dead_code)]
-    fn execute_merge(&mut self, _clause: crate::query::parser::ast::stmt::MergeStmt) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError("MERGE语句执行未实现".to_string())))
+    fn execute_merge(
+        &mut self,
+        _clause: crate::query::parser::ast::stmt::MergeStmt,
+    ) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError(
+            "MERGE语句执行未实现".to_string(),
+        )))
     }
 
-    fn execute_unwind(&mut self, clause: crate::query::parser::ast::stmt::UnwindStmt) -> Result<ExecutionResult, DBError> {
+    fn execute_unwind(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::UnwindStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::query::executor::result_processing::transformations::unwind::UnwindExecutor;
 
-        let expr = clause.expression.get_expression()
-            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("UNWIND表达式不存在".to_string())))?;
+        let expr = clause.expression.get_expression().ok_or_else(|| {
+            DBError::Query(QueryError::ExecutionError("UNWIND表达式不存在".to_string()))
+        })?;
 
         let mut executor = UnwindExecutor::new(
             self.id,
@@ -1157,47 +1434,72 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     }
 
     #[allow(dead_code)]
-    fn execute_return(&mut self, _clause: crate::query::parser::ast::stmt::ReturnStmt) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError("RETURN语句执行未实现".to_string())))
+    fn execute_return(
+        &mut self,
+        _clause: crate::query::parser::ast::stmt::ReturnStmt,
+    ) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError(
+            "RETURN语句执行未实现".to_string(),
+        )))
     }
 
     #[allow(dead_code)]
-    fn execute_with(&mut self, _clause: crate::query::parser::ast::stmt::WithStmt) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError("WITH语句执行未实现".to_string())))
+    fn execute_with(
+        &mut self,
+        _clause: crate::query::parser::ast::stmt::WithStmt,
+    ) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError(
+            "WITH语句执行未实现".to_string(),
+        )))
     }
 
     #[allow(dead_code)]
-    fn execute_yield(&mut self, _clause: crate::query::parser::ast::stmt::YieldStmt) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError("YIELD语句执行未实现".to_string())))
+    fn execute_yield(
+        &mut self,
+        _clause: crate::query::parser::ast::stmt::YieldStmt,
+    ) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError(
+            "YIELD语句执行未实现".to_string(),
+        )))
     }
 
-    fn execute_set(&mut self, clause: crate::query::parser::ast::stmt::SetStmt) -> Result<ExecutionResult, DBError> {
+    fn execute_set(
+        &mut self,
+        clause: crate::query::parser::ast::stmt::SetStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use crate::query::executor::result_processing::transformations::assign::AssignExecutor;
 
         let mut assignments = Vec::new();
         for assignment in clause.assignments {
-            let expr = assignment.value.get_expression()
-                .ok_or_else(|| DBError::Query(QueryError::ExecutionError("SET表达式不存在".to_string())))?;
+            let expr = assignment.value.get_expression().ok_or_else(|| {
+                DBError::Query(QueryError::ExecutionError("SET表达式不存在".to_string()))
+            })?;
             assignments.push((assignment.property, expr));
         }
 
-        let mut executor = AssignExecutor::new(
-            self.id,
-            self.storage.clone(),
-            assignments,
-        );
+        let mut executor = AssignExecutor::new(self.id, self.storage.clone(), assignments);
         executor.open()?;
         executor.execute()
     }
 
     #[allow(dead_code)]
-    fn execute_remove(&mut self, _clause: crate::query::parser::ast::stmt::RemoveStmt) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError("REMOVE语句执行未实现".to_string())))
+    fn execute_remove(
+        &mut self,
+        _clause: crate::query::parser::ast::stmt::RemoveStmt,
+    ) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError(
+            "REMOVE语句执行未实现".to_string(),
+        )))
     }
 
     #[allow(dead_code)]
-    fn execute_pipe(&mut self, _clause: crate::query::parser::ast::stmt::PipeStmt) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError("PIPE语句执行未实现".to_string())))
+    fn execute_pipe(
+        &mut self,
+        _clause: crate::query::parser::ast::stmt::PipeStmt,
+    ) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError(
+            "PIPE语句执行未实现".to_string(),
+        )))
     }
 
     fn execute_drop(&mut self, clause: DropStmt) -> Result<ExecutionResult, DBError> {
@@ -1206,33 +1508,48 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         match clause.target {
             DropTarget::Space(space_name) => {
-                let mut executor = admin_executor::DropSpaceExecutor::new(id, self.storage.clone(), space_name);
+                let mut executor =
+                    admin_executor::DropSpaceExecutor::new(id, self.storage.clone(), space_name);
                 executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                executor
+                    .execute()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
             DropTarget::Tags(tag_names) => {
                 // 先验证所有标签是否存在，确保原子性
                 for tag_name in &tag_names {
-                    let mut executor = admin_executor::DropTagExecutor::new(id, self.storage.clone(), String::new(), tag_name.clone());
+                    let mut executor = admin_executor::DropTagExecutor::new(
+                        id,
+                        self.storage.clone(),
+                        String::new(),
+                        tag_name.clone(),
+                    );
                     if let Err(e) = executor.open() {
-                        return Err(DBError::Query(QueryError::ExecutionError(
-                            format!("删除标签 {} 失败: {}", tag_name, e)
-                        )));
+                        return Err(DBError::Query(QueryError::ExecutionError(format!(
+                            "删除标签 {} 失败: {}",
+                            tag_name, e
+                        ))));
                     }
                 }
 
                 // 全部验证通过后，执行删除
                 let mut total_dropped = 0;
                 for tag_name in tag_names {
-                    let mut executor = admin_executor::DropTagExecutor::new(id, self.storage.clone(), String::new(), tag_name.clone());
+                    let mut executor = admin_executor::DropTagExecutor::new(
+                        id,
+                        self.storage.clone(),
+                        String::new(),
+                        tag_name.clone(),
+                    );
                     match executor.execute() {
                         Ok(_) => total_dropped += 1,
                         Err(e) => {
                             // 由于已经验证过，这里不应该失败
                             // 如果失败，说明有并发修改，返回错误
-                            return Err(DBError::Query(QueryError::ExecutionError(
-                                format!("删除标签 {} 时发生错误: {}", tag_name, e)
-                            )));
+                            return Err(DBError::Query(QueryError::ExecutionError(format!(
+                                "删除标签 {} 时发生错误: {}",
+                                tag_name, e
+                            ))));
                         }
                     }
                 }
@@ -1242,41 +1559,73 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             DropTarget::Edges(edge_names) => {
                 // 先验证所有边类型是否存在，确保原子性
                 for edge_name in &edge_names {
-                    let mut executor = admin_executor::DropEdgeExecutor::new(id, self.storage.clone(), String::new(), edge_name.clone());
+                    let mut executor = admin_executor::DropEdgeExecutor::new(
+                        id,
+                        self.storage.clone(),
+                        String::new(),
+                        edge_name.clone(),
+                    );
                     if let Err(e) = executor.open() {
-                        return Err(DBError::Query(QueryError::ExecutionError(
-                            format!("删除边类型 {} 失败: {}", edge_name, e)
-                        )));
+                        return Err(DBError::Query(QueryError::ExecutionError(format!(
+                            "删除边类型 {} 失败: {}",
+                            edge_name, e
+                        ))));
                     }
                 }
 
                 // 全部验证通过后，执行删除
                 let mut total_dropped = 0;
                 for edge_name in edge_names {
-                    let mut executor = admin_executor::DropEdgeExecutor::new(id, self.storage.clone(), String::new(), edge_name.clone());
+                    let mut executor = admin_executor::DropEdgeExecutor::new(
+                        id,
+                        self.storage.clone(),
+                        String::new(),
+                        edge_name.clone(),
+                    );
                     match executor.execute() {
                         Ok(_) => total_dropped += 1,
                         Err(e) => {
                             // 由于已经验证过，这里不应该失败
                             // 如果失败，说明有并发修改，返回错误
-                            return Err(DBError::Query(QueryError::ExecutionError(
-                                format!("删除边类型 {} 时发生错误: {}", edge_name, e)
-                            )));
+                            return Err(DBError::Query(QueryError::ExecutionError(format!(
+                                "删除边类型 {} 时发生错误: {}",
+                                edge_name, e
+                            ))));
                         }
                     }
                 }
 
                 Ok(ExecutionResult::Count(total_dropped))
             }
-            DropTarget::TagIndex { space_name, index_name } => {
-                let mut executor = admin_executor::DropTagIndexExecutor::new(id, self.storage.clone(), space_name, index_name);
+            DropTarget::TagIndex {
+                space_name,
+                index_name,
+            } => {
+                let mut executor = admin_executor::DropTagIndexExecutor::new(
+                    id,
+                    self.storage.clone(),
+                    space_name,
+                    index_name,
+                );
                 executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                executor
+                    .execute()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
-            DropTarget::EdgeIndex { space_name, index_name } => {
-                let mut executor = admin_executor::DropEdgeIndexExecutor::new(id, self.storage.clone(), space_name, index_name);
+            DropTarget::EdgeIndex {
+                space_name,
+                index_name,
+            } => {
+                let mut executor = admin_executor::DropEdgeIndexExecutor::new(
+                    id,
+                    self.storage.clone(),
+                    space_name,
+                    index_name,
+                );
                 executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                executor
+                    .execute()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
         }
     }
@@ -1287,31 +1636,64 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         match clause.target {
             DescTarget::Space(space_name) => {
-                let mut executor = admin_executor::DescSpaceExecutor::new(id, self.storage.clone(), space_name);
+                let mut executor =
+                    admin_executor::DescSpaceExecutor::new(id, self.storage.clone(), space_name);
                 executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                executor
+                    .execute()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
-            DescTarget::Tag { space_name, tag_name } => {
-                let mut executor = admin_executor::DescTagExecutor::new(id, self.storage.clone(), space_name, tag_name);
+            DescTarget::Tag {
+                space_name,
+                tag_name,
+            } => {
+                let mut executor = admin_executor::DescTagExecutor::new(
+                    id,
+                    self.storage.clone(),
+                    space_name,
+                    tag_name,
+                );
                 executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                executor
+                    .execute()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
-            DescTarget::Edge { space_name, edge_name } => {
-                let mut executor = admin_executor::DescEdgeExecutor::new(id, self.storage.clone(), space_name, edge_name);
+            DescTarget::Edge {
+                space_name,
+                edge_name,
+            } => {
+                let mut executor = admin_executor::DescEdgeExecutor::new(
+                    id,
+                    self.storage.clone(),
+                    space_name,
+                    edge_name,
+                );
                 executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                executor
+                    .execute()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
         }
     }
 
     fn execute_alter(&mut self, clause: AlterStmt) -> Result<ExecutionResult, DBError> {
+        use crate::query::executor::admin::space::alter_space::{
+            AlterSpaceExecutor, SpaceAlterOption,
+        };
         use crate::query::parser::ast::stmt::AlterTarget;
-        use admin_executor::{AlterEdgeExecutor, AlterTagExecutor, AlterEdgeInfo, AlterTagInfo, AlterTagItem, AlterEdgeItem};
-        use crate::query::executor::admin::space::alter_space::{AlterSpaceExecutor, SpaceAlterOption};
+        use admin_executor::{
+            AlterEdgeExecutor, AlterEdgeInfo, AlterEdgeItem, AlterTagExecutor, AlterTagInfo,
+            AlterTagItem,
+        };
         let id = self.id;
 
         match clause.target {
-            AlterTarget::Tag { tag_name, additions, deletions: _, changes: _ } => {
+            AlterTarget::Tag {
+                tag_name,
+                additions,
+                deletions: _,
+                changes: _,
+            } => {
                 let mut items = Vec::new();
                 for prop in additions {
                     items.push(AlterTagItem::add_property(prop));
@@ -1319,9 +1701,16 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 let alter_info = AlterTagInfo::new(String::new(), tag_name).with_items(items);
                 let mut executor = AlterTagExecutor::new(id, self.storage.clone(), alter_info);
                 executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                executor
+                    .execute()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
-            AlterTarget::Edge { edge_name, additions, deletions: _, changes: _ } => {
+            AlterTarget::Edge {
+                edge_name,
+                additions,
+                deletions: _,
+                changes: _,
+            } => {
                 let mut items = Vec::new();
                 for prop in additions {
                     items.push(AlterEdgeItem::add_property(prop));
@@ -1329,16 +1718,24 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 let alter_info = AlterEdgeInfo::new(String::new(), edge_name).with_items(items);
                 let mut executor = AlterEdgeExecutor::new(id, self.storage.clone(), alter_info);
                 executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                executor
+                    .execute()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
-            AlterTarget::Space { space_name, comment } => {
+            AlterTarget::Space {
+                space_name,
+                comment,
+            } => {
                 let mut options = Vec::new();
                 if let Some(comment_str) = comment {
                     options.push(SpaceAlterOption::Comment(comment_str));
                 }
-                let mut executor = AlterSpaceExecutor::new(id, self.storage.clone(), space_name, options);
+                let mut executor =
+                    AlterSpaceExecutor::new(id, self.storage.clone(), space_name, options);
                 executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                executor
+                    .execute()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
         }
     }
@@ -1347,11 +1744,13 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         use admin_executor::CreateUserExecutor;
         let id = self.id;
 
-        let user_info = UserInfo::new(clause.username, clause.password)
-            .map_err(|e| DBError::Storage(e))?;
+        let user_info =
+            UserInfo::new(clause.username, clause.password).map_err(|e| DBError::Storage(e))?;
         let mut executor = CreateUserExecutor::new(id, self.storage.clone(), user_info);
         executor.open()?;
-        executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+        executor
+            .execute()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
     }
 
     fn execute_alter_user(&mut self, clause: AlterUserStmt) -> Result<ExecutionResult, DBError> {
@@ -1364,7 +1763,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         }
         let mut executor = AlterUserExecutor::new(id, self.storage.clone(), alter_info);
         executor.open()?;
-        executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+        executor
+            .execute()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
     }
 
     fn execute_drop_user(&mut self, clause: DropUserStmt) -> Result<ExecutionResult, DBError> {
@@ -1373,10 +1774,15 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         let mut executor = DropUserExecutor::new(id, self.storage.clone(), clause.username);
         executor.open()?;
-        executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+        executor
+            .execute()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
     }
 
-    fn execute_change_password(&mut self, clause: ChangePasswordStmt) -> Result<ExecutionResult, DBError> {
+    fn execute_change_password(
+        &mut self,
+        clause: ChangePasswordStmt,
+    ) -> Result<ExecutionResult, DBError> {
         use admin_executor::ChangePasswordExecutor;
         let id = self.id;
 
@@ -1388,13 +1794,17 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             clause.new_password,
         );
         executor.open()?;
-        executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+        executor
+            .execute()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
     }
 }
 
 impl<S: StorageClient> Executor<S> for GraphQueryExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        Err(DBError::Query(QueryError::ExecutionError("需要先设置要执行的语句".to_string())))
+        Err(DBError::Query(QueryError::ExecutionError(
+            "需要先设置要执行的语句".to_string(),
+        )))
     }
 
     fn id(&self) -> i64 {

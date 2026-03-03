@@ -91,7 +91,10 @@ mod tests {
     use std::collections::HashMap;
 
     fn create_test_vertex_with_id(id: i64) -> Vertex {
-        Vertex::new(Value::Int(id), vec![Tag::new("person".to_string(), HashMap::new())])
+        Vertex::new(
+            Value::Int(id),
+            vec![Tag::new("person".to_string(), HashMap::new())],
+        )
     }
 
     fn create_test_path() -> Path {

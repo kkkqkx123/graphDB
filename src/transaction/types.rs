@@ -49,7 +49,10 @@ impl TransactionState {
 
     /// 检查是否已结束
     pub fn is_terminal(&self) -> bool {
-        matches!(self, TransactionState::Committed | TransactionState::Aborted)
+        matches!(
+            self,
+            TransactionState::Committed | TransactionState::Aborted
+        )
     }
 }
 
@@ -294,30 +297,15 @@ impl TransactionStats {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OperationLog {
     /// 插入顶点
-    InsertVertex {
-        space: String,
-        vertex_id: Vec<u8>,
-    },
+    InsertVertex { space: String, vertex_id: Vec<u8> },
     /// 更新顶点
-    UpdateVertex {
-        space: String,
-        vertex_id: Vec<u8>,
-    },
+    UpdateVertex { space: String, vertex_id: Vec<u8> },
     /// 删除顶点
-    DeleteVertex {
-        space: String,
-        vertex_id: Vec<u8>,
-    },
+    DeleteVertex { space: String, vertex_id: Vec<u8> },
     /// 插入边
-    InsertEdge {
-        space: String,
-        edge_key: Vec<u8>,
-    },
+    InsertEdge { space: String, edge_key: Vec<u8> },
     /// 删除边
-    DeleteEdge {
-        space: String,
-        edge_key: Vec<u8>,
-    },
+    DeleteEdge { space: String, edge_key: Vec<u8> },
     /// 更新索引
     UpdateIndex {
         space: String,

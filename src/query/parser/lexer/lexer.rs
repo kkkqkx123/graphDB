@@ -3,8 +3,8 @@
 //! This module implements a lexical analyzer that converts input query strings into tokens.
 
 use crate::core::types::Position;
-use crate::query::parser::{Token, TokenKind as Tk};
 use crate::query::parser::lexer::LexError;
+use crate::query::parser::{Token, TokenKind as Tk};
 use std::iter::Peekable;
 
 #[derive(Clone)]
@@ -105,7 +105,10 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        self.input.get(start..self.position).unwrap_or("").to_string()
+        self.input
+            .get(start..self.position)
+            .unwrap_or("")
+            .to_string()
     }
 
     fn read_number(&mut self) -> String {
@@ -138,7 +141,10 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        self.input.get(start..self.position).unwrap_or("").to_string()
+        self.input
+            .get(start..self.position)
+            .unwrap_or("")
+            .to_string()
     }
 
     fn read_string(&mut self) -> Result<String, LexError> {
@@ -237,24 +243,22 @@ impl<'a> Lexer<'a> {
                         }
                     }
                 }
-                Some(&'\'') | Some(&'"') => {
-                    match self.peek_char() {
-                        Some(&q) if q == quote => {
-                            self.read_char();
-                            return Ok(result);
-                        }
-                        Some(_) => {
-                            let ch = self.read_char().ok_or_else(|| {
-                                LexError::unexpected_end_of_input(self.current_position())
-                            })?;
-                            result.push(ch);
-                        }
-                        None => {
-                            self.add_error(LexError::unterminated_string(start_position));
-                            return Err(LexError::unterminated_string(start_position));
-                        }
+                Some(&'\'') | Some(&'"') => match self.peek_char() {
+                    Some(&q) if q == quote => {
+                        self.read_char();
+                        return Ok(result);
                     }
-                }
+                    Some(_) => {
+                        let ch = self.read_char().ok_or_else(|| {
+                            LexError::unexpected_end_of_input(self.current_position())
+                        })?;
+                        result.push(ch);
+                    }
+                    None => {
+                        self.add_error(LexError::unterminated_string(start_position));
+                        return Err(LexError::unterminated_string(start_position));
+                    }
+                },
                 Some(&'\n') => {
                     self.add_error(LexError::unterminated_string(start_position));
                     return Err(LexError::unterminated_string(start_position));
@@ -711,12 +715,20 @@ impl<'a> Lexer<'a> {
                 let start_col = self.column;
                 let start_line = self.line;
                 match self.read_string() {
-                    Ok(literal) => {
-                        Token::new(Tk::StringLiteral(literal.clone()), literal, start_line, start_col)
-                    }
+                    Ok(literal) => Token::new(
+                        Tk::StringLiteral(literal.clone()),
+                        literal,
+                        start_line,
+                        start_col,
+                    ),
                     Err(e) => {
                         self.add_error(e);
-                        Token::new(Tk::StringLiteral(String::new()), String::new(), start_line, start_col)
+                        Token::new(
+                            Tk::StringLiteral(String::new()),
+                            String::new(),
+                            start_line,
+                            start_col,
+                        )
                     }
                 }
             }
@@ -730,7 +742,8 @@ impl<'a> Lexer<'a> {
                             Token::new(Tk::FloatLiteral(float_val), literal, start_line, start_col)
                         }
                         Err(_) => {
-                            let error = LexError::invalid_number(literal.clone(), self.current_position());
+                            let error =
+                                LexError::invalid_number(literal.clone(), self.current_position());
                             self.add_error(error);
                             Token::new(Tk::FloatLiteral(0.0), literal, start_line, start_col)
                         }
@@ -741,7 +754,8 @@ impl<'a> Lexer<'a> {
                             Token::new(Tk::IntegerLiteral(int_val), literal, start_line, start_col)
                         }
                         Err(_) => {
-                            let error = LexError::invalid_number(literal.clone(), self.current_position());
+                            let error =
+                                LexError::invalid_number(literal.clone(), self.current_position());
                             self.add_error(error);
                             Token::new(Tk::IntegerLiteral(0), literal, start_line, start_col)
                         }
@@ -764,39 +778,60 @@ impl<'a> Lexer<'a> {
                             Tk::Not => {
                                 if self.peek_word() == "IN" {
                                     self.skip_word();
-                                    Token::new(Tk::NotIn, "NOT IN".to_string(), start_line, start_col)
+                                    Token::new(
+                                        Tk::NotIn,
+                                        "NOT IN".to_string(),
+                                        start_line,
+                                        start_col,
+                                    )
                                 } else {
                                     Token::new(token_kind, literal, start_line, start_col)
                                 }
                             }
-                            Tk::Is => {
-                                match self.peek_word().as_str() {
+                            Tk::Is => match self.peek_word().as_str() {
+                                "NULL" => {
+                                    self.skip_word();
+                                    Token::new(
+                                        Tk::IsNull,
+                                        "IS NULL".to_string(),
+                                        start_line,
+                                        start_col,
+                                    )
+                                }
+                                "NOT" => match self.peek_word_after().as_str() {
                                     "NULL" => {
                                         self.skip_word();
-                                        Token::new(Tk::IsNull, "IS NULL".to_string(), start_line, start_col)
-                                    }
-                                    "NOT" => {
-                                        match self.peek_word_after().as_str() {
-                                            "NULL" => {
-                                                self.skip_word();
-                                                self.skip_word();
-                                                Token::new(Tk::IsNotNull, "IS NOT NULL".to_string(), start_line, start_col)
-                                            }
-                                            "EMPTY" => {
-                                                self.skip_word();
-                                                self.skip_word();
-                                                Token::new(Tk::IsNotEmpty, "IS NOT EMPTY".to_string(), start_line, start_col)
-                                            }
-                                            _ => Token::new(token_kind, literal, start_line, start_col),
-                                        }
+                                        self.skip_word();
+                                        Token::new(
+                                            Tk::IsNotNull,
+                                            "IS NOT NULL".to_string(),
+                                            start_line,
+                                            start_col,
+                                        )
                                     }
                                     "EMPTY" => {
                                         self.skip_word();
-                                        Token::new(Tk::IsEmpty, "IS EMPTY".to_string(), start_line, start_col)
+                                        self.skip_word();
+                                        Token::new(
+                                            Tk::IsNotEmpty,
+                                            "IS NOT EMPTY".to_string(),
+                                            start_line,
+                                            start_col,
+                                        )
                                     }
                                     _ => Token::new(token_kind, literal, start_line, start_col),
+                                },
+                                "EMPTY" => {
+                                    self.skip_word();
+                                    Token::new(
+                                        Tk::IsEmpty,
+                                        "IS EMPTY".to_string(),
+                                        start_line,
+                                        start_col,
+                                    )
                                 }
-                            }
+                                _ => Token::new(token_kind, literal, start_line, start_col),
+                            },
                             _ => Token::new(token_kind, literal, start_line, start_col),
                         }
                     }
@@ -808,7 +843,12 @@ impl<'a> Lexer<'a> {
                 let unexpected = ch.to_string();
                 self.read_char();
                 self.add_error(LexError::unexpected_character(ch, self.current_position()));
-                Token::new(Tk::Identifier(unexpected.clone()), unexpected, start_line, start_col)
+                Token::new(
+                    Tk::Identifier(unexpected.clone()),
+                    unexpected,
+                    start_line,
+                    start_col,
+                )
             }
             None => Token::new(Tk::Eof, String::new(), self.line, self.column),
         };
@@ -923,7 +963,7 @@ mod tests {
 
     #[test]
     fn test_float_literals() {
-        let input = "42";  // 测试整数
+        let input = "42"; // 测试整数
         let lexer = Lexer::new(input);
         assert_eq!(lexer.current_token.kind, Tk::IntegerLiteral(42));
     }
@@ -933,11 +973,17 @@ mod tests {
         let input = r#""hello world" "test""#;
         let mut lexer = Lexer::new(input);
 
-        assert_eq!(lexer.current_token.kind, Tk::StringLiteral("hello world".to_string()));
+        assert_eq!(
+            lexer.current_token.kind,
+            Tk::StringLiteral("hello world".to_string())
+        );
         assert_eq!(lexer.current_token.lexeme, "hello world");
 
         lexer.advance();
-        assert_eq!(lexer.current_token.kind, Tk::StringLiteral("test".to_string()));
+        assert_eq!(
+            lexer.current_token.kind,
+            Tk::StringLiteral("test".to_string())
+        );
     }
 
     #[test]
@@ -1033,12 +1079,12 @@ mod tests {
         // 测试 VALUES 关键字识别
         let input = "VALUES";
         let lexer = Lexer::new(input);
-        
+
         // 关键测试：VALUES 应该被识别为关键字
         assert_eq!(lexer.current_token.kind, Tk::Values);
         assert_eq!(lexer.current_token.lexeme, "VALUES");
     }
-    
+
     #[test]
     fn test_values_in_insert_context() {
         // 测试在 INSERT 语句上下文中 VALUES 关键字识别
@@ -1047,7 +1093,7 @@ mod tests {
 
         assert_eq!(lexer.current_token.kind, Tk::Insert);
         lexer.advance();
-        
+
         // VALUES 应该被识别为关键字，不是标识符
         assert_eq!(lexer.current_token.kind, Tk::Values);
         assert_eq!(lexer.current_token.lexeme, "VALUES");
@@ -1057,11 +1103,15 @@ mod tests {
     fn test_values_case_insensitive() {
         // 测试 VALUES 关键字大小写不敏感
         let inputs = vec!["VALUES", "values", "Values", "VaLuEs"];
-        
+
         for input in inputs {
             let lexer = Lexer::new(input);
-            assert_eq!(lexer.current_token.kind, Tk::Values, 
-                "'{}' 应该被识别为 Values 关键字", input);
+            assert_eq!(
+                lexer.current_token.kind,
+                Tk::Values,
+                "'{}' 应该被识别为 Values 关键字",
+                input
+            );
         }
     }
 }

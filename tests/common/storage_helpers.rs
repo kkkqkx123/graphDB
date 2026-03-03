@@ -2,10 +2,10 @@
 //!
 //! 提供存储层测试的辅助函数
 
-use graphdb::core::types::{SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef};
+use graphdb::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use graphdb::core::DataType;
 use graphdb::core::Value;
-use graphdb::index::{Index, IndexType, IndexField};
+use graphdb::index::{Index, IndexField, IndexType};
 
 /// 创建测试图空间信息
 pub fn create_test_space(name: &str) -> SpaceInfo {
@@ -21,8 +21,7 @@ pub fn create_tag_info(name: &str, properties: Vec<(&str, DataType)>) -> TagInfo
         .map(|(name, data_type)| PropertyDef::new(name.to_string(), data_type))
         .collect();
 
-    TagInfo::new(name.to_string())
-        .with_properties(props)
+    TagInfo::new(name.to_string()).with_properties(props)
 }
 
 /// 创建边类型信息
@@ -32,18 +31,14 @@ pub fn create_edge_type_info(name: &str, properties: Vec<(&str, DataType)>) -> E
         .map(|(name, data_type)| PropertyDef::new(name.to_string(), data_type))
         .collect();
 
-    EdgeTypeInfo::new(name.to_string())
-        .with_properties(props)
+    EdgeTypeInfo::new(name.to_string()).with_properties(props)
 }
 
 /// 创建 Person 标签信息（常用测试标签）
 pub fn person_tag_info() -> TagInfo {
     create_tag_info(
         "Person",
-        vec![
-            ("name", DataType::String),
-            ("age", DataType::Int64),
-        ],
+        vec![("name", DataType::String), ("age", DataType::Int64)],
     )
 }
 
@@ -92,7 +87,11 @@ pub fn create_edge_index(id: i32, name: &str, edge_type: &str, properties: Vec<&
 
 /// 创建唯一索引
 pub fn create_unique_tag_index(id: i32, name: &str, tag_name: &str, property: &str) -> Index {
-    let field = IndexField::new(property.to_string(), Value::String("string".to_string()), false);
+    let field = IndexField::new(
+        property.to_string(),
+        Value::String("string".to_string()),
+        false,
+    );
 
     Index::new(
         id,

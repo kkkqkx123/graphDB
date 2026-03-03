@@ -24,13 +24,13 @@
 //! - 子节点在允许列表中（某些节点类型不允许移除 Project）
 
 use crate::core::Expression;
-use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
+use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
 use std::collections::HashSet;
 
 /// 移除无操作投影的规则
@@ -46,7 +46,7 @@ impl RemoveNoopProjectRule {
     /// 创建规则实例
     pub fn new() -> Self {
         let mut allowed_child_types = HashSet::new();
-        
+
         // 允许移除 Project 的子节点类型
         // 参考 nebula-graph 的 kQueries 集合
         allowed_child_types.insert("GetNeighbors");
@@ -72,7 +72,7 @@ impl RemoveNoopProjectRule {
         allowed_child_types.insert("CrossJoin");
         allowed_child_types.insert("DataCollect");
         allowed_child_types.insert("Argument");
-        
+
         Self {
             allowed_child_types,
         }
@@ -84,24 +84,20 @@ impl RemoveNoopProjectRule {
     }
 
     /// 检查是否为无操作投影
-    fn is_noop_projection(
-        &self,
-        project: &ProjectNode,
-        child_col_names: &[String],
-    ) -> bool {
+    fn is_noop_projection(&self, project: &ProjectNode, child_col_names: &[String]) -> bool {
         let proj_col_names = project.col_names();
-        
+
         // 列数必须相同
         if proj_col_names.len() != child_col_names.len() {
             return false;
         }
 
         let columns = project.columns();
-        
+
         // 检查每一列
         for (i, col) in columns.iter().enumerate() {
             let expr = &col.expression;
-            
+
             // 表达式必须是简单的属性引用
             if let Some(expr_meta) = expr.expression() {
                 let inner_expr = expr_meta.inner();
@@ -126,7 +122,7 @@ impl RemoveNoopProjectRule {
             } else {
                 return false;
             }
-            
+
             // 检查列名是否与输入列名匹配
             if proj_col_names[i] != child_col_names[i] {
                 return false;
@@ -165,7 +161,7 @@ impl RewriteRule for RemoveNoopProjectRule {
 
         // 获取输入节点
         let input = project.input();
-        
+
         // 检查子节点类型是否允许
         if !self.is_allowed_child_type(input) {
             return Ok(None);
@@ -173,7 +169,7 @@ impl RewriteRule for RemoveNoopProjectRule {
 
         // 获取子节点的列名
         let child_col_names = input.col_names();
-        
+
         // 检查是否为无操作投影
         if !self.is_noop_projection(project, child_col_names) {
             return Ok(None);
@@ -232,7 +228,7 @@ mod tests {
     #[test]
     fn test_is_allowed_child_type() {
         let rule = RemoveNoopProjectRule::new();
-        
+
         // 测试允许的子节点类型
         let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
         // Start 不在允许列表中

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::query::parser::parser::parse_context::ParseContext;
-use crate::query::parser::parser::expr_parser::ExprParser;
-use crate::query::parser::parser::stmt_parser::StmtParser;
+use crate::core::types::expression::{ContextualExpression, ExpressionContext};
 use crate::query::parser::ast::stmt::Stmt;
-use crate::core::types::expression::{ExpressionContext, ContextualExpression};
+use crate::query::parser::parser::expr_parser::ExprParser;
+use crate::query::parser::parser::parse_context::ParseContext;
+use crate::query::parser::parser::stmt_parser::StmtParser;
 
 /// Parser 解析结果，包含 AST 和表达式上下文
 #[derive(Debug, Clone)]
@@ -61,13 +61,17 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub fn parse_statement(&mut self) -> Result<Stmt, crate::query::parser::core::error::ParseError> {
+    pub fn parse_statement(
+        &mut self,
+    ) -> Result<Stmt, crate::query::parser::core::error::ParseError> {
         let mut stmt_parser = StmtParser::new();
         stmt_parser.parse_statement(&mut self.ctx)
     }
 
     /// 解析表达式并返回 ContextualExpression
-    pub fn parse_expression_contextual(&mut self) -> Result<ContextualExpression, crate::query::parser::core::error::ParseError> {
+    pub fn parse_expression_contextual(
+        &mut self,
+    ) -> Result<ContextualExpression, crate::query::parser::core::error::ParseError> {
         let mut expr_parser = ExprParser::new(&self.ctx);
         expr_parser.parse_expression_with_context(&mut self.ctx, self.expr_context.clone())
     }

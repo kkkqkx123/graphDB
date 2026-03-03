@@ -168,19 +168,28 @@ mod tests {
     #[test]
     fn test_timestamp_to_datetime_epoch() {
         let (year, month, day, hour, minute, second, microsecond) = timestamp_to_datetime(0);
-        assert_eq!((year, month, day, hour, minute, second, microsecond), (1970, 1, 1, 0, 0, 0, 0));
+        assert_eq!(
+            (year, month, day, hour, minute, second, microsecond),
+            (1970, 1, 1, 0, 0, 0, 0)
+        );
     }
 
     #[test]
     fn test_timestamp_to_datetime_one_hour() {
         let (year, month, day, hour, minute, second, microsecond) = timestamp_to_datetime(3600);
-        assert_eq!((year, month, day, hour, minute, second, microsecond), (1970, 1, 1, 1, 0, 0, 0));
+        assert_eq!(
+            (year, month, day, hour, minute, second, microsecond),
+            (1970, 1, 1, 1, 0, 0, 0)
+        );
     }
 
     #[test]
     fn test_timestamp_to_datetime_one_day() {
         let (year, month, day, hour, minute, second, microsecond) = timestamp_to_datetime(86400);
-        assert_eq!((year, month, day, hour, minute, second, microsecond), (1970, 1, 2, 0, 0, 0, 0));
+        assert_eq!(
+            (year, month, day, hour, minute, second, microsecond),
+            (1970, 1, 2, 0, 0, 0, 0)
+        );
     }
 
     #[test]
@@ -192,8 +201,10 @@ mod tests {
     #[test]
     fn test_datetime_to_timestamp_roundtrip() {
         let original_timestamp = 1234567890;
-        let (year, month, day, hour, minute, second, microsecond) = timestamp_to_datetime(original_timestamp);
-        let converted_timestamp = datetime_to_timestamp(year, month, day, hour, minute, second, microsecond);
+        let (year, month, day, hour, minute, second, microsecond) =
+            timestamp_to_datetime(original_timestamp);
+        let converted_timestamp =
+            datetime_to_timestamp(year, month, day, hour, minute, second, microsecond);
         assert_eq!(original_timestamp, converted_timestamp);
     }
 }

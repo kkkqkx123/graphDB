@@ -2,8 +2,8 @@
 //!
 //! 负责处理追加顶点操作，根据给定的顶点ID获取顶点信息并追加到结果中
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -122,12 +122,13 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                     expr_context.set_variable("_".to_string(), value.clone());
 
                     // 计算源表达式获取顶点ID
-                    let vid = ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
-                        .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
-                        })?;
+                    let vid =
+                        ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
+                            .map_err(|e| {
+                                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                    e.to_string(),
+                                ))
+                            })?;
 
                     // 检查是否去重
                     if let Some(ref mut seen_map) = seen {
@@ -145,12 +146,13 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                     let vertex_value = Value::Vertex(Box::new(vertex.clone()));
                     expr_context.set_variable("_".to_string(), vertex_value.clone());
 
-                    let vid = ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
-                        .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
-                        })?;
+                    let vid =
+                        ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
+                            .map_err(|e| {
+                                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                    e.to_string(),
+                                ))
+                            })?;
 
                     if let Some(ref mut seen_map) = seen {
                         if !seen_map.contains_key(&vid) {
@@ -167,12 +169,13 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                     let edge_value = Value::Edge(edge.clone());
                     expr_context.set_variable("_".to_string(), edge_value.clone());
 
-                    let vid = ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
-                        .map_err(|e| {
-                            DBError::Query(crate::core::error::QueryError::ExecutionError(
-                                e.to_string(),
-                            ))
-                        })?;
+                    let vid =
+                        ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
+                            .map_err(|e| {
+                                DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                    e.to_string(),
+                                ))
+                            })?;
 
                     if let Some(ref mut seen_map) = seen {
                         if !seen_map.contains_key(&vid) {
@@ -247,7 +250,9 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                 continue;
             }
 
-            let vertex = storage.get_vertex("default", &vid).map_err(|e| DBError::from(e))?;
+            let vertex = storage
+                .get_vertex("default", &vid)
+                .map_err(|e| DBError::from(e))?;
 
             if let Some(vertex) = vertex {
                 vertices.push(vertex);
@@ -286,12 +291,14 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             let mut row_context = DefaultExpressionContext::new();
 
             if let Some(ref filter_expression) = self.v_filter {
-                let filter_result = ExpressionEvaluator::evaluate(filter_expression, &mut row_context)
-                    .map_err(|e| {
-                        DBError::Query(crate::core::error::QueryError::ExecutionError(
-                            e.to_string(),
-                        ))
-                    })?;
+                let filter_result =
+                    ExpressionEvaluator::evaluate(filter_expression, &mut row_context).map_err(
+                        |e| {
+                            DBError::Query(crate::core::error::QueryError::ExecutionError(
+                                e.to_string(),
+                            ))
+                        },
+                    )?;
 
                 if let Value::Bool(false) = filter_result {
                     continue;
@@ -374,8 +381,8 @@ mod tests {
     use crate::core::Expression;
     use crate::core::Value;
     use crate::storage::MockStorage;
+    use parking_lot::Mutex;
     use std::sync::Arc;
-use parking_lot::Mutex;
 
     #[test]
     fn test_append_vertices_executor() {

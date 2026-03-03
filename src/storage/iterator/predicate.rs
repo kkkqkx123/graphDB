@@ -67,15 +67,9 @@ pub enum Expression {
         right: Box<Expression>,
     },
     /// 一元运算
-    Unary {
-        op: UnaryOp,
-        expr: Box<Expression>,
-    },
+    Unary { op: UnaryOp, expr: Box<Expression> },
     /// 函数调用
-    Function {
-        name: String,
-        args: Vec<Expression>,
-    },
+    Function { name: String, args: Vec<Expression> },
     /// 聚合函数
     Aggregate {
         func: String,
@@ -326,11 +320,7 @@ impl CompoundPredicate {
     }
 
     pub fn to_expression(&self) -> Expression {
-        let exprs: Vec<Expression> = self
-            .predicates
-            .iter()
-            .map(|p| p.to_expression())
-            .collect();
+        let exprs: Vec<Expression> = self.predicates.iter().map(|p| p.to_expression()).collect();
 
         Expression::Function {
             name: format!("{:?}", self.op),
@@ -421,11 +411,7 @@ pub struct PushdownResult {
 }
 
 impl PushdownResult {
-    pub fn new(
-        pushed: Vec<PredicateEnum>,
-        remaining: Vec<PredicateEnum>,
-        reduction: f64,
-    ) -> Self {
+    pub fn new(pushed: Vec<PredicateEnum>, remaining: Vec<PredicateEnum>, reduction: f64) -> Self {
         Self {
             pushed_predicates: pushed,
             remaining_predicates: remaining,
@@ -448,11 +434,7 @@ mod tests {
 
     #[test]
     fn test_simple_predicate_eq() {
-        let pred = SimplePredicate::new(
-            "age",
-            CompareOp::Equal,
-            Value::Int(25),
-        );
+        let pred = SimplePredicate::new("age", CompareOp::Equal, Value::Int(25));
 
         let row = vec![Value::String("Alice".to_string()), Value::Int(25)];
         assert!(pred.evaluate(&row));
@@ -463,11 +445,7 @@ mod tests {
 
     #[test]
     fn test_simple_predicate_greater() {
-        let pred = SimplePredicate::new(
-            "age",
-            CompareOp::Greater,
-            Value::Int(30),
-        );
+        let pred = SimplePredicate::new("age", CompareOp::Greater, Value::Int(30));
 
         let row = vec![Value::String("Alice".to_string()), Value::Int(35)];
         assert!(pred.evaluate(&row));
@@ -479,7 +457,7 @@ mod tests {
     #[test]
     fn test_predicate_enum_simple() {
         let pred = PredicateEnum::simple("age", CompareOp::Equal, Value::Int(25));
-        
+
         let row = vec![Value::String("Alice".to_string()), Value::Int(25)];
         assert!(pred.evaluate(&row));
         assert!(pred.can_pushdown());
@@ -500,8 +478,10 @@ mod tests {
 
     #[test]
     fn test_predicate_enum_or() {
-        let pred1 = PredicateEnum::simple("name", CompareOp::Equal, Value::String("Alice".to_string()));
-        let pred2 = PredicateEnum::simple("name", CompareOp::Equal, Value::String("Bob".to_string()));
+        let pred1 =
+            PredicateEnum::simple("name", CompareOp::Equal, Value::String("Alice".to_string()));
+        let pred2 =
+            PredicateEnum::simple("name", CompareOp::Equal, Value::String("Bob".to_string()));
         let compound = PredicateEnum::or(vec![pred1, pred2]);
 
         let row = vec![Value::String("Alice".to_string()), Value::Int(25)];
@@ -519,7 +499,8 @@ mod tests {
         let pred = PredicateEnum::simple("age", CompareOp::Equal, Value::Int(25));
         assert!(pred.can_pushdown());
 
-        let not_pred = PredicateEnum::simple("age", CompareOp::Like, Value::String("%".to_string()));
+        let not_pred =
+            PredicateEnum::simple("age", CompareOp::Like, Value::String("%".to_string()));
         assert!(!not_pred.can_pushdown());
     }
 
@@ -551,8 +532,10 @@ mod tests {
 
     #[test]
     fn test_compound_predicate_or() {
-        let pred1 = SimplePredicate::new("name", CompareOp::Equal, Value::String("Alice".to_string()));
-        let pred2 = SimplePredicate::new("name", CompareOp::Equal, Value::String("Bob".to_string()));
+        let pred1 =
+            SimplePredicate::new("name", CompareOp::Equal, Value::String("Alice".to_string()));
+        let pred2 =
+            SimplePredicate::new("name", CompareOp::Equal, Value::String("Bob".to_string()));
         let compound = CompoundPredicate::or(vec![
             PredicateEnum::Simple(pred1),
             PredicateEnum::Simple(pred2),

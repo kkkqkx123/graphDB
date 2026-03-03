@@ -6,11 +6,11 @@
 //! - MultiShortestPath
 //! - BFSShortest
 
-use crate::query::planner::plan::PlanNodeEnum;
+use super::NodeEstimator;
+use crate::core::error::optimize::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::core::error::optimize::CostError;
-use super::NodeEstimator;
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 图算法节点估算器
 pub struct GraphAlgorithmEstimator<'a> {
@@ -33,7 +33,9 @@ impl<'a> NodeEstimator for GraphAlgorithmEstimator<'a> {
         match node {
             PlanNodeEnum::ShortestPath(n) => {
                 let max_depth = n.max_step() as u32;
-                let cost = self.cost_calculator.calculate_shortest_path_cost(1, max_depth);
+                let cost = self
+                    .cost_calculator
+                    .calculate_shortest_path_cost(1, max_depth);
                 // 最短路径返回一条路径
                 Ok((cost, 1))
             }
@@ -46,19 +48,24 @@ impl<'a> NodeEstimator for GraphAlgorithmEstimator<'a> {
             }
             PlanNodeEnum::MultiShortestPath(n) => {
                 let max_depth = n.steps() as u32;
-                let cost = self.cost_calculator.calculate_multi_shortest_path_cost(2, max_depth);
+                let cost = self
+                    .cost_calculator
+                    .calculate_multi_shortest_path_cost(2, max_depth);
                 // 多源最短路径返回多条路径
                 let output_rows = 2_u64.pow(max_depth.min(10));
                 Ok((cost, output_rows))
             }
             PlanNodeEnum::BFSShortest(n) => {
                 let max_depth = n.steps() as u32;
-                let cost = self.cost_calculator.calculate_shortest_path_cost(1, max_depth);
+                let cost = self
+                    .cost_calculator
+                    .calculate_shortest_path_cost(1, max_depth);
                 Ok((cost, 1))
             }
-            _ => Err(CostError::UnsupportedNodeType(
-                format!("图算法估算器不支持节点类型: {:?}", std::mem::discriminant(node))
-            )),
+            _ => Err(CostError::UnsupportedNodeType(format!(
+                "图算法估算器不支持节点类型: {:?}",
+                std::mem::discriminant(node)
+            ))),
         }
     }
 }

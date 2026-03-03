@@ -2,8 +2,8 @@
 //!
 //! 负责修改用户属性（如角色、锁定状态等）。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::core::types::UserAlterInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -36,7 +36,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterUserExecutor
         match result {
             Ok(true) => Ok(ExecutionResult::Success),
             Ok(false) => Err(crate::core::error::DBError::Storage(
-                crate::core::StorageError::DbError("Failed to alter user".to_string())
+                crate::core::StorageError::DbError("Failed to alter user".to_string()),
             )),
             Err(e) => Err(crate::core::error::DBError::Storage(e)),
         }
@@ -84,12 +84,14 @@ impl<S: StorageClient> HasStorage<S> for AlterUserExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
+    use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_alter_user_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let alter_info = UserAlterInfo::new("test_user".to_string());
         let mut executor = AlterUserExecutor::new(1, storage, alter_info);
 
@@ -103,7 +105,9 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let alter_info = UserAlterInfo::new("test_user".to_string());
         let mut executor = AlterUserExecutor::new(2, storage, alter_info);
 
@@ -116,7 +120,9 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
         let alter_info = UserAlterInfo::new("test_user".to_string());
         let executor = AlterUserExecutor::new(3, storage, alter_info);
 

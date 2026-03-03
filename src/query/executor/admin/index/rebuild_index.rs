@@ -2,8 +2,8 @@
 //!
 //! 提供标签索引和边索引的重建功能。
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -38,8 +38,14 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RebuildTagIndexEx
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),
-            Ok(false) => Ok(ExecutionResult::Error(format!("Index '{}' not found", self.index_name))),
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to rebuild tag index: {}", e))),
+            Ok(false) => Ok(ExecutionResult::Error(format!(
+                "Index '{}' not found",
+                self.index_name
+            ))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to rebuild tag index: {}",
+                e
+            ))),
         }
     }
 
@@ -112,8 +118,14 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RebuildEdgeIndexE
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),
-            Ok(false) => Ok(ExecutionResult::Error(format!("Index '{}' not found", self.index_name))),
-            Err(e) => Ok(ExecutionResult::Error(format!("Failed to rebuild edge index: {}", e))),
+            Ok(false) => Ok(ExecutionResult::Error(format!(
+                "Index '{}' not found",
+                self.index_name
+            ))),
+            Err(e) => Ok(ExecutionResult::Error(format!(
+                "Failed to rebuild edge index: {}",
+                e
+            ))),
         }
     }
 
