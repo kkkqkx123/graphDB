@@ -2,8 +2,6 @@
 //!
 //! 负责规划 RETURN 子句的执行，实现结果投影。
 
-use crate::core::types::ContextualExpression;
-use crate::core::Expression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
@@ -24,13 +22,6 @@ pub use crate::query::planner::plan::core::PlanNodeEnum;
 #[derive(Debug)]
 pub struct ReturnClausePlanner {
     distinct: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct ReturnItem {
-    pub alias: String,
-    pub expression: Expression,
-    pub is_aggregated: bool,
 }
 
 impl ReturnClausePlanner {
@@ -57,7 +48,7 @@ fn extract_distinct_flag(stmt: &Stmt) -> bool {
     false
 }
 
-fn extract_return_columns(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Vec<YieldColumn> {
+fn extract_return_columns(stmt: &Stmt, _qctx: &Arc<QueryContext>) -> Result<Vec<YieldColumn>, PlannerError> {
     let mut columns = Vec::new();
 
     if let Stmt::Match(match_stmt) = stmt {
@@ -74,37 +65,18 @@ fn extract_return_columns(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Vec<YieldCol
                             is_matched: false,
                         });
                     }
-                    crate::query::parser::ast::stmt::ReturnItem::All => {
-                        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                            crate::core::Expression::Variable("*".to_string()),
-                        );
-                        let id = qctx.expr_context().register_expression(expr_meta);
-                        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
-                        columns.push(YieldColumn {
-                            expression: ctx_expr,
-                            alias: "*".to_string(),
-                            is_matched: false,
-                        });
-                    }
                 }
             }
         }
     }
 
     if columns.is_empty() {
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-            crate::core::Expression::Variable("*".to_string()),
-        );
-        let id = qctx.expr_context().register_expression(expr_meta);
-        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
-        columns.push(YieldColumn {
-            expression: ctx_expr,
-            alias: "*".to_string(),
-            is_matched: false,
-        });
+        return Err(PlannerError::PlanGenerationFailed(
+            "RETURN 子句缺少返回项".to_string()
+        ));
     }
 
-    columns
+    Ok(columns)
 }
 
 impl ClausePlanner for ReturnClausePlanner {
@@ -118,7 +90,7 @@ impl ClausePlanner for ReturnClausePlanner {
         stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        let yield_columns = extract_return_columns(stmt, &qctx);
+        let yield_columns = extract_return_columns(stmt, &qctx)?;
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("RETURN 子句需要输入计划".to_string())

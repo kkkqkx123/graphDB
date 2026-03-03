@@ -96,12 +96,6 @@ impl RewriteRule for PushFilterDownTraverseRule {
         // 获取过滤条件
         let filter_condition = filter_node.condition();
 
-        // 获取表达式用于处理
-        let filter_expr = match filter_condition.expression() {
-            Some(meta) => meta.inner().clone(),
-            None => return Ok(None),
-        };
-
         // 获取上下文用于创建 ContextualExpression
         let ctx = filter_condition.context().clone();
 
@@ -109,11 +103,17 @@ impl RewriteRule for PushFilterDownTraverseRule {
         let picker = |expr: &Expression| -> bool { is_edge_property_expression(edge_alias, expr) };
 
         // 分割过滤条件
-        let (filter_picked, filter_unpicked) = split_filter(&filter_expr, picker);
+        let (filter_picked, filter_unpicked) = split_filter(filter_condition, picker);
 
         // 如果没有可以选择的条件，则不进行转换
         let picked = match filter_picked {
-            Some(f) => f,
+            Some(f) => {
+                let expr_meta = match f.expression() {
+                    Some(e) => e,
+                    None => return Ok(None),
+                };
+                expr_meta.inner().clone()
+            }
             None => return Ok(None),
         };
 
@@ -154,7 +154,11 @@ impl RewriteRule for PushFilterDownTraverseRule {
             result.erase_curr = false;
             // 更新 Filter 节点的条件
             let mut new_filter = filter_node.clone();
-            let unpicked_meta = crate::core::types::ExpressionMeta::new(unpicked);
+            let unpicked_expr = match unpicked.expression() {
+                Some(meta) => meta.inner().clone(),
+                None => return Ok(None),
+            };
+            let unpicked_meta = crate::core::types::ExpressionMeta::new(unpicked_expr);
             let unpicked_id = ctx.register_expression(unpicked_meta);
             let unpicked_ctx_expr = ContextualExpression::new(unpicked_id, ctx);
             new_filter.set_condition(unpicked_ctx_expr);

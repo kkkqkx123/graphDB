@@ -2,75 +2,39 @@
 
 ## Summary
 
-- **Total Errors**: 11
-- **Total Warnings**: 2
-- **Total Issues**: 13
-- **Unique Error Patterns**: 3
-- **Unique Warning Patterns**: 2
-- **Files with Issues**: 3
+- **Total Errors**: 3
+- **Total Warnings**: 0
+- **Total Issues**: 3
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 11
+**Total Errors**: 3
 
 ### Error Type Breakdown
 
-- **error[E0614]**: 9 errors
-- **error[E0599]**: 2 errors
+- **error[E0425]**: 3 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\executor\tag_filter.rs`: 11 errors
+- `src\query\planner\statements\maintain_planner.rs`: 3 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 2
-
-### Warning Type Breakdown
-
-- **warning**: 2 warnings
-
-### Files with Warnings (Top 10)
-
-- `src\query\planner\rewrite\predicate_pushdown\push_filter_down_get_nbrs.rs`: 1 warnings
-- `src\query\validator\expression_analyzer.rs`: 1 warnings
+**Total Warnings**: 0
 
 ## Detailed Error Categorization
 
-### error[E0614]: type `operators::BinaryOperator` cannot be dereferenced: can't be dereferenced
+### error[E0425]: cannot find value `stmt_type` in this scope
 
-**Total Occurrences**: 9  
+**Total Occurrences**: 3  
 **Unique Files**: 1
 
-#### `src\query\executor\tag_filter.rs`: 9 occurrences
+#### `src\query\planner\statements\maintain_planner.rs`: 3 occurrences
 
-- Line 153: type `operators::BinaryOperator` cannot be dereferenced: can't be dereferenced
-- Line 156: type `def::Expression` cannot be dereferenced: can't be dereferenced
-- Line 158: type `operators::BinaryOperator` cannot be dereferenced: can't be dereferenced
-- ... 6 more occurrences in this file
-
-### error[E0599]: no function or associated item named `parse_simple_tag_list` found for struct `tag_filter::TagFilterProcessor` in the current scope: function or associated item not found in `TagFilterProcessor`
-
-**Total Occurrences**: 2  
-**Unique Files**: 1
-
-#### `src\query\executor\tag_filter.rs`: 2 occurrences
-
-- Line 144: no function or associated item named `parse_simple_tag_list` found for struct `tag_filter::TagFilterProcessor` in the current scope: function or associated item not found in `TagFilterProcessor`
-- Line 193: no function or associated item named `parse_simple_tag_list` found for struct `tag_filter::TagFilterProcessor` in the current scope: function or associated item not found in `TagFilterProcessor`
-
-## Detailed Warning Categorization
-
-### warning: unused import: `std::sync::Arc`
-
-**Total Occurrences**: 2  
-**Unique Files**: 2
-
-#### `src\query\planner\rewrite\predicate_pushdown\push_filter_down_get_nbrs.rs`: 1 occurrences
-
-- Line 16: unused import: `std::sync::Arc`
-
-#### `src\query\validator\expression_analyzer.rs`: 1 occurrences
-
-- Line 15: unused import: `ExpressionContext`
+- Line 47: cannot find value `stmt_type` in this scope
+- Line 50: cannot find value `stmt_type` in this scope
+- Line 53: cannot find value `stmt_type` in this scope
 

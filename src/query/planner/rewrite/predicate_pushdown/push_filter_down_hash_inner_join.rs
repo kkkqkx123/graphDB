@@ -91,12 +91,6 @@ impl RewriteRule for PushFilterDownHashInnerJoinRule {
         // 获取过滤条件
         let filter_condition = filter_node.condition();
 
-        // 获取表达式用于处理
-        let filter_expr = match filter_condition.expression() {
-            Some(meta) => meta.inner().clone(),
-            None => return Ok(None),
-        };
-
         // 获取上下文用于创建 ContextualExpression
         let ctx = filter_condition.context().clone();
 
@@ -111,8 +105,8 @@ impl RewriteRule for PushFilterDownHashInnerJoinRule {
         let right_picker = |expr: &Expression| -> bool { check_col_name(&right_col_names, expr) };
 
         // 分割过滤条件
-        let (left_picked, left_remained) = split_filter(&filter_expr, left_picker);
-        let (right_picked, right_remained) = split_filter(&filter_expr, right_picker);
+        let (left_picked, left_remained) = split_filter(filter_condition, left_picker);
+        let (right_picked, right_remained) = split_filter(filter_condition, right_picker);
 
         // 如果没有可以下推的条件，则不进行转换
         if left_picked.is_none() && right_picked.is_none() {
@@ -127,7 +121,11 @@ impl RewriteRule for PushFilterDownHashInnerJoinRule {
         // 处理左侧下推
         let left_pushed = left_picked.is_some();
         if let Some(left_filter) = left_picked {
-            let left_expr_meta = crate::core::types::expression::ExpressionMeta::new(left_filter);
+            let left_expr = match left_filter.expression() {
+                Some(meta) => meta.inner().clone(),
+                None => return Ok(None),
+            };
+            let left_expr_meta = crate::core::types::expression::ExpressionMeta::new(left_expr);
             let left_id = ctx.register_expression(left_expr_meta);
             let left_ctx_expr = ContextualExpression::new(left_id, ctx.clone());
             let left_filter_node = FilterNode::new(new_left, left_ctx_expr).map_err(|e| {
@@ -142,7 +140,11 @@ impl RewriteRule for PushFilterDownHashInnerJoinRule {
         // 处理右侧下推
         let right_pushed = right_picked.is_some();
         if let Some(right_filter) = right_picked {
-            let right_expr_meta = crate::core::types::expression::ExpressionMeta::new(right_filter);
+            let right_expr = match right_filter.expression() {
+                Some(meta) => meta.inner().clone(),
+                None => return Ok(None),
+            };
+            let right_expr_meta = crate::core::types::expression::ExpressionMeta::new(right_expr);
             let right_id = ctx.register_expression(right_expr_meta);
             let right_ctx_expr = ContextualExpression::new(right_id, ctx.clone());
             let right_filter_node = FilterNode::new(new_right, right_ctx_expr).map_err(|e| {
@@ -173,7 +175,11 @@ impl RewriteRule for PushFilterDownHashInnerJoinRule {
         if let Some(remained) = remaining_condition {
             result.erase_curr = false;
             let mut new_filter = filter_node.clone();
-            let remained_meta = crate::core::types::ExpressionMeta::new(remained);
+            let remained_expr = match remained.expression() {
+                Some(meta) => meta.inner().clone(),
+                None => return Ok(None),
+            };
+            let remained_meta = crate::core::types::ExpressionMeta::new(remained_expr);
             let remained_id = ctx.register_expression(remained_meta);
             let remained_ctx_expr = ContextualExpression::new(remained_id, ctx);
             new_filter.set_condition(remained_ctx_expr);

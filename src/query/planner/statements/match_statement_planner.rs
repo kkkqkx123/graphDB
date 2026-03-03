@@ -598,7 +598,7 @@ impl MatchStatementPlanner {
     fn extract_return_columns(
         &self,
         stmt: &crate::query::parser::ast::Stmt,
-        qctx: &Arc<QueryContext>,
+        _qctx: &Arc<QueryContext>,
     ) -> Result<Option<Vec<YieldColumn>>, PlannerError> {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
@@ -616,32 +616,12 @@ impl MatchStatementPlanner {
                                     is_matched: false,
                                 });
                             }
-                            crate::query::parser::ast::stmt::ReturnItem::All => {
-                                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                                    crate::core::Expression::Variable("*".to_string()),
-                                );
-                                let id = qctx.expr_context().register_expression(expr_meta);
-                                let ctx_expr =
-                                    ContextualExpression::new(id, qctx.expr_context_clone());
-                                columns.push(YieldColumn {
-                                    expression: ctx_expr,
-                                    alias: "*".to_string(),
-                                    is_matched: false,
-                                });
-                            }
                         }
                     }
                     if columns.is_empty() {
-                        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                            crate::core::Expression::Variable("*".to_string()),
-                        );
-                        let id = qctx.expr_context().register_expression(expr_meta);
-                        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
-                        columns.push(YieldColumn {
-                            expression: ctx_expr,
-                            alias: "*".to_string(),
-                            is_matched: false,
-                        });
+                        return Err(PlannerError::PlanGenerationFailed(
+                            "RETURN 子句缺少返回项".to_string()
+                        ));
                     }
                     Ok(Some(columns))
                 } else {

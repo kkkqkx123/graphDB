@@ -45,13 +45,6 @@ impl ReturnValidator {
     /// 验证返回项
     fn validate_return_item(&self, item: &ReturnItem) -> Result<ColumnDef, ValidationError> {
         match item {
-            ReturnItem::All => {
-                // RETURN * 返回所有可用变量
-                Ok(ColumnDef {
-                    name: "*".to_string(),
-                    type_: ValueType::Map,
-                })
-            }
             ReturnItem::Expression { expression, alias } => {
                 // 验证表达式
                 self.validate_expression(expression)?;
@@ -333,9 +326,6 @@ impl StatementValidator for ReturnValidator {
                         .output_fields
                         .push(format!("{:?}", expression));
                 }
-                ReturnItem::All => {
-                    info.semantic_info.output_fields.push("*".to_string());
-                }
             }
         }
 
@@ -377,17 +367,6 @@ mod tests {
         let validator = ReturnValidator::new();
         assert_eq!(validator.statement_type(), StatementType::Return);
         assert!(!validator.is_global_statement());
-    }
-
-    #[test]
-    fn test_validate_return_item_all() {
-        let validator = ReturnValidator::new();
-        let item = ReturnItem::All;
-        let col = validator
-            .validate_return_item(&item)
-            .expect("Failed to validate return item");
-        assert_eq!(col.name, "*");
-        assert_eq!(col.type_, ValueType::Map);
     }
 
     #[test]

@@ -255,24 +255,6 @@ impl WithClausePlanner {
 
         for item in &with_stmt.items {
             match item {
-                crate::query::parser::ast::stmt::ReturnItem::All => {
-                    // WITH * 表示保留所有列
-                    // 使用通配符表达式表示保留所有列
-                    let expr = Expression::Variable("*".to_string());
-                    let meta = crate::core::types::expression::ExpressionMeta::new(expr);
-                    let id = qctx.expr_context().register_expression(meta);
-                    let ctx_expr =
-                        crate::core::types::expression::contextual::ContextualExpression::new(
-                            id,
-                            qctx.expr_context_clone(),
-                        );
-
-                    yield_columns.push(YieldColumn {
-                        expression: ctx_expr,
-                        alias: "*".to_string(),
-                        is_matched: false,
-                    });
-                }
                 crate::query::parser::ast::stmt::ReturnItem::Expression { expression, alias } => {
                     let col_alias = alias
                         .clone()

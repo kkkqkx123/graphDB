@@ -79,12 +79,6 @@ impl PushFilterDownNodeRule {
             None => return Ok(None),
         };
 
-        // 获取表达式用于处理
-        let v_expr = match v_filter.expression() {
-            Some(meta) => meta.inner().clone(),
-            None => return Ok(None),
-        };
-
         // 获取列名用于判断可下推的表达式
         let col_names = traverse.col_names().to_vec();
 
@@ -92,11 +86,17 @@ impl PushFilterDownNodeRule {
         let picker = |expr: &Expression| -> bool { check_col_name(&col_names, expr) };
 
         // 分割过滤条件
-        let (filter_picked, filter_remained) = split_filter(&v_expr, picker);
+        let (filter_picked, filter_remained) = split_filter(v_filter, picker);
 
         // 如果没有可以下推的条件，则不进行转换
         let picked = match filter_picked {
-            Some(f) => f,
+            Some(f) => {
+                let expr_meta = match f.expression() {
+                    Some(e) => e,
+                    None => return Ok(None),
+                };
+                expr_meta.inner().clone()
+            }
             None => return Ok(None),
         };
 
@@ -124,7 +124,11 @@ impl PushFilterDownNodeRule {
 
         // 更新 vFilter
         if let Some(remained) = filter_remained {
-            new_traverse.set_v_filter_expression(remained, ctx);
+            let remained_expr = match remained.expression() {
+                Some(meta) => meta.inner().clone(),
+                None => return Ok(None),
+            };
+            new_traverse.set_v_filter_expression(remained_expr, ctx);
         } else {
             new_traverse.set_v_filter(ContextualExpression::new(
                 crate::core::types::expression::ExpressionId::new(0),
@@ -151,12 +155,6 @@ impl PushFilterDownNodeRule {
             None => return Ok(None),
         };
 
-        // 获取表达式用于处理
-        let v_expr = match v_filter.expression() {
-            Some(meta) => meta.inner().clone(),
-            None => return Ok(None),
-        };
-
         // 获取列名用于判断可下推的表达式
         let col_names = append.col_names().to_vec();
 
@@ -164,11 +162,17 @@ impl PushFilterDownNodeRule {
         let picker = |expr: &Expression| -> bool { check_col_name(&col_names, expr) };
 
         // 分割过滤条件
-        let (filter_picked, filter_remained) = split_filter(&v_expr, picker);
+        let (filter_picked, filter_remained) = split_filter(v_filter, picker);
 
         // 如果没有可以下推的条件，则不进行转换
         let picked = match filter_picked {
-            Some(f) => f,
+            Some(f) => {
+                let expr_meta = match f.expression() {
+                    Some(e) => e,
+                    None => return Ok(None),
+                };
+                expr_meta.inner().clone()
+            }
             None => return Ok(None),
         };
 
@@ -203,7 +207,11 @@ impl PushFilterDownNodeRule {
 
         // 更新 vFilter
         if let Some(remained) = filter_remained {
-            new_append.set_v_filter_expression(remained, ctx);
+            let remained_expr = match remained.expression() {
+                Some(meta) => meta.inner().clone(),
+                None => return Ok(None),
+            };
+            new_append.set_v_filter_expression(remained_expr, ctx);
         }
 
         // 构建转换结果

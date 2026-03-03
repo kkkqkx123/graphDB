@@ -290,9 +290,6 @@ impl MatchValidator {
         // 验证每个返回项
         for (idx, item) in return_clause.items.iter().enumerate() {
             match item {
-                ReturnItem::All => {
-                    // RETURN * 是有效的
-                }
                 ReturnItem::Expression { expression, alias } => {
                     // 验证表达式
                     if let Err(e) = self.validate_return_expression(expression, idx) {
@@ -650,16 +647,6 @@ impl MatchValidator {
         if let Some(ref return_clause) = match_stmt.return_clause {
             for item in &return_clause.items {
                 match item {
-                    ReturnItem::All => {
-                        // RETURN * - 添加所有别名作为输出
-                        for (alias, _) in &self.aliases {
-                            let col = ColumnDef {
-                                name: alias.clone(),
-                                type_: ValueType::Unknown,
-                            };
-                            self.outputs.push(col);
-                        }
-                    }
                     ReturnItem::Expression { expression, alias } => {
                         let name = alias.clone().unwrap_or_else(|| {
                             expression

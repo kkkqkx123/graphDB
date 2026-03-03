@@ -1,10 +1,6 @@
 //! 维护操作规划器
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::Expression;
-use crate::core::types::expression::ExpressionMeta;
-use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum, ProjectNode};
 use crate::query::planner::plan::SubPlan;
@@ -28,7 +24,7 @@ impl Planner for MaintainPlanner {
     fn transform(
         &mut self,
         validated: &ValidatedStatement,
-        qctx: Arc<QueryContext>,
+        _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let stmt_type = validated.stmt.kind().to_uppercase();
 
@@ -36,16 +32,8 @@ impl Planner for MaintainPlanner {
         let arg_node = ArgumentNode::new(1, "maintain_args");
 
         // 2. 根据不同类型创建相应的计划节点
-        let expr = Expression::Variable(format!("MAINTAIN_{}", stmt_type));
-        let meta = ExpressionMeta::new(expr);
-        let id = qctx.expr_context().register_expression(meta);
-        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
-
-        let yield_columns = vec![YieldColumn {
-            expression: ctx_expr,
-            alias: "maintain_result".to_string(),
-            is_matched: false,
-        }];
+        // 维护操作通常不需要表达式，直接返回操作结果
+        let yield_columns = Vec::new();
 
         let project_node = ProjectNode::new(
             PlanNodeEnum::Argument(arg_node.clone()),

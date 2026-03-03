@@ -18,14 +18,19 @@ use std::sync::Arc;
 /// # 返回
 /// 如果表达式包含属性名列表中的任一属性，返回 true
 pub fn check_col_name(property_names: &[String], expr: &Expression) -> bool {
+    check_col_name_expr(property_names, expr)
+}
+
+/// 检查表达式是否包含指定的属性名（内部实现）
+fn check_col_name_expr(property_names: &[String], expr: &Expression) -> bool {
     match expr {
         Expression::Property { property, .. } => property_names.contains(property),
         Expression::Binary { left, right, .. } => {
-            check_col_name(property_names, left) || check_col_name(property_names, right)
+            check_col_name_expr(property_names, left) || check_col_name_expr(property_names, right)
         }
-        Expression::Unary { operand, .. } => check_col_name(property_names, operand),
+        Expression::Unary { operand, .. } => check_col_name_expr(property_names, operand),
         Expression::Function { args, .. } => {
-            args.iter().any(|arg| check_col_name(property_names, arg))
+            args.iter().any(|arg| check_col_name_expr(property_names, arg))
         }
         Expression::Case {
             conditions,
@@ -33,11 +38,11 @@ pub fn check_col_name(property_names: &[String], expr: &Expression) -> bool {
             ..
         } => {
             let has_in_conditions = conditions.iter().any(|(when, then)| {
-                check_col_name(property_names, when) || check_col_name(property_names, then)
+                check_col_name_expr(property_names, when) || check_col_name_expr(property_names, then)
             });
             let has_in_default = default
                 .as_ref()
-                .map(|e| check_col_name(property_names, e))
+                .map(|e| check_col_name_expr(property_names, e))
                 .unwrap_or(false);
             has_in_conditions || has_in_default
         }
@@ -240,19 +245,39 @@ fn rewrite_expression_with_map(
 /// - 剩余的部分
 ///
 /// # 参数
-/// - `condition`: 过滤条件表达式
+/// - `ctx_expr`: 过滤条件上下文表达式
 /// - `picker`: 选择器函数，返回 true 表示该部分应该被选中
 ///
 /// # 返回
 /// (选中的部分, 剩余的部分)
 pub fn split_filter<F>(
-    condition: &Expression,
+    ctx_expr: &ContextualExpression,
     picker: F,
-) -> (Option<Expression>, Option<Expression>)
+) -> (Option<ContextualExpression>, Option<ContextualExpression>)
 where
     F: Fn(&Expression) -> bool,
 {
-    split_filter_impl(condition, &picker)
+    let expr_meta = match ctx_expr.expression() {
+        Some(e) => e,
+        None => return (None, None),
+    };
+    let expr = expr_meta.inner();
+    let (picked_expr, remained_expr) = split_filter_impl(expr, &picker);
+    
+    let expr_context = ctx_expr.context().clone();
+    let picked = picked_expr.map(|e| {
+        let meta = ExpressionMeta::new(e);
+        let id = expr_context.register_expression(meta);
+        ContextualExpression::new(id, expr_context.clone())
+    });
+    
+    let remained = remained_expr.map(|e| {
+        let meta = ExpressionMeta::new(e);
+        let id = expr_context.register_expression(meta);
+        ContextualExpression::new(id, expr_context.clone())
+    });
+    
+    (picked, remained)
 }
 
 fn split_filter_impl<F>(
@@ -309,14 +334,19 @@ where
     }
 }
 
-/// 提取表达式中的属性引用
+/// 提取上下文表达式中的属性引用
 ///
 /// # 参数
-/// - `expr`: 表达式
+/// - `ctx_expr`: 上下文表达式
 ///
 /// # 返回
 /// 表达式中引用的所有属性名
-pub fn extract_property_refs(expr: &Expression) -> Vec<String> {
+pub fn extract_property_refs(ctx_expr: &ContextualExpression) -> Vec<String> {
+    let expr_meta = match ctx_expr.expression() {
+        Some(e) => e,
+        None => return Vec::new(),
+    };
+    let expr = expr_meta.inner();
     let mut props = Vec::new();
     extract_property_refs_recursive(expr, &mut props);
     props
@@ -358,15 +388,15 @@ fn extract_property_refs_recursive(expr: &Expression, props: &mut Vec<String>) {
     }
 }
 
-/// 检查表达式是否为常量
+/// 检查上下文表达式是否为常量
 ///
 /// # 参数
-/// - `expr`: 表达式
+/// - `ctx_expr`: 上下文表达式
 ///
 /// # 返回
 /// 如果表达式不包含任何属性引用，返回 true
-pub fn is_constant(expr: &Expression) -> bool {
-    extract_property_refs(expr).is_empty()
+pub fn is_constant(ctx_expr: &ContextualExpression) -> bool {
+    extract_property_refs(ctx_expr).is_empty()
 }
 
 /// 合并两个过滤条件使用 AND
@@ -377,13 +407,30 @@ pub fn is_constant(expr: &Expression) -> bool {
 ///
 /// # 返回
 /// 合并后的条件
-pub fn and_condition(left: Option<Expression>, right: Option<Expression>) -> Option<Expression> {
+pub fn and_condition(
+    left: Option<ContextualExpression>,
+    right: Option<ContextualExpression>,
+) -> Option<ContextualExpression> {
     match (left, right) {
-        (Some(l), Some(r)) => Some(Expression::Binary {
-            op: BinaryOperator::And,
-            left: Box::new(l),
-            right: Box::new(r),
-        }),
+        (Some(l), Some(r)) => {
+            let expr_context = l.context().clone();
+            let l_expr = match l.expression() {
+                Some(e) => e,
+                None => return Some(r),
+            };
+            let r_expr = match r.expression() {
+                Some(e) => e,
+                None => return Some(l),
+            };
+            let combined_expr = Expression::Binary {
+                op: BinaryOperator::And,
+                left: Box::new(l_expr.inner().clone()),
+                right: Box::new(r_expr.inner().clone()),
+            };
+            let meta = ExpressionMeta::new(combined_expr);
+            let id = expr_context.register_expression(meta);
+            Some(ContextualExpression::new(id, expr_context))
+        }
         (Some(l), None) => Some(l),
         (None, Some(r)) => Some(r),
         (None, None) => None,
@@ -397,7 +444,7 @@ pub fn and_condition(left: Option<Expression>, right: Option<Expression>) -> Opt
 ///
 /// # 返回
 /// 合并后的条件
-pub fn and_conditions(conditions: Vec<Option<Expression>>) -> Option<Expression> {
+pub fn and_conditions(conditions: Vec<Option<ContextualExpression>>) -> Option<ContextualExpression> {
     conditions.into_iter().fold(None, and_condition)
 }
 
@@ -438,6 +485,8 @@ mod tests {
 
     #[test]
     fn test_split_filter() {
+        let expr_context = Arc::new(ExpressionContext::new());
+
         // 创建测试条件: a = 1 AND b = 2 AND c = 3
         let condition = Expression::Binary {
             op: BinaryOperator::And,
@@ -470,29 +519,36 @@ mod tests {
             }),
         };
 
+        let meta = ExpressionMeta::new(condition);
+        let id = expr_context.register_expression(meta);
+        let ctx_condition = ContextualExpression::new(id, expr_context.clone());
+
         // 选择包含 "a" 或 "b" 的条件
         let picker = |expr: &Expression| -> bool {
-            let props = extract_property_refs(expr);
+            let mut props = Vec::new();
+            extract_property_refs_recursive(expr, &mut props);
             props.contains(&"a".to_string()) || props.contains(&"b".to_string())
         };
 
-        let (picked, remained) = split_filter(&condition, picker);
+        let (picked, remained) = split_filter(&ctx_condition, picker);
 
         // 验证选中的部分包含 a 和 b
         assert!(picked.is_some());
-        let picked_props = extract_property_refs(&picked.expect("Failed to get picked expression"));
+        let picked_props = extract_property_refs(&picked.as_ref().expect("Failed to get picked expression"));
         assert!(picked_props.contains(&"a".to_string()));
         assert!(picked_props.contains(&"b".to_string()));
 
         // 验证剩余的部分包含 c
         assert!(remained.is_some());
         let remained_props =
-            extract_property_refs(&remained.expect("Failed to get remained expression"));
+            extract_property_refs(&remained.as_ref().expect("Failed to get remained expression"));
         assert!(remained_props.contains(&"c".to_string()));
     }
 
     #[test]
     fn test_extract_property_refs() {
+        let expr_context = Arc::new(ExpressionContext::new());
+
         // a = 1 AND b = 2
         let expr = Expression::Binary {
             op: BinaryOperator::And,
@@ -514,7 +570,11 @@ mod tests {
             }),
         };
 
-        let props = extract_property_refs(&expr);
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_context.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_context.clone());
+
+        let props = extract_property_refs(&ctx_expr);
         assert_eq!(props.len(), 2);
         assert!(props.contains(&"a".to_string()));
         assert!(props.contains(&"b".to_string()));
@@ -522,15 +582,23 @@ mod tests {
 
     #[test]
     fn test_is_constant() {
+        let expr_context = Arc::new(ExpressionContext::new());
+
         // 常量表达式
         let expr = Expression::Literal(Value::Int(1));
-        assert!(is_constant(&expr));
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_context.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_context.clone());
+        assert!(is_constant(&ctx_expr));
 
         // 包含属性的表达式
         let expr = Expression::Property {
             object: Box::new(Expression::Variable("v".to_string())),
             property: "a".to_string(),
         };
-        assert!(!is_constant(&expr));
+        let meta = ExpressionMeta::new(expr);
+        let id = expr_context.register_expression(meta);
+        let ctx_expr = ContextualExpression::new(id, expr_context.clone());
+        assert!(!is_constant(&ctx_expr));
     }
 }

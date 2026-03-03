@@ -1014,7 +1014,6 @@ impl TemplateExtractor {
             .items
             .iter()
             .map(|item| match item {
-                ReturnItem::All => "*".to_string(),
                 ReturnItem::Expression { expression, alias } => {
                     let result = transformer.parameterize(expression);
                     let mut expr_str = Self::expr_to_template_string(&result.expression);

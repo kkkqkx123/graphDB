@@ -2,10 +2,6 @@
 //!
 //! 处理 USE <space> 语句的查询规划
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::Expression;
-use crate::core::types::expression::ExpressionMeta;
-use crate::core::YieldColumn;
 use crate::query::parser::ast::{Stmt, UseStmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
@@ -42,25 +38,16 @@ impl Planner for UsePlanner {
     fn transform(
         &mut self,
         validated: &ValidatedStatement,
-        qctx: Arc<QueryContext>,
+        _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let use_stmt = self.extract_use_stmt(&validated.stmt)?;
+        let _use_stmt = self.extract_use_stmt(&validated.stmt)?;
 
         // 创建参数节点作为输入
         let arg_node = ArgumentNode::new(next_node_id(), "use_input");
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
-        // 构建输出列，显示切换的空间名
-        let expr = Expression::string(use_stmt.space.clone());
-        let meta = ExpressionMeta::new(expr);
-        let id = qctx.expr_context().register_expression(meta);
-        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
-
-        let yield_columns = vec![YieldColumn {
-            expression: ctx_expr,
-            alias: "space_name".to_string(),
-            is_matched: false,
-        }];
+        // USE 语句不需要投影，直接返回空结果
+        let yield_columns = Vec::new();
 
         // 创建投影节点
         let project_node = ProjectNode::new(arg_node_enum.clone(), yield_columns).map_err(|e| {

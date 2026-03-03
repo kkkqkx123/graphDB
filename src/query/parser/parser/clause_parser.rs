@@ -33,7 +33,14 @@ impl ClauseParser {
 
         // 检查是否是 *
         if ctx.match_token(TokenKind::Star) {
-            items.push(ReturnItem::All);
+            let expr = CoreExpression::variable("*");
+            let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+            let id = ctx.expression_context().register_expression(expr_meta);
+            let ctx_expr = ContextualExpression::new(id, ctx.expression_context_clone());
+            items.push(ReturnItem::Expression {
+                expression: ctx_expr,
+                alias: None,
+            });
         } else {
             loop {
                 let expr = self.parse_expression(ctx)?;

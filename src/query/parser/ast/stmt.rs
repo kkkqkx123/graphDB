@@ -519,7 +519,6 @@ pub struct ReturnClause {
 /// 返回项
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReturnItem {
-    All,
     Expression {
         expression: ContextualExpression,
         alias: Option<String>,

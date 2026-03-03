@@ -38,7 +38,7 @@ impl TraversalParser {
         let where_clause = if ctx.match_token(TokenKind::Where) {
             Some(self.parse_expression(ctx)?)
         } else {
-            None
+            Some(self.create_true_expression(ctx)?)
         };
 
         let return_clause = if ctx.match_token(TokenKind::Return) {
@@ -89,7 +89,7 @@ impl TraversalParser {
         let where_clause = if ctx.match_token(TokenKind::Where) {
             Some(self.parse_expression(ctx)?)
         } else {
-            None
+            Some(self.create_true_expression(ctx)?)
         };
 
         let yield_clause = if ctx.match_token(TokenKind::Yield) {
@@ -173,7 +173,7 @@ impl TraversalParser {
         let where_clause = if ctx.match_token(TokenKind::Where) {
             Some(self.parse_expression(ctx)?)
         } else {
-            None
+            Some(self.create_true_expression(ctx)?)
         };
 
         // 可选的 YIELD 子句
@@ -238,7 +238,7 @@ impl TraversalParser {
         let where_clause = if ctx.match_token(TokenKind::Where) {
             Some(self.parse_expression(ctx)?)
         } else {
-            None
+            Some(self.create_true_expression(ctx)?)
         };
 
         let yield_clause = if ctx.match_token(TokenKind::Yield) {
@@ -567,6 +567,17 @@ impl TraversalParser {
             id,
             ctx.expression_context_clone(),
         ))
+    }
+
+    /// 创建默认的 true 表达式
+    fn create_true_expression(
+        &mut self,
+        ctx: &mut ParseContext,
+    ) -> Result<ContextualExpression, ParseError> {
+        let expr = CoreExpression::variable("true");
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.expression_context().register_expression(expr_meta);
+        Ok(ContextualExpression::new(id, ctx.expression_context_clone()))
     }
 
     /// 解析表达式

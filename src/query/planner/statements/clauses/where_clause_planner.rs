@@ -4,7 +4,6 @@
 //! 实现了 ClausePlanner 接口，提供完整的过滤功能。
 
 use crate::core::types::ContextualExpression;
-use crate::core::Expression;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
@@ -36,23 +35,21 @@ impl WhereClausePlanner {
         }
     }
 
-    pub fn from_stmt(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Self {
-        let filter = extract_where_condition(stmt, qctx);
-        Self::with_filter(filter)
+    pub fn from_stmt(stmt: &Stmt, qctx: &Arc<QueryContext>) -> Result<Self, PlannerError> {
+        let filter = extract_where_condition(stmt, qctx)?;
+        Ok(Self::with_filter(filter))
     }
 }
 
-fn extract_where_condition(stmt: &Stmt, qctx: &Arc<QueryContext>) -> ContextualExpression {
+fn extract_where_condition(stmt: &Stmt, _qctx: &Arc<QueryContext>) -> Result<ContextualExpression, PlannerError> {
     if let Stmt::Match(match_stmt) = stmt {
         if let Some(ref where_expr) = match_stmt.where_clause {
-            return where_expr.clone();
+            return Ok(where_expr.clone());
         }
     }
-    let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-        crate::core::Expression::Variable("true".to_string()),
-    );
-    let id = qctx.expr_context().register_expression(expr_meta);
-    ContextualExpression::new(id, qctx.expr_context_clone())
+    Err(PlannerError::PlanGenerationFailed(
+        "WHERE 子句应该在 Parser 层创建默认表达式".to_string()
+    ))
 }
 
 impl ClausePlanner for WhereClausePlanner {
@@ -62,21 +59,16 @@ impl ClausePlanner for WhereClausePlanner {
 
     fn transform_clause(
         &self,
-        qctx: Arc<QueryContext>,
-        stmt: &Stmt,
+        _qctx: Arc<QueryContext>,
+        _stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
         let condition = self
             .filter_expression
             .clone()
-            .or_else(|| Some(extract_where_condition(stmt, &qctx)))
-            .unwrap_or_else(|| {
-                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
-                    crate::core::Expression::Variable("true".to_string()),
-                );
-                let id = qctx.expr_context().register_expression(expr_meta);
-                ContextualExpression::new(id, qctx.expr_context_clone())
-            });
+            .ok_or_else(|| {
+                PlannerError::PlanGenerationFailed("WHERE 子句缺少过滤条件".to_string())
+            })?;
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("WHERE 子句需要输入计划".to_string())
@@ -99,8 +91,8 @@ mod tests {
 
     #[test]
     fn test_where_clause_planner_with_filter() {
-        let expr = Expression::Variable("age".to_string());
         let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+        let expr = crate::core::Expression::Variable("age".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
