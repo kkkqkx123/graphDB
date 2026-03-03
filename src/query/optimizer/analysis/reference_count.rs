@@ -35,6 +35,8 @@ pub struct SubplanReferenceInfo {
     pub reference_count: usize,
     /// 引用位置（父节点ID列表）
     pub reference_locations: Vec<i64>,
+    /// 估算输出行数
+    pub estimated_output_rows: u64,
     /// 子计划包含的节点数量
     pub node_count: usize,
 }
@@ -47,6 +49,7 @@ impl SubplanReferenceInfo {
             root_node_id,
             reference_count: 0,
             reference_locations: Vec::new(),
+            estimated_output_rows: 0,
             node_count: 0,
         }
     }

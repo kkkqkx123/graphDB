@@ -18,8 +18,8 @@ use crate::query::planner::plan::core::explain::PlanNodeDescription;
 pub use super::aggregate_node::AggregateNode;
 pub use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 pub use super::data_processing_node::{
-    AssignNode, DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode,
-    UnwindNode,
+    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RollUpApplyNode,
+    UnionNode, UnwindNode,
 };
 pub use super::filter_node::FilterNode;
 pub use super::graph_scan_node::{
@@ -119,6 +119,8 @@ pub enum PlanNodeEnum {
     Intersect(IntersectNode),
     /// 展开节点
     Unwind(UnwindNode),
+    /// 物化节点
+    Materialize(MaterializeNode),
     /// 赋值节点
     Assign(AssignNode),
     /// 多源最短路径节点
@@ -1242,6 +1244,13 @@ impl PlanNodeEnum {
         }
     }
 
+    pub fn as_materialize(&self) -> Option<&MaterializeNode> {
+        match self {
+            PlanNodeEnum::Materialize(node) => Some(node),
+            _ => None,
+        }
+    }
+
     pub fn as_topn(&self) -> Option<&TopNNode> {
         match self {
             PlanNodeEnum::TopN(node) => Some(node),
@@ -1540,6 +1549,13 @@ impl PlanNodeEnum {
             }
             PlanNodeEnum::Unwind(node) => {
                 let mut desc = PlanNodeDescription::new("Unwind", node.id());
+                if let Some(var) = node.output_var() {
+                    desc = desc.with_output_var(var.to_string());
+                }
+                desc
+            }
+            PlanNodeEnum::Materialize(node) => {
+                let mut desc = PlanNodeDescription::new("Materialize", node.id());
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }

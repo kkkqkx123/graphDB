@@ -546,6 +546,112 @@ impl super::plan_node_traits::SingleInputNode for PatternApplyNode {
     }
 }
 
+/// Materialize节点 - 物化操作
+///
+/// Materialize节点将子计划的结果物化到内存中，避免重复计算。
+/// 通常用于CTE（Common Table Expression）或被多次引用的子表达式。
+///
+/// # 使用场景
+///
+/// - CTE被多次引用时
+/// - 复杂子表达式被多次计算时
+/// - 需要确保表达式只执行一次时
+///
+/// # 注意事项
+///
+/// - 物化会增加内存使用
+/// - 对于大结果集，物化可能不如重新计算高效
+/// - 物化的子计划必须是确定性的（不含rand()、now()等）
+define_plan_node_with_deps! {
+    pub struct MaterializeNode {
+    }
+    enum: Materialize
+    input: SingleInputNode
+}
+
+impl MaterializeNode {
+    pub fn new(
+        input: super::plan_node_enum::PlanNodeEnum,
+    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+        let col_names = input.col_names().to_vec();
+
+        Ok(Self {
+            id: -1,
+            input: Some(Box::new(input.clone())),
+            deps: vec![Box::new(input)],
+            output_var: None,
+            col_names,
+        })
+    }
+}
+
+// 为 MaterializeNode 实现 PlanNode trait
+impl super::plan_node_traits::PlanNode for MaterializeNode {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn set_id(&mut self, id: i64) {
+        self.id = id;
+    }
+
+    fn type_name(&self) -> &str {
+        "MaterializeNode"
+    }
+
+    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.deps
+    }
+
+    fn output_var(&self) -> &Option<String> {
+        &self.output_var
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn set_output_var(&mut self, var: String) {
+        self.output_var = Some(var);
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Materialize(self)
+    }
+}
+
+// 为 MaterializeNode 实现 PlanNodeClonable trait
+impl super::plan_node_traits::PlanNodeClonable for MaterializeNode {
+    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_plan_node()
+    }
+
+    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        self.clone_with_new_id(new_id)
+    }
+}
+
+// 为 MaterializeNode 实现 SingleInputNode trait
+impl super::plan_node_traits::SingleInputNode for MaterializeNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        self.input.as_ref().expect("MaterializeNode should have input")
+    }
+
+    fn input_mut(&mut self) -> &mut super::plan_node_enum::PlanNodeEnum {
+        self.input.as_mut().expect("MaterializeNode should have input")
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Some(Box::new(input.clone()));
+        self.deps.clear();
+        self.deps.push(Box::new(input));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

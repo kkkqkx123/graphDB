@@ -37,7 +37,8 @@ use std::sync::Arc;
 
 use crate::query::optimizer::{
     AggregateStrategySelector, CostCalculator, CostModelConfig, ExpressionAnalyzer,
-    ReferenceCountAnalyzer, SelectivityEstimator, SortEliminationOptimizer, StatisticsManager,
+    MaterializationOptimizer, ReferenceCountAnalyzer, SelectivityEstimator,
+    SortEliminationOptimizer, StatisticsManager, SubqueryUnnestingOptimizer,
 };
 
 /// 优化器引擎
@@ -60,6 +61,10 @@ pub struct OptimizerEngine {
     expression_analyzer: ExpressionAnalyzer,
     /// 引用计数分析器
     reference_count_analyzer: ReferenceCountAnalyzer,
+    /// 子查询去关联化优化器
+    subquery_unnesting_optimizer: SubqueryUnnestingOptimizer,
+    /// CTE 物化优化器
+    materialization_optimizer: MaterializationOptimizer,
     /// 代价模型配置
     cost_config: CostModelConfig,
 }
@@ -94,6 +99,19 @@ impl OptimizerEngine {
             expression_analyzer.clone(),
         );
 
+        // 创建子查询去关联化优化器
+        let subquery_unnesting_optimizer = SubqueryUnnestingOptimizer::new(
+            &expression_analyzer,
+            &*stats_manager,
+        );
+
+        // 创建 CTE 物化优化器
+        let materialization_optimizer = MaterializationOptimizer::new(
+            &reference_count_analyzer,
+            &expression_analyzer,
+            &*stats_manager,
+        );
+
         Self {
             stats_manager,
             cost_calculator,
@@ -102,6 +120,8 @@ impl OptimizerEngine {
             aggregate_strategy_selector,
             expression_analyzer,
             reference_count_analyzer,
+            subquery_unnesting_optimizer,
+            materialization_optimizer,
             cost_config,
         }
     }
@@ -161,6 +181,16 @@ impl OptimizerEngine {
         &self.aggregate_strategy_selector
     }
 
+    /// 获取子查询去关联化优化器
+    pub fn subquery_unnesting_optimizer(&self) -> &SubqueryUnnestingOptimizer {
+        &self.subquery_unnesting_optimizer
+    }
+
+    /// 获取 CTE 物化优化器
+    pub fn materialization_optimizer(&self) -> &MaterializationOptimizer {
+        &self.materialization_optimizer
+    }
+
     /// 更新代价模型配置
     ///
     /// 注意：更新配置会重新创建代价计算器，但不会影响已有的决策缓存
@@ -180,6 +210,17 @@ impl OptimizerEngine {
         self.aggregate_strategy_selector = AggregateStrategySelector::with_analyzer(
             self.cost_calculator.clone(),
             self.expression_analyzer.clone(),
+        );
+        // 重新创建子查询去关联化优化器
+        self.subquery_unnesting_optimizer = SubqueryUnnestingOptimizer::new(
+            &self.expression_analyzer,
+            &*self.stats_manager,
+        );
+        // 重新创建 CTE 物化优化器
+        self.materialization_optimizer = MaterializationOptimizer::new(
+            &self.reference_count_analyzer,
+            &self.expression_analyzer,
+            &*self.stats_manager,
         );
         log::info!("优化器代价模型配置已更新: {:?}", self.cost_config);
     }

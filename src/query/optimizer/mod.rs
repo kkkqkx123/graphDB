@@ -51,10 +51,12 @@ pub use strategy::{
     AggregateContext, AggregateSelectionReason, AggregateStrategy, AggregateStrategyDecision,
     AggregateStrategySelector, CandidateStart, DegreeInfo, DirectionContext,
     DirectionSelectionReason, IndexSelection, IndexSelector, JoinCondition, JoinOrderOptimizer,
-    JoinOrderResult, OptimizationMethod, PredicateOperator, PropertyPredicate, SortContext,
-    SortEliminationDecision, SortEliminationOptimizer, SortKeepReason, TableInfo,
-    TopNConversionReason, TraversalDirection, TraversalDirectionDecision,
-    TraversalDirectionOptimizer, TraversalSelectionReason, TraversalStartSelector,
+    JoinOrderResult, KeepReason, MaterializeReason, MaterializationDecision,
+    MaterializationOptimizer, NoMaterializeReason, OptimizationMethod, PredicateOperator,
+    PropertyPredicate, SortContext, SortEliminationDecision, SortEliminationOptimizer,
+    SortKeepReason, SubqueryUnnestingOptimizer, TableInfo, TopNConversionReason,
+    TraversalDirection, TraversalDirectionDecision, TraversalDirectionOptimizer,
+    TraversalSelectionReason, TraversalStartSelector, UnnestDecision, UnnestReason,
 };
 
 pub use decision::{

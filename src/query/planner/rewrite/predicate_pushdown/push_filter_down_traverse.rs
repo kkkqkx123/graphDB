@@ -4,6 +4,7 @@
 //! 并将边属性过滤条件下推到 Traverse 节点中。
 
 use crate::core::Expression;
+use crate::core::types::expression::{ExpressionVisitor, VariableCollector};
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
@@ -172,27 +173,9 @@ impl PushDownRule for PushFilterDownTraverseRule {
 
 /// 检查表达式是否为边属性表达式
 fn is_edge_property_expression(edge_alias: &str, expr: &Expression) -> bool {
-    match expr {
-        Expression::Property {
-            object,
-            property: _,
-        } => {
-            if let Expression::Variable(name) = object.as_ref() {
-                name == edge_alias
-            } else {
-                is_edge_property_expression(edge_alias, object)
-            }
-        }
-        Expression::Binary { left, op: _, right } => {
-            is_edge_property_expression(edge_alias, left)
-                || is_edge_property_expression(edge_alias, right)
-        }
-        Expression::Unary { op: _, operand } => is_edge_property_expression(edge_alias, operand),
-        Expression::Function { name: _, args } => args
-            .iter()
-            .any(|arg| is_edge_property_expression(edge_alias, arg)),
-        _ => false,
-    }
+    let mut collector = VariableCollector::new();
+    ExpressionVisitor::visit(&mut collector, expr);
+    collector.variables.contains(&edge_alias.to_string())
 }
 
 #[cfg(test)]

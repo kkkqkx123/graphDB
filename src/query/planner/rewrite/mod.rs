@@ -51,6 +51,7 @@
 //! - 聚合策略选择 (`AggregateStrategySelector`)
 //! - 连接顺序优化 (`JoinOrderOptimizer`)
 //! - 遍历方向优化 (`TraversalDirectionOptimizer`)
+//! - 子查询去关联化 (`SubqueryUnnestingOptimizer`) - 基于分析的转换
 //!
 //! 启发式规则优先执行，基于代价的优化在之后执行。
 //!

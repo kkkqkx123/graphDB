@@ -10,10 +10,14 @@
 //! - `join_order` - 连接顺序优化器
 //! - `traversal_direction` - 图遍历方向优化器
 //! - `topn_optimization` - TopN 优化器（Sort + Limit 到 TopN 的转换）
+//! - `subquery_unnesting` - 子查询去关联化优化器
+//! - `materialization` - CTE 物化优化器
 
 pub mod aggregate_strategy;
 pub mod index;
 pub mod join_order;
+pub mod materialization;
+pub mod subquery_unnesting;
 pub mod topn_optimization;
 pub mod traversal_direction;
 pub mod traversal_start;
@@ -41,4 +45,12 @@ pub use traversal_direction::{
 pub use topn_optimization::{
     SortContext, SortEliminationDecision, SortEliminationOptimizer, SortKeepReason,
     TopNConversionReason,
+};
+
+pub use subquery_unnesting::{
+    KeepReason, SubqueryUnnestingOptimizer, UnnestDecision, UnnestReason,
+};
+
+pub use materialization::{
+    MaterializeReason, MaterializationDecision, MaterializationOptimizer, NoMaterializeReason,
 };

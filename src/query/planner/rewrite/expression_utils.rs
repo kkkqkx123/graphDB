@@ -14,13 +14,11 @@
 //! - ContextualExpression 是轻量级引用，不包含表达式结构
 //! - 重写操作需要创建新的 Expression
 //! - 新 Expression 必须注册到 ExpressionContext 才能使用
-//!
-//! TODO: 考虑将表达式重写逻辑移到 ExpressionContext 中，
-//! 提供 ContextualExpression 级别的重写 API，避免直接操作 Expression
 
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionContext;
 use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::{ConstantChecker, ExpressionVisitor, PropertyCollector, PropertyContainsChecker};
 use crate::core::types::operators::BinaryOperator;
 use crate::core::Expression;
 use std::sync::Arc;
@@ -34,36 +32,7 @@ use std::sync::Arc;
 /// # 返回
 /// 如果表达式包含属性名列表中的任一属性，返回 true
 pub fn check_col_name(property_names: &[String], expr: &Expression) -> bool {
-    check_col_name_expr(property_names, expr)
-}
-
-/// 检查表达式是否包含指定的属性名（内部实现）
-fn check_col_name_expr(property_names: &[String], expr: &Expression) -> bool {
-    match expr {
-        Expression::Property { property, .. } => property_names.contains(property),
-        Expression::Binary { left, right, .. } => {
-            check_col_name_expr(property_names, left) || check_col_name_expr(property_names, right)
-        }
-        Expression::Unary { operand, .. } => check_col_name_expr(property_names, operand),
-        Expression::Function { args, .. } => {
-            args.iter().any(|arg| check_col_name_expr(property_names, arg))
-        }
-        Expression::Case {
-            conditions,
-            default,
-            ..
-        } => {
-            let has_in_conditions = conditions.iter().any(|(when, then)| {
-                check_col_name_expr(property_names, when) || check_col_name_expr(property_names, then)
-            });
-            let has_in_default = default
-                .as_ref()
-                .map(|e| check_col_name_expr(property_names, e))
-                .unwrap_or(false);
-            has_in_conditions || has_in_default
-        }
-        _ => false,
-    }
+    PropertyContainsChecker::check(expr, property_names)
 }
 
 /// 重写上下文表达式
@@ -363,45 +332,9 @@ pub fn extract_property_refs(ctx_expr: &ContextualExpression) -> Vec<String> {
         None => return Vec::new(),
     };
     let expr = expr_meta.inner();
-    let mut props = Vec::new();
-    extract_property_refs_recursive(expr, &mut props);
-    props
-}
-
-fn extract_property_refs_recursive(expr: &Expression, props: &mut Vec<String>) {
-    match expr {
-        Expression::Property { property, .. } => {
-            if !props.contains(property) {
-                props.push(property.clone());
-            }
-        }
-        Expression::Binary { left, right, .. } => {
-            extract_property_refs_recursive(left, props);
-            extract_property_refs_recursive(right, props);
-        }
-        Expression::Unary { operand, .. } => {
-            extract_property_refs_recursive(operand, props);
-        }
-        Expression::Function { args, .. } => {
-            for arg in args {
-                extract_property_refs_recursive(arg, props);
-            }
-        }
-        Expression::Case {
-            conditions,
-            default,
-            ..
-        } => {
-            for (when, then) in conditions {
-                extract_property_refs_recursive(when, props);
-                extract_property_refs_recursive(then, props);
-            }
-            if let Some(default_expr) = default {
-                extract_property_refs_recursive(default_expr, props);
-            }
-        }
-        _ => {}
-    }
+    let mut collector = PropertyCollector::new();
+    ExpressionVisitor::visit(&mut collector, expr);
+    collector.properties
 }
 
 /// 检查上下文表达式是否为常量
@@ -410,9 +343,14 @@ fn extract_property_refs_recursive(expr: &Expression, props: &mut Vec<String>) {
 /// - `ctx_expr`: 上下文表达式
 ///
 /// # 返回
-/// 如果表达式不包含任何属性引用，返回 true
+/// 如果表达式不包含任何变量或属性引用，返回 true
 pub fn is_constant(ctx_expr: &ContextualExpression) -> bool {
-    extract_property_refs(ctx_expr).is_empty()
+    let expr_meta = match ctx_expr.expression() {
+        Some(e) => e,
+        None => return true,
+    };
+    let expr = expr_meta.inner();
+    ConstantChecker::check(expr)
 }
 
 /// 合并两个过滤条件使用 AND
@@ -541,9 +479,9 @@ mod tests {
 
         // 选择包含 "a" 或 "b" 的条件
         let picker = |expr: &Expression| -> bool {
-            let mut props = Vec::new();
-            extract_property_refs_recursive(expr, &mut props);
-            props.contains(&"a".to_string()) || props.contains(&"b".to_string())
+            let mut collector = PropertyCollector::new();
+            ExpressionVisitor::visit(&mut collector, expr);
+            collector.properties.contains(&"a".to_string()) || collector.properties.contains(&"b".to_string())
         };
 
         let (picked, remained) = split_filter(&ctx_condition, picker);
