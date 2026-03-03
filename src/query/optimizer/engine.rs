@@ -78,9 +78,21 @@ impl OptimizerEngine {
     /// # 参数
     /// - `cost_config`: 代价模型配置
     pub fn new(cost_config: CostModelConfig) -> Self {
-        // 创建表达式上下文
-        let expression_context = Arc::new(ExpressionContext::new());
+        Self::with_expression_context(
+            Arc::new(ExpressionContext::new()),
+            cost_config,
+        )
+    }
 
+    /// 使用共享的 ExpressionContext 创建优化器引擎
+    ///
+    /// # 参数
+    /// - `expression_context`: 共享的表达式上下文（跨阶段共享）
+    /// - `cost_config`: 代价模型配置
+    pub fn with_expression_context(
+        expression_context: Arc<ExpressionContext>,
+        cost_config: CostModelConfig,
+    ) -> Self {
         // 创建统计信息管理器
         let stats_manager = Arc::new(StatisticsManager::new());
 
@@ -99,7 +111,7 @@ impl OptimizerEngine {
         let expression_analyzer = ExpressionAnalyzer::new();
         let reference_count_analyzer = ReferenceCountAnalyzer::new();
 
-        // 创建聚合策略选择器，使用表达式分析器和上下文
+        // 创建聚合策略选择器，使用表达式分析器和共享上下文
         let aggregate_strategy_selector = AggregateStrategySelector::with_context(
             cost_calculator.clone(),
             expression_analyzer.clone(),

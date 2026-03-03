@@ -5,6 +5,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionContext;
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
 use crate::query::QueryError;
@@ -28,6 +29,7 @@ impl<S: StorageClient> UnionAllExecutor<S> {
         storage: Arc<Mutex<S>>,
         left_input_var: String,
         right_input_var: String,
+        expr_context: Arc<ExpressionContext>,
     ) -> Self {
         Self {
             set_executor: SetExecutor::new(
@@ -36,6 +38,7 @@ impl<S: StorageClient> UnionAllExecutor<S> {
                 storage,
                 left_input_var,
                 right_input_var,
+                expr_context,
             ),
         }
     }

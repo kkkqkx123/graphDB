@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
+use crate::core::types::expression::context::ExpressionContext;
 use crate::core::value::dataset::List;
 use crate::core::{Edge, NPath, Path, Value, Vertex};
 
@@ -54,9 +55,10 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         edge_types: Option<Vec<String>>,
         any_edge_type: bool,
         max_depth: Option<usize>,
+        expr_context: Arc<ExpressionContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ExpandAllExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "ExpandAllExecutor".to_string(), storage, expr_context),
             edge_direction,
             edge_types,
             any_edge_type,

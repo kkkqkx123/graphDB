@@ -9,10 +9,11 @@ use rayon::prelude::*;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::{DefaultExpressionContext, ExpressionContext};
+use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::Executor;
 use crate::query::executor::base::InputExecutor;
@@ -48,9 +49,9 @@ pub struct ProjectExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient> ProjectExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, columns: Vec<ProjectionColumn>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, columns: Vec<ProjectionColumn>, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ProjectExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "ProjectExecutor".to_string(), storage, expr_context),
             columns,
             input_executor: None,
             parallel_config: ParallelConfig::default(),

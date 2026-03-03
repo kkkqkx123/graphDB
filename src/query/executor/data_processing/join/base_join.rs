@@ -6,6 +6,7 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
 use crate::core::{DataSet, Expression, Value};
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;
@@ -45,6 +46,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         hash_keys: Vec<Expression>,
         probe_keys: Vec<Expression>,
         col_names: Vec<String>,
+        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self::with_description(
             id,
@@ -55,6 +57,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             probe_keys,
             col_names,
             String::new(),
+            expr_context,
         )
     }
 
@@ -67,6 +70,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         probe_keys: Vec<Expression>,
         col_names: Vec<String>,
         description: String,
+        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
             base: BaseExecutor::with_description(
@@ -74,6 +78,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
                 "BaseJoinExecutor".to_string(),
                 description.clone(),
                 storage,
+                expr_context,
             ),
             left_var,
             right_var,

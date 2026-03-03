@@ -9,6 +9,7 @@ use crate::core::types::expression::visitor::ExpressionVisitor;
 use crate::core::types::expression::visitor_collectors::{
     FunctionCollector, PropertyCollector, VariableCollector,
 };
+use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 
 /// 表达式分析结果
@@ -146,57 +147,62 @@ impl ExpressionAnalyzer {
         })
     }
 
-    /// 分析表达式
+    /// 分析表达式（接受 ContextualExpression）
     ///
     /// # 参数
-    /// - `expr`: 要分析的表达式
+    /// - `ctx_expr`: 要分析的上下文表达式
     ///
     /// # 返回
     /// 表达式的分析结果
-    pub fn analyze(&self, expr: &Expression) -> ExpressionAnalysis {
+    pub fn analyze(&self, ctx_expr: &ContextualExpression) -> ExpressionAnalysis {
         let mut analysis = ExpressionAnalysis::new();
 
-        // 使用现有的 Collector 收集信息
-        if self.options.extract_properties {
-            let mut collector = PropertyCollector::new();
-            collector.visit(expr);
-            analysis.referenced_properties = collector.properties;
-        }
+        // 通过 ContextualExpression 获取 Expression
+        if let Some(expr_meta) = ctx_expr.expression() {
+            let expr = expr_meta.inner();
 
-        if self.options.extract_variables {
-            let mut collector = VariableCollector::new();
-            collector.visit(expr);
-            analysis.referenced_variables = collector.variables;
-        }
+            // 使用现有的 Collector 收集信息
+            if self.options.extract_properties {
+                let mut collector = PropertyCollector::new();
+                collector.visit(expr);
+                analysis.referenced_properties = collector.properties;
+            }
 
-        if self.options.count_functions {
-            let mut collector = FunctionCollector::new();
-            collector.visit(expr);
-            analysis.called_functions = collector.functions;
-        }
+            if self.options.extract_variables {
+                let mut collector = VariableCollector::new();
+                collector.visit(expr);
+                analysis.referenced_variables = collector.variables;
+            }
 
-        // 使用自定义 Visitor 进行复杂度和确定性分析
-        let mut visitor = AnalysisVisitor::new(&mut analysis, self.options.clone());
-        visitor.visit(expr);
+            if self.options.count_functions {
+                let mut collector = FunctionCollector::new();
+                collector.visit(expr);
+                analysis.called_functions = collector.functions;
+            }
+
+            // 使用自定义 Visitor 进行复杂度和确定性分析
+            let mut visitor = AnalysisVisitor::new(&mut analysis, self.options.clone());
+            visitor.visit(expr);
+        }
 
         analysis
     }
 
     /// 快速检查表达式是否确定性
-    pub fn is_deterministic(&self, expr: &Expression) -> bool {
-        let analysis = self.analyze(expr);
+    pub fn is_deterministic(&self, ctx_expr: &ContextualExpression) -> bool {
+        let analysis = self.analyze(ctx_expr);
         analysis.is_deterministic
     }
 
     /// 快速提取表达式引用的属性
-    pub fn extract_properties(&self, expr: &Expression) -> Vec<String> {
-        let analysis = self.analyze(expr);
+    pub fn extract_properties(&self, ctx_expr: &ContextualExpression) -> Vec<String> {
+        let analysis = self.analyze(ctx_expr);
         analysis.referenced_properties
     }
 
     /// 快速提取表达式引用的变量
-    pub fn extract_variables(&self, expr: &Expression) -> Vec<String> {
-        let analysis = self.analyze(expr);
+    pub fn extract_variables(&self, ctx_expr: &ContextualExpression) -> Vec<String> {
+        let analysis = self.analyze(ctx_expr);
         analysis.referenced_variables
     }
 }
@@ -497,6 +503,7 @@ impl Default for ExpressionAnalyzer {
 mod tests {
     use super::*;
     use crate::core::Value;
+    use std::sync::Arc;
 
     #[test]
     fn test_expression_analyzer_new() {
@@ -508,7 +515,11 @@ mod tests {
     fn test_literal_is_deterministic() {
         let analyzer = ExpressionAnalyzer::new();
         let expr = Expression::Literal(Value::Int(42));
-        let analysis = analyzer.analyze(&expr);
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_id = expr_ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
+        let analysis = analyzer.analyze(&ctx_expr);
         assert!(analysis.is_deterministic);
         assert_eq!(analysis.node_count, 1);
     }
@@ -517,7 +528,11 @@ mod tests {
     fn test_variable_extraction() {
         let analyzer = ExpressionAnalyzer::new();
         let expr = Expression::Variable("x".to_string());
-        let analysis = analyzer.analyze(&expr);
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_id = expr_ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
+        let analysis = analyzer.analyze(&ctx_expr);
         assert!(analysis.referenced_variables.contains(&"x".to_string()));
     }
 
@@ -528,7 +543,11 @@ mod tests {
             name: "rand".to_string(),
             args: vec![],
         };
-        let analysis = analyzer.analyze(&expr);
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_id = expr_ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
+        let analysis = analyzer.analyze(&ctx_expr);
         assert!(!analysis.is_deterministic);
     }
 
@@ -539,7 +558,11 @@ mod tests {
             name: "abs".to_string(),
             args: vec![Expression::Literal(Value::Int(-5))],
         };
-        let analysis = analyzer.analyze(&expr);
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_id = expr_ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
+        let analysis = analyzer.analyze(&ctx_expr);
         assert!(analysis.is_deterministic);
     }
 
@@ -550,7 +573,11 @@ mod tests {
             object: Box::new(Expression::Variable("n".to_string())),
             property: "name".to_string(),
         };
-        let analysis = analyzer.analyze(&expr);
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_id = expr_ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
+        let analysis = analyzer.analyze(&ctx_expr);
         assert!(analysis.referenced_properties.contains(&"name".to_string()));
     }
 
@@ -559,7 +586,11 @@ mod tests {
         let analyzer = ExpressionAnalyzer::new();
         // 简单表达式
         let simple = Expression::Literal(Value::Int(1));
-        let simple_analysis = analyzer.analyze(&simple);
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let simple_meta = crate::core::types::expression::ExpressionMeta::new(simple);
+        let simple_id = expr_ctx.register_expression(simple_meta);
+        let simple_ctx_expr = crate::core::types::ContextualExpression::new(simple_id, expr_ctx.clone());
+        let simple_analysis = analyzer.analyze(&simple_ctx_expr);
         assert!(simple_analysis.complexity_score < 10);
 
         // 复杂表达式
@@ -577,7 +608,10 @@ mod tests {
                 Expression::Literal(Value::Null(crate::core::value::types::NullType::Null)),
             ],
         };
-        let complex_analysis = analyzer.analyze(&complex);
+        let complex_meta = crate::core::types::expression::ExpressionMeta::new(complex);
+        let complex_id = expr_ctx.register_expression(complex_meta);
+        let complex_ctx_expr = crate::core::types::ContextualExpression::new(complex_id, expr_ctx);
+        let complex_analysis = analyzer.analyze(&complex_ctx_expr);
         assert!(complex_analysis.complexity_score > simple_analysis.complexity_score);
     }
 }

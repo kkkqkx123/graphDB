@@ -133,23 +133,21 @@ impl SubqueryUnnestingOptimizer {
         // 2. 检查连接键是否是确定性的
         // 现在的 key_cols 是 Vec<ContextualExpression>，可以使用 ExpressionAnalyzer 分析
         for key_col in pattern_apply.key_cols() {
-            // 使用 expression_analyzer 分析连接键表达式
-            if let Some(expr_meta) = key_col.expression() {
-                let analysis = self.expression_analyzer.analyze(expr_meta.inner());
-                
-                // 检查确定性
-                if !analysis.is_deterministic {
-                    return UnnestDecision::KeepPatternApply {
-                        reason: KeepReason::NonDeterministic,
-                    };
-                }
-                
-                // 检查复杂度
-                if analysis.complexity_score > self.max_complexity {
-                    return UnnestDecision::KeepPatternApply {
-                        reason: KeepReason::ComplexCondition,
-                    };
-                }
+            // 直接传递 ContextualExpression 给 ExpressionAnalyzer
+            let analysis = self.expression_analyzer.analyze(key_col);
+            
+            // 检查确定性
+            if !analysis.is_deterministic {
+                return UnnestDecision::KeepPatternApply {
+                    reason: KeepReason::NonDeterministic,
+                };
+            }
+            
+            // 检查复杂度
+            if analysis.complexity_score > self.max_complexity {
+                return UnnestDecision::KeepPatternApply {
+                    reason: KeepReason::ComplexCondition,
+                };
             }
         }
 
@@ -192,22 +190,22 @@ impl SubqueryUnnestingOptimizer {
             PlanNodeEnum::Filter(n) => {
                 // 检查过滤条件是否是等值比较
                 let condition = n.condition();
-                if let Some(condition_expr) = condition.expression() {
-                    // 使用 expression_analyzer 分析表达式
-                    let analysis = self.expression_analyzer.analyze(condition_expr.inner());
-                    
-                    // 检查确定性
-                    if !analysis.is_deterministic {
-                        return false;
-                    }
-                    
-                    // 检查复杂度
-                    if analysis.complexity_score > self.max_complexity {
-                        return false;
-                    }
-                    
-                    // 检查是否是简单的等值比较
-                    if !self.is_simple_equality_condition(condition_expr.inner()) {
+                // 直接传递 ContextualExpression 给 ExpressionAnalyzer
+                let analysis = self.expression_analyzer.analyze(condition);
+                
+                // 检查确定性
+                if !analysis.is_deterministic {
+                    return false;
+                }
+                
+                // 检查复杂度
+                if analysis.complexity_score > self.max_complexity {
+                    return false;
+                }
+                
+                // 检查是否是简单的等值比较
+                if let Some(expr_meta) = condition.expression() {
+                    if !self.is_simple_equality_condition(expr_meta.inner()) {
                         return false;
                     }
                 }

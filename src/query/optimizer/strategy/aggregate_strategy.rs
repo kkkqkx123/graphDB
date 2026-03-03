@@ -21,6 +21,7 @@
 use std::sync::Arc;
 
 use crate::core::types::expression::context::ExpressionContext;
+use crate::core::types::ContextualExpression;
 use crate::query::optimizer::analysis::ExpressionAnalyzer;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::decision::OptimizationDecision;
@@ -201,32 +202,30 @@ impl AggregateStrategySelector {
         input_rows: u64,
         group_keys: Vec<String>,
         agg_function_count: usize,
-        expressions: &[crate::core::Expression],
+        ctx_expressions: &[ContextualExpression],
     ) -> AggregateContext {
         let mut context = AggregateContext::new(input_rows, group_keys, agg_function_count);
 
         // 分析所有聚合表达式
-        for expr in expressions {
-            // 注册表达式到上下文
-            let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr.clone());
-            let expr_id = self.expression_context.register_expression(expr_meta);
-
+        for ctx_expr in ctx_expressions {
             // 检查是否已有缓存的分析结果
-            if let Some(analysis) = self.expression_context.get_analysis(&expr_id) {
-                // 使用缓存的分析结果
-                if !analysis.is_deterministic {
-                    context.is_deterministic = false;
-                }
-                context.complexity_score += analysis.complexity_score;
-            } else {
-                // 分析表达式并缓存结果
-                let analysis = self.expression_analyzer.analyze(expr);
-                self.expression_context.set_analysis(&expr_id, analysis.clone());
+            if let Some(expr_id) = ctx_expr.id() {
+                if let Some(analysis) = self.expression_context.get_analysis(&expr_id) {
+                    // 使用缓存的分析结果
+                    if !analysis.is_deterministic {
+                        context.is_deterministic = false;
+                    }
+                    context.complexity_score += analysis.complexity_score;
+                } else {
+                    // 分析表达式并缓存结果
+                    let analysis = self.expression_analyzer.analyze(ctx_expr);
+                    self.expression_context.set_analysis(&expr_id, analysis.clone());
 
-                if !analysis.is_deterministic {
-                    context.is_deterministic = false;
+                    if !analysis.is_deterministic {
+                        context.is_deterministic = false;
+                    }
+                    context.complexity_score += analysis.complexity_score;
                 }
-                context.complexity_score += analysis.complexity_score;
             }
         }
 

@@ -631,6 +631,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     None, // tag_filter 不是表达式，是标签名
                     node.vertex_filter().and_then(|f| f.get_expression()),
                     node.limit().map(|l| l as usize),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::GetVertices(executor))
             }
@@ -641,6 +642,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.edge_type(),
                     node.filter().and_then(|f| f.get_expression()),
                     node.limit().map(|l| l as usize),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::ScanEdges(executor))
             }
@@ -657,6 +659,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     None,
                     node.expression().and_then(|e| e.get_expression()),
                     node.limit().map(|l| l as usize),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::GetVertices(executor))
             }
@@ -674,6 +677,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     vertex_ids,
                     edge_direction,
                     edge_types,
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::GetNeighbors(executor))
             }
@@ -697,7 +701,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                         })
                     })
                     .collect();
-                let executor = ProjectExecutor::new(node.id(), storage, columns);
+                let executor = ProjectExecutor::new(node.id(), storage, columns, context.expression_context().clone());
                 Ok(ExecutorEnum::Project(executor))
             }
             PlanNodeEnum::Limit(node) => {
@@ -832,7 +836,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("union_{}", node.id()));
-                let executor = UnionExecutor::new(node.id(), storage, input_var.clone(), input_var);
+                let executor = UnionExecutor::new(node.id(), storage, input_var.clone(), input_var, context.expression_context().clone());
                 Ok(ExecutorEnum::Union(executor))
             }
 
@@ -847,7 +851,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", node.id()));
-                let executor = MinusExecutor::new(node.id(), storage, left_var, right_var);
+                let executor = MinusExecutor::new(node.id(), storage, left_var, right_var, context.expression_context().clone());
                 Ok(ExecutorEnum::Minus(executor))
             }
 
@@ -862,7 +866,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", node.id()));
-                let executor = IntersectExecutor::new(node.id(), storage, left_var, right_var);
+                let executor = IntersectExecutor::new(node.id(), storage, left_var, right_var, context.expression_context().clone());
                 Ok(ExecutorEnum::Intersect(executor))
             }
 
@@ -1575,8 +1579,8 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             return Err(QueryError::ExecutionError("查询已被终止".to_string()));
         }
 
-        // 创建执行上下文
-        let execution_context = ExecutionContext::new();
+        // 创建执行上下文，使用查询上下文中的表达式上下文
+        let execution_context = ExecutionContext::new(query_context.expr_context().clone());
 
         // 递归构建执行树并执行
         let mut executor =
@@ -1624,7 +1628,8 @@ mod tests {
     fn test_recursion_detector_basic() {
         let mut factory = ExecutorFactory::<MockStorage>::new();
         let storage = Arc::new(Mutex::new(MockStorage));
-        let context = ExecutionContext::new();
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let context = ExecutionContext::new(expr_context);
 
         let start_node =
             PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());

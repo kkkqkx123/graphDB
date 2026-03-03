@@ -14,7 +14,6 @@ use crate::core::value::NullType;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};

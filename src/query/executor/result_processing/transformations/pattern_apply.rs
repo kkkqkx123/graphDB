@@ -8,11 +8,12 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
 use crate::core::Expression;
 use crate::core::{DataSet, List, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
-use crate::expression::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
@@ -51,9 +52,10 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
         key_cols: Vec<Expression>,
         col_names: Vec<String>,
         is_anti_predicate: bool,
+        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "PatternApplyExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "PatternApplyExecutor".to_string(), storage, expr_context),
             left_input_var,
             right_input_var,
             key_cols,

@@ -7,10 +7,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
 use crate::core::value::dataset::List;
 use crate::core::{DataSet, Expression, Path, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::{DefaultExpressionContext, ExpressionContext};
+use crate::expression::evaluator::traits::ExpressionContext;
+use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
@@ -37,9 +39,10 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         compare_cols: Vec<Expression>,
         collect_col: Expression,
         col_names: Vec<String>,
+        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "RollUpApplyExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "RollUpApplyExecutor".to_string(), storage, expr_context),
             left_input_var,
             right_input_var,
             compare_cols,

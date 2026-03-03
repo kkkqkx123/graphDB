@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
 use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::data_processing::join::{
@@ -26,6 +27,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         hash_keys: Vec<Expression>,
         probe_keys: Vec<Expression>,
         output_columns: Vec<String>,
+        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
             base: BaseJoinExecutor::with_description(
@@ -37,6 +39,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
                 probe_keys,
                 output_columns,
                 "Full outer join executor - performs full outer join".to_string(),
+                expr_context,
             ),
         }
     }

@@ -5,6 +5,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::core::types::expression::context::ExpressionContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -105,26 +106,26 @@ pub struct BaseExecutor<S: StorageClient> {
 
 impl<S: StorageClient> BaseExecutor<S> {
     /// 创建新的基础执行器（带存储）
-    pub fn new(id: i64, name: String, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64, name: String, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
             id,
             name,
             description: String::new(),
             storage: Some(storage),
-            context: ExecutionContext::new(),
+            context: ExecutionContext::new(expr_context),
             is_open: false,
             stats: ExecutorStats::new(),
         }
     }
 
     /// 创建新的基础执行器（不带存储）
-    pub fn without_storage(id: i64, name: String) -> Self {
+    pub fn without_storage(id: i64, name: String, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
             id,
             name,
             description: String::new(),
             storage: None,
-            context: ExecutionContext::new(),
+            context: ExecutionContext::new(expr_context),
             is_open: false,
             stats: ExecutorStats::new(),
         }

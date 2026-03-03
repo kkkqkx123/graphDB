@@ -3,24 +3,42 @@
 //! 管理执行器执行过程中的中间结果和变量。
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionContext;
 use super::execution_result::ExecutionResult;
 
 /// 执行上下文
 ///
 /// 用于在执行器执行过程中存储中间结果和变量，支持执行器之间的数据传递。
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ExecutionContext {
     /// 中间结果存储
     pub results: HashMap<String, ExecutionResult>,
     /// 变量存储
     pub variables: HashMap<String, crate::core::Value>,
+    /// 表达式上下文，用于跨阶段共享表达式信息和缓存
+    pub expression_context: Arc<ExpressionContext>,
 }
 
 impl ExecutionContext {
     /// 创建新的执行上下文
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(expression_context: Arc<ExpressionContext>) -> Self {
+        Self {
+            results: HashMap::new(),
+            variables: HashMap::new(),
+            expression_context,
+        }
+    }
+
+    /// 创建新的执行上下文（向后兼容）
+    #[deprecated(note = "请使用 new(Arc<ExpressionContext>) 替代")]
+    pub fn new_with_default_context() -> Self {
+        Self {
+            results: HashMap::new(),
+            variables: HashMap::new(),
+            expression_context: Arc::new(ExpressionContext::new()),
+        }
     }
 
     /// 设置中间结果
@@ -41,5 +59,10 @@ impl ExecutionContext {
     /// 获取变量
     pub fn get_variable(&self, name: &str) -> Option<&crate::core::Value> {
         self.variables.get(name)
+    }
+
+    /// 获取表达式上下文
+    pub fn expression_context(&self) -> &Arc<ExpressionContext> {
+        &self.expression_context
     }
 }

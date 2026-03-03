@@ -2,6 +2,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
+use crate::core::types::expression::context::ExpressionContext;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
@@ -17,9 +18,9 @@ pub struct ArgumentExecutor<S: StorageClient + 'static> {
 }
 
 impl<S: StorageClient + 'static> ArgumentExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, var: &str) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, var: &str, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ArgumentExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "ArgumentExecutor".to_string(), storage, expr_context),
             var: var.to_string(),
             input_executor: None,
         }
@@ -126,9 +127,9 @@ pub struct PassThroughExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient> PassThroughExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "PassThroughExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "PassThroughExecutor".to_string(), storage, expr_context),
             input_executor: None,
         }
     }
@@ -205,9 +206,9 @@ pub struct DataCollectExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient> DataCollectExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DataCollectExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DataCollectExecutor".to_string(), storage, expr_context),
             input_executor: None,
             collected_data: Vec::new(),
         }

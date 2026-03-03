@@ -6,10 +6,10 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext;
 use crate::core::Expression;
 use crate::core::{DataSet, Value, Vertex};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
@@ -47,9 +47,10 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
         dedup: bool,
         track_prev_path: bool,
         need_fetch_prop: bool,
+        expr_context: Arc<ExpressionContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "AppendVerticesExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "AppendVerticesExecutor".to_string(), storage, expr_context),
             input_var,
             src_expression,
             v_filter,

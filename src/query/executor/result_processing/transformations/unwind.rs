@@ -6,9 +6,10 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext;
 use crate::core::{DataSet, Expression, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::{DefaultExpressionContext, ExpressionContext};
+use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
@@ -36,9 +37,10 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
         unwind_expression: Expression,
         col_names: Vec<String>,
         from_pipe: bool,
+        expr_context: Arc<ExpressionContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "UnwindExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "UnwindExecutor".to_string(), storage, expr_context),
             input_var,
             unwind_expression,
             col_names,

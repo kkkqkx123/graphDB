@@ -6,6 +6,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
@@ -35,6 +36,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
         storage: Arc<Mutex<S>>,
         input_vars: Vec<String>,
         col_names: Vec<String>,
+        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
             base_executor: BaseJoinExecutor::new(
@@ -45,6 +47,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
                 Vec::new(),    // 哈希键（不使用）
                 Vec::new(),    // 探测键（不使用）
                 col_names,
+                expr_context,
             ),
             input_vars,
         }

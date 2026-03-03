@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionContext;
 use crate::core::{DataSet, Value};
 use crate::query::executor::{BaseExecutor, ExecutionResult};
 use crate::query::QueryError;
@@ -31,9 +32,10 @@ impl<S: StorageClient> SetExecutor<S> {
         storage: Arc<Mutex<S>>,
         left_input_var: String,
         right_input_var: String,
+        expr_context: Arc<ExpressionContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, name, storage),
+            base: BaseExecutor::new(id, name, storage, expr_context),
             left_input_var,
             right_input_var,
             col_names: Vec::new(),

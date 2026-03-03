@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
 use crate::core::{DataSet, Expression, Value};
 use crate::expression::context::row_context::RowExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
@@ -46,11 +47,12 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         hash_keys: Vec<Expression>,
         probe_keys: Vec<Expression>,
         col_names: Vec<String>,
+        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         let use_multi_key = hash_keys.len() > 1;
         Self {
             base_executor: BaseJoinExecutor::new(
-                id, storage, left_var, right_var, hash_keys, probe_keys, col_names,
+                id, storage, left_var, right_var, hash_keys, probe_keys, col_names, expr_context,
             ),
             single_key_hash_table: None,
             multi_key_hash_table: None,

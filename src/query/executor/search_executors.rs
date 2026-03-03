@@ -2,13 +2,12 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::core::error::DBError;
+use crate::core::types::expression::context::ExpressionContext;
 use crate::core::{Edge, EdgeDirection, NullType, Path, Value, Vertex};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
-
-use crate::expression::evaluator::traits::ExpressionContext;
 
 /// BFSShortestExecutor - BFS最短路径执行器
 ///
@@ -53,9 +52,10 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         limit: usize,
         start_vertex: Value,
         end_vertex: Value,
+        expr_context: Arc<ExpressionContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "BFSShortestExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "BFSShortestExecutor".to_string(), storage, expr_context),
             steps,
             max_depth,
             edge_types,
@@ -541,9 +541,10 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         return_columns: Vec<String>,
         limit: Option<usize>,
         is_edge: bool,
+        expr_context: Arc<ExpressionContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "IndexScanExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "IndexScanExecutor".to_string(), storage, expr_context),
             space_id,
             tag_id,
             index_id,
