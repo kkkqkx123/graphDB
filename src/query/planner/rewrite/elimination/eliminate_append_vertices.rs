@@ -29,7 +29,7 @@
 //! - Project 的列表达式中不包含 PathBuild 表达式
 
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::visitor_checkers::PathBuildContainsChecker;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     MultipleInputNode, SingleInputNode,
 };
@@ -64,22 +64,7 @@ impl EliminateAppendVerticesRule {
             Some(e) => e,
             None => return false,
         };
-        self.contains_path_build_internal(expr_meta.inner())
-    }
-
-    /// 内部方法：检查 Expression 中是否包含 PathBuild
-    fn contains_path_build_internal(&self, expr: &Expression) -> bool {
-        match expr {
-            Expression::Path(_) => true,
-            Expression::Binary { left, right, .. } => {
-                self.contains_path_build_internal(left) || self.contains_path_build_internal(right)
-            }
-            Expression::Unary { operand, .. } => self.contains_path_build_internal(operand),
-            Expression::Function { args, .. } => args
-                .iter()
-                .any(|arg| self.contains_path_build_internal(arg)),
-            _ => false,
-        }
+        PathBuildContainsChecker::check(expr_meta.inner())
     }
 
     /// 检查是否可以消除 AppendVertices

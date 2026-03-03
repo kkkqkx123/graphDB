@@ -15,6 +15,7 @@ use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::result::RewriteResult;
 use crate::query::planner::rewrite::rule_enum::{RewriteRule as RewriteRuleEnum, RuleRegistry};
+use crate::query::planner::rewrite::visitor::ChildRewriteVisitor;
 
 /// 计划重写器
 ///
@@ -92,7 +93,7 @@ impl PlanRewriter {
     }
 
     /// 重写单个计划节点
-    fn rewrite_node(
+    pub(crate) fn rewrite_node(
         &self,
         ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
@@ -131,164 +132,16 @@ impl PlanRewriter {
     }
 
     /// 递归重写子节点
+    ///
+    /// 使用 Visitor 模式遍历计划树，避免重复的模式匹配代码。
+    /// ChildRewriteVisitor 实现了所有节点类型的重写逻辑。
     fn rewrite_children(
         &self,
         ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<PlanNodeEnum> {
-        use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-
-        match node {
-            // 单输入节点
-            PlanNodeEnum::Filter(n) => {
-                let input_node = n.input().clone_plan_node();
-                let node_id = ctx.allocate_node_id();
-                let new_input = self.rewrite_node(ctx, &input_node, node_id)?;
-                let mut new_node = n.clone();
-                new_node.set_input(new_input);
-                Ok(PlanNodeEnum::Filter(new_node))
-            }
-            PlanNodeEnum::Project(n) => {
-                let input_node = n.input().clone_plan_node();
-                let node_id = ctx.allocate_node_id();
-                let new_input = self.rewrite_node(ctx, &input_node, node_id)?;
-                let mut new_node = n.clone();
-                new_node.set_input(new_input);
-                Ok(PlanNodeEnum::Project(new_node))
-            }
-            PlanNodeEnum::Aggregate(n) => {
-                let input_node = n.input().clone_plan_node();
-                let node_id = ctx.allocate_node_id();
-                let new_input = self.rewrite_node(ctx, &input_node, node_id)?;
-                let mut new_node = n.clone();
-                new_node.set_input(new_input);
-                Ok(PlanNodeEnum::Aggregate(new_node))
-            }
-            PlanNodeEnum::Sort(n) => {
-                let input_node = n.input().clone_plan_node();
-                let node_id = ctx.allocate_node_id();
-                let new_input = self.rewrite_node(ctx, &input_node, node_id)?;
-                let mut new_node = n.clone();
-                new_node.set_input(new_input);
-                Ok(PlanNodeEnum::Sort(new_node))
-            }
-            PlanNodeEnum::Limit(n) => {
-                let input_node = n.input().clone_plan_node();
-                let node_id = ctx.allocate_node_id();
-                let new_input = self.rewrite_node(ctx, &input_node, node_id)?;
-                let mut new_node = n.clone();
-                new_node.set_input(new_input);
-                Ok(PlanNodeEnum::Limit(new_node))
-            }
-            PlanNodeEnum::TopN(n) => {
-                let input_node = n.input().clone_plan_node();
-                let node_id = ctx.allocate_node_id();
-                let new_input = self.rewrite_node(ctx, &input_node, node_id)?;
-                let mut new_node = n.clone();
-                new_node.set_input(new_input);
-                Ok(PlanNodeEnum::TopN(new_node))
-            }
-            PlanNodeEnum::Dedup(n) => {
-                let input_node = n.input().clone_plan_node();
-                let node_id = ctx.allocate_node_id();
-                let new_input = self.rewrite_node(ctx, &input_node, node_id)?;
-                let mut new_node = n.clone();
-                new_node.set_input(new_input);
-                Ok(PlanNodeEnum::Dedup(new_node))
-            }
-            // 双输入节点（连接）
-            PlanNodeEnum::HashInnerJoin(n) => {
-                let left = n.left_input().clone_plan_node();
-                let right = n.right_input().clone_plan_node();
-                let left_id = ctx.allocate_node_id();
-                let right_id = ctx.allocate_node_id();
-                let new_left = self.rewrite_node(ctx, &left, left_id)?;
-                let new_right = self.rewrite_node(ctx, &right, right_id)?;
-                let mut new_node = n.clone();
-                new_node.set_left_input(new_left);
-                new_node.set_right_input(new_right);
-                Ok(PlanNodeEnum::HashInnerJoin(new_node))
-            }
-            PlanNodeEnum::HashLeftJoin(n) => {
-                let left = n.left_input().clone_plan_node();
-                let right = n.right_input().clone_plan_node();
-                let left_id = ctx.allocate_node_id();
-                let right_id = ctx.allocate_node_id();
-                let new_left = self.rewrite_node(ctx, &left, left_id)?;
-                let new_right = self.rewrite_node(ctx, &right, right_id)?;
-                let mut new_node = n.clone();
-                new_node.set_left_input(new_left);
-                new_node.set_right_input(new_right);
-                Ok(PlanNodeEnum::HashLeftJoin(new_node))
-            }
-            PlanNodeEnum::CrossJoin(n) => {
-                let left = n.left_input().clone_plan_node();
-                let right = n.right_input().clone_plan_node();
-                let left_id = ctx.allocate_node_id();
-                let right_id = ctx.allocate_node_id();
-                let new_left = self.rewrite_node(ctx, &left, left_id)?;
-                let new_right = self.rewrite_node(ctx, &right, right_id)?;
-                let mut new_node = n.clone();
-                new_node.set_left_input(new_left);
-                new_node.set_right_input(new_right);
-                Ok(PlanNodeEnum::CrossJoin(new_node))
-            }
-            PlanNodeEnum::InnerJoin(n) => {
-                let left = n.left_input().clone_plan_node();
-                let right = n.right_input().clone_plan_node();
-                let left_id = ctx.allocate_node_id();
-                let right_id = ctx.allocate_node_id();
-                let new_left = self.rewrite_node(ctx, &left, left_id)?;
-                let new_right = self.rewrite_node(ctx, &right, right_id)?;
-                let mut new_node = n.clone();
-                new_node.set_left_input(new_left);
-                new_node.set_right_input(new_right);
-                Ok(PlanNodeEnum::InnerJoin(new_node))
-            }
-            PlanNodeEnum::LeftJoin(n) => {
-                let left = n.left_input().clone_plan_node();
-                let right = n.right_input().clone_plan_node();
-                let left_id = ctx.allocate_node_id();
-                let right_id = ctx.allocate_node_id();
-                let new_left = self.rewrite_node(ctx, &left, left_id)?;
-                let new_right = self.rewrite_node(ctx, &right, right_id)?;
-                let mut new_node = n.clone();
-                new_node.set_left_input(new_left);
-                new_node.set_right_input(new_right);
-                Ok(PlanNodeEnum::LeftJoin(new_node))
-            }
-            PlanNodeEnum::FullOuterJoin(n) => {
-                let left = n.left_input().clone_plan_node();
-                let right = n.right_input().clone_plan_node();
-                let left_id = ctx.allocate_node_id();
-                let right_id = ctx.allocate_node_id();
-                let new_left = self.rewrite_node(ctx, &left, left_id)?;
-                let new_right = self.rewrite_node(ctx, &right, right_id)?;
-                let mut new_node = n.clone();
-                new_node.set_left_input(new_left);
-                new_node.set_right_input(new_right);
-                Ok(PlanNodeEnum::FullOuterJoin(new_node))
-            }
-            // 多输入节点
-            PlanNodeEnum::Union(n) => {
-                let deps: Vec<PlanNodeEnum> = n
-                    .dependencies()
-                    .iter()
-                    .map(|dep| dep.clone_plan_node())
-                    .collect();
-                let mut new_deps = Vec::new();
-                for dep in deps.iter() {
-                    let node_id = ctx.allocate_node_id();
-                    let new_dep = self.rewrite_node(ctx, dep, node_id)?;
-                    new_deps.push(new_dep);
-                }
-                let mut new_node = n.clone();
-                new_node.set_dependencies(new_deps);
-                Ok(PlanNodeEnum::Union(new_node))
-            }
-            // 叶子节点无需处理
-            _ => Ok(node.clone()),
-        }
+        let mut visitor = ChildRewriteVisitor::new(ctx, self);
+        node.accept(&mut visitor)
     }
 }
 

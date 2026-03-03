@@ -35,6 +35,9 @@
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionContext;
 use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expression::visitor::ExpressionVisitor;
+use crate::core::types::expression::visitor_collectors::PropertyCollector;
+use crate::core::types::expression::visitor_checkers::VariableContainsChecker;
 use crate::core::types::YieldColumn;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::join_node::{HashInnerJoinNode, HashLeftJoinNode};
@@ -63,46 +66,9 @@ impl RemoveAppendVerticesBelowJoinRule {
 
     /// 从表达式中收集所有属性名
     fn collect_all_property_names(&self, expr: &Expression) -> Vec<String> {
-        let mut result = Vec::new();
-        self.collect_property_names_recursive(expr, &mut result);
-        result
-    }
-
-    /// 递归收集属性名
-    fn collect_property_names_recursive(&self, expr: &Expression, result: &mut Vec<String>) {
-        match expr {
-            Expression::Property { property, .. } => {
-                if !result.contains(property) {
-                    result.push(property.clone());
-                }
-            }
-            Expression::Binary { left, right, .. } => {
-                self.collect_property_names_recursive(left, result);
-                self.collect_property_names_recursive(right, result);
-            }
-            Expression::Unary { operand, .. } => {
-                self.collect_property_names_recursive(operand, result);
-            }
-            Expression::Function { args, .. } => {
-                for arg in args {
-                    self.collect_property_names_recursive(arg, result);
-                }
-            }
-            Expression::Case {
-                conditions,
-                default,
-                ..
-            } => {
-                for (when, then) in conditions {
-                    self.collect_property_names_recursive(when, result);
-                    self.collect_property_names_recursive(then, result);
-                }
-                if let Some(d) = default {
-                    self.collect_property_names_recursive(d, result);
-                }
-            }
-            _ => {}
-        }
+        let mut collector = PropertyCollector::new();
+        ExpressionVisitor::visit(&mut collector, expr);
+        collector.properties
     }
 
     /// 检查表达式是否为 id() 或 _joinkey() 函数调用，返回参数表达式
@@ -190,47 +156,7 @@ impl RemoveAppendVerticesBelowJoinRule {
     fn expr_contains_variable(&self, expr: &ContextualExpression, var_name: &str) -> bool {
         if let Some(expr_meta) = expr.expression() {
             let inner_expr = expr_meta.inner();
-            match inner_expr {
-                Expression::Variable(name) => name == var_name,
-                Expression::Property { object, .. } => {
-                    // 将 object 包装为 ContextualExpression
-                    let ctx = expr.context().clone();
-                    let meta = ExpressionMeta::new(*object.clone());
-                    let id = ctx.register_expression(meta);
-                    let obj_expr = ContextualExpression::new(id, ctx);
-                    self.expr_contains_variable(&obj_expr, var_name)
-                }
-                Expression::Binary { left, right, .. } => {
-                    let ctx = expr.context().clone();
-                    let left_meta = ExpressionMeta::new(*left.clone());
-                    let left_id = ctx.register_expression(left_meta);
-                    let left_expr = ContextualExpression::new(left_id, ctx.clone());
-
-                    let right_meta = ExpressionMeta::new(*right.clone());
-                    let right_id = ctx.register_expression(right_meta);
-                    let right_expr = ContextualExpression::new(right_id, ctx);
-
-                    self.expr_contains_variable(&left_expr, var_name)
-                        || self.expr_contains_variable(&right_expr, var_name)
-                }
-                Expression::Unary { operand, .. } => {
-                    let ctx = expr.context().clone();
-                    let operand_meta = ExpressionMeta::new(*operand.clone());
-                    let operand_id = ctx.register_expression(operand_meta);
-                    let operand_expr = ContextualExpression::new(operand_id, ctx);
-                    self.expr_contains_variable(&operand_expr, var_name)
-                }
-                Expression::Function { args, .. } => {
-                    let ctx = expr.context().clone();
-                    args.iter().any(|arg| {
-                        let arg_meta = ExpressionMeta::new(arg.clone());
-                        let arg_id = ctx.register_expression(arg_meta);
-                        let arg_expr = ContextualExpression::new(arg_id, ctx.clone());
-                        self.expr_contains_variable(&arg_expr, var_name)
-                    })
-                }
-                _ => false,
-            }
+            VariableContainsChecker::check(inner_expr, var_name)
         } else {
             false
         }

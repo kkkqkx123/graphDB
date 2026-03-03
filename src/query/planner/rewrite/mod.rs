@@ -77,6 +77,7 @@ pub mod expression_utils;
 pub mod pattern;
 pub mod result;
 pub mod rule;
+pub mod visitor;
 
 // 宏模块
 pub mod macros;
@@ -108,6 +109,7 @@ pub use rule::{
     BaseRewriteRule, EliminationRule, IntoRuleWrapper, MergeRule, PushDownRule, RewriteRule,
     RuleWrapper,
 };
+pub use visitor::ChildRewriteVisitor;
 
 // 从兼容层导出
 pub use rewrite_rule::{HeuristicRule, HeuristicRuleAdapter, IntoOptRule};

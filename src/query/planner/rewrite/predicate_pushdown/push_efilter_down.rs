@@ -4,6 +4,7 @@
 //! 并将其重写为具体的边属性表达式。
 
 use crate::core::Expression;
+use crate::core::types::expression::visitor_checkers::WildcardReplacer;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
@@ -133,40 +134,8 @@ impl PushDownRule for PushEFilterDownRule {
 ///
 /// 通配符通常表示为 `*` 或 `_`，在属性访问中表示任意边
 fn rewrite_wildcard_to_alias(expr: &Expression, edge_alias: &str) -> Expression {
-    match expr {
-        Expression::Property { object, property } => {
-            // 检查对象是否为通配符
-            let new_object = match object.as_ref() {
-                Expression::Variable(name) if name == "*" || name == "_" => {
-                    Box::new(Expression::Variable(edge_alias.to_string()))
-                }
-                _ => Box::new(rewrite_wildcard_to_alias(object, edge_alias)),
-            };
-
-            Expression::Property {
-                object: new_object,
-                property: property.clone(),
-            }
-        }
-        Expression::Binary { left, op, right } => Expression::Binary {
-            left: Box::new(rewrite_wildcard_to_alias(left, edge_alias)),
-            op: *op,
-            right: Box::new(rewrite_wildcard_to_alias(right, edge_alias)),
-        },
-        Expression::Unary { op, operand } => Expression::Unary {
-            op: *op,
-            operand: Box::new(rewrite_wildcard_to_alias(operand, edge_alias)),
-        },
-        Expression::Function { name, args } => Expression::Function {
-            name: name.clone(),
-            args: args
-                .iter()
-                .map(|arg| rewrite_wildcard_to_alias(arg, edge_alias))
-                .collect(),
-        },
-        // 其他表达式类型保持不变
-        _ => expr.clone(),
-    }
+    let replacer = WildcardReplacer::new(edge_alias);
+    replacer.replace(expr)
 }
 
 #[cfg(test)]

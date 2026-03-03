@@ -30,6 +30,7 @@
 use std::sync::Arc;
 
 use crate::core::types::operators::AggregateFunction;
+use crate::core::types::expression::visitor_checkers::AggregateFunctionChecker;
 use crate::core::types::{ContextualExpression, ExpressionContext};
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
@@ -65,61 +66,50 @@ impl PushFilterDownAggregateRule {
             group_keys: &[String],
             agg_funcs: &[AggregateFunction],
         ) -> bool {
-            match expr {
-                // 直接包含聚合表达式
-                Expression::Aggregate { .. } => true,
-                // 二元运算：检查左右两边
-                Expression::Binary { left, right, .. } => {
-                    check_expr(left, group_keys, agg_funcs)
-                        || check_expr(right, group_keys, agg_funcs)
+            // 首先检查是否包含聚合函数表达式
+            if AggregateFunctionChecker::check(expr) {
+                return true;
+            }
+
+            // 检查变量是否是聚合函数的输出列名
+            if let Expression::Variable(name) = expr {
+                // 如果是分组键，可以下推
+                if group_keys.contains(name) {
+                    return false;
                 }
-                // 一元运算：检查操作数
-                Expression::Unary { operand, .. } => check_expr(operand, group_keys, agg_funcs),
-                // 属性访问：检查对象
-                Expression::Property { object, .. } => check_expr(object, group_keys, agg_funcs),
-                // 函数调用：检查是否是聚合函数或参数中包含聚合
-                Expression::Function { name, args, .. } => {
-                    let func_name = name.to_lowercase();
-                    // 检查是否是聚合函数名称
-                    if matches!(
-                        func_name.as_str(),
-                        "sum"
-                            | "avg"
-                            | "count"
-                            | "max"
-                            | "min"
-                            | "collect"
-                            | "collect_set"
-                            | "distinct"
-                            | "std"
-                    ) {
+                // 检查是否是聚合函数的输出列名
+                for agg_func in agg_funcs {
+                    if agg_func.name() == name
+                        || agg_func.field_name().map(|f| f == name).unwrap_or(false)
+                    {
                         return true;
                     }
-                    // 检查参数中是否包含聚合
-                    args.iter()
-                        .any(|arg| check_expr(arg, group_keys, agg_funcs))
                 }
-                // 变量：检查是否是分组键
-                // 如果不是分组键，则可能是聚合输出列
-                Expression::Variable(name) => {
-                    // 如果是分组键，可以下推
-                    if group_keys.contains(name) {
-                        return false;
-                    }
-                    // 检查是否是聚合函数的输出列名
-                    for agg_func in agg_funcs {
-                        if agg_func.name() == name
-                            || agg_func.field_name().map(|f| f == name).unwrap_or(false)
-                        {
-                            return true;
-                        }
-                    }
-                    // 其他变量，假设可以下推（是输入列）
-                    false
-                }
-                // 其他表达式类型
-                _ => false,
+                // 其他变量，假设可以下推（是输入列）
+                return false;
             }
+
+            // 检查函数调用是否是聚合函数
+            if let Expression::Function { name, .. } = expr {
+                let func_name = name.to_lowercase();
+                // 检查是否是聚合函数名称
+                if matches!(
+                    func_name.as_str(),
+                    "sum"
+                        | "avg"
+                        | "count"
+                        | "max"
+                        | "min"
+                        | "collect"
+                        | "collect_set"
+                        | "distinct"
+                        | "std"
+                ) {
+                    return true;
+                }
+            }
+
+            false
         }
 
         check_expr(condition, group_keys, agg_funcs)

@@ -285,6 +285,7 @@ impl NodeTypeMapping for PlanNodeEnum {
             PlanNodeEnum::Minus(_) => Some("minus"),
             PlanNodeEnum::Intersect(_) => Some("intersect"),
             PlanNodeEnum::Unwind(_) => Some("unwind"),
+            PlanNodeEnum::Materialize(_) => Some("materialize"),
             PlanNodeEnum::Assign(_) => Some("assign"),
             PlanNodeEnum::MultiShortestPath(_) => Some("multi_shortest_path"),
             PlanNodeEnum::BFSShortest(_) => Some("bfs_shortest"),

@@ -4,6 +4,7 @@
 //! 并将其重写为具体的顶点属性表达式。
 
 use crate::core::Expression;
+use crate::core::types::expression::visitor_checkers::WildcardReplacer;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
@@ -131,38 +132,8 @@ impl PushDownRule for PushVFilterDownScanVerticesRule {
 
 /// 将表达式中的通配符替换为具体的顶点别名
 fn rewrite_wildcard_to_alias(expr: &Expression, vertex_alias: &str) -> Expression {
-    match expr {
-        Expression::Property { object, property } => {
-            let new_object = match object.as_ref() {
-                Expression::Variable(name) if name == "*" || name == "_" => {
-                    Box::new(Expression::Variable(vertex_alias.to_string()))
-                }
-                _ => Box::new(rewrite_wildcard_to_alias(object, vertex_alias)),
-            };
-
-            Expression::Property {
-                object: new_object,
-                property: property.clone(),
-            }
-        }
-        Expression::Binary { left, op, right } => Expression::Binary {
-            left: Box::new(rewrite_wildcard_to_alias(left, vertex_alias)),
-            op: *op,
-            right: Box::new(rewrite_wildcard_to_alias(right, vertex_alias)),
-        },
-        Expression::Unary { op, operand } => Expression::Unary {
-            op: *op,
-            operand: Box::new(rewrite_wildcard_to_alias(operand, vertex_alias)),
-        },
-        Expression::Function { name, args } => Expression::Function {
-            name: name.clone(),
-            args: args
-                .iter()
-                .map(|arg| rewrite_wildcard_to_alias(arg, vertex_alias))
-                .collect(),
-        },
-        _ => expr.clone(),
-    }
+    let replacer = WildcardReplacer::new(vertex_alias);
+    replacer.replace(expr)
 }
 
 #[cfg(test)]

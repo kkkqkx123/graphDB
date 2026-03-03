@@ -16,7 +16,7 @@ use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropU
 pub use super::aggregate_node::AggregateNode;
 pub use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 pub use super::data_processing_node::{
-    AssignNode, DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode,
+    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RollUpApplyNode, UnionNode,
     UnwindNode,
 };
 pub use super::filter_node::FilterNode;
@@ -115,6 +115,7 @@ pub trait PlanNodeVisitor {
         Minus, MinusNode, visit_minus;
         Intersect, IntersectNode, visit_intersect;
         Unwind, UnwindNode, visit_unwind;
+        Materialize, MaterializeNode, visit_materialize;
         Assign, AssignNode, visit_assign;
     );
 
@@ -219,6 +220,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Minus(node) => visitor.visit_minus(node),
             PlanNodeEnum::Intersect(node) => visitor.visit_intersect(node),
             PlanNodeEnum::Unwind(node) => visitor.visit_unwind(node),
+            PlanNodeEnum::Materialize(node) => visitor.visit_materialize(node),
             PlanNodeEnum::Assign(node) => visitor.visit_assign(node),
             PlanNodeEnum::IndexScan(node) => visitor.visit_index_scan(node),
             PlanNodeEnum::MultiShortestPath(node) => visitor.visit_multi_shortest_path(node),
