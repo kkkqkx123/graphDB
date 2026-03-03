@@ -13,7 +13,6 @@ use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::expression::ExpressionMeta;
-use std::sync::Arc;
 
 /// 将过滤条件下推到GetNeighbors操作的规则
 ///

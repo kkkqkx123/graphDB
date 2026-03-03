@@ -12,7 +12,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::expression::{ContextualExpression, ExpressionContext, Expression};
+use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::types::DataType;
 use crate::core::Value;
 use crate::core::error::{ValidationError, ValidationErrorType};
