@@ -20,6 +20,7 @@
 
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionContext;
 use crate::query::optimizer::analysis::ExpressionAnalyzer;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::decision::OptimizationDecision;
@@ -91,6 +92,8 @@ pub struct AggregateStrategySelector {
     cost_calculator: Arc<CostCalculator>,
     /// 表达式分析器，用于分析聚合表达式的特性
     expression_analyzer: ExpressionAnalyzer,
+    /// 表达式上下文，用于缓存分析结果
+    expression_context: Arc<ExpressionContext>,
 }
 
 /// 聚合策略选择的上下文信息
@@ -160,6 +163,7 @@ impl AggregateStrategySelector {
         Self {
             cost_calculator,
             expression_analyzer: ExpressionAnalyzer::new(),
+            expression_context: Arc::new(ExpressionContext::new()),
         }
     }
 
@@ -171,12 +175,27 @@ impl AggregateStrategySelector {
         Self {
             cost_calculator,
             expression_analyzer,
+            expression_context: Arc::new(ExpressionContext::new()),
+        }
+    }
+
+    /// 创建带表达式上下文的聚合策略选择器
+    pub fn with_context(
+        cost_calculator: Arc<CostCalculator>,
+        expression_analyzer: ExpressionAnalyzer,
+        expression_context: Arc<ExpressionContext>,
+    ) -> Self {
+        Self {
+            cost_calculator,
+            expression_analyzer,
+            expression_context,
         }
     }
 
     /// 分析聚合表达式并创建上下文
     ///
     /// 使用表达式分析器分析聚合表达式的特性，创建完整的聚合上下文
+    /// 分析结果会缓存在 ExpressionContext 中，避免重复分析
     pub fn analyze_and_create_context(
         &self,
         input_rows: u64,
@@ -188,11 +207,27 @@ impl AggregateStrategySelector {
 
         // 分析所有聚合表达式
         for expr in expressions {
-            let analysis = self.expression_analyzer.analyze(expr);
-            if !analysis.is_deterministic {
-                context.is_deterministic = false;
+            // 注册表达式到上下文
+            let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr.clone());
+            let expr_id = self.expression_context.register_expression(expr_meta);
+
+            // 检查是否已有缓存的分析结果
+            if let Some(analysis) = self.expression_context.get_analysis(&expr_id) {
+                // 使用缓存的分析结果
+                if !analysis.is_deterministic {
+                    context.is_deterministic = false;
+                }
+                context.complexity_score += analysis.complexity_score;
+            } else {
+                // 分析表达式并缓存结果
+                let analysis = self.expression_analyzer.analyze(expr);
+                self.expression_context.set_analysis(&expr_id, analysis.clone());
+
+                if !analysis.is_deterministic {
+                    context.is_deterministic = false;
+                }
+                context.complexity_score += analysis.complexity_score;
             }
-            context.complexity_score += analysis.complexity_score;
         }
 
         context

@@ -1106,11 +1106,11 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .cloned()
                     .unwrap_or_else(|| format!("right_{}", node.id()));
 
-                // 列名直接转换为变量表达式，不需要解析
+                // 将 ContextualExpression 转换为 Expression
                 let key_cols: Vec<crate::core::Expression> = node
                     .key_cols()
                     .iter()
-                    .map(|col| crate::core::Expression::Variable(col.clone()))
+                    .filter_map(|ctx_expr| ctx_expr.get_expression())
                     .collect();
 
                 let executor = PatternApplyExecutor::new(

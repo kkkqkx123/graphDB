@@ -119,22 +119,22 @@ macro_rules! impl_binary_input_rewrite {
 impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
     type Result = RewriteResult<PlanNodeEnum>;
 
-    fn visit_default(&mut self, node: &PlanNodeEnum) -> RewriteResult<PlanNodeEnum> {
-        Ok(node.clone())
+    fn visit_default(&mut self) -> RewriteResult<PlanNodeEnum> {
+        todo!("visit_default should not be called")
     }
 
     impl_single_input_rewrite!(
-        visit_filter, FilterNode, Filter;
-        visit_project, ProjectNode, Project;
-        visit_aggregate, AggregateNode, Aggregate;
-        visit_sort, SortNode, Sort;
-        visit_limit, LimitNode, Limit;
-        visit_topn, TopNNode, TopN;
-        visit_sample, SampleNode, Sample;
-        visit_dedup, DedupNode, Dedup;
-        visit_unwind, UnwindNode, Unwind;
-        visit_pattern_apply, PatternApplyNode, PatternApply;
-        visit_roll_up_apply, RollUpApplyNode, RollUpApply;
+        visit_filter, FilterNode, Filter,
+        visit_project, ProjectNode, Project,
+        visit_aggregate, AggregateNode, Aggregate,
+        visit_sort, SortNode, Sort,
+        visit_limit, LimitNode, Limit,
+        visit_topn, TopNNode, TopN,
+        visit_sample, SampleNode, Sample,
+        visit_dedup, DedupNode, Dedup,
+        visit_unwind, UnwindNode, Unwind,
+        visit_pattern_apply, PatternApplyNode, PatternApply,
+        visit_roll_up_apply, RollUpApplyNode, RollUpApply
     );
 
     fn visit_materialize(&mut self, node: &MaterializeNode) -> Self::Result {
@@ -155,12 +155,12 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
     }
 
     impl_binary_input_rewrite!(
-        visit_hash_inner_join, HashInnerJoinNode, HashInnerJoin;
-        visit_hash_left_join, HashLeftJoinNode, HashLeftJoin;
-        visit_inner_join, InnerJoinNode, InnerJoin;
-        visit_left_join, LeftJoinNode, LeftJoin;
-        visit_cross_join, CrossJoinNode, CrossJoin;
-        visit_full_outer_join, FullOuterJoinNode, FullOuterJoin;
+        visit_hash_inner_join, HashInnerJoinNode, HashInnerJoin,
+        visit_hash_left_join, HashLeftJoinNode, HashLeftJoin,
+        visit_inner_join, InnerJoinNode, InnerJoin,
+        visit_left_join, LeftJoinNode, LeftJoin,
+        visit_cross_join, CrossJoinNode, CrossJoin,
+        visit_full_outer_join, FullOuterJoinNode, FullOuterJoin
     );
 
     fn visit_union(&mut self, node: &UnionNode) -> Self::Result {
@@ -485,14 +485,6 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
 
     fn visit_change_password(&mut self, _node: &ChangePasswordNode) -> Self::Result {
         Ok(PlanNodeEnum::ChangePassword(_node.clone()))
-    }
-
-    fn visit_insert_vertices(&mut self, _node: &InsertVerticesNode) -> Self::Result {
-        Ok(PlanNodeEnum::InsertVertices(_node.clone()))
-    }
-
-    fn visit_insert_edges(&mut self, _node: &InsertEdgesNode) -> Self::Result {
-        Ok(PlanNodeEnum::InsertEdges(_node.clone()))
     }
 
     fn visit_index_scan(&mut self, _node: &IndexScan) -> Self::Result {

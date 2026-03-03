@@ -27,10 +27,14 @@
 //! let decision = optimizer.should_unnest(&pattern_apply);
 //! ```
 
+use crate::core::types::operators::BinaryOperator;
+use crate::core::types::ContextualExpression;
+use crate::core::types::expression::{ExpressionContext, ExpressionMeta};
 use crate::core::Expression;
 use crate::query::optimizer::analysis::ExpressionAnalyzer;
 use crate::query::optimizer::stats::StatisticsManager;
-use crate::query::planner::plan::core::nodes::{HashInnerJoinNode, PatternApplyNode, ScanVerticesNode};
+use crate::query::planner::plan::core::nodes::{HashInnerJoinNode, PatternApplyNode};
+use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 /// 子查询去关联化决策
 #[derive(Debug, Clone, PartialEq)]
@@ -119,23 +123,28 @@ impl SubqueryUnnestingOptimizer {
     /// # 返回
     /// 去关联化决策
     pub fn should_unnest(&self, pattern_apply: &PatternApplyNode) -> UnnestDecision {
-        // 1. 检查子查询是否简单
-        if !self.is_simple_subquery(pattern_apply.input()) {
+        // 1. 检查子查询是否简单（包含确定性、复杂度检查）
+        if !self.is_simple_subquery(pattern_apply.right_input()) {
             return UnnestDecision::KeepPatternApply {
                 reason: KeepReason::TooComplex,
             };
         }
 
-        // 2. 检查连接条件是否是确定性的
-        if let Some(condition) = pattern_apply.condition() {
-            if let Some(condition_expr) = condition.expression() {
-                let analysis = self.expression_analyzer.analyze(condition_expr.inner());
+        // 2. 检查连接键是否是确定性的
+        // 现在的 key_cols 是 Vec<ContextualExpression>，可以使用 ExpressionAnalyzer 分析
+        for key_col in pattern_apply.key_cols() {
+            // 使用 expression_analyzer 分析连接键表达式
+            if let Some(expr_meta) = key_col.expression() {
+                let analysis = self.expression_analyzer.analyze(expr_meta.inner());
+                
+                // 检查确定性
                 if !analysis.is_deterministic {
                     return UnnestDecision::KeepPatternApply {
                         reason: KeepReason::NonDeterministic,
                     };
                 }
-                // 3. 检查复杂度
+                
+                // 检查复杂度
                 if analysis.complexity_score > self.max_complexity {
                     return UnnestDecision::KeepPatternApply {
                         reason: KeepReason::ComplexCondition,
@@ -144,15 +153,15 @@ impl SubqueryUnnestingOptimizer {
             }
         }
 
-        // 4. 检查子查询估算行数
-        let estimated_rows = self.estimate_subquery_rows(pattern_apply.input());
+        // 3. 检查子查询估算行数
+        let estimated_rows = self.estimate_subquery_rows(pattern_apply.right_input());
         if estimated_rows > self.max_subquery_rows {
             return UnnestDecision::KeepPatternApply {
                 reason: KeepReason::TooManyRows,
             };
         }
 
-        // 5. 代价比较（简化版本）
+        // 4. 代价比较（简化版本）
         let original_cost = self.estimate_pattern_apply_cost(pattern_apply, estimated_rows);
         let unnested_cost = self.estimate_hash_join_cost(pattern_apply, estimated_rows);
 
@@ -172,9 +181,7 @@ impl SubqueryUnnestingOptimizer {
     }
 
     /// 检查子查询是否简单（单表扫描 + 等值过滤）
-    fn is_simple_subquery(&self, node: &crate::query::planner::plan::core::nodes::PlanNodeEnum) -> bool {
-        use crate::query::planner::plan::core::nodes::PlanNodeEnum;
-
+    fn is_simple_subquery(&self, node: &PlanNodeEnum) -> bool {
         match node {
             // 单表扫描
             PlanNodeEnum::ScanVertices(_) => true,
@@ -184,17 +191,32 @@ impl SubqueryUnnestingOptimizer {
             // 简单过滤
             PlanNodeEnum::Filter(n) => {
                 // 检查过滤条件是否是等值比较
-                if let Some(condition) = n.condition() {
-                    if !self.is_simple_equality_condition(condition) {
+                let condition = n.condition();
+                if let Some(condition_expr) = condition.expression() {
+                    // 使用 expression_analyzer 分析表达式
+                    let analysis = self.expression_analyzer.analyze(condition_expr.inner());
+                    
+                    // 检查确定性
+                    if !analysis.is_deterministic {
+                        return false;
+                    }
+                    
+                    // 检查复杂度
+                    if analysis.complexity_score > self.max_complexity {
+                        return false;
+                    }
+                    
+                    // 检查是否是简单的等值比较
+                    if !self.is_simple_equality_condition(condition_expr.inner()) {
                         return false;
                     }
                 }
                 // 递归检查输入
-                self.is_simple_subquery(n.input())
+                self.is_simple_subquery(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
             }
 
             // 简单投影
-            PlanNodeEnum::Project(n) => self.is_simple_subquery(n.input()),
+            PlanNodeEnum::Project(n) => self.is_simple_subquery(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)),
 
             // 其他情况不支持
             _ => false,
@@ -202,28 +224,23 @@ impl SubqueryUnnestingOptimizer {
     }
 
     /// 检查条件是否是简单的等值比较
-    fn is_simple_equality_condition(&self, expr: &crate::core::types::expression::contextual::ContextualExpression) -> bool {
-        if let Some(expr_inner) = expr.expression() {
-            match expr_inner.inner() {
-                Expression::Binary { op, left, right } => {
-                    use crate::core::types::BinaryOperator;
-                    match op {
-                        BinaryOperator::Eq => {
-                            // 等值比较，检查两边是否都是简单的属性引用
-                            self.is_simple_expression(left) && self.is_simple_expression(right)
-                        }
-                        BinaryOperator::And => {
-                            // AND 条件，检查两边
-                            self.is_simple_equality_condition(left)
-                                && self.is_simple_equality_condition(right)
-                        }
-                        _ => false,
+    fn is_simple_equality_condition(&self, expr: &Expression) -> bool {
+        match expr {
+            Expression::Binary { op, left, right } => {
+                match op {
+                    BinaryOperator::Equal => {
+                        // 等值比较，检查两边是否都是简单的属性引用
+                        self.is_simple_expression(left.as_ref()) && self.is_simple_expression(right.as_ref())
                     }
+                    BinaryOperator::And => {
+                        // AND 条件，检查两边
+                        self.is_simple_equality_condition(left.as_ref())
+                            && self.is_simple_equality_condition(right.as_ref())
+                    }
+                    _ => false,
                 }
-                _ => false,
             }
-        } else {
-            false
+            _ => false,
         }
     }
 
@@ -233,23 +250,25 @@ impl SubqueryUnnestingOptimizer {
     }
 
     /// 估算子查询输出行数
-    fn estimate_subquery_rows(&self, node: &crate::query::planner::plan::core::nodes::PlanNodeEnum) -> u64 {
-        use crate::query::planner::plan::core::nodes::PlanNodeEnum;
-
+    fn estimate_subquery_rows(&self, node: &PlanNodeEnum) -> u64 {
         match node {
             PlanNodeEnum::ScanVertices(n) => {
                 // 从统计信息获取标签顶点数
-                if let Some(stats) = self.stats_manager.get_tag_stats(n.name()) {
-                    stats.vertex_count()
+                if let Some(tag_name) = n.tag() {
+                    if let Some(stats) = self.stats_manager.get_tag_stats(tag_name) {
+                        stats.vertex_count
+                    } else {
+                        1000 // 默认值
+                    }
                 } else {
                     1000 // 默认值
                 }
             }
             PlanNodeEnum::Filter(n) => {
                 // 过滤后估算为原始行数的 30%
-                (self.estimate_subquery_rows(n.input()) as f64 * 0.3) as u64
+                (self.estimate_subquery_rows(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)) as f64 * 0.3) as u64
             }
-            PlanNodeEnum::Project(n) => self.estimate_subquery_rows(n.input()),
+            PlanNodeEnum::Project(n) => self.estimate_subquery_rows(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)),
             _ => 1000, // 默认值
         }
     }
@@ -283,28 +302,264 @@ impl SubqueryUnnestingOptimizer {
     /// # 返回
     /// 转换后的 HashInnerJoin 节点
     pub fn unnest(&self, pattern_apply: PatternApplyNode) -> Result<crate::query::planner::plan::core::nodes::PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        // 获取连接条件
-        let condition = match pattern_apply.condition() {
-            Some(c) => c.clone(),
-            None => return Err(crate::query::planner::planner::PlannerError::InvalidPlan("PatternApply 缺少连接条件".to_string())),
-        };
+        // 获取连接键（已经是 ContextualExpression 类型）
+        let key_cols = pattern_apply.key_cols().to_vec();
 
-        // 获取连接键
-        let key_cols = pattern_apply.key_cols().clone();
+        // 获取左右输入的变量名
+        let left_var = pattern_apply.left_input_var()
+            .cloned()
+            .unwrap_or_else(|| "left".to_string());
+        let right_var = pattern_apply.right_input_var()
+            .cloned()
+            .unwrap_or_else(|| "right".to_string());
+
+        // 创建表达式上下文
+        let expr_ctx = std::sync::Arc::new(ExpressionContext::new());
+
+        // 创建 hash_keys 和 probe_keys
+        let mut hash_keys = Vec::new();
+        let mut probe_keys = Vec::new();
+
+        for key_col in &key_cols {
+            // 获取原始表达式
+            if let Some(expr_meta) = key_col.expression() {
+                let original_expr = expr_meta.inner();
+
+                // 创建左侧键表达式（来自左输入）
+                // 将原始表达式中的所有变量引用替换为 left_var
+                let left_key_expr = self.replace_all_variables(original_expr, &left_var);
+                let left_key_meta = ExpressionMeta::new(left_key_expr);
+                let left_key_id = expr_ctx.register_expression(left_key_meta);
+                let left_key_contextual = ContextualExpression::new(left_key_id, expr_ctx.clone());
+                hash_keys.push(left_key_contextual);
+
+                // 创建右侧键表达式（来自右输入）
+                // 将原始表达式中的所有变量引用替换为 right_var
+                let right_key_expr = self.replace_all_variables(original_expr, &right_var);
+                let right_key_meta = ExpressionMeta::new(right_key_expr);
+                let right_key_id = expr_ctx.register_expression(right_key_meta);
+                let right_key_contextual = ContextualExpression::new(right_key_id, expr_ctx.clone());
+                probe_keys.push(right_key_contextual);
+            }
+        }
 
         // 创建 HashInnerJoin 节点
         let left_input = pattern_apply.left_input().clone();
-        let right_input = pattern_apply.input().clone();
+        let right_input = pattern_apply.right_input().clone();
 
         let hash_join_node = HashInnerJoinNode::new(
             left_input,
             right_input,
-            key_cols,
-            Some(condition),
-            None, // 无额外条件
+            hash_keys,
+            probe_keys,
         )?;
 
         Ok(crate::query::planner::plan::core::nodes::PlanNodeEnum::HashInnerJoin(hash_join_node))
+    }
+
+    /// 替换表达式中的所有变量引用为指定变量
+    ///
+    /// 这个方法递归遍历表达式树，将所有 Variable 节点替换为指定的变量名。
+    /// 这用于在将 PatternApply 转换为 HashInnerJoin 时，将原始表达式中的变量
+    /// 引用（通常是 "_"）替换为左右输入的变量名。
+    ///
+    /// # 参数
+    /// - `expr`: 要转换的表达式
+    /// - `new_var`: 新的变量名
+    ///
+    /// # 返回
+    /// 转换后的表达式
+    fn replace_all_variables(&self, expr: &Expression, new_var: &str) -> Expression {
+        match expr {
+            Expression::Variable(_) => Expression::Variable(new_var.to_string()),
+            Expression::Property { object, property } => {
+                Expression::Property {
+                    object: Box::new(self.replace_all_variables(object, new_var)),
+                    property: property.clone(),
+                }
+            }
+            Expression::Binary { op, left, right } => {
+                Expression::Binary {
+                    op: *op,
+                    left: Box::new(self.replace_all_variables(left, new_var)),
+                    right: Box::new(self.replace_all_variables(right, new_var)),
+                }
+            }
+            Expression::Unary { op, operand } => {
+                Expression::Unary {
+                    op: *op,
+                    operand: Box::new(self.replace_all_variables(operand, new_var)),
+                }
+            }
+            Expression::Function { name, args } => {
+                Expression::Function {
+                    name: name.clone(),
+                    args: args
+                        .iter()
+                        .map(|arg| self.replace_all_variables(arg, new_var))
+                        .collect(),
+                }
+            }
+            Expression::Aggregate { func, arg, distinct } => {
+                Expression::Aggregate {
+                    func: func.clone(),
+                    arg: Box::new(self.replace_all_variables(arg, new_var)),
+                    distinct: *distinct,
+                }
+            }
+            Expression::List(items) => {
+                Expression::List(
+                    items
+                        .iter()
+                        .map(|item| self.replace_all_variables(item, new_var))
+                        .collect(),
+                )
+            }
+            Expression::Map(entries) => {
+                Expression::Map(
+                    entries
+                        .iter()
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                self.replace_all_variables(v, new_var),
+                            )
+                        })
+                        .collect(),
+                )
+            }
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
+                Expression::Case {
+                    test_expr: test_expr
+                        .as_ref()
+                        .map(|e| Box::new(self.replace_all_variables(e, new_var))),
+                    conditions: conditions
+                        .iter()
+                        .map(|(w, t)| {
+                            (
+                                self.replace_all_variables(w, new_var),
+                                self.replace_all_variables(t, new_var),
+                            )
+                        })
+                        .collect(),
+                    default: default
+                        .as_ref()
+                        .map(|e| Box::new(self.replace_all_variables(e, new_var))),
+                }
+            }
+            Expression::TypeCast {
+                expression,
+                target_type,
+            } => {
+                Expression::TypeCast {
+                    expression: Box::new(self.replace_all_variables(expression, new_var)),
+                    target_type: target_type.clone(),
+                }
+            }
+            Expression::Subscript { collection, index } => {
+                Expression::Subscript {
+                    collection: Box::new(self.replace_all_variables(collection, new_var)),
+                    index: Box::new(self.replace_all_variables(index, new_var)),
+                }
+            }
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                Expression::Range {
+                    collection: Box::new(self.replace_all_variables(collection, new_var)),
+                    start: start
+                        .as_ref()
+                        .map(|e| Box::new(self.replace_all_variables(e, new_var))),
+                    end: end
+                        .as_ref()
+                        .map(|e| Box::new(self.replace_all_variables(e, new_var))),
+                }
+            }
+            Expression::Path(exprs) => {
+                Expression::Path(
+                    exprs
+                        .iter()
+                        .map(|e| self.replace_all_variables(e, new_var))
+                        .collect(),
+                )
+            }
+            Expression::Label(_) => expr.clone(),
+            Expression::ListComprehension {
+                variable,
+                source,
+                filter,
+                map,
+            } => {
+                Expression::ListComprehension {
+                    variable: variable.clone(),
+                    source: Box::new(self.replace_all_variables(source, new_var)),
+                    filter: filter
+                        .as_ref()
+                        .map(|e| Box::new(self.replace_all_variables(e, new_var))),
+                    map: map
+                        .as_ref()
+                        .map(|e| Box::new(self.replace_all_variables(e, new_var))),
+                }
+            }
+            Expression::LabelTagProperty { tag, property } => {
+                Expression::LabelTagProperty {
+                    tag: Box::new(self.replace_all_variables(tag, new_var)),
+                    property: property.clone(),
+                }
+            }
+            Expression::TagProperty { tag_name, property } => {
+                Expression::TagProperty {
+                    tag_name: tag_name.clone(),
+                    property: property.clone(),
+                }
+            }
+            Expression::EdgeProperty { edge_name, property } => {
+                Expression::EdgeProperty {
+                    edge_name: edge_name.clone(),
+                    property: property.clone(),
+                }
+            }
+            Expression::Predicate { func, args } => {
+                Expression::Predicate {
+                    func: func.clone(),
+                    args: args
+                        .iter()
+                        .map(|arg| self.replace_all_variables(arg, new_var))
+                        .collect(),
+                }
+            }
+            Expression::Reduce {
+                accumulator,
+                initial,
+                variable,
+                source,
+                mapping,
+            } => {
+                Expression::Reduce {
+                    accumulator: accumulator.clone(),
+                    initial: Box::new(self.replace_all_variables(initial, new_var)),
+                    variable: variable.clone(),
+                    source: Box::new(self.replace_all_variables(source, new_var)),
+                    mapping: Box::new(self.replace_all_variables(mapping, new_var)),
+                }
+            }
+            Expression::PathBuild(exprs) => {
+                Expression::PathBuild(
+                    exprs
+                        .iter()
+                        .map(|e| self.replace_all_variables(e, new_var))
+                        .collect(),
+                )
+            }
+            Expression::Parameter(_) => expr.clone(),
+            Expression::Literal(_) => expr.clone(),
+        }
     }
 }
 
@@ -317,7 +572,9 @@ mod tests {
         let expression_analyzer = ExpressionAnalyzer::new();
         let stats_manager = StatisticsManager::new();
         let optimizer = SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager);
-        assert!(!optimizer.expression_analyzer.is_empty());
+        // 验证优化器创建成功
+        assert_eq!(optimizer.max_subquery_rows, 1000);
+        assert_eq!(optimizer.max_complexity, 50);
     }
 
     #[test]
@@ -354,7 +611,7 @@ mod tests {
         // 二元表达式
         let binary = Expression::Binary {
             left: Box::new(Expression::Literal(crate::core::Value::Int(1))),
-            op: crate::core::types::BinaryOperator::Add,
+            op: crate::core::types::operators::BinaryOperator::Add,
             right: Box::new(Expression::Literal(crate::core::Value::Int(2))),
         };
         assert!(!optimizer.is_simple_expression(&binary));

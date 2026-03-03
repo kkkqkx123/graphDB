@@ -87,6 +87,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(node) => {
                 vec![super::plan_node_traits::SingleInputNode::input(node)]
             }
+            PlanNodeEnum::Materialize(node) => {
+                vec![super::plan_node_traits::SingleInputNode::input(node)]
+            }
             PlanNodeEnum::Traverse(node) => {
                 vec![super::plan_node_traits::SingleInputNode::input(node)]
             }

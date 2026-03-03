@@ -363,7 +363,7 @@ pub struct PatternApplyNode {
     deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     left_input_var: Option<String>,
     right_input_var: Option<String>,
-    key_cols: Vec<String>,
+    key_cols: Vec<crate::core::types::ContextualExpression>,
     is_anti_predicate: bool,
     output_var: Option<String>,
     col_names: Vec<String>,
@@ -373,7 +373,7 @@ impl PatternApplyNode {
     pub fn new(
         left_input: super::plan_node_enum::PlanNodeEnum,
         right_input: super::plan_node_enum::PlanNodeEnum,
-        key_cols: Vec<String>,
+        key_cols: Vec<crate::core::types::ContextualExpression>,
         is_anti_predicate: bool,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = left_input.col_names().to_vec();
@@ -411,7 +411,7 @@ impl PatternApplyNode {
         self.right_input_var.as_ref()
     }
 
-    pub fn key_cols(&self) -> &[String] {
+    pub fn key_cols(&self) -> &[crate::core::types::ContextualExpression] {
         &self.key_cols
     }
 
@@ -582,73 +582,6 @@ impl MaterializeNode {
             output_var: None,
             col_names,
         })
-    }
-}
-
-// 为 MaterializeNode 实现 PlanNode trait
-impl super::plan_node_traits::PlanNode for MaterializeNode {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn set_id(&mut self, id: i64) {
-        self.id = id;
-    }
-
-    fn type_name(&self) -> &str {
-        "MaterializeNode"
-    }
-
-    fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
-        &self.deps
-    }
-
-    fn output_var(&self) -> &Option<String> {
-        &self.output_var
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn set_output_var(&mut self, var: String) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
-        super::plan_node_enum::PlanNodeEnum::Materialize(self)
-    }
-}
-
-// 为 MaterializeNode 实现 PlanNodeClonable trait
-impl super::plan_node_traits::PlanNodeClonable for MaterializeNode {
-    fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
-        self.clone_plan_node()
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
-        self.clone_with_new_id(new_id)
-    }
-}
-
-// 为 MaterializeNode 实现 SingleInputNode trait
-impl super::plan_node_traits::SingleInputNode for MaterializeNode {
-    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
-        self.input.as_ref().expect("MaterializeNode should have input")
-    }
-
-    fn input_mut(&mut self) -> &mut super::plan_node_enum::PlanNodeEnum {
-        self.input.as_mut().expect("MaterializeNode should have input")
-    }
-
-    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
-        self.input = Some(Box::new(input.clone()));
-        self.deps.clear();
-        self.deps.push(Box::new(input));
     }
 }
 

@@ -5,6 +5,10 @@
 //! - 复杂度评分
 //! - 属性/变量/函数提取
 
+use crate::core::types::expression::visitor::ExpressionVisitor;
+use crate::core::types::expression::visitor_collectors::{
+    FunctionCollector, PropertyCollector, VariableCollector,
+};
 use crate::core::Expression;
 
 /// 表达式分析结果
@@ -36,27 +40,6 @@ impl ExpressionAnalysis {
         Self {
             is_deterministic: true, // 默认假设是确定性的
             ..Default::default()
-        }
-    }
-
-    /// 添加属性引用
-    fn add_property(&mut self, property: String) {
-        if !self.referenced_properties.contains(&property) {
-            self.referenced_properties.push(property);
-        }
-    }
-
-    /// 添加变量引用
-    fn add_variable(&mut self, variable: String) {
-        if !self.referenced_variables.contains(&variable) {
-            self.referenced_variables.push(variable);
-        }
-    }
-
-    /// 添加函数调用
-    fn add_function(&mut self, function: String) {
-        if !self.called_functions.contains(&function) {
-            self.called_functions.push(function);
         }
     }
 }
@@ -171,9 +154,32 @@ impl ExpressionAnalyzer {
     /// # 返回
     /// 表达式的分析结果
     pub fn analyze(&self, expr: &Expression) -> ExpressionAnalysis {
-        let mut result = ExpressionAnalysis::new();
-        self.analyze_recursive(expr, &mut result, 0);
-        result
+        let mut analysis = ExpressionAnalysis::new();
+
+        // 使用现有的 Collector 收集信息
+        if self.options.extract_properties {
+            let mut collector = PropertyCollector::new();
+            collector.visit(expr);
+            analysis.referenced_properties = collector.properties;
+        }
+
+        if self.options.extract_variables {
+            let mut collector = VariableCollector::new();
+            collector.visit(expr);
+            analysis.referenced_variables = collector.variables;
+        }
+
+        if self.options.count_functions {
+            let mut collector = FunctionCollector::new();
+            collector.visit(expr);
+            analysis.called_functions = collector.functions;
+        }
+
+        // 使用自定义 Visitor 进行复杂度和确定性分析
+        let mut visitor = AnalysisVisitor::new(&mut analysis, self.options.clone());
+        visitor.visit(expr);
+
+        analysis
     }
 
     /// 快速检查表达式是否确定性
@@ -193,261 +199,291 @@ impl ExpressionAnalyzer {
         let analysis = self.analyze(expr);
         analysis.referenced_variables
     }
+}
 
-    /// 递归分析表达式
-    fn analyze_recursive(&self, expr: &Expression, result: &mut ExpressionAnalysis, depth: u32) {
-        // 更新深度和节点计数
-        result.depth = result.depth.max(depth);
-        result.node_count += 1;
+/// 表达式分析 Visitor
+///
+/// 使用 Visitor 模式进行复杂度和确定性分析
+struct AnalysisVisitor<'a> {
+    analysis: &'a mut ExpressionAnalysis,
+    options: AnalysisOptions,
+}
 
-        match expr {
-            Expression::Literal(_) => {
-                // 字面量是确定性的
-                if self.options.check_complexity {
-                    result.complexity_score += 1;
-                }
-            }
+impl<'a> AnalysisVisitor<'a> {
+    fn new(analysis: &'a mut ExpressionAnalysis, options: AnalysisOptions) -> Self {
+        Self { analysis, options }
+    }
+}
 
-            Expression::Variable(var) => {
-                if self.options.extract_variables {
-                    result.add_variable(var.clone());
-                }
-                if self.options.check_complexity {
-                    result.complexity_score += 2;
-                }
-            }
-
-            Expression::Property { object, property } => {
-                if self.options.extract_properties {
-                    result.add_property(property.clone());
-                }
-                if self.options.check_complexity {
-                    result.complexity_score += 5;
-                }
-                // 递归分析对象
-                self.analyze_recursive(object, result, depth + 1);
-            }
-
-            Expression::Binary { left, op, right } => {
-                if self.options.check_complexity {
-                    // 二元运算基础复杂度
-                    result.complexity_score += 2;
-                    // 某些操作符增加额外复杂度
-                    use crate::core::types::BinaryOperator;
-                    match op {
-                        BinaryOperator::Like => {
-                            // LIKE 操作符是确定性的
-                            result.complexity_score += 5;
-                        }
-                        _ => {}
-                    }
-                }
-                self.analyze_recursive(left, result, depth + 1);
-                self.analyze_recursive(right, result, depth + 1);
-            }
-
-            Expression::Unary { op: _, operand } => {
-                if self.options.check_complexity {
-                    result.complexity_score += 1;
-                }
-                self.analyze_recursive(operand, result, depth + 1);
-            }
-
-            Expression::Function { name, args } => {
-                if self.options.count_functions {
-                    result.add_function(name.clone());
-                }
-
-                // 检查是否非确定性
-                if self.options.check_deterministic {
-                    if NondeterministicChecker::is_nondeterministic(name) {
-                        result.is_deterministic = false;
-                    }
-                }
-
-                // 函数调用增加复杂度
-                if self.options.check_complexity {
-                    result.complexity_score += 10;
-                    // 参数数量也影响复杂度
-                    result.complexity_score += args.len() as u32 * 2;
-                }
-
-                // 递归分析参数
-                for arg in args {
-                    self.analyze_recursive(arg, result, depth + 1);
-                }
-            }
-
-            Expression::Aggregate { func, arg, .. } => {
-                result.contains_aggregate = true;
-                if self.options.count_functions {
-                    result.add_function(format!("{:?}", func));
-                }
-                if self.options.check_complexity {
-                    result.complexity_score += 20;
-                }
-                self.analyze_recursive(arg, result, depth + 1);
-            }
-
-            Expression::Case {
-                test_expr,
-                conditions,
-                default,
-            } => {
-                if self.options.check_complexity {
-                    // CASE表达式基础复杂度
-                    result.complexity_score += 5;
-                    // 每个条件增加复杂度
-                    result.complexity_score += conditions.len() as u32 * 5;
-                }
-
-                // 分析测试表达式
-                if let Some(test) = test_expr {
-                    self.analyze_recursive(test, result, depth + 1);
-                }
-
-                // 分析条件和结果
-                for (when, then) in conditions {
-                    self.analyze_recursive(when, result, depth + 1);
-                    self.analyze_recursive(then, result, depth + 1);
-                }
-
-                // 分析默认值
-                if let Some(default_expr) = default {
-                    self.analyze_recursive(default_expr, result, depth + 1);
-                }
-            }
-
-            Expression::TypeCast { expression, .. } => {
-                if self.options.check_complexity {
-                    result.complexity_score += 3;
-                }
-                self.analyze_recursive(expression, result, depth + 1);
-            }
-
-            Expression::Subscript { collection, index } => {
-                if self.options.check_complexity {
-                    result.complexity_score += 4;
-                }
-                self.analyze_recursive(collection, result, depth + 1);
-                self.analyze_recursive(index, result, depth + 1);
-            }
-
-            Expression::List(expressions) => {
-                if self.options.check_complexity {
-                    result.complexity_score += expressions.len() as u32;
-                }
-                for expr in expressions {
-                    self.analyze_recursive(expr, result, depth + 1);
-                }
-            }
-
-            Expression::Map(entries) => {
-                if self.options.check_complexity {
-                    result.complexity_score += entries.len() as u32 * 2;
-                }
-                for (_, value) in entries {
-                    self.analyze_recursive(value, result, depth + 1);
-                }
-            }
-
-            Expression::ListComprehension { .. } => {
-                result.contains_subquery = true;
-                if self.options.check_complexity {
-                    result.complexity_score += 30;
-                }
-                // 列表推导式比较复杂，这里简化处理
-            }
-
-            Expression::Predicate { func, args } => {
-                if self.options.count_functions {
-                    result.add_function(func.clone());
-                }
-                if self.options.check_complexity {
-                    result.complexity_score += 15;
-                }
-                for arg in args {
-                    self.analyze_recursive(arg, result, depth + 1);
-                }
-            }
-
-            Expression::Reduce {
-                initial,
-                source,
-                mapping,
-                ..
-            } => {
-                result.contains_subquery = true;
-                if self.options.check_complexity {
-                    result.complexity_score += 25;
-                }
-                self.analyze_recursive(initial, result, depth + 1);
-                self.analyze_recursive(source, result, depth + 1);
-                self.analyze_recursive(mapping, result, depth + 1);
-            }
-
-            Expression::Path(expressions) => {
-                if self.options.check_complexity {
-                    result.complexity_score += expressions.len() as u32 * 3;
-                }
-                for expr in expressions {
-                    self.analyze_recursive(expr, result, depth + 1);
-                }
-            }
-
-            Expression::PathBuild(expressions) => {
-                if self.options.check_complexity {
-                    result.complexity_score += expressions.len() as u32 * 2;
-                }
-                for expr in expressions {
-                    self.analyze_recursive(expr, result, depth + 1);
-                }
-            }
-
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                if self.options.check_complexity {
-                    result.complexity_score += 5;
-                }
-                self.analyze_recursive(collection, result, depth + 1);
-                if let Some(s) = start {
-                    self.analyze_recursive(s, result, depth + 1);
-                }
-                if let Some(e) = end {
-                    self.analyze_recursive(e, result, depth + 1);
-                }
-            }
-
-            Expression::Label(_)
-            | Expression::TagProperty { .. }
-            | Expression::EdgeProperty { .. } => {
-                if self.options.check_complexity {
-                    result.complexity_score += 3;
-                }
-            }
-
-            Expression::LabelTagProperty { tag, .. } => {
-                if self.options.check_complexity {
-                    result.complexity_score += 5;
-                }
-                self.analyze_recursive(tag, result, depth + 1);
-            }
-
-            Expression::Parameter(_) => {
-                // 参数是确定性的（在查询执行时绑定）
-                if self.options.check_complexity {
-                    result.complexity_score += 1;
-                }
-            }
-        }
-
-        // 限制复杂度分数在0-100范围内
+impl ExpressionVisitor for AnalysisVisitor<'_> {
+    fn visit_literal(&mut self, _value: &crate::core::Value) {
         if self.options.check_complexity {
-            result.complexity_score = result.complexity_score.min(100);
+            self.analysis.complexity_score += 1;
         }
+        self.analysis.node_count += 1;
+    }
+
+    fn visit_variable(&mut self, _name: &str) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 2;
+        }
+        self.analysis.node_count += 1;
+    }
+
+    fn visit_property(&mut self, object: &Expression, _property: &str) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 5;
+        }
+        self.analysis.node_count += 1;
+        self.visit(object);
+    }
+
+    fn visit_binary(
+        &mut self,
+        op: crate::core::types::BinaryOperator,
+        left: &Expression,
+        right: &Expression,
+    ) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 2;
+            match op {
+                crate::core::types::BinaryOperator::Like => {
+                    self.analysis.complexity_score += 5;
+                }
+                _ => {}
+            }
+        }
+        self.analysis.node_count += 1;
+        self.visit(left);
+        self.visit(right);
+    }
+
+    fn visit_unary(
+        &mut self,
+        _op: crate::core::types::UnaryOperator,
+        operand: &Expression,
+    ) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 1;
+        }
+        self.analysis.node_count += 1;
+        self.visit(operand);
+    }
+
+    fn visit_function(&mut self, name: &str, args: &[Expression]) {
+        if self.options.check_deterministic {
+            if NondeterministicChecker::is_nondeterministic(name) {
+                self.analysis.is_deterministic = false;
+            }
+        }
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 10 + args.len() as u32 * 2;
+        }
+        self.analysis.node_count += 1;
+        for arg in args {
+            self.visit(arg);
+        }
+    }
+
+    fn visit_aggregate(
+        &mut self,
+        func: &crate::core::types::operators::AggregateFunction,
+        arg: &Expression,
+        _distinct: bool,
+    ) {
+        self.analysis.contains_aggregate = true;
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 20;
+        }
+        self.analysis.node_count += 1;
+        self.visit(arg);
+    }
+
+    fn visit_case(
+        &mut self,
+        test_expr: Option<&Expression>,
+        conditions: &[(Expression, Expression)],
+        default: Option<&Expression>,
+    ) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 5 + conditions.len() as u32 * 5;
+        }
+        self.analysis.node_count += 1;
+        if let Some(test) = test_expr {
+            self.visit(test);
+        }
+        for (when, then) in conditions {
+            self.visit(when);
+            self.visit(then);
+        }
+        if let Some(default_expr) = default {
+            self.visit(default_expr);
+        }
+    }
+
+    fn visit_type_cast(
+        &mut self,
+        expression: &Expression,
+        _target_type: &crate::core::types::DataType,
+    ) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 3;
+        }
+        self.analysis.node_count += 1;
+        self.visit(expression);
+    }
+
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 4;
+        }
+        self.analysis.node_count += 1;
+        self.visit(collection);
+        self.visit(index);
+    }
+
+    fn visit_list(&mut self, items: &[Expression]) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += items.len() as u32;
+        }
+        self.analysis.node_count += 1;
+        for item in items {
+            self.visit(item);
+        }
+    }
+
+    fn visit_map(&mut self, entries: &[(String, Expression)]) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += entries.len() as u32 * 2;
+        }
+        self.analysis.node_count += 1;
+        for (_, value) in entries {
+            self.visit(value);
+        }
+    }
+
+    fn visit_list_comprehension(
+        &mut self,
+        _variable: &str,
+        source: &Expression,
+        filter: Option<&Expression>,
+        map: Option<&Expression>,
+    ) {
+        self.analysis.contains_subquery = true;
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 30;
+        }
+        self.analysis.node_count += 1;
+        self.visit(source);
+        if let Some(f) = filter {
+            self.visit(f);
+        }
+        if let Some(m) = map {
+            self.visit(m);
+        }
+    }
+
+    fn visit_predicate(&mut self, func: &str, args: &[Expression]) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 15;
+        }
+        self.analysis.node_count += 1;
+        for arg in args {
+            self.visit(arg);
+        }
+    }
+
+    fn visit_reduce(
+        &mut self,
+        _accumulator: &str,
+        initial: &Expression,
+        _variable: &str,
+        source: &Expression,
+        mapping: &Expression,
+    ) {
+        self.analysis.contains_subquery = true;
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 25;
+        }
+        self.analysis.node_count += 1;
+        self.visit(initial);
+        self.visit(source);
+        self.visit(mapping);
+    }
+
+    fn visit_path(&mut self, items: &[Expression]) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += items.len() as u32 * 3;
+        }
+        self.analysis.node_count += 1;
+        for item in items {
+            self.visit(item);
+        }
+    }
+
+    fn visit_path_build(&mut self, items: &[Expression]) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += items.len() as u32 * 2;
+        }
+        self.analysis.node_count += 1;
+        for item in items {
+            self.visit(item);
+        }
+    }
+
+    fn visit_range(
+        &mut self,
+        collection: &Expression,
+        start: Option<&Expression>,
+        end: Option<&Expression>,
+    ) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 5;
+        }
+        self.analysis.node_count += 1;
+        self.visit(collection);
+        if let Some(s) = start {
+            self.visit(s);
+        }
+        if let Some(e) = end {
+            self.visit(e);
+        }
+    }
+
+    fn visit_label(&mut self, _label: &str) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 3;
+        }
+        self.analysis.node_count += 1;
+    }
+
+    fn visit_label_tag_property(&mut self, tag: &Expression, _property: &str) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 5;
+        }
+        self.analysis.node_count += 1;
+        self.visit(tag);
+    }
+
+    fn visit_tag_property(&mut self, _tag_name: &str, _property: &str) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 3;
+        }
+        self.analysis.node_count += 1;
+    }
+
+    fn visit_edge_property(&mut self, _edge_name: &str, _property: &str) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 3;
+        }
+        self.analysis.node_count += 1;
+    }
+
+    fn visit_parameter(&mut self, _name: &str) {
+        if self.options.check_complexity {
+            self.analysis.complexity_score += 1;
+        }
+        self.analysis.node_count += 1;
     }
 }
 

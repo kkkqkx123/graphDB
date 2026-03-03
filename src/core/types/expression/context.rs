@@ -11,6 +11,7 @@ use crate::core::types::DataType;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::operators::UnaryOperator;
 use crate::core::Value;
+use crate::query::optimizer::analysis::ExpressionAnalysis;
 
 /// 表达式优化状态标记
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,6 +41,7 @@ impl Default for OptimizationFlags {
 /// - 表达式注册表：存储所有表达式的完整信息
 /// - 类型信息缓存：表达式ID -> 推导出的类型
 /// - 常量折叠结果：表达式ID -> 计算出的常量值
+/// - 表达式分析结果：表达式ID -> 分析结果
 /// - 优化标记：表达式ID -> 优化状态
 #[derive(Debug, Clone)]
 pub struct ExpressionContext {
@@ -52,6 +54,9 @@ pub struct ExpressionContext {
     /// 常量折叠结果：表达式ID -> 计算出的常量值
     constant_cache: Arc<DashMap<ExpressionId, Value>>,
 
+    /// 表达式分析结果：表达式ID -> 分析结果
+    analysis_cache: Arc<DashMap<ExpressionId, ExpressionAnalysis>>,
+
     /// 优化标记：表达式ID -> 优化状态
     optimization_flags: Arc<DashMap<ExpressionId, OptimizationFlags>>,
 }
@@ -63,6 +68,7 @@ impl ExpressionContext {
             expressions: Arc::new(DashMap::new()),
             type_cache: Arc::new(DashMap::new()),
             constant_cache: Arc::new(DashMap::new()),
+            analysis_cache: Arc::new(DashMap::new()),
             optimization_flags: Arc::new(DashMap::new()),
         }
     }
@@ -168,6 +174,7 @@ impl ExpressionContext {
     pub fn clear_caches(&self) {
         self.type_cache.clear();
         self.constant_cache.clear();
+        self.analysis_cache.clear();
         self.optimization_flags.clear();
     }
 
@@ -175,6 +182,37 @@ impl ExpressionContext {
     pub fn clear_all(&self) {
         self.expressions.clear();
         self.clear_caches();
+    }
+
+    /// 设置表达式分析结果
+    ///
+    /// # 参数
+    /// - `id`: 表达式ID
+    /// - `analysis`: 分析结果
+    pub fn set_analysis(&self, id: &ExpressionId, analysis: ExpressionAnalysis) {
+        self.analysis_cache.insert(id.clone(), analysis);
+    }
+
+    /// 获取表达式分析结果
+    ///
+    /// # 参数
+    /// - `id`: 表达式ID
+    ///
+    /// # 返回
+    /// 分析结果（如果存在）
+    pub fn get_analysis(&self, id: &ExpressionId) -> Option<ExpressionAnalysis> {
+        self.analysis_cache.get(id).map(|r| r.clone())
+    }
+
+    /// 检查表达式是否已经过分析
+    ///
+    /// # 参数
+    /// - `id`: 表达式ID
+    ///
+    /// # 返回
+    /// true 如果已经分析过
+    pub fn is_analyzed(&self, id: &ExpressionId) -> bool {
+        self.analysis_cache.contains_key(id)
     }
 
     // ==================== 表达式重写 API ====================
@@ -494,5 +532,30 @@ mod tests {
     fn test_default() {
         let ctx = ExpressionContext::default();
         assert_eq!(ctx.expression_count(), 0);
+    }
+
+    #[test]
+    fn test_set_and_get_analysis() {
+        let ctx = ExpressionContext::new();
+        let expr = Expression::variable("x");
+        let meta = ExpressionMeta::new(expr);
+        let id = ctx.register_expression(meta);
+
+        let analysis = ExpressionAnalysis {
+            is_deterministic: true,
+            complexity_score: 10,
+            referenced_properties: vec!["name".to_string()],
+            referenced_variables: vec!["x".to_string()],
+            called_functions: vec![],
+            contains_aggregate: false,
+            contains_subquery: false,
+            depth: 1,
+            node_count: 1,
+        };
+
+        ctx.set_analysis(&id, analysis.clone());
+        let retrieved = ctx.get_analysis(&id);
+        assert!(retrieved.is_some());
+        assert!(ctx.is_analyzed(&id));
     }
 }

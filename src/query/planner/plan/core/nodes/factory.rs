@@ -288,7 +288,7 @@ impl PlanNodeFactory {
     pub fn create_pattern_apply(
         left_input: PlanNodeEnum,
         right_input: PlanNodeEnum,
-        key_cols: Vec<String>,
+        key_cols: Vec<crate::core::types::ContextualExpression>,
         is_anti_predicate: bool,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         let pattern_apply_node =

@@ -35,6 +35,7 @@
 
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionContext;
 use crate::query::optimizer::{
     AggregateStrategySelector, CostCalculator, CostModelConfig, ExpressionAnalyzer,
     MaterializationOptimizer, ReferenceCountAnalyzer, SelectivityEstimator,
@@ -47,6 +48,8 @@ use crate::query::optimizer::{
 /// 与数据库实例同生命周期，为所有查询提供统一的优化服务。
 #[derive(Debug)]
 pub struct OptimizerEngine {
+    /// 表达式上下文，用于跨阶段共享表达式信息
+    expression_context: Arc<ExpressionContext>,
     /// 统计信息管理器
     stats_manager: Arc<StatisticsManager>,
     /// 代价计算器
@@ -75,6 +78,9 @@ impl OptimizerEngine {
     /// # 参数
     /// - `cost_config`: 代价模型配置
     pub fn new(cost_config: CostModelConfig) -> Self {
+        // 创建表达式上下文
+        let expression_context = Arc::new(ExpressionContext::new());
+
         // 创建统计信息管理器
         let stats_manager = Arc::new(StatisticsManager::new());
 
@@ -93,10 +99,11 @@ impl OptimizerEngine {
         let expression_analyzer = ExpressionAnalyzer::new();
         let reference_count_analyzer = ReferenceCountAnalyzer::new();
 
-        // 创建聚合策略选择器，使用表达式分析器
-        let aggregate_strategy_selector = AggregateStrategySelector::with_analyzer(
+        // 创建聚合策略选择器，使用表达式分析器和上下文
+        let aggregate_strategy_selector = AggregateStrategySelector::with_context(
             cost_calculator.clone(),
             expression_analyzer.clone(),
+            expression_context.clone(),
         );
 
         // 创建子查询去关联化优化器
@@ -113,6 +120,7 @@ impl OptimizerEngine {
         );
 
         Self {
+            expression_context,
             stats_manager,
             cost_calculator,
             selectivity_estimator,
@@ -169,6 +177,11 @@ impl OptimizerEngine {
     /// 获取表达式分析器
     pub fn expression_analyzer(&self) -> &ExpressionAnalyzer {
         &self.expression_analyzer
+    }
+
+    /// 获取表达式上下文
+    pub fn expression_context(&self) -> &Arc<ExpressionContext> {
+        &self.expression_context
     }
 
     /// 获取引用计数分析器

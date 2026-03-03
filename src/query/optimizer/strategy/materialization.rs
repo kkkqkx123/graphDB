@@ -32,7 +32,7 @@
 use crate::core::Expression;
 use crate::query::optimizer::analysis::{ExpressionAnalyzer, ReferenceCountAnalysis, ReferenceCountAnalyzer};
 use crate::query::optimizer::stats::StatisticsManager;
-use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
 
 /// CTE 物化决策
 #[derive(Debug, Clone, PartialEq)]
@@ -215,52 +215,128 @@ impl MaterializationOptimizer {
     fn is_deterministic(&self, node: &PlanNodeEnum) -> bool {
         match node {
             PlanNodeEnum::Filter(n) => {
-                if let Some(condition) = n.condition() {
-                    if let Some(condition_expr) = condition.expression() {
-                        let analysis = self.expression_analyzer.analyze(condition_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
-                    }
-                }
-                self.is_deterministic(n.input())
-            }
-            PlanNodeEnum::Project(n) => self.is_deterministic(n.input()),
-            PlanNodeEnum::Aggregate(n) => {
-                // 检查聚合函数
-                for func in n.aggregation_functions() {
-                    let analysis = self.expression_analyzer.analyze(func);
+                let condition = n.condition();
+                if let Some(condition_expr) = condition.expression() {
+                    let analysis = self.expression_analyzer.analyze(condition_expr.inner());
                     if !analysis.is_deterministic {
                         return false;
                     }
                 }
-                self.is_deterministic(n.input())
+                self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
             }
-            PlanNodeEnum::Sort(n) => self.is_deterministic(n.input()),
-            PlanNodeEnum::Limit(n) => self.is_deterministic(n.input()),
-            PlanNodeEnum::TopN(n) => self.is_deterministic(n.input()),
+            PlanNodeEnum::Project(n) => self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)),
+            PlanNodeEnum::Aggregate(n) => {
+                // 聚合函数通常是确定性的，除非它们的输入是非确定性的
+                // 我们通过递归检查输入节点来确保确定性
+                self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
+            }
+            PlanNodeEnum::Sort(n) => self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)),
+            PlanNodeEnum::Limit(n) => self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)),
+            PlanNodeEnum::TopN(n) => self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)),
             PlanNodeEnum::Union(n) => {
-                self.is_deterministic(n.input())
+                self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
             }
-            PlanNodeEnum::Join(join_node) => {
-                // 使用通用的访问器
-                if let Some(condition) = join_node.condition() {
-                    if let Some(condition_expr) = condition.expression() {
-                        let analysis = self.expression_analyzer.analyze(condition_expr.inner());
+            PlanNodeEnum::InnerJoin(join_node) => {
+                for key in join_node.hash_keys() {
+                    if let Some(key_expr) = key.expression() {
+                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
                         if !analysis.is_deterministic {
                             return false;
                         }
                     }
                 }
-                true // 简化处理
+                for key in join_node.probe_keys() {
+                    if let Some(key_expr) = key.expression() {
+                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
+                        if !analysis.is_deterministic {
+                            return false;
+                        }
+                    }
+                }
+                true
             }
-            // 扫描节点总是确定性的
+            PlanNodeEnum::LeftJoin(join_node) => {
+                for key in join_node.hash_keys() {
+                    if let Some(key_expr) = key.expression() {
+                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
+                        if !analysis.is_deterministic {
+                            return false;
+                        }
+                    }
+                }
+                for key in join_node.probe_keys() {
+                    if let Some(key_expr) = key.expression() {
+                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
+                        if !analysis.is_deterministic {
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
+            PlanNodeEnum::CrossJoin(_) => true,
+            PlanNodeEnum::HashInnerJoin(join_node) => {
+                for key in join_node.hash_keys() {
+                    if let Some(key_expr) = key.expression() {
+                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
+                        if !analysis.is_deterministic {
+                            return false;
+                        }
+                    }
+                }
+                for key in join_node.probe_keys() {
+                    if let Some(key_expr) = key.expression() {
+                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
+                        if !analysis.is_deterministic {
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
+            PlanNodeEnum::HashLeftJoin(join_node) => {
+                for key in join_node.hash_keys() {
+                    if let Some(key_expr) = key.expression() {
+                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
+                        if !analysis.is_deterministic {
+                            return false;
+                        }
+                    }
+                }
+                for key in join_node.probe_keys() {
+                    if let Some(key_expr) = key.expression() {
+                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
+                        if !analysis.is_deterministic {
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
+            PlanNodeEnum::FullOuterJoin(join_node) => {
+                for key in join_node.hash_keys() {
+                    if let Some(key_expr) = key.expression() {
+                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
+                        if !analysis.is_deterministic {
+                            return false;
+                        }
+                    }
+                }
+                for key in join_node.probe_keys() {
+                    if let Some(key_expr) = key.expression() {
+                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
+                        if !analysis.is_deterministic {
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
             PlanNodeEnum::ScanVertices(_) => true,
             PlanNodeEnum::ScanEdges(_) => true,
             PlanNodeEnum::GetVertices(_) => true,
             PlanNodeEnum::GetEdges(_) => true,
             PlanNodeEnum::IndexScan(_) => true,
-            // 其他节点简化处理
             _ => true,
         }
     }
@@ -271,25 +347,19 @@ impl MaterializationOptimizer {
 
         match node {
             PlanNodeEnum::Filter(n) => {
-                if let Some(condition) = n.condition() {
-                    if let Some(condition_expr) = condition.expression() {
-                        let analysis = self.expression_analyzer.analyze(condition_expr.inner());
-                        max_complexity = max_complexity.max(analysis.complexity_score);
-                    }
-                }
-                max_complexity = max_complexity.max(self.get_max_complexity(n.input()));
-            }
-            PlanNodeEnum::Project(n) => {
-                // 检查投影表达式
-                max_complexity = max_complexity.max(self.get_max_complexity(n.input()));
-            }
-            PlanNodeEnum::Aggregate(n) => {
-                // 检查聚合函数
-                for func in n.aggregation_functions() {
-                    let analysis = self.expression_analyzer.analyze(func);
+                let condition = n.condition();
+                if let Some(condition_expr) = condition.expression() {
+                    let analysis = self.expression_analyzer.analyze(condition_expr.inner());
                     max_complexity = max_complexity.max(analysis.complexity_score);
                 }
-                max_complexity = max_complexity.max(self.get_max_complexity(n.input()));
+                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)));
+            }
+            PlanNodeEnum::Project(n) => {
+                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)));
+            }
+            PlanNodeEnum::Aggregate(n) => {
+                // 聚合函数的复杂度由输入决定
+                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)));
             }
             _ => {}
         }
@@ -301,34 +371,59 @@ impl MaterializationOptimizer {
     fn estimate_result_rows(&self, node: &PlanNodeEnum) -> u64 {
         match node {
             PlanNodeEnum::ScanVertices(n) => {
-                if let Some(stats) = self.stats_manager.get_tag_stats(n.name()) {
-                    stats.vertex_count()
+                if let Some(tag_name) = n.tag() {
+                    if let Some(stats) = self.stats_manager.get_tag_stats(tag_name) {
+                        stats.vertex_count
+                    } else {
+                        1000
+                    }
                 } else {
                     1000
                 }
             }
             PlanNodeEnum::Filter(n) => {
-                // 过滤后估算为原始行数的 30%
-                (self.estimate_result_rows(n.input()) as f64 * 0.3) as u64
+                (self.estimate_result_rows(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)) as f64 * 0.3) as u64
             }
-            PlanNodeEnum::Join(join_node) => {
-                // 连接选择性估算
+            PlanNodeEnum::InnerJoin(join_node) => {
+                let left_rows = self.estimate_result_rows(join_node.left_input());
+                let right_rows = self.estimate_result_rows(join_node.right_input());
+                (left_rows as f64 * right_rows as f64 * 0.3) as u64
+            }
+            PlanNodeEnum::LeftJoin(join_node) => {
+                let left_rows = self.estimate_result_rows(join_node.left_input());
+                let right_rows = self.estimate_result_rows(join_node.right_input());
+                (left_rows as f64 * right_rows as f64 * 0.3) as u64
+            }
+            PlanNodeEnum::CrossJoin(join_node) => {
+                let left_rows = self.estimate_result_rows(join_node.left_input());
+                let right_rows = self.estimate_result_rows(join_node.right_input());
+                (left_rows as f64 * right_rows as f64 * 0.3) as u64
+            }
+            PlanNodeEnum::HashInnerJoin(join_node) => {
+                let left_rows = self.estimate_result_rows(join_node.left_input());
+                let right_rows = self.estimate_result_rows(join_node.right_input());
+                (left_rows as f64 * right_rows as f64 * 0.3) as u64
+            }
+            PlanNodeEnum::HashLeftJoin(join_node) => {
+                let left_rows = self.estimate_result_rows(join_node.left_input());
+                let right_rows = self.estimate_result_rows(join_node.right_input());
+                (left_rows as f64 * right_rows as f64 * 0.3) as u64
+            }
+            PlanNodeEnum::FullOuterJoin(join_node) => {
                 let left_rows = self.estimate_result_rows(join_node.left_input());
                 let right_rows = self.estimate_result_rows(join_node.right_input());
                 (left_rows as f64 * right_rows as f64 * 0.3) as u64
             }
             PlanNodeEnum::Aggregate(n) => {
-                // 聚合估算为不同分组键的数量
-                let input_rows = self.estimate_result_rows(n.input());
+                let input_rows = self.estimate_result_rows(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n));
                 let group_keys = n.group_keys().len();
                 if group_keys == 0 {
                     1
                 } else {
-                    // 假设每个分组键平均有 10 个不同值
                     (input_rows as f64 / (group_keys as f64 * 10.0)) as u64
                 }
             }
-            _ => 1000, // 默认值
+            _ => 1000,
         }
     }
 
@@ -356,8 +451,6 @@ impl MaterializationOptimizer {
     /// # 返回
     /// 包装了 MaterializeNode 的节点
     pub fn materialize(&self, cte_node: PlanNodeEnum) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use crate::query::planner::plan::core::nodes::MaterializeNode;
-
         let materialize_node = MaterializeNode::new(cte_node)?;
         Ok(PlanNodeEnum::Materialize(materialize_node))
     }
