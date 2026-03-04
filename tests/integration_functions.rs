@@ -12,7 +12,7 @@ mod common;
 
 use graphdb::core::vertex_edge_path::{Edge, Path, Step, Tag, Vertex};
 use graphdb::core::{List, NullType, Value};
-use graphdb::expression::functions::FunctionRegistry;
+use graphdb::query::executor::expression::functions::FunctionRegistry;
 use std::collections::HashMap;
 
 /// 创建测试用的顶点

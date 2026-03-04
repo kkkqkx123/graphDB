@@ -37,7 +37,7 @@ fn test_create_user_parser_basic() {
     );
 
     let stmt = result.expect("CREATE USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "CREATE USER");
+    assert_eq!(stmt.stmt.kind(), "CREATE USER");
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn test_create_user_parser_with_if_not_exists() {
     );
 
     let stmt = result.expect("CREATE USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "CREATE USER");
+    assert_eq!(stmt.stmt.kind(), "CREATE USER");
 }
 
 #[test]
@@ -69,7 +69,7 @@ fn test_create_user_parser_complex_password() {
     );
 
     let stmt = result.expect("CREATE USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "CREATE USER");
+    assert_eq!(stmt.stmt.kind(), "CREATE USER");
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn test_create_user_parser_special_username() {
     );
 
     let stmt = result.expect("CREATE USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "CREATE USER");
+    assert_eq!(stmt.stmt.kind(), "CREATE USER");
 }
 
 #[test]
@@ -164,7 +164,7 @@ fn test_alter_user_parser_basic() {
     );
 
     let stmt = result.expect("ALTER USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "ALTER USER");
+    assert_eq!(stmt.stmt.kind(), "ALTER USER");
 }
 
 #[test]
@@ -180,7 +180,7 @@ fn test_alter_user_parser_complex_password() {
     );
 
     let stmt = result.expect("ALTER USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "ALTER USER");
+    assert_eq!(stmt.stmt.kind(), "ALTER USER");
 }
 
 #[test]
@@ -196,7 +196,7 @@ fn test_alter_user_parser_special_username() {
     );
 
     let stmt = result.expect("ALTER USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "ALTER USER");
+    assert_eq!(stmt.stmt.kind(), "ALTER USER");
 }
 
 #[test]
@@ -252,7 +252,7 @@ fn test_drop_user_parser_basic() {
     );
 
     let stmt = result.expect("DROP USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "DROP USER");
+    assert_eq!(stmt.stmt.kind(), "DROP USER");
 }
 
 #[test]
@@ -268,7 +268,7 @@ fn test_drop_user_parser_with_if_exists() {
     );
 
     let stmt = result.expect("DROP USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "DROP USER");
+    assert_eq!(stmt.stmt.kind(), "DROP USER");
 }
 
 #[test]
@@ -284,7 +284,7 @@ fn test_drop_user_parser_special_username() {
     );
 
     let stmt = result.expect("DROP USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "DROP USER");
+    assert_eq!(stmt.stmt.kind(), "DROP USER");
 }
 
 #[test]
@@ -378,7 +378,7 @@ fn test_change_password_parser_basic() {
     );
 
     let stmt = result.expect("CHANGE PASSWORD语句解析应该成功");
-    assert_eq!(stmt.kind(), "CHANGE PASSWORD");
+    assert_eq!(stmt.stmt.kind(), "CHANGE PASSWORD");
 }
 
 #[test]
@@ -394,7 +394,7 @@ fn test_change_password_parser_complex_passwords() {
     );
 
     let stmt = result.expect("CHANGE PASSWORD语句解析应该成功");
-    assert_eq!(stmt.kind(), "CHANGE PASSWORD");
+    assert_eq!(stmt.stmt.kind(), "CHANGE PASSWORD");
 }
 
 #[test]
@@ -410,7 +410,7 @@ fn test_change_password_parser_special_chars() {
     );
 
     let stmt = result.expect("CHANGE PASSWORD语句解析应该成功");
-    assert_eq!(stmt.kind(), "CHANGE PASSWORD");
+    assert_eq!(stmt.stmt.kind(), "CHANGE PASSWORD");
 }
 
 #[test]
@@ -663,7 +663,7 @@ fn test_grant_parser_basic() {
     assert!(result.is_ok(), "GRANT基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GRANT语句解析应该成功");
-    assert_eq!(stmt.kind(), "GRANT");
+    assert_eq!(stmt.stmt.kind(), "GRANT");
 }
 
 #[test]
@@ -679,7 +679,7 @@ fn test_grant_parser_without_role_keyword() {
     );
 
     let stmt = result.expect("GRANT语句解析应该成功");
-    assert_eq!(stmt.kind(), "GRANT");
+    assert_eq!(stmt.stmt.kind(), "GRANT");
 }
 
 #[test]
@@ -713,7 +713,7 @@ fn test_revoke_parser_basic() {
     assert!(result.is_ok(), "REVOKE基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("REVOKE语句解析应该成功");
-    assert_eq!(stmt.kind(), "REVOKE");
+    assert_eq!(stmt.stmt.kind(), "REVOKE");
 }
 
 #[test]
@@ -729,7 +729,7 @@ fn test_revoke_parser_without_role_keyword() {
     );
 
     let stmt = result.expect("REVOKE语句解析应该成功");
-    assert_eq!(stmt.kind(), "REVOKE");
+    assert_eq!(stmt.stmt.kind(), "REVOKE");
 }
 
 #[test]
@@ -773,7 +773,7 @@ fn test_describe_user_parser_basic() {
     );
 
     let stmt = result.expect("DESCRIBE USER语句解析应该成功");
-    assert_eq!(stmt.kind(), "DESCRIBE USER");
+    assert_eq!(stmt.stmt.kind(), "DESCRIBE USER");
 }
 
 #[test]
@@ -816,7 +816,7 @@ fn test_show_users_parser_basic() {
     );
 
     let stmt = result.expect("SHOW USERS语句解析应该成功");
-    assert_eq!(stmt.kind(), "SHOW USERS");
+    assert_eq!(stmt.stmt.kind(), "SHOW USERS");
 }
 
 #[test]
@@ -861,7 +861,7 @@ fn test_show_roles_parser_basic() {
     );
 
     let stmt = result.expect("SHOW ROLES语句解析应该成功");
-    assert_eq!(stmt.kind(), "SHOW ROLES");
+    assert_eq!(stmt.stmt.kind(), "SHOW ROLES");
 }
 
 #[test]
@@ -877,7 +877,7 @@ fn test_show_roles_parser_with_space() {
     );
 
     let stmt = result.expect("SHOW ROLES语句解析应该成功");
-    assert_eq!(stmt.kind(), "SHOW ROLES");
+    assert_eq!(stmt.stmt.kind(), "SHOW ROLES");
 }
 
 #[test]

@@ -135,7 +135,7 @@ fn test_go_parser_basic() {
     assert!(result.is_ok(), "GO基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]
@@ -148,7 +148,7 @@ fn test_go_parser_with_steps() {
     assert!(result.is_ok(), "GO带步数解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]
@@ -160,7 +160,7 @@ fn test_go_parser_reversely() {
     assert!(result.is_ok(), "GO反向遍历解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]
@@ -172,7 +172,7 @@ fn test_go_parser_bidirect() {
     assert!(result.is_ok(), "GO双向遍历解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]
@@ -198,7 +198,7 @@ fn test_go_parser_with_yield() {
     assert!(result.is_ok(), "GO带YIELD解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]
@@ -211,7 +211,7 @@ fn test_go_parser_complex() {
     assert!(result.is_ok(), "GO复杂查询解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]
@@ -263,7 +263,7 @@ fn test_lookup_parser_basic() {
     assert!(result.is_ok(), "LOOKUP基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("LOOKUP语句解析应该成功");
-    assert_eq!(stmt.kind(), "LOOKUP");
+    assert_eq!(stmt.stmt.kind(), "LOOKUP");
 }
 
 #[test]
@@ -276,7 +276,7 @@ fn test_lookup_parser_with_yield() {
     assert!(result.is_ok(), "LOOKUP基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("LOOKUP语句解析应该成功");
-    assert_eq!(stmt.kind(), "LOOKUP");
+    assert_eq!(stmt.stmt.kind(), "LOOKUP");
 }
 
 #[test]
@@ -289,7 +289,7 @@ fn test_lookup_parser_complex_condition() {
     assert!(result.is_ok(), "LOOKUP条件解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("LOOKUP语句解析应该成功");
-    assert_eq!(stmt.kind(), "LOOKUP");
+    assert_eq!(stmt.stmt.kind(), "LOOKUP");
 }
 
 #[test]
@@ -306,7 +306,7 @@ fn test_lookup_parser_edge() {
     );
 
     let stmt = result.expect("LOOKUP语句解析应该成功");
-    assert_eq!(stmt.kind(), "LOOKUP");
+    assert_eq!(stmt.stmt.kind(), "LOOKUP");
 }
 
 #[test]
@@ -339,7 +339,7 @@ fn test_fetch_parser_vertex() {
     assert!(result.is_ok(), "FETCH顶点解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("FETCH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FETCH");
+    assert_eq!(stmt.stmt.kind(), "FETCH");
 }
 
 #[test]
@@ -355,7 +355,7 @@ fn test_fetch_parser_multiple_vertices() {
     );
 
     let stmt = result.expect("FETCH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FETCH");
+    assert_eq!(stmt.stmt.kind(), "FETCH");
 }
 
 #[test]
@@ -367,7 +367,7 @@ fn test_fetch_parser_edge() {
     assert!(result.is_ok(), "FETCH边解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("FETCH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FETCH");
+    assert_eq!(stmt.stmt.kind(), "FETCH");
 }
 
 #[test]
@@ -383,7 +383,7 @@ fn test_fetch_parser_edge_with_rank() {
     );
 
     let stmt = result.expect("FETCH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FETCH");
+    assert_eq!(stmt.stmt.kind(), "FETCH");
 }
 
 #[test]
@@ -439,7 +439,7 @@ fn test_find_path_parser_shortest() {
     );
 
     let stmt = result.expect("FIND PATH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FIND PATH");
+    assert_eq!(stmt.stmt.kind(), "FIND PATH");
 }
 
 #[test]
@@ -455,7 +455,7 @@ fn test_find_path_parser_all() {
     );
 
     let stmt = result.expect("FIND PATH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FIND PATH");
+    assert_eq!(stmt.stmt.kind(), "FIND PATH");
 }
 
 #[test]
@@ -482,7 +482,7 @@ fn test_find_path_parser_noloop() {
     );
 
     let stmt = result2.expect("FIND PATH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FIND PATH");
+    assert_eq!(stmt.stmt.kind(), "FIND PATH");
 }
 
 #[test]
@@ -498,7 +498,7 @@ fn test_find_path_parser_with_upto() {
     );
 
     let stmt = result.expect("FIND PATH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FIND PATH");
+    assert_eq!(stmt.stmt.kind(), "FIND PATH");
 }
 
 #[test]
@@ -514,7 +514,7 @@ fn test_find_path_parser_reversely() {
     );
 
     let stmt = result.expect("FIND PATH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FIND PATH");
+    assert_eq!(stmt.stmt.kind(), "FIND PATH");
 }
 
 #[test]
@@ -530,7 +530,7 @@ fn test_find_path_parser_with_where() {
     );
 
     let stmt = result.expect("FIND PATH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FIND PATH");
+    assert_eq!(stmt.stmt.kind(), "FIND PATH");
 }
 
 #[test]
@@ -546,7 +546,7 @@ fn test_find_path_parser_complex() {
     );
 
     let stmt = result.expect("FIND PATH语句解析应该成功");
-    assert_eq!(stmt.kind(), "FIND PATH");
+    assert_eq!(stmt.stmt.kind(), "FIND PATH");
 }
 
 #[test]
@@ -584,7 +584,7 @@ fn test_subgraph_parser_basic() {
     );
 
     let stmt = result.expect("SUBGRAPH语句解析应该成功");
-    assert_eq!(stmt.kind(), "SUBGRAPH");
+    assert_eq!(stmt.stmt.kind(), "SUBGRAPH");
 }
 
 #[test]
@@ -601,7 +601,7 @@ fn test_subgraph_parser_multiple_vertices() {
     );
 
     let stmt = result.expect("SUBGRAPH语句解析应该成功");
-    assert_eq!(stmt.kind(), "SUBGRAPH");
+    assert_eq!(stmt.stmt.kind(), "SUBGRAPH");
 }
 
 #[test]
@@ -618,7 +618,7 @@ fn test_subgraph_parser_with_steps() {
     );
 
     let stmt = result.expect("SUBGRAPH语句解析应该成功");
-    assert_eq!(stmt.kind(), "SUBGRAPH");
+    assert_eq!(stmt.stmt.kind(), "SUBGRAPH");
 }
 
 #[test]
@@ -635,7 +635,7 @@ fn test_subgraph_parser_with_over() {
     );
 
     let stmt = result.expect("SUBGRAPH语句解析应该成功");
-    assert_eq!(stmt.kind(), "SUBGRAPH");
+    assert_eq!(stmt.stmt.kind(), "SUBGRAPH");
 }
 
 #[test]
@@ -786,7 +786,7 @@ fn test_delete_vertex_with_edge_syntax() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.kind(), "DELETE");
+    assert_eq!(stmt.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -802,7 +802,7 @@ fn test_delete_vertex_without_edge_syntax() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.kind(), "DELETE");
+    assert_eq!(stmt.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -818,7 +818,7 @@ fn test_delete_vertex_multiple_with_edge() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.kind(), "DELETE");
+    assert_eq!(stmt.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -834,7 +834,7 @@ fn test_delete_vertex_with_where_and_edge() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.kind(), "DELETE");
+    assert_eq!(stmt.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -940,7 +940,7 @@ fn test_yield_with_where_basic() {
     assert!(result.is_ok(), "GO带YIELD解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]
@@ -953,7 +953,7 @@ fn test_yield_with_where_complex() {
     assert!(result.is_ok(), "GO带YIELD解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]
@@ -966,7 +966,7 @@ fn test_yield_with_limit() {
     assert!(result.is_ok(), "GO带YIELD解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]
@@ -979,7 +979,7 @@ fn test_yield_with_skip_limit() {
     assert!(result.is_ok(), "GO带YIELD解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]
@@ -992,7 +992,7 @@ fn test_yield_with_where_limit() {
     assert!(result.is_ok(), "GO带YIELD解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("GO语句解析应该成功");
-    assert_eq!(stmt.kind(), "GO");
+    assert_eq!(stmt.stmt.kind(), "GO");
 }
 
 #[test]

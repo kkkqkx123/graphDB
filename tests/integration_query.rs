@@ -17,17 +17,17 @@ use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
 use graphdb::query::planner::PlannerConfig;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::query::request_context::{RequestContext as ReqCtx, RequestParams};
+use graphdb::query::query_request_context::QueryRequestContext;
 use graphdb::query::validator::Validator;
+use graphdb::query::validator::validator_trait::StatementType;
 use graphdb::query::QueryContext;
 use graphdb::storage::StorageClient;
 use std::sync::Arc;
 
 /// 创建测试用的查询上下文
 fn create_test_query_context() -> Arc<QueryContext> {
-    let request_params = RequestParams::new("TEST".to_string());
-    let req_ctx = Arc::new(ReqCtx::new(None, request_params));
-    Arc::new(QueryContext::new(req_ctx))
+    let request_context = Arc::new(QueryRequestContext::new("TEST".to_string()));
+    Arc::new(QueryContext::new(request_context))
 }
 
 // ==================== Parser 集成测试 ====================
@@ -124,7 +124,7 @@ fn test_parser_invalid_syntax() {
 
 #[test]
 fn test_validator_creation() {
-    let validator = Validator::new();
+    let validator = Validator::create(StatementType::Match);
     // 验证器创建成功
     let _ = validator;
 }
@@ -147,13 +147,13 @@ fn test_validator_match_basic() {
     let stmt = assert_ok(parser.parse());
 
     // 创建验证器并验证（使用新的API）
-    let mut validator = Validator::new();
+    let mut validator = Validator::create_from_stmt(&stmt.stmt).expect("创建验证器失败");
     let query_context = create_test_query_context();
 
     // 验证查询
-    let result = validator.validate(&stmt, query_context);
+    let result = validator.validate(stmt.stmt, query_context);
     // 验证结果取决于具体实现，可能成功或返回特定错误
-    assert!(result.is_ok() || result.is_err());
+    assert!(result.success || !result.success);
 }
 
 #[test]
@@ -163,12 +163,12 @@ fn test_validator_go_statement() {
     let stmt = assert_ok(parser.parse());
 
     // 创建验证器并验证（使用新的API）
-    let mut validator = Validator::new();
+    let mut validator = Validator::create_from_stmt(&stmt.stmt).expect("创建验证器失败");
     let query_context = create_test_query_context();
 
     // GO语句验证
-    let result = validator.validate(&stmt, query_context);
-    assert!(result.is_ok() || result.is_err());
+    let result = validator.validate(stmt.stmt, query_context);
+    assert!(result.success || !result.success);
 }
 
 #[test]
@@ -178,12 +178,12 @@ fn test_validator_use_statement() {
     let stmt = assert_ok(parser.parse());
 
     // 创建验证器并验证（使用新的API）
-    let mut validator = Validator::new();
+    let mut validator = Validator::create_from_stmt(&stmt.stmt).expect("创建验证器失败");
     let query_context = create_test_query_context();
 
     // USE语句验证
-    let result = validator.validate(&stmt, query_context);
-    assert!(result.is_ok() || result.is_err());
+    let result = validator.validate(stmt.stmt, query_context);
+    assert!(result.success || !result.success);
 }
 
 // ==================== Planner 集成测试 ====================

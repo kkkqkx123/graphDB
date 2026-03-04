@@ -13,6 +13,7 @@ use graphdb::query::planner::rewrite::{
     create_default_rewriter, CollapseConsecutiveProjectRule, CollapseProjectRule,
     CombineFilterRule, DedupEliminationRule, EliminateAppendVerticesRule,
     EliminateEmptySetOperationRule, EliminateFilterRule, EliminateRowCollectRule,
+    EliminateSortRule,
     MergeGetNbrsAndDedupRule, MergeGetNbrsAndProjectRule, MergeGetVerticesAndDedupRule,
     MergeGetVerticesAndProjectRule, PlanRewriter, ProjectionPushDownRule, PushEFilterDownRule,
     PushFilterDownAggregateRule, PushFilterDownAllPathsRule, PushFilterDownCrossJoinRule,
@@ -29,7 +30,7 @@ use graphdb::query::planner::rewrite::{
 #[test]
 fn test_rule_registry_default() {
     let registry = RuleRegistry::default();
-    assert_eq!(registry.len(), 34, "默认注册表应包含 34 个规则");
+    assert_eq!(registry.len(), 35, "默认注册表应包含 35 个规则");
     assert!(!registry.is_empty(), "注册表不应为空");
 }
 
@@ -45,7 +46,7 @@ fn test_rule_registry_iter() {
         assert!(name.ends_with("Rule"), "规则名称应以 'Rule' 结尾");
     }
 
-    assert_eq!(count, 34, "应迭代所有 34 个规则");
+    assert_eq!(count, 35, "应迭代所有 35 个规则");
 }
 
 #[test]
@@ -68,7 +69,7 @@ fn test_rule_registry_add() {
 #[test]
 fn test_rule_registry_clear() {
     let mut registry = RuleRegistry::default();
-    assert_eq!(registry.len(), 34, "默认注册表应有 34 个规则");
+    assert_eq!(registry.len(), 35, "默认注册表应有 35 个规则");
 
     registry.clear();
     assert_eq!(registry.len(), 0, "清空后长度应为 0");
@@ -80,7 +81,7 @@ fn test_rule_registry_into_vec() {
     let registry = RuleRegistry::default();
     let rules = registry.into_vec();
 
-    assert_eq!(rules.len(), 34, "转换后的 Vec 应包含 34 个规则");
+    assert_eq!(rules.len(), 35, "转换后的 Vec 应包含 35 个规则");
 }
 
 // ==================== RewriteRule 集成测试 ====================
@@ -98,6 +99,7 @@ fn test_rewrite_rule_names() {
         "EliminateRowCollectRule",
         "EliminateEmptySetOperationRule",
         "DedupEliminationRule",
+        "EliminateSortRule",
         // 合并规则
         "CombineFilterRule",
         "CollapseProjectRule",
@@ -349,7 +351,7 @@ fn test_rule_names_unique() {
     names.sort();
     names.dedup();
 
-    assert_eq!(names.len(), 34, "所有规则名称应唯一");
+    assert_eq!(names.len(), 35, "所有规则名称应唯一");
 }
 
 // ==================== 宏生成代码验证测试 ====================

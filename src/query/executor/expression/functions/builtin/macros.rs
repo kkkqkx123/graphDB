@@ -81,6 +81,13 @@ macro_rules! define_unary_float_fn {
             use crate::core::value::NullType;
             use crate::core::Value;
 
+            if args.is_empty() {
+                return Err(crate::core::error::ExpressionError::new(
+                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                    concat!($desc, "函数需要1个参数"),
+                ));
+            }
+
             let op = $op;
             match &args[0] {
                 Value::Int(i) => Ok(Value::Float(op(*i as f64))),
@@ -105,6 +112,13 @@ macro_rules! define_unary_numeric_fn {
             use crate::core::value::NullType;
             use crate::core::Value;
 
+            if args.is_empty() {
+                return Err(crate::core::error::ExpressionError::new(
+                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                    concat!($desc, "函数需要1个参数"),
+                ));
+            }
+
             match &args[0] {
                 Value::Int(i) => $int_op(*i),
                 Value::Float(f) => $float_op(*f),
@@ -127,6 +141,13 @@ macro_rules! define_unary_string_fn {
         ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
             use crate::core::value::NullType;
             use crate::core::Value;
+
+            if args.is_empty() {
+                return Err(crate::core::error::ExpressionError::new(
+                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                    concat!($desc, "函数需要1个参数"),
+                ));
+            }
 
             let op = $op;
             match &args[0] {
@@ -151,6 +172,13 @@ macro_rules! define_datetime_extractor {
             use crate::core::value::NullType;
             use crate::core::Value;
 
+            if args.is_empty() {
+                return Err(crate::core::error::ExpressionError::new(
+                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                    concat!(stringify!($name), "函数需要1个参数"),
+                ));
+            }
+
             match &args[0] {
                 Value::Date(d) => Ok(Value::Int(d.$date_field as i64)),
                 Value::DateTime(dt) => Ok(Value::Int(dt.$datetime_field as i64)),
@@ -168,6 +196,13 @@ macro_rules! define_datetime_extractor {
         ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
             use crate::core::value::NullType;
             use crate::core::Value;
+
+            if args.is_empty() {
+                return Err(crate::core::error::ExpressionError::new(
+                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                    concat!(stringify!($name), "函数需要1个参数"),
+                ));
+            }
 
             match &args[0] {
                 Value::Time(t) => Ok(Value::Int(t.$time_field as i64)),
@@ -212,6 +247,13 @@ macro_rules! define_binary_numeric_fn {
             use crate::core::value::NullType;
             use crate::core::Value;
 
+            if args.len() != 2 {
+                return Err(crate::core::error::ExpressionError::new(
+                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                    concat!($desc, "函数需要2个参数"),
+                ));
+            }
+
             let op = $op;
             match (&args[0], &args[1]) {
                 (Value::Int(a), Value::Int(b)) => op(*a as f64, *b as f64),
@@ -238,6 +280,13 @@ macro_rules! define_binary_string_bool_fn {
             use crate::core::value::NullType;
             use crate::core::Value;
 
+            if args.len() != 2 {
+                return Err(crate::core::error::ExpressionError::new(
+                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                    concat!($desc, "函数需要2个参数"),
+                ));
+            }
+
             let op = $op;
             match (&args[0], &args[1]) {
                 (Value::String(a), Value::String(b)) => Ok(Value::Bool(op(a, b))),
@@ -260,6 +309,13 @@ macro_rules! define_binary_geography_fn {
         ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
             use crate::core::value::NullType;
             use crate::core::Value;
+
+            if args.len() != 2 {
+                return Err(crate::core::error::ExpressionError::new(
+                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                    concat!($desc, "函数需要2个参数"),
+                ));
+            }
 
             let op = $op;
             match (&args[0], &args[1]) {

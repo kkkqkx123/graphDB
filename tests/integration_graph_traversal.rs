@@ -11,7 +11,7 @@ mod common;
 
 use common::TestStorage;
 use graphdb::core::vertex_edge_path::Tag;
-use graphdb::core::DataType;
+use graphdb::core::types::ExpressionAnalysisContext;
 use graphdb::core::{Edge, Path, Step, Value, Vertex};
 use graphdb::query::executor::base::{EdgeDirection as ExecEdgeDirection, Executor};
 use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
@@ -85,6 +85,7 @@ fn test_multi_shortest_path_executor_creation() {
         ExecEdgeDirection::Out,
         None,
         10,
+        Arc::new(ExpressionAnalysisContext::new()),
     );
 
     assert_eq!(executor.id(), 1);
@@ -105,6 +106,7 @@ fn test_multi_shortest_path_with_edge_filter() {
         ExecEdgeDirection::Out,
         Some(vec!["KNOWS".to_string()]),
         10,
+        Arc::new(ExpressionAnalysisContext::new()),
     );
 
     assert_eq!(executor.id(), 1);
@@ -124,6 +126,7 @@ fn test_multi_shortest_path_bidirectional_direction() {
         ExecEdgeDirection::Both,
         None,
         10,
+        Arc::new(ExpressionAnalysisContext::new()),
     );
 
     assert_eq!(executor.id(), 1);
@@ -166,7 +169,7 @@ fn test_subgraph_executor_creation() {
 
     let config = SubgraphConfig::new(2);
 
-    let executor = SubgraphExecutor::new(1, storage.clone(), vec![Value::from("alice")], config);
+    let executor = SubgraphExecutor::new(1, storage.clone(), vec![Value::from("alice")], config, Arc::new(ExpressionAnalysisContext::new()));
 
     assert_eq!(executor.id(), 1);
     assert_eq!(executor.name(), "SubgraphExecutor");
@@ -189,6 +192,7 @@ fn test_subgraph_executor_multiple_start_vids() {
             Value::from("charlie"),
         ],
         config,
+        Arc::new(ExpressionAnalysisContext::new()),
     );
 
     assert_eq!(executor.id(), 1);
@@ -295,6 +299,7 @@ fn test_multi_shortest_path_empty_start() {
         ExecEdgeDirection::Out,
         None,
         10,
+        Arc::new(ExpressionAnalysisContext::new()),
     );
 
     assert_eq!(executor.id(), 1);
@@ -314,6 +319,7 @@ fn test_multi_shortest_path_empty_end() {
         ExecEdgeDirection::Out,
         None,
         10,
+        Arc::new(ExpressionAnalysisContext::new()),
     );
 
     assert_eq!(executor.id(), 1);
@@ -332,6 +338,7 @@ fn test_subgraph_empty_start() {
         storage.clone(),
         vec![], // 空起点
         config,
+        Arc::new(ExpressionAnalysisContext::new()),
     );
 
     assert_eq!(executor.id(), 1);
@@ -345,7 +352,7 @@ fn test_subgraph_zero_steps() {
 
     let config = SubgraphConfig::new(0); // 0步
 
-    let executor = SubgraphExecutor::new(1, storage.clone(), vec![Value::from("alice")], config);
+    let executor = SubgraphExecutor::new(1, storage.clone(), vec![Value::from("alice")], config, Arc::new(ExpressionAnalysisContext::new()));
 
     assert_eq!(executor.id(), 1);
     // 验证0步配置下执行器仍能创建
@@ -408,12 +415,12 @@ fn test_expand_executor_with_loop() {
 
     // 创建默认执行器（with_loop = false）
     let executor_default =
-        ExpandExecutor::new(1, storage.clone(), ExecEdgeDirection::Out, None, Some(3));
+        ExpandExecutor::new(1, storage.clone(), ExecEdgeDirection::Out, None, Some(3), Arc::new(ExpressionAnalysisContext::new()));
     assert!(!executor_default.with_loop);
 
     // 创建允许自环边的执行器
     let executor_with_loop =
-        ExpandExecutor::new(2, storage.clone(), ExecEdgeDirection::Out, None, Some(3))
+        ExpandExecutor::new(2, storage.clone(), ExecEdgeDirection::Out, None, Some(3), Arc::new(ExpressionAnalysisContext::new()))
             .with_loop(true);
     assert!(executor_with_loop.with_loop);
 }
@@ -434,6 +441,7 @@ fn test_all_paths_executor_with_loop() {
         ExecEdgeDirection::Both,
         None,
         5,
+        Arc::new(ExpressionAnalysisContext::new()),
     );
     assert!(!executor_default.with_loop);
 
@@ -446,6 +454,7 @@ fn test_all_paths_executor_with_loop() {
         ExecEdgeDirection::Both,
         None,
         5,
+        Arc::new(ExpressionAnalysisContext::new()),
     )
     .with_loop(true);
     assert!(executor_with_loop.with_loop);
@@ -473,6 +482,7 @@ fn test_weighted_shortest_path_executor_creation() {
         Some(vec!["connect".to_string()]),
         Some(10),
         ShortestPathAlgorithmType::Dijkstra,
+        Arc::new(ExpressionAnalysisContext::new()),
     )
     .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
 
@@ -500,6 +510,7 @@ fn test_weighted_shortest_path_with_ranking() {
         None,
         Some(5),
         ShortestPathAlgorithmType::Dijkstra,
+        Arc::new(ExpressionAnalysisContext::new()),
     )
     .with_weight_config(EdgeWeightConfig::Ranking);
 
@@ -526,6 +537,7 @@ fn test_weighted_shortest_path_astar() {
         None,
         Some(10),
         ShortestPathAlgorithmType::AStar,
+        Arc::new(ExpressionAnalysisContext::new()),
     )
     .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
     .with_heuristic_config(HeuristicFunction::Zero);
@@ -549,7 +561,7 @@ fn test_weighted_path_query_parser_integration() {
     );
 
     let stmt = result.expect("解析应该成功");
-    assert_eq!(stmt.kind(), "FIND PATH");
+    assert_eq!(stmt.stmt.kind(), "FIND PATH");
 }
 
 #[test]

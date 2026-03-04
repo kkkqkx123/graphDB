@@ -11,8 +11,8 @@ mod common;
 
 use std::sync::Arc;
 
-use graphdb::api::server::permission_checker::OperationType;
-use graphdb::api::server::permission_manager::GOD_SPACE_ID;
+use graphdb::api::server::permission::OperationType;
+use graphdb::api::server::permission::GOD_SPACE_ID;
 use graphdb::api::server::session::ClientSession;
 use graphdb::api::server::{
     Authenticator, PasswordAuthenticator, Permission, PermissionChecker, PermissionManager,
@@ -270,7 +270,7 @@ fn test_admin_grant_role_permissions() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    pm.grant_role("admin1", space_id, RoleType::Admin)
+    checker.permission_manager().grant_role("admin1", space_id, RoleType::Admin)
         .expect("授予Admin角色应该成功");
     let session = create_client_session_with_role("admin1", space_id, RoleType::Admin);
 
@@ -301,7 +301,7 @@ fn test_dba_grant_role_permissions() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    pm.grant_role("dba1", space_id, RoleType::Dba)
+    checker.permission_manager().grant_role("dba1", space_id, RoleType::Dba)
         .expect("授予Dba角色应该成功");
     let session = create_client_session_with_role("dba1", space_id, RoleType::Dba);
 
@@ -332,7 +332,7 @@ fn test_user_cannot_grant_any_role() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    pm.grant_role("user1", space_id, RoleType::User)
+    checker.permission_manager().grant_role("user1", space_id, RoleType::User)
         .expect("授予User角色应该成功");
     let session = create_client_session_with_role("user1", space_id, RoleType::User);
 
@@ -355,7 +355,7 @@ fn test_cannot_modify_own_role() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    pm.grant_role("admin1", space_id, RoleType::Admin)
+    checker.permission_manager().grant_role("admin1", space_id, RoleType::Admin)
         .expect("授予Admin角色应该成功");
     let session = create_client_session_with_role("admin1", space_id, RoleType::Admin);
 
@@ -524,25 +524,25 @@ fn test_permission_checker_role_operations() {
 
     // God可以授予任何角色
     assert!(checker
-        .can_write_role(&god_session, 1, RoleType::Admin, "target")
+        .can_write_role(&god_session, 1, RoleType::Admin)
         .is_ok());
 
     // Admin可以授予某些角色
     assert!(checker
-        .can_write_role(&admin_session, 1, RoleType::User, "target")
+        .can_write_role(&admin_session, 1, RoleType::User)
         .is_ok());
     assert!(checker
-        .can_write_role(&admin_session, 1, RoleType::Guest, "target")
+        .can_write_role(&admin_session, 1, RoleType::Guest)
         .is_ok());
 
     // Admin不能授予God
     assert!(checker
-        .can_write_role(&admin_session, 1, RoleType::God, "target")
+        .can_write_role(&admin_session, 1, RoleType::God)
         .is_err());
 
     // Admin不能修改自己的角色
     assert!(checker
-        .can_write_role(&admin_session, 1, RoleType::User, "admin1")
+        .can_write_role(&admin_session, 1, RoleType::User)
         .is_err());
 }
 

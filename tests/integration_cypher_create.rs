@@ -8,7 +8,7 @@
 
 mod common;
 
-use common::{storage_helpers::create_test_space, TestStorage};
+use common::TestStorage;
 
 use graphdb::core::stats::StatsManager;
 use graphdb::query::optimizer::OptimizerEngine;
@@ -31,7 +31,7 @@ fn test_create_cypher_node_basic() {
     );
 
     let stmt = result.expect("CREATE语句解析应该成功");
-    assert_eq!(stmt.kind(), "CREATE");
+    assert_eq!(stmt.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -105,7 +105,7 @@ fn test_create_cypher_edge_basic() {
     );
 
     let stmt = result.expect("CREATE语句解析应该成功");
-    assert_eq!(stmt.kind(), "CREATE");
+    assert_eq!(stmt.stmt.kind(), "CREATE");
 }
 
 #[test]

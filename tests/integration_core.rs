@@ -13,11 +13,10 @@ use graphdb::core::types::DataType;
 use graphdb::core::value::{
     DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
 };
-// Vertex, Edge, Path 在需要时通过 graphdb::core 使用
 use graphdb::core::types::expression::Expression;
-use graphdb::expression::context::DefaultExpressionContext;
-use graphdb::expression::functions::FunctionRegistry;
-use graphdb::expression::{ExpressionContext, ExpressionEvaluator};
+use graphdb::query::executor::expression::evaluation_context::DefaultExpressionContext;
+use graphdb::query::executor::expression::functions::FunctionRegistry;
+use graphdb::query::executor::expression::{ExpressionContext, ExpressionEvaluator};
 
 // ==================== Value 类型测试 ====================
 
