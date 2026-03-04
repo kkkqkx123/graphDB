@@ -150,14 +150,20 @@ mod tests {
         Arc::new(Mutex::new(storage))
     }
 
+    fn create_test_context() -> Arc<ExpressionContext> {
+        Arc::new(ExpressionContext::new())
+    }
+
     #[test]
     fn test_intersect_basic() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = IntersectExecutor::new(
             1,
             storage,
             "left_input".to_string(),
             "right_input".to_string(),
+            context,
         );
 
         // 设置测试数据
@@ -207,11 +213,13 @@ mod tests {
     #[test]
     fn test_intersect_no_common_rows() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = IntersectExecutor::new(
             2,
             storage,
             "left_no_common".to_string(),
             "right_no_common".to_string(),
+            context,
         );
 
         // 设置没有共同行的数据集
@@ -254,11 +262,13 @@ mod tests {
     #[test]
     fn test_intersect_empty_left() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = IntersectExecutor::new(
             3,
             storage,
             "empty_left".to_string(),
             "right_input".to_string(),
+            context,
         );
 
         // 设置空的左数据集和非空的右数据集
@@ -298,11 +308,13 @@ mod tests {
     #[test]
     fn test_intersect_empty_right() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = IntersectExecutor::new(
             4,
             storage,
             "left_input".to_string(),
             "empty_right".to_string(),
+            context,
         );
 
         // 设置非空的左数据集和空的右数据集
@@ -342,11 +354,13 @@ mod tests {
     #[test]
     fn test_intersect_both_empty() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = IntersectExecutor::new(
             5,
             storage,
             "empty_left".to_string(),
             "empty_right".to_string(),
+            context,
         );
 
         // 设置两个空数据集
@@ -382,8 +396,9 @@ mod tests {
     #[test]
     fn test_intersect_with_duplicates() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor =
-            IntersectExecutor::new(6, storage, "left_dup".to_string(), "right_dup".to_string());
+            IntersectExecutor::new(6, storage, "left_dup".to_string(), "right_dup".to_string(), context);
 
         // 设置包含重复行的数据集
         let left_dataset = DataSet {

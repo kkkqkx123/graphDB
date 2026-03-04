@@ -974,14 +974,414 @@ impl AggregateFunctionSpec {
 4. **AggregateFunctionSpec 使用 ContextualExpression** - 需要修改聚合函数规范
 5. **其他执行器修改** - 还有约 80+ 个执行器需要修改 new 方法签名
 
-### 编译状态
+---
 
-- ✅ 当前代码编译通过
-- ⚠️ 仍有大量执行器需要修改以支持 ExpressionContext
+## 后续修改方向
 
-### 下一步工作
+### 一、类型系统统一
 
-1. 继续修改剩余的执行器，使其支持 ExpressionContext
-2. 修改 JoinCondition、ProjectColumn 等类型，使用 ContextualExpression
-3. 更新所有相关的测试用例
-4. 运行完整的测试套件，确保没有破坏现有功能
+#### 1.1 核心数据类型改造
+**目标**：将所有使用 Expression 的地方改为使用 ContextualExpression
+
+**涉及范围**：
+- `JoinCondition` - 连接条件
+- `ProjectColumn` - 投影列
+- `AggregateFunctionSpec` - 聚合函数规范
+- `FilterCondition` - 过滤条件
+- `SortKey` - 排序键
+
+**修改步骤**：
+1. 修改类型定义，将 `Expression` 字段改为 `ContextualExpression`
+2. 更新所有构造函数和访问方法
+3. 修改所有使用这些类型的地方
+4. 更新相关的序列化/反序列化逻辑
+
+**预期收益**：
+- 统一表达式类型，避免类型转换
+- 支持表达式元数据（如确定性、复杂度等）
+- 便于优化器进行基于元数据的优化
+
+#### 1.2 表达式提取方式统一
+**目标**：提供统一的表达式提取接口
+
+**当前问题**：
+- 有些地方直接访问 `expression()` 方法
+- 有些地方使用 `get_expression()` 方法
+- 有些地方手动解包 Option
+
+**解决方案**：
+```rust
+// 统一的表达式提取 trait
+pub trait ExpressionExtractor {
+    fn extract_expression(&self) -> Option<&Expression>;
+    fn extract_expression_mut(&mut self) -> Option<&mut Expression>;
+    fn extract_expression_or_default(&self) -> Expression {
+        self.extract_expression().cloned()
+            .unwrap_or_else(|| Expression::Literal(Value::Null(NullType::Null)))
+    }
+}
+```
+
+### 二、执行器层全面改造
+
+#### 2.1 剩余执行器改造
+**目标**：所有执行器都支持 ExpressionContext
+
+**需要改造的执行器分类**：
+
+**图遍历执行器**：
+- ExpandExecutor
+- TraverseExecutor
+- ShortestPathExecutor
+- 其他路径相关执行器
+
+**数据处理执行器**：
+- LimitExecutor
+- SortExecutor
+- TopNExecutor
+- SampleExecutor
+- AggregateExecutor
+- DedupExecutor
+
+**控制流执行器**：
+- LoopExecutor
+- SelectExecutor
+- 其他控制流执行器
+
+**DDL/DML 执行器**：
+- CreateSpaceExecutor
+- DropSpaceExecutor
+- CreateTagExecutor
+- DropTagExecutor
+- CreateEdgeExecutor
+- DropEdgeExecutor
+- 其他 DDL/DML 执行器
+
+**修改模式**：
+```rust
+// 修改前
+pub fn new(id: i64, storage: Arc<Mutex<S>>, ...) -> Self {
+    Self {
+        base: BaseExecutor::new(id, "ExecutorName".to_string(), storage),
+        ...
+    }
+}
+
+// 修改后
+pub fn new(id: i64, storage: Arc<Mutex<S>>, ..., expr_context: Arc<ExpressionContext>) -> Self {
+    Self {
+        base: BaseExecutor::new(id, "ExecutorName".to_string(), storage, expr_context),
+        ...
+    }
+}
+```
+
+#### 2.2 Factory 层全面更新
+**目标**：ExecutorFactory 中所有执行器创建都传递 ExpressionContext
+
+**修改范围**：
+- `create_executor` 方法中的所有执行器创建
+- 确保从 QueryContext 获取 ExpressionContext
+- 统一传递方式
+
+### 三、优化器层深化
+
+#### 3.1 表达式分析缓存利用
+**目标**：充分利用 ExpressionContext 的缓存功能
+
+**实现方案**：
+1. 在 ExpressionAnalyzer 中添加缓存检查
+2. 优先使用缓存的分析结果
+3. 只在必要时重新分析
+
+**示例代码**：
+```rust
+pub fn analyze(&self, ctx_expr: &ContextualExpression) -> ExpressionAnalysis {
+    // 检查缓存
+    if let Some(expr_id) = ctx_expr.id() {
+        if let Some(cached) = self.expression_context.get_analysis(&expr_id) {
+            return cached;
+        }
+    }
+    
+    // 执行分析
+    let analysis = self.analyze_internal(ctx_expr);
+    
+    // 缓存结果
+    if let Some(expr_id) = ctx_expr.id() {
+        self.expression_context.set_analysis(&expr_id, analysis.clone());
+    }
+    
+    analysis
+}
+```
+
+#### 3.2 基于元数据的优化
+**目标**：利用表达式元数据进行更智能的优化
+
+**优化场景**：
+1. **确定性检查**：跳过非确定性表达式的某些优化
+2. **复杂度评估**：根据复杂度选择不同的执行策略
+3. **引用计数**：优化重复引用的表达式
+4. **属性访问分析**：优化属性访问模式
+
+### 四、测试和验证
+
+#### 4.1 单元测试更新
+**目标**：所有单元测试都使用新的类型系统
+
+**更新范围**：
+- 所有执行器的单元测试
+- 优化器的单元测试
+- 表达式系统的单元测试
+
+#### 4.2 集成测试更新
+**目标**：确保整个查询流程正常工作
+
+**测试场景**：
+- 简单查询（SELECT、WHERE、LIMIT）
+- 复杂查询（JOIN、AGGREGATE、SUBQUERY）
+- 图遍历查询（MATCH、PATH）
+- DDL/DML 操作
+
+#### 4.3 性能测试
+**目标**：验证优化效果
+
+**测试指标**：
+- 查询执行时间
+- 内存使用量
+- 表达式分析次数
+- 缓存命中率
+
+---
+
+## 修改任务清单
+
+### 阶段一：核心类型改造（高优先级）
+
+#### 任务 1.1：修改 JoinCondition 类型
+- **文件**：`src/core/types/join_condition.rs`（或相关文件）
+- **工作量**：2-3 小时
+- **步骤**：
+  1. 修改 JoinCondition 结构体，将 Expression 改为 ContextualExpression
+  2. 更新所有构造函数
+  3. 更新所有使用 JoinCondition 的地方
+  4. 运行编译检查
+  5. 更新相关测试
+
+#### 任务 1.2：修改 ProjectColumn 类型
+- **文件**：`src/query/executor/result_processing/projection.rs`
+- **工作量**：1-2 小时
+- **步骤**：
+  1. 修改 ProjectionColumn 结构体，将 Expression 改为 ContextualExpression
+  2. 更新所有构造函数
+  3. 更新所有使用 ProjectionColumn 的地方
+  4. 运行编译检查
+  5. 更新相关测试
+
+#### 任务 1.3：修改 AggregateFunctionSpec 类型
+- **文件**：`src/query/executor/data_processing/aggregation.rs`（或相关文件）
+- **工作量**：2-3 小时
+- **步骤**：
+  1. 修改 AggregateFunctionSpec 结构体
+  2. 更新所有构造函数
+  3. 更新所有使用 AggregateFunctionSpec 的地方
+  4. 运行编译检查
+  5. 更新相关测试
+
+### 阶段二：执行器层改造（中优先级）
+
+#### 任务 2.1：修改图遍历执行器
+- **文件**：
+  - `src/query/executor/data_processing/graph_traversal/expand.rs`
+  - `src/query/executor/data_processing/graph_traversal/traverse.rs`
+  - `src/query/executor/data_processing/graph_traversal/shortest_path.rs`
+  - `src/query/executor/data_processing/graph_traversal/all_paths.rs`
+- **工作量**：4-6 小时
+- **步骤**：
+  1. 修改每个执行器的 `new` 方法，添加 `expr_context` 参数
+  2. 更新 factory.rs 中的创建调用
+  3. 运行编译检查
+  4. 更新相关测试
+
+#### 任务 2.2：修改数据处理执行器
+- **文件**：
+  - `src/query/executor/result_processing/limit.rs`
+  - `src/query/executor/result_processing/sort.rs`
+  - `src/query/executor/result_processing/top_n.rs`
+  - `src/query/executor/result_processing/sample.rs`
+  - `src/query/executor/data_processing/aggregation.rs`
+  - `src/query/executor/result_processing/dedup.rs`
+- **工作量**：6-8 小时
+- **步骤**：
+  1. 修改每个执行器的 `new` 方法
+  2. 更新 factory.rs 中的创建调用
+  3. 运行编译检查
+  4. 更新相关测试
+
+#### 任务 2.3：修改控制流执行器
+- **文件**：
+  - `src/query/executor/control_flow/loop.rs`
+  - `src/query/executor/control_flow/select.rs`
+  - 其他控制流执行器
+- **工作量**：3-4 小时
+- **步骤**：
+  1. 修改每个执行器的 `new` 方法
+  2. 更新 factory.rs 中的创建调用
+  3. 运行编译检查
+  4. 更新相关测试
+
+#### 任务 2.4：修改 DDL/DML 执行器
+- **文件**：
+  - `src/query/executor/ddl/*.rs`
+  - `src/query/executor/dml/*.rs`
+- **工作量**：8-10 小时
+- **步骤**：
+  1. 修改每个执行器的 `new` 方法
+  2. 更新 factory.rs 中的创建调用
+  3. 运行编译检查
+  4. 更新相关测试
+
+### 阶段三：优化器层深化（中优先级）
+
+#### 任务 3.1：实现表达式分析缓存
+- **文件**：
+  - `src/query/optimizer/analysis/expression.rs`
+  - `src/core/types/expression/context.rs`
+- **工作量**：3-4 小时
+- **步骤**：
+  1. 在 ExpressionAnalyzer 中添加缓存逻辑
+  2. 实现 get_analysis 和 set_analysis 方法
+  3. 更新所有分析方法使用缓存
+  4. 运行编译检查
+  5. 添加缓存命中率测试
+
+#### 任务 3.2：实现基于元数据的优化
+- **文件**：
+  - `src/query/optimizer/strategy/*.rs`
+- **工作量**：6-8 小时
+- **步骤**：
+  1. 在各个优化器中添加元数据检查
+  2. 实现基于确定性的优化
+  3. 实现基于复杂度的优化
+  4. 运行编译检查
+  5. 添加性能测试
+
+### 阶段四：测试和验证（高优先级）
+
+#### 任务 4.1：更新单元测试
+- **文件**：所有 `tests/` 目录下的测试文件
+- **工作量**：8-10 小时
+- **步骤**：
+  1. 识别所有需要更新的测试
+  2. 更新测试代码，使用新的类型
+  3. 运行所有单元测试
+  4. 修复失败的测试
+
+#### 任务 4.2：更新集成测试
+- **文件**：`tests/integration_test.rs`（或类似文件）
+- **工作量**：6-8 小时
+- **步骤**：
+  1. 识别所有集成测试
+  2. 更新测试代码
+  3. 运行所有集成测试
+  4. 修复失败的测试
+
+#### 任务 4.3：添加性能测试
+- **文件**：新建 `benches/expression_system_bench.rs`
+- **工作量**：4-6 小时
+- **步骤**：
+  1. 设计性能测试用例
+  2. 实现性能测试
+  3. 运行基准测试
+  4. 分析性能数据
+  5. 优化性能瓶颈
+
+### 阶段五：文档和清理（低优先级）
+
+#### 任务 5.1：更新文档
+- **文件**：
+  - `docs/architecture/expression_system_integration.md`
+  - `docs/api/executor.md`
+  - 其他相关文档
+- **工作量**：4-6 小时
+- **步骤**：
+  1. 更新架构文档
+  2. 更新 API 文档
+  3. 添加使用示例
+  4. 添加迁移指南
+
+#### 任务 5.2：代码清理
+- **文件**：所有修改过的文件
+- **工作量**：2-3 小时
+- **步骤**：
+  1. 删除未使用的导入
+  2. 删除向后兼容的代码
+  3. 统一代码风格
+  4. 运行 `cargo fmt`
+  5. 运行 `cargo clippy`
+
+---
+
+## 总体工作量估算
+
+| 阶段 | 任务数 | 预估工作量 | 优先级 |
+|------|--------|------------|--------|
+| 阶段一：核心类型改造 | 3 | 5-8 小时 | 高 |
+| 阶段二：执行器层改造 | 4 | 21-28 小时 | 中 |
+| 阶段三：优化器层深化 | 2 | 9-12 小时 | 中 |
+| 阶段四：测试和验证 | 3 | 18-24 小时 | 高 |
+| 阶段五：文档和清理 | 2 | 6-9 小时 | 低 |
+| **总计** | **14** | **59-81 小时** | - |
+
+---
+
+## 风险和注意事项
+
+### 技术风险
+
+1. **类型系统复杂性**
+   - 风险：ExpressionContext trait 和 ExpressionContext struct 的命名冲突可能导致混淆
+   - 缓解：使用明确的别名和注释
+
+2. **向后兼容性**
+   - 风险：大量修改可能破坏现有功能
+   - 缓解：充分测试，分阶段发布
+
+3. **性能影响**
+   - 风险：表达式缓存可能增加内存使用
+   - 缓解：实现缓存淘汰策略，监控内存使用
+
+### 实施建议
+
+1. **分阶段实施**：按照上述阶段顺序逐步实施
+2. **充分测试**：每个阶段完成后都要进行充分测试
+3. **持续集成**：确保每次修改都能通过 CI/CD
+4. **性能监控**：持续监控性能指标，及时发现性能退化
+5. **文档同步**：代码修改和文档更新同步进行
+
+---
+
+## 成功标准
+
+### 功能完整性
+- ✅ 所有执行器都支持 ExpressionContext
+- ✅ 所有核心类型都使用 ContextualExpression
+- ✅ 查询处理流程完整可用
+
+### 性能指标
+- ✅ 查询执行时间不增加（或减少）
+- ✅ 表达式分析次数显著减少
+- ✅ 缓存命中率 > 80%
+
+### 代码质量
+- ✅ 编译无错误
+- ✅ 所有测试通过
+- ✅ 代码覆盖率 > 80%
+- ✅ 无 clippy 警告
+
+### 文档完整性
+- ✅ 架构文档更新
+- ✅ API 文档完整
+- ✅ 使用示例清晰
+- ✅ 迁移指南详细

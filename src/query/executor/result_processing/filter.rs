@@ -46,16 +46,22 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
             storage,
         );
 
-        let expr = match condition.expression() {
-            Some(meta) => meta.inner().clone(),
-            None => Expression::Literal(Value::Null(NullType::Null)),
-        };
+        // 从 ContextualExpression 提取 Expression
+        let expr = Self::extract_expression(&condition);
 
         Self {
             base,
             condition: expr,
             input_executor: None,
             parallel_config: ParallelConfig::default(),
+        }
+    }
+
+    /// 从 ContextualExpression 提取 Expression 的辅助方法
+    fn extract_expression(ctx_expr: &ContextualExpression) -> Expression {
+        match ctx_expr.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => Expression::Literal(Value::Null(NullType::Null)),
         }
     }
 

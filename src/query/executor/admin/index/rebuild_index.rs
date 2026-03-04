@@ -5,6 +5,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
@@ -20,9 +21,9 @@ pub struct RebuildTagIndexExecutor<S: StorageClient> {
 
 impl<S: StorageClient> RebuildTagIndexExecutor<S> {
     /// 创建新的 RebuildTagIndexExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "RebuildTagIndexExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "RebuildTagIndexExecutor".to_string(), storage, expr_context),
             space_name,
             index_name,
         }
@@ -100,9 +101,9 @@ pub struct RebuildEdgeIndexExecutor<S: StorageClient> {
 
 impl<S: StorageClient> RebuildEdgeIndexExecutor<S> {
     /// 创建新的 RebuildEdgeIndexExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "RebuildEdgeIndexExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "RebuildEdgeIndexExecutor".to_string(), storage, expr_context),
             space_name,
             index_name,
         }

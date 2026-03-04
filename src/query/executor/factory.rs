@@ -479,23 +479,16 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         &self,
         node: &N,
         storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError>
     where
         N: JoinNode,
     {
         let (left_var, right_var) = Self::extract_join_vars(node);
 
-        let hash_keys: Vec<crate::core::Expression> = node
-            .hash_keys()
-            .iter()
-            .filter_map(|ctx_expr| ctx_expr.get_expression())
-            .collect();
-
-        let probe_keys: Vec<crate::core::Expression> = node
-            .probe_keys()
-            .iter()
-            .filter_map(|ctx_expr| ctx_expr.get_expression())
-            .collect();
+        // 直接传递 ContextualExpression 列表，由 InnerJoinExecutor 内部提取 Expression
+        let hash_keys: Vec<_> = node.hash_keys().to_vec();
+        let probe_keys: Vec<_> = node.probe_keys().to_vec();
 
         let executor = InnerJoinExecutor::new(
             node.id(),
@@ -505,6 +498,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             hash_keys,
             probe_keys,
             node.col_names().to_vec(),
+            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::InnerJoin(executor))
     }
@@ -514,23 +508,16 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         &self,
         node: &N,
         storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError>
     where
         N: JoinNode,
     {
         let (left_var, right_var) = Self::extract_join_vars(node);
 
-        let hash_keys: Vec<crate::core::Expression> = node
-            .hash_keys()
-            .iter()
-            .filter_map(|ctx_expr| ctx_expr.get_expression())
-            .collect();
-
-        let probe_keys: Vec<crate::core::Expression> = node
-            .probe_keys()
-            .iter()
-            .filter_map(|ctx_expr| ctx_expr.get_expression())
-            .collect();
+        // 直接传递 ContextualExpression 列表，由 LeftJoinExecutor 内部提取 Expression
+        let hash_keys: Vec<_> = node.hash_keys().to_vec();
+        let probe_keys: Vec<_> = node.probe_keys().to_vec();
 
         let executor = LeftJoinExecutor::new(
             node.id(),
@@ -540,6 +527,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             hash_keys,
             probe_keys,
             node.col_names().to_vec(),
+            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::LeftJoin(executor))
     }
@@ -549,23 +537,16 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         &self,
         node: &N,
         storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError>
     where
         N: JoinNode,
     {
         let (left_var, right_var) = Self::extract_join_vars(node);
 
-        let hash_keys: Vec<crate::core::Expression> = node
-            .hash_keys()
-            .iter()
-            .filter_map(|ctx_expr| ctx_expr.get_expression())
-            .collect();
-
-        let probe_keys: Vec<crate::core::Expression> = node
-            .probe_keys()
-            .iter()
-            .filter_map(|ctx_expr| ctx_expr.get_expression())
-            .collect();
+        // 直接传递 ContextualExpression 列表，由 FullOuterJoinExecutor 内部提取 Expression
+        let hash_keys: Vec<_> = node.hash_keys().to_vec();
+        let probe_keys: Vec<_> = node.probe_keys().to_vec();
 
         let executor = FullOuterJoinExecutor::new(
             node.id(),
@@ -575,6 +556,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             hash_keys,
             probe_keys,
             node.col_names().to_vec(),
+            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::FullOuterJoin(executor))
     }
@@ -692,13 +674,11 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let columns = node
                     .columns()
                     .iter()
-                    .filter_map(|col| {
-                        col.expression.get_expression().map(|expr| {
-                            crate::query::executor::result_processing::ProjectionColumn::new(
-                                col.alias.clone(),
-                                expr,
-                            )
-                        })
+                    .map(|col| {
+                        crate::query::executor::result_processing::ProjectionColumn::new(
+                            col.alias.clone(),
+                            col.expression.clone(),
+                        )
                     })
                     .collect();
                 let executor = ProjectExecutor::new(node.id(), storage, columns, context.expression_context().clone());
@@ -802,12 +782,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             // 数据处理执行器
-            PlanNodeEnum::InnerJoin(node) => self.create_inner_join_executor(&node, storage),
-            PlanNodeEnum::HashInnerJoin(node) => self.create_inner_join_executor(&node, storage),
-            PlanNodeEnum::LeftJoin(node) => self.create_left_join_executor(&node, storage),
-            PlanNodeEnum::HashLeftJoin(node) => self.create_left_join_executor(&node, storage),
+            PlanNodeEnum::InnerJoin(node) => self.create_inner_join_executor(&node, storage, context),
+            PlanNodeEnum::HashInnerJoin(node) => self.create_inner_join_executor(&node, storage, context),
+            PlanNodeEnum::LeftJoin(node) => self.create_left_join_executor(&node, storage, context),
+            PlanNodeEnum::HashLeftJoin(node) => self.create_left_join_executor(&node, storage, context),
             PlanNodeEnum::FullOuterJoin(node) => {
-                self.create_full_outer_join_executor(&node, storage)
+                self.create_full_outer_join_executor(&node, storage, context)
             }
             PlanNodeEnum::CrossJoin(node) => {
                 let left_var = node
@@ -825,6 +805,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     storage,
                     vec![left_var, right_var],
                     node.col_names().to_vec(),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::CrossJoin(executor))
             }
@@ -887,6 +868,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                         Some(node.edge_types().to_vec())
                     },
                     node.step_limit().and_then(|s| usize::try_from(s).ok()),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::Expand(executor))
             }
@@ -907,6 +889,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     },
                     node.any_edge_type(),
                     node.step_limit().and_then(|s| usize::try_from(s).ok()),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::ExpandAll(executor))
             }
@@ -923,6 +906,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     },
                     node.step_limit().and_then(|s| usize::try_from(s).ok()),
                     node.filter().cloned(),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::Traverse(executor))
             }
@@ -950,6 +934,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                         Some(node.edge_types.clone())
                     },
                     EdgeDirection::Both,
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::AllPaths(executor))
             }
@@ -1019,6 +1004,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     unwind_expression,
                     node.col_names().to_vec(),
                     false,
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::Unwind(executor))
             }
@@ -1060,6 +1046,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.dedup(),
                     node.track_prev_path(),
                     node.need_fetch_prop(),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::AppendVertices(executor))
             }
@@ -1095,6 +1082,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     compare_cols,
                     collect_col,
                     node.col_names().to_vec(),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::RollUpApply(executor))
             }
@@ -1125,6 +1113,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     key_cols,
                     node.col_names().to_vec(),
                     node.is_anti_predicate(),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::PatternApply(executor))
             }
@@ -1150,17 +1139,17 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 特殊执行器
             PlanNodeEnum::Argument(node) => {
-                let executor = ArgumentExecutor::new(node.id(), storage, node.var());
+                let executor = ArgumentExecutor::new(node.id(), storage, node.var(), context.expression_context().clone());
                 Ok(ExecutorEnum::Argument(executor))
             }
 
             PlanNodeEnum::PassThrough(_) => {
-                let executor = PassThroughExecutor::new(plan_node.id(), storage);
+                let executor = PassThroughExecutor::new(plan_node.id(), storage, context.expression_context().clone());
                 Ok(ExecutorEnum::PassThrough(executor))
             }
 
             PlanNodeEnum::DataCollect(_) => {
-                let executor = DataCollectExecutor::new(plan_node.id(), storage);
+                let executor = DataCollectExecutor::new(plan_node.id(), storage, context.expression_context().clone());
                 Ok(ExecutorEnum::DataCollect(executor))
             }
 
@@ -1195,6 +1184,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     usize::MAX,
                     start_vertex,
                     end_vertex,
+                    context.expression_context().clone(),
                 )
                 .with_loop(node.with_loop);
                 Ok(ExecutorEnum::BFSShortest(executor))
@@ -1213,6 +1203,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.return_columns.clone(),
                     node.limit.map(|l| l as usize),
                     node.is_edge_scan(),
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::IndexScan(executor))
             }
@@ -1234,6 +1225,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.return_columns().to_vec(),
                     node.limit().map(|l| l as usize),
                     true, // is_edge - 边索引扫描
+                    context.expression_context().clone(),
                 );
                 Ok(ExecutorEnum::IndexScan(executor))
             }

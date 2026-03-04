@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::expression::context::ExpressionContext;
+use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
@@ -25,12 +26,12 @@ use crate::storage::StorageClient;
 /// 投影列定义
 #[derive(Debug, Clone)]
 pub struct ProjectionColumn {
-    pub name: String,           // 输出列名
-    pub expression: Expression, // 投影表达式
+    pub name: String,                     // 输出列名
+    pub expression: ContextualExpression, // 投影表达式
 }
 
 impl ProjectionColumn {
-    pub fn new(name: String, expression: Expression) -> Self {
+    pub fn new(name: String, expression: ContextualExpression) -> Self {
         Self { name, expression }
     }
 }
@@ -80,7 +81,13 @@ impl<S: StorageClient> ProjectExecutor<S> {
 
         // 对每个投影列进行求值
         for column in &self.columns {
-            match ExpressionEvaluator::evaluate(&column.expression, &mut context) {
+            // 从 ContextualExpression 提取 Expression
+            let expr = match column.expression.expression() {
+                Some(meta) => meta.inner(),
+                None => continue,
+            };
+
+            match ExpressionEvaluator::evaluate(expr, &mut context) {
                 Ok(value) => projected_row.push(value),
                 Err(e) => {
                     return Err(DBError::Expression(
@@ -145,10 +152,13 @@ impl<S: StorageClient> ProjectExecutor<S> {
                             // 对每个投影列进行求值
                             let mut projected_row = Vec::new();
                             for column in &columns {
-                                match ExpressionEvaluator::evaluate(
-                                    &column.expression,
-                                    &mut context,
-                                ) {
+                                // 从 ContextualExpression 提取 Expression
+                                let expr = match column.expression.expression() {
+                                    Some(meta) => meta.inner(),
+                                    None => return None,
+                                };
+
+                                match ExpressionEvaluator::evaluate(expr, &mut context) {
                                     Ok(value) => projected_row.push(value),
                                     Err(_) => return None, // 跳过求值失败的行
                                 }

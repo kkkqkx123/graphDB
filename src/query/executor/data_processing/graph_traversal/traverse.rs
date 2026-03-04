@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext as ExprContext;
 use crate::core::value::dataset::List;
 use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 
@@ -69,9 +70,10 @@ impl<S: StorageClient> TraverseExecutor<S> {
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
         conditions: Option<String>,
+        expr_context: Arc<ExprContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "TraverseExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "TraverseExecutor".to_string(), storage, expr_context),
             edge_direction,
             edge_types,
             max_depth,

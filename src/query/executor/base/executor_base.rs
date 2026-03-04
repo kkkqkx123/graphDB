@@ -161,7 +161,7 @@ impl<S: StorageClient> BaseExecutor<S> {
             name,
             description,
             storage: Some(storage),
-            context: ExecutionContext::new(),
+            context: ExecutionContext::default(),
             is_open: false,
             stats: ExecutorStats::new(),
         }

@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
+use crate::core::types::ContextualExpression;
 use crate::core::{DataSet, Expression, NullType, Value};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::data_processing::join::{
@@ -30,19 +31,32 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
         storage: Arc<Mutex<S>>,
         left_var: String,
         right_var: String,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
+        hash_keys: Vec<ContextualExpression>,
+        probe_keys: Vec<ContextualExpression>,
         col_names: Vec<String>,
         expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         let use_multi_key = hash_keys.len() > 1;
+
+        // 从 ContextualExpression 列表提取 Expression 列表
+        let hash_exprs = Self::extract_expressions(&hash_keys);
+        let probe_exprs = Self::extract_expressions(&probe_keys);
+
         Self {
             base_executor: BaseJoinExecutor::new(
-                id, storage, left_var, right_var, hash_keys, probe_keys, col_names, expr_context,
+                id, storage, left_var, right_var, hash_exprs, probe_exprs, col_names, expr_context,
             ),
             right_col_size: 0,
             use_multi_key,
         }
+    }
+
+    /// 从 ContextualExpression 列表提取 Expression 列表的辅助方法
+    fn extract_expressions(ctx_exprs: &[ContextualExpression]) -> Vec<Expression> {
+        ctx_exprs
+            .iter()
+            .filter_map(|ctx_expr| ctx_expr.expression().map(|meta| meta.inner().clone()))
+            .collect()
     }
 
     /// 执行单键左外连接

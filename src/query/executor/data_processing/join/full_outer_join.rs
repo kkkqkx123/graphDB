@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
+use crate::core::types::ContextualExpression;
 use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::data_processing::join::{
@@ -24,24 +25,36 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         storage: Arc<Mutex<S>>,
         left_var: String,
         right_var: String,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
+        hash_keys: Vec<ContextualExpression>,
+        probe_keys: Vec<ContextualExpression>,
         output_columns: Vec<String>,
         expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
+        // 从 ContextualExpression 列表提取 Expression 列表
+        let hash_exprs = Self::extract_expressions(&hash_keys);
+        let probe_exprs = Self::extract_expressions(&probe_keys);
+
         Self {
             base: BaseJoinExecutor::with_description(
                 id,
                 storage,
                 left_var,
                 right_var,
-                hash_keys,
-                probe_keys,
+                hash_exprs,
+                probe_exprs,
                 output_columns,
                 "Full outer join executor - performs full outer join".to_string(),
                 expr_context,
             ),
         }
+    }
+
+    /// 从 ContextualExpression 列表提取 Expression 列表的辅助方法
+    fn extract_expressions(ctx_exprs: &[ContextualExpression]) -> Vec<Expression> {
+        ctx_exprs
+            .iter()
+            .filter_map(|ctx_expr| ctx_expr.expression().map(|meta| meta.inner().clone()))
+            .collect()
     }
 
     fn execute_full_outer_join(&mut self) -> DBResult<ExecutionResult> {

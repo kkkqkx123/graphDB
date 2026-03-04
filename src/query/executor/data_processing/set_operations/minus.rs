@@ -158,14 +158,20 @@ mod tests {
         Arc::new(Mutex::new(storage))
     }
 
+    fn create_test_context() -> Arc<ExpressionContext> {
+        Arc::new(ExpressionContext::new())
+    }
+
     #[test]
     fn test_minus_basic() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = MinusExecutor::new(
             1,
             storage,
             "left_input".to_string(),
             "right_input".to_string(),
+            context,
         );
 
         // 设置测试数据
@@ -216,11 +222,13 @@ mod tests {
     #[test]
     fn test_minus_no_overlap() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = MinusExecutor::new(
             2,
             storage,
             "left_no_overlap".to_string(),
             "right_no_overlap".to_string(),
+            context,
         );
 
         // 设置没有重叠的数据集
@@ -264,11 +272,13 @@ mod tests {
     #[test]
     fn test_minus_all_overlap() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = MinusExecutor::new(
             3,
             storage,
             "left_all_overlap".to_string(),
             "right_all_overlap".to_string(),
+            context,
         );
 
         // 设置完全重叠的数据集
@@ -311,11 +321,13 @@ mod tests {
     #[test]
     fn test_minus_empty_left() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = MinusExecutor::new(
             4,
             storage,
             "empty_left".to_string(),
             "right_input".to_string(),
+            context,
         );
 
         // 设置空的左数据集和非空的右数据集
@@ -355,11 +367,13 @@ mod tests {
     #[test]
     fn test_minus_empty_right() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = MinusExecutor::new(
             5,
             storage,
             "left_input".to_string(),
             "empty_right".to_string(),
+            context,
         );
 
         // 设置非空的左数据集和空的右数据集
@@ -400,11 +414,13 @@ mod tests {
     #[test]
     fn test_minus_both_empty() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = MinusExecutor::new(
             6,
             storage,
             "empty_left".to_string(),
             "empty_right".to_string(),
+            context,
         );
 
         // 设置两个空数据集
@@ -440,8 +456,9 @@ mod tests {
     #[test]
     fn test_minus_with_duplicates() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor =
-            MinusExecutor::new(7, storage, "left_dup".to_string(), "right_dup".to_string());
+            MinusExecutor::new(7, storage, "left_dup".to_string(), "right_dup".to_string(), context);
 
         // 设置包含重复行的数据集
         let left_dataset = DataSet {
@@ -488,11 +505,13 @@ mod tests {
     #[test]
     fn test_minus_mismatched_columns() {
         let storage = create_test_storage();
+        let context = create_test_context();
         let mut executor = MinusExecutor::new(
             8,
             storage,
             "left_mismatch".to_string(),
             "right_mismatch".to_string(),
+            context,
         );
 
         // 设置列名不匹配的数据集

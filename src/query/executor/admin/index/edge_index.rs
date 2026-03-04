@@ -6,6 +6,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::{DataSet, Value};
+use crate::core::types::expression::context::ExpressionContext;
 use crate::index::{Index, IndexType};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::iterator::Row;
@@ -57,17 +58,17 @@ pub struct CreateEdgeIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: Index) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: Index, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "CreateEdgeIndexExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "CreateEdgeIndexExecutor".to_string(), storage, expr_context),
             index_info,
             if_not_exists: false,
         }
     }
 
-    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, index_info: Index) -> Self {
+    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, index_info: Index, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "CreateEdgeIndexExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "CreateEdgeIndexExecutor".to_string(), storage, expr_context),
             index_info,
             if_not_exists: true,
         }
@@ -148,9 +149,9 @@ pub struct DropEdgeIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DropEdgeIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DropEdgeIndexExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DropEdgeIndexExecutor".to_string(), storage, expr_context),
             space_name,
             index_name,
             if_exists: false,
@@ -162,9 +163,10 @@ impl<S: StorageClient> DropEdgeIndexExecutor<S> {
         storage: Arc<Mutex<S>>,
         space_name: String,
         index_name: String,
+        expr_context: Arc<ExpressionContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DropEdgeIndexExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DropEdgeIndexExecutor".to_string(), storage, expr_context),
             space_name,
             index_name,
             if_exists: true,
@@ -239,9 +241,9 @@ pub struct DescEdgeIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DescEdgeIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DescEdgeIndexExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DescEdgeIndexExecutor".to_string(), storage, expr_context),
             space_name,
             index_name,
         }
@@ -327,9 +329,9 @@ pub struct ShowEdgeIndexesExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> ShowEdgeIndexesExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, expr_context: Arc<ExpressionContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ShowEdgeIndexesExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "ShowEdgeIndexesExecutor".to_string(), storage, expr_context),
             space_name,
         }
     }

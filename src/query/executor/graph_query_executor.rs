@@ -5,6 +5,7 @@
 
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::core::types::{UserAlterInfo, UserInfo};
+use crate::core::types::expression::context::ExpressionContext;
 use crate::core::Value as CoreValue;
 use crate::query::executor::admin as admin_executor;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
@@ -710,6 +711,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     None,
                     None,
                     None,
+                    Arc::new(ExpressionContext::new()),
                 );
                 executor.open()?;
                 executor.execute()
@@ -722,7 +724,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 properties: _,
             } => {
                 let mut executor =
-                    GetEdgesExecutor::new(self.id, self.storage.clone(), Some(edge_type));
+                    GetEdgesExecutor::new(self.id, self.storage.clone(), Some(edge_type), Arc::new(ExpressionContext::new()));
                 executor.open()?;
                 executor.execute()
             }
@@ -745,6 +747,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     None,
                     true,
                     None,
+                    Arc::new(ExpressionContext::new()),
                 );
                 executor.open()?;
                 executor.execute()

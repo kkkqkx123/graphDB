@@ -19,6 +19,7 @@ use std::time::Instant;
 use rayon::prelude::*;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext;
 use crate::core::{Edge, NPath, Path, Value};
 use crate::query::executor::base::{
     BaseExecutor, EdgeDirection, ExecutionResult, Executor, ExecutorStats,
@@ -138,9 +139,10 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
         max_steps: usize,
+        expr_context: Arc<ExpressionContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "AllPathsExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "AllPathsExecutor".to_string(), storage, expr_context),
             left_start_ids,
             right_start_ids,
             edge_direction,

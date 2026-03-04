@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionContext;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
@@ -55,9 +56,10 @@ impl<S: StorageClient> ExpandExecutor<S> {
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
+        expr_context: Arc<ExpressionContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ExpandExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "ExpandExecutor".to_string(), storage, expr_context),
             edge_direction,
             edge_types,
             max_depth,

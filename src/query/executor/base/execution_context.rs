@@ -66,3 +66,14 @@ impl ExecutionContext {
         &self.expression_context
     }
 }
+
+impl Default for ExecutionContext {
+    /// 默认实现，创建一个新的 ExpressionContext
+    fn default() -> Self {
+        Self {
+            results: HashMap::new(),
+            variables: HashMap::new(),
+            expression_context: Arc::new(ExpressionContext::new()),
+        }
+    }
+}

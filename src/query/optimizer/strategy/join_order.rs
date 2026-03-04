@@ -25,7 +25,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::core::Expression;
+use crate::core::types::ContextualExpression;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::decision::{JoinAlgorithm, JoinOrderDecision};
 
@@ -85,7 +85,7 @@ pub struct JoinCondition {
     /// 连接选择性（估计的连接结果比例）
     pub selectivity: f64,
     /// 连接表达式
-    pub expression: Option<Expression>,
+    pub expression: Option<ContextualExpression>,
 }
 
 impl JoinCondition {
@@ -106,7 +106,7 @@ impl JoinCondition {
     }
 
     /// 设置连接表达式
-    pub fn with_expression(mut self, expression: Expression) -> Self {
+    pub fn with_expression(mut self, expression: ContextualExpression) -> Self {
         self.expression = Some(expression);
         self
     }
