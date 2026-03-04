@@ -76,6 +76,9 @@ pub enum PermissionError {
     #[error("权限被拒绝: 无法授予角色 {role}")]
     CannotGrantRole { role: String },
 
+    #[error("不能修改自己的角色")]
+    CannotModifyOwnRole,
+
     #[error("修改密码操作需要提供目标用户")]
     ChangePasswordTargetUserRequired,
 

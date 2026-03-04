@@ -1,4 +1,4 @@
-use crate::api::server::permission::PermissionManager;
+use crate::api::server::permission::{PermissionManager, GOD_SPACE_ID};
 use crate::api::server::session::ClientSession;
 use crate::config::AuthConfig;
 use crate::core::error::PermissionResult;
@@ -124,7 +124,9 @@ impl PermissionChecker {
             OperationType::WriteUser => Err(PermissionError::OnlyGodCanManageUsers),
 
             // 角色写入操作：GRANT, REVOKE
-            OperationType::WriteRole => self.check_write_role(&username, target_space, target_role),
+            OperationType::WriteRole => {
+                self.check_write_role(&username, target_space, target_user, target_role)
+            }
 
             // 显示操作
             OperationType::Show => {
@@ -245,11 +247,12 @@ impl PermissionChecker {
     }
 
     /// 检查角色写入权限
-    /// 业务逻辑：需要 God 或 Admin 角色，且目标角色不能高于操作者
+    /// 业务逻辑：需要 Admin 或 Dba 角色，且目标角色不能高于操作者，不能修改自己的角色
     fn check_write_role(
         &self,
         username: &str,
         target_space: Option<i64>,
+        target_user: Option<&str>,
         target_role: Option<RoleType>,
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
@@ -257,19 +260,40 @@ impl PermissionChecker {
         let space_id = target_space.ok_or_else(|| PermissionError::RoleOperationSpaceIdRequired)?;
         let role = target_role.ok_or_else(|| PermissionError::RoleOperationTargetRoleRequired)?;
 
-        // 只有 Admin 及以上可以管理角色
-        if !self.permission_manager.is_admin(username) {
+        // 获取操作者在该空间的角色
+        let operator_role = self
+            .permission_manager
+            .get_role(username, space_id)
+            .or_else(|| self.permission_manager.get_role(username, GOD_SPACE_ID));
+
+        // 检查操作者是否有权限管理角色（Admin、Dba 或 God）
+        let can_manage = match operator_role {
+            Some(RoleType::God) => true,
+            Some(RoleType::Admin) => true,
+            Some(RoleType::Dba) => true,
+            _ => false,
+        };
+
+        if !can_manage {
             return Err(PermissionError::OnlyAdminOrGodCanManageRoles);
         }
 
+        // 不能修改自己的角色
+        if let Some(target) = target_user {
+            if username == target {
+                return Err(PermissionError::CannotModifyOwnRole);
+            }
+        }
+
         // 检查是否可以授予目标角色
-        if !self
-            .permission_manager
-            .can_grant_role(username, space_id, role)
-        {
-            return Err(PermissionError::CannotGrantRole {
-                role: format!("{:?}", role),
-            });
+        if let Some(op_role) = operator_role {
+            if !op_role.can_grant(role) {
+                return Err(PermissionError::CannotGrantRole {
+                    role: format!("{:?}", role),
+                });
+            }
+        } else {
+            return Err(PermissionError::OnlyAdminOrGodCanManageRoles);
         }
 
         Ok(())
@@ -382,13 +406,14 @@ impl PermissionChecker {
         &self,
         session: &ClientSession,
         space_id: i64,
+        target_user: &str,
         target_role: RoleType,
     ) -> PermissionResult<()> {
         self.check_permission(
             session,
             OperationType::WriteRole,
             Some(space_id),
-            None,
+            Some(target_user),
             Some(target_role),
         )
     }

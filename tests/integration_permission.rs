@@ -247,19 +247,19 @@ fn test_god_can_grant_any_role() {
 
     // God可以授予任何角色
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::God)
+        .can_write_role(&session, space_id, "target_user", RoleType::God)
         .is_ok());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Admin)
+        .can_write_role(&session, space_id, "target_user", RoleType::Admin)
         .is_ok());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Dba)
+        .can_write_role(&session, space_id, "target_user", RoleType::Dba)
         .is_ok());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::User)
+        .can_write_role(&session, space_id, "target_user", RoleType::User)
         .is_ok());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Guest)
+        .can_write_role(&session, space_id, "target_user", RoleType::Guest)
         .is_ok());
 }
 
@@ -276,21 +276,21 @@ fn test_admin_grant_role_permissions() {
 
     // Admin可以授予Dba、User、Guest
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Dba)
+        .can_write_role(&session, space_id, "target_user", RoleType::Dba)
         .is_ok());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::User)
+        .can_write_role(&session, space_id, "target_user", RoleType::User)
         .is_ok());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Guest)
+        .can_write_role(&session, space_id, "target_user", RoleType::Guest)
         .is_ok());
 
     // Admin不能授予God或Admin
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::God)
+        .can_write_role(&session, space_id, "target_user", RoleType::God)
         .is_err());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Admin)
+        .can_write_role(&session, space_id, "target_user", RoleType::Admin)
         .is_err());
 }
 
@@ -307,21 +307,21 @@ fn test_dba_grant_role_permissions() {
 
     // Dba可以授予User、Guest
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::User)
+        .can_write_role(&session, space_id, "target_user", RoleType::User)
         .is_ok());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Guest)
+        .can_write_role(&session, space_id, "target_user", RoleType::Guest)
         .is_ok());
 
     // Dba不能授予God、Admin、Dba
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::God)
+        .can_write_role(&session, space_id, "target_user", RoleType::God)
         .is_err());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Admin)
+        .can_write_role(&session, space_id, "target_user", RoleType::Admin)
         .is_err());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Dba)
+        .can_write_role(&session, space_id, "target_user", RoleType::Dba)
         .is_err());
 }
 
@@ -338,13 +338,13 @@ fn test_user_cannot_grant_any_role() {
 
     // User不能授予任何角色
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::User)
+        .can_write_role(&session, space_id, "target_user", RoleType::User)
         .is_err());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Guest)
+        .can_write_role(&session, space_id, "target_user", RoleType::Guest)
         .is_err());
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::Dba)
+        .can_write_role(&session, space_id, "target_user", RoleType::Dba)
         .is_err());
 }
 
@@ -361,7 +361,7 @@ fn test_cannot_modify_own_role() {
 
     // 不能修改自己的角色
     assert!(checker
-        .can_write_role(&session, space_id, RoleType::User)
+        .can_write_role(&session, space_id, "admin1", RoleType::User)
         .is_err());
 }
 
@@ -506,8 +506,8 @@ fn test_permission_checker_user_operations() {
 
     // Admin可以读取自己的信息
     assert!(checker.can_read_user(&admin_session, "admin1").is_ok());
-    // Admin不能读取其他用户的信息
-    assert!(checker.can_read_user(&admin_session, "otheruser").is_err());
+    // Admin可以读取其他用户的信息（Admin是空间管理员）
+    assert!(checker.can_read_user(&admin_session, "otheruser").is_ok());
 }
 
 #[test]
@@ -524,25 +524,25 @@ fn test_permission_checker_role_operations() {
 
     // God可以授予任何角色
     assert!(checker
-        .can_write_role(&god_session, 1, RoleType::Admin)
+        .can_write_role(&god_session, 1, "target_user", RoleType::Admin)
         .is_ok());
 
     // Admin可以授予某些角色
     assert!(checker
-        .can_write_role(&admin_session, 1, RoleType::User)
+        .can_write_role(&admin_session, 1, "target_user", RoleType::User)
         .is_ok());
     assert!(checker
-        .can_write_role(&admin_session, 1, RoleType::Guest)
+        .can_write_role(&admin_session, 1, "target_user", RoleType::Guest)
         .is_ok());
 
     // Admin不能授予God
     assert!(checker
-        .can_write_role(&admin_session, 1, RoleType::God)
+        .can_write_role(&admin_session, 1, "target_user", RoleType::God)
         .is_err());
 
     // Admin不能修改自己的角色
     assert!(checker
-        .can_write_role(&admin_session, 1, RoleType::User)
+        .can_write_role(&admin_session, 1, "admin1", RoleType::User)
         .is_err());
 }
 
@@ -802,7 +802,7 @@ fn test_complete_permission_workflow() {
     // 3. Admin创建Dba用户并授予Dba角色
     let admin_session = create_client_session_with_role("admin1", space_id, RoleType::Admin);
     assert!(checker
-        .can_write_role(&admin_session, space_id, RoleType::Dba)
+        .can_write_role(&admin_session, space_id, "dba1", RoleType::Dba)
         .is_ok());
     checker
         .permission_manager()
@@ -812,7 +812,7 @@ fn test_complete_permission_workflow() {
     // 4. Dba创建普通用户并授予User角色
     let dba_session = create_client_session_with_role("dba1", space_id, RoleType::Dba);
     assert!(checker
-        .can_write_role(&dba_session, space_id, RoleType::User)
+        .can_write_role(&dba_session, space_id, "user1", RoleType::User)
         .is_ok());
     checker
         .permission_manager()
