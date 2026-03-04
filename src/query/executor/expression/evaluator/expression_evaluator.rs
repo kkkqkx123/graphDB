@@ -3,6 +3,7 @@
 //! 提供具体的表达式求值功能，使用直接递归匹配实现，避免不必要的抽象开销。
 
 use crate::core::error::ExpressionError;
+use crate::core::types::expression::utils::is_evaluable;
 use crate::core::types::expression::Expression;
 use crate::core::value::dataset::List;
 use crate::core::value::NullType;
@@ -42,98 +43,7 @@ impl ExpressionEvaluator {
     /// 检查表达式是否可以在没有运行时上下文的情况下求值
     /// 即表达式只包含常量，不包含变量或属性访问
     pub fn can_evaluate(expression: &Expression) -> bool {
-        !Self::requires_runtime_context(expression)
-    }
-
-    /// 检查表达式是否需要运行时上下文才能求值
-    fn requires_runtime_context(expression: &Expression) -> bool {
-        match expression {
-            Expression::Literal(_) => false,
-            Expression::Variable(_) => true,
-            Expression::Property { .. } => true,
-            Expression::Binary { left, right, .. } => {
-                Self::requires_runtime_context(left) || Self::requires_runtime_context(right)
-            }
-            Expression::Unary { operand, .. } => Self::requires_runtime_context(operand),
-            Expression::Function { args, .. } => {
-                args.iter().any(|arg| Self::requires_runtime_context(arg))
-            }
-            Expression::Aggregate { arg, .. } => Self::requires_runtime_context(arg),
-            Expression::List(items) => items.iter().any(|arg| Self::requires_runtime_context(arg)),
-            Expression::Map(pairs) => pairs
-                .iter()
-                .any(|(_, val)| Self::requires_runtime_context(val)),
-            Expression::Case {
-                test_expr,
-                conditions,
-                default,
-            } => {
-                test_expr
-                    .as_ref()
-                    .map_or(false, |expr| Self::requires_runtime_context(expr))
-                    || conditions.iter().any(|(cond, val)| {
-                        Self::requires_runtime_context(cond) || Self::requires_runtime_context(val)
-                    })
-                    || default
-                        .as_ref()
-                        .map_or(false, |d| Self::requires_runtime_context(d))
-            }
-            Expression::TypeCast { expression, .. } => Self::requires_runtime_context(expression),
-            Expression::Subscript { collection, index } => {
-                Self::requires_runtime_context(collection) || Self::requires_runtime_context(index)
-            }
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                Self::requires_runtime_context(collection)
-                    || start
-                        .as_ref()
-                        .map_or(false, |s| Self::requires_runtime_context(s))
-                    || end
-                        .as_ref()
-                        .map_or(false, |e| Self::requires_runtime_context(e))
-            }
-            Expression::Path(items) => items
-                .iter()
-                .any(|item| Self::requires_runtime_context(item)),
-            Expression::Label(_) => false,
-            Expression::ListComprehension {
-                source,
-                filter,
-                map,
-                ..
-            } => {
-                Self::requires_runtime_context(source)
-                    || filter
-                        .as_ref()
-                        .map_or(false, |f| Self::requires_runtime_context(f))
-                    || map
-                        .as_ref()
-                        .map_or(false, |m| Self::requires_runtime_context(m))
-            }
-            Expression::LabelTagProperty { tag, .. } => Self::requires_runtime_context(tag),
-            Expression::TagProperty { .. } => false,
-            Expression::EdgeProperty { .. } => false,
-            Expression::Predicate { args, .. } => {
-                args.iter().any(|arg| Self::requires_runtime_context(arg))
-            }
-            Expression::Reduce {
-                initial,
-                source,
-                mapping,
-                ..
-            } => {
-                Self::requires_runtime_context(initial)
-                    || Self::requires_runtime_context(source)
-                    || Self::requires_runtime_context(mapping)
-            }
-            Expression::PathBuild(exprs) => exprs
-                .iter()
-                .any(|expr| Self::requires_runtime_context(expr)),
-            Expression::Parameter(_) => true,
-        }
+        is_evaluable(expression)
     }
 
     /// 递归求值表达式

@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::types::PropertyDef;
     use crate::core::DataType;
     use crate::query::executor::admin::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem};
@@ -24,8 +25,9 @@ mod tests {
         ];
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string())
             .with_properties(properties);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let mut executor = CreateEdgeExecutor::new(1, storage, edge_info);
+        let mut executor = CreateEdgeExecutor::new(1, storage, edge_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -41,8 +43,9 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let mut executor = CreateEdgeExecutor::with_if_not_exists(2, storage, edge_info);
+        let mut executor = CreateEdgeExecutor::with_if_not_exists(2, storage, edge_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -60,8 +63,9 @@ mod tests {
         ];
         let alter_info =
             AlterEdgeInfo::new("test_space".to_string(), "knows".to_string()).with_items(items);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let mut executor = AlterEdgeExecutor::new(3, storage, alter_info);
+        let mut executor = AlterEdgeExecutor::new(3, storage, alter_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -72,8 +76,9 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor =
-            DropEdgeExecutor::new(4, storage, "test_space".to_string(), "knows".to_string());
+            DropEdgeExecutor::new(4, storage, "test_space".to_string(), "knows".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -88,11 +93,13 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = DropEdgeExecutor::with_if_exists(
             5,
             storage,
             "test_space".to_string(),
             "knows".to_string(),
+            expr_context,
         );
 
         let result = executor.execute();
@@ -104,8 +111,9 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor =
-            DescEdgeExecutor::new(6, storage, "test_space".to_string(), "knows".to_string());
+            DescEdgeExecutor::new(6, storage, "test_space".to_string(), "knows".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -116,7 +124,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = ShowEdgesExecutor::new(7, storage, "test_space".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ShowEdgesExecutor::new(7, storage, "test_space".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -157,7 +166,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string());
-        let mut executor = CreateEdgeExecutor::new(8, storage, edge_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = CreateEdgeExecutor::new(8, storage, edge_info, expr_context);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -172,7 +182,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string());
-        let executor = CreateEdgeExecutor::new(9, storage, edge_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let executor = CreateEdgeExecutor::new(9, storage, edge_info, expr_context);
 
         assert_eq!(executor.id(), 9);
         assert_eq!(executor.name(), "CreateEdgeExecutor");

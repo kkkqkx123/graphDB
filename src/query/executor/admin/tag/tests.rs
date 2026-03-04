@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::types::PropertyDef;
     use crate::core::DataType;
     use crate::query::executor::admin::tag::alter_tag::{AlterTagInfo, AlterTagItem};
@@ -23,8 +24,9 @@ mod tests {
         ];
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string())
             .with_properties(properties);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let mut executor = CreateTagExecutor::new(1, storage, tag_info);
+        let mut executor = CreateTagExecutor::new(1, storage, tag_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -40,8 +42,9 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let mut executor = CreateTagExecutor::with_if_not_exists(2, storage, tag_info);
+        let mut executor = CreateTagExecutor::with_if_not_exists(2, storage, tag_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -59,8 +62,9 @@ mod tests {
         ];
         let alter_info =
             AlterTagInfo::new("test_space".to_string(), "person".to_string()).with_items(items);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let mut executor = AlterTagExecutor::new(3, storage, alter_info);
+        let mut executor = AlterTagExecutor::new(3, storage, alter_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -71,8 +75,9 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor =
-            DropTagExecutor::new(4, storage, "test_space".to_string(), "person".to_string());
+            DropTagExecutor::new(4, storage, "test_space".to_string(), "person".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -87,11 +92,13 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = DropTagExecutor::with_if_exists(
             5,
             storage,
             "test_space".to_string(),
             "person".to_string(),
+            expr_context,
         );
 
         let result = executor.execute();
@@ -103,8 +110,9 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor =
-            DescTagExecutor::new(6, storage, "test_space".to_string(), "person".to_string());
+            DescTagExecutor::new(6, storage, "test_space".to_string(), "person".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -115,7 +123,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = ShowTagsExecutor::new(7, storage, "test_space".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ShowTagsExecutor::new(7, storage, "test_space".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -156,7 +165,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
-        let mut executor = CreateTagExecutor::new(8, storage, tag_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = CreateTagExecutor::new(8, storage, tag_info, expr_context);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -171,7 +181,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
-        let executor = CreateTagExecutor::new(9, storage, tag_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let executor = CreateTagExecutor::new(9, storage, tag_info, expr_context);
 
         assert_eq!(executor.id(), 9);
         assert_eq!(executor.name(), "CreateTagExecutor");

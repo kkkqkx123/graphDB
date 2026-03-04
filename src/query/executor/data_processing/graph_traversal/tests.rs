@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::core::{Edge, Value, Vertex};
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::query::executor::base::EdgeDirection;
     use crate::query::executor::base::Executor;
     use crate::query::executor::data_processing::graph_traversal::algorithms::{
@@ -79,12 +80,14 @@ mod tests {
     #[test]
     fn test_expand_executor() {
         let storage = create_test_graph("expand");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = GraphTraversalExecutorFactory::create_expand_executor(
             1,
             storage,
             EdgeDirection::Out,
             Some(vec!["connect".to_string()]),
             Some(1),
+            expr_context,
         );
 
         // 测试基本功能
@@ -98,6 +101,7 @@ mod tests {
     #[test]
     fn test_expand_all_executor() {
         let storage = create_test_graph("expand_all");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = GraphTraversalExecutorFactory::create_expand_all_executor(
             2,
             storage,
@@ -105,6 +109,7 @@ mod tests {
             None,
             false,
             Some(2),
+            expr_context,
         );
 
         assert_eq!(executor.name(), "ExpandAllExecutor");
@@ -117,6 +122,7 @@ mod tests {
     #[test]
     fn test_traverse_executor() {
         let storage = create_test_graph("traverse");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = GraphTraversalExecutorFactory::create_traverse_executor(
             3,
             storage,
@@ -124,6 +130,7 @@ mod tests {
             Some(vec!["connect".to_string()]),
             Some(3),
             Some("true".to_string()),
+            expr_context,
         );
 
         assert_eq!(executor.name(), "TraverseExecutor");
@@ -136,6 +143,7 @@ mod tests {
     #[test]
     fn test_shortest_path_executor() {
         let storage = create_test_graph("shortest_path");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             4,
             storage,
@@ -145,6 +153,7 @@ mod tests {
             None,
             Some(10), // 添加max_depth参数
             ShortestPathAlgorithmType::BFS,
+            expr_context,
         );
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
@@ -245,6 +254,7 @@ mod tests {
     #[test]
     fn test_weighted_shortest_path_with_property() {
         let storage = create_weighted_test_graph("weighted_shortest_path_prop");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 使用属性权重创建执行器
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -256,6 +266,7 @@ mod tests {
             None,
             Some(10),
             ShortestPathAlgorithmType::Dijkstra,
+            expr_context,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
 
@@ -266,6 +277,7 @@ mod tests {
     #[test]
     fn test_weighted_shortest_path_with_ranking() {
         let storage = create_weighted_test_graph("weighted_shortest_path_ranking");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 使用ranking作为权重创建执行器
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -277,6 +289,7 @@ mod tests {
             None,
             Some(10),
             ShortestPathAlgorithmType::Dijkstra,
+            expr_context,
         )
         .with_weight_config(EdgeWeightConfig::Ranking);
 
@@ -287,6 +300,7 @@ mod tests {
     #[test]
     fn test_unweighted_shortest_path() {
         let storage = create_weighted_test_graph("unweighted_shortest_path");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 使用无权图配置创建执行器
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -298,6 +312,7 @@ mod tests {
             None,
             Some(10),
             ShortestPathAlgorithmType::BFS,
+            expr_context,
         )
         .with_weight_config(EdgeWeightConfig::Unweighted);
 
@@ -414,6 +429,7 @@ mod tests {
     #[test]
     fn test_astar_with_spatial_heuristic() {
         let storage = create_spatial_test_graph("astar_spatial");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 使用A*算法，带空间启发式
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -425,6 +441,7 @@ mod tests {
             None,
             Some(10),
             ShortestPathAlgorithmType::AStar,
+            expr_context,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
         .with_heuristic_config(HeuristicFunction::PropertyDistance(
@@ -439,6 +456,7 @@ mod tests {
     #[test]
     fn test_astar_without_heuristic() {
         let storage = create_spatial_test_graph("astar_no_heuristic");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 使用A*算法，但无启发式（退化为Dijkstra）
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -450,6 +468,7 @@ mod tests {
             None,
             Some(10),
             ShortestPathAlgorithmType::AStar,
+            expr_context,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
         .with_heuristic_config(HeuristicFunction::Zero);
@@ -461,6 +480,7 @@ mod tests {
     #[test]
     fn test_astar_with_scale_heuristic() {
         let storage = create_spatial_test_graph("astar_scale");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 使用A*算法，带固定缩放因子启发式
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -472,6 +492,7 @@ mod tests {
             None,
             Some(10),
             ShortestPathAlgorithmType::AStar,
+            expr_context,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
         .with_heuristic_config(HeuristicFunction::ScaleFactor(0.5));
@@ -484,6 +505,7 @@ mod tests {
     fn test_weighted_path_query_integration() {
         // 测试完整的带权路径查询流程
         let storage = create_weighted_test_graph("weighted_integration");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 测试使用属性权重的Dijkstra算法
         let dijkstra_executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -495,6 +517,7 @@ mod tests {
             None,
             Some(10),
             ShortestPathAlgorithmType::Dijkstra,
+            expr_context,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
 
@@ -511,6 +534,7 @@ mod tests {
     #[test]
     fn test_algorithm_auto_selection_weighted() {
         let storage = create_weighted_test_graph("auto_select_weighted");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 创建带权重的执行器，验证自动选择Dijkstra算法
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -522,6 +546,7 @@ mod tests {
             None,
             Some(10),
             ShortestPathAlgorithmType::Dijkstra, // 显式指定Dijkstra
+            expr_context,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
 
@@ -541,6 +566,7 @@ mod tests {
     #[test]
     fn test_algorithm_auto_selection_unweighted() {
         let storage = create_test_graph("auto_select_unweighted");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 创建无权重的执行器，验证使用BFS算法
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -552,6 +578,7 @@ mod tests {
             None,
             Some(10),
             ShortestPathAlgorithmType::BFS,
+            expr_context,
         )
         .with_weight_config(EdgeWeightConfig::Unweighted);
 

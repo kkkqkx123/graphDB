@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::query::executor::admin::space::create_space::ExecutorSpaceInfo;
     use crate::query::executor::admin::space::{
         CreateSpaceExecutor, DescSpaceExecutor, DropSpaceExecutor, ShowSpacesExecutor,
@@ -16,8 +17,9 @@ mod tests {
         ));
         let space_info =
             ExecutorSpaceInfo::new("test_space".to_string()).with_vid_type("INT64".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let mut executor = CreateSpaceExecutor::new(1, storage, space_info);
+        let mut executor = CreateSpaceExecutor::new(1, storage, space_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -32,7 +34,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = DropSpaceExecutor::new(2, storage, "test_space".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = DropSpaceExecutor::new(2, storage, "test_space".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -47,7 +50,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = DescSpaceExecutor::new(3, storage, "test_space".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = DescSpaceExecutor::new(3, storage, "test_space".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -58,7 +62,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = ShowSpacesExecutor::new(4, storage);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ShowSpacesExecutor::new(4, storage, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());

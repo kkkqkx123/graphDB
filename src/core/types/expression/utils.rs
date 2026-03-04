@@ -4,10 +4,8 @@
 //!
 //! 这些函数使用递归和模式匹配，比访问者模式更简洁直观。
 
-use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::types::operators::AggregateFunction;
-use crate::query::executor::expression::evaluator::ExpressionEvaluator;
 
 /// 分组套件
 #[derive(Debug, Clone, Default)]
@@ -227,9 +225,100 @@ fn is_groupable(expression: &Expression) -> bool {
 
 /// 检查表达式是否可以在编译时求值（静态可求值性检查）
 ///
-/// 此方法委托给 ExpressionEvaluator::can_evaluate
+/// 检查表达式是否只包含常量，不包含变量或属性访问等需要运行时上下文的元素
 pub fn is_evaluable(expression: &Expression) -> bool {
-    ExpressionEvaluator::can_evaluate(expression)
+    !requires_runtime_context(expression)
+}
+
+/// 检查表达式是否需要运行时上下文才能求值
+fn requires_runtime_context(expression: &Expression) -> bool {
+    match expression {
+        Expression::Literal(_) => false,
+        Expression::Variable(_) => true,
+        Expression::Property { .. } => true,
+        Expression::Binary { left, right, .. } => {
+            requires_runtime_context(left) || requires_runtime_context(right)
+        }
+        Expression::Unary { operand, .. } => requires_runtime_context(operand),
+        Expression::Function { args, .. } => {
+            args.iter().any(|arg| requires_runtime_context(arg))
+        }
+        Expression::Aggregate { arg, .. } => requires_runtime_context(arg),
+        Expression::List(items) => items.iter().any(|arg| requires_runtime_context(arg)),
+        Expression::Map(pairs) => pairs
+            .iter()
+            .any(|(_, val)| requires_runtime_context(val)),
+        Expression::Case {
+            test_expr,
+            conditions,
+            default,
+        } => {
+            test_expr
+                .as_ref()
+                .map_or(false, |expr| requires_runtime_context(expr))
+                || conditions.iter().any(|(cond, val)| {
+                    requires_runtime_context(cond) || requires_runtime_context(val)
+                })
+                || default
+                    .as_ref()
+                    .map_or(false, |d| requires_runtime_context(d))
+        }
+        Expression::TypeCast { expression, .. } => requires_runtime_context(expression),
+        Expression::Subscript { collection, index } => {
+            requires_runtime_context(collection) || requires_runtime_context(index)
+        }
+        Expression::Range {
+            collection,
+            start,
+            end,
+        } => {
+            requires_runtime_context(collection)
+                || start
+                    .as_ref()
+                    .map_or(false, |s| requires_runtime_context(s))
+                || end
+                    .as_ref()
+                    .map_or(false, |e| requires_runtime_context(e))
+        }
+        Expression::Path(items) => items
+            .iter()
+            .any(|item| requires_runtime_context(item)),
+        Expression::Label(_) => false,
+        Expression::ListComprehension {
+            source,
+            filter,
+            map,
+            ..
+        } => {
+            requires_runtime_context(source)
+                || filter
+                    .as_ref()
+                    .map_or(false, |f| requires_runtime_context(f))
+                || map
+                    .as_ref()
+                    .map_or(false, |m| requires_runtime_context(m))
+        }
+        Expression::LabelTagProperty { tag, .. } => requires_runtime_context(tag),
+        Expression::TagProperty { .. } => false,
+        Expression::EdgeProperty { .. } => false,
+        Expression::Predicate { args, .. } => {
+            args.iter().any(|arg| requires_runtime_context(arg))
+        }
+        Expression::Reduce {
+            initial,
+            source,
+            mapping,
+            ..
+        } => {
+            requires_runtime_context(initial)
+                || requires_runtime_context(source)
+                || requires_runtime_context(mapping)
+        }
+        Expression::PathBuild(exprs) => exprs
+            .iter()
+            .any(|expr| requires_runtime_context(expr)),
+        Expression::Parameter(_) => true,
+    }
 }
 
 /// 检查表达式是否为常量
