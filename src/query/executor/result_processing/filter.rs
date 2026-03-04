@@ -186,7 +186,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                 chunk
                     .iter()
                     .filter_map(|row| {
-                        let mut context = DefaultExpressionContext::new();
+                        let mut context = EvalContext::new();
                         for (i, col_name) in col_names.iter().enumerate() {
                             if i < row.len() {
                                 context.set_variable(col_name.clone(), row[i].clone());
@@ -212,7 +212,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
         for value in values {
             // 构建表达式上下文
-            let mut context = DefaultExpressionContext::new();
+            let mut context = EvalContext::new();
             context.set_variable("value".to_string(), value.clone());
 
             // 评估过滤条件
@@ -241,7 +241,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
         for vertex in vertices {
             // 构建表达式上下文
-            let mut context = DefaultExpressionContext::new();
+            let mut context = EvalContext::new();
             // 设置顶点信息
             context.set_variable(
                 "_vertex".to_string(),
@@ -271,7 +271,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
         for edge in edges {
             // 构建表达式上下文
-            let mut context = DefaultExpressionContext::new();
+            let mut context = EvalContext::new();
             // 设置边信息
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 

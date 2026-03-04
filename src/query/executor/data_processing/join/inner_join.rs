@@ -433,15 +433,22 @@ mod tests {
     #[test]
     fn test_inner_join_single_key_with_expression() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let expr_context = Arc::new(ExpressionContextStruct::new());
+
+        let expr1 = Expression::variable("id");
+        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_id1 = expr_context.register_expression(expr_meta1);
+        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         let mut executor = InnerJoinExecutor::new(
             1,
             storage,
             "left".to_string(),
             "right".to_string(),
-            vec![Expression::variable("id")],
-            vec![Expression::variable("id")],
+            vec![ctx_expr1.clone()],
+            vec![ctx_expr1],
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
+            expr_context,
         );
 
         let (left_dataset, right_dataset) = create_test_datasets();
@@ -479,6 +486,17 @@ mod tests {
     #[test]
     fn test_inner_join_multi_key() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let expr_context = Arc::new(ExpressionContextStruct::new());
+
+        let expr1 = Expression::variable("a");
+        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_id1 = expr_context.register_expression(expr_meta1);
+        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+
+        let expr2 = Expression::variable("b");
+        let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(expr2);
+        let expr_id2 = expr_context.register_expression(expr_meta2);
+        let ctx_expr2 = crate::core::types::ContextualExpression::new(expr_id2, expr_context.clone());
 
         let left_dataset = DataSet {
             col_names: vec!["a".to_string(), "b".to_string(), "name".to_string()],
@@ -510,14 +528,15 @@ mod tests {
             storage,
             "left".to_string(),
             "right".to_string(),
-            vec![Expression::variable("a"), Expression::variable("b")],
-            vec![Expression::variable("a"), Expression::variable("b")],
+            vec![ctx_expr1.clone(), ctx_expr2.clone()],
+            vec![ctx_expr1, ctx_expr2],
             vec![
                 "a".to_string(),
                 "b".to_string(),
                 "name".to_string(),
                 "age".to_string(),
             ],
+            expr_context,
         );
 
         executor.base_executor.get_base_mut().context.set_result(
@@ -551,6 +570,12 @@ mod tests {
     #[test]
     fn test_inner_join_empty_dataset() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let expr_context = Arc::new(ExpressionContextStruct::new());
+
+        let expr1 = Expression::variable("id");
+        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_id1 = expr_context.register_expression(expr_meta1);
+        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
@@ -567,9 +592,10 @@ mod tests {
             storage,
             "left".to_string(),
             "right".to_string(),
-            vec![Expression::variable("id")],
-            vec![Expression::variable("id")],
+            vec![ctx_expr1.clone()],
+            vec![ctx_expr1],
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
+            expr_context,
         );
 
         executor.base_executor.get_base_mut().context.set_result(
@@ -599,15 +625,22 @@ mod tests {
     #[test]
     fn test_inner_join_with_variable_expression() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let expr_context = Arc::new(ExpressionContextStruct::new());
+
+        let expr1 = Expression::Variable("id".to_string());
+        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_id1 = expr_context.register_expression(expr_meta1);
+        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         let mut executor = InnerJoinExecutor::new(
             4,
             storage,
             "left".to_string(),
             "right".to_string(),
-            vec![Expression::Variable("id".to_string())],
-            vec![Expression::Variable("id".to_string())],
+            vec![ctx_expr1.clone()],
+            vec![ctx_expr1],
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
+            expr_context,
         );
 
         let (left_dataset, right_dataset) = create_test_datasets();

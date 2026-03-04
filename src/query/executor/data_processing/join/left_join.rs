@@ -378,6 +378,12 @@ mod tests {
     #[test]
     fn test_left_join_single_key() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let expr_context = Arc::new(ExpressionContextStruct::new());
+
+        let expr1 = crate::core::Expression::Variable("id".to_string());
+        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_id1 = expr_context.register_expression(expr_meta1);
+        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         // 创建执行器
         let mut executor = LeftJoinExecutor::new(
@@ -385,9 +391,10 @@ mod tests {
             storage,
             "left".to_string(),
             "right".to_string(),
-            vec![crate::core::Expression::Variable("id".to_string())], // 左表id列作为键
-            vec![crate::core::Expression::Variable("id".to_string())], // 右表id列作为键
+            vec![ctx_expr1.clone()], // 左表id列作为键
+            vec![ctx_expr1], // 右表id列作为键
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
+            expr_context,
         );
 
         // 设置执行上下文
@@ -462,6 +469,12 @@ mod tests {
     #[test]
     fn test_left_join_empty_right() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let expr_context = Arc::new(ExpressionContextStruct::new());
+
+        let expr1 = Expression::Variable("0".to_string());
+        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_id1 = expr_context.register_expression(expr_meta1);
+        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         // 创建执行器
         let mut executor = LeftJoinExecutor::new(
@@ -469,9 +482,10 @@ mod tests {
             storage,
             "left".to_string(),
             "right".to_string(),
-            vec![Expression::Variable("0".to_string())],
-            vec![Expression::Variable("0".to_string())],
+            vec![ctx_expr1.clone()],
+            vec![ctx_expr1],
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
+            expr_context,
         );
 
         // 设置执行上下文

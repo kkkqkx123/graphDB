@@ -11,7 +11,6 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::expression::context::ExpressionContext;
 use crate::core::types::ContextualExpression;
-use crate::core::Expression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::DefaultExpressionContext;
@@ -69,7 +68,6 @@ impl<S: StorageClient> ProjectExecutor<S> {
     fn project_row(&self, row: &[Value], col_names: &[String]) -> DBResult<Vec<Value>> {
         let mut projected_row = Vec::new();
 
-        // 为当前行创建评估上下文
         let mut context = DefaultExpressionContext::new();
 
         // 将当前行的值设置为上下文变量
@@ -204,7 +202,12 @@ impl<S: StorageClient> ProjectExecutor<S> {
 
             let mut projected_row = Vec::new();
             for column in &self.columns {
-                match ExpressionEvaluator::evaluate(&column.expression, &mut context) {
+                let expr = match column.expression.expression() {
+                    Some(meta) => meta.inner(),
+                    None => continue,
+                };
+
+                match ExpressionEvaluator::evaluate(expr, &mut context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
                         return Err(DBError::Expression(
@@ -234,7 +237,7 @@ impl<S: StorageClient> ProjectExecutor<S> {
 
         // 对每个边进行投影
         for edge in edges {
-            let mut context = DefaultExpressionContext::new();
+            let mut context = EvalContext::new();
             // 设置边信息
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
@@ -249,7 +252,12 @@ impl<S: StorageClient> ProjectExecutor<S> {
 
             let mut projected_row = Vec::new();
             for column in &self.columns {
-                match ExpressionEvaluator::evaluate(&column.expression, &mut context) {
+                let expr = match column.expression.expression() {
+                    Some(meta) => meta.inner(),
+                    None => continue,
+                };
+
+                match ExpressionEvaluator::evaluate(expr, &mut context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
                         return Err(DBError::Expression(
@@ -313,14 +321,19 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
                 for path in paths {
-                    let mut context = DefaultExpressionContext::new();
+                    let mut context = EvalContext::new();
                     context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
                     context
                         .set_variable("src".to_string(), Value::String(path.src.vid.to_string()));
 
                     let mut projected_row = Vec::new();
                     for column in &self.columns {
-                        match ExpressionEvaluator::evaluate(&column.expression, &mut context) {
+                        let expr = match column.expression.expression() {
+                            Some(meta) => meta.inner(),
+                            None => continue,
+                        };
+
+                        match ExpressionEvaluator::evaluate(expr, &mut context) {
                             Ok(value) => projected_row.push(value),
                             Err(e) => {
                                 return Err(DBError::Expression(
@@ -400,14 +413,19 @@ mod tests {
     #[test]
     fn test_simple_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
 
-        // 创建简单的投影：选择第一列
+        let expr = crate::core::Expression::Variable("col1".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_id = expr_context.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_context.clone());
+
         let columns = vec![ProjectionColumn::new(
             "projected_col1".to_string(),
-            Expression::Variable("col1".to_string()),
+            ctx_expr,
         )];
 
-        let executor = ProjectExecutor::new(1, storage, columns);
+        let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
         // 创建测试数据集
         let mut input_dataset = crate::core::value::DataSet::new();
@@ -434,18 +452,23 @@ mod tests {
     #[test]
     fn test_expression_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
 
-        // 创建表达式投影：计算两列之和
+        let expr = crate::core::Expression::Binary {
+            left: Box::new(crate::core::Expression::Variable("col1".to_string())),
+            op: BinaryOperator::Add,
+            right: Box::new(crate::core::Expression::Variable("col2".to_string())),
+        };
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_id = expr_context.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_context.clone());
+
         let columns = vec![ProjectionColumn::new(
             "sum".to_string(),
-            Expression::Binary {
-                left: Box::new(Expression::Variable("col1".to_string())),
-                op: BinaryOperator::Add,
-                right: Box::new(Expression::Variable("col2".to_string())),
-            },
+            ctx_expr,
         )];
 
-        let executor = ProjectExecutor::new(1, storage, columns);
+        let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
         // 创建测试数据集
         let mut input_dataset = crate::core::value::DataSet::new();
@@ -472,17 +495,27 @@ mod tests {
     #[test]
     fn test_vertex_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
 
-        // 创建顶点投影
+        let expr1 = crate::core::Expression::Variable("id".to_string());
+        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_id1 = expr_context.register_expression(expr_meta1);
+        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+
+        let expr2 = crate::core::Expression::Variable("name".to_string());
+        let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(expr2);
+        let expr_id2 = expr_context.register_expression(expr_meta2);
+        let ctx_expr2 = crate::core::types::ContextualExpression::new(expr_id2, expr_context.clone());
+
         let columns = vec![
             ProjectionColumn::new(
                 "vertex_id".to_string(),
-                Expression::Variable("id".to_string()),
+                ctx_expr1,
             ),
-            ProjectionColumn::new("name".to_string(), Expression::Variable("name".to_string())),
+            ProjectionColumn::new("name".to_string(), ctx_expr2),
         ];
 
-        let executor = ProjectExecutor::new(1, storage, columns);
+        let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
         // 创建测试顶点
         let vertex1 = crate::core::Vertex {
@@ -534,24 +567,39 @@ mod tests {
     #[test]
     fn test_edge_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
 
-        // 创建边投影
+        let expr1 = crate::core::Expression::Variable("src".to_string());
+        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_id1 = expr_context.register_expression(expr_meta1);
+        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+
+        let expr2 = crate::core::Expression::Variable("dst".to_string());
+        let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(expr2);
+        let expr_id2 = expr_context.register_expression(expr_meta2);
+        let ctx_expr2 = crate::core::types::ContextualExpression::new(expr_id2, expr_context.clone());
+
+        let expr3 = crate::core::Expression::Variable("edge_type".to_string());
+        let expr_meta3 = crate::core::types::expression::ExpressionMeta::new(expr3);
+        let expr_id3 = expr_context.register_expression(expr_meta3);
+        let ctx_expr3 = crate::core::types::ContextualExpression::new(expr_id3, expr_context.clone());
+
         let columns = vec![
             ProjectionColumn::new(
                 "src_id".to_string(),
-                Expression::Variable("src".to_string()),
+                ctx_expr1,
             ),
             ProjectionColumn::new(
                 "dst_id".to_string(),
-                Expression::Variable("dst".to_string()),
+                ctx_expr2,
             ),
             ProjectionColumn::new(
                 "edge_type".to_string(),
-                Expression::Variable("edge_type".to_string()),
+                ctx_expr3,
             ),
         ];
 
-        let executor = ProjectExecutor::new(1, storage, columns);
+        let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
         // 创建测试边
         let edge1 = crate::core::Edge {

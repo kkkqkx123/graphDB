@@ -216,11 +216,9 @@ impl MaterializationOptimizer {
         match node {
             PlanNodeEnum::Filter(n) => {
                 let condition = n.condition();
-                if let Some(condition_expr) = condition.expression() {
-                    let analysis = self.expression_analyzer.analyze(condition_expr.inner());
-                    if !analysis.is_deterministic {
-                        return false;
-                    }
+                let analysis = self.expression_analyzer.analyze(&condition);
+                if !analysis.is_deterministic {
+                    return false;
                 }
                 self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
             }
@@ -238,38 +236,30 @@ impl MaterializationOptimizer {
             }
             PlanNodeEnum::InnerJoin(join_node) => {
                 for key in join_node.hash_keys() {
-                    if let Some(key_expr) = key.expression() {
-                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
+                    let analysis = self.expression_analyzer.analyze(key);
+                    if !analysis.is_deterministic {
+                        return false;
                     }
                 }
                 for key in join_node.probe_keys() {
-                    if let Some(key_expr) = key.expression() {
-                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
+                    let analysis = self.expression_analyzer.analyze(key);
+                    if !analysis.is_deterministic {
+                        return false;
                     }
                 }
                 true
             }
             PlanNodeEnum::LeftJoin(join_node) => {
                 for key in join_node.hash_keys() {
-                    if let Some(key_expr) = key.expression() {
-                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
+                    let analysis = self.expression_analyzer.analyze(key);
+                    if !analysis.is_deterministic {
+                        return false;
                     }
                 }
                 for key in join_node.probe_keys() {
-                    if let Some(key_expr) = key.expression() {
-                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
+                    let analysis = self.expression_analyzer.analyze(key);
+                    if !analysis.is_deterministic {
+                        return false;
                     }
                 }
                 true
@@ -277,57 +267,45 @@ impl MaterializationOptimizer {
             PlanNodeEnum::CrossJoin(_) => true,
             PlanNodeEnum::HashInnerJoin(join_node) => {
                 for key in join_node.hash_keys() {
-                    if let Some(key_expr) = key.expression() {
-                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
+                    let analysis = self.expression_analyzer.analyze(key);
+                    if !analysis.is_deterministic {
+                        return false;
                     }
                 }
                 for key in join_node.probe_keys() {
-                    if let Some(key_expr) = key.expression() {
-                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
+                    let analysis = self.expression_analyzer.analyze(key);
+                    if !analysis.is_deterministic {
+                        return false;
                     }
                 }
                 true
             }
             PlanNodeEnum::HashLeftJoin(join_node) => {
                 for key in join_node.hash_keys() {
-                    if let Some(key_expr) = key.expression() {
-                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
+                    let analysis = self.expression_analyzer.analyze(key);
+                    if !analysis.is_deterministic {
+                        return false;
                     }
                 }
                 for key in join_node.probe_keys() {
-                    if let Some(key_expr) = key.expression() {
-                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
+                    let analysis = self.expression_analyzer.analyze(key);
+                    if !analysis.is_deterministic {
+                        return false;
                     }
                 }
                 true
             }
             PlanNodeEnum::FullOuterJoin(join_node) => {
                 for key in join_node.hash_keys() {
-                    if let Some(key_expr) = key.expression() {
-                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
+                    let analysis = self.expression_analyzer.analyze(key);
+                    if !analysis.is_deterministic {
+                        return false;
                     }
                 }
                 for key in join_node.probe_keys() {
-                    if let Some(key_expr) = key.expression() {
-                        let analysis = self.expression_analyzer.analyze(key_expr.inner());
-                        if !analysis.is_deterministic {
-                            return false;
-                        }
+                    let analysis = self.expression_analyzer.analyze(key);
+                    if !analysis.is_deterministic {
+                        return false;
                     }
                 }
                 true
@@ -348,10 +326,8 @@ impl MaterializationOptimizer {
         match node {
             PlanNodeEnum::Filter(n) => {
                 let condition = n.condition();
-                if let Some(condition_expr) = condition.expression() {
-                    let analysis = self.expression_analyzer.analyze(condition_expr.inner());
-                    max_complexity = max_complexity.max(analysis.complexity_score);
-                }
+                let analysis = self.expression_analyzer.analyze(&condition);
+                max_complexity = max_complexity.max(analysis.complexity_score);
                 max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)));
             }
             PlanNodeEnum::Project(n) => {

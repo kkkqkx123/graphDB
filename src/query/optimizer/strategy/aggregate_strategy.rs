@@ -208,24 +208,22 @@ impl AggregateStrategySelector {
 
         // 分析所有聚合表达式
         for ctx_expr in ctx_expressions {
-            // 检查是否已有缓存的分析结果
-            if let Some(expr_id) = ctx_expr.id() {
-                if let Some(analysis) = self.expression_context.get_analysis(&expr_id) {
-                    // 使用缓存的分析结果
-                    if !analysis.is_deterministic {
-                        context.is_deterministic = false;
-                    }
-                    context.complexity_score += analysis.complexity_score;
-                } else {
-                    // 分析表达式并缓存结果
-                    let analysis = self.expression_analyzer.analyze(ctx_expr);
-                    self.expression_context.set_analysis(&expr_id, analysis.clone());
-
-                    if !analysis.is_deterministic {
-                        context.is_deterministic = false;
-                    }
-                    context.complexity_score += analysis.complexity_score;
+            let expr_id = ctx_expr.id();
+            if let Some(analysis) = self.expression_context.get_analysis(expr_id) {
+                // 使用缓存的分析结果
+                if !analysis.is_deterministic {
+                    context.is_deterministic = false;
                 }
+                context.complexity_score += analysis.complexity_score;
+            } else {
+                // 分析表达式并缓存结果
+                let analysis = self.expression_analyzer.analyze(ctx_expr);
+                self.expression_context.set_analysis(expr_id, analysis.clone());
+
+                if !analysis.is_deterministic {
+                    context.is_deterministic = false;
+                }
+                context.complexity_score += analysis.complexity_score;
             }
         }
 

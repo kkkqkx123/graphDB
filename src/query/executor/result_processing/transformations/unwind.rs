@@ -9,7 +9,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::types::expression::context::ExpressionContext;
 use crate::core::{DataSet, Expression, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::DefaultExpressionContext;
+use crate::expression::{DefaultExpressionContext, ExpressionContext as EvalContext};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
