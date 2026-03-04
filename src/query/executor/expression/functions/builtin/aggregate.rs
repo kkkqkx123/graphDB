@@ -128,13 +128,13 @@ impl AggregateExpression {
     }
 
     /// 计算聚合表达式的值
-    pub fn evaluate<C: crate::expression::ExpressionContext>(
+    pub fn evaluate<C: crate::query::executor::expression::ExpressionContext>(
         &self,
         context: &mut C,
         state: &mut AggregateState,
     ) -> Result<Value, ExpressionError> {
         let arg_value =
-            crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(
+            crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(
                 &self.argument,
                 context,
             )

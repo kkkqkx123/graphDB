@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn test_validate_where_clause() {
         use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+            ContextualExpression, Expression, ExpressionMeta,
         };
         use std::sync::Arc;
 

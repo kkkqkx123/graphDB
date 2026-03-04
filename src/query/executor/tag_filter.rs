@@ -6,9 +6,9 @@ use crate::core::value::dataset::List;
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Expression;
 use crate::core::Value;
-use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::evaluator::traits::ExpressionContext;
-use crate::expression::DefaultExpressionContext;
+use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::DefaultExpressionContext;
 
 /// 标签过滤器处理器
 ///

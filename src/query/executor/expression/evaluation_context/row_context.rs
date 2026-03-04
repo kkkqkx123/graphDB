@@ -51,7 +51,7 @@ impl RowExpressionContext {
     }
 }
 
-impl crate::expression::evaluator::traits::ExpressionContext for RowExpressionContext {
+impl crate::query::executor::expression::evaluator::traits::ExpressionContext for RowExpressionContext {
     fn get_variable(&self, name: &str) -> Option<Value> {
         // 首先检查变量映射
         if let Some(value) = self.variables.get(name) {
@@ -70,7 +70,7 @@ impl crate::expression::evaluator::traits::ExpressionContext for RowExpressionCo
         self.variables.insert(name, value);
     }
 
-    fn get_function(&self, _name: &str) -> Option<crate::expression::functions::FunctionRef> {
+    fn get_function(&self, _name: &str) -> Option<crate::query::executor::expression::functions::FunctionRef> {
         None
     }
 
@@ -78,7 +78,7 @@ impl crate::expression::evaluator::traits::ExpressionContext for RowExpressionCo
         false
     }
 
-    fn get_cache(&mut self) -> Option<&mut crate::expression::evaluation_context::cache_manager::CacheManager> {
+    fn get_cache(&mut self) -> Option<&mut crate::query::executor::expression::evaluation_context::cache_manager::CacheManager> {
         None
     }
 }

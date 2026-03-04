@@ -150,7 +150,7 @@ mod tests {
         Arc::new(Mutex::new(storage))
     }
 
-    fn create_test_context() -> Arc<ExpressionContext> {
+    fn create_test_context() -> Arc<ExpressionAnalysisContext> {
         Arc::new(ExpressionAnalysisContext::new())
     }
 

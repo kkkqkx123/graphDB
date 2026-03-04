@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::core::types::expression::context::ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::{DataSet, Expression, Value};
-use crate::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::ExecutionResult;
 use crate::query::executor::data_processing::join::hash_table::JoinKey;

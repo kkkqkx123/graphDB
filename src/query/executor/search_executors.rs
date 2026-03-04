@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::core::error::DBError;
 use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::{Edge, EdgeDirection, NullType, Path, Value, Vertex};
-use crate::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -857,12 +857,12 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     /// 应用过滤器
     fn apply_filter(&self, entities: Vec<Value>) -> Vec<Value> {
         if let Some(ref filter_expr) = self.filter {
-            let mut context = crate::expression::DefaultExpressionContext::new();
+            let mut context = crate::query::executor::expression::DefaultExpressionContext::new();
             entities
                 .into_iter()
                 .filter(|entity| {
                     context.set_variable("entity".to_string(), entity.clone());
-                    match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expr, &mut context) {
+                    match crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expr, &mut context) {
                         Ok(value) => match &value {
                             Value::Bool(true) => true,
                             Value::Int(i) => *i != 0,

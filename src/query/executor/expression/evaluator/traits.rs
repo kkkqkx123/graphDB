@@ -6,7 +6,7 @@
 //! 编译时分析请使用 `crate::core::types::expression::context::ExpressionAnalysisContext`。
 
 use crate::core::Value;
-use crate::expression::functions::FunctionRef;
+use crate::query::executor::expression::functions::FunctionRef;
 
 /// 表达式求值上下文 trait
 ///
@@ -34,7 +34,7 @@ pub trait ExpressionContext {
     /// 获取缓存管理器（如果支持）
     fn get_cache(
         &mut self,
-    ) -> Option<&mut crate::expression::evaluation_context::cache_manager::CacheManager> {
+    ) -> Option<&mut crate::query::executor::expression::evaluation_context::cache_manager::CacheManager> {
         None
     }
 }

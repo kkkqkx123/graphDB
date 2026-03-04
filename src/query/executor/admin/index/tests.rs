@@ -13,7 +13,7 @@ mod tests {
     use parking_lot::Mutex;
     use std::sync::Arc;
 
-    fn create_test_context() -> Arc<ExpressionContext> {
+    fn create_test_context() -> Arc<ExpressionAnalysisContext> {
         Arc::new(ExpressionAnalysisContext::new())
     }
 

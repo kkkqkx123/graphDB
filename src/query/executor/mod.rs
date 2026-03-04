@@ -5,6 +5,7 @@ pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
 pub mod executor_enum;
+pub mod expression;
 pub mod factory;
 pub mod graph_query_executor;
 pub mod logic;

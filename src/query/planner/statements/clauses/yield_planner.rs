@@ -265,7 +265,6 @@ impl Default for YieldClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::ExpressionContext;
     use crate::core::Expression;
     use crate::query::parser::ast::{Span, YieldItem};
     use crate::query::planner::plan::core::nodes::StartNode;

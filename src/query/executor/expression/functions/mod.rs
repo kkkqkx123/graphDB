@@ -11,7 +11,7 @@
 //! ## 使用方式
 //!
 //! ```rust
-//! use crate::expression::functions::BuiltinFunction;
+//! use crate::query::executor::expression::functions::BuiltinFunction;
 //!
 //! let func = BuiltinFunction::Math(MathFunction::Abs);
 //! let result = func.execute(&[Value::Int(-5)]);
@@ -39,7 +39,7 @@ pub use builtin::utility::UtilityFunction;
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
-use crate::expression::evaluation_context::CacheManager;
+use crate::query::executor::expression::evaluation_context::CacheManager;
 
 /// 函数引用枚举，用于表达式中引用函数
 #[derive(Debug, Clone)]

@@ -300,7 +300,6 @@ impl NodeVisitor for NodeVisitorFinder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::ExpressionContext;
     use crate::core::Expression;
     use crate::core::Value;
     use crate::query::planner::plan::core::nodes::filter_node::FilterNode;

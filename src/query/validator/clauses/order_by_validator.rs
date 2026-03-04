@@ -610,7 +610,7 @@ mod tests {
     #[test]
     fn test_add_order_column() {
         use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+            ContextualExpression, Expression, ExpressionMeta,
         };
         use std::sync::Arc;
 
@@ -639,7 +639,7 @@ mod tests {
     #[test]
     fn test_validate_valid_column() {
         use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+            ContextualExpression, Expression, ExpressionMeta,
         };
         use std::sync::Arc;
 

@@ -5,9 +5,9 @@
 use crate::common::memory::{MemoryConfig, MemoryTracker};
 use crate::core::types::expression::Expression;
 use crate::core::{DBError, DBResult, DataSet, Value};
-use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::evaluator::traits::ExpressionContext;
-use crate::expression::DefaultExpressionContext;
+use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::DefaultExpressionContext;
 use bincode::{decode_from_slice, encode_to_vec, Decode, Encode};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};

@@ -7,11 +7,11 @@ use crate::core::types::expression::Expression;
 use crate::core::value::dataset::List;
 use crate::core::value::NullType;
 use crate::core::Value;
-use crate::expression::evaluator::collection_operations::CollectionOperationEvaluator;
-use crate::expression::evaluator::functions::FunctionEvaluator;
-use crate::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};
-use crate::expression::evaluator::traits::ExpressionContext;
-use crate::expression::functions::global_registry;
+use crate::query::executor::expression::evaluator::collection_operations::CollectionOperationEvaluator;
+use crate::query::executor::expression::evaluator::functions::FunctionEvaluator;
+use crate::query::executor::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::functions::global_registry;
 
 /// 表达式求值器实现（unit struct，零开销）
 #[derive(Debug)]
@@ -176,7 +176,7 @@ impl ExpressionEvaluator {
 
                 if let Some(func_ref) = func_ref {
                     // 转换为拥有所有权的函数引用以避免借用问题
-                    let owned_func: crate::expression::functions::OwnedFunctionRef =
+                    let owned_func: crate::query::executor::expression::functions::OwnedFunctionRef =
                         func_ref.clone().into();
 
                     // 显式释放 func_ref 的借用

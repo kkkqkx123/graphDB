@@ -5,7 +5,7 @@ use crate::core::value::dataset::List;
 ///
 /// 本模块负责处理表达式求值中的算术运算、比较运算、逻辑运算等基础运算操作。
 use crate::core::value::types::Value;
-use crate::expression::evaluator::collection_operations::CollectionOperationEvaluator;
+use crate::query::executor::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 
 /// 二元运算求值器
 pub struct BinaryOperationEvaluator;

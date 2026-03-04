@@ -370,8 +370,8 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         &mut self,
         clause: crate::query::parser::ast::stmt::DeleteStmt,
     ) -> Result<ExecutionResult, DBError> {
-        use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-        use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+        use crate::query::executor::expression::DefaultExpressionContext;
         use crate::query::executor::data_modification::DeleteExecutor;
         use crate::query::parser::ast::stmt::DeleteTarget;
 
@@ -508,8 +508,8 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         &mut self,
         clause: crate::query::parser::ast::stmt::UpdateStmt,
     ) -> Result<ExecutionResult, DBError> {
-        use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-        use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+        use crate::query::executor::expression::DefaultExpressionContext;
         use crate::query::executor::data_modification::{EdgeUpdate, UpdateExecutor, VertexUpdate};
         use crate::query::parser::ast::stmt::UpdateTarget;
 
@@ -694,8 +694,8 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         &mut self,
         clause: crate::query::parser::ast::stmt::FetchStmt,
     ) -> Result<ExecutionResult, DBError> {
-        use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-        use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+        use crate::query::executor::expression::DefaultExpressionContext;
         use crate::query::executor::data_access::GetEdgesExecutor;
         use crate::query::executor::data_access::GetVerticesExecutor;
         use crate::query::parser::ast::stmt::FetchTarget;
@@ -778,8 +778,8 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         let storage = self.storage.clone();
 
-        use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-        use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+        use crate::query::executor::expression::DefaultExpressionContext;
 
         let mut context = DefaultExpressionContext::new();
 
@@ -1146,8 +1146,8 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         clause: crate::query::parser::ast::stmt::SubgraphStmt,
     ) -> Result<ExecutionResult, DBError> {
         use crate::core::Value;
-        use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-        use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+        use crate::query::executor::expression::DefaultExpressionContext;
         use crate::query::executor::base::EdgeDirection;
         use crate::query::executor::data_processing::graph_traversal::algorithms::{
             SubgraphConfig, SubgraphExecutor,
@@ -1242,8 +1242,8 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         use crate::core::vertex_edge_path::Tag;
         use crate::core::Edge;
         use crate::core::Vertex;
-        use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-        use crate::expression::DefaultExpressionContext;
+        use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+        use crate::query::executor::expression::DefaultExpressionContext;
         use crate::query::executor::data_modification::InsertExecutor;
         use crate::query::parser::ast::stmt::InsertTarget;
 

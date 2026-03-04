@@ -4,8 +4,8 @@ use std::time::Instant;
 use super::base::{BaseExecutor, ExecutorStats};
 use crate::core::{vertex_edge_path, Value};
 use crate::core::types::expression::context::ExpressionAnalysisContext;
-use crate::expression::DefaultExpressionContext;
-use crate::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::DefaultExpressionContext;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -162,13 +162,13 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                     .filter(|vertex| {
                         if let Some(ref filter_expression) = self.vertex_filter {
                             let mut context =
-                                crate::expression::DefaultExpressionContext::new();
+                                crate::query::executor::expression::DefaultExpressionContext::new();
                             context.set_variable(
                                 "vertex".to_string(),
                                 crate::core::Value::Vertex(Box::new(vertex.clone())),
                             );
 
-                            match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expression, &mut context) {
+                            match crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expression, &mut context) {
                                 Ok(value) => {
                                     match value {
                                         crate::core::Value::Bool(b) => b,
@@ -374,10 +374,10 @@ impl<S: StorageClient> ScanEdgesExecutor<S> {
         };
 
         if let Some(ref filter_expr) = self.filter {
-            let mut context = crate::expression::DefaultExpressionContext::new();
+            let mut context = crate::query::executor::expression::DefaultExpressionContext::new();
             edges.retain(|edge| {
                 context.set_variable("edge".to_string(), crate::core::Value::Edge(edge.clone()));
-                match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expr, &mut context) {
+                match crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expr, &mut context) {
                     Ok(value) => match value {
                         crate::core::Value::Bool(b) => b,
                         crate::core::Value::Int(i) => i != 0,
@@ -1013,13 +1013,13 @@ impl<S: StorageClient> ScanVerticesExecutor<S> {
             })
             .filter(|vertex| {
                 if let Some(ref filter_expression) = self.vertex_filter {
-                    let mut context = crate::expression::DefaultExpressionContext::new();
+                    let mut context = crate::query::executor::expression::DefaultExpressionContext::new();
                     context.set_variable(
                         "vertex".to_string(),
                         crate::core::Value::Vertex(Box::new(vertex.clone())),
                     );
 
-                    match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expression, &mut context) {
+                    match crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expression, &mut context) {
                         Ok(value) => {
                             match value {
                                 crate::core::Value::Bool(b) => b,

@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn test_validate_return_item_expression() {
         use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+            ContextualExpression, Expression, ExpressionMeta,
         };
         use std::sync::Arc;
 

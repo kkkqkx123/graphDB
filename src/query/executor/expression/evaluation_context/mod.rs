@@ -13,7 +13,7 @@ pub mod row_context;
 pub use default_context::DefaultExpressionContext;
 
 // 重新导出 ExpressionContext trait（来自 evaluator::traits）
-pub use crate::expression::evaluator::traits::ExpressionContext;
+pub use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 
 // 重新导出行上下文类型
 pub use row_context::RowExpressionContext;

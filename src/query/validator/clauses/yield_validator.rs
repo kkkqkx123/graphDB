@@ -352,7 +352,7 @@ impl StatementValidator for YieldValidator {
 mod tests {
     use super::*;
     use crate::core::types::expression::contextual::ContextualExpression;
-    use crate::core::types::expression::{ExpressionContext, ExpressionMeta};
+    use crate::core::types::expression::ExpressionMeta;
     use crate::core::{Expression, Value};
     use std::sync::Arc;
 
@@ -452,7 +452,7 @@ mod tests {
     #[test]
     fn test_yield_with_distinct() {
         use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+            ContextualExpression, Expression, ExpressionMeta,
         };
         use std::sync::Arc;
 

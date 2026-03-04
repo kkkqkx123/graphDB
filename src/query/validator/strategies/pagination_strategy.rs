@@ -99,8 +99,8 @@ impl PaginationValidationStrategy {
                 ValidationErrorType::PaginationError,
             )),
             _ => {
-                use crate::expression::evaluation_context::DefaultExpressionContext;
-                use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+                use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;
+                use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 
                 let mut context = DefaultExpressionContext::new();
                 match ExpressionEvaluator::evaluate(expression, &mut context) {
@@ -172,7 +172,7 @@ impl PaginationValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::{ContextualExpression, ExpressionContext, ExpressionMeta};
+    use crate::core::types::expression::{ContextualExpression, ExpressionMeta};
     use crate::core::Expression;
     use std::sync::Arc;
 

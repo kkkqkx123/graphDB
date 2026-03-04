@@ -346,7 +346,7 @@ impl PushDownRule for PushProjectDownRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::{ContextualExpression, ExpressionContext};
+    use crate::core::types::ContextualExpression;
     use crate::core::{Expression, YieldColumn};
     use crate::query::planner::plan::core::nodes::{
         DedupNode, FilterNode, GetVerticesNode, LimitNode, ProjectNode, ScanVerticesNode, StartNode,
@@ -578,7 +578,7 @@ mod tests {
 
         // 创建 Filter 节点
         use std::sync::Arc;
-        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+        let ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::literal(true),
         );

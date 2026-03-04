@@ -6,8 +6,8 @@
 //! 编译时分析请使用 `crate::core::types::expression::context::ExpressionAnalysisContext`。
 
 use crate::core::Value;
-use crate::expression::evaluation_context::cache_manager::CacheManager;
-use crate::expression::functions::global_registry_ref;
+use crate::query::executor::expression::evaluation_context::cache_manager::CacheManager;
+use crate::query::executor::expression::functions::global_registry_ref;
 use std::collections::HashMap;
 
 /// 默认表达式求值上下文
@@ -60,7 +60,7 @@ impl Default for DefaultExpressionContext {
     }
 }
 
-impl crate::expression::evaluator::traits::ExpressionContext for DefaultExpressionContext {
+impl crate::query::executor::expression::evaluator::traits::ExpressionContext for DefaultExpressionContext {
     fn get_variable(&self, name: &str) -> Option<Value> {
         self.variables.get(name).cloned()
     }
@@ -69,15 +69,15 @@ impl crate::expression::evaluator::traits::ExpressionContext for DefaultExpressi
         self.variables.insert(name, value);
     }
 
-    fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
+    fn get_function(&self, name: &str) -> Option<crate::query::executor::expression::functions::FunctionRef> {
         let registry = global_registry_ref();
         registry
             .get_builtin(name)
-            .map(|f| crate::expression::functions::FunctionRef::Builtin(f))
+            .map(|f| crate::query::executor::expression::functions::FunctionRef::Builtin(f))
             .or_else(|| {
                 registry
                     .get_custom(name)
-                    .map(|f| crate::expression::functions::FunctionRef::Custom(f))
+                    .map(|f| crate::query::executor::expression::functions::FunctionRef::Custom(f))
             })
     }
 

@@ -10,9 +10,9 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::Expression;
 use crate::core::Value;
-use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::evaluator::traits::ExpressionContext;
-use crate::expression::DefaultExpressionContext;
+use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::DefaultExpressionContext;
 use crate::query::core::LoopExecutionState;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
@@ -588,7 +588,7 @@ impl<S: StorageClient> SelectExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let mut context = crate::expression::DefaultExpressionContext::new();
+        let mut context = crate::query::executor::expression::DefaultExpressionContext::new();
 
         let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
             .map_err(|e| {

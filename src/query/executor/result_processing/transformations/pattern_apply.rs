@@ -11,9 +11,9 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::types::expression::context::ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::Expression;
 use crate::core::{DataSet, List, Value};
-use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::evaluator::traits::ExpressionContext;
-use crate::expression::DefaultExpressionContext;
+use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
@@ -372,7 +372,7 @@ mod tests {
         context.set_result("right".to_string(), ExecutionResult::Values(right_values));
 
         let key_cols = vec![Expression::variable("_")];
-        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let expr_context = Arc::new(ExpressionContextStruct::new());
         let mut executor = PatternApplyExecutor::with_context(
             1,
             storage,
