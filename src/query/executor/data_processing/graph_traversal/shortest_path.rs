@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::{Path, Value};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
@@ -72,9 +73,10 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
         algorithm: ShortestPathAlgorithmType,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ShortestPathExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "ShortestPathExecutor".to_string(), storage, expr_context),
             start_vertex_ids,
             end_vertex_ids,
             edge_direction,

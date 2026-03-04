@@ -6,7 +6,8 @@ use std::sync::Arc;
 
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{PlanNode, PlanNodeClonable};
-use crate::core::types::{ContextualExpression, ExpressionContext, SerializableExpression};
+use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::define_plan_node;
 
 define_plan_node! {
@@ -126,7 +127,7 @@ impl SelectNode {
             Some(SerializableExpression::from_contextual(&self.condition));
     }
 
-    pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
+    pub fn after_deserialization(&mut self, ctx: Arc<ExpressionAnalysisContext>) {
         if let Some(ref ser_expr) = self.condition_serializable {
             self.condition = ser_expr.clone().to_contextual(ctx);
         }
@@ -269,7 +270,7 @@ impl LoopNode {
             Some(SerializableExpression::from_contextual(&self.condition));
     }
 
-    pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
+    pub fn after_deserialization(&mut self, ctx: Arc<ExpressionAnalysisContext>) {
         if let Some(ref ser_expr) = self.condition_serializable {
             self.condition = ser_expr.clone().to_contextual(ctx);
         }

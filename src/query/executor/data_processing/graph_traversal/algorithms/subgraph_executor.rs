@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::{Edge, Path, Value, Vertex};
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
@@ -177,11 +178,12 @@ impl<S: StorageClient> SubgraphExecutor<S> {
         storage: Arc<Mutex<S>>,
         start_vids: Vec<Value>,
         config: SubgraphConfig,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         let valid_vids: HashSet<Value> = start_vids.iter().cloned().collect();
 
         Self {
-            base: BaseExecutor::new(id, "SubgraphExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "SubgraphExecutor".to_string(), storage, expr_context),
             start_vids: start_vids.clone(),
             config,
             current_step: 1,

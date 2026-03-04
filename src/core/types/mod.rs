@@ -62,7 +62,7 @@ pub use self::metadata::{
 };
 
 pub use self::expression::{
-    ContextualExpression, Expression, ExpressionContext, ExpressionMeta, OptimizationFlags,
+    ContextualExpression, Expression, ExpressionAnalysisContext, ExpressionMeta, OptimizationFlags,
     SerializableExpression,
 };
 pub use self::graph_schema::{

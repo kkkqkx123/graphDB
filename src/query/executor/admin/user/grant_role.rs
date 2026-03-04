@@ -5,6 +5,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::RoleType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -27,9 +28,10 @@ impl<S: StorageClient> GrantRoleExecutor<S> {
         username: String,
         space_name: String,
         role: RoleType,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "GrantRoleExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "GrantRoleExecutor".to_string(), storage, expr_context),
             username,
             space_name,
             role,

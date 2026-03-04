@@ -6,6 +6,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
@@ -25,13 +26,13 @@ pub struct AssignExecutor<S: StorageClient + Send + 'static> {
 
 impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
     /// 创建新的AssignExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, assign_items: Vec<(String, Expression)>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, assign_items: Vec<(String, Expression)>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::with_description(
+            base: BaseExecutor::new(
                 id,
                 "AssignExecutor".to_string(),
-                "Assign executor - assigns expression results to variables".to_string(),
                 storage,
+                expr_context,
             ),
             assign_items,
         }

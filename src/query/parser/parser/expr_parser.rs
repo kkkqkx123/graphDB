@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use crate::core::types::expression::{
-    ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+    ContextualExpression, Expression, ExpressionAnalysisContext, ExpressionMeta,
 };
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::core::types::{Position, Span};
@@ -43,7 +43,7 @@ impl<'a> ExprParser<'a> {
     pub fn parse_expression_with_context(
         &mut self,
         ctx: &mut ParseContext<'a>,
-        expr_ctx: Arc<ExpressionContext>,
+        expr_ctx: Arc<ExpressionAnalysisContext>,
     ) -> Result<ContextualExpression, ParseError> {
         let result = self.parse_expression(ctx)?;
         let expr_meta = ExpressionMeta::with_span(result.expr, result.span);

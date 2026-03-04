@@ -32,7 +32,7 @@ impl<S: StorageClient> SetExecutor<S> {
         storage: Arc<Mutex<S>>,
         left_input_var: String,
         right_input_var: String,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, name, storage, expr_context),

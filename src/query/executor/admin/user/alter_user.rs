@@ -5,6 +5,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::UserAlterInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -19,9 +20,9 @@ pub struct AlterUserExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> AlterUserExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, alter_info: UserAlterInfo) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, alter_info: UserAlterInfo, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "AlterUserExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "AlterUserExecutor".to_string(), storage, expr_context),
             alter_info,
         }
     }

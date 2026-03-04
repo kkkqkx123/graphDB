@@ -17,7 +17,7 @@ pub struct ParseContext<'a> {
     upsert_mode: bool,
     recursion_depth: usize,
     max_recursion_depth: usize,
-    expr_context: Arc<ExpressionContext>,
+    expr_context: Arc<ExpressionAnalysisContext>,
 }
 
 impl<'a> ParseContext<'a> {
@@ -55,15 +55,15 @@ impl<'a> ParseContext<'a> {
         }
     }
 
-    pub fn set_expression_context(&mut self, expr_context: Arc<ExpressionContext>) {
+    pub fn set_expression_context(&mut self, expr_context: Arc<ExpressionAnalysisContext>) {
         self.expr_context = expr_context;
     }
 
-    pub fn expression_context(&self) -> &Arc<ExpressionContext> {
+    pub fn expression_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expr_context
     }
 
-    pub fn expression_context_clone(&self) -> Arc<ExpressionContext> {
+    pub fn expression_context_clone(&self) -> Arc<ExpressionAnalysisContext> {
         self.expr_context.clone()
     }
 

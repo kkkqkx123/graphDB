@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::{ContextualExpression, ExpressionContext};
+use crate::core::types::{ContextualExpression, ExpressionAnalysisContext};
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;

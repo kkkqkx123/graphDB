@@ -5,6 +5,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::graph_schema::PropertyType;
 use crate::core::DataSet;
 use crate::core::Value;
@@ -37,9 +38,9 @@ pub struct DescEdgeExecutor<S: StorageClient> {
 
 impl<S: StorageClient> DescEdgeExecutor<S> {
     /// 创建新的 DescEdgeExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, edge_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, edge_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DescEdgeExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DescEdgeExecutor".to_string(), storage, expr_context),
             space_name,
             edge_name,
         }

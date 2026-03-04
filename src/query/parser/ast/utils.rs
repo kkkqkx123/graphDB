@@ -4,7 +4,7 @@ use super::pattern::*;
 use super::stmt::*;
 use super::types::*;
 use crate::core::types::expression::{
-    ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+    ContextualExpression, Expression, ExpressionAnalysisContext, ExpressionMeta,
 };
 use crate::core::Value;
 use std::sync::Arc;
@@ -14,7 +14,7 @@ pub struct ExprFactory;
 
 impl ExprFactory {
     /// 创建常量表达式
-    pub fn constant(value: Value, ctx: Arc<ExpressionContext>) -> ContextualExpression {
+    pub fn constant(value: Value, ctx: Arc<ExpressionAnalysisContext>) -> ContextualExpression {
         let expr = Expression::Literal(value);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -22,7 +22,7 @@ impl ExprFactory {
     }
 
     /// 创建变量表达式
-    pub fn variable(name: String, ctx: Arc<ExpressionContext>) -> ContextualExpression {
+    pub fn variable(name: String, ctx: Arc<ExpressionAnalysisContext>) -> ContextualExpression {
         let expr = Expression::Variable(name);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);

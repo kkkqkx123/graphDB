@@ -10,7 +10,7 @@ use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::Expression;
 use crate::core::{DataSet, Value, Vertex};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::DefaultExpressionContext;
+use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -47,7 +47,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
         dedup: bool,
         track_prev_path: bool,
         need_fetch_prop: bool,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AppendVerticesExecutor".to_string(), storage, expr_context),
@@ -396,7 +396,8 @@ mod tests {
 
         let input_result = ExecutionResult::Values(vids);
 
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context);
         context.set_result("input".to_string(), input_result);
 
         let src_expression = Expression::Variable("_".to_string());

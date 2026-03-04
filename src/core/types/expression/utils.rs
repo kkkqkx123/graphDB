@@ -4,6 +4,7 @@
 //!
 //! 这些函数使用递归和模式匹配，比访问者模式更简洁直观。
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::types::operators::AggregateFunction;
 use crate::expression::evaluator::ExpressionEvaluator;
@@ -564,7 +565,7 @@ fn extract_aggregate_functions_recursive(
 pub mod test_helpers {
     use super::*;
     use crate::core::types::expression::ContextualExpression;
-    use crate::core::types::expression::{ExpressionContext, ExpressionMeta};
+    use crate::core::types::expression::{ExpressionAnalysisContext, ExpressionMeta};
     use std::sync::Arc;
 
     pub fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {

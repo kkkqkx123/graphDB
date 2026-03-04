@@ -30,8 +30,9 @@
 use std::sync::Arc;
 
 use crate::core::types::operators::AggregateFunction;
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::visitor_checkers::AggregateFunctionChecker;
-use crate::core::types::{ContextualExpression, ExpressionContext};
+use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;

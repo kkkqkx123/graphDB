@@ -720,7 +720,7 @@ impl Default for ExpressionAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::{ExpressionContext, ExpressionMeta};
+    use crate::core::types::expression::{ExpressionAnalysisContext, ExpressionMeta};
 
     #[test]
     fn test_analyze_literal() {

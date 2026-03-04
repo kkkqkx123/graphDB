@@ -251,9 +251,10 @@ impl ResultProcessorFactory {
         id: i64,
         storage: Arc<Mutex<S>>,
         columns: Vec<crate::query::executor::result_processing::projection::ProjectionColumn>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> crate::query::executor::result_processing::projection::ProjectExecutor<S> {
         crate::query::executor::result_processing::projection::ProjectExecutor::new(
-            id, storage, columns,
+            id, storage, columns, expr_context,
         )
     }
 

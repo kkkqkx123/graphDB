@@ -139,7 +139,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
         max_steps: usize,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AllPathsExecutor".to_string(), storage, expr_context),

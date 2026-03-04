@@ -49,7 +49,7 @@ pub fn check_col_name(property_names: &[String], expr: &Expression) -> bool {
 pub fn rewrite_contextual_expression(
     expr: &ContextualExpression,
     rewrite_map: &std::collections::HashMap<String, ContextualExpression>,
-    expr_context: Arc<ExpressionContext>,
+    expr_context: Arc<ExpressionAnalysisContext>,
 ) -> ContextualExpression {
     let expr_meta = match expr.expression() {
         Some(e) => e,
@@ -75,7 +75,7 @@ pub fn rewrite_contextual_expression(
 fn rewrite_expression_with_map(
     expr: &Expression,
     rewrite_map: &std::collections::HashMap<String, ContextualExpression>,
-    expr_context: Arc<ExpressionContext>,
+    expr_context: Arc<ExpressionAnalysisContext>,
 ) -> Expression {
     match expr {
         Expression::Variable(name) => {

@@ -571,7 +571,7 @@ mod tests {
             right: Box::new(Expression::Literal(Value::Int(2))),
         };
         let meta = ExpressionMeta::new(valid_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 
@@ -588,7 +588,7 @@ mod tests {
             right: Box::new(Expression::Literal(Value::Int(0))),
         };
         let meta = ExpressionMeta::new(invalid_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 
@@ -601,7 +601,7 @@ mod tests {
 
         let simple_expression = Expression::Literal(Value::Int(1));
         let meta = ExpressionMeta::new(simple_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert_eq!(checker.calculate_expression_depth(&ctx_expr), 1);
@@ -616,7 +616,7 @@ mod tests {
             right: Box::new(Expression::Literal(Value::Int(3))),
         };
         let meta = ExpressionMeta::new(nested_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 

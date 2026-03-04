@@ -62,7 +62,7 @@ pub struct QueryContext {
     validation_info: RwLock<Option<ValidationInfo>>,
 
     /// 表达式上下文 - 跨阶段共享
-    expr_context: Arc<ExpressionContext>,
+    expr_context: Arc<ExpressionAnalysisContext>,
 }
 
 impl QueryContext {
@@ -85,7 +85,7 @@ impl QueryContext {
     /// 使用指定的表达式上下文创建查询上下文
     pub fn with_expr_context(
         rctx: Arc<QueryRequestContext>,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             rctx,
@@ -239,12 +239,12 @@ impl QueryContext {
     }
 
     /// 获取表达式上下文
-    pub fn expr_context(&self) -> &Arc<ExpressionContext> {
+    pub fn expr_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expr_context
     }
 
     /// 获取表达式上下文的克隆
-    pub fn expr_context_clone(&self) -> Arc<ExpressionContext> {
+    pub fn expr_context_clone(&self) -> Arc<ExpressionAnalysisContext> {
         self.expr_context.clone()
     }
 

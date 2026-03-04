@@ -5,6 +5,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
@@ -21,9 +22,9 @@ pub struct DropEdgeExecutor<S: StorageClient> {
 
 impl<S: StorageClient> DropEdgeExecutor<S> {
     /// 创建新的 DropEdgeExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, edge_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, edge_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DropEdgeExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DropEdgeExecutor".to_string(), storage, expr_context),
             space_name,
             edge_name,
             if_exists: false,

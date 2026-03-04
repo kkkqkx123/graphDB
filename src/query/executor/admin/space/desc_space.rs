@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::iterator::Row;
@@ -43,9 +44,9 @@ pub struct DescSpaceExecutor<S: StorageClient> {
 
 impl<S: StorageClient> DescSpaceExecutor<S> {
     /// 创建新的 DescSpaceExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DescSpaceExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DescSpaceExecutor".to_string(), storage, expr_context),
             space_name,
         }
     }

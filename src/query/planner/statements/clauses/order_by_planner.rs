@@ -2,6 +2,7 @@
 //!
 //! 负责规划 ORDER BY 子句的执行，对结果进行排序。
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::OrderByItem;
@@ -83,7 +84,7 @@ impl ClausePlanner for OrderByClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::ExpressionContext;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::Expression;
     use crate::core::types::OrderDirection;
     use crate::query::parser::ast::{OrderByItem, Span};

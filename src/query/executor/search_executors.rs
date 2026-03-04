@@ -52,7 +52,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         limit: usize,
         start_vertex: Value,
         end_vertex: Value,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "BFSShortestExecutor".to_string(), storage, expr_context),
@@ -541,7 +541,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         return_columns: Vec<String>,
         limit: Option<usize>,
         is_edge: bool,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "IndexScanExecutor".to_string(), storage, expr_context),
@@ -860,7 +860,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             entities
                 .into_iter()
                 .filter(|entity| {
-                    ExpressionContext::set_variable(&mut context, "entity".to_string(), entity.clone());
+                    context.set_variable("entity".to_string(), entity.clone());
                     match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expr, &mut context) {
                         Ok(value) => match &value {
                             Value::Bool(true) => true,

@@ -2,6 +2,7 @@
 //!
 //! 包含Union、Unwind、Dedup等数据处理相关的计划节点
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::define_plan_node_with_deps;
 
@@ -613,7 +614,7 @@ mod tests {
             );
 
         use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionContext, ExpressionMeta,
+            ContextualExpression, Expression, ExpressionAnalysisContext, ExpressionMeta,
         };
         use std::sync::Arc;
 

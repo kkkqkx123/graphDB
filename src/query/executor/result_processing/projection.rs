@@ -13,6 +13,7 @@ use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::Executor;
@@ -81,11 +82,11 @@ impl<S: StorageClient> ProjectExecutor<S> {
         for column in &self.columns {
             // 从 ContextualExpression 提取 Expression
             let expr = match column.expression.expression() {
-                Some(meta) => meta.inner(),
+                Some(meta) => meta.inner().clone(),
                 None => continue,
             };
 
-            match ExpressionEvaluator::evaluate(expr, &mut context) {
+            match ExpressionEvaluator::evaluate(&expr, &mut context) {
                 Ok(value) => projected_row.push(value),
                 Err(e) => {
                     return Err(DBError::Expression(
@@ -152,11 +153,11 @@ impl<S: StorageClient> ProjectExecutor<S> {
                             for column in &columns {
                                 // 从 ContextualExpression 提取 Expression
                                 let expr = match column.expression.expression() {
-                                    Some(meta) => meta.inner(),
+                                    Some(meta) => meta.inner().clone(),
                                     None => return None,
                                 };
 
-                                match ExpressionEvaluator::evaluate(expr, &mut context) {
+                                match ExpressionEvaluator::evaluate(&expr, &mut context) {
                                     Ok(value) => projected_row.push(value),
                                     Err(_) => return None, // 跳过求值失败的行
                                 }
@@ -203,11 +204,11 @@ impl<S: StorageClient> ProjectExecutor<S> {
             let mut projected_row = Vec::new();
             for column in &self.columns {
                 let expr = match column.expression.expression() {
-                    Some(meta) => meta.inner(),
+                    Some(meta) => meta.inner().clone(),
                     None => continue,
                 };
 
-                match ExpressionEvaluator::evaluate(expr, &mut context) {
+                match ExpressionEvaluator::evaluate(&expr, &mut context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
                         return Err(DBError::Expression(
@@ -237,7 +238,7 @@ impl<S: StorageClient> ProjectExecutor<S> {
 
         // 对每个边进行投影
         for edge in edges {
-            let mut context = EvalContext::new();
+            let mut context = DefaultExpressionContext::new();
             // 设置边信息
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
@@ -253,11 +254,11 @@ impl<S: StorageClient> ProjectExecutor<S> {
             let mut projected_row = Vec::new();
             for column in &self.columns {
                 let expr = match column.expression.expression() {
-                    Some(meta) => meta.inner(),
+                    Some(meta) => meta.inner().clone(),
                     None => continue,
                 };
 
-                match ExpressionEvaluator::evaluate(expr, &mut context) {
+                match ExpressionEvaluator::evaluate(&expr, &mut context) {
                     Ok(value) => projected_row.push(value),
                     Err(e) => {
                         return Err(DBError::Expression(
@@ -321,7 +322,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                 dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
                 for path in paths {
-                    let mut context = EvalContext::new();
+                    let mut context = DefaultExpressionContext::new();
                     context.set_variable("path_length".to_string(), Value::Int(path.len() as i64));
                     context
                         .set_variable("src".to_string(), Value::String(path.src.vid.to_string()));
@@ -329,11 +330,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                     let mut projected_row = Vec::new();
                     for column in &self.columns {
                         let expr = match column.expression.expression() {
-                            Some(meta) => meta.inner(),
+                            Some(meta) => meta.inner().clone(),
                             None => continue,
                         };
 
-                        match ExpressionEvaluator::evaluate(expr, &mut context) {
+                        match ExpressionEvaluator::evaluate(&expr, &mut context) {
                             Ok(value) => projected_row.push(value),
                             Err(e) => {
                                 return Err(DBError::Expression(

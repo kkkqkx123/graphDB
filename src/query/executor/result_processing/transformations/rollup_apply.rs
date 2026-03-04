@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::types::expression::context::ExpressionAnalysisContext as ExpressionContextStruct;
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::value::dataset::List;
 use crate::core::{DataSet, Expression, Path, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
@@ -62,13 +62,14 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         collect_col: Expression,
         col_names: Vec<String>,
         context: crate::query::executor::base::ExecutionContext,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::with_context(
+            base: BaseExecutor::new(
                 id,
                 "RollUpApplyExecutor".to_string(),
                 storage,
-                context,
+                expr_context,
             ),
             left_input_var,
             right_input_var,
@@ -572,6 +573,7 @@ mod tests {
 
         let compare_cols = vec![Expression::variable("_")];
         let collect_col = Expression::variable("_");
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = RollUpApplyExecutor::with_context(
             1,
@@ -582,6 +584,7 @@ mod tests {
             collect_col,
             vec!["key".to_string(), "collected".to_string()],
             context,
+            expr_context,
         );
 
         let result = executor
@@ -614,6 +617,7 @@ mod tests {
 
         let compare_cols: Vec<Expression> = vec![];
         let collect_col = Expression::Variable("_".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = RollUpApplyExecutor::with_context(
             2,
@@ -624,6 +628,7 @@ mod tests {
             collect_col,
             vec!["collected".to_string()],
             context,
+            expr_context,
         );
 
         let result = executor
@@ -677,6 +682,7 @@ mod tests {
             Expression::subscript(Expression::variable("_"), Expression::literal(1i64)),
         ];
         let collect_col = Expression::Variable("_".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = RollUpApplyExecutor::with_context(
             3,
@@ -691,6 +697,7 @@ mod tests {
                 "collected".to_string(),
             ],
             context,
+            expr_context,
         );
 
         let result = executor

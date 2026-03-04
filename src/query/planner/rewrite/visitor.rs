@@ -16,6 +16,7 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::{BinaryInputNode
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::plan_rewriter::PlanRewriter;
 use crate::query::planner::rewrite::result::RewriteResult;
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 
 use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
 use crate::query::planner::plan::core::nodes::data_processing_node::{
@@ -550,7 +551,7 @@ mod tests {
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
     use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
-    use crate::core::types::ExpressionContext;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use crate::core::Value;

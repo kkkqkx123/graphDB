@@ -5,6 +5,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::PropertyDef;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -84,9 +85,9 @@ pub struct AlterTagExecutor<S: StorageClient> {
 
 impl<S: StorageClient> AlterTagExecutor<S> {
     /// 创建新的 AlterTagExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, alter_info: AlterTagInfo) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, alter_info: AlterTagInfo, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "AlterTagExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "AlterTagExecutor".to_string(), storage, expr_context),
             alter_info,
         }
     }

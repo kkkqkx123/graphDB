@@ -335,7 +335,7 @@ mod tests {
         // 测试从变量表达式中提取别名
         let var_expression = Expression::Variable("test_var".to_string());
         let meta = ExpressionMeta::new(var_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert_eq!(
@@ -346,7 +346,7 @@ mod tests {
         // 测试从常量表达式中提取别名（应该返回None）
         let const_expression = Expression::Literal(crate::core::Value::Int(42));
         let meta = ExpressionMeta::new(const_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert_eq!(strategy.extract_alias_name(&ctx_expr), None);

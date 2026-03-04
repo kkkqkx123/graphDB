@@ -49,7 +49,7 @@ use crate::query::optimizer::{
 #[derive(Debug)]
 pub struct OptimizerEngine {
     /// 表达式上下文，用于跨阶段共享表达式信息
-    expression_context: Arc<ExpressionContext>,
+    expression_context: Arc<ExpressionAnalysisContext>,
     /// 统计信息管理器
     stats_manager: Arc<StatisticsManager>,
     /// 代价计算器
@@ -90,7 +90,7 @@ impl OptimizerEngine {
     /// - `expression_context`: 共享的表达式上下文（跨阶段共享）
     /// - `cost_config`: 代价模型配置
     pub fn with_expression_context(
-        expression_context: Arc<ExpressionContext>,
+        expression_context: Arc<ExpressionAnalysisContext>,
         cost_config: CostModelConfig,
     ) -> Self {
         // 创建统计信息管理器
@@ -192,7 +192,7 @@ impl OptimizerEngine {
     }
 
     /// 获取表达式上下文
-    pub fn expression_context(&self) -> &Arc<ExpressionContext> {
+    pub fn expression_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expression_context
     }
 

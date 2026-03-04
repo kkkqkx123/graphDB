@@ -58,7 +58,7 @@ pub struct CreateTagIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> CreateTagIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: Index, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: Index, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateTagIndexExecutor".to_string(), storage, expr_context),
             index_info,
@@ -66,7 +66,7 @@ impl<S: StorageClient> CreateTagIndexExecutor<S> {
         }
     }
 
-    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, index_info: Index, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, index_info: Index, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateTagIndexExecutor".to_string(), storage, expr_context),
             index_info,
@@ -149,7 +149,7 @@ pub struct DropTagIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DropTagIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropTagIndexExecutor".to_string(), storage, expr_context),
             space_name,
@@ -163,7 +163,7 @@ impl<S: StorageClient> DropTagIndexExecutor<S> {
         storage: Arc<Mutex<S>>,
         space_name: String,
         index_name: String,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropTagIndexExecutor".to_string(), storage, expr_context),
@@ -241,7 +241,7 @@ pub struct DescTagIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DescTagIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "DescTagIndexExecutor".to_string(), storage, expr_context),
             space_name,

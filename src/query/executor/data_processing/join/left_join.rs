@@ -316,10 +316,11 @@ impl<S: StorageClient> HashLeftJoinExecutor<S> {
         hash_keys: Vec<Expression>,
         probe_keys: Vec<Expression>,
         col_names: Vec<String>,
+        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
             inner: LeftJoinExecutor::new(
-                id, storage, left_var, right_var, hash_keys, probe_keys, col_names,
+                id, storage, left_var, right_var, hash_keys, probe_keys, col_names, expr_context,
             ),
         }
     }

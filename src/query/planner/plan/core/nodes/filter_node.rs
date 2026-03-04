@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use super::plan_node_enum::PlanNodeEnum;
-use crate::core::types::{ContextualExpression, ExpressionContext, SerializableExpression};
+use crate::core::types::{ContextualExpression, ExpressionAnalysisContext, SerializableExpression};
 use crate::define_plan_node_with_deps;
 
 define_plan_node_with_deps! {
@@ -52,7 +52,7 @@ impl FilterNode {
             Some(SerializableExpression::from_contextual(&self.condition));
     }
 
-    pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
+    pub fn after_deserialization(&mut self, ctx: Arc<ExpressionAnalysisContext>) {
         if let Some(ref ser_expr) = self.condition_serializable {
             self.condition = ser_expr.clone().to_contextual(ctx);
         }
@@ -62,7 +62,8 @@ impl FilterNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::{ExpressionContext, ExpressionMeta};
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use std::sync::Arc;
 

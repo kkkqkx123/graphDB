@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -18,9 +19,9 @@ pub struct SwitchSpaceExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> SwitchSpaceExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "SwitchSpaceExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "SwitchSpaceExecutor".to_string(), storage, expr_context),
             space_name,
         }
     }

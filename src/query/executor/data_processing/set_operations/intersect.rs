@@ -29,7 +29,7 @@ impl<S: StorageClient> IntersectExecutor<S> {
         storage: Arc<Mutex<S>>,
         left_input_var: String,
         right_input_var: String,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             set_executor: SetExecutor::new(
@@ -444,11 +444,13 @@ mod tests {
     #[test]
     fn test_intersect_mismatched_columns() {
         let storage = create_test_storage();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = IntersectExecutor::new(
             7,
             storage,
             "left_mismatch".to_string(),
             "right_mismatch".to_string(),
+            expr_context,
         );
 
         // 设置列名不匹配的数据集

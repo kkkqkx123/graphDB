@@ -982,6 +982,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     },
                     Some(node.max_step()),
                     algorithm,
+                    context.expression_context().clone(),
                 )
                 .with_weight_config(weight_config)
                 .with_heuristic_config(heuristic_config);
@@ -1019,7 +1020,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                         })?;
                     parsed_assignments.push((var_name.clone(), expression));
                 }
-                let executor = AssignExecutor::new(node.id(), storage, parsed_assignments);
+                let executor = AssignExecutor::new(node.id(), storage, parsed_assignments, context.expression_context().clone());
                 Ok(ExecutorEnum::Assign(executor))
             }
 

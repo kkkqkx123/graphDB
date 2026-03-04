@@ -73,10 +73,9 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
-            base: BaseExecutor::with_description(
+            base: BaseExecutor::new(
                 id,
                 "BaseJoinExecutor".to_string(),
-                description.clone(),
                 storage,
                 expr_context,
             ),

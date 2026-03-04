@@ -18,12 +18,12 @@ pub struct ExecutionContext {
     /// 变量存储
     pub variables: HashMap<String, crate::core::Value>,
     /// 表达式上下文，用于跨阶段共享表达式信息和缓存
-    pub expression_context: Arc<ExpressionContext>,
+    pub expression_context: Arc<ExpressionAnalysisContext>,
 }
 
 impl ExecutionContext {
     /// 创建新的执行上下文
-    pub fn new(expression_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(expression_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             results: HashMap::new(),
             variables: HashMap::new(),
@@ -62,7 +62,7 @@ impl ExecutionContext {
     }
 
     /// 获取表达式上下文
-    pub fn expression_context(&self) -> &Arc<ExpressionContext> {
+    pub fn expression_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expression_context
     }
 }

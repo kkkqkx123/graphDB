@@ -3,6 +3,7 @@
 //! 负责规划 WHERE 子句的执行，过滤输入数据。
 //! 实现了 ClausePlanner 接口，提供完整的过滤功能。
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
@@ -62,7 +63,7 @@ fn extract_where_condition(stmt: &Stmt) -> Result<ContextualExpression, PlannerE
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::ExpressionContext;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::Expression;
     use crate::query::parser::ast::Span;
     use crate::query::planner::plan::core::nodes::StartNode;

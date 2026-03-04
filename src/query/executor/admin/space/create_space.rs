@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use crate::core::types::DataType;
 use crate::core::types::SpaceInfo;
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -68,9 +69,9 @@ pub struct CreateSpaceExecutor<S: StorageClient> {
 
 impl<S: StorageClient> CreateSpaceExecutor<S> {
     /// 创建新的 CreateSpaceExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_info: ExecutorSpaceInfo) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_info: ExecutorSpaceInfo, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "CreateSpaceExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "CreateSpaceExecutor".to_string(), storage, expr_context),
             space_info,
             if_not_exists: false,
         }
@@ -81,9 +82,10 @@ impl<S: StorageClient> CreateSpaceExecutor<S> {
         id: i64,
         storage: Arc<Mutex<S>>,
         space_info: ExecutorSpaceInfo,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "CreateSpaceExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "CreateSpaceExecutor".to_string(), storage, expr_context),
             space_info,
             if_not_exists: true,
         }

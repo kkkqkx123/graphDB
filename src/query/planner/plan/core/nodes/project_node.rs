@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::{ContextualExpression, ExpressionContext, SerializableExpression};
+use crate::core::types::{ContextualExpression, ExpressionAnalysisContext, SerializableExpression};
 use crate::core::YieldColumn;
 use crate::define_plan_node_with_deps;
 
@@ -47,7 +47,7 @@ impl ProjectNode {
         self.col_names = self.columns.iter().map(|col| col.alias.clone()).collect();
     }
 
-    pub fn prepare_for_serialization(&mut self, _ctx: Arc<ExpressionContext>) {
+    pub fn prepare_for_serialization(&mut self, _ctx: Arc<ExpressionAnalysisContext>) {
         self.columns_serializable = Some(
             self.columns
                 .iter()
@@ -56,7 +56,7 @@ impl ProjectNode {
         );
     }
 
-    pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
+    pub fn after_deserialization(&mut self, ctx: Arc<ExpressionAnalysisContext>) {
         if let Some(ref ser_columns) = self.columns_serializable {
             self.columns = ser_columns
                 .iter()

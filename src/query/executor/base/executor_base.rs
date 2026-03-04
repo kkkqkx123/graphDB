@@ -106,7 +106,7 @@ pub struct BaseExecutor<S: StorageClient> {
 
 impl<S: StorageClient> BaseExecutor<S> {
     /// 创建新的基础执行器（带存储）
-    pub fn new(id: i64, name: String, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, name: String, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             id,
             name,
@@ -119,7 +119,7 @@ impl<S: StorageClient> BaseExecutor<S> {
     }
 
     /// 创建新的基础执行器（不带存储）
-    pub fn without_storage(id: i64, name: String, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn without_storage(id: i64, name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             id,
             name,
@@ -256,9 +256,9 @@ pub struct StartExecutor<S: StorageClient> {
 
 impl<S: StorageClient> StartExecutor<S> {
     /// 创建新的开始执行器
-    pub fn new(id: i64) -> Self {
+    pub fn new(id: i64, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::without_storage(id, "StartExecutor".to_string()),
+            base: BaseExecutor::without_storage(id, "StartExecutor".to_string(), expr_context),
         }
     }
 }

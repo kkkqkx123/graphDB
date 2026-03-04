@@ -2,6 +2,7 @@
 //!
 //! 负责规划 RETURN 子句的执行，实现结果投影。
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
@@ -152,7 +153,7 @@ impl ClausePlanner for ReturnClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::ExpressionContext;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::Expression;
     use crate::query::parser::ast::Span;
     use crate::query::planner::plan::core::nodes::StartNode;

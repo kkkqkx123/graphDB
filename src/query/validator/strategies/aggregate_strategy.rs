@@ -2,8 +2,11 @@
 //! 负责验证聚合函数的使用和检查表达式是否包含聚合
 
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::operators::AggregateFunction;
+use crate::core::types::expression::{Expression, ExpressionMeta};
+use crate::core::types::operators::{AggregateFunction, BinaryOperator};
+use std::sync::Arc;
 
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;
@@ -267,7 +270,7 @@ impl AggregateValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::{ContextualExpression, ExpressionContext, ExpressionMeta};
+    use crate::core::types::expression::{ContextualExpression, ExpressionAnalysisContext, ExpressionMeta};
     use crate::core::types::operators::{AggregateFunction, BinaryOperator};
     use crate::core::types::DataType;
     use crate::core::Expression;
@@ -401,7 +404,7 @@ mod tests {
         };
 
         let meta = ExpressionMeta::new(expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 
@@ -422,7 +425,7 @@ mod tests {
         };
 
         let meta = ExpressionMeta::new(expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 
@@ -470,7 +473,7 @@ mod tests {
             };
 
             let meta = ExpressionMeta::new(expression);
-            let expr_ctx = ExpressionContext::new();
+            let expr_ctx = ExpressionAnalysisContext::new();
             let id = expr_ctx.register_expression(meta);
             let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 
@@ -491,7 +494,7 @@ mod tests {
         };
 
         let meta = ExpressionMeta::new(expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 
@@ -513,7 +516,7 @@ mod tests {
             distinct: false,
         };
         let meta = ExpressionMeta::new(count_input_wildcard);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
@@ -528,7 +531,7 @@ mod tests {
             distinct: false,
         };
         let meta = ExpressionMeta::new(sum_input_wildcard);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         let result = strategy.validate_aggregate_expression(&ctx_expr);
@@ -552,7 +555,7 @@ mod tests {
             distinct: false,
         };
         let meta = ExpressionMeta::new(count_var_wildcard);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
@@ -567,7 +570,7 @@ mod tests {
             distinct: false,
         };
         let meta = ExpressionMeta::new(avg_var_wildcard);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         let result = strategy.validate_aggregate_expression(&ctx_expr);
@@ -596,7 +599,7 @@ mod tests {
             distinct: false,
         };
         let meta = ExpressionMeta::new(nested_wildcard);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         // 由于通配符在嵌套表达式中，不是直接参数，所以应该通过验证
@@ -721,7 +724,7 @@ mod tests {
         };
 
         let meta = ExpressionMeta::new(expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
@@ -739,7 +742,7 @@ mod tests {
         };
 
         let meta = ExpressionMeta::new(expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
@@ -758,7 +761,7 @@ mod tests {
             distinct: false,
         };
         let meta = ExpressionMeta::new(min_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 
@@ -771,7 +774,7 @@ mod tests {
             distinct: false,
         };
         let meta = ExpressionMeta::new(max_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr2 = ContextualExpression::new(id, Arc::new(expr_ctx));
 

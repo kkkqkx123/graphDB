@@ -260,7 +260,7 @@ mod tests {
     #[test]
     fn test_validate_config_value() {
         let validator = UpdateConfigsValidator::new();
-        let expr_context = ExpressionContext::new();
+        let expr_context = ExpressionAnalysisContext::new();
 
         // 有效配置值
         let int_meta = ExpressionMeta::new(Expression::Literal(Value::Int(100)));

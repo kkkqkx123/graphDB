@@ -29,11 +29,11 @@
 
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::ContextualExpression;
-use crate::core::types::expression::{ExpressionContext, ExpressionMeta};
+use crate::core::types::expression::{ExpressionAnalysisContext, ExpressionMeta};
 use crate::core::Expression;
 use crate::query::optimizer::analysis::ExpressionAnalyzer;
 use crate::query::optimizer::stats::StatisticsManager;
-use crate::query::planner::plan::core::nodes::{HashInnerJoinNode, PatternApplyNode};
+use crate::query::planner\plan\core\nodes::{HashInnerJoinNode, PatternApplyNode};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 /// 子查询去关联化决策

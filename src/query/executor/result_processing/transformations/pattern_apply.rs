@@ -73,13 +73,14 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
         col_names: Vec<String>,
         is_anti_predicate: bool,
         context: crate::query::executor::base::ExecutionContext,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::with_context(
+            base: BaseExecutor::new(
                 id,
                 "PatternApplyExecutor".to_string(),
                 storage,
-                context,
+                expr_context,
             ),
             left_input_var,
             right_input_var,
@@ -371,6 +372,7 @@ mod tests {
         context.set_result("right".to_string(), ExecutionResult::Values(right_values));
 
         let key_cols = vec![Expression::variable("_")];
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = PatternApplyExecutor::with_context(
             1,
             storage,
@@ -380,6 +382,7 @@ mod tests {
             vec!["matched".to_string()],
             false,
             context,
+            expr_context,
         );
 
         let result = executor.execute().expect("Failed to execute pattern apply");

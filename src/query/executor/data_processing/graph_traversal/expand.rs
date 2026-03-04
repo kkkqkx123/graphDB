@@ -56,7 +56,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ExpandExecutor".to_string(), storage, expr_context),

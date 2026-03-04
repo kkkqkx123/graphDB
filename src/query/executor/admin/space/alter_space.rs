@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -30,9 +31,10 @@ impl<S: StorageClient> AlterSpaceExecutor<S> {
         storage: Arc<Mutex<S>>,
         space_name: String,
         options: Vec<SpaceAlterOption>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "AlterSpaceExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "AlterSpaceExecutor".to_string(), storage, expr_context),
             space_name,
             options,
         }

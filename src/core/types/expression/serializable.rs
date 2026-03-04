@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use super::context::ExpressionContext;
+use super::context::ExpressionAnalysisContext;
 use super::contextual::ContextualExpression;
 use super::{Expression, ExpressionId, ExpressionMeta};
 use crate::core::types::DataType;
@@ -40,7 +40,7 @@ impl SerializableExpression {
     }
 
     /// 转换为 ContextualExpression
-    pub fn to_contextual(self, ctx: Arc<ExpressionContext>) -> ContextualExpression {
+    pub fn to_contextual(self, ctx: Arc<ExpressionAnalysisContext>) -> ContextualExpression {
         let expr_meta = ExpressionMeta::new(self.expression).with_id(self.id.clone());
         ctx.register_expression(expr_meta);
 

@@ -94,7 +94,7 @@ pub struct AggregateStrategySelector {
     /// 表达式分析器，用于分析聚合表达式的特性
     expression_analyzer: ExpressionAnalyzer,
     /// 表达式上下文，用于缓存分析结果
-    expression_context: Arc<ExpressionContext>,
+    expression_context: Arc<ExpressionAnalysisContext>,
 }
 
 /// 聚合策略选择的上下文信息
@@ -184,7 +184,7 @@ impl AggregateStrategySelector {
     pub fn with_context(
         cost_calculator: Arc<CostCalculator>,
         expression_analyzer: ExpressionAnalyzer,
-        expression_context: Arc<ExpressionContext>,
+        expression_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             cost_calculator,

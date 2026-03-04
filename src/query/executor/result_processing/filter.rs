@@ -14,7 +14,7 @@ use crate::core::value::NullType;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::expression::DefaultExpressionContext;
+use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::base::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 use crate::query::executor::base::{ExecutionResult, Executor};
@@ -186,7 +186,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                 chunk
                     .iter()
                     .filter_map(|row| {
-                        let mut context = EvalContext::new();
+                        let mut context = DefaultExpressionContext::new();
                         for (i, col_name) in col_names.iter().enumerate() {
                             if i < row.len() {
                                 context.set_variable(col_name.clone(), row[i].clone());
@@ -212,7 +212,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
         for value in values {
             // 构建表达式上下文
-            let mut context = EvalContext::new();
+            let mut context = DefaultExpressionContext::new();
             context.set_variable("value".to_string(), value.clone());
 
             // 评估过滤条件
@@ -241,7 +241,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
         for vertex in vertices {
             // 构建表达式上下文
-            let mut context = EvalContext::new();
+            let mut context = DefaultExpressionContext::new();
             // 设置顶点信息
             context.set_variable(
                 "_vertex".to_string(),
@@ -271,7 +271,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
 
         for edge in edges {
             // 构建表达式上下文
-            let mut context = EvalContext::new();
+            let mut context = DefaultExpressionContext::new();
             // 设置边信息
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
@@ -431,7 +431,7 @@ mod tests {
         };
 
         use std::sync::Arc;
-        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+        let ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let condition_meta = crate::core::types::ExpressionMeta::new(condition);
         let condition_id = ctx.register_expression(condition_meta);
         let ctx_condition = ContextualExpression::new(condition_id, ctx);

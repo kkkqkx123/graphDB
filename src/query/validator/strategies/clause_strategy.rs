@@ -3,11 +3,12 @@
 //! 合并原expression_validator和clause_validator的功能
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::{ContextualExpression, ExpressionContext, ExpressionMeta};
+use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::core::types::expression::{ContextualExpression, ExpressionMeta};
 use crate::core::Expression;
 use crate::core::YieldColumn;
-use crate::query::validator::structs::alias_structs::AliasType;
-use crate::query::validator::structs::{
+use crate::query::validator\structs\alias_structs::AliasType;
+use crate::query::validator\structs::{
     BoundaryClauseContext, MatchClauseContext, ReturnClauseContext, YieldClauseContext,
 };
 use crate::query::validator::{Path, QueryPart};

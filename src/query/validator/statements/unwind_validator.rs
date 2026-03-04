@@ -66,7 +66,7 @@ impl UnwindValidator {
         Self {
             unwind_expression: ContextualExpression::new(
                 crate::core::types::expression::ExpressionId::new(0),
-                Arc::new(crate::core::types::ExpressionContext::new()),
+                Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new()),
             ),
             variable_name: String::new(),
             aliases_available: HashMap::new(),

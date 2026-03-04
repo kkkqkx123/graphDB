@@ -556,7 +556,7 @@ impl MatchValidator {
             for (alias, _alias_type) in &part.aliases_generated {
                 let ctx = ContextualExpression::new(
                     crate::core::types::expression::ExpressionId::new(0),
-                    std::sync::Arc::new(crate::core::types::ExpressionContext::new()),
+                    std::sync::Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new()),
                 );
                 let col = YieldColumn::new(ctx, alias.clone());
                 columns.push(col);

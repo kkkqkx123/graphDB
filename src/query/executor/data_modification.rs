@@ -36,7 +36,7 @@ impl<S: StorageClient> InsertExecutor<S> {
         }
     }
 
-    pub fn with_vertices(id: i64, storage: Arc<Mutex<S>>, vertex_data: Vec<Vertex>, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn with_vertices(id: i64, storage: Arc<Mutex<S>>, vertex_data: Vec<Vertex>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
             vertex_data: Some(vertex_data),
@@ -45,7 +45,7 @@ impl<S: StorageClient> InsertExecutor<S> {
         }
     }
 
-    pub fn with_edges(id: i64, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn with_edges(id: i64, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
             vertex_data: None,
@@ -59,7 +59,7 @@ impl<S: StorageClient> InsertExecutor<S> {
         id: i64,
         storage: Arc<Mutex<S>>,
         vertex_data: Vec<Vertex>,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
@@ -70,7 +70,7 @@ impl<S: StorageClient> InsertExecutor<S> {
     }
 
     /// 创建带 IF NOT EXISTS 选项的 InsertExecutor（用于边）
-    pub fn with_edges_if_not_exists(id: i64, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn with_edges_if_not_exists(id: i64, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
             vertex_data: None,
@@ -214,9 +214,10 @@ impl<S: StorageClient> UpdateExecutor<S> {
         vertex_updates: Option<Vec<VertexUpdate>>,
         edge_updates: Option<Vec<EdgeUpdate>>,
         condition: Option<ContextualExpression>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "UpdateExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "UpdateExecutor".to_string(), storage, expr_context),
             vertex_updates,
             edge_updates,
             condition,
@@ -477,9 +478,10 @@ impl<S: StorageClient> DeleteExecutor<S> {
         vertex_ids: Option<Vec<Value>>,
         edge_ids: Option<Vec<(Value, Value, String)>>,
         condition: Option<ContextualExpression>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DeleteExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DeleteExecutor".to_string(), storage, expr_context),
             vertex_ids,
             edge_ids,
             condition,
@@ -698,9 +700,10 @@ impl<S: StorageClient> DeleteTagExecutor<S> {
         storage: Arc<Mutex<S>>,
         tag_names: Vec<String>,
         vertex_ids: Vec<Value>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DeleteTagExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DeleteTagExecutor".to_string(), storage, expr_context),
             tag_names,
             vertex_ids,
             space_name: "default".to_string(),
@@ -830,9 +833,10 @@ impl<S: StorageClient> CreateIndexExecutor<S> {
         index_type: crate::index::IndexType,
         properties: Vec<String>,
         tag_name: Option<String>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "CreateIndexExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "CreateIndexExecutor".to_string(), storage, expr_context),
             index_name,
             index_type,
             properties,

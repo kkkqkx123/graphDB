@@ -135,7 +135,8 @@ impl InsertEdgesNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::{ContextualExpression, ExpressionContext, ExpressionMeta};
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::core::types::expression::{ContextualExpression, ExpressionMeta};
     use crate::core::{Expression, Value};
     use std::sync::Arc;
 

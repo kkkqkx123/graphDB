@@ -25,7 +25,7 @@ pub struct RewriteContext {
     /// ID到计划节点的映射
     nodes_by_id: RefCell<HashMap<usize, Rc<RefCell<PlanNodeWrapper>>>>,
     /// 表达式上下文
-    expr_context: Arc<ExpressionContext>,
+    expr_context: Arc<ExpressionAnalysisContext>,
 }
 
 /// 计划节点包装器
@@ -60,7 +60,7 @@ impl RewriteContext {
     }
 
     /// 创建新的重写上下文（使用指定的 ExpressionContext）
-    pub fn with_expr_context(expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn with_expr_context(expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             node_id_counter: 0,
             plan_node_to_id: RefCell::new(HashMap::new()),
@@ -112,7 +112,7 @@ impl RewriteContext {
     }
 
     /// 获取表达式上下文
-    pub fn expr_context(&self) -> Arc<ExpressionContext> {
+    pub fn expr_context(&self) -> Arc<ExpressionAnalysisContext> {
         self.expr_context.clone()
     }
 }

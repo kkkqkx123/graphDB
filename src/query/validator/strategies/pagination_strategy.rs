@@ -2,10 +2,11 @@
 //! 负责验证SKIP、LIMIT和分页相关的表达式
 
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::utils::is_evaluable;
 use crate::core::YieldColumn;
-use crate::query::validator::structs::{MatchStepRange, OrderByClauseContext, PaginationContext};
+use crate::query::validator\structs::{MatchStepRange, OrderByClauseContext, PaginationContext};
 
 /// 分页验证策略
 pub struct PaginationValidationStrategy;

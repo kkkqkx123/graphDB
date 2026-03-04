@@ -21,7 +21,7 @@ pub struct RebuildTagIndexExecutor<S: StorageClient> {
 
 impl<S: StorageClient> RebuildTagIndexExecutor<S> {
     /// 创建新的 RebuildTagIndexExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "RebuildTagIndexExecutor".to_string(), storage, expr_context),
             space_name,
@@ -101,7 +101,7 @@ pub struct RebuildEdgeIndexExecutor<S: StorageClient> {
 
 impl<S: StorageClient> RebuildEdgeIndexExecutor<S> {
     /// 创建新的 RebuildEdgeIndexExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "RebuildEdgeIndexExecutor".to_string(), storage, expr_context),
             space_name,

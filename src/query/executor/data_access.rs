@@ -4,6 +4,8 @@ use std::time::Instant;
 use super::base::{BaseExecutor, ExecutorStats};
 use crate::core::{vertex_edge_path, Value};
 use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::expression::DefaultExpressionContext;
+use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -24,7 +26,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
         tag_filter: Option<crate::core::Expression>,
         vertex_filter: Option<crate::core::Expression>,
         limit: Option<usize>,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetVerticesExecutor".to_string(), storage, expr_context),
@@ -212,7 +214,7 @@ pub struct GetEdgesExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> GetEdgesExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, edge_type: Option<String>, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, edge_type: Option<String>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetEdgesExecutor".to_string(), storage, expr_context),
             edge_type,
@@ -299,7 +301,7 @@ impl<S: StorageClient> ScanEdgesExecutor<S> {
         edge_type: Option<String>,
         filter: Option<crate::core::Expression>,
         limit: Option<usize>,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ScanEdgesExecutor".to_string(), storage, expr_context),
@@ -409,7 +411,7 @@ impl<S: StorageClient> GetNeighborsExecutor<S> {
         vertex_ids: Vec<Value>,
         edge_direction: super::base::EdgeDirection,
         edge_types: Option<Vec<String>>,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetNeighborsExecutor".to_string(), storage, expr_context),
@@ -549,7 +551,7 @@ impl<S: StorageClient> GetPropExecutor<S> {
         vertex_ids: Option<Vec<Value>>,
         edge_ids: Option<Vec<Value>>,
         prop_names: Vec<String>,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetPropExecutor".to_string(), storage, expr_context),
@@ -678,7 +680,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         index_condition: Option<(String, Value)>,
         scan_forward: bool,
         limit: Option<usize>,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "IndexScanExecutor".to_string(), storage, expr_context),
@@ -805,7 +807,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         max_hops: usize,
         edge_types: Option<Vec<String>>,
         direction: EdgeDirection,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AllPathsExecutor".to_string(), storage, expr_context),
@@ -933,7 +935,7 @@ impl<S: StorageClient> ScanVerticesExecutor<S> {
         tag_filter: Option<crate::core::Expression>,
         vertex_filter: Option<crate::core::Expression>,
         limit: Option<usize>,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ScanVerticesExecutor".to_string(), storage, expr_context),

@@ -58,7 +58,7 @@ pub struct CreateEdgeIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: Index, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: Index, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateEdgeIndexExecutor".to_string(), storage, expr_context),
             index_info,
@@ -66,7 +66,7 @@ impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
         }
     }
 
-    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, index_info: Index, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, index_info: Index, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateEdgeIndexExecutor".to_string(), storage, expr_context),
             index_info,
@@ -149,7 +149,7 @@ pub struct DropEdgeIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DropEdgeIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropEdgeIndexExecutor".to_string(), storage, expr_context),
             space_name,
@@ -163,7 +163,7 @@ impl<S: StorageClient> DropEdgeIndexExecutor<S> {
         storage: Arc<Mutex<S>>,
         space_name: String,
         index_name: String,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropEdgeIndexExecutor".to_string(), storage, expr_context),
@@ -241,7 +241,7 @@ pub struct DescEdgeIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DescEdgeIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "DescEdgeIndexExecutor".to_string(), storage, expr_context),
             space_name,

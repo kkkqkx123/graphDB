@@ -37,7 +37,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
         unwind_expression: Expression,
         col_names: Vec<String>,
         from_pipe: bool,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "UnwindExecutor".to_string(), storage, expr_context),
@@ -378,7 +378,8 @@ mod tests {
         let input_result = ExecutionResult::Values(vec![list_value]);
 
         // 创建执行上下文
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context);
         context.set_result("input".to_string(), input_result);
 
         // 创建UnwindExecutor
