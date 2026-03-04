@@ -5,7 +5,7 @@
 
 use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
-use crate::query::planner\plan::PlanNodeEnum;
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 生成节点匹配方法的宏
 ///

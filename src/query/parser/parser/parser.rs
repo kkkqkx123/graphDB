@@ -3,9 +3,9 @@ use std::sync::Arc;
 use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::ContextualExpression;
 use crate::query::parser::ast::stmt::Stmt;
-use crate::query\parser\parser\expr_parser::ExprParser;
-use crate::query\parser\parser\parse_context::ParseContext;
-use crate::query\parser\parser\stmt_parser::StmtParser;
+use crate::query::parser::parser::expr_parser::ExprParser;
+use crate::query::parser::parser::parse_context::ParseContext;
+use crate::query::parser::parser::stmt_parser::StmtParser;
 
 /// Parser 解析结果，包含 AST 和表达式上下文
 #[derive(Debug, Clone)]

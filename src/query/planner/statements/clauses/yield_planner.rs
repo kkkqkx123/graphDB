@@ -6,11 +6,11 @@
 use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner\plan\core\nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
-use crate::query::planner\plan::SubPlan;
-use crate::query::planner\planner::PlannerError;
-use crate::query::planner\statements\statement_planner::ClausePlanner;
-use crate::query::validator\structs::CypherClauseKind;
+use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
+use crate::query::planner::plan::SubPlan;
+use crate::query::planner::planner::PlannerError;
+use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
