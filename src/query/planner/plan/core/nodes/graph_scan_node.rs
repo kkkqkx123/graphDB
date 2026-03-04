@@ -25,7 +25,7 @@ define_plan_node! {
 
 impl GetVerticesNode {
     pub fn new(space_id: u64, src_vids: &str) -> Self {
-        use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use crate::core::Expression;
         use std::sync::Arc;
@@ -92,7 +92,7 @@ impl GetVerticesNode {
     }
 
     pub fn set_src_vids(&mut self, src_vids: String) {
-        use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use crate::core::Expression;
         use std::sync::Arc;
@@ -232,7 +232,7 @@ define_plan_node! {
 
 impl GetEdgesNode {
     pub fn new(space_id: u64, src: &str, edge_type: &str, rank: &str, dst: &str) -> Self {
-        use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use crate::core::Expression;
         use std::sync::Arc;

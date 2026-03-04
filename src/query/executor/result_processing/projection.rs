@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::types::expression::context::ExpressionContext;
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
@@ -413,7 +413,7 @@ mod tests {
     #[test]
     fn test_simple_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
 
         let expr = crate::core::Expression::Variable("col1".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
@@ -452,7 +452,7 @@ mod tests {
     #[test]
     fn test_expression_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
 
         let expr = crate::core::Expression::Binary {
             left: Box::new(crate::core::Expression::Variable("col1".to_string())),
@@ -495,7 +495,7 @@ mod tests {
     #[test]
     fn test_vertex_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
 
         let expr1 = crate::core::Expression::Variable("id".to_string());
         let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
@@ -567,7 +567,7 @@ mod tests {
     #[test]
     fn test_edge_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
 
         let expr1 = crate::core::Expression::Variable("src".to_string());
         let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);

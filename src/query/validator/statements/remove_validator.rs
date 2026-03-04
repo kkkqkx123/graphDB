@@ -256,7 +256,7 @@ impl StatementValidator for RemoveValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
 

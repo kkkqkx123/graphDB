@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn test_limit_validator_basic() {
-        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let limit_expr = Expression::literal(10);
         let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
         let id = expr_ctx.register_expression(meta);
@@ -354,7 +354,7 @@ mod tests {
 
     #[test]
     fn test_limit_validator_with_skip() {
-        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let skip_expr = Expression::literal(5);
         let skip_meta = crate::core::types::expression::ExpressionMeta::new(skip_expr);
         let skip_id = expr_ctx.register_expression(skip_meta);
@@ -386,7 +386,7 @@ mod tests {
 
     #[test]
     fn test_limit_validator_negative_skip() {
-        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let skip_expr = Expression::literal(-1);
         let meta = crate::core::types::expression::ExpressionMeta::new(skip_expr);
         let id = expr_ctx.register_expression(meta);
@@ -407,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_limit_validator_negative_limit() {
-        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let limit_expr = Expression::literal(-5);
         let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
         let id = expr_ctx.register_expression(meta);
@@ -428,7 +428,7 @@ mod tests {
 
     #[test]
     fn test_limit_validator_zero_skip_and_limit() {
-        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let skip_expr = Expression::literal(0);
         let skip_meta = crate::core::types::expression::ExpressionMeta::new(skip_expr);
         let skip_id = expr_ctx.register_expression(skip_meta);
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_limit_validator_non_integer() {
-        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let limit_expr = Expression::literal("invalid");
         let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
         let id = expr_ctx.register_expression(meta);
@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_limit_validator_count() {
-        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let limit_expr = Expression::Literal(Value::Int(10));
         let meta = crate::core::types::expression::ExpressionMeta::new(limit_expr);
         let id = expr_ctx.register_expression(meta);

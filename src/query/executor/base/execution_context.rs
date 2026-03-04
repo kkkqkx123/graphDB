@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::types::expression::context::ExpressionContext;
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use super::execution_result::ExecutionResult;
 
 /// 执行上下文

@@ -7,10 +7,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
+use crate::core::types::expression::context::ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::types::ContextualExpression;
 use crate::core::{DataSet, Expression, Value};
-use crate::expression::context::row_context::RowExpressionContext;
+use crate::expression::evaluation_context::row_context::RowExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;

@@ -2,7 +2,7 @@
 
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
-use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionAnalysisContext;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::YieldColumn;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -83,7 +83,7 @@ impl CollapseProjectRule {
                 // 需要创建 ContextualExpression 来递归
                 let left_meta = ExpressionMeta::new((**left).clone());
                 let right_meta = ExpressionMeta::new((**right).clone());
-                let left_ctx = Arc::new(ExpressionContext::new());
+                let left_ctx = Arc::new(ExpressionAnalysisContext::new());
                 let left_id = left_ctx.register_expression(left_meta);
                 let right_id = left_ctx.register_expression(right_meta);
                 let left_expr = ContextualExpression::new(left_id, left_ctx.clone());
@@ -93,13 +93,13 @@ impl CollapseProjectRule {
             }
             Expression::Unary { operand, .. } => {
                 let operand_meta = ExpressionMeta::new((**operand).clone());
-                let ctx = Arc::new(ExpressionContext::new());
+                let ctx = Arc::new(ExpressionAnalysisContext::new());
                 let id = ctx.register_expression(operand_meta);
                 let operand_expr = ContextualExpression::new(id, ctx);
                 Self::collect_property_refs(&operand_expr, refs);
             }
             Expression::Function { args, .. } => {
-                let ctx = Arc::new(ExpressionContext::new());
+                let ctx = Arc::new(ExpressionAnalysisContext::new());
                 for arg in args {
                     let arg_meta = ExpressionMeta::new(arg.clone());
                     let id = ctx.register_expression(arg_meta);
@@ -279,7 +279,7 @@ impl MergeRule for CollapseProjectRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::ExpressionContext;
+    use crate::core::types::expression::ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::YieldColumn;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;

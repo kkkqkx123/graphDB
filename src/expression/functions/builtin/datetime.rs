@@ -5,7 +5,7 @@ use crate::core::value::{DateTimeValue, DateValue, NullType, TimeValue};
 use crate::core::Value;
 use crate::define_datetime_extractor;
 use crate::define_function_enum;
-use crate::expression::context::CacheManager;
+use crate::expression::evaluation_context::CacheManager;
 use chrono::{Datelike, Timelike};
 
 define_function_enum! {

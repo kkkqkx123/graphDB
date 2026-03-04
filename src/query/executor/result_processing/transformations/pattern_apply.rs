@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
+use crate::core::types::expression::context::ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::Expression;
 use crate::core::{DataSet, List, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;

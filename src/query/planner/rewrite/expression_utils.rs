@@ -16,7 +16,7 @@
 //! - 新 Expression 必须注册到 ExpressionContext 才能使用
 
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionContext;
+use crate::core::types::expression::ExpressionAnalysisContext;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::expression::{ConstantChecker, ExpressionVisitor, PropertyCollector, PropertyContainsChecker};
 use crate::core::types::operators::BinaryOperator;

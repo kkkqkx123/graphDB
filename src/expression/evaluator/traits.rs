@@ -1,13 +1,19 @@
-//! 表达式上下文特征定义
+//! 表达式求值上下文 trait 定义
 //!
 //! 为图数据库表达式求值提供统一的上下文接口
+//!
+//! **注意：** 此 trait 用于运行时表达式求值。
+//! 编译时分析请使用 `crate::core::types::expression::context::ExpressionAnalysisContext`。
 
 use crate::core::Value;
 use crate::expression::functions::FunctionRef;
 
-/// 表达式上下文特征
+/// 表达式求值上下文 trait
 ///
 /// 为图数据库表达式求值提供统一的上下文接口
+///
+/// **注意：** 此 trait 用于运行时表达式求值。
+/// 编译时分析请使用 `crate::core::types::expression::context::ExpressionAnalysisContext`。
 pub trait ExpressionContext {
     /// 获取变量值
     fn get_variable(&self, name: &str) -> Option<Value>;
@@ -28,7 +34,7 @@ pub trait ExpressionContext {
     /// 获取缓存管理器（如果支持）
     fn get_cache(
         &mut self,
-    ) -> Option<&mut crate::expression::context::cache_manager::CacheManager> {
+    ) -> Option<&mut crate::expression::evaluation_context::cache_manager::CacheManager> {
         None
     }
 }

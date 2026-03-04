@@ -223,7 +223,7 @@ impl ExpressionOperationsValidator {
 
         // 创建临时 ContextualExpression 用于类型推导
         let ctx =
-            std::sync::Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+            std::sync::Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let meta = crate::core::types::expression::ExpressionMeta::new(arg.clone());
         let id = ctx.register_expression(meta);
         let contextual_arg = ContextualExpression::new(id, ctx);
@@ -284,7 +284,7 @@ impl ExpressionOperationsValidator {
 
         // 创建临时 ContextualExpression 用于类型推导
         let ctx =
-            std::sync::Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+            std::sync::Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expression.clone());
         let expr_id = ctx.register_expression(expr_meta);
         let contextual_expr = ContextualExpression::new(expr_id, ctx.clone());

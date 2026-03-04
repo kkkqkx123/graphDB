@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use super::context::ExpressionContext;
+use super::context::ExpressionAnalysisContext;
 use super::{Expression, ExpressionId, ExpressionMeta};
 use crate::core::types::DataType;
 use crate::core::Value;
@@ -13,18 +13,18 @@ use crate::core::Value;
 /// 增强的表达式元数据，包含查询上下文引用
 ///
 /// 轻量级的表达式引用，持有 ExpressionId 和 Context 引用。
-/// 通过 ExpressionContext 可以访问表达式的完整信息、类型、常量值等。
+/// 通过 ExpressionAnalysisContext 可以访问表达式的完整信息、类型、常量值等。
 #[derive(Debug, Clone)]
 pub struct ContextualExpression {
     /// 表达式ID
     id: ExpressionId,
     /// 查询上下文引用
-    context: Arc<ExpressionContext>,
+    context: Arc<ExpressionAnalysisContext>,
 }
 
 impl ContextualExpression {
     /// 创建上下文表达式
-    pub fn new(id: ExpressionId, context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: ExpressionId, context: Arc<ExpressionAnalysisContext>) -> Self {
         Self { id, context }
     }
 
@@ -93,7 +93,7 @@ impl ContextualExpression {
     }
 
     /// 获取表达式上下文
-    pub fn context(&self) -> &Arc<ExpressionContext> {
+    pub fn context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.context
     }
 
@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     fn test_contextual_expression_creation() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let id = ExpressionId::new(1);
         let ctx_expr = ContextualExpression::new(id, ctx);
 
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_contextual_expression_with_registered() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::literal(42);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -318,7 +318,7 @@ mod tests {
 
     #[test]
     fn test_contextual_expression_with_type() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::literal(42);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -333,7 +333,7 @@ mod tests {
 
     #[test]
     fn test_contextual_expression_with_constant() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::binary(
             Expression::literal(1),
             BinaryOperator::Add,
@@ -353,7 +353,7 @@ mod tests {
 
     #[test]
     fn test_contextual_expression_is_variable() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::variable("x");
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn test_contextual_expression_get_variables() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::binary(
             Expression::variable("a"),
             BinaryOperator::Add,
@@ -383,7 +383,7 @@ mod tests {
 
     #[test]
     fn test_contextual_expression_to_string() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::variable("x");
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -396,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_contextual_expression_partial_eq() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let id = ExpressionId::new(1);
 
         let ctx_expr1 = ContextualExpression::new(id.clone(), ctx.clone());
@@ -407,8 +407,8 @@ mod tests {
 
     #[test]
     fn test_contextual_expression_partial_eq_different_context() {
-        let ctx1 = Arc::new(ExpressionContext::new());
-        let ctx2 = Arc::new(ExpressionContext::new());
+        let ctx1 = Arc::new(ExpressionAnalysisContext::new());
+        let ctx2 = Arc::new(ExpressionAnalysisContext::new());
         let id = ExpressionId::new(1);
 
         let ctx_expr1 = ContextualExpression::new(id.clone(), ctx1);
@@ -419,7 +419,7 @@ mod tests {
 
     #[test]
     fn test_contextual_expression_context() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let id = ExpressionId::new(1);
         let ctx_expr = ContextualExpression::new(id, ctx.clone());
 

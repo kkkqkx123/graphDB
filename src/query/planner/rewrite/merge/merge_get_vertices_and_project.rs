@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_merge_get_vertices_and_project() {
-        use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use std::sync::Arc;
 

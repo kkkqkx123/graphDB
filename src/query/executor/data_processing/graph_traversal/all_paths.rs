@@ -19,7 +19,7 @@ use std::time::Instant;
 use rayon::prelude::*;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::types::expression::context::ExpressionContext;
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::{Edge, NPath, Path, Value};
 use crate::query::executor::base::{
     BaseExecutor, EdgeDirection, ExecutionResult, Executor, ExecutorStats,

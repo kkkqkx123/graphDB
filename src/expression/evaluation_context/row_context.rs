@@ -78,7 +78,7 @@ impl crate::expression::evaluator::traits::ExpressionContext for RowExpressionCo
         false
     }
 
-    fn get_cache(&mut self) -> Option<&mut crate::expression::context::CacheManager> {
+    fn get_cache(&mut self) -> Option<&mut crate::expression::evaluation_context::cache_manager::CacheManager> {
         None
     }
 }

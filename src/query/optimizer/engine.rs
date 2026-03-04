@@ -35,7 +35,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::expression::context::ExpressionContext;
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::query::optimizer::{
     AggregateStrategySelector, CostCalculator, CostModelConfig, ExpressionAnalyzer,
     MaterializationOptimizer, ReferenceCountAnalyzer, SelectivityEstimator,

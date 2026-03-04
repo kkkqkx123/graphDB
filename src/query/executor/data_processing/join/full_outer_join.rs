@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
+use crate::core::types::expression::context::ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::types::ContextualExpression;
 use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::base::{ExecutionResult, Executor};

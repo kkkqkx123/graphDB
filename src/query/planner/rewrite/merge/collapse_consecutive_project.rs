@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_collapse_consecutive_projects() {
-        use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use std::sync::Arc;
 

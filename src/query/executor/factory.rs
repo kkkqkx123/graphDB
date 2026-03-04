@@ -1620,7 +1620,7 @@ mod tests {
     fn test_recursion_detector_basic() {
         let mut factory = ExecutorFactory::<MockStorage>::new();
         let storage = Arc::new(Mutex::new(MockStorage));
-        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionContext::new());
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
         let context = ExecutionContext::new(expr_context);
 
         let start_node =

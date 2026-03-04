@@ -1,4 +1,4 @@
-pub mod context;
+pub mod evaluation_context;
 pub mod evaluator;
 pub mod functions;
 
@@ -14,5 +14,5 @@ pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPos
 // 从 evaluator 模块重新导出 ExpressionContext trait 和求值器
 pub use evaluator::{ExpressionContext, ExpressionEvaluator};
 
-// 从 context 模块重新导出上下文类型
-pub use context::{DefaultExpressionContext, RowExpressionContext};
+// 从 evaluation_context 模块重新导出上下文类型
+pub use evaluation_context::{DefaultExpressionContext, RowExpressionContext};

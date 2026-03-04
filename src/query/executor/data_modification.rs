@@ -2,9 +2,9 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::base::{BaseExecutor, ExecutorStats};
-use crate::core::types::expression::{ContextualExpression, context::ExpressionContext};
+use crate::core::types::expression::{ContextualExpression, context::ExpressionAnalysisContext};
 use crate::core::{Edge, Value, Vertex};
-use crate::expression::context::DefaultExpressionContext;
+use crate::expression::evaluation_context::DefaultExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext as _;
 use crate::index::Index;
@@ -26,7 +26,7 @@ impl<S: StorageClient> InsertExecutor<S> {
         storage: Arc<Mutex<S>>,
         vertex_data: Option<Vec<Vertex>>,
         edge_data: Option<Vec<Edge>>,
-        expr_context: Arc<ExpressionContext>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),

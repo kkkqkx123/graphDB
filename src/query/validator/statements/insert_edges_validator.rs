@@ -406,7 +406,7 @@ impl StatementValidator for InsertEdgesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::context::ExpressionContext;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;

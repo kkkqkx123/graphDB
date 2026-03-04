@@ -1,7 +1,10 @@
-//! 表达式上下文
+//! 表达式分析上下文
 //!
-//! 本模块定义 ExpressionContext，作为跨阶段的共享上下文，
+//! 本模块定义 ExpressionAnalysisContext，作为跨阶段的共享上下文，
 //! 存储所有表达式的完整信息。
+//!
+//! **注意：** 此上下文用于编译时分析阶段（优化器、类型推导等）。
+//! 运行时求值请使用 `expression::evaluator::ExpressionContext` trait。
 
 use dashmap::DashMap;
 use std::sync::Arc;
@@ -34,7 +37,7 @@ impl Default for OptimizationFlags {
     }
 }
 
-/// 表达式上下文
+/// 表达式分析上下文
 ///
 /// 跨阶段共享的表达式信息存储，支持并发访问。
 /// 存储表达式的完整信息，包括：
@@ -43,8 +46,11 @@ impl Default for OptimizationFlags {
 /// - 常量折叠结果：表达式ID -> 计算出的常量值
 /// - 表达式分析结果：表达式ID -> 分析结果
 /// - 优化标记：表达式ID -> 优化状态
+///
+/// **注意：** 此上下文用于编译时分析阶段（优化器、类型推导等）。
+/// 运行时求值请使用 `expression::evaluator::ExpressionContext` trait。
 #[derive(Debug, Clone)]
-pub struct ExpressionContext {
+pub struct ExpressionAnalysisContext {
     /// 表达式注册表：存储所有表达式的完整信息
     expressions: Arc<DashMap<ExpressionId, Arc<ExpressionMeta>>>,
 
@@ -61,8 +67,8 @@ pub struct ExpressionContext {
     optimization_flags: Arc<DashMap<ExpressionId, OptimizationFlags>>,
 }
 
-impl ExpressionContext {
-    /// 创建新的表达式上下文
+impl ExpressionAnalysisContext {
+    /// 创建新的表达式分析上下文
     pub fn new() -> Self {
         Self {
             expressions: Arc::new(DashMap::new()),
@@ -394,7 +400,7 @@ impl ExpressionContext {
     }
 }
 
-impl Default for ExpressionContext {
+impl Default for ExpressionAnalysisContext {
     fn default() -> Self {
         Self::new()
     }
@@ -407,13 +413,13 @@ mod tests {
 
     #[test]
     fn test_expression_context_creation() {
-        let ctx = ExpressionContext::new();
+        let ctx = ExpressionAnalysisContext::new();
         assert_eq!(ctx.expression_count(), 0);
     }
 
     #[test]
     fn test_register_expression() {
-        let ctx = ExpressionContext::new();
+        let ctx = ExpressionAnalysisContext::new();
         let expr = Expression::literal(42);
         let meta = ExpressionMeta::new(expr);
 
@@ -424,7 +430,7 @@ mod tests {
 
     #[test]
     fn test_register_expression_with_id() {
-        let ctx = ExpressionContext::new();
+        let ctx = ExpressionAnalysisContext::new();
         let expr = Expression::literal("test");
         let meta = ExpressionMeta::new(expr).with_id(ExpressionId::new(100));
 
@@ -434,7 +440,7 @@ mod tests {
 
     #[test]
     fn test_get_expression() {
-        let ctx = ExpressionContext::new();
+        let ctx = ExpressionAnalysisContext::new();
         let expr = Expression::variable("x");
         let meta = ExpressionMeta::new(expr);
 
@@ -446,7 +452,7 @@ mod tests {
 
     #[test]
     fn test_set_and_get_type() {
-        let ctx = ExpressionContext::new();
+        let ctx = ExpressionAnalysisContext::new();
         let expr = Expression::literal(42);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -459,7 +465,7 @@ mod tests {
 
     #[test]
     fn test_set_and_get_constant() {
-        let ctx = ExpressionContext::new();
+        let ctx = ExpressionAnalysisContext::new();
         let expr = Expression::binary(
             Expression::literal(1),
             BinaryOperator::Add,
@@ -477,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_optimization_flags() {
-        let ctx = ExpressionContext::new();
+        let ctx = ExpressionAnalysisContext::new();
         let expr = Expression::variable("x");
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -498,7 +504,7 @@ mod tests {
 
     #[test]
     fn test_clear_caches() {
-        let ctx = ExpressionContext::new();
+        let ctx = ExpressionAnalysisContext::new();
         let expr = Expression::literal(42);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -515,7 +521,7 @@ mod tests {
 
     #[test]
     fn test_clear_all() {
-        let ctx = ExpressionContext::new();
+        let ctx = ExpressionAnalysisContext::new();
         let expr = Expression::literal(42);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -530,13 +536,13 @@ mod tests {
 
     #[test]
     fn test_default() {
-        let ctx = ExpressionContext::default();
+        let ctx = ExpressionAnalysisContext::default();
         assert_eq!(ctx.expression_count(), 0);
     }
 
     #[test]
     fn test_set_and_get_analysis() {
-        let ctx = ExpressionContext::new();
+        let ctx = ExpressionAnalysisContext::new();
         let expr = Expression::variable("x");
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);

@@ -1,18 +1,24 @@
-//! 默认表达式上下文实现
+//! 默认表达式求值上下文实现
 //!
 //! 提供表达式求值过程中的上下文管理
+//!
+//! **注意：** 此上下文用于运行时表达式求值。
+//! 编译时分析请使用 `crate::core::types::expression::context::ExpressionAnalysisContext`。
 
 use crate::core::Value;
-use crate::expression::context::cache_manager::CacheManager;
+use crate::expression::evaluation_context::cache_manager::CacheManager;
 use crate::expression::functions::global_registry_ref;
 use std::collections::HashMap;
 
-/// 表达式上下文
+/// 默认表达式求值上下文
 ///
 /// 提供表达式求值所需的上下文环境，包括：
 /// - 变量存储
 /// - 函数注册（使用全局函数注册表）
 /// - 正则缓存
+///
+/// **注意：** 此上下文用于运行时表达式求值。
+/// 编译时分析请使用 `crate::core::types::expression::context::ExpressionAnalysisContext`。
 #[derive(Debug)]
 pub struct DefaultExpressionContext {
     /// 变量存储

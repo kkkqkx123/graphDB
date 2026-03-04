@@ -219,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_apply_with_pushable_target() {
-        use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use std::sync::Arc;
 
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_apply_with_non_pushable_target() {
-        use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use std::sync::Arc;
 
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_push_down_rule_trait() {
-        use crate::core::types::expression::ExpressionContext;
+        use crate::core::types::expression::ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use std::sync::Arc;
 

@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::types::expression::context::ExpressionContext as ExpressionContextStruct;
+use crate::core::types::expression::context::ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::{DataSet, Expression, Value};
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;

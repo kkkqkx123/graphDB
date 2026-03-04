@@ -98,7 +98,7 @@ impl PaginationValidationStrategy {
                 ValidationErrorType::PaginationError,
             )),
             _ => {
-                use crate::expression::context::DefaultExpressionContext;
+                use crate::expression::evaluation_context::DefaultExpressionContext;
                 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 
                 let mut context = DefaultExpressionContext::new();
