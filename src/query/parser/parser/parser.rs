@@ -24,7 +24,7 @@ pub struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     pub fn new(input: &'a str) -> Self {
-        let expr_context = Arc::new(ExpressionContext::new());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut ctx = ParseContext::new(input);
         ctx.set_expression_context(expr_context.clone());
 
@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn from_string(input: String) -> Self {
-        let expr_context = Arc::new(ExpressionContext::new());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut ctx = ParseContext::from_string(input);
         ctx.set_expression_context(expr_context.clone());
 

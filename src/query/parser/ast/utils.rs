@@ -83,7 +83,7 @@ impl ExprFactory {
         _distinct: bool,
     ) -> ContextualExpression {
         let ctx = if args.is_empty() {
-            Arc::new(ExpressionContext::new())
+            Arc::new(ExpressionAnalysisContext::new())
         } else {
             args[0].context().clone()
         };
@@ -125,7 +125,7 @@ impl ExprFactory {
     /// 创建列表表达式
     pub fn list(elements: Vec<ContextualExpression>) -> ContextualExpression {
         let ctx = if elements.is_empty() {
-            Arc::new(ExpressionContext::new())
+            Arc::new(ExpressionAnalysisContext::new())
         } else {
             elements[0].context().clone()
         };
@@ -147,7 +147,7 @@ impl ExprFactory {
     /// 创建映射表达式
     pub fn map(pairs: Vec<(String, ContextualExpression)>) -> ContextualExpression {
         let ctx = if pairs.is_empty() {
-            Arc::new(ExpressionContext::new())
+            Arc::new(ExpressionAnalysisContext::new())
         } else {
             pairs[0].1.context().clone()
         };
@@ -181,7 +181,7 @@ impl ExprFactory {
             .map(|e| e.context().clone())
             .or_else(|| when_then_pairs.first().map(|(w, _)| w.context().clone()))
             .or_else(|| default.as_ref().map(|d| d.context().clone()))
-            .unwrap_or_else(|| Arc::new(ExpressionContext::new()));
+            .unwrap_or_else(|| Arc::new(ExpressionAnalysisContext::new()));
 
         let test_expr = match_expression.map(|e| {
             Box::new(
@@ -687,7 +687,7 @@ mod tests {
 
     #[test]
     fn test_expr_factory() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 测试常量表达式
         let const_expression = ExprFactory::constant(Value::Int(42), ctx.clone());

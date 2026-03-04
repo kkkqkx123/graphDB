@@ -412,7 +412,7 @@ mod tests {
         let validator = WithValidator::new();
 
         // 有效的 WHERE 子句
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Literal(Value::Bool(true));
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);
@@ -420,7 +420,7 @@ mod tests {
         assert!(validator.validate_where_clause(&where_expr).is_ok());
 
         // 二元操作符
-        let _expr_ctx = Arc::new(ExpressionContext::new());
+        let _expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let _expr = Expression::Binary {
             left: Box::new(Expression::Variable("n".to_string())),
             op: crate::core::types::operators::BinaryOperator::Equal,

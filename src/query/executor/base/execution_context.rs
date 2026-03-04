@@ -37,7 +37,7 @@ impl ExecutionContext {
         Self {
             results: HashMap::new(),
             variables: HashMap::new(),
-            expression_context: Arc::new(ExpressionContext::new()),
+            expression_context: Arc::new(ExpressionAnalysisContext::new()),
         }
     }
 
@@ -73,7 +73,7 @@ impl Default for ExecutionContext {
         Self {
             results: HashMap::new(),
             variables: HashMap::new(),
-            expression_context: Arc::new(ExpressionContext::new()),
+            expression_context: Arc::new(ExpressionAnalysisContext::new()),
         }
     }
 }

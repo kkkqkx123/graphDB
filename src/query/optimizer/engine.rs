@@ -79,7 +79,7 @@ impl OptimizerEngine {
     /// - `cost_config`: 代价模型配置
     pub fn new(cost_config: CostModelConfig) -> Self {
         Self::with_expression_context(
-            Arc::new(ExpressionContext::new()),
+            Arc::new(ExpressionAnalysisContext::new()),
             cost_config,
         )
     }

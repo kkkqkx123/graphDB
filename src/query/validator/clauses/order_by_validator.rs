@@ -614,7 +614,7 @@ mod tests {
         use std::sync::Arc;
 
         let mut validator = OrderByValidator::new();
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Literal(Value::Int(1));
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);
@@ -647,7 +647,7 @@ mod tests {
         input_cols.insert("name".to_string(), ValueType::String);
         validator.set_input_columns(input_cols);
 
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("name".to_string());
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);

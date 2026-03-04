@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_extract_yield_info_from_yield_stmt() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
@@ -308,7 +308,7 @@ mod tests {
 
     #[test]
     fn test_extract_yield_info_from_go_stmt() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
@@ -352,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_convert_yield_items() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
@@ -391,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_transform_clause() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_transform_clause_empty_input_plan() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);

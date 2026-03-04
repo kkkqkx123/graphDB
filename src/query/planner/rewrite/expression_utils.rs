@@ -439,7 +439,7 @@ mod tests {
 
     #[test]
     fn test_split_filter() {
-        let expr_context = Arc::new(ExpressionContext::new());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 创建测试条件: a = 1 AND b = 2 AND c = 3
         let condition = Expression::Binary {
@@ -501,7 +501,7 @@ mod tests {
 
     #[test]
     fn test_extract_property_refs() {
-        let expr_context = Arc::new(ExpressionContext::new());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // a = 1 AND b = 2
         let expr = Expression::Binary {
@@ -536,7 +536,7 @@ mod tests {
 
     #[test]
     fn test_is_constant() {
-        let expr_context = Arc::new(ExpressionContext::new());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 常量表达式
         let expr = Expression::Literal(Value::Int(1));

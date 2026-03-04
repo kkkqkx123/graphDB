@@ -74,7 +74,7 @@ mod tests {
                 start_node,
             );
 
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("test".to_string());
         let expr_meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);

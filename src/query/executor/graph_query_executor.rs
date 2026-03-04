@@ -711,7 +711,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     None,
                     None,
                     None,
-                    Arc::new(ExpressionContext::new()),
+                    Arc::new(ExpressionAnalysisContext::new()),
                 );
                 executor.open()?;
                 executor.execute()
@@ -724,7 +724,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 properties: _,
             } => {
                 let mut executor =
-                    GetEdgesExecutor::new(self.id, self.storage.clone(), Some(edge_type), Arc::new(ExpressionContext::new()));
+                    GetEdgesExecutor::new(self.id, self.storage.clone(), Some(edge_type), Arc::new(ExpressionAnalysisContext::new()));
                 executor.open()?;
                 executor.execute()
             }
@@ -747,7 +747,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     None,
                     true,
                     None,
-                    Arc::new(ExpressionContext::new()),
+                    Arc::new(ExpressionAnalysisContext::new()),
                 );
                 executor.open()?;
                 executor.execute()

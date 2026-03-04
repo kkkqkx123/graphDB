@@ -282,7 +282,7 @@ mod tests {
     #[test]
     fn test_has_aggregate_expression() {
         let strategy = AggregateValidationStrategy::new();
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 测试没有聚合函数的表达式
         let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn test_validate_unwind_aggregate() {
         let strategy = AggregateValidationStrategy::new();
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 测试没有聚合函数的UNWIND表达式
         let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
@@ -327,7 +327,7 @@ mod tests {
     #[test]
     fn test_nested_expressions() {
         let strategy = AggregateValidationStrategy::new();
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 测试嵌套表达式
         let nested_expr = Expression::Binary {
@@ -348,7 +348,7 @@ mod tests {
     #[test]
     fn test_validate_invalid_aggregate_function() {
         let strategy = AggregateValidationStrategy::new();
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         // Count(None) 是有效的，表示 COUNT(*)
         let expression = Expression::Aggregate {
             func: AggregateFunction::Count(None),
@@ -367,7 +367,7 @@ mod tests {
     #[test]
     fn test_validate_nested_aggregates() {
         let strategy = AggregateValidationStrategy::new();
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let inner_agg = Expression::Aggregate {
             func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),

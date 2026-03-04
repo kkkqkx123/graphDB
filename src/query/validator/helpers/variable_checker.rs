@@ -329,7 +329,7 @@ mod tests {
 
         let var_expression = Expression::Variable("test_var".to_string());
         let meta = ExpressionMeta::new(var_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert!(checker.contains_variable(&ctx_expr, "test_var"));
@@ -337,7 +337,7 @@ mod tests {
 
         let literal_expression = Expression::Literal(Value::Int(42));
         let meta = ExpressionMeta::new(literal_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert!(!checker.contains_variable(&ctx_expr, "test_var"));
@@ -353,7 +353,7 @@ mod tests {
             right: Box::new(Expression::Literal(Value::Int(1))),
         };
         let meta = ExpressionMeta::new(add_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert!(checker.is_arithmetic_expression(&ctx_expr, "var"));
@@ -364,7 +364,7 @@ mod tests {
             right: Box::new(Expression::Literal(Value::Int(1))),
         };
         let meta = ExpressionMeta::new(eq_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
         assert!(!checker.is_arithmetic_expression(&ctx_expr, "var"));
@@ -380,7 +380,7 @@ mod tests {
             right: Box::new(Expression::Variable("var2".to_string())),
         };
         let meta = ExpressionMeta::new(complex_expression);
-        let expr_ctx = ExpressionContext::new();
+        let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 

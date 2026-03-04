@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_extract_order_by_items() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_expression_to_string() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_expression_to_string_complex() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Property {
             object: Box::new(Expression::Variable("n".to_string())),
             property: "name".to_string(),
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_transform_clause() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_transform_clause_empty_input_plan() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);

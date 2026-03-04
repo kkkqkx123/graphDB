@@ -81,7 +81,7 @@ mod tests {
         use crate::query::parser::ast::Span;
         use std::sync::Arc;
 
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::List(vec![]);
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);

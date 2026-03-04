@@ -185,7 +185,7 @@ mod tests {
         let start = PlanNodeEnum::Start(StartNode::new());
 
         // 创建表达式上下文
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 创建下层Project节点
         let a_expr = Expression::Variable("a".to_string());

@@ -357,7 +357,7 @@ mod tests {
 
     /// 测试辅助函数：创建简单的 ContextualExpression
     fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {
-        let context = Arc::new(ExpressionContext::new());
+        let context = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
         let id = context.register_expression(meta);
         ContextualExpression::new(id, context)
@@ -458,7 +458,7 @@ mod tests {
         let mut validator = YieldValidator::new();
 
         // 添加一列并设置 DISTINCT
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Literal(Value::Int(42));
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);

@@ -109,13 +109,13 @@ impl CollapseProjectRule {
             }
             Expression::Aggregate { arg, .. } => {
                 let arg_meta = ExpressionMeta::new((**arg).clone());
-                let ctx = Arc::new(ExpressionContext::new());
+                let ctx = Arc::new(ExpressionAnalysisContext::new());
                 let id = ctx.register_expression(arg_meta);
                 let arg_expr = ContextualExpression::new(id, ctx);
                 Self::collect_property_refs(&arg_expr, refs);
             }
             Expression::List(list) => {
-                let ctx = Arc::new(ExpressionContext::new());
+                let ctx = Arc::new(ExpressionAnalysisContext::new());
                 for item in list {
                     let item_meta = ExpressionMeta::new(item.clone());
                     let id = ctx.register_expression(item_meta);
@@ -124,7 +124,7 @@ impl CollapseProjectRule {
                 }
             }
             Expression::Map(map) => {
-                let ctx = Arc::new(ExpressionContext::new());
+                let ctx = Arc::new(ExpressionAnalysisContext::new());
                 for (_, value) in map {
                     let value_meta = ExpressionMeta::new(value.clone());
                     let id = ctx.register_expression(value_meta);
@@ -137,7 +137,7 @@ impl CollapseProjectRule {
                 conditions,
                 default,
             } => {
-                let ctx = Arc::new(ExpressionContext::new());
+                let ctx = Arc::new(ExpressionAnalysisContext::new());
                 if let Some(test) = test_expr {
                     let test_meta = ExpressionMeta::new((**test).clone());
                     let id = ctx.register_expression(test_meta);
@@ -301,7 +301,7 @@ mod tests {
     #[test]
     fn test_collapse_simple_project() {
         let start = PlanNodeEnum::Start(StartNode::new());
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 下层Project: col1
         let child_expr = Expression::Variable("a".to_string());

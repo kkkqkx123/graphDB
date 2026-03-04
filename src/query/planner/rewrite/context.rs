@@ -55,7 +55,7 @@ impl RewriteContext {
             node_id_counter: 0,
             plan_node_to_id: RefCell::new(HashMap::new()),
             nodes_by_id: RefCell::new(HashMap::new()),
-            expr_context: Arc::new(ExpressionContext::new()),
+            expr_context: Arc::new(ExpressionAnalysisContext::new()),
         }
     }
 

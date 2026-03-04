@@ -302,7 +302,7 @@ mod tests {
 
     /// 从 Expression 创建 ContextualExpression
     fn create_contextual_expression(expr: Expression) -> ContextualExpression {
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);
         ContextualExpression::new(id, expr_ctx)

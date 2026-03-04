@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn test_combine_filters() {
         let start = PlanNodeEnum::Start(StartNode::new());
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 下层Filter: col1 > 100
         let child_condition = Expression::Binary {

@@ -836,7 +836,7 @@ mod tests {
     use crate::query::parser::ast::Span;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
-        let ctx = std::sync::Arc::new(ExpressionContext::new());
+        let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
         let meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)

@@ -141,7 +141,7 @@ mod tests {
 
     // 辅助函数：创建常量表达式
     fn lit(val: Value) -> ContextualExpression {
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::literal(val);
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);

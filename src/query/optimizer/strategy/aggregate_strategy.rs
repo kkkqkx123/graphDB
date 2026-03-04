@@ -164,7 +164,7 @@ impl AggregateStrategySelector {
         Self {
             cost_calculator,
             expression_analyzer: ExpressionAnalyzer::new(),
-            expression_context: Arc::new(ExpressionContext::new()),
+            expression_context: Arc::new(ExpressionAnalysisContext::new()),
         }
     }
 
@@ -176,7 +176,7 @@ impl AggregateStrategySelector {
         Self {
             cost_calculator,
             expression_analyzer,
-            expression_context: Arc::new(ExpressionContext::new()),
+            expression_context: Arc::new(ExpressionAnalysisContext::new()),
         }
     }
 

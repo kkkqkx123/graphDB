@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_select_node_creation() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::Variable("condition".to_string()),
         );
@@ -379,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_loop_node_creation() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::Variable("condition".to_string()),
         );

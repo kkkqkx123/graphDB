@@ -312,7 +312,7 @@ impl SubqueryUnnestingOptimizer {
             .unwrap_or_else(|| "right".to_string());
 
         // 创建表达式上下文
-        let expr_ctx = std::sync::Arc::new(ExpressionContext::new());
+        let expr_ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
 
         // 创建 hash_keys 和 probe_keys
         let mut hash_keys = Vec::new();

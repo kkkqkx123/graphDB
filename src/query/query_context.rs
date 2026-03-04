@@ -78,7 +78,7 @@ impl QueryContext {
             space_info: RwLock::new(None),
             killed: AtomicBool::new(false),
             validation_info: RwLock::new(None),
-            expr_context: Arc::new(ExpressionContext::new()),
+            expr_context: Arc::new(ExpressionAnalysisContext::new()),
         }
     }
 

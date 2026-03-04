@@ -617,7 +617,7 @@ mod tests {
         };
         use std::sync::Arc;
 
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let list_expr = Expression::Variable("list".to_string());
         let list_meta = ExpressionMeta::new(list_expr);
         let list_id = expr_ctx.register_expression(list_meta);

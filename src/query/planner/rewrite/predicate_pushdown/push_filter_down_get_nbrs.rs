@@ -177,7 +177,7 @@ mod tests {
         let start_enum = PlanNodeEnum::Start(start);
 
         let condition = Expression::Variable("test".to_string());
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);

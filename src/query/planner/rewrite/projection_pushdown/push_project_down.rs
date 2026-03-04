@@ -353,7 +353,7 @@ mod tests {
     use std::sync::Arc;
 
     fn create_yield_column(expr: Expression, alias: &str) -> YieldColumn {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
@@ -389,7 +389,7 @@ mod tests {
     #[test]
     fn test_is_intermediate_node() {
         let scan = ScanVerticesNode::new(1);
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::literal(true),
         );
@@ -519,7 +519,7 @@ mod tests {
     #[test]
     fn test_contains_data_source() {
         let rule = PushProjectDownRule::new();
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 直接数据源
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn test_find_data_source() {
         let rule = PushProjectDownRule::new();
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 直接数据源
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
@@ -701,7 +701,7 @@ mod tests {
     fn test_push_down_through_multiple_intermediate_nodes() {
         let rule = PushProjectDownRule::new();
         let mut ctx = RewriteContext::new();
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 创建 ScanVertices 节点
         let scan_node = ScanVerticesNode::new(1);

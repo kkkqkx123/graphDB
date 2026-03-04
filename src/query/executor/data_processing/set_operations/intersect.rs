@@ -151,7 +151,7 @@ mod tests {
     }
 
     fn create_test_context() -> Arc<ExpressionContext> {
-        Arc::new(ExpressionContext::new())
+        Arc::new(ExpressionAnalysisContext::new())
     }
 
     #[test]

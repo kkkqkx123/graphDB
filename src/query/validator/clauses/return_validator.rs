@@ -379,7 +379,7 @@ mod tests {
         let mut validator = ReturnValidator::new();
         validator.user_defined_vars.push("n".to_string());
 
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);

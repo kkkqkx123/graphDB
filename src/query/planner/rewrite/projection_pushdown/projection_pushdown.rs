@@ -231,7 +231,7 @@ mod tests {
         let scan = PlanNodeEnum::ScanVertices(scan_node);
 
         // 创建表达式上下文
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 创建 Project 节点
         let name_expr = Expression::Variable("name".to_string());
@@ -290,7 +290,7 @@ mod tests {
         let start = PlanNodeEnum::Start(start_node);
 
         // 创建表达式上下文
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         // 创建 Project 节点
         let test_expr = Expression::Variable("test".to_string());
@@ -322,7 +322,7 @@ mod tests {
         let rule = ProjectionPushDownRule::new();
 
         // 创建表达式上下文
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
 

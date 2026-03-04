@@ -175,7 +175,7 @@ impl RemoveAppendVerticesBelowJoinRule {
                 Expression::Variable(vertex_alias.to_string()),
             ],
         };
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
@@ -184,7 +184,7 @@ impl RemoveAppendVerticesBelowJoinRule {
     /// 创建变量引用表达式
     fn create_variable_expr(&self, var_name: &str) -> ContextualExpression {
         let expr = Expression::Variable(var_name.to_string());
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)

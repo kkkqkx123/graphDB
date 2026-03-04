@@ -616,7 +616,7 @@ mod tests {
     fn test_deduce_literal_type() {
         let expr = Expression::int(42);
         let validator = TypeDeduceValidator::new();
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
@@ -628,7 +628,7 @@ mod tests {
     fn test_deduce_binary_type() {
         let expr = Expression::add(Expression::int(1), Expression::int(2));
         let validator = TypeDeduceValidator::new();
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
@@ -640,7 +640,7 @@ mod tests {
     fn test_deduce_variable_type() {
         let expr = Expression::variable("x");
         let validator = TypeDeduceValidator::new();
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);

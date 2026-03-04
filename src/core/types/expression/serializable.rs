@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_serializable_expression_from_contextual() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::literal(42);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_serializable_expression_to_contextual() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::literal(42);
         let ser_expr = SerializableExpression {
             id: ExpressionId::new(1),

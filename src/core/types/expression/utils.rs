@@ -568,7 +568,7 @@ pub mod test_helpers {
     use std::sync::Arc;
 
     pub fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)

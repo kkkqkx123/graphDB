@@ -89,7 +89,7 @@ mod tests {
                 crate::query::planner::plan::core::nodes::start_node::StartNode::new(),
             );
 
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("test".to_string());
         let meta = ExpressionMeta::new(expr);
         let id = expr_ctx.register_expression(meta);
@@ -116,7 +116,7 @@ mod tests {
                 crate::query::planner::plan::core::nodes::start_node::StartNode::new(),
             );
 
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
         let name_expr = Expression::Variable("name".to_string());
         let name_meta = ExpressionMeta::new(name_expr);

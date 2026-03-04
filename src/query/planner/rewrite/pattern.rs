@@ -314,7 +314,7 @@ mod tests {
         let project_node = PlanNodeEnum::Project(
             ProjectNode::new(input_node.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
         );
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(
             Value::Bool(true),
         ));
@@ -359,7 +359,7 @@ mod tests {
         let project = PlanNodeEnum::Project(
             ProjectNode::new(scan.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
         );
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(
             Value::Bool(true),
         ));

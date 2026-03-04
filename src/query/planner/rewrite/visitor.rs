@@ -558,7 +558,7 @@ mod tests {
 
     #[test]
     fn test_child_rewrite_visitor_single_input() {
-        let ctx = Arc::new(ExpressionContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);

@@ -30,7 +30,7 @@ impl GetVerticesNode {
         use crate::core::Expression;
         use std::sync::Arc;
 
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let src_expr = Expression::Variable(src_vids.to_string());
         let src_meta = ExpressionMeta::new(src_expr);
         let src_id = expr_ctx.register_expression(src_meta);
@@ -97,7 +97,7 @@ impl GetVerticesNode {
         use crate::core::Expression;
         use std::sync::Arc;
 
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let src_expr = Expression::Variable(src_vids.clone());
         let src_meta = ExpressionMeta::new(src_expr);
         let src_id = expr_ctx.register_expression(src_meta);
@@ -237,7 +237,7 @@ impl GetEdgesNode {
         use crate::core::Expression;
         use std::sync::Arc;
 
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let edge_expr = Expression::Variable(format!("{}->{}@{}", src, dst, edge_type));
         let edge_meta = ExpressionMeta::new(edge_expr);
         let edge_id = expr_ctx.register_expression(edge_meta);

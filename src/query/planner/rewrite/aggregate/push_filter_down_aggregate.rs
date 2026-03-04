@@ -364,7 +364,7 @@ mod tests {
                 "A".to_string(),
             ))),
         };
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
@@ -402,7 +402,7 @@ mod tests {
             left: Box::new(Expression::Variable("COUNT".to_string())),
             right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
         };
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
@@ -432,7 +432,7 @@ mod tests {
                 "test".to_string(),
             ))),
         };
-        let expr_ctx = Arc::new(ExpressionContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);

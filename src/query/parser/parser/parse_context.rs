@@ -24,7 +24,7 @@ impl<'a> ParseContext<'a> {
     pub fn new(input: &'a str) -> Self {
         let lexer = Lexer::new(input);
         let current_token = lexer.current_token().clone();
-        let expr_context = Arc::new(ExpressionContext::new());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         Self {
             lexer,
@@ -41,7 +41,7 @@ impl<'a> ParseContext<'a> {
     pub fn from_string(input: String) -> Self {
         let lexer = Lexer::from_string(input);
         let current_token = lexer.current_token().clone();
-        let expr_context = Arc::new(ExpressionContext::new());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         Self {
             lexer,
