@@ -127,7 +127,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UnionExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::core::{DataSet, Value};
 
     // 创建测试用的存储引擎
     fn create_test_storage() -> Arc<Mutex<crate::storage::test_mock::MockStorage>> {
@@ -139,11 +140,13 @@ mod tests {
     #[test]
     fn test_union_basic() {
         let storage = create_test_storage();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = UnionExecutor::new(
             1,
             storage,
             "left_input".to_string(),
             "right_input".to_string(),
+            expr_context,
         );
 
         // 设置测试数据
@@ -191,11 +194,13 @@ mod tests {
     #[test]
     fn test_union_empty_datasets() {
         let storage = create_test_storage();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = UnionExecutor::new(
             2,
             storage,
             "empty_left".to_string(),
             "empty_right".to_string(),
+            expr_context,
         );
 
         // 设置两个空数据集
@@ -231,11 +236,13 @@ mod tests {
     #[test]
     fn test_union_mismatched_columns() {
         let storage = create_test_storage();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = UnionExecutor::new(
             3,
             storage,
             "left_mismatch".to_string(),
             "right_mismatch".to_string(),
+            expr_context,
         );
 
         // 设置列名不匹配的数据集

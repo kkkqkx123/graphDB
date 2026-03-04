@@ -72,7 +72,7 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
         key_cols: Vec<Expression>,
         col_names: Vec<String>,
         is_anti_predicate: bool,
-        context: crate::query::executor::base::ExecutionContext,
+        _context: crate::query::executor::base::ExecutionContext,
         expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
@@ -363,7 +363,8 @@ mod tests {
     #[test]
     fn test_pattern_apply_single_key_positive() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionContextStruct::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
 
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(2), Value::Int(4)];
@@ -372,7 +373,6 @@ mod tests {
         context.set_result("right".to_string(), ExecutionResult::Values(right_values));
 
         let key_cols = vec![Expression::variable("_")];
-        let expr_context = Arc::new(ExpressionContextStruct::new());
         let mut executor = PatternApplyExecutor::with_context(
             1,
             storage,
@@ -397,7 +397,8 @@ mod tests {
     #[test]
     fn test_pattern_apply_single_key_anti_predicate() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionContextStruct::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
 
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(2), Value::Int(4)];
@@ -415,6 +416,7 @@ mod tests {
             vec!["matched".to_string()],
             true,
             context,
+            expr_context,
         );
 
         let result = executor.execute().expect("Failed to execute pattern apply");
@@ -430,7 +432,8 @@ mod tests {
     #[test]
     fn test_pattern_apply_zero_key_exists() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionContextStruct::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
 
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values = vec![Value::Int(10), Value::Int(20)];
@@ -447,6 +450,7 @@ mod tests {
             vec!["matched".to_string()],
             false,
             context,
+            expr_context,
         );
 
         let result = executor.execute().expect("Failed to execute pattern apply");
@@ -460,7 +464,8 @@ mod tests {
     #[test]
     fn test_pattern_apply_zero_key_not_exists() {
         let storage = Arc::new(Mutex::new(MockStorage));
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionContextStruct::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
 
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values: Vec<Value> = vec![];
@@ -477,6 +482,7 @@ mod tests {
             vec!["matched".to_string()],
             false,
             context,
+            expr_context,
         );
 
         let result = executor.execute().expect("Failed to execute pattern apply");

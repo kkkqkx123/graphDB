@@ -30,7 +30,7 @@
 //! ```
 
 use crate::core::Expression;
-use crate::query::optimizer::analysis::{ExpressionAnalyzer, ReferenceCountAnalysis, ReferenceCountAnalyzer};
+use crate::query::optimizer::analysis::{ExpressionAnalyzer, ReferenceCountAnalyzer};
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planner::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
 
@@ -505,15 +505,15 @@ mod tests {
         let reference_count_analyzer = ReferenceCountAnalyzer::new();
         let expression_analyzer = ExpressionAnalyzer::new();
         let stats_manager = StatisticsManager::new();
-        let optimizer = MaterializationOptimizer::new(
+        let _optimizer = MaterializationOptimizer::new(
             &reference_count_analyzer,
             &expression_analyzer,
             &stats_manager,
         );
 
         // 测试代价估算
-        let recompute_cost = optimizer.estimate_recompute_cost(3, 1000);
-        let materialize_cost = optimizer.estimate_materialize_cost(1000, 50);
+        let recompute_cost = _optimizer.estimate_recompute_cost(3, 1000);
+        let materialize_cost = _optimizer.estimate_materialize_cost(1000, 50);
 
         assert!(recompute_cost > 0.0);
         assert!(materialize_cost > 0.0);

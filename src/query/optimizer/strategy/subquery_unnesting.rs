@@ -579,7 +579,7 @@ mod tests {
     fn test_optimizer_with_config() {
         let expression_analyzer = ExpressionAnalyzer::new();
         let stats_manager = StatisticsManager::new();
-        let optimizer = SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager)
+        let _optimizer = SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager)
             .with_max_rows(500)
             .with_max_complexity(30);
         // 验证配置已应用

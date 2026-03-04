@@ -661,6 +661,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = MultiShortestPathExecutor::new(
             1,
             storage,
@@ -669,6 +670,7 @@ mod tests {
             EdgeDirection::Out,
             None,
             10,
+            expr_context,
         );
 
         // 创建路径

@@ -86,7 +86,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let space_info = ExecutorSpaceInfo::new("test_space".to_string());
-        let mut executor = CreateSpaceExecutor::new(5, storage, space_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = CreateSpaceExecutor::new(5, storage, space_info, expr_context);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -101,7 +102,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let space_info = ExecutorSpaceInfo::new("test_space".to_string());
-        let executor = CreateSpaceExecutor::new(6, storage, space_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let executor = CreateSpaceExecutor::new(6, storage, space_info, expr_context);
 
         assert_eq!(executor.id(), 6);
         assert_eq!(executor.name(), "CreateSpaceExecutor");

@@ -682,6 +682,7 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for SelectExecutor<S> {
 mod tests {
     use super::*;
     use crate::core::BinaryOperator;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
     use parking_lot::Mutex;
     use std::sync::Arc;
@@ -697,13 +698,15 @@ mod tests {
             Expression::int(3),
         );
 
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let body_executor = ExecutorEnum::Base(BaseExecutor::new(
             2,
             "TestExecutor".to_string(),
             storage_clone,
+            expr_context.clone(),
         ));
 
-        let mut executor = WhileLoopExecutor::new(1, storage, condition, body_executor, Some(5));
+        let mut executor = WhileLoopExecutor::new(1, storage, condition, body_executor, Some(5), expr_context);
 
         let result = executor.execute().expect("Failed to execute");
 
@@ -721,14 +724,16 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage));
         let storage_clone = storage.clone();
 
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let body_executor = ExecutorEnum::Base(BaseExecutor::new(
             2,
             "TestExecutor".to_string(),
             storage_clone,
+            expr_context.clone(),
         ));
 
         let mut executor =
-            ForLoopExecutor::new(1, storage, "i".to_string(), 1, 3, 1, body_executor);
+            ForLoopExecutor::new(1, storage, "i".to_string(), 1, 3, 1, body_executor, expr_context);
 
         let result = executor.execute().expect("Failed to execute");
 

@@ -461,10 +461,11 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let config = SubgraphConfig::new(2);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let executor = SubgraphExecutor::new(1, storage, vec![Value::from("a")], config);
+        let executor = SubgraphExecutor::new(1, storage, vec![Value::from("a")], config, expr_context);
 
-        assert_eq!(executor.start_vids.len(), 1);
+        assert_eq!(executor.start_vids.len(),1);
         assert_eq!(executor.config.steps, 2);
         assert_eq!(executor.valid_vids.len(), 1);
     }

@@ -103,6 +103,7 @@ impl<S: StorageClient> HasStorage<S> for GrantRoleExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
 
@@ -111,12 +112,14 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = GrantRoleExecutor::new(
             1,
             storage,
             "test_user".to_string(),
             "test_space".to_string(),
             RoleType::User,
+            expr_context,
         );
 
         let result = executor.execute();
@@ -128,12 +131,14 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = GrantRoleExecutor::new(
             2,
             storage,
             "test_user".to_string(),
             "test_space".to_string(),
             RoleType::User,
+            expr_context,
         );
 
         assert!(!executor.is_open());
@@ -148,12 +153,14 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = GrantRoleExecutor::new(
             3,
             storage,
             "test_user".to_string(),
             "test_space".to_string(),
             RoleType::User,
+            expr_context,
         );
 
         assert_eq!(executor.id(), 3);

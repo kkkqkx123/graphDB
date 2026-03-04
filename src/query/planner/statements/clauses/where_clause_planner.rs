@@ -3,7 +3,6 @@
 //! 负责规划 WHERE 子句的执行，过滤输入数据。
 //! 实现了 ClausePlanner 接口，提供完整的过滤功能。
 
-use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;

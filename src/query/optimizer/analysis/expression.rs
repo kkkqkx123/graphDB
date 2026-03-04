@@ -293,7 +293,7 @@ impl ExpressionVisitor for AnalysisVisitor<'_> {
 
     fn visit_aggregate(
         &mut self,
-        func: &crate::core::types::operators::AggregateFunction,
+        _func: &crate::core::types::operators::AggregateFunction,
         arg: &Expression,
         _distinct: bool,
     ) {
@@ -389,7 +389,7 @@ impl ExpressionVisitor for AnalysisVisitor<'_> {
         }
     }
 
-    fn visit_predicate(&mut self, func: &str, args: &[Expression]) {
+    fn visit_predicate(&mut self, _func: &str, args: &[Expression]) {
         if self.options.check_complexity {
             self.analysis.complexity_score += 15;
         }

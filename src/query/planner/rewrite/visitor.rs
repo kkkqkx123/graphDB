@@ -16,7 +16,6 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::{BinaryInputNode
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::plan_rewriter::PlanRewriter;
 use crate::query::planner::rewrite::result::RewriteResult;
-use crate::core::types::expression::context::ExpressionAnalysisContext;
 
 use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
 use crate::query::planner::plan::core::nodes::data_processing_node::{
@@ -60,7 +59,6 @@ use crate::query::planner::plan::core::nodes::space_nodes::{
 use crate::query::planner::plan::core::nodes::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
 };
-use crate::query::planner::plan::core::nodes::insert_nodes::{InsertVerticesNode, InsertEdgesNode};
 
 use crate::query::planner::plan::algorithms::{
     AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,

@@ -101,6 +101,7 @@ impl<S: StorageClient> HasStorage<S> for CreateUserExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
 
@@ -111,7 +112,8 @@ mod tests {
         ));
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
             .expect("Failed to create user info");
-        let mut executor = CreateUserExecutor::new(1, storage, user_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = CreateUserExecutor::new(1, storage, user_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -128,7 +130,8 @@ mod tests {
         ));
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
             .expect("Failed to create user info");
-        let mut executor = CreateUserExecutor::with_if_not_exists(2, storage, user_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = CreateUserExecutor::with_if_not_exists(2, storage, user_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -141,7 +144,8 @@ mod tests {
         ));
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
             .expect("Failed to create user info");
-        let mut executor = CreateUserExecutor::new(3, storage, user_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = CreateUserExecutor::new(3, storage, user_info, expr_context);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -157,7 +161,8 @@ mod tests {
         ));
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
             .expect("Failed to create user info");
-        let executor = CreateUserExecutor::new(4, storage, user_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let executor = CreateUserExecutor::new(4, storage, user_info, expr_context);
 
         assert_eq!(executor.id(), 4);
         assert_eq!(executor.name(), "CreateUserExecutor");

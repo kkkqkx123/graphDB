@@ -101,6 +101,7 @@ impl<S: StorageClient> HasStorage<S> for ChangePasswordExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
 
@@ -109,12 +110,14 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("创建MockStorage应该成功"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = ChangePasswordExecutor::new(
             1,
             storage,
             Some("test_user".to_string()),
             "old_password".to_string(),
             "new_password".to_string(),
+            expr_context,
         );
 
         let result = executor.execute();
@@ -130,12 +133,14 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("创建MockStorage应该成功"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = ChangePasswordExecutor::new(
             2,
             storage,
             Some("test_user".to_string()),
             "old_password".to_string(),
             "new_password".to_string(),
+            expr_context,
         );
 
         assert!(!executor.is_open());
@@ -150,12 +155,14 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("创建MockStorage应该成功"),
         ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = ChangePasswordExecutor::new(
             3,
             storage,
             Some("test_user".to_string()),
             "old_password".to_string(),
             "new_password".to_string(),
+            expr_context,
         );
 
         assert_eq!(executor.id(), 3);

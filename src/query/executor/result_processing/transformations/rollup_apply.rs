@@ -61,7 +61,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         compare_cols: Vec<Expression>,
         collect_col: Expression,
         col_names: Vec<String>,
-        context: crate::query::executor::base::ExecutionContext,
+        _context: crate::query::executor::base::ExecutionContext,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
@@ -561,7 +561,8 @@ mod tests {
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values = vec![Value::Int(1), Value::Int(1), Value::Int(2)];
 
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
             ExecutionResult::Values(left_values.clone()),
@@ -573,7 +574,6 @@ mod tests {
 
         let compare_cols = vec![Expression::variable("_")];
         let collect_col = Expression::variable("_");
-        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = RollUpApplyExecutor::with_context(
             1,
@@ -605,7 +605,8 @@ mod tests {
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
         let right_values = vec![Value::Int(10), Value::Int(20)];
 
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
             ExecutionResult::Values(left_values.clone()),
@@ -617,7 +618,6 @@ mod tests {
 
         let compare_cols: Vec<Expression> = vec![];
         let collect_col = Expression::Variable("_".to_string());
-        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = RollUpApplyExecutor::with_context(
             2,
@@ -667,7 +667,8 @@ mod tests {
             Value::from((2, "A")),
         ];
 
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
             ExecutionResult::Values(left_values.clone()),
@@ -682,7 +683,6 @@ mod tests {
             Expression::subscript(Expression::variable("_"), Expression::literal(1i64)),
         ];
         let collect_col = Expression::Variable("_".to_string());
-        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = RollUpApplyExecutor::with_context(
             3,
@@ -718,7 +718,8 @@ mod tests {
         let left_values = vec![Value::Int(1), Value::Int(2)];
         let right_values: Vec<Value> = vec![];
 
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
             ExecutionResult::Values(left_values.clone()),
@@ -740,6 +741,7 @@ mod tests {
             collect_col,
             vec!["key".to_string(), "collected".to_string()],
             context,
+            expr_context,
         );
 
         let result = executor
@@ -764,7 +766,8 @@ mod tests {
         let left_values: Vec<Value> = vec![];
         let right_values = vec![Value::Int(1), Value::Int(2)];
 
-        let mut context = crate::query::executor::base::ExecutionContext::new();
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result(
             "left".to_string(),
             ExecutionResult::Values(left_values.clone()),
@@ -786,6 +789,7 @@ mod tests {
             collect_col,
             vec!["key".to_string(), "collected".to_string()],
             context,
+            expr_context,
         );
 
         let result = executor

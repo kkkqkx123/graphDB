@@ -302,12 +302,15 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::core::Value;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::core::{DataSet, Value};
     use crate::storage::test_mock::MockStorage;
 
     #[test]
     fn test_cross_join_two_tables() {
         let storage = Arc::new(Mutex::new(MockStorage));
+
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 创建执行器
         let mut executor = CrossJoinExecutor::new(
@@ -320,6 +323,7 @@ pub mod tests {
                 "age".to_string(),
                 "city".to_string(),
             ],
+            expr_context,
         );
 
         // 设置执行上下文
@@ -391,12 +395,15 @@ pub mod tests {
     fn test_cross_join_empty_table() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+
         // 创建执行器
         let mut executor = CrossJoinExecutor::new(
             1,
             storage,
             vec!["left".to_string(), "right".to_string()],
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
+            expr_context,
         );
 
         // 设置执行上下文
@@ -440,6 +447,8 @@ pub mod tests {
     fn test_cross_join_three_tables() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+
         // 创建执行器
         let mut executor = CrossJoinExecutor::new(
             1,
@@ -457,6 +466,7 @@ pub mod tests {
                 "e".to_string(),
                 "f".to_string(),
             ],
+            expr_context,
         );
 
         // 设置执行上下文

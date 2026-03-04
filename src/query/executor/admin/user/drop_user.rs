@@ -100,6 +100,7 @@ impl<S: StorageClient> HasStorage<S> for DropUserExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
 
@@ -108,7 +109,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = DropUserExecutor::new(1, storage, "test_user".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = DropUserExecutor::new(1, storage, "test_user".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -123,7 +125,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = DropUserExecutor::with_if_exists(2, storage, "test_user".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = DropUserExecutor::with_if_exists(2, storage, "test_user".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -134,7 +137,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = DropUserExecutor::new(3, storage, "test_user".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = DropUserExecutor::new(3, storage, "test_user".to_string(), expr_context);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -148,7 +152,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let executor = DropUserExecutor::new(4, storage, "test_user".to_string());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let executor = DropUserExecutor::new(4, storage, "test_user".to_string(), expr_context);
 
         assert_eq!(executor.id(), 4);
         assert_eq!(executor.name(), "DropUserExecutor");

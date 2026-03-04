@@ -2,11 +2,8 @@
 //! 负责验证聚合函数的使用和检查表达式是否包含聚合
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::{Expression, ExpressionMeta};
-use crate::core::types::operators::{AggregateFunction, BinaryOperator};
-use std::sync::Arc;
+use crate::core::types::operators::AggregateFunction;
 
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;

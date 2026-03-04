@@ -4,7 +4,6 @@ use std::time::Instant;
 use super::base::{BaseExecutor, ExecutorStats};
 use crate::core::{vertex_edge_path, Value};
 use crate::core::types::expression::context::ExpressionAnalysisContext;
-use crate::query::executor::expression::DefaultExpressionContext;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;

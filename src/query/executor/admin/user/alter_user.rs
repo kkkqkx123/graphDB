@@ -85,6 +85,7 @@ impl<S: StorageClient> HasStorage<S> for AlterUserExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
 
@@ -94,7 +95,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let alter_info = UserAlterInfo::new("test_user".to_string());
-        let mut executor = AlterUserExecutor::new(1, storage, alter_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = AlterUserExecutor::new(1, storage, alter_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -110,7 +112,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let alter_info = UserAlterInfo::new("test_user".to_string());
-        let mut executor = AlterUserExecutor::new(2, storage, alter_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = AlterUserExecutor::new(2, storage, alter_info, expr_context);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -125,7 +128,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let alter_info = UserAlterInfo::new("test_user".to_string());
-        let executor = AlterUserExecutor::new(3, storage, alter_info);
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let executor = AlterUserExecutor::new(3, storage, alter_info, expr_context);
 
         assert_eq!(executor.id(), 3);
         assert_eq!(executor.name(), "AlterUserExecutor");

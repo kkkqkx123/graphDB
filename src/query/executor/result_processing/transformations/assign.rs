@@ -169,13 +169,15 @@ mod tests {
     fn test_assign_executor() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+
         // 创建赋值项
         let assign_items = vec![
             ("var1".to_string(), Expression::literal(42i64)),
             ("var2".to_string(), Expression::literal("hello")),
         ];
 
-        let mut executor = AssignExecutor::new(1, storage, assign_items);
+        let mut executor = AssignExecutor::new(1, storage, assign_items, expr_context);
 
         // 执行赋值
         let result = executor

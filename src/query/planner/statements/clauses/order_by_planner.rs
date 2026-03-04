@@ -2,7 +2,6 @@
 //!
 //! 负责规划 ORDER BY 子句的执行，对结果进行排序。
 
-use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::OrderByItem;

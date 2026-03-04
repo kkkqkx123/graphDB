@@ -302,7 +302,7 @@ mod tests {
             IndexType::TagIndex,
             false,
         );
-        let mut executor = CreateTagIndexExecutor::new(15, storage, index);
+        let mut executor = CreateTagIndexExecutor::new(15, storage, index, create_test_context());
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -326,7 +326,7 @@ mod tests {
             IndexType::TagIndex,
             false,
         );
-        let executor = CreateTagIndexExecutor::new(16, storage, index);
+        let executor = CreateTagIndexExecutor::new(16, storage, index, create_test_context());
 
         assert_eq!(executor.id(), 16);
         assert_eq!(executor.name(), "CreateTagIndexExecutor");

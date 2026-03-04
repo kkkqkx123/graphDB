@@ -2,7 +2,6 @@
 //!
 //! 包含Union、Unwind、Dedup等数据处理相关的计划节点
 
-use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::define_plan_node_with_deps;
 
@@ -563,6 +562,12 @@ impl super::plan_node_traits::SingleInputNode for PatternApplyNode {
 /// - 物化会增加内存使用
 /// - 对于大结果集，物化可能不如重新计算高效
 /// - 物化的子计划必须是确定性的（不含rand()、now()等）
+///
+/// # 示例
+///
+/// ```ignore
+/// let materialize_node = MaterializeNode::new(input_plan).unwrap();
+/// ```
 define_plan_node_with_deps! {
     pub struct MaterializeNode {
     }

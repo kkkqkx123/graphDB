@@ -408,7 +408,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
 mod tests {
     use super::*;
     use crate::core::value::Value;
-    use crate::core::{BinaryOperator, Expression};
+    use crate::core::BinaryOperator;
     use crate::storage::test_mock::MockStorage;
 
     #[test]
