@@ -37,9 +37,10 @@ impl<S: StorageClient> DropEdgeExecutor<S> {
         storage: Arc<Mutex<S>>,
         space_name: String,
         edge_name: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DropEdgeExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DropEdgeExecutor".to_string(), storage, expr_context),
             space_name,
             edge_name,
             if_exists: true,

@@ -16,7 +16,7 @@ use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::OrderDirection;
 use crate::query::validator::structs::validation_info::ValidationInfo;
-use crate::query::validator\validator_trait::{
+use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;

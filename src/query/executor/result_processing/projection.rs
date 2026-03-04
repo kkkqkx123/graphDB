@@ -50,7 +50,7 @@ pub struct ProjectExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient> ProjectExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, columns: Vec<ProjectionColumn>, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, columns: Vec<ProjectionColumn>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "ProjectExecutor".to_string(), storage, expr_context),
             columns,

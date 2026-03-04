@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
@@ -81,11 +82,12 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
         max_steps: usize,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         let termination_map = create_termination_map(&start_vids, &end_vids);
 
         Self {
-            base: BaseExecutor::new(id, "MultiShortestPathExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "MultiShortestPathExecutor".to_string(), storage, expr_context),
             start_vids,
             end_vids,
             termination_map,

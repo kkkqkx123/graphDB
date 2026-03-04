@@ -5,6 +5,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
@@ -19,17 +20,17 @@ pub struct DropUserExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DropUserExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, username: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, username: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DropUserExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DropUserExecutor".to_string(), storage, expr_context),
             username,
             if_exists: false,
         }
     }
 
-    pub fn with_if_exists(id: i64, storage: Arc<Mutex<S>>, username: String) -> Self {
+    pub fn with_if_exists(id: i64, storage: Arc<Mutex<S>>, username: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DropUserExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DropUserExecutor".to_string(), storage, expr_context),
             username,
             if_exists: true,
         }

@@ -5,9 +5,9 @@
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::query::parser::ast::stmt::{ReturnItem, ReturnStmt};
-use crate::query::validator\structs\validation_info::ValidationInfo;
-use crate::query::validator\structs::AliasType;
-use crate::query::validator\validator_trait::{
+use crate::query::validator::structs::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
+use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::query::QueryContext;

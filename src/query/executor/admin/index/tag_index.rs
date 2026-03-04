@@ -329,7 +329,7 @@ pub struct ShowTagIndexesExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> ShowTagIndexesExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, expr_context: Arc<ExpressionContext>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::new(id, "ShowTagIndexesExecutor".to_string(), storage, expr_context),
             space_name,

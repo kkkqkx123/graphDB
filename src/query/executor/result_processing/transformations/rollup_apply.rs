@@ -39,7 +39,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         compare_cols: Vec<Expression>,
         collect_col: Expression,
         col_names: Vec<String>,
-        expr_context: Arc<ExpressionContextStruct>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "RollUpApplyExecutor".to_string(), storage, expr_context),

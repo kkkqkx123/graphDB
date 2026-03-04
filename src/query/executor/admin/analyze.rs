@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::EdgeDirection;
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -41,18 +42,18 @@ pub struct AnalyzeExecutor<S: StorageClient> {
 
 impl<S: StorageClient> AnalyzeExecutor<S> {
     /// 创建新的 AnalyzeExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "AnalyzeExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "AnalyzeExecutor".to_string(), storage, expr_context),
             target: AnalyzeTarget::All,
             stats_manager: Arc::new(Mutex::new(StatisticsManager::new())),
         }
     }
 
     /// 创建带目标的 AnalyzeExecutor
-    pub fn with_target(id: i64, storage: Arc<Mutex<S>>, target: AnalyzeTarget) -> Self {
+    pub fn with_target(id: i64, storage: Arc<Mutex<S>>, target: AnalyzeTarget, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "AnalyzeExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "AnalyzeExecutor".to_string(), storage, expr_context),
             target,
             stats_manager: Arc::new(Mutex::new(StatisticsManager::new())),
         }

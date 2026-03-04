@@ -25,9 +25,9 @@ use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner\rewrite::pattern::Pattern;
-use crate::query::planner\rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner\rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::planner::rewrite::pattern::Pattern;
+use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 向数据源推送投影操作的规则
 ///

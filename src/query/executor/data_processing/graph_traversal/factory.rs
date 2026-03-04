@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
 use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
@@ -18,8 +19,9 @@ impl GraphTraversalExecutorFactory {
         edge_direction: crate::query::executor::base::EdgeDirection,
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> ExpandExecutor<S> {
-        ExpandExecutor::new(id, storage, edge_direction, edge_types, max_depth)
+        ExpandExecutor::new(id, storage, edge_direction, edge_types, max_depth, expr_context)
     }
 
     /// 创建ExpandAllExecutor
@@ -30,8 +32,9 @@ impl GraphTraversalExecutorFactory {
         edge_types: Option<Vec<String>>,
         any_edge_type: bool,
         max_depth: Option<usize>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> ExpandAllExecutor<S> {
-        ExpandAllExecutor::new(id, storage, edge_direction, edge_types, any_edge_type, max_depth)
+        ExpandAllExecutor::new(id, storage, edge_direction, edge_types, any_edge_type, max_depth, expr_context)
     }
 
     /// 创建TraverseExecutor
@@ -42,6 +45,7 @@ impl GraphTraversalExecutorFactory {
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
         conditions: Option<String>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> TraverseExecutor<S> {
         TraverseExecutor::new(
             id,
@@ -50,6 +54,7 @@ impl GraphTraversalExecutorFactory {
             edge_types,
             max_depth,
             conditions,
+            expr_context,
         )
     }
 
@@ -63,6 +68,7 @@ impl GraphTraversalExecutorFactory {
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
         algorithm: ShortestPathAlgorithmType,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> ShortestPathExecutor<S> {
         ShortestPathExecutor::new(
             id,
@@ -73,6 +79,7 @@ impl GraphTraversalExecutorFactory {
             edge_types,
             max_depth,
             algorithm,
+            expr_context,
         )
     }
 }

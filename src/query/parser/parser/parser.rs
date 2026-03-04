@@ -78,12 +78,12 @@ impl<'a> Parser<'a> {
     }
 
     /// 获取表达式上下文
-    pub fn expression_context(&self) -> &Arc<ExpressionContext> {
+    pub fn expression_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expr_context
     }
 
     /// 获取表达式上下文的克隆
-    pub fn expression_context_clone(&self) -> Arc<ExpressionContext> {
+    pub fn expression_context_clone(&self) -> Arc<ExpressionAnalysisContext> {
         self.expr_context.clone()
     }
 

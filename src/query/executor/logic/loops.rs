@@ -7,6 +7,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
@@ -48,12 +49,13 @@ impl<S: StorageClient> LoopExecutor<S> {
         condition: Option<Expression>,
         body_executor: ExecutorEnum<S>,
         max_iterations: Option<usize>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         let recursion_detector = RecursionDetector::new(100);
         let safety_validator = ExecutorSafetyValidator::new(ExecutorSafetyConfig::default());
 
         Self {
-            base: BaseExecutor::new(id, "LoopExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "LoopExecutor".to_string(), storage, expr_context),
             condition,
             body_executor: Box::new(body_executor),
             max_iterations,
@@ -394,9 +396,10 @@ impl<S: StorageClient + Send + 'static> WhileLoopExecutor<S> {
         condition: Expression,
         body_executor: ExecutorEnum<S>,
         max_iterations: Option<usize>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            inner: LoopExecutor::new(id, storage, Some(condition), body_executor, max_iterations),
+            inner: LoopExecutor::new(id, storage, Some(condition), body_executor, max_iterations, expr_context),
         }
     }
 }
@@ -465,6 +468,7 @@ impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
         end: i64,
         step: i64,
         body_executor: ExecutorEnum<S>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         let mut executor = LoopExecutor::new(
             id,
@@ -472,6 +476,7 @@ impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
             None,
             body_executor,
             Some(((end - start).abs() / step.abs() + 1) as usize),
+            expr_context,
         );
 
         executor.set_loop_variable(loop_var.clone(), Value::Int(start));
@@ -569,9 +574,10 @@ impl<S: StorageClient> SelectExecutor<S> {
         condition: Expression,
         if_branch: ExecutorEnum<S>,
         else_branch: Option<ExecutorEnum<S>>,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "SelectExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "SelectExecutor".to_string(), storage, expr_context),
             condition,
             if_branch: Box::new(if_branch),
             else_branch: else_branch.map(Box::new),

@@ -1773,7 +1773,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         let user_info =
             UserInfo::new(clause.username, clause.password).map_err(|e| DBError::Storage(e))?;
-        let mut executor = CreateUserExecutor::new(id, self.storage.clone(), user_info);
+        let mut executor = CreateUserExecutor::new(id, self.storage.clone(), user_info, Arc::new(ExpressionAnalysisContext::new()));
         executor.open()?;
         executor
             .execute()
@@ -1799,7 +1799,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         use admin_executor::DropUserExecutor;
         let id = self.id;
 
-        let mut executor = DropUserExecutor::new(id, self.storage.clone(), clause.username);
+        let mut executor = DropUserExecutor::new(id, self.storage.clone(), clause.username, Arc::new(ExpressionAnalysisContext::new()));
         executor.open()?;
         executor
             .execute()

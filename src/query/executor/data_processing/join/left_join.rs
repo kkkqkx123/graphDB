@@ -313,8 +313,8 @@ impl<S: StorageClient> HashLeftJoinExecutor<S> {
         storage: Arc<Mutex<S>>,
         left_var: String,
         right_var: String,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
+        hash_keys: Vec<ContextualExpression>,
+        probe_keys: Vec<ContextualExpression>,
         col_names: Vec<String>,
         expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {

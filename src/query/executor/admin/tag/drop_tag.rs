@@ -37,9 +37,10 @@ impl<S: StorageClient> DropTagExecutor<S> {
         storage: Arc<Mutex<S>>,
         space_name: String,
         tag_name: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DropTagExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DropTagExecutor".to_string(), storage, expr_context),
             space_name,
             tag_name,
             if_exists: true,

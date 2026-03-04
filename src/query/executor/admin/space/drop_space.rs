@@ -30,9 +30,9 @@ impl<S: StorageClient> DropSpaceExecutor<S> {
     }
 
     /// 创建带 IF EXISTS 选项的 DropSpaceExecutor
-    pub fn with_if_exists(id: i64, storage: Arc<Mutex<S>>, space_name: String) -> Self {
+    pub fn with_if_exists(id: i64, storage: Arc<Mutex<S>>, space_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
-            base: BaseExecutor::new(id, "DropSpaceExecutor".to_string(), storage),
+            base: BaseExecutor::new(id, "DropSpaceExecutor".to_string(), storage, expr_context),
             space_name,
             if_exists: true,
         }
