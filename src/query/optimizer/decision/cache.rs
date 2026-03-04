@@ -3,14 +3,13 @@
 //! 提供基于 LRU 的优化决策缓存，支持版本感知和统计。
 
 use std::num::NonZeroUsize;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use lru::LruCache;
 use parking_lot::Mutex;
 
 use crate::query::optimizer::decision::types::OptimizationDecision;
-use crate::query::planner::planner::SentenceKind;
+use crate::query::validator::StatementType;
 
 /// 决策缓存错误
 #[derive(Debug, thiserror::Error)]
@@ -31,7 +30,7 @@ pub struct DecisionCacheKey {
     /// 图空间ID
     space_id: Option<i32>,
     /// 语句类型
-    statement_type: SentenceKind,
+    statement_type: StatementType,
     /// 模式指纹
     pattern_fingerprint: Option<String>,
 }
@@ -41,7 +40,7 @@ impl DecisionCacheKey {
     pub fn new(
         query_template_hash: u64,
         space_id: Option<i32>,
-        statement_type: SentenceKind,
+        statement_type: StatementType,
         pattern_fingerprint: Option<String>,
     ) -> Self {
         Self {
@@ -416,7 +415,7 @@ mod tests {
     #[test]
     fn test_decision_cache_basic() {
         let cache = DecisionCache::with_default_config().expect("创建缓存失败");
-        let key = DecisionCacheKey::new(12345, Some(1), SentenceKind::Match, None);
+        let key = DecisionCacheKey::new(12345, Some(1), StatementType::Match, None);
         let decision = create_test_decision(1, 1);
 
         // 插入
@@ -437,7 +436,7 @@ mod tests {
     #[test]
     fn test_decision_cache_stats() {
         let cache = DecisionCache::with_default_config().expect("创建缓存失败");
-        let key = DecisionCacheKey::new(12345, Some(1), SentenceKind::Match, None);
+        let key = DecisionCacheKey::new(12345, Some(1), StatementType::Match, None);
         let decision = create_test_decision(1, 1);
 
         // 未命中
@@ -459,9 +458,9 @@ mod tests {
     #[test]
     fn test_get_or_compute() {
         let cache = DecisionCache::with_default_config().expect("创建缓存失败");
-        let key = DecisionCacheKey::new(12345, Some(1), SentenceKind::Match, None);
+        let key = DecisionCacheKey::new(12345, Some(1), StatementType::Match, None);
 
-        let compute_count = Arc::new(Mutex::new(0));
+        let compute_count = std::sync::Arc::new(parking_lot::Mutex::new(0));
         let compute_count_clone = compute_count.clone();
 
         // 第一次调用，应该执行计算

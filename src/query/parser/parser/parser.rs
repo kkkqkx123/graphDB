@@ -2,18 +2,20 @@ use std::sync::Arc;
 
 use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::ContextualExpression;
-use crate::query::parser::ast::stmt::Stmt;
+use crate::query::parser::ast::stmt::{Ast, Stmt};
 use crate::query::parser::parser::expr_parser::ExprParser;
 use crate::query::parser::parser::parse_context::ParseContext;
 use crate::query::parser::parser::stmt_parser::StmtParser;
 
-/// Parser 解析结果，包含 AST 和表达式上下文
+/// Parser 解析结果，包含 AST（语句 + 表达式上下文）
+///
+/// # 重构变更
+/// - 使用 Arc<Ast> 替代分开的 stmt 和 expr_context
+/// - Ast 包含 Stmt 和 ExpressionAnalysisContext
 #[derive(Debug, Clone)]
 pub struct ParserResult {
-    /// 解析后的 AST
-    pub stmt: Stmt,
-    /// 表达式上下文，包含所有注册的表达式
-    pub expr_context: Arc<ExpressionAnalysisContext>,
+    /// 解析后的 AST（使用 Arc 共享所有权）
+    pub ast: Arc<Ast>,
 }
 
 pub struct Parser<'a> {
@@ -56,9 +58,9 @@ impl<'a> Parser<'a> {
 
     pub fn parse(&mut self) -> Result<ParserResult, crate::query::parser::core::error::ParseError> {
         let stmt = self.parse_statement()?;
+        let ast = Ast::new(stmt, self.expr_context.clone());
         Ok(ParserResult {
-            stmt,
-            expr_context: self.expr_context.clone(),
+            ast: Arc::new(ast),
         })
     }
 

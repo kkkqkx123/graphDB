@@ -2,11 +2,48 @@
 //!
 //! 基于枚举的简化语句定义，支持所有图数据库操作语句。
 
+use std::sync::Arc;
+
 use super::pattern::*;
 use super::types::*;
+use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::utils::collect_variables_from_contextual;
 use crate::core::types::expression::ContextualExpression;
 use crate::core::types::PropertyDef;
+
+/// AST 包装类型 - 包含语句和表达式上下文
+///
+/// # 重构说明
+/// 将表达式上下文合并到 AST 中，避免在 ParserResult 和 QueryContext 中分别传递
+#[derive(Debug, Clone)]
+pub struct Ast {
+    /// 语句
+    pub stmt: Stmt,
+    /// 表达式上下文
+    pub expr_context: Arc<ExpressionAnalysisContext>,
+}
+
+impl Ast {
+    /// 创建新的 AST
+    pub fn new(stmt: Stmt, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+        Self { stmt, expr_context }
+    }
+
+    /// 获取语句引用
+    pub fn stmt(&self) -> &Stmt {
+        &self.stmt
+    }
+
+    /// 获取表达式上下文
+    pub fn expr_context(&self) -> &Arc<ExpressionAnalysisContext> {
+        &self.expr_context
+    }
+
+    /// 获取语句的所有权
+    pub fn into_stmt(self) -> Stmt {
+        self.stmt
+    }
+}
 
 /// 语句枚举 - 所有图数据库操作语句
 #[derive(Debug, Clone, PartialEq)]

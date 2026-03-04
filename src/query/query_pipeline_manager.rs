@@ -86,19 +86,22 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     ) -> DBResult<ExecutionResult> {
         let parser_result = self.parse_into_context(query_text)?;
 
-        // 使用 Parser 的 ExpressionContext 创建 QueryContext
-        let query_context = Arc::new(QueryContext::with_expr_context(
+        // 创建 QueryContext（表达式上下文现在在 Ast 中）
+        let query_context = Arc::new(QueryContext::new(
             Arc::new(QueryRequestContext::new(query_text.to_string())),
-            parser_result.expr_context.clone(),
         ));
 
         // 验证查询并获取验证信息
         let validation_info =
-            self.validate_query(query_context.clone(), parser_result.stmt.clone())?;
-        query_context.set_validation_info(validation_info.clone());
+            self.validate_query(query_context.clone(), parser_result.ast.clone())?;
 
-        // 创建验证后的语句
-        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
+        // 使用 Arc::get_mut 设置验证信息（此时没有其他可变引用）
+        if let Some(qctx_mut) = Arc::get_mut(&mut query_context.clone()) {
+            qctx_mut.set_validation_info(validation_info.clone());
+        }
+
+        // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
+        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
         let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
@@ -114,9 +117,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         rctx: Arc<crate::query::query_request_context::QueryRequestContext>,
         space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
-        let query_context = self.create_query_context_with_request(rctx)?;
+        let mut query_context = self.create_query_context_with_request(rctx)?;
 
-        // 设置空间信息
+        // 设置空间信息（在 Arc 包装之前）
         if let Some(space) = space_info {
             query_context.set_space_info(space);
         }
@@ -126,11 +129,15 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 验证查询并获取验证信息
         let validation_info =
-            self.validate_query(query_context.clone(), parser_result.stmt.clone())?;
-        query_context.set_validation_info(validation_info.clone());
+            self.validate_query(query_context.clone(), parser_result.ast.clone())?;
 
-        // 创建验证后的语句
-        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
+        // 使用 Arc::get_mut 设置验证信息（此时没有其他可变引用）
+        if let Some(qctx_mut) = Arc::get_mut(&mut query_context.clone()) {
+            qctx_mut.set_validation_info(validation_info.clone());
+        }
+
+        // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
+        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
         let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
@@ -186,7 +193,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         let validate_start = Instant::now();
         let validation_info =
-            match self.validate_query(query_context.clone(), parser_result.stmt.clone()) {
+            match self.validate_query(query_context.clone(), parser_result.ast.clone()) {
                 Ok(info) => info,
                 Err(e) => {
                     profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
@@ -200,12 +207,17 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                     return Err(e);
                 }
             };
-        query_context.set_validation_info(validation_info.clone());
+
+        // 使用 Arc::get_mut 设置验证信息（此时没有其他可变引用）
+        if let Some(qctx_mut) = Arc::get_mut(&mut query_context.clone()) {
+            qctx_mut.set_validation_info(validation_info.clone());
+        }
+
         profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
         metrics.record_validate_time(validate_start.elapsed());
 
-        // 创建验证后的语句
-        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
+        // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
+        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let plan_start = Instant::now();
         let execution_plan = match self.generate_execution_plan(query_context.clone(), &validated) {
@@ -311,18 +323,18 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     fn validate_query(
         &mut self,
         query_context: Arc<QueryContext>,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<crate::query::parser::ast::stmt::Ast>,
     ) -> DBResult<ValidationInfo> {
-        let mut validator = crate::query::validator::Validator::create_from_stmt(&stmt)
+        let mut validator = crate::query::validator::Validator::create_from_stmt(&ast.stmt)
             .ok_or_else(|| {
                 DBError::from(QueryError::InvalidQuery(format!(
                     "不支持的语句类型: {:?}",
-                    stmt
+                    ast.stmt
                 )))
             })?;
 
         // 使用 validate 获取详细的验证信息
-        let validation_result = validator.validate(stmt, query_context);
+        let validation_result = validator.validate(Arc::new(ast.stmt.clone()), query_context);
 
         if validation_result.success {
             Ok(validation_result.info.unwrap_or_default())
@@ -343,13 +355,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_context: Arc<QueryContext>,
         validated: &ValidatedStatement,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
-        // 获取语句类型
-        let kind = crate::query::planner::planner::SentenceKind::from_stmt(&validated.stmt)
-            .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
-
-        // 生成执行计划，使用验证后的语句
+        // 直接使用 Arc<Ast> 创建规划器，消除 SentenceKind 字符串匹配
         let plan = if let Some(mut planner_enum) =
-            crate::query::planner::planner::PlannerEnum::from_sentence_kind(kind)
+            crate::query::planner::planner::PlannerEnum::from_stmt(&Arc::new(validated.ast.stmt.clone()))
         {
             let sub_plan = planner_enum
                 .transform(validated, query_context.clone())

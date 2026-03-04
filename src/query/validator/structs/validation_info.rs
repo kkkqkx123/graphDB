@@ -4,40 +4,56 @@
 //! 避免规划器重复解析 AST
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::Span;
+use crate::query::parser::ast::stmt::Ast;
 
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::ValueType;
 
 /// 验证后的语句包装器
-/// 包含原始语句和验证信息
+/// 包含原始 AST（语句 + 表达式上下文）和验证信息
+///
+/// # 重构变更
+/// - 使用 Arc<Ast> 替代 Arc<Stmt>
+/// - Ast 包含 Stmt 和 ExpressionAnalysisContext
 #[derive(Debug, Clone)]
 pub struct ValidatedStatement {
-    /// 原始 AST 语句
-    pub stmt: crate::query::parser::ast::Stmt,
+    /// 原始 AST（使用 Arc 共享所有权）
+    pub ast: Arc<Ast>,
     /// 验证阶段收集的信息
     pub validation_info: ValidationInfo,
 }
 
 impl ValidatedStatement {
     /// 创建新的验证后语句
-    pub fn new(stmt: crate::query::parser::ast::Stmt, validation_info: ValidationInfo) -> Self {
+    pub fn new(ast: Arc<Ast>, validation_info: ValidationInfo) -> Self {
         Self {
-            stmt,
+            ast,
             validation_info,
         }
     }
 
+    /// 获取语句引用
+    pub fn stmt(&self) -> &crate::query::parser::ast::Stmt {
+        &self.ast.stmt
+    }
+
     /// 获取语句类型
     pub fn statement_type(&self) -> &'static str {
-        self.stmt.kind()
+        self.ast.stmt.kind()
     }
 
     /// 获取别名映射
     pub fn alias_map(&self) -> &HashMap<String, AliasType> {
         &self.validation_info.alias_map
+    }
+
+    /// 获取表达式上下文
+    pub fn expr_context(&self) -> &Arc<crate::core::types::expression::context::ExpressionAnalysisContext> {
+        &self.ast.expr_context
     }
 }
 

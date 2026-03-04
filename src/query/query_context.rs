@@ -1,11 +1,15 @@
 //! 查询上下文
 //!
 //! 管理查询从解析、验证、规划到执行整个生命周期中的上下文信息。
+//!
+//! # 重构说明
+//!
+//! 表达式上下文已合并到 Ast 中，不再在 QueryContext 中单独存储。
+//! 通过 ValidatedStatement 访问表达式上下文。
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
-use crate::core::types::expression::ExpressionAnalysisContext;
 use crate::core::types::CharsetInfo;
 use crate::core::types::SpaceInfo;
 use crate::core::SymbolTable;
@@ -25,20 +29,20 @@ use crate::utils::{IdGenerator, ObjectPool};
 /// - 持有执行计划
 /// - 持有工具（对象池、ID 生成器、符号表）
 /// - 持有当前空间信息
-/// - 持有表达式上下文（跨阶段共享）
+/// - 持有验证结果缓存
 ///
 /// # 设计变更
 ///
-/// - 使用 Arc<RwLock<SymbolTable>> 替代直接的 SymbolTable，支持并发访问
+/// - 使用 Arc<SymbolTable>，内部 DashMap 已提供并发安全
 /// - 添加 space_info 字段，替代 AstContext 中的 space 字段
-/// - 添加 expr_context 字段，持有跨阶段共享的表达式上下文
+/// - 删除 expr_context 字段，表达式上下文现在存储在 Ast 中
 /// - 删除 Clone 实现，强制使用 Arc<QueryContext>
 pub struct QueryContext {
     /// 查询请求上下文
     rctx: Arc<QueryRequestContext>,
 
     /// 执行计划
-    plan: RwLock<Option<Box<ExecutionPlan>>>,
+    plan: Option<Box<ExecutionPlan>>,
 
     /// 字符集信息
     charset_info: Option<Box<CharsetInfo>>,
@@ -53,16 +57,13 @@ pub struct QueryContext {
     sym_table: Arc<SymbolTable>,
 
     /// 当前空间信息
-    space_info: RwLock<Option<SpaceInfo>>,
+    space_info: Option<SpaceInfo>,
 
     /// 是否被标记为已终止
     killed: AtomicBool,
 
     /// 验证结果缓存
-    validation_info: RwLock<Option<ValidationInfo>>,
-
-    /// 表达式上下文 - 跨阶段共享
-    expr_context: Arc<ExpressionAnalysisContext>,
+    validation_info: Option<ValidationInfo>,
 }
 
 impl QueryContext {
@@ -70,34 +71,14 @@ impl QueryContext {
     pub fn new(rctx: Arc<QueryRequestContext>) -> Self {
         Self {
             rctx,
-            plan: RwLock::new(None),
+            plan: None,
             charset_info: None,
             obj_pool: ObjectPool::new(1000),
             id_gen: IdGenerator::new(0),
             sym_table: Arc::new(SymbolTable::new()),
-            space_info: RwLock::new(None),
+            space_info: None,
             killed: AtomicBool::new(false),
-            validation_info: RwLock::new(None),
-            expr_context: Arc::new(ExpressionAnalysisContext::new()),
-        }
-    }
-
-    /// 使用指定的表达式上下文创建查询上下文
-    pub fn with_expr_context(
-        rctx: Arc<QueryRequestContext>,
-        expr_context: Arc<ExpressionAnalysisContext>,
-    ) -> Self {
-        Self {
-            rctx,
-            plan: RwLock::new(None),
-            charset_info: None,
-            obj_pool: ObjectPool::new(1000),
-            id_gen: IdGenerator::new(0),
-            sym_table: Arc::new(SymbolTable::new()),
-            space_info: RwLock::new(None),
-            killed: AtomicBool::new(false),
-            validation_info: RwLock::new(None),
-            expr_context,
+            validation_info: None,
         }
     }
 
@@ -123,19 +104,17 @@ impl QueryContext {
 
     /// 获取执行计划
     pub fn plan(&self) -> Option<ExecutionPlan> {
-        self.plan.read().ok()?.as_ref().map(|p| *p.clone())
+        self.plan.as_ref().map(|p| *p.clone())
     }
 
     /// 设置执行计划
-    pub fn set_plan(&self, plan: ExecutionPlan) {
-        if let Ok(mut guard) = self.plan.write() {
-            *guard = Some(Box::new(plan));
-        }
+    pub fn set_plan(&mut self, plan: ExecutionPlan) {
+        self.plan = Some(Box::new(plan));
     }
 
     /// 获取执行计划 ID
     pub fn plan_id(&self) -> Option<i64> {
-        self.plan.read().ok()?.as_ref().map(|p| p.id)
+        self.plan.as_ref().map(|p| p.id)
     }
 
     /// 获取字符集信息
@@ -174,15 +153,13 @@ impl QueryContext {
     }
 
     /// 获取当前空间信息
-    pub fn space_info(&self) -> Option<SpaceInfo> {
-        self.space_info.read().ok()?.clone()
+    pub fn space_info(&self) -> Option<&SpaceInfo> {
+        self.space_info.as_ref()
     }
 
     /// 设置当前空间信息
-    pub fn set_space_info(&self, space_info: SpaceInfo) {
-        if let Ok(mut guard) = self.space_info.write() {
-            *guard = Some(space_info);
-        }
+    pub fn set_space_info(&mut self, space_info: SpaceInfo) {
+        self.space_info = Some(space_info);
     }
 
     /// 获取当前空间的 ID
@@ -192,7 +169,7 @@ impl QueryContext {
 
     /// 获取当前空间的名称
     pub fn space_name(&self) -> Option<String> {
-        self.space_info().map(|s| s.space_name)
+        self.space_info().map(|s| s.space_name.clone())
     }
 
     /// 标记为已终止
@@ -207,20 +184,18 @@ impl QueryContext {
     }
 
     /// 设置验证信息
-    pub fn set_validation_info(&self, info: ValidationInfo) {
-        if let Ok(mut guard) = self.validation_info.write() {
-            *guard = Some(info);
-        }
+    pub fn set_validation_info(&mut self, info: ValidationInfo) {
+        self.validation_info = Some(info);
     }
 
     /// 获取验证信息
-    pub fn validation_info(&self) -> Option<ValidationInfo> {
-        self.validation_info.read().ok()?.clone()
+    pub fn validation_info(&self) -> Option<&ValidationInfo> {
+        self.validation_info.as_ref()
     }
 
-    /// 获取验证信息的引用（用于规划阶段）
+    /// 获取验证信息的克隆（用于规划阶段）
     pub fn get_validation_info(&self) -> Option<ValidationInfo> {
-        self.validation_info()
+        self.validation_info.clone()
     }
 
     /// 检查参数是否存在
@@ -238,24 +213,10 @@ impl QueryContext {
         &self.rctx.parameters
     }
 
-    /// 获取表达式上下文
-    pub fn expr_context(&self) -> &Arc<ExpressionAnalysisContext> {
-        &self.expr_context
-    }
-
-    /// 获取表达式上下文的克隆
-    pub fn expr_context_clone(&self) -> Arc<ExpressionAnalysisContext> {
-        self.expr_context.clone()
-    }
-
     /// 重置查询上下文
-    pub fn reset(&self) {
-        if let Ok(mut guard) = self.plan.write() {
-            *guard = None;
-        }
-        if let Ok(mut guard) = self.validation_info.write() {
-            *guard = None;
-        }
+    pub fn reset(&mut self) {
+        self.plan = None;
+        self.validation_info = None;
         self.killed.store(false, Ordering::SeqCst);
         self.id_gen.reset(0);
         log::info!("查询上下文已重置");

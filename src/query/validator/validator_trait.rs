@@ -418,19 +418,20 @@ impl ValidationResult {
 /// 4. 使用 Arc<QueryContext> 作为验证上下文
 ///
 /// # 重构变更
-/// - validate 方法现在接收 Arc<QueryContext> 和 &Stmt 替代 &mut AstContext
+/// - validate 方法现在接收 Arc<QueryContext> 和 Arc<Stmt> 替代 &mut AstContext
 /// - 验证器不再直接修改上下文，而是通过返回值传递结果
 /// - validate 方法返回包含 ValidationInfo 的详细验证结果
+/// - 使用 Arc<Stmt> 共享 AST 所有权，避免不必要的克隆
 pub trait StatementValidator {
     /// 执行验证逻辑
     /// 返回包含详细验证信息的验证结果
     ///
     /// # 参数
-    /// - `stmt`: 要验证的语句（拥有所有权）
+    /// - `stmt`: 要验证的语句（共享所有权）
     /// - `qctx`: 查询上下文，包含符号表、空间信息等
     fn validate(
         &mut self,
-        _stmt: Stmt,
+        _stmt: Arc<Stmt>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 默认实现：构建基本的 ValidationInfo

@@ -8,7 +8,8 @@
 //! 3. 统一接口，便于管理和扩展
 //!
 //! # 重构变更
-//! - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+//! - validate 方法接收 Arc<Stmt> 和 Arc<QueryContext> 替代 &mut AstContext
+//! - 使用 Arc<Stmt> 共享 AST 所有权，避免不必要的克隆
 
 use std::sync::Arc;
 
@@ -239,7 +240,7 @@ impl Validator {
     }
 
     /// 验证语句
-    pub fn validate(&mut self, stmt: Stmt, qctx: Arc<QueryContext>) -> ValidationResult {
+    pub fn validate(&mut self, stmt: Arc<Stmt>, qctx: Arc<QueryContext>) -> ValidationResult {
         match self {
             Validator::Show(v) => v
                 .validate(stmt, qctx)
