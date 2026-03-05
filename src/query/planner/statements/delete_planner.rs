@@ -56,7 +56,7 @@ impl Planner for DeletePlanner {
             log::debug!("DELETE 引用的边类型: {:?}", referenced_edges);
         }
 
-        let delete_stmt = self.extract_delete_stmt(&validated.stmt)?;
+        let delete_stmt = self.extract_delete_stmt(validated.stmt())?;
 
         // 创建参数节点作为输入
         let arg_node = ArgumentNode::new(next_node_id(), "delete_input");
@@ -68,8 +68,8 @@ impl Planner for DeletePlanner {
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                     crate::core::Expression::Variable("deleted_vertices".to_string()),
                 );
-                let id = qctx.expr_context().register_expression(expr_meta);
-                let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
+                let id = validated.expr_context().register_expression(expr_meta);
+                let ctx_expr = ContextualExpression::new(id, validated.expr_context().clone());
                 vec![YieldColumn {
                     expression: ctx_expr,
                     alias: "deleted_count".to_string(),
@@ -80,8 +80,8 @@ impl Planner for DeletePlanner {
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                     crate::core::Expression::Variable("deleted_edges".to_string()),
                 );
-                let id = qctx.expr_context().register_expression(expr_meta);
-                let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
+                let id = validated.expr_context().register_expression(expr_meta);
+                let ctx_expr = ContextualExpression::new(id, validated.expr_context().clone());
                 vec![YieldColumn {
                     expression: ctx_expr,
                     alias: "deleted_count".to_string(),
@@ -92,8 +92,8 @@ impl Planner for DeletePlanner {
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                     crate::core::Expression::Variable("deleted_tags".to_string()),
                 );
-                let id = qctx.expr_context().register_expression(expr_meta);
-                let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
+                let id = validated.expr_context().register_expression(expr_meta);
+                let ctx_expr = ContextualExpression::new(id, validated.expr_context().clone());
                 vec![YieldColumn {
                     expression: ctx_expr,
                     alias: "deleted_count".to_string(),
@@ -104,8 +104,8 @@ impl Planner for DeletePlanner {
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                     crate::core::Expression::Variable("deleted_index".to_string()),
                 );
-                let id = qctx.expr_context().register_expression(expr_meta);
-                let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
+                let id = validated.expr_context().register_expression(expr_meta);
+                let ctx_expr = ContextualExpression::new(id, validated.expr_context().clone());
                 vec![YieldColumn {
                     expression: ctx_expr,
                     alias: "deleted_count".to_string(),

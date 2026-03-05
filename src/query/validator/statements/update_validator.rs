@@ -10,7 +10,7 @@ use crate::core::error::{
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::core::Value;
-use crate::query::parser::ast::stmt::{SetClause, UpdateStmt, UpdateTarget};
+use crate::query::parser::ast::stmt::{Ast, SetClause, UpdateStmt, UpdateTarget};
 use crate::query::validator::helpers::schema_validator::SchemaValidator;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
@@ -718,11 +718,11 @@ impl UpdateValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for UpdateValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -734,7 +734,7 @@ impl StatementValidator for UpdateValidator {
         }
 
         // 2. 获取 UPDATE 语句
-        let update_stmt = match stmt {
+        let update_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Update(u) => u,
             _ => {
                 return Err(ValidationError::new(
@@ -832,7 +832,7 @@ mod tests {
     use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
-    use crate::query::parser::ast::stmt::{Assignment, SetClause, UpdateTarget};
+    use crate::query::parser::ast::stmt::{Ast, Assignment, SetClause, UpdateTarget};
     use crate::query::parser::ast::Span;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {

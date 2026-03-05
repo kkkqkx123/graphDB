@@ -30,7 +30,7 @@ impl Planner for SetOperationPlanner {
         validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let set_op_stmt = match &validated.stmt {
+        let set_op_stmt = match validated.stmt() {
             Stmt::SetOperation(set_op_stmt) => set_op_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

@@ -29,7 +29,7 @@ impl Planner for FetchEdgesPlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let fetch_stmt = match &validated.stmt {
+        let fetch_stmt = match validated.stmt() {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
@@ -78,8 +78,8 @@ impl Planner for FetchEdgesPlanner {
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::Variable(format!("{} IS NOT EMPTY", var_name)),
         );
-        let id = qctx.expr_context().register_expression(expr_meta);
-        let ctx_expr = crate::core::types::ContextualExpression::new(id, qctx.expr_context_clone());
+        let id = validated.expr_context().register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, validated.expr_context().clone());
         let filter_node = match FilterNode::new(get_edges_node.clone(), ctx_expr) {
             Ok(node) => PlanNodeEnum::Filter(node),
             Err(_) => get_edges_node.clone(),

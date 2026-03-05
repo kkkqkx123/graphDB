@@ -504,7 +504,7 @@ mod tests {
         let session = Session {
             session_id: 1,
             user_name: username.to_string(),
-            space_name: None,
+            space_name: Some("test_space".to_string()),
             graph_addr: Some("127.0.0.1:1234".to_string()),
             timezone: None,
         };

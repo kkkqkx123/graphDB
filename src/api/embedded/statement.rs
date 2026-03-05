@@ -208,7 +208,7 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
         match parser.parse() {
             Ok(parser_result) => {
                 // 从解析后的语句中提取参数
-                Self::extract_params_from_stmt(&parser_result.stmt, &mut params);
+                Self::extract_params_from_stmt(&parser_result.ast.stmt, &mut params);
                 Ok(params)
             }
             Err(e) => {

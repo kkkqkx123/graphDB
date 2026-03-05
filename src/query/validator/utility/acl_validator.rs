@@ -8,7 +8,7 @@
 //! 3. 验证用户存在性和角色合法性
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::parser::ast::stmt::{
+use crate::query::parser::ast::stmt::{Ast, 
     AlterUserStmt, ChangePasswordStmt, CreateUserStmt, DescribeUserStmt, DropUserStmt, GrantStmt,
     RevokeStmt, RoleType, ShowRolesStmt, ShowUsersStmt,
 };
@@ -56,7 +56,7 @@ impl CreateUserValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: CreateUserStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &CreateUserStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
         self.password = stmt.password.clone();
         self.role = stmt.role.clone();
@@ -107,14 +107,14 @@ impl CreateUserValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for CreateUserValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let create_user_stmt = match stmt {
+        let create_user_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::CreateUser(create_user_stmt) => create_user_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -190,7 +190,7 @@ impl DropUserValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: DropUserStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &DropUserStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
         self.if_exists = stmt.if_exists;
 
@@ -216,14 +216,14 @@ impl DropUserValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for DropUserValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let drop_user_stmt = match stmt {
+        let drop_user_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::DropUser(drop_user_stmt) => drop_user_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -303,7 +303,7 @@ impl AlterUserValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: AlterUserStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &AlterUserStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
         self.password = stmt.password.clone();
         self.new_role = stmt.new_role.clone();
@@ -344,14 +344,14 @@ impl AlterUserValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for AlterUserValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let alter_user_stmt = match stmt {
+        let alter_user_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::AlterUser(alter_user_stmt) => alter_user_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -429,7 +429,7 @@ impl ChangePasswordValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: ChangePasswordStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &ChangePasswordStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
         self.old_password = stmt.old_password.clone();
         self.new_password = stmt.new_password.clone();
@@ -465,14 +465,14 @@ impl ChangePasswordValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for ChangePasswordValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let change_password_stmt = match stmt {
+        let change_password_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::ChangePassword(change_password_stmt) => {
                 change_password_stmt
             }
@@ -562,7 +562,7 @@ impl GrantValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: GrantStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &GrantStmt) -> Result<(), ValidationError> {
         self.role = stmt.role;
         self.space_name = stmt.space_name.clone();
         self.username = stmt.username.clone();
@@ -598,14 +598,14 @@ impl GrantValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for GrantValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let grant_stmt = match stmt {
+        let grant_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Grant(grant_stmt) => grant_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -683,7 +683,7 @@ impl RevokeValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: RevokeStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &RevokeStmt) -> Result<(), ValidationError> {
         self.role = stmt.role;
         self.space_name = stmt.space_name.clone();
         self.username = stmt.username.clone();
@@ -719,14 +719,14 @@ impl RevokeValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for RevokeValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let revoke_stmt = match stmt {
+        let revoke_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Revoke(revoke_stmt) => revoke_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -806,7 +806,7 @@ impl DescribeUserValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: DescribeUserStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &DescribeUserStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
 
         // 验证用户名非空
@@ -824,14 +824,14 @@ impl DescribeUserValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for DescribeUserValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let describe_user_stmt = match stmt {
+        let describe_user_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::DescribeUser(describe_user_stmt) => describe_user_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -903,7 +903,7 @@ impl ShowUsersValidator {
         }
     }
 
-    fn validate_impl(&mut self, _stmt: ShowUsersStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, _stmt: &ShowUsersStmt) -> Result<(), ValidationError> {
         Ok(())
     }
 }
@@ -911,14 +911,14 @@ impl ShowUsersValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for ShowUsersValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let show_users_stmt = match stmt {
+        let show_users_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::ShowUsers(show_users_stmt) => show_users_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -998,7 +998,7 @@ impl ShowRolesValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: ShowRolesStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &ShowRolesStmt) -> Result<(), ValidationError> {
         self.space_name = stmt.space_name.clone();
         Ok(())
     }
@@ -1007,10 +1007,10 @@ impl ShowRolesValidator {
 impl StatementValidator for ShowRolesValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let show_roles_stmt = match stmt {
+        let show_roles_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::ShowRoles(s) => s,
             _ => {
                 return Err(ValidationError::new(

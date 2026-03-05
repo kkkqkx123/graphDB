@@ -17,6 +17,7 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
+use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
@@ -449,12 +450,12 @@ impl Default for SetValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 /// - 移除 AstContext 相关操作
 impl StatementValidator for SetValidator {
     fn validate(
         &mut self,
-        _stmt: crate::query::parser::ast::Stmt,
+        _ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态

@@ -44,6 +44,7 @@ pub struct PaginationInfo {
 #[derive(Debug, Clone)]
 pub struct MatchStatementPlanner {
     config: MatchPlannerConfig,
+    expr_context: Option<Arc<crate::core::types::expression::context::ExpressionAnalysisContext>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -63,11 +64,15 @@ impl MatchStatementPlanner {
     pub fn new() -> Self {
         Self {
             config: MatchPlannerConfig::default(),
+            expr_context: None,
         }
     }
 
     pub fn with_config(config: MatchPlannerConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+            expr_context: None,
+        }
     }
 }
 
@@ -87,6 +92,9 @@ impl Planner for MatchStatementPlanner {
         // 使用验证信息进行优化规划
         let validation_info = &validated.validation_info;
 
+        // 设置 expr_context
+        self.expr_context = Some(validated.ast.expr_context().clone());
+
         // 检查优化提示
         for hint in &validation_info.optimization_hints {
             log::debug!("优化提示: {:?}", hint);
@@ -94,7 +102,7 @@ impl Planner for MatchStatementPlanner {
 
         // 使用别名映射优化规划
         self.plan_match_pattern(
-            &validated.stmt,
+            validated,
             space_id,
             sym_table,
             Some(validation_info),
@@ -123,12 +131,14 @@ impl StatementPlanner for MatchStatementPlanner {
 impl MatchStatementPlanner {
     fn plan_match_pattern(
         &self,
-        stmt: &crate::query::parser::ast::Stmt,
+        validated: &ValidatedStatement,
         space_id: u64,
         sym_table: &SymbolTable,
         validation_info: Option<&ValidationInfo>,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
+        let stmt = validated.stmt();
+        let expr_ctx = validated.ast.expr_context().clone();
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
                 // 使用验证信息优化规划
@@ -221,18 +231,28 @@ impl MatchStatementPlanner {
                     match element {
                         PathElement::Node(node) => {
                             // 规划节点扫描
-                            let node_plan = self.plan_pattern_node(node, space_id, qctx)?;
+                            let node_plan = self.plan_pattern_node(node, space_id)?;
 
                             plan = if let Some(existing_root) = plan.root.take() {
                                 if let Some(ref alias) = prev_node_alias {
                                     // 如果有前一个节点，使用连接
-                                    self.join_node_plans(
-                                        SubPlan::new(Some(existing_root), plan.tail),
-                                        node_plan,
-                                        alias,
-                                        &node.variable,
-                                        qctx,
-                                    )?
+                                    if let Some(ref validated) = validation_info {
+                                        self.join_node_plans(
+                                            SubPlan::new(Some(existing_root), plan.tail),
+                                            node_plan,
+                                            alias,
+                                            &node.variable,
+                                            self.expr_context.as_ref().unwrap(),
+                                        )?
+                                    } else {
+                                        self.join_node_plans(
+                                            SubPlan::new(Some(existing_root), plan.tail),
+                                            node_plan,
+                                            alias,
+                                            &node.variable,
+                                            self.expr_context.as_ref().unwrap(),
+                                        )?
+                                    }
                                 } else {
                                     // 第一个节点，使用交叉连接
                                     self.cross_join_plans(
@@ -309,7 +329,7 @@ impl MatchStatementPlanner {
                                 space_id,
                                 prev_node_alias.as_deref(),
                                 validation_info,
-                                qctx,
+                                self.expr_context.as_ref().unwrap(),
                             )?;
                             plan = if let Some(existing_root) = plan.root.take() {
                                 self.cross_join_plans(
@@ -335,7 +355,6 @@ impl MatchStatementPlanner {
         &self,
         node: &crate::query::parser::ast::pattern::NodePattern,
         space_id: u64,
-        qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 创建节点扫描
         let scan_node = ScanVerticesNode::new(space_id);
@@ -343,8 +362,9 @@ impl MatchStatementPlanner {
 
         // 如果有标签过滤，添加过滤器
         if !node.labels.is_empty() {
+            let expr_ctx = self.expr_context.as_ref().expect("expr_context should be set");
             let label_filter =
-                Self::build_label_filter_expression(&node.variable, &node.labels, qctx);
+                Self::build_label_filter_expression(&node.variable, &node.labels, expr_ctx);
             let filter_node = FilterNode::new(
                 plan.root.as_ref().expect("plan的root应该存在").clone(),
                 label_filter,
@@ -461,7 +481,7 @@ impl MatchStatementPlanner {
         right: SubPlan,
         left_alias: &str,
         right_alias: &Option<String>,
-        qctx: &Arc<QueryContext>,
+        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
     ) -> Result<SubPlan, PlannerError> {
         use crate::query::planner::plan::core::nodes::HashInnerJoinNode;
 
@@ -475,7 +495,7 @@ impl MatchStatementPlanner {
             None => return Ok(left),
         };
 
-        let ctx = qctx.expr_context_clone();
+        let ctx = expr_context.clone();
 
         // 构建哈希键和探测键表达式
         // 左表使用已存在的别名作为哈希键
@@ -705,13 +725,13 @@ impl MatchStatementPlanner {
         space_id: u64,
         sym_table: &SymbolTable,
         validation_info: Option<&ValidationInfo>,
-        qctx: &Arc<QueryContext>,
+        _qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         match pattern {
-            Pattern::Node(node) => self.plan_pattern_node(node, space_id, qctx),
+            Pattern::Node(node) => self.plan_pattern_node(node, space_id),
             Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id),
             Pattern::Path(_) => {
-                self.plan_path_pattern(pattern, space_id, sym_table, validation_info, qctx)
+                self.plan_path_pattern(pattern, space_id, sym_table, validation_info, _qctx)
             }
             Pattern::Variable(var) => self.plan_variable_pattern(var, space_id, sym_table),
         }
@@ -799,11 +819,11 @@ impl MatchStatementPlanner {
         space_id: u64,
         _prev_alias: Option<&str>,
         _validation_info: Option<&ValidationInfo>,
-        qctx: &Arc<QueryContext>,
+        _qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 规划可选元素
         let opt_plan = match element {
-            PathElement::Node(node) => self.plan_pattern_node(node, space_id, qctx)?,
+            PathElement::Node(node) => self.plan_pattern_node(node, space_id)?,
             PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
@@ -853,11 +873,11 @@ impl MatchStatementPlanner {
         space_id: u64,
         _prev_alias: Option<&str>,
         _validation_info: Option<&ValidationInfo>,
-        qctx: &Arc<QueryContext>,
+        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 规划重复元素的基本计划
         let base_plan = match element {
-            PathElement::Node(node) => self.plan_pattern_node(node, space_id, qctx)?,
+            PathElement::Node(node) => self.plan_pattern_node(node, space_id)?,
             PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
@@ -881,8 +901,8 @@ impl MatchStatementPlanner {
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::Variable(condition_str),
         );
-        let id = qctx.expr_context().register_expression(expr_meta);
-        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
+        let id = expr_context.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, expr_context.clone());
 
         // 创建循环节点
         let mut loop_node = LoopNode::new(-1, ctx_expr);
@@ -905,12 +925,12 @@ impl MatchStatementPlanner {
     fn build_label_filter_expression(
         variable: &Option<String>,
         labels: &[String],
-        qctx: &Arc<QueryContext>,
+        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
     ) -> ContextualExpression {
         let var_name = variable.as_deref().unwrap_or("n");
         let var_expr = crate::core::Expression::variable(var_name);
 
-        let ctx = qctx.expr_context_clone();
+        let ctx = expr_context.clone();
 
         // 创建 labels() 函数调用表达式
         let labels_func = crate::core::Expression::function("labels", vec![var_expr]);

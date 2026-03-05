@@ -9,12 +9,13 @@
 //!
 //! # 重构变更
 //! - 使用 Arc<QueryContext> 替代 &mut AstContext
-//! - 添加 Stmt 参数，明确验证目标
+//! - 使用 Arc<Ast> 替代 Arc<Stmt>，统一 AST 传递方式
+//! - 验证器可以访问表达式上下文
 
 use std::sync::Arc;
 
 use crate::core::error::ValidationError;
-use crate::query::parser::ast::Stmt;
+use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::QueryContext;
@@ -418,20 +419,21 @@ impl ValidationResult {
 /// 4. 使用 Arc<QueryContext> 作为验证上下文
 ///
 /// # 重构变更
-/// - validate 方法现在接收 Arc<QueryContext> 和 Arc<Stmt> 替代 &mut AstContext
+/// - validate 方法现在接收 Arc<Ast> 和 Arc<QueryContext>
 /// - 验证器不再直接修改上下文，而是通过返回值传递结果
 /// - validate 方法返回包含 ValidationInfo 的详细验证结果
-/// - 使用 Arc<Stmt> 共享 AST 所有权，避免不必要的克隆
+/// - 使用 Arc<Ast> 共享 AST 所有权，避免不必要的克隆
+/// - 验证器可以访问表达式上下文
 pub trait StatementValidator {
     /// 执行验证逻辑
     /// 返回包含详细验证信息的验证结果
     ///
     /// # 参数
-    /// - `stmt`: 要验证的语句（共享所有权）
+    /// - `ast`: 要验证的 AST（包含语句和表达式上下文）
     /// - `qctx`: 查询上下文，包含符号表、空间信息等
     fn validate(
         &mut self,
-        _stmt: Arc<Stmt>,
+        _ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 默认实现：构建基本的 ValidationInfo

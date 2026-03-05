@@ -9,6 +9,7 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::EdgeDirection;
 use crate::core::DataType;
+use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::structs::validation_info::{OptimizationHint, ValidationInfo};
 use crate::query::validator::structs::AliasType;
@@ -351,11 +352,11 @@ impl Default for GoValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for GoValidator {
     fn validate(
         &mut self,
-        stmt: Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -367,7 +368,7 @@ impl StatementValidator for GoValidator {
         }
 
         // 2. 获取 GO 语句
-        let go_stmt = match stmt {
+        let go_stmt = match &ast.stmt {
             Stmt::Go(go_stmt) => go_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -517,7 +518,7 @@ mod tests {
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::query::parser::ast::stmt::{FromClause, GoStmt, OverClause, Steps};
+    use crate::query::parser::ast::stmt::{Ast, FromClause, GoStmt, OverClause, Steps};
     use crate::query::parser::ast::Span;
     use crate::query::query_request_context::QueryRequestContext;
     use std::sync::Arc;
@@ -532,10 +533,15 @@ mod tests {
     /// 创建测试用的 QueryContext，带有有效的 space_id
     fn create_test_query_context() -> Arc<QueryContext> {
         let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
-        let qctx = QueryContext::new(rctx);
+        let mut qctx = QueryContext::new(rctx);
         let space_info = crate::core::types::SpaceInfo::new("test_space".to_string());
         qctx.set_space_info(space_info);
         Arc::new(qctx)
+    }
+
+    fn create_test_ast(stmt: Stmt) -> Arc<Ast> {
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        Arc::new(Ast::new(stmt, ctx))
     }
 
     fn create_go_stmt(from_expr: ContextualExpression, edge_types: Vec<String>) -> GoStmt {
@@ -566,7 +572,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Go(go_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Go(go_stmt)), qctx);
         assert!(result.is_ok());
     }
 
@@ -580,7 +586,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Go(go_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Go(go_stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("OVER 子句必须指定至少一条边"));
@@ -609,7 +615,7 @@ mod tests {
         });
 
         let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Go(go_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Go(go_stmt)), qctx);
         assert!(result.is_ok());
 
         let outputs = validator.outputs();
@@ -646,7 +652,7 @@ mod tests {
         });
 
         let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Go(go_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Go(go_stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("重复出现"));

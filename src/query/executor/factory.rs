@@ -1583,8 +1583,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             return Err(QueryError::ExecutionError("查询已被终止".to_string()));
         }
 
-        // 创建执行上下文，使用查询上下文中的表达式上下文
-        let execution_context = ExecutionContext::new(query_context.expr_context().clone());
+        // 创建执行上下文
+        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let execution_context = ExecutionContext::new(expr_context);
 
         // 递归构建执行树并执行
         let mut executor =

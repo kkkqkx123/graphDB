@@ -24,7 +24,7 @@ use crate::core::Value;
 use crate::query::parser::ast::pattern::{
     EdgePattern, NodePattern, PathElement, PathPattern, Pattern,
 };
-use crate::query::parser::ast::stmt::{CreateStmt, CreateTarget};
+use crate::query::parser::ast::stmt::{Ast, CreateStmt, CreateTarget};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
@@ -721,11 +721,11 @@ impl Default for CreateValidator {
 /// 5. 同步输入/输出到 AstContext
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for CreateValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态
@@ -737,7 +737,7 @@ impl StatementValidator for CreateValidator {
         self.no_space_required = false;
 
         // 获取 CREATE 语句
-        let create_stmt = match stmt {
+        let create_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Create(create_stmt) => create_stmt,
             _ => {
                 return Err(ValidationError::new(

@@ -9,7 +9,7 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::PropertyDef;
-use crate::query::parser::ast::stmt::{AlterStmt, AlterTarget, PropertyChange};
+use crate::query::parser::ast::stmt::{Ast, AlterStmt, AlterTarget, PropertyChange};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -70,7 +70,7 @@ impl AlterValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: AlterStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &AlterStmt) -> Result<(), ValidationError> {
         match &stmt.target {
             AlterTarget::Tag {
                 tag_name,
@@ -308,14 +308,14 @@ impl AlterValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for AlterValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let alter_stmt = match stmt {
+        let alter_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Alter(alter_stmt) => alter_stmt,
             _ => {
                 return Err(ValidationError::new(

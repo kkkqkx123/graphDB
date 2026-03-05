@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::query::parser::ast::stmt::RemoveStmt;
+use crate::query::parser::ast::stmt::{Ast, RemoveStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
@@ -133,7 +133,7 @@ impl RemoveValidator {
         Ok(())
     }
 
-    fn validate_impl(&mut self, stmt: RemoveStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &RemoveStmt) -> Result<(), ValidationError> {
         // 验证至少有一个移除项
         if stmt.items.is_empty() {
             return Err(ValidationError::new(
@@ -181,14 +181,14 @@ impl Default for RemoveValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for RemoveValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let remove_stmt = match stmt {
+        let remove_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Remove(remove_stmt) => remove_stmt,
             _ => {
                 return Err(ValidationError::new(

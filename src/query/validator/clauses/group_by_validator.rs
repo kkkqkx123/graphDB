@@ -10,7 +10,7 @@
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
-use crate::query::parser::ast::stmt::GroupByStmt;
+use crate::query::parser::ast::stmt::{Ast, GroupByStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -59,7 +59,7 @@ impl GroupByValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: GroupByStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &GroupByStmt) -> Result<(), ValidationError> {
         // 验证分组键
         self.validate_group_keys(&stmt.group_items)?;
 
@@ -321,14 +321,14 @@ impl GroupByValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for GroupByValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let group_by_stmt = match stmt {
+        let group_by_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::GroupBy(group_by_stmt) => group_by_stmt,
             _ => {
                 return Err(ValidationError::new(

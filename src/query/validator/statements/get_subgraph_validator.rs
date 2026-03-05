@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::query::parser::ast::stmt::{FromClause, OverClause, Steps, SubgraphStmt, YieldClause};
+use crate::query::parser::ast::stmt::{Ast, FromClause, OverClause, Steps, SubgraphStmt, YieldClause};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
@@ -181,11 +181,11 @@ impl Default for GetSubgraphValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for GetSubgraphValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -197,7 +197,7 @@ impl StatementValidator for GetSubgraphValidator {
         }
 
         // 2. 获取 GET SUBGRAPH 语句（拥有所有权）
-        let get_subgraph_stmt = match stmt {
+        let get_subgraph_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Subgraph(s) => s,
             _ => {
                 return Err(ValidationError::new(
@@ -219,11 +219,11 @@ impl StatementValidator for GetSubgraphValidator {
         // 6. 创建验证结果（直接移动所有权，无需 clone）
         let validated = ValidatedGetSubgraph {
             space_id,
-            steps: get_subgraph_stmt.steps,
-            from: get_subgraph_stmt.from,
-            over: get_subgraph_stmt.over,
-            where_clause: get_subgraph_stmt.where_clause,
-            yield_clause: get_subgraph_stmt.yield_clause,
+            steps: get_subgraph_stmt.steps.clone(),
+            from: get_subgraph_stmt.from.clone(),
+            over: get_subgraph_stmt.over.clone(),
+            where_clause: get_subgraph_stmt.where_clause.clone(),
+            yield_clause: get_subgraph_stmt.yield_clause.clone(),
         };
 
         // 7. 设置输出列

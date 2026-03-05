@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
-use crate::query::parser::ast::stmt::{MatchStmt, OrderByClause, ReturnClause, ReturnItem};
+use crate::query::parser::ast::stmt::{Ast, MatchStmt, OrderByClause, ReturnClause, ReturnItem};
 use crate::query::parser::ast::{Pattern, Stmt};
 use crate::query::QueryContext;
 
@@ -668,12 +668,12 @@ impl MatchValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 /// - validate 返回包含 ValidationInfo 的完整验证结果
 impl StatementValidator for MatchValidator {
     fn validate(
         &mut self,
-        stmt: Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -684,8 +684,8 @@ impl StatementValidator for MatchValidator {
             ));
         }
 
-        // 2. 获取 MATCH 语句（拥有所有权）
-        let match_stmt = match stmt {
+        // 2. 获取 MATCH 语句
+        let match_stmt = match &ast.stmt {
             Stmt::Match(m) => m,
             _ => {
                 return Err(ValidationError::new(
@@ -749,10 +749,10 @@ impl StatementValidator for MatchValidator {
         // 7. 创建验证结果（放在最后一步，避免不必要的 clone）
         let validated = ValidatedMatch {
             space_id,
-            patterns: match_stmt.patterns,
-            where_clause: match_stmt.where_clause,
-            return_clause: match_stmt.return_clause,
-            order_by: match_stmt.order_by,
+            patterns: match_stmt.patterns.clone(),
+            where_clause: match_stmt.where_clause.clone(),
+            return_clause: match_stmt.return_clause.clone(),
+            order_by: match_stmt.order_by.clone(),
             limit: match_stmt.limit,
             skip: match_stmt.skip,
             optional: match_stmt.optional,

@@ -61,7 +61,7 @@ impl Planner for UpdatePlanner {
             log::debug!("UPDATE 引用的属性: {:?}", referenced_properties);
         }
 
-        let update_stmt = self.extract_update_stmt(&validated.stmt)?;
+        let update_stmt = self.extract_update_stmt(validated.stmt())?;
 
         // 创建参数节点作为输入
         let arg_node = ArgumentNode::new(next_node_id(), "update_input");
@@ -78,8 +78,8 @@ impl Planner for UpdatePlanner {
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::Variable(format!("updated_{}", target_name)),
         );
-        let id = qctx.expr_context().register_expression(expr_meta);
-        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
+        let id = validated.expr_context().register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, validated.expr_context().clone());
 
         let yield_columns = vec![YieldColumn {
             expression: ctx_expr,

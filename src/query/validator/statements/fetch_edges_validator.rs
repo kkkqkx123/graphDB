@@ -19,7 +19,7 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Value;
-use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
+use crate::query::parser::ast::stmt::{Ast, FetchStmt, FetchTarget};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -316,11 +316,11 @@ impl Default for FetchEdgesValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for FetchEdgesValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -332,7 +332,7 @@ impl StatementValidator for FetchEdgesValidator {
         }
 
         // 2. 获取 FETCH 语句
-        let fetch_stmt = match stmt {
+        let fetch_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -392,11 +392,11 @@ impl StatementValidator for FetchEdgesValidator {
                 let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                     crate::core::Expression::Variable(prop.clone()),
                 );
-                let id = qctx.expr_context().register_expression(expr_meta);
+                let id = ast.expr_context.register_expression(expr_meta);
                 let ctx_expr =
                     crate::core::types::expression::contextual::ContextualExpression::new(
                         id,
-                        qctx.expr_context().clone(),
+                        ast.expr_context.clone(),
                     );
                 validated_columns.push(ValidatedYieldColumn {
                     expression: ctx_expr,
@@ -478,7 +478,7 @@ mod tests {
     use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
-    use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
+    use crate::query::parser::ast::stmt::{Ast, FetchStmt, FetchTarget};
     use crate::query::parser::ast::Span;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {

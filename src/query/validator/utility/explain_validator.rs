@@ -10,7 +10,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::parser::ast::stmt::{ExplainFormat, ExplainStmt, ProfileStmt};
+use crate::query::parser::ast::stmt::{Ast, ExplainFormat, ExplainStmt, ProfileStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::Validator;
 use crate::query::validator::validator_trait::{
@@ -69,7 +69,7 @@ impl ExplainValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: ExplainStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &ExplainStmt) -> Result<(), ValidationError> {
         self.format = stmt.format.clone();
 
         // 验证内部语句
@@ -110,15 +110,15 @@ impl ExplainValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 /// - 内部语句验证直接调用 validate 方法，传入 stmt 和 qctx
 impl StatementValidator for ExplainValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let explain_stmt = match stmt {
+        let explain_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Explain(explain_stmt) => explain_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -135,7 +135,7 @@ impl StatementValidator for ExplainValidator {
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            let result = inner.validate(inner_stmt, qctx);
+            let result = inner.validate(Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())), qctx);
             if !result.success {
                 return Err(result.errors.first().cloned().unwrap_or_else(|| {
                     ValidationError::new(
@@ -231,7 +231,7 @@ impl ProfileValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: ProfileStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &ProfileStmt) -> Result<(), ValidationError> {
         self.format = stmt.format.clone();
 
         // 验证内部语句
@@ -272,15 +272,15 @@ impl ProfileValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 /// - 内部语句验证直接调用 validate 方法，传入 stmt 和 qctx
 impl StatementValidator for ProfileValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let profile_stmt = match stmt {
+        let profile_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Profile(profile_stmt) => profile_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -297,7 +297,7 @@ impl StatementValidator for ProfileValidator {
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            let result = inner.validate(inner_stmt, qctx);
+            let result = inner.validate(Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())), qctx);
             if !result.success {
                 return Err(result.errors.first().cloned().unwrap_or_else(|| {
                     ValidationError::new(

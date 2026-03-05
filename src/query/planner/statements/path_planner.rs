@@ -39,7 +39,7 @@ impl Planner for PathPlanner {
         validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let find_path_stmt = match &validated.stmt {
+        let find_path_stmt = match validated.stmt() {
             Stmt::FindPath(find_path_stmt) => find_path_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

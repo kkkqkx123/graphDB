@@ -156,7 +156,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(Stmt::Match(clause), validation_info);
+        let ctx = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+        let ast = Arc::new(crate::query::parser::ast::Ast::new(Stmt::Match(clause), ctx));
+        let validated = ValidatedStatement::new(ast, validation_info);
 
         let mut planner = MatchStatementPlanner::new();
         let plan = planner
@@ -329,7 +331,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
                 // 创建验证后的语句
                 let validation_info = ValidationInfo::new();
-                let validated = ValidatedStatement::new(Stmt::Create(clause), validation_info);
+                let ctx = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+                let ast = Arc::new(crate::query::parser::ast::Ast::new(Stmt::Create(clause), ctx));
+                let validated = ValidatedStatement::new(ast, validation_info);
 
                 let mut planner = CreatePlanner::new();
                 let plan = planner

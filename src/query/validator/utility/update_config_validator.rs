@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionMeta;
-use crate::query::parser::ast::stmt::UpdateConfigsStmt;
+use crate::query::parser::ast::stmt::{Ast, UpdateConfigsStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -105,7 +105,7 @@ impl UpdateConfigsValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: UpdateConfigsStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &UpdateConfigsStmt) -> Result<(), ValidationError> {
         // 验证模块名
         self.validate_module(&stmt.module)?;
 
@@ -153,14 +153,14 @@ impl Default for UpdateConfigsValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for UpdateConfigsValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let update_configs_stmt = match stmt {
+        let update_configs_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::UpdateConfigs(update_configs_stmt) => {
                 update_configs_stmt
             }

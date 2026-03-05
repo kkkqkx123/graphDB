@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::query::parser::ast::stmt::FindPathStmt;
+use crate::query::parser::ast::stmt::{Ast, FindPathStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
@@ -123,11 +123,11 @@ impl Default for FindPathValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for FindPathValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -139,7 +139,7 @@ impl StatementValidator for FindPathValidator {
         }
 
         // 2. 获取 FIND PATH 语句（拥有所有权）
-        let find_path_stmt = match stmt {
+        let find_path_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::FindPath(s) => s,
             _ => {
                 return Err(ValidationError::new(
@@ -161,17 +161,17 @@ impl StatementValidator for FindPathValidator {
         // 6. 创建验证结果（直接移动所有权，无需 clone）
         let validated = ValidatedFindPath {
             space_id,
-            from: find_path_stmt.from,
-            to: find_path_stmt.to,
-            over: find_path_stmt.over,
-            where_clause: find_path_stmt.where_clause,
+            from: find_path_stmt.from.clone(),
+            to: find_path_stmt.to.clone(),
+            over: find_path_stmt.over.clone(),
+            where_clause: find_path_stmt.where_clause.clone(),
             shortest: find_path_stmt.shortest,
             max_steps: find_path_stmt.max_steps,
             limit: find_path_stmt.limit,
             offset: find_path_stmt.offset,
-            yield_clause: find_path_stmt.yield_clause,
-            weight_expression: find_path_stmt.weight_expression,
-            heuristic_expression: find_path_stmt.heuristic_expression,
+            yield_clause: find_path_stmt.yield_clause.clone(),
+            weight_expression: find_path_stmt.weight_expression.clone(),
+            heuristic_expression: find_path_stmt.heuristic_expression.clone(),
             with_loop: find_path_stmt.with_loop,
             with_cycle: find_path_stmt.with_cycle,
         };

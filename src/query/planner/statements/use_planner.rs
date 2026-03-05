@@ -40,7 +40,7 @@ impl Planner for UsePlanner {
         validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let _use_stmt = self.extract_use_stmt(&validated.stmt)?;
+        let _use_stmt = self.extract_use_stmt(validated.stmt())?;
 
         // 创建参数节点作为输入
         let arg_node = ArgumentNode::new(next_node_id(), "use_input");

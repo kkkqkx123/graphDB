@@ -9,6 +9,7 @@
 //! - **StatementPlanner**：语句级 trait，处理完整语句的规划
 //! - **ClausePlanner**：子句级 trait，处理单个子句的规划
 
+use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, ValidatedStatement};
@@ -134,8 +135,8 @@ mod tests {
         Arc::new(QueryContext::new(rctx))
     }
 
-    fn create_test_match_stmt() -> Stmt {
-        Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
+    fn create_test_match_stmt() -> Arc<Ast> {
+        let stmt = Stmt::Match(crate::query::parser::ast::stmt::MatchStmt {
             span: Span::default(),
             patterns: vec![],
             where_clause: None,
@@ -144,7 +145,9 @@ mod tests {
             limit: None,
             skip: None,
             optional: false,
-        })
+        });
+        let ctx = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+        Arc::new(Ast::new(stmt, ctx))
     }
 
     #[test]
@@ -168,12 +171,12 @@ mod tests {
         use crate::query::validator::ValidationInfo;
 
         let mut planner = MockStatementPlanner::new("MATCH", vec![CypherClauseKind::Match]);
-        let stmt = create_test_match_stmt();
+        let ast = create_test_match_stmt();
         let qctx = create_test_qctx();
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok());
@@ -185,8 +188,8 @@ mod tests {
     #[test]
     fn test_statement_planner_match_planner() {
         let planner = MockStatementPlanner::new("MATCH", vec![CypherClauseKind::Match]);
-        let stmt = create_test_match_stmt();
-        assert!(planner.match_planner(&stmt));
+        let ast = create_test_match_stmt();
+        assert!(planner.match_planner(&ast.stmt));
     }
 
     #[test]
@@ -199,7 +202,7 @@ mod tests {
     fn test_clause_planner_transform_clause() {
         let planner = MockClausePlanner::new(CypherClauseKind::Where);
         let qctx = create_test_qctx();
-        let stmt = create_test_match_stmt();
+        let ast = create_test_match_stmt();
 
         let start_node = StartNode::new();
         let start_node_enum = PlanNodeEnum::Start(start_node.clone());
@@ -208,7 +211,7 @@ mod tests {
             tail: Some(start_node_enum),
         };
 
-        let result = planner.transform_clause(qctx, &stmt, input_plan);
+        let result = planner.transform_clause(qctx, &ast.stmt, input_plan);
         assert!(result.is_ok());
     }
 

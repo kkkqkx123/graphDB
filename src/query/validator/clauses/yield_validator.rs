@@ -14,6 +14,7 @@
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::YieldColumn;
+use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
@@ -283,11 +284,11 @@ impl Default for YieldValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for YieldValidator {
     fn validate(
         &mut self,
-        _stmt: crate::query::parser::ast::Stmt,
+        _ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态

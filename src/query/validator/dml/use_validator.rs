@@ -12,6 +12,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
@@ -180,11 +181,11 @@ impl Default for UseValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for UseValidator {
     fn validate(
         &mut self,
-        stmt: Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态
@@ -193,8 +194,8 @@ impl StatementValidator for UseValidator {
         self.expr_props = ExpressionProps::default();
         self.clear_errors();
 
-        // 从 Stmt 中提取 USE 语句信息
-        if let Stmt::Use(use_stmt) = stmt {
+        // 从 Ast 中提取 USE 语句信息
+        if let Stmt::Use(use_stmt) = &ast.stmt {
             self.space_name = use_stmt.space.clone();
         } else {
             return Err(ValidationError::new(

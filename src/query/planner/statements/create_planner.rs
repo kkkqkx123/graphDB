@@ -57,7 +57,7 @@ impl CreatePlanner {
         space_name: String,
         labels: &[String],
         properties: &[(String, ContextualExpression)],
-        qctx: &Arc<QueryContext>,
+        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
     ) -> Result<VertexInsertInfo, PlannerError> {
         if labels.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
@@ -80,8 +80,8 @@ impl CreatePlanner {
             let expr_meta = crate::core::types::expression::ExpressionMeta::new(
                 crate::core::Expression::literal(Value::Null(crate::core::NullType::default())),
             );
-            let id = qctx.expr_context().register_expression(expr_meta);
-            ContextualExpression::new(id, qctx.expr_context_clone())
+            let id = expr_context.register_expression(expr_meta);
+            ContextualExpression::new(id, expr_context.clone())
         };
 
         Ok(VertexInsertInfo {
@@ -113,12 +113,16 @@ impl CreatePlanner {
     }
 
     /// 创建结果投影列
-    fn create_yield_columns(&self, count: usize, qctx: &Arc<QueryContext>) -> Vec<YieldColumn> {
+    fn create_yield_columns(
+        &self,
+        count: usize,
+        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+    ) -> Vec<YieldColumn> {
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::literal(Value::Int(count as i64)),
         );
-        let id = qctx.expr_context().register_expression(expr_meta);
-        let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
+        let id = expr_context.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(id, expr_context.clone());
 
         vec![YieldColumn {
             expression: ctx_expr,
@@ -156,7 +160,7 @@ impl Planner for CreatePlanner {
             .unwrap_or_else(|| "default".to_string());
 
         // 提取 CREATE 语句
-        let create_stmt = self.extract_create_stmt(&validated.stmt)?;
+        let create_stmt = self.extract_create_stmt(validated.stmt())?;
 
         // 创建参数节点
         let arg_node = ArgumentNode::new(next_node_id(), "create_args");
@@ -170,12 +174,12 @@ impl Planner for CreatePlanner {
             } => {
                 // 解析属性
                 let props = if let Some(expr) = properties {
-                    Self::extract_properties(expr, &qctx)?
+                    Self::extract_properties(expr, validated.expr_context())?
                 } else {
                     vec![]
                 };
 
-                let info = self.build_vertex_insert_info(space_name, labels, &props, &qctx)?;
+                let info = self.build_vertex_insert_info(space_name, labels, &props, validated.expr_context())?;
 
                 (
                     PlanNodeEnum::InsertVertices(InsertVerticesNode::new(next_node_id(), info)),
@@ -192,7 +196,7 @@ impl Planner for CreatePlanner {
             } => {
                 // 解析属性
                 let props = if let Some(expr) = properties {
-                    Self::extract_properties(expr, &qctx)?
+                    Self::extract_properties(expr, validated.expr_context())?
                 } else {
                     vec![]
                 };
@@ -219,13 +223,13 @@ impl Planner for CreatePlanner {
                     match pattern {
                         crate::query::parser::ast::pattern::Pattern::Path(path) => {
                             let (mut vertices, mut edges) =
-                                self.process_path_pattern(path, &space_name, &qctx)?;
+                                self.process_path_pattern(path, &space_name, validated.expr_context())?;
                             vertex_infos.append(&mut vertices);
                             edge_infos.append(&mut edges);
                             created_count += 1;
                         }
                         crate::query::parser::ast::pattern::Pattern::Node(node) => {
-                            let info = self.process_node_pattern(node, &space_name, &qctx)?;
+                            let info = self.process_node_pattern(node, &space_name, validated.expr_context())?;
                             vertex_infos.push(info);
                             created_count += 1;
                         }
@@ -274,7 +278,7 @@ impl Planner for CreatePlanner {
         };
 
         // 创建投影节点来返回创建结果
-        let yield_columns = self.create_yield_columns(created_count, &qctx);
+        let yield_columns = self.create_yield_columns(created_count, validated.expr_context());
 
         let project_node = ProjectNode::new(insert_node, yield_columns).map_err(|e| {
             PlannerError::PlanGenerationFailed(format!("创建 ProjectNode 失败: {}", e))
@@ -300,7 +304,7 @@ impl CreatePlanner {
     /// 从表达式中提取属性键值对
     fn extract_properties(
         expr: &ContextualExpression,
-        qctx: &Arc<QueryContext>,
+        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
     ) -> Result<Vec<(String, ContextualExpression)>, PlannerError> {
         if let Some(expr_meta) = expr.expression() {
             if let crate::core::Expression::Map(map) = expr_meta.inner() {
@@ -308,8 +312,8 @@ impl CreatePlanner {
                 for (key, value_expr) in map {
                     let value_meta =
                         crate::core::types::expression::ExpressionMeta::new(value_expr.clone());
-                    let id = qctx.expr_context().register_expression(value_meta);
-                    let ctx_expr = ContextualExpression::new(id, qctx.expr_context_clone());
+                    let id = expr_context.register_expression(value_meta);
+                    let ctx_expr = ContextualExpression::new(id, expr_context.clone());
                     result.push((key.clone(), ctx_expr));
                 }
                 Ok(result)
@@ -328,15 +332,15 @@ impl CreatePlanner {
         &self,
         node: &crate::query::parser::ast::pattern::NodePattern,
         space_name: &str,
-        qctx: &Arc<QueryContext>,
+        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
     ) -> Result<VertexInsertInfo, PlannerError> {
         let props = if let Some(ref expr) = node.properties {
-            Self::extract_properties(expr, qctx)?
+            Self::extract_properties(expr, expr_context)?
         } else {
             vec![]
         };
 
-        self.build_vertex_insert_info(space_name.to_string(), &node.labels, &props, qctx)
+        self.build_vertex_insert_info(space_name.to_string(), &node.labels, &props, expr_context)
     }
 
     /// 处理路径模式
@@ -344,7 +348,7 @@ impl CreatePlanner {
         &self,
         path: &crate::query::parser::ast::pattern::PathPattern,
         space_name: &str,
-        qctx: &Arc<QueryContext>,
+        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
     ) -> Result<(Vec<VertexInsertInfo>, Vec<EdgeInsertInfo>), PlannerError> {
         let mut vertex_infos = Vec::new();
         let mut edge_infos = Vec::new();
@@ -353,7 +357,7 @@ impl CreatePlanner {
         for element in &path.elements {
             match element {
                 crate::query::parser::ast::pattern::PathElement::Node(node) => {
-                    let vertex_info = self.process_node_pattern(node, space_name, qctx)?;
+                    let vertex_info = self.process_node_pattern(node, space_name, expr_context)?;
                     prev_vertex = Some(vertex_info.clone());
                     vertex_infos.push(vertex_info);
                 }
@@ -365,7 +369,7 @@ impl CreatePlanner {
                     }
 
                     let props = if let Some(ref expr) = edge.properties {
-                        Self::extract_properties(expr, qctx)?
+                        Self::extract_properties(expr, expr_context)?
                     } else {
                         vec![]
                     };
@@ -384,8 +388,8 @@ impl CreatePlanner {
                                 crate::core::NullType::default(),
                             )),
                         );
-                        let id = qctx.expr_context().register_expression(expr_meta);
-                        ContextualExpression::new(id, qctx.expr_context_clone())
+                        let id = expr_context.register_expression(expr_meta);
+                        ContextualExpression::new(id, expr_context.clone())
                     };
                     let dst_vid = {
                         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
@@ -393,8 +397,8 @@ impl CreatePlanner {
                                 crate::core::NullType::default(),
                             )),
                         );
-                        let id = qctx.expr_context().register_expression(expr_meta);
-                        ContextualExpression::new(id, qctx.expr_context_clone())
+                        let id = expr_context.register_expression(expr_meta);
+                        ContextualExpression::new(id, expr_context.clone())
                     };
 
                     let edge_info = EdgeInsertInfo {
@@ -463,7 +467,7 @@ mod tests {
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(
@@ -484,7 +488,7 @@ mod tests {
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "带属性的 CREATE PATH 应该成功");
@@ -501,7 +505,7 @@ mod tests {
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "多边 CREATE PATH 应该成功");
@@ -518,7 +522,7 @@ mod tests {
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "单节点 CREATE 应该成功");
@@ -535,7 +539,7 @@ mod tests {
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_err(), "没有标签的 CREATE PATH 应该失败");
@@ -552,7 +556,7 @@ mod tests {
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "双向边 CREATE PATH 应该成功");

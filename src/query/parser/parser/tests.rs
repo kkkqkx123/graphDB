@@ -8,7 +8,7 @@ mod tests {
     fn parse_statement(query: &str) -> Result<Stmt, crate::query::parser::core::error::ParseError> {
         let mut parser = Parser::new(query);
         let parser_result = parser.parse()?;
-        Ok(parser_result.stmt)
+        Ok(parser_result.ast.stmt)
     }
 
     #[test]

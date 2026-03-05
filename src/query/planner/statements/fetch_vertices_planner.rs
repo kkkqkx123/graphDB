@@ -29,7 +29,7 @@ impl Planner for FetchVerticesPlanner {
         validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let fetch_stmt = match &validated.stmt {
+        let fetch_stmt = match validated.stmt() {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

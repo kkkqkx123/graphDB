@@ -316,12 +316,13 @@ mod tests {
         // 测试从 Stmt 创建规划器
         let match_stmt = Stmt::Match(crate::query::parser::ast::MatchStmt {
             span: crate::core::types::Span::default(),
-            pattern: crate::query::parser::ast::Pattern {
-                span: crate::core::types::Span::default(),
-                alternatives: vec![],
-            },
+            patterns: vec![],
             where_clause: None,
             return_clause: None,
+            order_by: None,
+            limit: None,
+            skip: None,
+            optional: false,
         });
 
         let planner = PlannerEnum::from_stmt(&Arc::new(match_stmt));
@@ -333,12 +334,13 @@ mod tests {
     fn test_planner_enum_matches() {
         let match_stmt = Stmt::Match(crate::query::parser::ast::MatchStmt {
             span: crate::core::types::Span::default(),
-            pattern: crate::query::parser::ast::Pattern {
-                span: crate::core::types::Span::default(),
-                alternatives: vec![],
-            },
+            patterns: vec![],
             where_clause: None,
             return_clause: None,
+            order_by: None,
+            limit: None,
+            skip: None,
+            optional: false,
         });
 
         let planner = PlannerEnum::Match(MatchStatementPlanner::new());

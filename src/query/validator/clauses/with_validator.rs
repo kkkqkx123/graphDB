@@ -5,7 +5,7 @@
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::query::parser::ast::stmt::{ReturnItem, WithStmt};
+use crate::query::parser::ast::stmt::{Ast, ReturnItem, WithStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
@@ -270,7 +270,7 @@ impl WithValidator {
         Ok(())
     }
 
-    fn validate_impl(&mut self, stmt: WithStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &WithStmt) -> Result<(), ValidationError> {
         // 验证返回项
         if stmt.items.is_empty() {
             return Err(ValidationError::new(
@@ -328,14 +328,14 @@ impl Default for WithValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for WithValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let with_stmt = match stmt {
+        let with_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::With(with_stmt) => with_stmt,
             _ => {
                 return Err(ValidationError::new(

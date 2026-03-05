@@ -8,7 +8,7 @@
 //! 3. 支持多种集合操作类型
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::parser::ast::stmt::{SetOperationStmt, SetOperationType};
+use crate::query::parser::ast::stmt::{Ast, SetOperationStmt, SetOperationType};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::Validator;
 use crate::query::validator::validator_trait::{
@@ -51,7 +51,7 @@ impl SetOperationValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: SetOperationStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &SetOperationStmt) -> Result<(), ValidationError> {
         self.op_type = stmt.op_type.clone();
 
         // 创建左子查询验证器
@@ -212,14 +212,14 @@ impl SetOperationValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for SetOperationValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let set_op_stmt = match stmt {
+        let set_op_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::SetOperation(set_op_stmt) => set_op_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -233,11 +233,11 @@ impl StatementValidator for SetOperationValidator {
         let left_stmt = *set_op_stmt.left.clone();
         let right_stmt = *set_op_stmt.right.clone();
 
-        self.validate_impl(set_op_stmt)?;
+        self.validate_impl(&set_op_stmt)?;
 
         // 验证左右子查询
         let left_outputs = if let Some(ref mut left) = self.left_validator {
-            let result = left.validate(left_stmt, qctx.clone());
+            let result = left.validate(Arc::new(Ast::new(left_stmt, ast.expr_context.clone())), qctx.clone());
             if result.success {
                 result.outputs
             } else {
@@ -253,7 +253,7 @@ impl StatementValidator for SetOperationValidator {
         };
 
         let right_outputs = if let Some(ref mut right) = self.right_validator {
-            let result = right.validate(right_stmt, qctx.clone());
+            let result = right.validate(Arc::new(Ast::new(right_stmt, ast.expr_context.clone())), qctx.clone());
             if result.success {
                 result.outputs
             } else {

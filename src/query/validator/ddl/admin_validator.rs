@@ -8,7 +8,7 @@
 //! 3. 验证目标对象是否存在
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::parser::ast::stmt::{
+use crate::query::parser::ast::stmt::{Ast, 
     DescStmt, DescTarget, KillQueryStmt, ShowConfigsStmt, ShowCreateStmt, ShowCreateTarget,
     ShowQueriesStmt, ShowSessionsStmt, ShowStmt, ShowTarget,
 };
@@ -66,7 +66,7 @@ impl ShowValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: ShowStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &ShowStmt) -> Result<(), ValidationError> {
         self.target_type = match &stmt.target {
             ShowTarget::Spaces => ShowTargetType::Spaces,
             ShowTarget::Tags => ShowTargetType::Tags,
@@ -180,14 +180,14 @@ impl ShowValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for ShowValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let show_stmt = match stmt {
+        let show_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Show(show_stmt) => show_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -278,7 +278,7 @@ impl DescValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: DescStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &DescStmt) -> Result<(), ValidationError> {
         match &stmt.target {
             DescTarget::Space(name) => {
                 self.target_type = DescTargetType::Space;
@@ -363,14 +363,14 @@ impl DescValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for DescValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let desc_stmt = match stmt {
+        let desc_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Desc(desc_stmt) => desc_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -450,7 +450,7 @@ impl ShowCreateValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: ShowCreateStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &ShowCreateStmt) -> Result<(), ValidationError> {
         match &stmt.target {
             ShowCreateTarget::Space(name) => {
                 self.target_type = ShowCreateTargetType::Space;
@@ -488,14 +488,14 @@ impl ShowCreateValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for ShowCreateValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let show_create_stmt = match stmt {
+        let show_create_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::ShowCreate(show_create_stmt) => show_create_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -566,7 +566,7 @@ impl ShowConfigsValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: ShowConfigsStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &ShowConfigsStmt) -> Result<(), ValidationError> {
         self.module = stmt.module.clone();
 
         self.outputs = vec![
@@ -591,14 +591,14 @@ impl ShowConfigsValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for ShowConfigsValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let show_configs_stmt = match stmt {
+        let show_configs_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::ShowConfigs(show_configs_stmt) => show_configs_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -688,7 +688,7 @@ impl ShowSessionsValidator {
         }
     }
 
-    fn validate_impl(&mut self, _stmt: ShowSessionsStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, _stmt: &ShowSessionsStmt) -> Result<(), ValidationError> {
         Ok(())
     }
 }
@@ -696,14 +696,14 @@ impl ShowSessionsValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for ShowSessionsValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let show_sessions_stmt = match stmt {
+        let show_sessions_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::ShowSessions(show_sessions_stmt) => show_sessions_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -793,7 +793,7 @@ impl ShowQueriesValidator {
         }
     }
 
-    fn validate_impl(&mut self, _stmt: ShowQueriesStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, _stmt: &ShowQueriesStmt) -> Result<(), ValidationError> {
         Ok(())
     }
 }
@@ -801,14 +801,14 @@ impl ShowQueriesValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for ShowQueriesValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let show_queries_stmt = match stmt {
+        let show_queries_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::ShowQueries(show_queries_stmt) => show_queries_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -884,7 +884,7 @@ impl KillQueryValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: KillQueryStmt) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &KillQueryStmt) -> Result<(), ValidationError> {
         self.session_id = stmt.session_id;
         self.plan_id = stmt.plan_id;
         Ok(())
@@ -894,14 +894,14 @@ impl KillQueryValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for KillQueryValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let kill_query_stmt = match stmt {
+        let kill_query_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::KillQuery(kill_query_stmt) => kill_query_stmt,
             _ => {
                 return Err(ValidationError::new(

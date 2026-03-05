@@ -8,6 +8,7 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
+use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::{Stmt, YieldItem};
 use crate::query::validator::structs::validation_info::{
     IndexHint, OptimizationHint, ValidationInfo,
@@ -82,8 +83,8 @@ impl LookupValidator {
     }
 
     /// 从 AST 解析 LOOKUP 语句
-    fn parse_from_stmt(&self, stmt: &Stmt) -> Result<ParsedLookupInfo, ValidationError> {
-        let lookup_stmt = match stmt {
+    fn parse_from_ast(&self, ast: &Arc<Ast>) -> Result<ParsedLookupInfo, ValidationError> {
+        let lookup_stmt = match &ast.stmt {
             Stmt::Lookup(lookup_stmt) => lookup_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -356,11 +357,11 @@ impl Default for LookupValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for LookupValidator {
     fn validate(
         &mut self,
-        stmt: Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -371,8 +372,8 @@ impl StatementValidator for LookupValidator {
             ));
         }
 
-        // 2. 从 Stmt 解析 LOOKUP 语句
-        let parsed_info = self.parse_from_stmt(&stmt)?;
+        // 2. 从 Ast 解析 LOOKUP 语句
+        let parsed_info = self.parse_from_ast(&ast)?;
 
         // 3. 获取当前空间名称
         let space_name = qctx.space_name().unwrap_or_default();
@@ -511,7 +512,7 @@ impl StatementValidator for LookupValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::ast::stmt::{LookupStmt, LookupTarget, YieldClause};
+    use crate::query::parser::ast::stmt::{Ast, LookupStmt, LookupTarget, YieldClause};
     use crate::query::parser::ast::Span;
     use crate::query::query_request_context::QueryRequestContext;
     use std::sync::Arc;
@@ -519,10 +520,15 @@ mod tests {
     /// 创建测试用的 QueryContext，带有有效的 space_id
     fn create_test_query_context() -> Arc<QueryContext> {
         let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
-        let qctx = QueryContext::new(rctx);
+        let mut qctx = QueryContext::new(rctx);
         let space_info = crate::core::types::SpaceInfo::new("test_space".to_string());
         qctx.set_space_info(space_info);
         Arc::new(qctx)
+    }
+
+    fn create_test_ast(stmt: Stmt) -> Arc<Ast> {
+        let ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        Arc::new(Ast::new(stmt, ctx))
     }
 
     fn create_simple_lookup_stmt(label: &str, is_edge: bool) -> LookupStmt {
@@ -554,7 +560,7 @@ mod tests {
         let lookup_stmt = create_simple_lookup_stmt("person", false);
         let qctx = create_test_query_context();
 
-        let result = validator.validate(Stmt::Lookup(lookup_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Lookup(lookup_stmt)), qctx);
         // 当前会失败，因为没有 YIELD 列且不是 YIELD *
         assert!(result.is_err());
     }
@@ -565,7 +571,7 @@ mod tests {
         let lookup_stmt = create_simple_lookup_stmt("", false);
         let qctx = create_test_query_context();
 
-        let result = validator.validate(Stmt::Lookup(lookup_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Lookup(lookup_stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("必须指定"));
@@ -578,10 +584,10 @@ mod tests {
         // 不设置 LOOKUP 语句
 
         let result = validator.validate(
-            Stmt::Use(crate::query::parser::ast::stmt::UseStmt {
+            create_test_ast(Stmt::Use(crate::query::parser::ast::stmt::UseStmt {
                 span: Span::default(),
                 space: "test".to_string(),
-            }),
+            })),
             qctx,
         );
         assert!(result.is_err());

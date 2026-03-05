@@ -3,7 +3,7 @@
 //! Query 语句是一个包装器，包含实际的查询语句
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::parser::ast::stmt::QueryStmt;
+use crate::query::parser::ast::stmt::{Ast, QueryStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::Validator;
 use crate::query::validator::validator_trait::{
@@ -77,14 +77,14 @@ impl Default for QueryValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for QueryValidator {
     fn validate(
         &mut self,
-        stmt: crate::query::parser::ast::Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        let query_stmt = match stmt {
+        let query_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Query(query_stmt) => query_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -95,22 +95,22 @@ impl StatementValidator for QueryValidator {
         };
 
         // 验证实现（在移动 query_stmt 之前）
-        self.validate_impl(&query_stmt)?;
+        self.validate_impl(query_stmt)?;
 
         // 提取第一个语句
-        let first_stmt = query_stmt.statements.into_iter().next().ok_or_else(|| {
+        let first_stmt = query_stmt.statements.iter().next().ok_or_else(|| {
             ValidationError::new(
                 "Query must contain at least one statement".to_string(),
                 ValidationErrorType::SemanticError,
             )
-        })?;
+        })?.clone();
 
         let inner = self
             .inner_validator
             .as_mut()
             .expect("inner_validator should be set after validate_impl");
 
-        let result = inner.validate(first_stmt, qctx.clone());
+        let result = inner.validate(Arc::new(Ast::new(first_stmt, ast.expr_context.clone())), qctx.clone());
 
         if result.success {
             self.inputs = result.inputs;

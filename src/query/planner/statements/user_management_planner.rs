@@ -27,7 +27,7 @@ impl Planner for UserManagementPlanner {
     ) -> Result<SubPlan, PlannerError> {
         let arg_node = ArgumentNode::new(1, "user_management_args");
 
-        let final_node = match &validated.stmt {
+        let final_node = match validated.stmt() {
             Stmt::CreateUser(create_stmt) => {
                 let mut node = crate::query::planner::plan::core::nodes::CreateUserNode::new(
                     1,
@@ -75,7 +75,7 @@ impl Planner for UserManagementPlanner {
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(format!(
                     "Unsupported user management operation: {:?}",
-                    validated.stmt
+                    validated.stmt()
                 )))
             }
         };

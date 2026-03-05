@@ -5,6 +5,7 @@
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::utils::ExprFactory;
+use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
@@ -99,10 +100,14 @@ impl InsertPlanner {
     }
 
     /// 创建插入结果投影列
-    fn create_yield_columns(&self, count: usize, qctx: Arc<QueryContext>) -> Vec<YieldColumn> {
+    fn create_yield_columns(
+        &self,
+        count: usize,
+        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+    ) -> Vec<YieldColumn> {
         let expr = ExprFactory::constant(
             crate::core::Value::Int(count as i64),
-            qctx.expr_context_clone(),
+            expr_context.clone(),
         );
         vec![YieldColumn::new(expr, "inserted_count".to_string())]
     }
@@ -136,7 +141,7 @@ impl Planner for InsertPlanner {
         }
 
         // 提取 INSERT 语句
-        let insert_stmt = self.extract_insert_stmt(&validated.stmt)?;
+        let insert_stmt = self.extract_insert_stmt(validated.stmt())?;
 
         // 创建参数节点
         let arg_node = ArgumentNode::new(next_node_id(), "insert_args");
@@ -178,7 +183,7 @@ impl Planner for InsertPlanner {
         };
 
         // 创建投影节点来返回插入结果
-        let yield_columns = self.create_yield_columns(inserted_count, qctx.clone());
+        let yield_columns = self.create_yield_columns(inserted_count, validated.ast.expr_context());
 
         let project_node = ProjectNode::new(insert_node, yield_columns).map_err(|e| {
             PlannerError::PlanGenerationFailed(format!("创建 ProjectNode 失败: {}", e))
@@ -222,13 +227,14 @@ mod tests {
         Span::new(Position::new(1, 1), Position::new(1, 1))
     }
 
-    fn create_test_stmt_with_insert(target: InsertTarget) -> Stmt {
+    fn create_test_stmt_with_insert(target: InsertTarget) -> Arc<Ast> {
         let insert_stmt = InsertStmt {
             span: create_test_span(),
             target,
             if_not_exists: false,
         };
-        Stmt::Insert(insert_stmt)
+        let ctx = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+        Arc::new(Ast::new(Stmt::Insert(insert_stmt), ctx))
     }
 
     fn create_test_qctx() -> Arc<QueryContext> {
@@ -237,14 +243,14 @@ mod tests {
 
     // 辅助函数：创建常量表达式
     fn lit(val: Value) -> ContextualExpression {
-        let qctx = create_test_qctx();
-        ExprFactory::constant(val, qctx.expr_context_clone())
+        let ctx = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+        ExprFactory::constant(val, ctx)
     }
 
     #[test]
     fn test_insert_planner_new() {
         let planner = InsertPlanner::new();
-        let stmt = create_test_stmt_with_insert(InsertTarget::Vertices {
+        let ast = create_test_stmt_with_insert(InsertTarget::Vertices {
             tags: vec![TagInsertSpec {
                 tag_name: "person".to_string(),
                 prop_names: vec!["name".to_string(), "age".to_string()],
@@ -258,12 +264,12 @@ mod tests {
                 ]],
             }],
         });
-        assert!(planner.match_planner(&stmt));
+        assert!(planner.match_planner(&ast.stmt));
     }
 
     #[test]
     fn test_match_stmt_with_insert() {
-        let stmt = create_test_stmt_with_insert(InsertTarget::Vertices {
+        let ast = create_test_stmt_with_insert(InsertTarget::Vertices {
             tags: vec![TagInsertSpec {
                 tag_name: "person".to_string(),
                 prop_names: vec![],
@@ -271,7 +277,7 @@ mod tests {
             }],
             values: vec![],
         });
-        assert!(InsertPlanner::match_stmt(&stmt));
+        assert!(InsertPlanner::match_stmt(&ast.stmt));
     }
 
     #[test]
@@ -363,8 +369,8 @@ mod tests {
     #[test]
     fn test_create_yield_columns() {
         let planner = InsertPlanner::new();
-        let qctx = create_test_qctx();
-        let columns = planner.create_yield_columns(5, qctx);
+        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let columns = planner.create_yield_columns(5, &expr_ctx);
         assert_eq!(columns.len(), 1);
         assert_eq!(columns[0].alias, "inserted_count");
     }
@@ -389,12 +395,12 @@ mod tests {
                 },
             ],
         };
-        let stmt = create_test_stmt_with_insert(target);
+        let ast = create_test_stmt_with_insert(target);
         let qctx = create_test_qctx();
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok());
@@ -415,12 +421,12 @@ mod tests {
                 vec![lit(Value::String("2023".to_string()))],
             )],
         };
-        let stmt = create_test_stmt_with_insert(target);
+        let ast = create_test_stmt_with_insert(target);
         let qctx = create_test_qctx();
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok());
@@ -439,7 +445,7 @@ mod tests {
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_err());
@@ -448,7 +454,7 @@ mod tests {
     #[test]
     fn test_default_impl() {
         let planner: InsertPlanner = Default::default();
-        let stmt = create_test_stmt_with_insert(InsertTarget::Vertices {
+        let ast = create_test_stmt_with_insert(InsertTarget::Vertices {
             tags: vec![TagInsertSpec {
                 tag_name: "test".to_string(),
                 prop_names: vec![],
@@ -456,6 +462,6 @@ mod tests {
             }],
             values: vec![],
         });
-        assert!(planner.match_planner(&stmt));
+        assert!(planner.match_planner(&ast.stmt));
     }
 }

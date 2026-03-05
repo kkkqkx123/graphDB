@@ -9,6 +9,7 @@ use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
+use crate::query::parser::ast::stmt::Ast;
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use std::sync::Arc;
@@ -225,11 +226,11 @@ impl Default for LimitValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for LimitValidator {
     fn validate(
         &mut self,
-        _stmt: crate::query::parser::ast::Stmt,
+        _ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -322,10 +323,15 @@ mod tests {
     /// 创建测试用的 QueryContext，带有有效的 space_id
     fn create_test_query_context() -> Arc<QueryContext> {
         let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
-        let qctx = QueryContext::new(rctx);
+        let mut qctx = QueryContext::new(rctx);
         let space_info = crate::core::types::SpaceInfo::new("test_space".to_string());
         qctx.set_space_info(space_info);
         Arc::new(qctx)
+    }
+
+    fn create_test_ast(stmt: Stmt) -> Arc<Ast> {
+        let ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        Arc::new(Ast::new(stmt, ctx))
     }
 
     #[test]
@@ -338,12 +344,12 @@ mod tests {
 
         let mut validator = LimitValidator::new().set_limit(ctx_expr);
 
-        let qctx = create_test_query_context();
+        let mut qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Use(use_stmt)), qctx);
         assert!(result.is_ok());
 
         let validated = validator
@@ -374,7 +380,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Use(use_stmt)), qctx);
         assert!(result.is_ok());
 
         let validated = validator
@@ -399,7 +405,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Use(use_stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be negative"));
@@ -420,7 +426,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Use(use_stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be negative"));
@@ -448,7 +454,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Use(use_stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("greater than zero"));
@@ -469,7 +475,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Use(use_stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("must be integer"));
@@ -501,7 +507,7 @@ mod tests {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
         };
-        let result = validator.validate(Stmt::Use(use_stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Use(use_stmt)), qctx);
         assert!(result.is_ok());
 
         let validated = validator

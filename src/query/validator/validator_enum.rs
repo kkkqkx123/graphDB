@@ -8,12 +8,14 @@
 //! 3. 统一接口，便于管理和扩展
 //!
 //! # 重构变更
-//! - validate 方法接收 Arc<Stmt> 和 Arc<QueryContext> 替代 &mut AstContext
-//! - 使用 Arc<Stmt> 共享 AST 所有权，避免不必要的克隆
+//! - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+//! - 使用 Arc<Ast> 共享 AST 所有权，避免不必要的克隆
+//! - 验证器可以访问表达式上下文
 
 use std::sync::Arc;
 
 use crate::query::parser::ast::{CreateTarget, FetchTarget, Stmt};
+use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
@@ -240,154 +242,154 @@ impl Validator {
     }
 
     /// 验证语句
-    pub fn validate(&mut self, stmt: Arc<Stmt>, qctx: Arc<QueryContext>) -> ValidationResult {
+    pub fn validate(&mut self, ast: Arc<Ast>, qctx: Arc<QueryContext>) -> ValidationResult {
         match self {
             Validator::Show(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Desc(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::ShowCreate(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::ShowConfigs(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::ShowSessions(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::ShowQueries(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::KillQuery(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::CreateUser(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::DropUser(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::AlterUser(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::ChangePassword(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Grant(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Revoke(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::DescribeUser(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::ShowUsers(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::ShowRoles(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Alter(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Drop(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Create(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Use(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Set(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Assignment(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Pipe(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Query(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::SetOperation(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Match(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Lookup(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Go(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::FindPath(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::GetSubgraph(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::FetchVertices(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::FetchEdges(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::InsertVertices(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::InsertEdges(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Update(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Delete(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Merge(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Remove(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Unwind(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::OrderBy(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::GroupBy(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Yield(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Return(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::With(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Limit(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Sequential(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Explain(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Profile(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::UpdateConfig(v) => v
-                .validate(stmt, qctx)
+                .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
         }
     }
@@ -507,6 +509,13 @@ impl Validator {
     /// 根据语句创建验证器
     pub fn create_from_stmt(stmt: &Stmt) -> Option<Validator> {
         let stmt_type = Self::infer_statement_type(stmt);
+        Some(Self::create(stmt_type))
+    }
+
+    /// 从 Arc<Ast> 创建验证器
+    /// 这是新的推荐方式，表达式上下文在 Ast 中
+    pub fn create_from_ast(ast: &Arc<Ast>) -> Option<Validator> {
+        let stmt_type = Self::infer_statement_type(&ast.stmt);
         Some(Self::create(stmt_type))
     }
 

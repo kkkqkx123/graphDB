@@ -170,7 +170,7 @@ impl Planner for GroupByPlanner {
         validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let group_by_stmt = match &validated.stmt {
+        let group_by_stmt = match validated.stmt() {
             Stmt::GroupBy(group_by_stmt) => group_by_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

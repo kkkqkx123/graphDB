@@ -6,7 +6,7 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::core::{NullType, Value};
-use crate::query::parser::ast::stmt::InsertTarget;
+use crate::query::parser::ast::stmt::{Ast, InsertTarget};
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
@@ -274,11 +274,11 @@ impl Default for InsertEdgesValidator {
 /// 实现 StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
 impl StatementValidator for InsertEdgesValidator {
     fn validate(
         &mut self,
-        stmt: Stmt,
+        ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
@@ -290,7 +290,7 @@ impl StatementValidator for InsertEdgesValidator {
         }
 
         // 2. 获取 INSERT 语句
-        let insert_stmt = match stmt {
+        let insert_stmt = match &ast.stmt {
             Stmt::Insert(insert_stmt) => insert_stmt,
             _ => {
                 return Err(ValidationError::new(
@@ -423,10 +423,15 @@ mod tests {
     /// 创建测试用的 QueryContext，带有有效的 space_id
     fn create_test_query_context() -> Arc<QueryContext> {
         let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
-        let qctx = QueryContext::new(rctx);
+        let mut qctx = QueryContext::new(rctx);
         let space_info = crate::core::types::SpaceInfo::new("test_space".to_string());
         qctx.set_space_info(space_info);
         Arc::new(qctx)
+    }
+
+    fn create_test_ast(stmt: Stmt) -> Arc<Ast> {
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        Arc::new(Ast::new(stmt, ctx))
     }
 
     fn create_insert_edge_stmt(
@@ -462,8 +467,8 @@ mod tests {
             )))],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "Edge type name cannot be empty");
@@ -484,8 +489,8 @@ mod tests {
             ],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Duplicate property name"));
@@ -505,8 +510,8 @@ mod tests {
             )))],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Value count mismatch"));
@@ -524,8 +529,8 @@ mod tests {
             vec![],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("source vertex ID cannot be empty"));
@@ -543,8 +548,8 @@ mod tests {
             vec![],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err
@@ -564,8 +569,8 @@ mod tests {
             vec![],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_ok());
     }
 
@@ -581,8 +586,8 @@ mod tests {
             vec![],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_ok());
     }
 
@@ -598,8 +603,8 @@ mod tests {
             vec![],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err
@@ -619,8 +624,8 @@ mod tests {
             vec![],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_ok());
     }
 
@@ -638,8 +643,8 @@ mod tests {
             vec![],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_ok());
     }
 
@@ -657,8 +662,8 @@ mod tests {
             vec![],
         );
 
-        let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let mut qctx = create_test_query_context();
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err
@@ -682,7 +687,7 @@ mod tests {
         );
 
         let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_ok());
     }
 
@@ -699,7 +704,7 @@ mod tests {
         };
 
         let qctx = create_test_query_context();
-        let result = validator.validate(Stmt::Insert(stmt), qctx);
+        let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err

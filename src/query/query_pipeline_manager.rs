@@ -325,7 +325,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_context: Arc<QueryContext>,
         ast: Arc<crate::query::parser::ast::stmt::Ast>,
     ) -> DBResult<ValidationInfo> {
-        let mut validator = crate::query::validator::Validator::create_from_stmt(&ast.stmt)
+        let mut validator = crate::query::validator::Validator::create_from_ast(&ast)
             .ok_or_else(|| {
                 DBError::from(QueryError::InvalidQuery(format!(
                     "不支持的语句类型: {:?}",
@@ -334,7 +334,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             })?;
 
         // 使用 validate 获取详细的验证信息
-        let validation_result = validator.validate(Arc::new(ast.stmt.clone()), query_context);
+        let validation_result = validator.validate(ast.clone(), query_context);
 
         if validation_result.success {
             Ok(validation_result.info.unwrap_or_default())
@@ -357,7 +357,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         // 直接使用 Arc<Ast> 创建规划器，消除 SentenceKind 字符串匹配
         let plan = if let Some(mut planner_enum) =
-            crate::query::planner::planner::PlannerEnum::from_stmt(&Arc::new(validated.ast.stmt.clone()))
+            crate::query::planner::planner::PlannerEnum::from_ast(&validated.ast)
         {
             let sub_plan = planner_enum
                 .transform(validated, query_context.clone())

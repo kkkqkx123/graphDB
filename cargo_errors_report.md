@@ -2,42 +2,72 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 2
-- **Total Issues**: 2
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 2
-- **Files with Issues**: 2
+- **Total Errors**: 7
+- **Total Warnings**: 0
+- **Total Issues**: 7
+- **Unique Error Patterns**: 4
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 3
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 7
+
+### Error Type Breakdown
+
+- **error[E0061]**: 4 errors
+- **error[E0425]**: 1 errors
+- **error[E0308]**: 1 errors
+- **error[E0507]**: 1 errors
+
+### Files with Errors (Top 10)
+
+- `src\api\server\permission\permission_checker.rs`: 4 errors
+- `src\query\planner\statements\insert_planner.rs`: 2 errors
+- `src\query\parser\parser\tests.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 2
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 2 warnings
+### error[E0061]: this method takes 4 arguments but 3 arguments were supplied
 
-### Files with Warnings (Top 10)
+**Total Occurrences**: 4  
+**Unique Files**: 1
 
-- `src\query\planner\plan\core\nodes\data_processing_node.rs`: 1 warnings
-- `src\query\optimizer\strategy\materialization.rs`: 1 warnings
+#### `src\api\server\permission\permission_checker.rs`: 4 occurrences
 
-## Detailed Warning Categorization
+- Line 542: this method takes 4 arguments but 3 arguments were supplied
+- Line 613: this method takes 4 arguments but 3 arguments were supplied
+- Line 616: this method takes 4 arguments but 3 arguments were supplied
+- ... 1 more occurrences in this file
 
-### warning: unused doc comment
+### error[E0425]: cannot find value `ast` in this scope: not found in this scope
 
-**Total Occurrences**: 2  
-**Unique Files**: 2
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
-#### `src\query\planner\plan\core\nodes\data_processing_node.rs`: 1 occurrences
+#### `src\query\planner\statements\insert_planner.rs`: 1 occurrences
 
-- Line 549: unused doc comment
+- Line 448: cannot find value `ast` in this scope: not found in this scope
 
-#### `src\query\optimizer\strategy\materialization.rs`: 1 occurrences
+### error[E0308]: mismatched types: expected `&Stmt`, found `&Arc<Ast>`
 
-- Line 475: unused variable: `optimizer`: help: if this is intentional, prefix it with an underscore: `_optimizer`
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `src\query\planner\statements\insert_planner.rs`: 1 occurrences
+
+- Line 305: mismatched types: expected `&Stmt`, found `&Arc<Ast>`
+
+### error[E0507]: cannot move out of an `Arc`: move occurs because value has type `stmt::Stmt`, which does not implement the `Copy` trait
+
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `src\query\parser\parser\tests.rs`: 1 occurrences
+
+- Line 11: cannot move out of an `Arc`: move occurs because value has type `stmt::Stmt`, which does not implement the `Copy` trait
 

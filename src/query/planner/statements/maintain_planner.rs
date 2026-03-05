@@ -26,7 +26,7 @@ impl Planner for MaintainPlanner {
         validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let stmt_type = validated.stmt.kind().to_uppercase();
+        let stmt_type = validated.stmt().kind().to_uppercase();
 
         // 1. 创建参数节点来接收操作参数
         let arg_node = ArgumentNode::new(1, "maintain_args");
