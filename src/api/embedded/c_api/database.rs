@@ -55,49 +55,6 @@ pub extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb_t) -> 
         Err(e) => {
             let error_code = error_code_from_core_error(&e);
             unsafe {
-                // 创建一个带错误信息的句柄
-                let handle = Box::new(GraphDbHandle {
-                    inner: Arc::new(GraphDatabase::open_in_memory().unwrap_or_else(|_| {
-                        // 如果内存数据库也失败，创建一个空句柄
-                        panic!("无法创建数据库句柄")
-                    })),
-                    last_error: Some(CString::new(format!("{}", e)).unwrap_or_default()),
-                });
-                *db = Box::into_raw(handle) as *mut graphdb_t;
-            }
-            error_code
-        }
-    }
-}
-
-/// 打开内存数据库
-///
-/// # 参数
-/// - `db`: 输出参数，数据库句柄
-///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
-#[no_mangle]
-pub extern "C" fn graphdb_open_memory(db: *mut *mut graphdb_t) -> c_int {
-    if db.is_null() {
-        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
-    }
-
-    match GraphDatabase::open_in_memory() {
-        Ok(graphdb) => {
-            let handle = Box::new(GraphDbHandle {
-                inner: Arc::new(graphdb),
-                last_error: None,
-            });
-            unsafe {
-                *db = Box::into_raw(handle) as *mut graphdb_t;
-            }
-            graphdb_error_code_t::GRAPHDB_OK as c_int
-        }
-        Err(e) => {
-            let error_code = error_code_from_core_error(&e);
-            unsafe {
                 *db = ptr::null_mut();
             }
             error_code
@@ -227,9 +184,6 @@ mod tests {
     #[test]
     fn test_graphdb_null_params() {
         let rc = graphdb_open(ptr::null(), ptr::null_mut());
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
-
-        let rc = graphdb_open_memory(ptr::null_mut());
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
 
         let rc = graphdb_close(ptr::null_mut());

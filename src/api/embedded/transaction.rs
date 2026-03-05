@@ -141,6 +141,11 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
         }
     }
 
+    /// 获取事务句柄
+    pub(crate) fn txn_handle(&self) -> TransactionHandle {
+        self.txn_handle
+    }
+
     /// 在事务中执行查询
     ///
     /// # 参数

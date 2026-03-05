@@ -7,6 +7,7 @@ use std::ffi::{c_char, c_int, c_void};
 /// 值类型
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
 pub enum graphdb_value_type_t {
     /// 空值
     GRAPHDB_NULL = 0,

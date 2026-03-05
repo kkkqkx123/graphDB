@@ -91,6 +91,21 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         }
     }
 
+    /// 创建新的批量插入器（静态版本，用于 C API）
+    pub(crate) fn new_static(session: &'static Session<S>, batch_size: usize) -> BatchInserter<'static, S> {
+        BatchInserter {
+            session,
+            batch_size: batch_size.max(1),
+            vertex_buffer: Vec::with_capacity(batch_size),
+            edge_buffer: Vec::with_capacity(batch_size),
+            total_inserted: BatchResult {
+                vertices_inserted: 0,
+                edges_inserted: 0,
+                errors: Vec::new(),
+            },
+        }
+    }
+
     /// 添加顶点
     ///
     /// # 参数

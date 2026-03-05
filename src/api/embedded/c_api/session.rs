@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_session_create_close() {
-        let mut db = create_test_db();
+        let db = create_test_db();
         let mut session: *mut graphdb_session_t = ptr::null_mut();
 
         // 创建会话
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_session_autocommit() {
-        let mut db = create_test_db();
+        let db = create_test_db();
         let mut session: *mut graphdb_session_t = ptr::null_mut();
 
         let rc = graphdb_session_create(db, &mut session);

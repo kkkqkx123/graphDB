@@ -47,11 +47,11 @@ name = "graphdb"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["redb", "embedded", "server", "c_api"]
+default = ["redb", "embedded", "server", "c-api"]
 redb = ["dep:redb"]
 embedded = []
 server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http"]
-c_api = ["embedded"]
+c-api = ["embedded"]
 system_monitor = []
 executor_internal = []
 

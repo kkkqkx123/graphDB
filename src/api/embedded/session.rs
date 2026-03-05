@@ -106,6 +106,11 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         self.auto_commit
     }
 
+    /// 获取数据库内部结构（供 C API 使用）
+    pub(crate) fn inner(&self) -> &GraphDatabaseInner<S> {
+        &self.db
+    }
+
     /// 执行查询语句
     ///
     /// # 参数

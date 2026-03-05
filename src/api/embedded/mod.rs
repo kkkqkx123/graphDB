@@ -40,7 +40,7 @@ pub mod statement;
 pub mod transaction;
 
 // C API 模块（条件编译）
-#[cfg(feature = "c_api")]
+#[cfg(feature = "c-api")]
 pub mod c_api;
 
 // 重新导出主要类型
@@ -53,7 +53,7 @@ pub use statement::PreparedStatement;
 pub use transaction::{Transaction, TransactionConfig, TransactionInfo};
 
 // C API 重新导出
-#[cfg(feature = "c_api")]
+#[cfg(feature = "c-api")]
 pub use c_api::{
     types::{
         graphdb_value_type_t, graphdb_t, graphdb_session_t,

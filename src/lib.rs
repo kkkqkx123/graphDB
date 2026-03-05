@@ -12,3 +12,6 @@ pub mod query;
 pub mod storage;
 pub mod transaction;
 pub mod utils;
+
+#[cfg(feature = "c-api")]
+pub mod c_api;

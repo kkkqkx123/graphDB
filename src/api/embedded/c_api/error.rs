@@ -7,6 +7,7 @@ use crate::api::core::CoreError;
 /// 错误码
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(non_camel_case_types)]
 pub enum graphdb_error_code_t {
     /// 成功
     GRAPHDB_OK = 0,
