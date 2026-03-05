@@ -1,6 +1,6 @@
 //! 表达式工具函数
 //!
-//! 提供表达式处理和操作的工具函数
+//! 提供表达式重写专用的工具函数
 //!
 //! # 设计说明
 //!
@@ -14,11 +14,16 @@
 //! - ContextualExpression 是轻量级引用，不包含表达式结构
 //! - 重写操作需要创建新的 Expression
 //! - 新 Expression 必须注册到 ExpressionContext 才能使用
+//!
+//! # 注意
+//!
+//! 通用的表达式工具函数（如 extract_property_refs、is_constant）已移至
+//! `core::types::expression::common_utils`，本模块仅保留重写专用的函数。
 
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::expression::{
-    ConstantChecker, ExpressionVisitor, PropertyCollector, PropertyContainsChecker,
+    PropertyContainsChecker,
 };
 use crate::core::types::operators::BinaryOperator;
 use crate::core::Expression;
@@ -321,40 +326,6 @@ where
     }
 }
 
-/// 提取上下文表达式中的属性引用
-///
-/// # 参数
-/// - `ctx_expr`: 上下文表达式
-///
-/// # 返回
-/// 表达式中引用的所有属性名
-pub fn extract_property_refs(ctx_expr: &ContextualExpression) -> Vec<String> {
-    let expr_meta = match ctx_expr.expression() {
-        Some(e) => e,
-        None => return Vec::new(),
-    };
-    let expr = expr_meta.inner();
-    let mut collector = PropertyCollector::new();
-    ExpressionVisitor::visit(&mut collector, expr);
-    collector.properties
-}
-
-/// 检查上下文表达式是否为常量
-///
-/// # 参数
-/// - `ctx_expr`: 上下文表达式
-///
-/// # 返回
-/// 如果表达式不包含任何变量或属性引用，返回 true
-pub fn is_constant(ctx_expr: &ContextualExpression) -> bool {
-    let expr_meta = match ctx_expr.expression() {
-        Some(e) => e,
-        None => return true,
-    };
-    let expr = expr_meta.inner();
-    ConstantChecker::check(expr)
-}
-
 /// 合并两个过滤条件使用 AND
 ///
 /// # 参数
@@ -415,21 +386,18 @@ mod tests {
     fn test_check_col_name() {
         let property_names = vec!["a".to_string(), "b".to_string()];
 
-        // 简单属性引用
         let expr = Expression::Property {
             object: Box::new(Expression::Variable("v".to_string())),
             property: "a".to_string(),
         };
         assert!(check_col_name(&property_names, &expr));
 
-        // 不在列表中的属性
         let expr = Expression::Property {
             object: Box::new(Expression::Variable("v".to_string())),
             property: "c".to_string(),
         };
         assert!(!check_col_name(&property_names, &expr));
 
-        // 二元表达式
         let expr = Expression::Binary {
             op: BinaryOperator::Equal,
             left: Box::new(Expression::Property {
@@ -445,7 +413,6 @@ mod tests {
     fn test_split_filter() {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        // 创建测试条件: a = 1 AND b = 2 AND c = 3
         let condition = Expression::Binary {
             op: BinaryOperator::And,
             left: Box::new(Expression::Binary {
@@ -481,87 +448,28 @@ mod tests {
         let id = expr_context.register_expression(meta);
         let ctx_condition = ContextualExpression::new(id, expr_context.clone());
 
-        // 选择包含 "a" 或 "b" 的条件
         let picker = |expr: &Expression| -> bool {
-            let mut collector = PropertyCollector::new();
-            ExpressionVisitor::visit(&mut collector, expr);
+            let mut collector = crate::core::types::expression::visitor_collectors::PropertyCollector::new();
+            crate::core::types::expression::ExpressionVisitor::visit(&mut collector, expr);
             collector.properties.contains(&"a".to_string())
                 || collector.properties.contains(&"b".to_string())
         };
 
         let (picked, remained) = split_filter(&ctx_condition, picker);
 
-        // 验证选中的部分包含 a 和 b
         assert!(picked.is_some());
-        let picked_props =
-            extract_property_refs(&picked.as_ref().expect("Failed to get picked expression"));
+        let picked_props = crate::core::types::expression::common_utils::extract_property_refs(
+            &picked.as_ref().expect("Failed to get picked expression"),
+        );
         assert!(picked_props.contains(&"a".to_string()));
         assert!(picked_props.contains(&"b".to_string()));
 
-        // 验证剩余的部分包含 c
         assert!(remained.is_some());
-        let remained_props = extract_property_refs(
+        let remained_props = crate::core::types::expression::common_utils::extract_property_refs(
             &remained
                 .as_ref()
                 .expect("Failed to get remained expression"),
         );
         assert!(remained_props.contains(&"c".to_string()));
-    }
-
-    #[test]
-    fn test_extract_property_refs() {
-        let expr_context = Arc::new(ExpressionAnalysisContext::new());
-
-        // a = 1 AND b = 2
-        let expr = Expression::Binary {
-            op: BinaryOperator::And,
-            left: Box::new(Expression::Binary {
-                op: BinaryOperator::Equal,
-                left: Box::new(Expression::Property {
-                    object: Box::new(Expression::Variable("v".to_string())),
-                    property: "a".to_string(),
-                }),
-                right: Box::new(Expression::Literal(Value::Int(1))),
-            }),
-            right: Box::new(Expression::Binary {
-                op: BinaryOperator::Equal,
-                left: Box::new(Expression::Property {
-                    object: Box::new(Expression::Variable("v".to_string())),
-                    property: "b".to_string(),
-                }),
-                right: Box::new(Expression::Literal(Value::Int(2))),
-            }),
-        };
-
-        let meta = ExpressionMeta::new(expr);
-        let id = expr_context.register_expression(meta);
-        let ctx_expr = ContextualExpression::new(id, expr_context.clone());
-
-        let props = extract_property_refs(&ctx_expr);
-        assert_eq!(props.len(), 2);
-        assert!(props.contains(&"a".to_string()));
-        assert!(props.contains(&"b".to_string()));
-    }
-
-    #[test]
-    fn test_is_constant() {
-        let expr_context = Arc::new(ExpressionAnalysisContext::new());
-
-        // 常量表达式
-        let expr = Expression::Literal(Value::Int(1));
-        let meta = ExpressionMeta::new(expr);
-        let id = expr_context.register_expression(meta);
-        let ctx_expr = ContextualExpression::new(id, expr_context.clone());
-        assert!(is_constant(&ctx_expr));
-
-        // 包含属性的表达式
-        let expr = Expression::Property {
-            object: Box::new(Expression::Variable("v".to_string())),
-            property: "a".to_string(),
-        };
-        let meta = ExpressionMeta::new(expr);
-        let id = expr_context.register_expression(meta);
-        let ctx_expr = ContextualExpression::new(id, expr_context.clone());
-        assert!(!is_constant(&ctx_expr));
     }
 }

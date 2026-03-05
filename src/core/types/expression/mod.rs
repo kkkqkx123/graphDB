@@ -65,6 +65,7 @@
 //! 请根据使用场景选择合适的上下文类型。
 
 // 子模块定义
+pub mod common_utils;
 mod construction;
 pub mod contextual;
 mod def;
@@ -92,5 +93,9 @@ pub use visitor_collectors::{
 };
 
 // 重新导出工具类型
+pub use common_utils::{
+    extract_group_info, extract_property_refs, extract_string_from_expr,
+    generate_default_alias_from_contextual, is_constant, is_constant_expression,
+};
 pub use utils::extract_group_suite;
 pub use utils::GroupSuite;

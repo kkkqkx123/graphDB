@@ -1,6 +1,7 @@
 //! FETCH EDGES查询规划器
 //! 处理FETCH EDGES查询的规划
 
+use crate::core::types::expression::common_utils::extract_string_from_expr;
 use crate::query::parser::ast::{FetchTarget, Stmt};
 use crate::query::planner::plan::core::nodes::{
     ArgumentNode, FilterNode, GetEdgesNode, ProjectNode,
@@ -8,7 +9,6 @@ use crate::query::planner::plan::core::nodes::{
 use crate::query::planner::plan::core::PlanNodeEnum;
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::query::validator::helpers::extract_string_from_expr;
 use crate::query::QueryContext;
 use std::sync::Arc;
 

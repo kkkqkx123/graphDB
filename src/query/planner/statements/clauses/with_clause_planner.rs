@@ -10,12 +10,12 @@
 //! 5. 作用域重置：只保留输出的变量，其他变量不可见
 
 use crate::core::YieldColumn;
+use crate::core::types::expression::common_utils::extract_group_info;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
-use crate::query::validator::helpers::extract_group_info;
 use crate::query::validator::structs::{
     AliasType, CypherClauseKind, OrderByClauseContext, PaginationContext, WithClauseContext,
 };

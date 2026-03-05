@@ -307,11 +307,6 @@ fn requires_runtime_context(expression: &Expression) -> bool {
     }
 }
 
-/// 检查表达式是否为常量
-pub fn is_constant(expression: &Expression) -> bool {
-    matches!(expression, Expression::Literal(_))
-}
-
 /// 查找表达式中所有匹配条件的表达式
 ///
 /// # 参数
