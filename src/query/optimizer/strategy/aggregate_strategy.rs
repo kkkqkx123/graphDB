@@ -20,7 +20,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::optimizer::analysis::ExpressionAnalyzer;
 use crate::query::optimizer::cost::CostCalculator;

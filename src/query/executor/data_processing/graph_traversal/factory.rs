@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
 use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;

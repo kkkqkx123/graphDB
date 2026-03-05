@@ -549,7 +549,7 @@ mod tests {
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
     use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
-    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use crate::core::Value;

@@ -57,16 +57,15 @@
 //!
 //! ## 上下文说明
 //!
-//! 本模块提供两种不同的上下文：
-//!
-//! - **`ExpressionAnalysisContext`**: 编译时分析上下文，用于优化器、类型推导等阶段
-//! - **`expression::evaluator::ExpressionContext`**: 运行时求值上下文 trait，用于表达式求值
+//! 本模块定义纯数据类型，不包含任何上下文。
+//! 上下文相关的类型定义在 `query` 模块中：
+//! - **`query::validator::context::ExpressionAnalysisContext`**: 编译时分析上下文，用于验证、优化器、类型推导等阶段
+//! - **`query::executor::expression::evaluation_context::ExpressionContext`**: 运行时求值上下文 trait，用于表达式求值
 //!
 //! 请根据使用场景选择合适的上下文类型。
 
 // 子模块定义
 mod construction;
-pub mod context;
 pub mod contextual;
 mod def;
 mod display;
@@ -81,7 +80,6 @@ pub mod visitor_collectors;
 pub mod visitor_checkers;
 
 // 统一导出
-pub use context::{ExpressionAnalysisContext, OptimizationFlags};
 pub use contextual::ContextualExpression;
 pub use def::Expression;
 pub use expression::{ExpressionId, ExpressionMeta};

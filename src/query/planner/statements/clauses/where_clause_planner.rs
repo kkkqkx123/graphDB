@@ -62,7 +62,7 @@ fn extract_where_condition(stmt: &Stmt) -> Result<ContextualExpression, PlannerE
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::core::Expression;
     use crate::query::parser::ast::Span;
     use crate::query::planner::plan::core::nodes::StartNode;

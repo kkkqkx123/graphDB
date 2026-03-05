@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use crate::core::error::DBResult;
-use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::{Path, Value};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};

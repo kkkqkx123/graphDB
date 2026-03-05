@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::core::types::DataType;
 use crate::core::types::SpaceInfo;
-use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;

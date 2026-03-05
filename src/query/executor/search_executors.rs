@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::core::error::DBError;
-use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::{Edge, EdgeDirection, NullType, Path, Value, Vertex};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;

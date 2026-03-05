@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, Stmt};
 use crate::query::parser::parser::expr_parser::ExprParser;

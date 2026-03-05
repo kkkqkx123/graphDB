@@ -17,7 +17,7 @@
 
 use std::sync::Arc;
 
-use crate::query::context::{
+use crate::query::execution::{
     QueryExecutionState, QueryResourceContext, QuerySpaceContext,
 };
 use crate::query::query_request_context::QueryRequestContext;

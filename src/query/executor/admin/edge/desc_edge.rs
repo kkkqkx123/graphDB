@@ -5,7 +5,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::graph_schema::PropertyType;
 use crate::core::DataSet;
 use crate::core::Value;

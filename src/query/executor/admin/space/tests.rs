@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::executor::admin::space::create_space::ExecutorSpaceInfo;
     use crate::query::executor::admin::space::{
         CreateSpaceExecutor, DescSpaceExecutor, DropSpaceExecutor, ShowSpacesExecutor,

@@ -9,10 +9,11 @@
 use dashmap::DashMap;
 use std::sync::Arc;
 
-use super::{Expression, ExpressionId, ExpressionMeta};
-use crate::core::types::DataType;
+use crate::core::types::expression::{Expression, ExpressionId, ExpressionMeta};
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::operators::UnaryOperator;
+use crate::core::types::DataType;
 use crate::core::Value;
 use crate::query::optimizer::analysis::ExpressionAnalysis;
 
@@ -230,16 +231,13 @@ impl ExpressionAnalysisContext {
     /// 返回新的 ContextualExpression
     pub fn clone_expression(
         &self,
-        ctx_expr: &crate::core::types::expression::contextual::ContextualExpression,
-    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        ctx_expr: &ContextualExpression,
+    ) -> Option<ContextualExpression> {
         let expr_meta = ctx_expr.expression()?;
         let inner_expr = expr_meta.inner().clone();
         let meta = ExpressionMeta::new(inner_expr);
         let id = self.register_expression(meta);
-        Some(crate::core::types::expression::contextual::ContextualExpression::new(
-            id,
-            ctx_expr.context().clone(),
-        ))
+        Some(ContextualExpression::new(id, ctx_expr.context().clone()))
     }
 
     /// 组合两个表达式为二元表达式
@@ -254,9 +252,9 @@ impl ExpressionAnalysisContext {
     pub fn combine_expressions(
         &self,
         op: BinaryOperator,
-        left: &crate::core::types::expression::contextual::ContextualExpression,
-        right: &crate::core::types::expression::contextual::ContextualExpression,
-    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        left: &ContextualExpression,
+        right: &ContextualExpression,
+    ) -> Option<ContextualExpression> {
         let left_meta = left.expression()?;
         let right_meta = right.expression()?;
 
@@ -268,10 +266,7 @@ impl ExpressionAnalysisContext {
 
         let meta = ExpressionMeta::new(combined_expr);
         let id = self.register_expression(meta);
-        Some(crate::core::types::expression::contextual::ContextualExpression::new(
-            id,
-            left.context().clone(),
-        ))
+        Some(ContextualExpression::new(id, left.context().clone()))
     }
 
     /// 创建一元表达式
@@ -285,8 +280,8 @@ impl ExpressionAnalysisContext {
     pub fn create_unary_expression(
         &self,
         op: UnaryOperator,
-        operand: &crate::core::types::expression::contextual::ContextualExpression,
-    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        operand: &ContextualExpression,
+    ) -> Option<ContextualExpression> {
         let operand_meta = operand.expression()?;
 
         let unary_expr = Expression::Unary {
@@ -296,10 +291,7 @@ impl ExpressionAnalysisContext {
 
         let meta = ExpressionMeta::new(unary_expr);
         let id = self.register_expression(meta);
-        Some(crate::core::types::expression::contextual::ContextualExpression::new(
-            id,
-            operand.context().clone(),
-        ))
+        Some(ContextualExpression::new(id, operand.context().clone()))
     }
 
     /// 创建属性访问表达式
@@ -312,9 +304,9 @@ impl ExpressionAnalysisContext {
     /// 新的 ContextualExpression
     pub fn create_property_expression(
         &self,
-        object: &crate::core::types::expression::contextual::ContextualExpression,
+        object: &ContextualExpression,
         property: &str,
-    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+    ) -> Option<ContextualExpression> {
         let object_meta = object.expression()?;
 
         let property_expr = Expression::Property {
@@ -324,10 +316,7 @@ impl ExpressionAnalysisContext {
 
         let meta = ExpressionMeta::new(property_expr);
         let id = self.register_expression(meta);
-        Some(crate::core::types::expression::contextual::ContextualExpression::new(
-            id,
-            object.context().clone(),
-        ))
+        Some(ContextualExpression::new(id, object.context().clone()))
     }
 
     /// 创建函数调用表达式
@@ -342,9 +331,9 @@ impl ExpressionAnalysisContext {
     pub fn create_function_expression(
         &self,
         name: &str,
-        args: &[crate::core::types::expression::contextual::ContextualExpression],
-        ctx_expr: &crate::core::types::expression::contextual::ContextualExpression,
-    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        args: &[ContextualExpression],
+        ctx_expr: &ContextualExpression,
+    ) -> Option<ContextualExpression> {
         let arg_exprs: Vec<Expression> = args
             .iter()
             .filter_map(|arg| arg.expression().map(|meta| meta.inner().clone()))
@@ -361,10 +350,7 @@ impl ExpressionAnalysisContext {
 
         let meta = ExpressionMeta::new(function_expr);
         let id = self.register_expression(meta);
-        Some(crate::core::types::expression::contextual::ContextualExpression::new(
-            id,
-            ctx_expr.context().clone(),
-        ))
+        Some(ContextualExpression::new(id, ctx_expr.context().clone()))
     }
 
     /// 创建 AND 表达式
@@ -372,9 +358,9 @@ impl ExpressionAnalysisContext {
     /// 便捷方法，用于组合两个条件表达式
     pub fn and(
         &self,
-        left: &crate::core::types::expression::contextual::ContextualExpression,
-        right: &crate::core::types::expression::contextual::ContextualExpression,
-    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        left: &ContextualExpression,
+        right: &ContextualExpression,
+    ) -> Option<ContextualExpression> {
         self.combine_expressions(BinaryOperator::And, left, right)
     }
 
@@ -383,9 +369,9 @@ impl ExpressionAnalysisContext {
     /// 便捷方法，用于组合两个条件表达式
     pub fn or(
         &self,
-        left: &crate::core::types::expression::contextual::ContextualExpression,
-        right: &crate::core::types::expression::contextual::ContextualExpression,
-    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        left: &ContextualExpression,
+        right: &ContextualExpression,
+    ) -> Option<ContextualExpression> {
         self.combine_expressions(BinaryOperator::Or, left, right)
     }
 
@@ -394,8 +380,8 @@ impl ExpressionAnalysisContext {
     /// 便捷方法，用于创建否定表达式
     pub fn not(
         &self,
-        operand: &crate::core::types::expression::contextual::ContextualExpression,
-    ) -> Option<crate::core::types::expression::contextual::ContextualExpression> {
+        operand: &ContextualExpression,
+    ) -> Option<ContextualExpression> {
         self.create_unary_expression(UnaryOperator::Not, operand)
     }
 }

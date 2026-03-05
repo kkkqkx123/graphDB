@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
@@ -682,7 +682,7 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for SelectExecutor<S> {
 mod tests {
     use super::*;
     use crate::core::BinaryOperator;
-    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
     use parking_lot::Mutex;
     use std::sync::Arc;

@@ -829,7 +829,7 @@ impl Default for UpdateValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{Assignment, SetClause, UpdateTarget};

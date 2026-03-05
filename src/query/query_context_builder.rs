@@ -4,7 +4,7 @@
 
 use crate::core::types::CharsetInfo;
 use crate::core::types::SpaceInfo;
-use crate::query::context::{
+use crate::query::execution::{
     QueryExecutionState, QueryResourceContext, QuerySpaceContext,
 };
 use crate::query::query_request_context::QueryRequestContext;

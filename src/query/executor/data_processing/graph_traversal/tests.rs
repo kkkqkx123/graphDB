@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::core::{Edge, Value, Vertex};
-    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::executor::base::EdgeDirection;
     use crate::query::executor::base::Executor;
     use crate::query::executor::data_processing::graph_traversal::algorithms::{

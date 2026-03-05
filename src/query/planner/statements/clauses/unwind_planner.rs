@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn test_extract_unwind_info() {
-        use crate::core::types::expression::context::ExpressionAnalysisContext;
+        use crate::query::validator::context::ExpressionAnalysisContext;
         use crate::core::Expression;
         use crate::query::parser::ast::Span;
         use std::sync::Arc;

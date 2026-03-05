@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::types::expression::context::ExpressionAnalysisContext as ExpressionContextStruct;
+use crate::query::validator::context::ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
@@ -302,7 +302,7 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::core::{DataSet, Value};
     use crate::storage::test_mock::MockStorage;
 

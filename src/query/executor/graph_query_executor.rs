@@ -5,7 +5,7 @@
 
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::core::types::{UserAlterInfo, UserInfo};
-use crate::core::types::expression::context::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::Value as CoreValue;
 use crate::query::executor::admin as admin_executor;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};

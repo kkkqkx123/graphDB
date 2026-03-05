@@ -5,10 +5,10 @@
 
 use std::sync::Arc;
 
-use super::context::ExpressionAnalysisContext;
 use super::{Expression, ExpressionId, ExpressionMeta};
 use crate::core::types::DataType;
 use crate::core::Value;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 增强的表达式元数据，包含查询上下文引用
 ///

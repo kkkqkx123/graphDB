@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::core::types::PropertyDef;
     use crate::core::DataType;
     use crate::query::executor::admin::tag::alter_tag::{AlterTagInfo, AlterTagItem};

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::core::types::expression::context::ExpressionAnalysisContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::index::{Index, IndexType};
     use crate::query::executor::admin::index::{
         CreateEdgeIndexExecutor, CreateTagIndexExecutor, DescEdgeIndexExecutor,

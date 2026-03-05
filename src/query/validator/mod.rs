@@ -8,6 +8,9 @@
 //! - 枚举实现静态分发
 //! - 工厂模式创建验证器
 
+// 上下文模块
+pub mod context;
+
 // 数据结构模块
 pub mod structs;
 
