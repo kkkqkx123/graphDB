@@ -50,62 +50,80 @@ impl RedbStorage {
     }
 
     pub fn new_with_path(path: PathBuf) -> Result<Self, StorageError> {
-        let db = Arc::new(
-            Database::create(&path)
-                .map_err(|e| StorageError::DbError(format!("创建数据库失败: {}", e)))?,
-        );
+        let is_new_db = !path.exists();
+        
+        let db = if path.exists() {
+            match Database::open(&path) {
+                Ok(db) => Arc::new(db),
+                Err(e) => {
+                    return Err(StorageError::DbError(format!(
+                        "打开数据库失败: 路径: {}, 错误: {}。如需恢复，请手动删除数据库文件后重试。",
+                        path.display(),
+                        e
+                    )));
+                }
+            }
+        } else {
+            Arc::new(
+                Database::create(&path)
+                    .map_err(|e| StorageError::DbError(format!("创建数据库失败: {}", e)))?,
+            )
+        };
 
-        // 初始化所需的表
-        let write_txn = db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
-        {
-            use crate::storage::redb_types::*;
-            // 索引相关表
-            let _ = write_txn
-                .open_table(TAG_INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开TAG_INDEXES_TABLE失败: {}", e)))?;
-            let _ = write_txn
-                .open_table(EDGE_INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开EDGE_INDEXES_TABLE失败: {}", e)))?;
-            let _ = write_txn
-                .open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开INDEX_DATA_TABLE失败: {}", e)))?;
-            // Schema相关表
-            let _ = write_txn
-                .open_table(TAGS_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
-            let _ = write_txn
-                .open_table(EDGE_TYPES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
-            // 数据存储表
-            let _ = write_txn
-                .open_table(NODES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开NODES_TABLE失败: {}", e)))?;
-            let _ = write_txn
-                .open_table(EDGES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开EDGES_TABLE失败: {}", e)))?;
-            // 初始化新的ID计数器表和名称索引表
-            let _ = write_txn.open_table(TAG_ID_COUNTER_TABLE).map_err(|e| {
-                StorageError::DbError(format!("打开TAG_ID_COUNTER_TABLE失败: {}", e))
-            })?;
-            let _ = write_txn
-                .open_table(EDGE_TYPE_ID_COUNTER_TABLE)
-                .map_err(|e| {
-                    StorageError::DbError(format!("打开EDGE_TYPE_ID_COUNTER_TABLE失败: {}", e))
+        // 只在创建新数据库时初始化表
+        if is_new_db {
+            // 初始化所需的表
+            let write_txn = db
+                .begin_write()
+                .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+            {
+                use crate::storage::redb_types::*;
+                // 索引相关表
+                let _ = write_txn
+                    .open_table(TAG_INDEXES_TABLE)
+                    .map_err(|e| StorageError::DbError(format!("打开TAG_INDEXES_TABLE失败: {}", e)))?;
+                let _ = write_txn
+                    .open_table(EDGE_INDEXES_TABLE)
+                    .map_err(|e| StorageError::DbError(format!("打开EDGE_INDEXES_TABLE失败: {}", e)))?;
+                let _ = write_txn
+                    .open_table(INDEX_DATA_TABLE)
+                    .map_err(|e| StorageError::DbError(format!("打开INDEX_DATA_TABLE失败: {}", e)))?;
+                // Schema相关表
+                let _ = write_txn
+                    .open_table(TAGS_TABLE)
+                    .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+                let _ = write_txn
+                    .open_table(EDGE_TYPES_TABLE)
+                    .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
+                // 数据存储表
+                let _ = write_txn
+                    .open_table(NODES_TABLE)
+                    .map_err(|e| StorageError::DbError(format!("打开NODES_TABLE失败: {}", e)))?;
+                let _ = write_txn
+                    .open_table(EDGES_TABLE)
+                    .map_err(|e| StorageError::DbError(format!("打开EDGES_TABLE失败: {}", e)))?;
+                // 初始化新的ID计数器表和名称索引表
+                let _ = write_txn.open_table(TAG_ID_COUNTER_TABLE).map_err(|e| {
+                    StorageError::DbError(format!("打开TAG_ID_COUNTER_TABLE失败: {}", e))
                 })?;
-            let _ = write_txn.open_table(TAG_NAME_INDEX_TABLE).map_err(|e| {
-                StorageError::DbError(format!("打开TAG_NAME_INDEX_TABLE失败: {}", e))
-            })?;
-            let _ = write_txn
-                .open_table(EDGE_TYPE_NAME_INDEX_TABLE)
-                .map_err(|e| {
-                    StorageError::DbError(format!("打开EDGE_TYPE_NAME_INDEX_TABLE失败: {}", e))
+                let _ = write_txn
+                    .open_table(EDGE_TYPE_ID_COUNTER_TABLE)
+                    .map_err(|e| {
+                        StorageError::DbError(format!("打开EDGE_TYPE_ID_COUNTER_TABLE失败: {}", e))
+                    })?;
+                let _ = write_txn.open_table(TAG_NAME_INDEX_TABLE).map_err(|e| {
+                    StorageError::DbError(format!("打开TAG_NAME_INDEX_TABLE失败: {}", e))
                 })?;
+                let _ = write_txn
+                    .open_table(EDGE_TYPE_NAME_INDEX_TABLE)
+                    .map_err(|e| {
+                        StorageError::DbError(format!("打开EDGE_TYPE_NAME_INDEX_TABLE失败: {}", e))
+                    })?;
+            }
+            write_txn
+                .commit()
+                .map_err(|e| StorageError::DbError(format!("提交初始化事务失败: {}", e)))?;
         }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(format!("提交初始化事务失败: {}", e)))?;
 
         let schema_manager = Arc::new(RedbSchemaManager::new(db.clone()));
         let index_metadata_manager = Arc::new(RedbIndexMetadataManager::new(db.clone()));
@@ -1481,6 +1499,89 @@ impl StorageClient for RedbStorage {
         }
 
         Ok(count)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_new_with_path_creates_database() {
+        let temp_dir = TempDir::new().expect("创建临时目录失败");
+        let db_path = temp_dir.path().join("test_new.db");
+
+        assert!(!db_path.exists(), "数据库文件不应存在");
+
+        let storage = RedbStorage::new_with_path(db_path.clone())
+            .expect("创建存储应该成功");
+
+        assert!(db_path.exists(), "数据库文件应该被创建");
+        assert_eq!(storage.db_path, db_path);
+    }
+
+    #[test]
+    fn test_new_with_path_opens_existing_database() {
+        let temp_dir = TempDir::new().expect("创建临时目录失败");
+        let db_path = temp_dir.path().join("test_open.db");
+
+        {
+            let _storage = RedbStorage::new_with_path(db_path.clone())
+                .expect("第一次创建存储应该成功");
+        }
+
+        assert!(db_path.exists(), "数据库文件应该存在");
+
+        let storage2 = RedbStorage::new_with_path(db_path.clone())
+            .expect("打开现有数据库应该成功");
+
+        assert_eq!(storage2.db_path, db_path);
+    }
+
+    #[test]
+    fn test_new_with_path_returns_error_on_corrupted_database() {
+        let temp_dir = TempDir::new().expect("创建临时目录失败");
+        let db_path = temp_dir.path().join("test_corrupted.db");
+
+        {
+            let _storage = RedbStorage::new_with_path(db_path.clone())
+                .expect("创建存储应该成功");
+        }
+
+        assert!(db_path.exists(), "数据库文件应该存在");
+
+        let mut file = fs::File::create(&db_path).expect("打开文件失败");
+        use std::io::Write;
+        file.write_all(b"corrupted data").expect("写入损坏数据失败");
+
+        let result = RedbStorage::new_with_path(db_path.clone());
+
+        assert!(result.is_err(), "打开损坏的数据库应该返回错误");
+
+        if let Err(StorageError::DbError(msg)) = result {
+            assert!(msg.contains("打开数据库失败"), "错误信息应该包含'打开数据库失败'");
+            assert!(msg.contains(db_path.to_str().unwrap()), "错误信息应该包含数据库路径");
+            assert!(msg.contains("如需恢复，请手动删除数据库文件后重试"), "错误信息应该包含恢复提示");
+        } else {
+            panic!("应该返回 StorageError::DbError");
+        }
+
+        assert!(db_path.exists(), "数据库文件不应该被自动删除");
+    }
+
+    #[test]
+    fn test_new_creates_in_default_path() {
+        let default_path = PathBuf::from("data/redb");
+
+        fs::create_dir_all("data").ok();
+
+        let storage = RedbStorage::new().expect("使用默认路径创建存储应该成功");
+
+        assert_eq!(storage.db_path, default_path);
+
+        let _ = fs::remove_dir_all("data").ok();
     }
 }
 

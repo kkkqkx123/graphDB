@@ -447,7 +447,7 @@ mod tests {
 
     #[test]
     fn test_inner_join_single_key_with_expression() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::variable("id");
@@ -501,7 +501,7 @@ mod tests {
 
     #[test]
     fn test_inner_join_multi_key() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::variable("a");
@@ -587,7 +587,7 @@ mod tests {
 
     #[test]
     fn test_inner_join_empty_dataset() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::variable("id");
@@ -643,7 +643,7 @@ mod tests {
 
     #[test]
     fn test_inner_join_with_variable_expression() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::Variable("id".to_string());

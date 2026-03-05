@@ -393,7 +393,7 @@ mod tests {
 
     #[test]
     fn test_left_join_single_key() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = crate::core::Expression::Variable("id".to_string());
@@ -485,7 +485,7 @@ mod tests {
 
     #[test]
     fn test_left_join_empty_right() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::Variable("0".to_string());

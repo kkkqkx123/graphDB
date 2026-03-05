@@ -14,6 +14,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
+#[cfg(test)]
+use crate::storage::test_mock::MockStorage;
+
 /// 嵌入式 GraphDB 数据库
 ///
 /// 这是嵌入式 API 的主要入口点，提供类似 SQLite 的简单使用方式。
@@ -215,6 +218,43 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
 // 因此 GraphDatabase 可以安全地实现 Send 和 Sync
 unsafe impl<S: StorageClient + Clone + 'static> Send for GraphDatabase<S> {}
 unsafe impl<S: StorageClient + Clone + 'static> Sync for GraphDatabase<S> {}
+
+#[cfg(test)]
+impl GraphDatabase<MockStorage> {
+    /// 创建测试用数据库（使用Mock存储）
+    /// 
+    /// 注意：此方法仅用于测试，实际使用时应使用 `GraphDatabase::open()`
+    #[cfg(test)]
+    pub fn open_test() -> CoreResult<Self> {
+        let storage = MockStorage::new()
+            .map_err(|e| CoreError::StorageError(format!("初始化Mock存储失败: {}", e)))?;
+
+        let storage = Arc::new(Mutex::new(storage));
+        let db = storage.lock().get_db().clone();
+
+        let txn_manager_config = TransactionManagerConfig::default();
+        let txn_manager = Arc::new(TransactionManager::new(db, txn_manager_config));
+        let savepoint_manager = Arc::new(SavepointManager::new());
+
+        let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
+        let txn_api = TransactionApi::new(txn_manager.clone());
+        let schema_api = SchemaApi::new(storage.clone());
+
+        let inner = Arc::new(GraphDatabaseInner {
+            query_api,
+            txn_api,
+            schema_api,
+            txn_manager,
+            savepoint_manager,
+            storage,
+        });
+
+        Ok(Self {
+            inner,
+            config: DatabaseConfig::default(),
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {

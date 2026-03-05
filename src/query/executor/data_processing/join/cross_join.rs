@@ -309,7 +309,7 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_two_tables() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
@@ -394,7 +394,7 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_empty_table() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
@@ -446,7 +446,7 @@ pub mod tests {
 
     #[test]
     fn test_cross_join_three_tables() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 

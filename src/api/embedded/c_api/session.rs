@@ -207,13 +207,22 @@ mod tests {
         let counter = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
         let temp_dir = std::env::temp_dir().join("graphdb_c_api_test");
         std::fs::create_dir_all(&temp_dir).ok();
-        let db_path = temp_dir.join(format!("test_{}_{}.db", std::process::id(), counter));
+        let db_path = temp_dir.join(format!("test_session_{}_{}.db", std::process::id(), counter));
+        
+        // 确保数据库文件不存在
+        if db_path.exists() {
+            std::fs::remove_file(&db_path).ok();
+            // 等待文件系统完成删除操作
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
         
         let path_cstring = CString::new(db_path.to_str().unwrap()).unwrap();
         let mut db: *mut graphdb_t = ptr::null_mut();
         
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
+        if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
+            panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);
+        }
         assert!(!db.is_null());
         
         db

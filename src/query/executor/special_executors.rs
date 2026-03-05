@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn test_argument_executor_creation() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = ArgumentExecutor::<MockStorage>::new(1, storage, "test_var", expr_context);
         assert_eq!(executor.id(), 1);
@@ -314,7 +314,7 @@ mod tests {
 
     #[test]
     fn test_argument_executor_with_variable() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = ArgumentExecutor::<MockStorage>::new(1, storage, "my_var", expr_context);
 
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_argument_executor_with_result() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor =
             ArgumentExecutor::<MockStorage>::new(1, storage, "my_result", expr_context);
@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn test_argument_executor_variable_not_found() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor =
             ArgumentExecutor::<MockStorage>::new(1, storage, "undefined_var", expr_context);
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_pass_through_executor_creation() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = PassThroughExecutor::<MockStorage>::new(1, storage, expr_context);
         assert_eq!(executor.id(), 1);
@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_data_collect_executor_creation() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let executor = DataCollectExecutor::<MockStorage>::new(1, storage, expr_context);
         assert_eq!(executor.id(), 1);

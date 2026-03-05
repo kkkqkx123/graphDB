@@ -2,65 +2,48 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 9
-- **Total Issues**: 9
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 8
-- **Files with Issues**: 6
+- **Total Errors**: 3
+- **Total Warnings**: 0
+- **Total Issues**: 3
+- **Unique Error Patterns**: 3
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 3
+
+### Error Type Breakdown
+
+- **error[E0609]**: 2 errors
+- **error[E0004]**: 1 errors
+
+### Files with Errors (Top 10)
+
+- `src\api\embedded\statement.rs`: 3 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 9
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 9 warnings
+### error[E0609]: no field `items` on type `&GroupByStmt`: unknown field
 
-### Files with Warnings (Top 10)
+**Total Occurrences**: 2  
+**Unique Files**: 1
 
-- `src\api\embedded\c_api\statement.rs`: 3 warnings
-- `src\api\embedded\c_api\batch.rs`: 2 warnings
-- `src\api\embedded\c_api\query.rs`: 1 warnings
-- `src\api\embedded\c_api\transaction.rs`: 1 warnings
-- `src\api\embedded\session.rs`: 1 warnings
-- `src\api\embedded\c_api\result.rs`: 1 warnings
+#### `src\api\embedded\statement.rs`: 2 occurrences
 
-## Detailed Warning Categorization
+- Line 614: no field `items` on type `&GroupByStmt`: unknown field
+- Line 617: no field `having` on type `&GroupByStmt`: unknown field
 
-### warning: unused import: `crate::api::embedded::c_api::result::GraphDbResultHandle`
+### error[E0004]: non-exhaustive patterns: `&stmt::CreateTarget::Path { .. }`, `&stmt::CreateTarget::Space { .. }` and `&stmt::CreateTarget::Index { .. }` not covered: patterns `&stmt::CreateTarget::Path { .. }`, `&stmt::CreateTarget::Space { .. }` and `&stmt::CreateTarget::Index { .. }` not covered
 
-**Total Occurrences**: 9  
-**Unique Files**: 6
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
-#### `src\api\embedded\c_api\statement.rs`: 3 occurrences
+#### `src\api\embedded\statement.rs`: 1 occurrences
 
-- Line 6: unused import: `crate::api::embedded::c_api::result::GraphDbResultHandle`
-- Line 8: unused import: `graphdb_result_t`
-- Line 12: unused import: `std::collections::HashMap`
-
-#### `src\api\embedded\c_api\batch.rs`: 2 occurrences
-
-- Line 11: unused import: `c_void`
-- Line 84: unused variable: `tag_str`
-
-#### `src\api\embedded\c_api\query.rs`: 1 occurrences
-
-- Line 11: unused import: `c_void`
-
-#### `src\api\embedded\session.rs`: 1 occurrences
-
-- Line 110: method `inner` is never used
-
-#### `src\api\embedded\c_api\result.rs`: 1 occurrences
-
-- Line 14: field `current_row` is never read
-
-#### `src\api\embedded\c_api\transaction.rs`: 1 occurrences
-
-- Line 369: unused variable: `txn_handle`
+- Line 561: non-exhaustive patterns: `&stmt::CreateTarget::Path { .. }`, `&stmt::CreateTarget::Space { .. }` and `&stmt::CreateTarget::Index { .. }` not covered: patterns `&stmt::CreateTarget::Path { .. }`, `&stmt::CreateTarget::Space { .. }` and `&stmt::CreateTarget::Index { .. }` not covered
 

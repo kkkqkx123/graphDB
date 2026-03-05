@@ -323,7 +323,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// use graphdb::core::{Vertex, Value};
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let db = GraphDatabase::open_in_memory()?;
+    /// let db = GraphDatabase::open("my_db")?;
     /// let session = db.session()?;
     ///
     /// // 创建批量插入器，每100条自动刷新
@@ -360,7 +360,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// use graphdb::core::Value;
     ///
     /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let db = GraphDatabase::open_in_memory()?;
+    /// let db = GraphDatabase::open("my_db")?;
     /// let session = db.session()?;
     ///
     /// // 预编译查询

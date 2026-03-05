@@ -25,16 +25,33 @@ use crate::index::Index;
 use crate::storage::Schema;
 #[cfg(test)]
 use crate::storage::StorageClient;
+#[cfg(test)]
+use std::sync::Arc;
 
 /// 测试用Mock存储引擎
 #[cfg(test)]
 #[derive(Debug, Clone)]
-pub struct MockStorage;
+pub struct MockStorage {
+    db: Arc<redb::Database>,
+}
 
 #[cfg(test)]
 impl MockStorage {
     pub fn new() -> Result<Self, StorageError> {
-        Ok(Self)
+        let temp_dir = tempfile::tempdir()
+            .map_err(|e| StorageError::DbError(format!("创建临时目录失败: {}", e)))?;
+        let db_path = temp_dir.path().join("test_mock.db");
+        
+        let db = Arc::new(
+            redb::Database::create(&db_path)
+                .map_err(|e| StorageError::DbError(format!("创建数据库失败: {}", e)))?
+        );
+        
+        Ok(Self { db })
+    }
+    
+    pub fn get_db(&self) -> &Arc<redb::Database> {
+        &self.db
     }
 }
 

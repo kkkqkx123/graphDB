@@ -1316,7 +1316,7 @@ mod tests {
 
     #[test]
     fn test_topn_executor_basic() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
         // 创建测试数据
         let mut dataset = DataSet::new();
@@ -1351,7 +1351,7 @@ mod tests {
 
     #[test]
     fn test_topn_executor_with_offset() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
         // 创建测试数据
         let values: Vec<Value> = (1..=10).map(|i| Value::Int(i)).collect();

@@ -1776,7 +1776,7 @@ mod tests {
     #[test]
     fn test_recursion_detector_basic() {
         let mut factory = ExecutorFactory::<MockStorage>::new();
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = ExecutionContext::new(expr_context);
 

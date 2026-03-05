@@ -584,7 +584,7 @@ mod tests {
 
     #[test]
     fn test_dedup_executor_full_strategy() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
         let mut executor = DedupExecutor::new(1, storage.clone(), DedupStrategy::Full, None);
 
@@ -629,7 +629,7 @@ mod tests {
 
     #[test]
     fn test_dedup_executor_by_keys_strategy() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
         let mut executor = DedupExecutor::<MockStorage>::new(
             1,

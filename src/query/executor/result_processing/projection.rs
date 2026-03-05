@@ -418,7 +418,7 @@ mod tests {
 
     #[test]
     fn test_simple_projection() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let expr = crate::core::Expression::Variable("col1".to_string());
@@ -457,7 +457,7 @@ mod tests {
 
     #[test]
     fn test_expression_projection() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let expr = crate::core::Expression::Binary {
@@ -497,7 +497,7 @@ mod tests {
 
     #[test]
     fn test_vertex_projection() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let expr1 = crate::core::Expression::Variable("id".to_string());
@@ -568,7 +568,7 @@ mod tests {
 
     #[test]
     fn test_edge_projection() {
-        let storage = Arc::new(Mutex::new(MockStorage));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let expr1 = crate::core::Expression::Variable("src".to_string());

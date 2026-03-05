@@ -8,7 +8,9 @@ use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::{DataType, Value};
 use crate::query::parser::ast::pattern::{PathElement, Pattern};
 use crate::query::parser::ast::stmt::{
-    DeleteStmt, GoStmt, InsertStmt, MatchStmt, Stmt, UpdateStmt,
+    AssignmentStmt, CreateStmt, DeleteStmt, FetchStmt, FindPathStmt, GoStmt, GroupByStmt,
+    InsertStmt, LookupStmt, MatchStmt, MergeStmt, PipeStmt, QueryStmt, RemoveStmt, ReturnStmt,
+    SetStmt, Stmt, SubgraphStmt, UnwindStmt, UpdateStmt, WithStmt, YieldStmt,
 };
 use crate::query::parser::parser::Parser;
 use crate::storage::StorageClient;
@@ -240,9 +242,60 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
             Stmt::Delete(delete_stmt) => {
                 Self::extract_params_from_delete(delete_stmt, params);
             }
-            _ => {
-                // 其他语句类型，尝试从通用表达式中提取
-                // 这里可以扩展支持更多语句类型
+            Stmt::Fetch(fetch_stmt) => {
+                Self::extract_params_from_fetch(fetch_stmt, params);
+            }
+            Stmt::Lookup(lookup_stmt) => {
+                Self::extract_params_from_lookup(lookup_stmt, params);
+            }
+            Stmt::FindPath(find_path_stmt) => {
+                Self::extract_params_from_find_path(find_path_stmt, params);
+            }
+            Stmt::Merge(merge_stmt) => {
+                Self::extract_params_from_merge(merge_stmt, params);
+            }
+            Stmt::Unwind(unwind_stmt) => {
+                Self::extract_params_from_unwind(unwind_stmt, params);
+            }
+            Stmt::With(with_stmt) => {
+                Self::extract_params_from_with(with_stmt, params);
+            }
+            Stmt::Yield(yield_stmt) => {
+                Self::extract_params_from_yield(yield_stmt, params);
+            }
+            Stmt::Set(set_stmt) => {
+                Self::extract_params_from_set(set_stmt, params);
+            }
+            Stmt::Remove(remove_stmt) => {
+                Self::extract_params_from_remove(remove_stmt, params);
+            }
+            Stmt::Create(create_stmt) => {
+                Self::extract_params_from_create(create_stmt, params);
+            }
+            Stmt::Query(query_stmt) => {
+                Self::extract_params_from_query(query_stmt, params);
+            }
+            Stmt::Return(return_stmt) => {
+                Self::extract_params_from_return(return_stmt, params);
+            }
+            Stmt::GroupBy(group_by_stmt) => {
+                Self::extract_params_from_group_by(group_by_stmt, params);
+            }
+            Stmt::Subgraph(subgraph_stmt) => {
+                Self::extract_params_from_subgraph(subgraph_stmt, params);
+            }
+            Stmt::Pipe(pipe_stmt) => {
+                Self::extract_params_from_pipe(pipe_stmt, params);
+            }
+            Stmt::Show(_) | Stmt::Use(_) | Stmt::Explain(_) | Stmt::Profile(_)
+            | Stmt::Drop(_) | Stmt::Desc(_) | Stmt::Alter(_)
+            | Stmt::CreateUser(_) | Stmt::AlterUser(_) | Stmt::DropUser(_)
+            | Stmt::ChangePassword(_) | Stmt::Grant(_) | Stmt::Revoke(_)
+            | Stmt::DescribeUser(_) | Stmt::ShowUsers(_) | Stmt::ShowRoles(_)
+            | Stmt::ShowCreate(_) | Stmt::ShowSessions(_) | Stmt::ShowQueries(_)
+            | Stmt::KillQuery(_) | Stmt::ShowConfigs(_) | Stmt::UpdateConfigs(_)
+            | Stmt::Assignment(_) | Stmt::SetOperation(_) => {
+                // 这些语句不包含参数
             }
         }
     }
@@ -382,6 +435,223 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
         if let Some(where_clause) = &delete_stmt.where_clause {
             Self::extract_params_from_expr(where_clause, params);
         }
+    }
+
+    /// 从 FETCH 语句中提取参数
+    fn extract_params_from_fetch(fetch_stmt: &FetchStmt, params: &mut HashMap<String, DataType>) {
+        use crate::query::parser::ast::stmt::FetchTarget;
+
+        match &fetch_stmt.target {
+            FetchTarget::Vertices { ids, properties: _ } => {
+                for id in ids {
+                    Self::extract_params_from_expr(id, params);
+                }
+            }
+            FetchTarget::Edges {
+                src,
+                dst,
+                edge_type: _,
+                rank,
+                properties: _,
+            } => {
+                Self::extract_params_from_expr(src, params);
+                Self::extract_params_from_expr(dst, params);
+                if let Some(rank_expr) = rank {
+                    Self::extract_params_from_expr(rank_expr, params);
+                }
+            }
+        }
+    }
+
+    /// 从 LOOKUP 语句中提取参数
+    fn extract_params_from_lookup(
+        lookup_stmt: &LookupStmt,
+        params: &mut HashMap<String, DataType>,
+    ) {
+        if let Some(where_clause) = &lookup_stmt.where_clause {
+            Self::extract_params_from_expr(where_clause, params);
+        }
+        if let Some(yield_clause) = &lookup_stmt.yield_clause {
+            for item in &yield_clause.items {
+                Self::extract_params_from_expr(&item.expression, params);
+            }
+        }
+    }
+
+    /// 从 FIND PATH 语句中提取参数
+    fn extract_params_from_find_path(
+        find_path_stmt: &FindPathStmt,
+        params: &mut HashMap<String, DataType>,
+    ) {
+        Self::extract_params_from_expr(&find_path_stmt.to, params);
+        if let Some(where_clause) = &find_path_stmt.where_clause {
+            Self::extract_params_from_expr(where_clause, params);
+        }
+        if let Some(yield_clause) = &find_path_stmt.yield_clause {
+            for item in &yield_clause.items {
+                Self::extract_params_from_expr(&item.expression, params);
+            }
+        }
+    }
+
+    /// 从 MERGE 语句中提取参数
+    fn extract_params_from_merge(merge_stmt: &MergeStmt, params: &mut HashMap<String, DataType>) {
+        Self::extract_params_from_pattern(&merge_stmt.pattern, params);
+        if let Some(on_create) = &merge_stmt.on_create {
+            for assignment in &on_create.assignments {
+                Self::extract_params_from_expr(&assignment.value, params);
+            }
+        }
+        if let Some(on_match) = &merge_stmt.on_match {
+            for assignment in &on_match.assignments {
+                Self::extract_params_from_expr(&assignment.value, params);
+            }
+        }
+    }
+
+    /// 从 UNWIND 语句中提取参数
+    fn extract_params_from_unwind(
+        unwind_stmt: &UnwindStmt,
+        params: &mut HashMap<String, DataType>,
+    ) {
+        Self::extract_params_from_expr(&unwind_stmt.expression, params);
+    }
+
+    /// 从 WITH 语句中提取参数
+    fn extract_params_from_with(with_stmt: &WithStmt, params: &mut HashMap<String, DataType>) {
+        for item in &with_stmt.items {
+            if let crate::query::parser::ast::stmt::ReturnItem::Expression { expression, .. } = item
+            {
+                Self::extract_params_from_expr(expression, params);
+            }
+        }
+        if let Some(where_clause) = &with_stmt.where_clause {
+            Self::extract_params_from_expr(where_clause, params);
+        }
+    }
+
+    /// 从 YIELD 语句中提取参数
+    fn extract_params_from_yield(yield_stmt: &YieldStmt, params: &mut HashMap<String, DataType>) {
+        for item in &yield_stmt.items {
+            Self::extract_params_from_expr(&item.expression, params);
+        }
+    }
+
+    /// 从 SET 语句中提取参数
+    fn extract_params_from_set(set_stmt: &SetStmt, params: &mut HashMap<String, DataType>) {
+        for assignment in &set_stmt.assignments {
+            Self::extract_params_from_expr(&assignment.value, params);
+        }
+    }
+
+    /// 从 REMOVE 语句中提取参数
+    fn extract_params_from_remove(
+        remove_stmt: &RemoveStmt,
+        params: &mut HashMap<String, DataType>,
+    ) {
+        for item in &remove_stmt.items {
+            Self::extract_params_from_expr(item, params);
+        }
+    }
+
+    /// 从 CREATE 语句中提取参数
+    fn extract_params_from_create(create_stmt: &CreateStmt, params: &mut HashMap<String, DataType>) {
+        use crate::query::parser::ast::stmt::CreateTarget;
+
+        match &create_stmt.target {
+            CreateTarget::Node {
+                variable: _,
+                labels: _,
+                properties,
+            } => {
+                if let Some(props) = properties {
+                    Self::extract_params_from_expr(props, params);
+                }
+            }
+            CreateTarget::Edge {
+                variable: _,
+                edge_type: _,
+                properties,
+                src,
+                dst,
+                direction: _,
+            } => {
+                if let Some(props) = properties {
+                    Self::extract_params_from_expr(props, params);
+                }
+                Self::extract_params_from_expr(src, params);
+                Self::extract_params_from_expr(dst, params);
+            }
+            CreateTarget::Path { patterns } => {
+                for pattern in patterns {
+                    Self::extract_params_from_pattern(pattern, params);
+                }
+            }
+            CreateTarget::Tag { .. }
+            | CreateTarget::EdgeType { .. }
+            | CreateTarget::Space { .. }
+            | CreateTarget::Index { .. } => {}
+        }
+    }
+
+    /// 从 QUERY 语句中提取参数
+    fn extract_params_from_query(query_stmt: &QueryStmt, params: &mut HashMap<String, DataType>) {
+        for stmt in &query_stmt.statements {
+            Self::extract_params_from_stmt(stmt, params);
+        }
+    }
+
+    /// 从 RETURN 语句中提取参数
+    fn extract_params_from_return(
+        return_stmt: &ReturnStmt,
+        params: &mut HashMap<String, DataType>,
+    ) {
+        for item in &return_stmt.items {
+            if let crate::query::parser::ast::stmt::ReturnItem::Expression { expression, .. } = item
+            {
+                Self::extract_params_from_expr(expression, params);
+            }
+        }
+    }
+
+    /// 从 GROUP BY 语句中提取参数
+    fn extract_params_from_group_by(
+        group_by_stmt: &GroupByStmt,
+        params: &mut HashMap<String, DataType>,
+    ) {
+        for item in &group_by_stmt.group_items {
+            Self::extract_params_from_expr(item, params);
+        }
+        for item in &group_by_stmt.yield_clause.items {
+            Self::extract_params_from_expr(&item.expression, params);
+        }
+        if let Some(having) = &group_by_stmt.having_clause {
+            Self::extract_params_from_expr(having, params);
+        }
+    }
+
+    /// 从 SUBGRAPH 语句中提取参数
+    fn extract_params_from_subgraph(
+        subgraph_stmt: &SubgraphStmt,
+        params: &mut HashMap<String, DataType>,
+    ) {
+        for expr in &subgraph_stmt.from.vertices {
+            Self::extract_params_from_expr(expr, params);
+        }
+        if let Some(where_clause) = &subgraph_stmt.where_clause {
+            Self::extract_params_from_expr(where_clause, params);
+        }
+        if let Some(yield_clause) = &subgraph_stmt.yield_clause {
+            for item in &yield_clause.items {
+                Self::extract_params_from_expr(&item.expression, params);
+            }
+        }
+    }
+
+    /// 从 PIPE 语句中提取参数
+    fn extract_params_from_pipe(pipe_stmt: &PipeStmt, params: &mut HashMap<String, DataType>) {
+        Self::extract_params_from_stmt(&pipe_stmt.left, params);
+        Self::extract_params_from_stmt(&pipe_stmt.right, params);
     }
 
     /// 从模式中递归提取参数
