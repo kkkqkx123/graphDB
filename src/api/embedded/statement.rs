@@ -2,7 +2,7 @@
 //!
 //! 提供高性能的预编译查询支持，包括查询计划缓存、参数绑定、批量执行等功能
 
-use crate::api::core::{CoreError, CoreResult, QueryApi, QueryContext};
+use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest};
 use crate::api::embedded::result::QueryResult;
 use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::{DataType, Value};
@@ -728,7 +728,7 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
 
         let start = Instant::now();
 
-        let ctx = QueryContext {
+        let ctx = QueryRequest {
             space_id: self.space_id,
             auto_commit: true,
             transaction_id: None,

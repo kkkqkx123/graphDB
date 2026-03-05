@@ -2,7 +2,7 @@
 //!
 //! 提供会话（Session）概念，作为查询执行的上下文
 
-use crate::api::core::{CoreError, CoreResult, QueryApi, QueryContext, SchemaApi, TransactionApi};
+use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi, TransactionApi};
 use crate::api::embedded::batch::BatchInserter;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::statement::PreparedStatement;
@@ -115,7 +115,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// - 成功时返回查询结果
     /// - 失败时返回错误
     pub fn execute(&self, query: &str) -> CoreResult<QueryResult> {
-        let ctx = QueryContext {
+        let ctx = QueryRequest {
             space_id: self.space_id,
             auto_commit: self.auto_commit,
             transaction_id: None,
@@ -141,7 +141,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         query: &str,
         params: HashMap<String, Value>,
     ) -> CoreResult<QueryResult> {
-        let ctx = QueryContext {
+        let ctx = QueryRequest {
             space_id: self.space_id,
             auto_commit: self.auto_commit,
             transaction_id: None,

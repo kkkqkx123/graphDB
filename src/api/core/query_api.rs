@@ -2,7 +2,7 @@
 //!
 //! 提供与传输层无关的查询执行功能
 
-use crate::api::core::{CoreError, CoreResult, ExecutionMetadata, QueryContext, QueryResult, Row};
+use crate::api::core::{CoreError, CoreResult, ExecutionMetadata, QueryRequest, QueryResult, Row};
 use crate::core::StatsManager;
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
@@ -33,12 +33,17 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     ///
     /// # 参数
     /// - `query`: 查询语句
-    /// - `ctx`: 查询上下文
+    /// - `ctx`: 查询请求
     ///
     /// # 返回
     /// 结构化查询结果
-    pub fn execute(&mut self, query: &str, ctx: QueryContext) -> CoreResult<QueryResult> {
+    pub fn execute(&mut self, query: &str, ctx: QueryRequest) -> CoreResult<QueryResult> {
         let start_time = Instant::now();
+
+        // 构建 QueryRequestContext
+        let rctx = Arc::new(crate::query::query_request_context::QueryRequestContext::new(
+            query.to_string(),
+        ));
 
         // 构建空间信息
         let space_info = ctx.space_id.map(|id| crate::core::types::SpaceInfo {
@@ -51,10 +56,10 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             comment: None,
         });
 
-        // 执行查询
+        // 执行查询（使用新的 execute_query_with_request 方法）
         let execution_result = self
             .pipeline_manager
-            .execute_query_with_space(query, space_info)
+            .execute_query_with_request(query, rctx, space_info)
             .map_err(|e| CoreError::QueryExecutionFailed(e.to_string()))?;
 
         // 转换为结构化结果
@@ -69,7 +74,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         &mut self,
         query: &str,
         params: std::collections::HashMap<String, crate::core::Value>,
-        ctx: QueryContext,
+        ctx: QueryRequest,
     ) -> CoreResult<QueryResult> {
         let mut ctx = ctx;
         ctx.parameters = Some(params);

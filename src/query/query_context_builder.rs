@@ -1,0 +1,228 @@
+//! QueryContext 构建器
+//!
+//! 提供流式 API 来构建 QueryContext，简化复杂对象的创建过程。
+
+use crate::core::types::CharsetInfo;
+use crate::core::types::SpaceInfo;
+use crate::query::context::{
+    QueryExecutionState, QueryResourceContext, QuerySpaceContext,
+};
+use crate::query::query_request_context::QueryRequestContext;
+use crate::query::QueryContext;
+use std::sync::Arc;
+
+/// QueryContext 构建器
+///
+/// 提供流式 API 来构建 QueryContext，简化复杂对象的创建过程。
+///
+/// # 示例
+///
+/// ```rust
+/// use crate::query::query_context_builder::QueryContextBuilder;
+///
+/// let rctx = Arc::new(QueryRequestContext::new("MATCH (n) RETURN n".to_string()));
+///
+/// let query_context = QueryContextBuilder::new(rctx)
+///     .with_space_info(space_info)
+///     .with_charset_info(charset_info)
+///     .build();
+/// ```
+pub struct QueryContextBuilder {
+    rctx: Option<Arc<QueryRequestContext>>,
+    execution_state: Option<QueryExecutionState>,
+    resource_context: Option<QueryResourceContext>,
+    space_context: Option<QuerySpaceContext>,
+}
+
+impl QueryContextBuilder {
+    /// 创建新的构建器
+    pub fn new(rctx: Arc<QueryRequestContext>) -> Self {
+        Self {
+            rctx: Some(rctx),
+            execution_state: None,
+            resource_context: None,
+            space_context: None,
+        }
+    }
+
+    /// 设置执行状态
+    pub fn with_execution_state(mut self, execution_state: QueryExecutionState) -> Self {
+        self.execution_state = Some(execution_state);
+        self
+    }
+
+    /// 设置资源上下文
+    pub fn with_resource_context(mut self, resource_context: QueryResourceContext) -> Self {
+        self.resource_context = Some(resource_context);
+        self
+    }
+
+    /// 设置空间上下文
+    pub fn with_space_context(mut self, space_context: QuerySpaceContext) -> Self {
+        self.space_context = Some(space_context);
+        self
+    }
+
+    /// 设置空间信息
+    pub fn with_space_info(mut self, space_info: SpaceInfo) -> Self {
+        let mut space_context = self.space_context.unwrap_or_default();
+        space_context.set_space_info(space_info);
+        self.space_context = Some(space_context);
+        self
+    }
+
+    /// 设置字符集信息
+    pub fn with_charset_info(mut self, charset_info: CharsetInfo) -> Self {
+        let mut space_context = self.space_context.unwrap_or_default();
+        space_context.set_charset_info(charset_info);
+        self.space_context = Some(space_context);
+        self
+    }
+
+    /// 设置对象池大小
+    pub fn with_pool_size(mut self, pool_size: usize) -> Self {
+        self.resource_context = Some(QueryResourceContext::with_config(pool_size, 0));
+        self
+    }
+
+    /// 设置 ID 起始值
+    pub fn with_start_id(mut self, start_id: i64) -> Self {
+        self.resource_context = Some(QueryResourceContext::with_config(1000, start_id));
+        self
+    }
+
+    /// 构建 QueryContext
+    pub fn build(self) -> QueryContext {
+        let rctx = self.rctx.expect("QueryRequestContext is required");
+        let execution_state = self.execution_state.unwrap_or_default();
+        let resource_context = self.resource_context.unwrap_or_default();
+        let space_context = self.space_context.unwrap_or_default();
+
+        QueryContext::from_components(rctx, execution_state, resource_context, space_context)
+    }
+}
+
+impl Default for QueryContextBuilder {
+    fn default() -> Self {
+        Self {
+            rctx: None,
+            execution_state: None,
+            resource_context: None,
+            space_context: None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::query_request_context::QueryRequestContext;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_builder_basic() {
+        let rctx = Arc::new(QueryRequestContext {
+            session_id: None,
+            user_name: None,
+            space_name: None,
+            query: "MATCH (n) RETURN n".to_string(),
+            parameters: HashMap::new(),
+        });
+
+        let query_context = QueryContextBuilder::new(rctx).build();
+
+        assert_eq!(query_context.query(), "MATCH (n) RETURN n");
+    }
+
+    #[test]
+    fn test_builder_with_space_info() {
+        let rctx = Arc::new(QueryRequestContext {
+            session_id: None,
+            user_name: None,
+            space_name: None,
+            query: "MATCH (n) RETURN n".to_string(),
+            parameters: HashMap::new(),
+        });
+
+        let space_info = SpaceInfo {
+            space_id: 1,
+            space_name: "test_space".to_string(),
+            partition_num: 10,
+            replica_factor: 1,
+            vid_type: crate::core::types::VidType::Int64,
+            charset_name: "utf8".to_string(),
+            collate_name: "utf8_bin".to_string(),
+        };
+
+        let query_context = QueryContextBuilder::new(rctx)
+            .with_space_info(space_info)
+            .build();
+
+        assert_eq!(query_context.space_id(), Some(1));
+        assert_eq!(query_context.space_name(), Some("test_space".to_string()));
+    }
+
+    #[test]
+    fn test_builder_with_pool_size() {
+        let rctx = Arc::new(QueryRequestContext {
+            session_id: None,
+            user_name: None,
+            space_name: None,
+            query: "MATCH (n) RETURN n".to_string(),
+            parameters: HashMap::new(),
+        });
+
+        let query_context = QueryContextBuilder::new(rctx)
+            .with_pool_size(2000)
+            .build();
+
+        assert_eq!(query_context.current_id(), 0);
+    }
+
+    #[test]
+    fn test_builder_with_start_id() {
+        let rctx = Arc::new(QueryRequestContext {
+            session_id: None,
+            user_name: None,
+            space_name: None,
+            query: "MATCH (n) RETURN n".to_string(),
+            parameters: HashMap::new(),
+        });
+
+        let query_context = QueryContextBuilder::new(rctx)
+            .with_start_id(100)
+            .build();
+
+        assert_eq!(query_context.current_id(), 100);
+    }
+
+    #[test]
+    fn test_builder_chaining() {
+        let rctx = Arc::new(QueryRequestContext {
+            session_id: None,
+            user_name: None,
+            space_name: None,
+            query: "MATCH (n) RETURN n".to_string(),
+            parameters: HashMap::new(),
+        });
+
+        let space_info = SpaceInfo {
+            space_id: 1,
+            space_name: "test_space".to_string(),
+            partition_num: 10,
+            replica_factor: 1,
+            vid_type: crate::core::types::VidType::Int64,
+            charset_name: "utf8".to_string(),
+            collate_name: "utf8_bin".to_string(),
+        };
+
+        let query_context = QueryContextBuilder::new(rctx)
+            .with_space_info(space_info)
+            .with_pool_size(2000)
+            .with_start_id(100)
+            .build();
+
+        assert_eq!(query_context.space_id(), Some(1));
+        assert_eq!(query_context.current_id(), 100);
+    }
+}

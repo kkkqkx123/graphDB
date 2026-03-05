@@ -82,29 +82,31 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     pub fn execute_query_with_space(
         &mut self,
         query_text: &str,
-        _space_info: Option<crate::core::types::SpaceInfo>,
+        space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
         let parser_result = self.parse_into_context(query_text)?;
 
-        // 创建 QueryContext（表达式上下文现在在 Ast 中）
-        let query_context = Arc::new(QueryContext::new(
-            Arc::new(QueryRequestContext::new(query_text.to_string())),
-        ));
+        // 先验证查询并获取验证信息
+        let validation_info = self.validate_query_without_context(parser_result.ast.clone())?;
 
-        // 验证查询并获取验证信息
-        let validation_info =
-            self.validate_query(query_context.clone(), parser_result.ast.clone())?;
+        // 创建 QueryRequestContext
+        let rctx = Arc::new(QueryRequestContext::new(query_text.to_string()));
 
-        // 使用 Arc::get_mut 设置验证信息（此时没有其他可变引用）
-        if let Some(qctx_mut) = Arc::get_mut(&mut query_context.clone()) {
-            qctx_mut.set_validation_info(validation_info.clone());
+        // 创建 QueryContext
+        let mut query_context = QueryContext::new(rctx);
+
+        // 设置空间信息
+        if let Some(ref space) = space_info {
+            query_context.set_space_info(space.clone());
         }
+
+        let query_context = Arc::new(query_context);
 
         // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
-        let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
+        let optimized_plan = self.optimize_execution_plan(execution_plan)?;
         self.execute_plan(query_context, optimized_plan)
     }
 
@@ -117,30 +119,26 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         rctx: Arc<crate::query::query_request_context::QueryRequestContext>,
         space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
-        let mut query_context = self.create_query_context_with_request(rctx)?;
+        let parser_result = self.parse_into_context(query_text)?;
+
+        // 先验证查询并获取验证信息
+        let validation_info = self.validate_query_without_context(parser_result.ast.clone())?;
+
+        // 创建 QueryContext
+        let mut query_context = QueryContext::new(rctx);
 
         // 设置空间信息（在 Arc 包装之前）
-        if let Some(space) = space_info {
-            query_context.set_space_info(space);
+        if let Some(ref space) = space_info {
+            query_context.set_space_info(space.clone());
         }
 
         let query_context = Arc::new(query_context);
-        let parser_result = self.parse_into_context(query_text)?;
-
-        // 验证查询并获取验证信息
-        let validation_info =
-            self.validate_query(query_context.clone(), parser_result.ast.clone())?;
-
-        // 使用 Arc::get_mut 设置验证信息（此时没有其他可变引用）
-        if let Some(qctx_mut) = Arc::get_mut(&mut query_context.clone()) {
-            qctx_mut.set_validation_info(validation_info.clone());
-        }
 
         // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
-        let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
+        let optimized_plan = self.optimize_execution_plan(execution_plan)?;
         self.execute_plan(query_context, optimized_plan)
     }
 
@@ -169,8 +167,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let mut metrics = QueryMetrics::new();
         let mut profile = QueryProfile::new(session_id, query_text.to_string());
 
-        let query_context = Arc::new(self.create_query_context(query_text)?);
-
         let parse_start = Instant::now();
         let parser_result = match self.parse_into_context(query_text) {
             Ok(result) => {
@@ -192,29 +188,29 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         let validate_start = Instant::now();
-        let validation_info =
-            match self.validate_query(query_context.clone(), parser_result.ast.clone()) {
-                Ok(info) => info,
-                Err(e) => {
-                    profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
-                    profile.mark_failed_with_info(ErrorInfo::new(
-                        ErrorType::ValidationError,
-                        QueryPhase::Validate,
-                        e.to_string(),
-                    ));
-                    profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
-                    self.stats_manager.record_query_profile(profile.clone());
-                    return Err(e);
-                }
-            };
-
-        // 使用 Arc::get_mut 设置验证信息（此时没有其他可变引用）
-        if let Some(qctx_mut) = Arc::get_mut(&mut query_context.clone()) {
-            qctx_mut.set_validation_info(validation_info.clone());
-        }
+        let validation_info = match self.validate_query_without_context(parser_result.ast.clone()) {
+            Ok(info) => info,
+            Err(e) => {
+                profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
+                profile.mark_failed_with_info(ErrorInfo::new(
+                    ErrorType::ValidationError,
+                    QueryPhase::Validate,
+                    e.to_string(),
+                ));
+                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                self.stats_manager.record_query_profile(profile.clone());
+                return Err(e);
+            }
+        };
 
         profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
         metrics.record_validate_time(validate_start.elapsed());
+
+        // 创建 QueryRequestContext
+        let rctx = Arc::new(QueryRequestContext::new(query_text.to_string()));
+
+        // 创建 QueryContext
+        let query_context = Arc::new(QueryContext::new(rctx));
 
         // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
@@ -241,25 +237,24 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         let optimize_start = Instant::now();
-        let optimized_plan =
-            match self.optimize_execution_plan(query_context.clone(), execution_plan) {
-                Ok(plan) => {
-                    profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
-                    metrics.record_optimize_time(optimize_start.elapsed());
-                    plan
-                }
-                Err(e) => {
-                    profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
-                    profile.mark_failed_with_info(ErrorInfo::new(
-                        ErrorType::OptimizationError,
-                        QueryPhase::Optimize,
-                        e.to_string(),
-                    ));
-                    profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
-                    self.stats_manager.record_query_profile(profile.clone());
-                    return Err(e);
-                }
-            };
+        let optimized_plan = match self.optimize_execution_plan(execution_plan) {
+            Ok(plan) => {
+                profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
+                metrics.record_optimize_time(optimize_start.elapsed());
+                plan
+            }
+            Err(e) => {
+                profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
+                profile.mark_failed_with_info(ErrorInfo::new(
+                    ErrorType::OptimizationError,
+                    QueryPhase::Optimize,
+                    e.to_string(),
+                ));
+                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                self.stats_manager.record_query_profile(profile.clone());
+                return Err(e);
+            }
+        };
 
         let execute_start = Instant::now();
         let result = match self.execute_plan(query_context, optimized_plan) {
@@ -292,23 +287,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Ok((result, metrics, profile))
     }
 
-    /// 创建查询上下文（使用默认配置）
-    fn create_query_context(&self, query_text: &str) -> DBResult<QueryContext> {
-        use crate::query::query_request_context::QueryRequestContext;
-        let rctx = Arc::new(QueryRequestContext::new(query_text.to_string()));
-        Ok(QueryContext::new(rctx))
-    }
-
-    /// 从 QueryRequestContext 创建查询上下文
-    ///
-    /// 这个方法允许 api 层传递会话信息到 query 层
-    pub fn create_query_context_with_request(
-        &self,
-        rctx: Arc<crate::query::query_request_context::QueryRequestContext>,
-    ) -> DBResult<QueryContext> {
-        Ok(QueryContext::new(rctx))
-    }
-
     fn parse_into_context(
         &mut self,
         query_text: &str,
@@ -319,10 +297,12 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             .map_err(|e| DBError::from(QueryError::pipeline_parse_error(e)))
     }
 
-    /// 验证查询并返回验证信息
-    fn validate_query(
+    /// 验证查询并返回验证信息（不需要 QueryContext）
+    ///
+    /// 此方法用于在创建 QueryContext 之前进行验证
+    /// 避免使用 Arc::get_mut
+    fn validate_query_without_context(
         &mut self,
-        query_context: Arc<QueryContext>,
         ast: Arc<crate::query::parser::ast::stmt::Ast>,
     ) -> DBResult<ValidationInfo> {
         let mut validator = crate::query::validator::Validator::create_from_ast(&ast)
@@ -333,8 +313,12 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 )))
             })?;
 
+        // 创建临时的 QueryContext 用于验证
+        let temp_rctx = Arc::new(QueryRequestContext::new(String::new()));
+        let temp_qctx = Arc::new(QueryContext::new(temp_rctx));
+
         // 使用 validate 获取详细的验证信息
-        let validation_result = validator.validate(ast.clone(), query_context);
+        let validation_result = validator.validate(ast.clone(), temp_qctx);
 
         if validation_result.success {
             Ok(validation_result.info.unwrap_or_default())
@@ -360,7 +344,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             crate::query::planner::planner::PlannerEnum::from_ast(&validated.ast)
         {
             let sub_plan = planner_enum
-                .transform(validated, query_context.clone())
+                .transform(validated, query_context)
                 .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
             crate::query::planner::plan::ExecutionPlan::new(sub_plan.root().clone())
         } else {
@@ -376,7 +360,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
     fn optimize_execution_plan(
         &mut self,
-        _query_context: Arc<QueryContext>,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         // 使用 planner rewrite 规则进行优化

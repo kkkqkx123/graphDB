@@ -2,7 +2,7 @@
 //!
 //! 提供完整的事务管理功能，包括保存点支持
 
-use crate::api::core::{CoreError, CoreResult, QueryContext, TransactionHandle};
+use crate::api::core::{CoreError, CoreResult, QueryRequest, TransactionHandle};
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::Session;
 use crate::core::Value;
@@ -155,7 +155,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     pub fn execute(&self, query: &str) -> CoreResult<QueryResult> {
         self.check_active()?;
 
-        let ctx = QueryContext {
+        let ctx = QueryRequest {
             space_id: self.session.space_id(),
             auto_commit: false,
             transaction_id: Some(self.txn_handle.0),
@@ -183,7 +183,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     ) -> CoreResult<QueryResult> {
         self.check_active()?;
 
-        let ctx = QueryContext {
+        let ctx = QueryRequest {
             space_id: self.session.space_id(),
             auto_commit: false,
             transaction_id: Some(self.txn_handle.0),

@@ -5,16 +5,16 @@
 use crate::core::Value;
 use std::collections::HashMap;
 
-/// 查询执行上下文
+/// 查询请求
 #[derive(Debug, Clone)]
-pub struct QueryContext {
+pub struct QueryRequest {
     pub space_id: Option<u64>,
     pub auto_commit: bool,
     pub transaction_id: Option<u64>,
     pub parameters: Option<HashMap<String, Value>>,
 }
 
-impl Default for QueryContext {
+impl Default for QueryRequest {
     fn default() -> Self {
         Self {
             space_id: None,

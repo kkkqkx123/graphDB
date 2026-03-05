@@ -7,12 +7,14 @@
 // - Managing query contexts and validation
 
 // Sub-modules
+pub mod context;
 pub mod core;
 pub mod executor;
 pub mod optimizer;
 pub mod parser;
 pub mod planner;
 pub mod query_context;
+pub mod query_context_builder;
 pub mod query_manager;
 pub mod query_pipeline_manager;
 pub mod query_request_context;

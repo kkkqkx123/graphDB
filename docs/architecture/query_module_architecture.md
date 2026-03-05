@@ -108,16 +108,87 @@ core/
 
 ### 3. QueryContext 模块
 
-**位置**: `src/query/query_context.rs`, `src/query/query_request_context.rs`
+**位置**: `src/query/query_context.rs`, `src/query/query_request_context.rs`, `src/query/context/`
 
-**职责**: 管理查询处理的上下文信息，包括表达式上下文、验证信息、空间信息等。
+**职责**: 管理查询处理的上下文信息，采用组合模式将不同职责分离到专门的上下文中。
 
 **核心类型**:
 
-- `QueryContext`: 查询上下文，整合表达式上下文、验证信息、空间信息
-- `QueryRequestContext`: 请求上下文，管理单个请求的生命周期
+- `QueryContext`: 查询上下文，整合所有查询相关的上下文信息
+  - `QueryRequestContext`: 请求上下文，管理单个请求的生命周期
+  - `QueryExecutionState`: 执行状态，管理执行计划和终止标志
+  - `QueryResourceContext`: 资源上下文，管理对象池、ID生成器、符号表
+  - `QuerySpaceContext`: 空间上下文，管理空间信息和字符集
 
-### 4. Validator 模块
+**设计特点**:
+
+- **组合模式**: 将 QueryContext 拆分为多个专门的上下文，每个上下文负责特定功能
+- **职责分离**: 执行状态、资源管理、空间信息等职责明确分离
+- **无 Clone**: 不实现 Clone，强制使用 Arc<QueryContext> 来共享所有权
+- **Builder 模式**: 提供 QueryContextBuilder 来简化复杂对象的创建
+
+**字段访问方法**:
+
+- `space_id()`: 获取空间 ID
+- `space_name()`: 获取空间名称
+- `sym_table()`: 获取符号表
+- `gen_id()`: 生成唯一 ID
+- `obj_pool()`: 获取对象池
+- `is_killed()`: 检查是否被终止
+- `plan()`: 获取执行计划
+
+**辅助方法**:
+
+- `new_for_validation(query_text)`: 创建用于验证的临时上下文
+- `new_for_planning(query_text)`: 创建用于规划的临时上下文
+- `builder(rctx)`: 创建构建器
+
+**API 层区分**:
+
+- `api::core::QueryRequest`: API 层的查询请求结构，用于 API 接口
+- `query::QueryContext`: Query 层的查询上下文，用于查询处理内部
+
+两者职责不同，名称区分避免混淆。
+
+### 4. QueryManager 模块
+
+**位置**: `src/query/query_manager.rs`
+
+**职责**: 负责跟踪和管理正在运行的查询，提供查询统计信息。
+
+**核心类型**:
+
+- `QueryManager`: 查询管理器，管理所有查询的生命周期
+- `QueryInfo`: 查询信息，包含查询 ID、状态、执行时间等
+- `QueryStats`: 查询统计信息，包含总查询数、运行中查询数等
+- `QueryStatus`: 查询状态（Running、Finished、Failed、Killed）
+
+### 5. QueryPipelineManager 模块
+
+**位置**: `src/query/query_pipeline_manager.rs`
+
+**职责**: 协调整个查询处理流程，管理查询的全生命周期。
+
+**核心类型**:
+
+- `QueryPipelineManager`: 查询管道管理器
+- 通过引用使用 `OptimizerEngine`，而不是直接创建优化器组件
+
+**与 OptimizerEngine 的关系**:
+
+`QueryPipelineManager` 通过引用使用 `OptimizerEngine`，而不是直接创建优化器组件。`OptimizerEngine` 是全局实例，与数据库实例同生命周期，负责所有查询优化相关的功能。
+
+```rust
+// 创建方式
+let optimizer_engine = Arc::new(OptimizerEngine::default());
+let pipeline = QueryPipelineManager::with_optimizer(
+    storage,
+    stats_manager,
+    optimizer_engine,
+);
+```
+
+### 6. Validator 模块
 
 **位置**: `src/query/validator/`
 
@@ -172,14 +243,21 @@ validator/
 │   ├── unwind_validator.rs
 │   └── update_validator.rs
 ├── strategies/        # 验证策略
+│   ├── helpers/       # 策略辅助工具
+│   │   ├── expression_checker.rs
+│   │   ├── mod.rs
+│   │   ├── type_checker.rs
+│   │   └── variable_checker.rs
+│   ├── metadata/      # 元数据
+│   │   ├── aggregate_functions.rs
+│   │   └── mod.rs
+│   ├── agg_functions.rs
 │   ├── aggregate_strategy.rs
 │   ├── alias_strategy.rs
 │   ├── clause_strategy.rs
 │   ├── expression_operations.rs
 │   ├── expression_strategy.rs
 │   ├── expression_strategy_test.rs
-│   ├── helpers/
-│   ├── metadata/
 │   ├── mod.rs
 │   └── pagination_strategy.rs
 ├── structs/           # 数据结构
@@ -213,7 +291,7 @@ validator/
 
 **与上下游关系**: Validator 接收 Parser 输出的 AST 上下文，验证通过后将验证后的上下文传递给 Planner。
 
-### 5. Planner 模块
+### 7. Planner 模块
 
 **位置**: `src/query/planner/`
 
@@ -266,12 +344,9 @@ planner/
 │   └── mod.rs
 ├── statements/             # 语句规划器
 │   ├── clauses/           # 子句规划器
-│   │   ├── clause_planner.rs
-│   │   ├── limit_pushdown_planner.rs
 │   │   ├── mod.rs
 │   │   ├── order_by_planner.rs
 │   │   ├── pagination_planner.rs
-│   │   ├── projection_planner.rs
 │   │   ├── return_clause_planner.rs
 │   │   ├── unwind_planner.rs
 │   │   ├── where_clause_planner.rs
@@ -407,7 +482,7 @@ planner/
 
 **与上下游关系**: Planner 接收 Validator 输出的上下文，生成执行计划后传递给 Optimizer。
 
-### 6. Optimizer 模块
+### 8. Optimizer 模块
 
 **位置**: `src/query/optimizer/`
 
@@ -494,7 +569,7 @@ optimizer/
 
 **与上下游关系**: Optimizer 接收 Planner 输出的执行计划，经过优化后返回优化后的计划给 Executor。
 
-### 7. Executor 模块
+### 9. Executor 模块
 
 **位置**: `src/query/executor/`
 
@@ -524,7 +599,7 @@ executor/
 │   ├── query_management/  # 查询管理
 │   │   ├── mod.rs
 │   │   └── show_stats.rs
-│   ├── space/             # 空间操作
+│   ├── space/            # 空间操作
 │   │   ├── alter_space.rs
 │   │   ├── clear_space.rs
 │   │   ├── create_space.rs
@@ -534,7 +609,7 @@ executor/
 │   │   ├── show_spaces.rs
 │   │   ├── switch_space.rs
 │   │   └── tests.rs
-│   ├── tag/               # 标签操作
+│   ├── tag/              # 标签操作
 │   │   ├── alter_tag.rs
 │   │   ├── create_tag.rs
 │   │   ├── desc_tag.rs
@@ -542,7 +617,7 @@ executor/
 │   │   ├── mod.rs
 │   │   ├── show_tags.rs
 │   │   └── tests.rs
-│   ├── user/              # 用户管理
+│   ├── user/             # 用户操作
 │   │   ├── alter_user.rs
 │   │   ├── change_password.rs
 │   │   ├── create_user.rs
@@ -552,7 +627,7 @@ executor/
 │   │   └── revoke_role.rs
 │   ├── analyze.rs
 │   └── mod.rs
-├── base/                   # 基础类型
+├── base/                  # 基础执行器
 │   ├── execution_context.rs
 │   ├── execution_result.rs
 │   ├── execution_stats.rs
@@ -560,17 +635,9 @@ executor/
 │   ├── executor_stats.rs
 │   ├── mod.rs
 │   └── result_processor.rs
-├── data_access/           # 数据访问执行器
-│   ├── get_vertices.rs
-│   ├── get_neighbors.rs
-│   ├── get_edges.rs
-│   ├── get_prop.rs
-│   ├── index_scan.rs
-│   └── all_paths.rs
-├── data_modification.rs   # 数据修改执行器
 ├── data_processing/       # 数据处理执行器
-│   ├── graph_traversal/   # 图遍历
-│   │   ├── algorithms/    # 图算法
+│   ├── graph_traversal/  # 图遍历执行器
+│   │   ├── algorithms/   # 算法实现
 │   │   │   ├── a_star.rs
 │   │   │   ├── bidirectional_bfs.rs
 │   │   │   ├── dijkstra.rs
@@ -588,8 +655,9 @@ executor/
 │   │   ├── shortest_path.rs
 │   │   ├── tests.rs
 │   │   ├── traits.rs
-│   │   └── traversal_utils.rs
-│   ├── join/              # 连接操作
+│   │   ├── traversal_utils.rs
+│   │   └── traverse.rs
+│   ├── join/             # 连接执行器
 │   │   ├── base_join.rs
 │   │   ├── cross_join.rs
 │   │   ├── full_outer_join.rs
@@ -598,16 +666,15 @@ executor/
 │   │   ├── join_key_evaluator.rs
 │   │   ├── left_join.rs
 │   │   └── mod.rs
-│   ├── set_operations/    # 集合操作
+│   ├── set_operations/   # 集合操作执行器
 │   │   ├── base.rs
 │   │   ├── intersect.rs
 │   │   ├── minus.rs
 │   │   ├── mod.rs
 │   │   ├── union.rs
 │   │   └── union_all.rs
-│   ├── README.md
 │   └── mod.rs
-├── expression/            # 表达式执行
+├── expression/            # 表达式求值
 │   ├── evaluation_context/ # 求值上下文
 │   │   ├── cache_manager.rs
 │   │   ├── default_context.rs
@@ -620,8 +687,8 @@ executor/
 │   │   ├── mod.rs
 │   │   ├── operations.rs
 │   │   └── traits.rs
-│   ├── functions/         # 函数实现
-│   │   ├── builtin/       # 内置函数
+│   ├── functions/         # 函数
+│   │   ├── builtin/      # 内置函数
 │   │   │   ├── aggregate.rs
 │   │   │   ├── container.rs
 │   │   │   ├── conversion.rs
@@ -636,14 +703,14 @@ executor/
 │   │   │   ├── string.rs
 │   │   │   └── utility.rs
 │   │   ├── mod.rs
-│   │   ├── registry.rs    # 函数注册表
-│   │   └── signature.rs   # 函数签名
+│   │   ├── registry.rs
+│   │   └── signature.rs
 │   └── mod.rs
-├── logic/                 # 逻辑控制执行器
+├── logic/                 # 循环控制执行器
 │   ├── loops.rs
 │   └── mod.rs
-├── result_processing/     # 结果处理执行器
-│   ├── transformations/   # 转换操作
+├── result_processing/      # 结果处理执行器
+│   ├── transformations/   # 数据转换执行器
 │   │   ├── append_vertices.rs
 │   │   ├── assign.rs
 │   │   ├── mod.rs
@@ -664,181 +731,262 @@ executor/
 ├── aggregation.rs
 ├── aggregation_benchmark.rs
 ├── data_access.rs
-├── executor_enum.rs       # 执行器枚举
-├── factory.rs             # 执行器工厂
-├── graph_query_executor.rs # 图查询执行器
+├── data_modification.rs
+├── executor_enum.rs
+├── factory.rs
+├── graph_query_executor.rs
 ├── mod.rs
-├── object_pool.rs         # 对象池
-├── recursion_detector.rs  # 递归检测
-├── search_executors.rs    # 搜索执行器
-├── special_executors.rs   # 特殊执行器
+├── object_pool.rs
+├── recursion_detector.rs
+├── search_executors.rs
+├── special_executors.rs
 └── tag_filter.rs
 ```
 
 **核心类型**:
 
-- `Executor`: 执行器 trait，定义执行器接口
+- `Executor`: 执行器 trait
 - `ExecutorEnum`: 执行器枚举（静态分发）
+- `ExecutorFactory`: 执行器工厂
 - `ExecutionContext`: 执行上下文
 - `ExecutionResult`: 执行结果
-- `ExecutorFactory`: 执行器工厂
-- `BaseExecutor`: 基础执行器
+- `GraphQueryExecutor`: 图查询执行器
 
 **执行器分类**:
 
-1. **数据访问执行器**（Data Access）: 直接与存储层交互
-   - `GetVerticesExecutor`: 获取顶点
-   - `GetNeighborsExecutor`: 获取邻居
-   - `GetEdgesExecutor`: 获取边
-   - `IndexScanExecutor`: 索引扫描
+1. **基础执行器**（base/）:
+   - `BaseExecutor`: 基础执行器 trait
+   - `StartExecutor`: 起始执行器
+   - `InputExecutor`: 输入执行器
+   - `ResultProcessor`: 结果处理器
 
-2. **数据处理执行器**（Data Processing）: 处理中间结果
-   - `JoinExecutor`: 连接操作
-   - `SetOperationExecutor`: 集合操作
-   - `GraphTraversalExecutor`: 图遍历
-   - `ExpandExecutor`: 扩展操作
+2. **数据处理执行器**（data_processing/）:
+   - **图遍历执行器**（graph_traversal/）:
+     - `AllPathsExecutor`: 所有路径执行器
+     - `ExpandExecutor`: 扩展执行器
+     - `ExpandAllExecutor`: 全部扩展执行器
+     - `ShortestPathExecutor`: 最短路径执行器
+     - `TraverseExecutor`: 遍历执行器
+   - **连接执行器**（join/）:
+     - `InnerJoinExecutor`: 内连接执行器
+     - `LeftJoinExecutor`: 左连接执行器
+     - `CrossJoinExecutor`: 交叉连接执行器
+     - `FullOuterJoinExecutor`: 全外连接执行器
+   - **集合操作执行器**（set_operations/）:
+     - `UnionExecutor`: 并集执行器
+     - `UnionAllExecutor`: 并集所有执行器
+     - `IntersectExecutor`: 交集执行器
+     - `MinusExecutor`: 差集执行器
 
-3. **结果处理执行器**（Result Processing）: 处理最终结果
-   - `ProjectExecutor`: 投影
-   - `FilterExecutor`: 过滤
-   - `AggregateExecutor`: 聚合
-   - `SortExecutor`: 排序
-   - `LimitExecutor`: 限制
-   - `DedupExecutor`: 去重
+3. **表达式求值**（expression/）:
+   - **求值上下文**（evaluation_context/）:
+     - `DefaultContext`: 默认求值上下文
+     - `RowContext`: 行上下文
+     - `CacheManager`: 缓存管理器
+   - **表达式求值器**（evaluator/）:
+     - `ExpressionEvaluator`: 表达式求值器
+   - **函数**（functions/）:
+     - **内置函数**（builtin/）:
+       - 聚合函数、容器函数、转换函数、日期时间函数、地理函数、图函数、数学函数、路径函数、正则函数、字符串函数、工具函数
 
-4. **管理执行器**（Admin）: 执行 DDL 和管理操作
-   - `CreateSpaceExecutor`: 创建空间
-   - `CreateTagExecutor`: 创建标签
-   - `CreateEdgeExecutor`: 创建边类型
-   - `RebuildIndexExecutor`: 重建索引
+4. **循环控制执行器**（logic/）:
+   - `ForLoopExecutor`: For 循环执行器
+   - `WhileLoopExecutor`: While 循环执行器
+   - `LoopExecutor`: 循环执行器
 
-5. **表达式执行器**（Expression）: 表达式求值
-   - `ExpressionEvaluator`: 表达式求值器
-   - `FunctionRegistry`: 函数注册表
+5. **结果处理执行器**（result_processing/）:
+   - **数据转换执行器**（transformations/）:
+     - `AppendVerticesExecutor`: 追加顶点执行器
+     - `AssignExecutor`: 赋值执行器
+     - `PatternApplyExecutor`: 模式应用执行器
+     - `RollUpApplyExecutor`: 汇总应用执行器
+     - `UnwindExecutor`: 展开执行器
+   - `AggregateExecutor`: 聚合执行器
+   - `DedupExecutor`: 去重执行器
+   - `FilterExecutor`: 过滤执行器
+   - `LimitExecutor`: 限制执行器
+   - `ProjectExecutor`: 投影执行器
+   - `SampleExecutor`: 采样执行器
+   - `SortExecutor`: 排序执行器
+   - `TopNExecutor`: TopN 执行器
 
-**执行器 trait 设计**:
+6. **管理执行器**（admin/）:
+   - **边类型操作**（edge/）:
+     - `CreateEdgeExecutor`: 创建边类型执行器
+     - `AlterEdgeExecutor`: 修改边类型执行器
+     - `DropEdgeExecutor`: 删除边类型执行器
+     - `DescEdgeExecutor`: 描述边类型执行器
+     - `ShowEdgesExecutor`: 显示边类型执行器
+   - **索引操作**（index/）:
+     - `CreateEdgeIndexExecutor`: 创建边索引执行器
+     - `CreateTagIndexExecutor`: 创建标签索引执行器
+     - `DropEdgeIndexExecutor`: 删除边索引执行器
+     - `DropTagIndexExecutor`: 删除标签索引执行器
+     - `RebuildEdgeIndexExecutor`: 重建边索引执行器
+     - `RebuildTagIndexExecutor`: 重建标签索引执行器
+     - `ShowEdgeIndexesExecutor`: 显示边索引执行器
+     - `ShowTagIndexesExecutor`: 显示标签索引执行器
+   - **空间操作**（space/）:
+     - `CreateSpaceExecutor`: 创建空间执行器
+     - `AlterSpaceExecutor`: 修改空间执行器
+     - `DropSpaceExecutor`: 删除空间执行器
+     - `DescSpaceExecutor`: 描述空间执行器
+     - `ShowSpacesExecutor`: 显示空间执行器
+     - `SwitchSpaceExecutor`: 切换空间执行器
+     - `ClearSpaceExecutor`: 清空空间执行器
+   - **标签操作**（tag/）:
+     - `CreateTagExecutor`: 创建标签执行器
+     - `AlterTagExecutor`: 修改标签执行器
+     - `DropTagExecutor`: 删除标签执行器
+     - `DescTagExecutor`: 描述标签执行器
+     - `ShowTagsExecutor`: 显示标签执行器
+   - **用户操作**（user/）:
+     - `CreateUserExecutor`: 创建用户执行器
+     - `AlterUserExecutor`: 修改用户执行器
+     - `DropUserExecutor`: 删除用户执行器
+     - `ChangePasswordExecutor`: 修改密码执行器
+     - `GrantRoleExecutor`: 授予角色执行器
+     - `RevokeRoleExecutor`: 撤销角色执行器
 
-```rust
-pub trait Executor: Send {
-    fn execute(&mut self) -> DBResult<ExecutionResult>;
-    fn open(&mut self) -> DBResult<()>;
-    fn close(&mut self) -> DBResult<()>;
-    // ...
-}
-```
+7. **搜索执行器**（search_executors.rs）:
+   - `BFSShortestExecutor`: BFS 最短路径执行器
 
-**与上下游关系**: Executor 是查询处理的最后一环，接收优化后的执行计划，访问存储层获取数据，生成最终结果。
+8. **特殊执行器**（special_executors.rs）:
+   - `ArgumentExecutor`: 参数执行器
+   - `DataCollectExecutor`: 数据收集执行器
+   - `PassThroughExecutor`: 传递执行器
 
-### 8. QueryManager 模块
+9. **其他执行器**:
+   - `GetVerticesExecutor`: 获取顶点执行器
+   - `GetNeighborsExecutor`: 获取邻居执行器
+   - `GetEdgesExecutor`: 获取边执行器
+   - `GetPropExecutor`: 获取属性执行器
+   - `IndexScanExecutor`: 索引扫描执行器
+   - `ScanVerticesExecutor`: 扫描顶点执行器
 
-**位置**: `src/query/query_manager.rs`
-
-**职责**: 管理查询的生命周期，包括查询的提交、状态跟踪、统计信息收集等。
-
-**核心类型**:
-
-- `QueryManager`: 查询管理器
-- `QueryInfo`: 查询信息
-- `QueryStats`: 查询统计
-- `QueryStatus`: 查询状态
-
-## 数据流转
-
-### 查询处理流程
-
-```
-1. 用户输入查询文本
-   ↓
-2. Parser 解析为 AST
-   - 词法分析：将文本转换为 Token 序列
-   - 语法分析：将 Token 序列转换为 AST
-   ↓
-3. Validator 验证 AST
-   - 类型检查
-   - 变量引用检查
-   - 权限检查
-   ↓
-4. Planner 生成执行计划
-   - 将 AST 转换为计划节点树
-   - 应用启发式重写规则
-   ↓
-5. Optimizer 优化执行计划
-   - 收集统计信息
-   - 计算代价
-   - 选择最优执行策略
-   ↓
-6. Executor 执行计划
-   - 访问存储层获取数据
-   - 处理中间结果
-   - 生成最终结果
-   ↓
-7. 返回结果给用户
-```
-
-### 关键数据结构流转
-
-```
-查询文本 (String)
-    ↓
-ParserResult { stmt, expr_context }
-    ↓
-ValidatedStatement { stmt, validation_info }
-    ↓
-ExecutionPlan { plan_node_tree }
-    ↓
-ExecutionPlan { optimized_plan_node_tree }
-    ↓
-ExecutionResult { data }
-```
+**与上下游关系**: Executor 接收 Optimizer 输出的优化后的执行计划，执行查询并返回结果。
 
 ## 模块间关系
 
-### 依赖关系图
+### 数据流转
 
 ```
-query_pipeline_manager
-    ├── parser
-    ├── validator
-    ├── planner
-    ├── optimizer
-    └── executor
-        ├── core
-        └── expression
-
-query_context
-    └── query_request_context
-
-planner
-    └── rewrite
-
-optimizer
-    ├── stats
-    ├── cost
-    ├── analysis
-    ├── decision
-    └── strategy
+用户查询
+   ↓
+QueryPipelineManager (协调器)
+   ↓
+Parser → AST
+   ↓
+Validator → Validated AST
+   ↓
+Planner → Execution Plan
+   ↓
+Optimizer → Optimized Plan
+   ↓
+Executor → Result
+   ↓
+返回给用户
 ```
 
-### 设计模式应用
+### 模块依赖关系
 
-1. **管道模式**（Pipeline）: 查询处理的五个阶段形成管道
-2. **工厂模式**（Factory）: `ExecutorFactory` 创建执行器
-3. **策略模式**（Strategy）: 验证策略、优化策略
-4. **枚举静态分发**: `PlannerEnum`、`Validator`、`ExecutorEnum` 使用枚举替代动态分发
-5. **访问者模式**（Visitor）: 计划节点访问器
-6. **模板方法模式**: 基础执行器定义执行框架，具体执行器实现细节
+```
+QueryPipelineManager
+    ├─→ Parser
+    ├─→ Validator
+    ├─→ Planner
+    ├─→ Optimizer (引用)
+    └─→ Executor
 
-## 性能考虑
+Parser
+    └─→ AST (输出)
 
-1. **静态分发**: 使用枚举替代 `dyn trait`，避免动态分发的开销
-2. **对象池**: `ObjectPool` 复用执行器对象，减少内存分配
-3. **决策缓存**: `DecisionCache` 缓存优化决策，避免重复计算
-4. **统计信息**: 基于统计信息的代价模型，选择最优执行计划
-5. **编译期断言**: 确保 `PlanNodeEnum` 和 `ExecutorEnum` 变体数量一致
+Validator
+    ├─→ AST (输入)
+    └─→ Validated AST (输出)
 
-## 扩展性
+Planner
+    ├─→ Validated AST (输入)
+    ├─→ Optimizer (用于优化决策)
+    └─→ Execution Plan (输出)
 
-1. **新语句支持**: 实现 `StatementValidator` trait 和对应的规划器
-2. **新优化规则**: 在 `rewrite` 模块添加新的重写规则
-3. **新执行器**: 在 `executor` 模块添加新的执行器类型
-4. **新函数**: 在 `expression/functions/builtin` 添加新的内置函数
+Optimizer
+    ├─→ Execution Plan (输入)
+    ├─→ StatisticsManager (统计信息)
+    ├─→ CostCalculator (代价计算)
+    └─→ Optimized Plan (输出)
+
+Executor
+    ├─→ Optimized Plan (输入)
+    ├─→ StorageClient (存储访问)
+    └─→ ExecutionResult (输出)
+
+QueryManager
+    └─→ 查询生命周期管理
+```
+
+## 设计模式
+
+### 1. 管道模式（Pipeline Pattern）
+
+查询处理采用管道模式，将查询处理分解为多个独立的阶段，每个阶段负责特定的处理任务。
+
+### 2. 工厂模式（Factory Pattern）
+
+- `ExecutorFactory`: 创建具体的执行器实例
+- `PlannerFactory`: 创建具体的规划器实例
+
+### 3. 策略模式（Strategy Pattern）
+
+- `Validator`: 不同的验证策略
+- `Optimizer`: 不同的优化策略
+
+### 4. 访问者模式（Visitor Pattern）
+
+- `PlanNodeVisitor`: 访问计划节点
+- `PlanRewriter`: 重写计划节点
+
+### 5. 枚举模式（Enum Pattern）
+
+- `ValidatorEnum`: 静态分发的验证器枚举
+- `PlannerEnum`: 静态分发的规划器枚举
+- `ExecutorEnum`: 静态分发的执行器枚举
+
+## 性能优化
+
+### 1. 静态分发
+
+使用枚举代替 trait 对象，实现静态分发，避免动态分发的开销。
+
+### 2. 编译期检查
+
+使用常量断言确保 `PlanNodeEnum` 和 `ExecutorEnum` 的变体数量一致，在编译期捕获错误。
+
+### 3. 对象池
+
+使用对象池管理执行器实例，减少内存分配和回收的开销。
+
+### 4. 缓存
+
+- `DecisionCache`: 缓存优化决策
+- `CacheManager`: 缓存表达式求值结果
+
+### 5. 统计信息
+
+使用统计信息指导优化决策，提高查询性能。
+
+## 错误处理
+
+所有模块都使用统一的错误类型 `DBError`，提供详细的错误信息和堆栈跟踪。
+
+## 总结
+
+GraphDB 查询引擎采用经典的管道架构，将查询处理分解为解析、验证、规划、优化和执行五个阶段。每个阶段都有明确的职责边界，通过精心设计的模块间接口进行协作。系统采用多种设计模式和性能优化技术，确保查询处理的高效性和可维护性。
+
+主要特点：
+
+1. **模块化设计**: 每个模块都有明确的职责，易于理解和维护
+2. **静态分发**: 使用枚举代替 trait 对象，提高性能
+3. **编译期检查**: 在编译期捕获错误，提高代码质量
+4. **性能优化**: 使用对象池、缓存等技术提高性能
+5. **可扩展性**: 易于添加新的语句类型、优化策略和执行器
