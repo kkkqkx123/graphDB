@@ -2,6 +2,7 @@
 //!
 //! 负责规划 UNWIND 子句的执行，将列表展开为多行。
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::data_processing_node::UnwindNode;
@@ -76,7 +77,7 @@ mod tests {
 
     #[test]
     fn test_extract_unwind_info() {
-        use crate::query::validator::context::ExpressionAnalysisContext;
+        use ExpressionAnalysisContext;
         use crate::core::Expression;
         use crate::query::parser::ast::Span;
         use std::sync::Arc;

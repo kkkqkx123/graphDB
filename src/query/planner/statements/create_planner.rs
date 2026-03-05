@@ -3,6 +3,7 @@
 //! 处理 Cypher 风格 CREATE 语句的查询规划
 //! 支持 CREATE (n:Label {props}) 和 CREATE (a)-[:Type]->(b) 语法
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::core::Value;
 use crate::core::YieldColumn;
@@ -57,7 +58,7 @@ impl CreatePlanner {
         space_name: String,
         labels: &[String],
         properties: &[(String, ContextualExpression)],
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<VertexInsertInfo, PlannerError> {
         if labels.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
@@ -116,7 +117,7 @@ impl CreatePlanner {
     fn create_yield_columns(
         &self,
         count: usize,
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Vec<YieldColumn> {
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::literal(Value::Int(count as i64)),
@@ -304,7 +305,7 @@ impl CreatePlanner {
     /// 从表达式中提取属性键值对
     fn extract_properties(
         expr: &ContextualExpression,
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<Vec<(String, ContextualExpression)>, PlannerError> {
         if let Some(expr_meta) = expr.expression() {
             if let crate::core::Expression::Map(map) = expr_meta.inner() {
@@ -332,7 +333,7 @@ impl CreatePlanner {
         &self,
         node: &crate::query::parser::ast::pattern::NodePattern,
         space_name: &str,
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<VertexInsertInfo, PlannerError> {
         let props = if let Some(ref expr) = node.properties {
             Self::extract_properties(expr, expr_context)?
@@ -348,7 +349,7 @@ impl CreatePlanner {
         &self,
         path: &crate::query::parser::ast::pattern::PathPattern,
         space_name: &str,
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<(Vec<VertexInsertInfo>, Vec<EdgeInsertInfo>), PlannerError> {
         let mut vertex_infos = Vec::new();
         let mut edge_infos = Vec::new();

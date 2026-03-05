@@ -2,11 +2,12 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::base::{BaseExecutor, ExecutorStats};
-use crate::core::types::expression::{ContextualExpression, context::ExpressionAnalysisContext};
+use crate::core::types::expression::ContextualExpression;
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext as _;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::index::Index;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;

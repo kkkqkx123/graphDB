@@ -578,7 +578,7 @@ mod tests {
 
         // 创建 Filter 节点
         use std::sync::Arc;
-        let ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(
             crate::core::Expression::literal(true),
         );

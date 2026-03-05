@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
-use crate::query::validator::context::ExpressionAnalysisContext as ExprContext;
+use ExpressionAnalysisContext as ExprContext;
 use crate::core::value::dataset::List;
 use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
 

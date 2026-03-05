@@ -5,7 +5,8 @@
 use std::sync::Arc;
 
 use super::plan_node_enum::PlanNodeEnum;
-use crate::core::types::{ContextualExpression, ExpressionAnalysisContext, SerializableExpression};
+use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::define_plan_node_with_deps;
 
 define_plan_node_with_deps! {
@@ -62,7 +63,7 @@ impl FilterNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::context::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use std::sync::Arc;

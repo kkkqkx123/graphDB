@@ -3,7 +3,7 @@
 //! 提供表达式求值过程中的上下文管理
 //!
 //! **注意：** 此上下文用于运行时表达式求值。
-//! 编译时分析请使用 `crate::core::types::expression::context::ExpressionAnalysisContext`。
+//! 编译时分析请使用 `ExpressionAnalysisContext`。
 
 use crate::core::Value;
 use crate::query::executor::expression::evaluation_context::cache_manager::CacheManager;
@@ -18,7 +18,7 @@ use std::collections::HashMap;
 /// - 正则缓存
 ///
 /// **注意：** 此上下文用于运行时表达式求值。
-/// 编译时分析请使用 `crate::core::types::expression::context::ExpressionAnalysisContext`。
+/// 编译时分析请使用 `ExpressionAnalysisContext`。
 #[derive(Debug)]
 pub struct DefaultExpressionContext {
     /// 变量存储

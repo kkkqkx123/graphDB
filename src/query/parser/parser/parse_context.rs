@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core::types::expression::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::{Position, Span};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::lexer::LexError;

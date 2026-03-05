@@ -1,5 +1,6 @@
 //! 合并获取顶点和投影操作的规则
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
@@ -147,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_merge_get_vertices_and_project() {
-        use crate::core::types::expression::ExpressionAnalysisContext;
+        use ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use std::sync::Arc;
 

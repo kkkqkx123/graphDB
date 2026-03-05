@@ -10,6 +10,7 @@
 //! - 易于扩展：新增节点类型时只需实现对应方法
 //! - 与现有架构兼容：利用已有的 PlanNodeVisitor
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{BinaryInputNode, MultipleInputNode, SingleInputNode};
@@ -549,7 +550,7 @@ mod tests {
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
     use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
-    use crate::query::validator::context::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use crate::core::Value;

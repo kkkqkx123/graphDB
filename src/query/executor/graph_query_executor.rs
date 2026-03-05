@@ -3,9 +3,9 @@
 //! 提供图查询语言（Cypher/NGQL）的执行功能
 //! 支持MATCH、CREATE、DELETE等图操作语句
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::core::types::{UserAlterInfo, UserInfo};
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::Value as CoreValue;
 use crate::query::executor::admin as admin_executor;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
@@ -156,7 +156,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let ctx = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let ast = Arc::new(crate::query::parser::ast::Ast::new(Stmt::Match(clause), ctx));
         let validated = ValidatedStatement::new(ast, validation_info);
 
@@ -331,7 +331,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
                 // 创建验证后的语句
                 let validation_info = ValidationInfo::new();
-                let ctx = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+                let ctx = Arc::new(ExpressionAnalysisContext::new());
                 let ast = Arc::new(crate::query::parser::ast::Ast::new(Stmt::Create(clause), ctx));
                 let validated = ValidatedStatement::new(ast, validation_info);
 

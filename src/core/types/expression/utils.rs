@@ -654,7 +654,8 @@ fn extract_aggregate_functions_recursive(
 pub mod test_helpers {
     use super::*;
     use crate::core::types::expression::ContextualExpression;
-    use crate::core::types::expression::{ExpressionAnalysisContext, ExpressionMeta};
+    use crate::core::types::expression::ExpressionMeta;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     pub fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {

@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
@@ -556,7 +557,7 @@ impl MatchValidator {
             for (alias, _alias_type) in &part.aliases_generated {
                 let ctx = ContextualExpression::new(
                     crate::core::types::expression::ExpressionId::new(0),
-                    std::sync::Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new()),
+                    std::sync::Arc::new(ExpressionAnalysisContext::new()),
                 );
                 let col = YieldColumn::new(ctx, alias.clone());
                 columns.push(col);
@@ -829,7 +830,7 @@ impl MatchValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::context::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;

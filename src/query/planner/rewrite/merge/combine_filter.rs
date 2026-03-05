@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::{ContextualExpression, ExpressionAnalysisContext};
+use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -11,6 +11,7 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 合并多个过滤操作的规则
 ///

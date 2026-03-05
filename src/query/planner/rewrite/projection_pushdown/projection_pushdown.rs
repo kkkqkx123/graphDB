@@ -21,6 +21,7 @@
 //! - Project 节点的子节点是数据访问节点（ScanVertices、ScanEdges、GetVertices、GetEdges、GetNeighbors）
 //! - Project 节点有列定义
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::PlanNodeEnum;
@@ -219,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_apply_with_pushable_target() {
-        use crate::core::types::expression::ExpressionAnalysisContext;
+        use ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use std::sync::Arc;
 
@@ -278,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_apply_with_non_pushable_target() {
-        use crate::core::types::expression::ExpressionAnalysisContext;
+        use ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use std::sync::Arc;
 
@@ -315,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_push_down_rule_trait() {
-        use crate::core::types::expression::ExpressionAnalysisContext;
+        use ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use std::sync::Arc;
 

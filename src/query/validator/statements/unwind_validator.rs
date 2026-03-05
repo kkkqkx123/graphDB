@@ -11,6 +11,7 @@
 //!    - 别名引用验证
 //! 3. 使用 QueryContext 统一管理上下文
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::Ast;
@@ -67,7 +68,7 @@ impl UnwindValidator {
         Self {
             unwind_expression: ContextualExpression::new(
                 crate::core::types::expression::ExpressionId::new(0),
-                Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new()),
+                Arc::new(ExpressionAnalysisContext::new()),
             ),
             variable_name: String::new(),
             aliases_available: HashMap::new(),
@@ -453,7 +454,7 @@ impl StatementValidator for UnwindValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::context::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;

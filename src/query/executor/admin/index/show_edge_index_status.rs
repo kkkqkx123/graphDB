@@ -146,7 +146,7 @@ impl<S: StorageClient> HasStorage<S> for ShowEdgeIndexStatusExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::context::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
 

@@ -32,8 +32,8 @@
 //! - AppendVertices 的 nodeAlias 只被引用一次
 //! - Join 的 hash keys 匹配 id() 或 _joinkey() 模式
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionAnalysisContext;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::expression::visitor::ExpressionVisitor;
 use crate::core::types::expression::visitor_collectors::PropertyCollector;

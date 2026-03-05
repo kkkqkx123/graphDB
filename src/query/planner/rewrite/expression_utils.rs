@@ -15,8 +15,8 @@
 //! - 重写操作需要创建新的 Expression
 //! - 新 Expression 必须注册到 ExpressionContext 才能使用
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionAnalysisContext;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::expression::{ConstantChecker, ExpressionVisitor, PropertyCollector, PropertyContainsChecker};
 use crate::core::types::operators::BinaryOperator;

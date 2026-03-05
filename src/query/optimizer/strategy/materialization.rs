@@ -29,6 +29,7 @@
 //! let decision = optimizer.should_materialize(&cte_node);
 //! ```
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::Expression;
 use crate::query::optimizer::analysis::{ExpressionAnalyzer, ReferenceCountAnalyzer};
 use crate::query::optimizer::stats::StatisticsManager;
@@ -480,7 +481,7 @@ mod tests {
 
         // 简单表达式是确定性的
         let simple_expr = Expression::Literal(crate::core::Value::Int(42));
-        let ctx = std::sync::Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
         let meta = crate::core::types::expression::ExpressionMeta::new(simple_expr);
         let id = ctx.register_expression(meta);
         let simple_ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
@@ -492,7 +493,7 @@ mod tests {
             name: "rand".to_string(),
             args: vec![],
         };
-        let ctx2 = std::sync::Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let ctx2 = std::sync::Arc::new(ExpressionAnalysisContext::new());
         let meta2 = crate::core::types::expression::ExpressionMeta::new(nondet_expr);
         let id2 = ctx2.register_expression(meta2);
         let nondet_ctx_expr = crate::core::types::ContextualExpression::new(id2, ctx2);

@@ -2,8 +2,8 @@
 //! 用于验证 WITH 语句（Cypher 风格的管道子句）
 //! 参考 nebula-graph MatchValidator.cpp 中的 With 子句验证
 
-use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, ReturnItem, WithStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;

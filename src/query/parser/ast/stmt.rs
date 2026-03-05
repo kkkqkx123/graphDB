@@ -1473,7 +1473,7 @@ mod tests {
     fn test_find_path_stmt() {
         use std::sync::Arc;
 
-        let expr_context = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let expr = crate::core::types::expression::Expression::Variable("target".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let expr_id = expr_context.register_expression(expr_meta);

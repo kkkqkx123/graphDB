@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionMeta;
@@ -212,7 +213,7 @@ mod tests {
     use super::*;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::Expression;
-    use crate::core::types::expression::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::core::Value;
 
     #[test]

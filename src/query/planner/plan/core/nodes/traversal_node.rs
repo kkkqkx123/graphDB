@@ -5,8 +5,9 @@
 use std::sync::Arc;
 
 use super::super::common::{EdgeProp, TagProp};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::{
-    ContextualExpression, EdgeDirection, ExpressionAnalysisContext, SerializableExpression,
+    ContextualExpression, EdgeDirection, SerializableExpression,
 };
 use crate::core::Expression;
 use crate::define_plan_node;

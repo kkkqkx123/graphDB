@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::core::types::expression::ExpressionAnalysisContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::planner::plan::PlanNodeEnum;
 
 /// 重写上下文

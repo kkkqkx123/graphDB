@@ -3,6 +3,7 @@
 //! 该规则识别 Filter -> ExpandAll 模式，
 //! 并将过滤条件下推到 ExpandAll 节点中。
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
@@ -135,7 +136,7 @@ mod tests {
     #[test]
     fn test_can_push_down() {
         let rule = PushFilterDownExpandAllRule::new();
-        use crate::query::validator::context::ExpressionAnalysisContext;
+        use ExpressionAnalysisContext;
         use std::sync::Arc;
 
         let start = StartNode::new();

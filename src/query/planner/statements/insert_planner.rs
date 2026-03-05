@@ -2,6 +2,7 @@
 //!
 //! 处理 INSERT VERTEX 和 INSERT EDGE 语句的查询规划
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::utils::ExprFactory;
@@ -103,7 +104,7 @@ impl InsertPlanner {
     fn create_yield_columns(
         &self,
         count: usize,
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Vec<YieldColumn> {
         let expr = ExprFactory::constant(
             crate::core::Value::Int(count as i64),
@@ -233,7 +234,7 @@ mod tests {
             target,
             if_not_exists: false,
         };
-        let ctx = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         Arc::new(Ast::new(Stmt::Insert(insert_stmt), ctx))
     }
 
@@ -243,7 +244,7 @@ mod tests {
 
     // 辅助函数：创建常量表达式
     fn lit(val: Value) -> ContextualExpression {
-        let ctx = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         ExprFactory::constant(val, ctx)
     }
 
@@ -369,7 +370,7 @@ mod tests {
     #[test]
     fn test_create_yield_columns() {
         let planner = InsertPlanner::new();
-        let expr_ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let columns = planner.create_yield_columns(5, &expr_ctx);
         assert_eq!(columns.len(), 1);
         assert_eq!(columns[0].alias, "inserted_count");
@@ -442,7 +443,7 @@ mod tests {
             space: "test_space".to_string(),
         });
         let qctx = create_test_qctx();
-        let ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let ast = Arc::new(Ast::new(stmt, ctx));
 
         // 创建验证后的语句

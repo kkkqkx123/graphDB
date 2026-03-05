@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::core::error::{DBError, DBResult};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};

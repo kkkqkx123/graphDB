@@ -9,6 +9,7 @@
 //! - LIMIT/SKIP 分页
 //! - 智能扫描策略选择（索引扫描、属性扫描、全表扫描）
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::core::SymbolTable;
 use crate::core::YieldColumn;
@@ -44,7 +45,7 @@ pub struct PaginationInfo {
 #[derive(Debug, Clone)]
 pub struct MatchStatementPlanner {
     config: MatchPlannerConfig,
-    expr_context: Option<Arc<crate::core::types::expression::context::ExpressionAnalysisContext>>,
+    expr_context: Option<Arc<ExpressionAnalysisContext>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -468,7 +469,7 @@ impl MatchStatementPlanner {
         right: SubPlan,
         left_alias: &str,
         right_alias: &Option<String>,
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<SubPlan, PlannerError> {
         use crate::query::planner::plan::core::nodes::HashInnerJoinNode;
 
@@ -860,7 +861,7 @@ impl MatchStatementPlanner {
         space_id: u64,
         _prev_alias: Option<&str>,
         _validation_info: Option<&ValidationInfo>,
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 规划重复元素的基本计划
         let base_plan = match element {
@@ -912,7 +913,7 @@ impl MatchStatementPlanner {
     fn build_label_filter_expression(
         variable: &Option<String>,
         labels: &[String],
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> ContextualExpression {
         let var_name = variable.as_deref().unwrap_or("n");
         let var_expr = crate::core::Expression::variable(var_name);

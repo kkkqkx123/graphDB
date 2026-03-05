@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use crate::core::types::expression::{
-    ContextualExpression, Expression, ExpressionAnalysisContext, ExpressionMeta,
+    ContextualExpression, Expression, ExpressionMeta,
 };
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::core::types::{Position, Span};
@@ -14,6 +14,7 @@ use crate::core::Value;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::parser::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 表达式解析结果，包含表达式和位置信息
 pub struct ParseResult {

@@ -7,6 +7,7 @@
 //! - 改进 JOIN 键处理
 //! - 添加属性投影支持
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::{ContextualExpression, EdgeDirection};
 use crate::query::parser::ast::{GoStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
@@ -134,7 +135,7 @@ impl GoPlanner {
     /// 构建YIELD列
     fn build_yield_columns(
         go_stmt: &GoStmt,
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<Vec<crate::core::YieldColumn>, PlannerError> {
         let mut columns = Vec::new();
 

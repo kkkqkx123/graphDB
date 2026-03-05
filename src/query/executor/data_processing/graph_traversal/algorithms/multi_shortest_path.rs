@@ -6,8 +6,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::core::error::{DBError, DBResult};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,

@@ -4,7 +4,8 @@
 
 use std::sync::Arc;
 
-use crate::core::types::{ContextualExpression, ExpressionAnalysisContext, SerializableExpression};
+use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::core::YieldColumn;
 use crate::define_plan_node_with_deps;
 
@@ -77,7 +78,7 @@ impl ProjectNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use std::sync::Arc;

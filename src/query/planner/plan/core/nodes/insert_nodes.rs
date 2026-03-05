@@ -2,6 +2,7 @@
 //!
 //! 提供顶点插入和边插入的计划节点定义
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::define_plan_node;
 
@@ -135,7 +136,7 @@ impl InsertEdgesNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::context::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::core::types::expression::{ContextualExpression, ExpressionMeta};
     use crate::core::{Expression, Value};
     use std::sync::Arc;

@@ -7,6 +7,7 @@ use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::sync::Arc;
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::ContextualExpression;
 use crate::core::value::DataSet;
@@ -431,7 +432,7 @@ mod tests {
         };
 
         use std::sync::Arc;
-        let ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         let condition_meta = crate::core::types::ExpressionMeta::new(condition);
         let condition_id = ctx.register_expression(condition_meta);
         let ctx_condition = ContextualExpression::new(condition_id, ctx);

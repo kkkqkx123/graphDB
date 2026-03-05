@@ -3,6 +3,7 @@
 //! 该规则识别 Filter -> GetNeighbors 模式，
 //! 并将过滤条件下推到 GetNeighbors 节点中。
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::ContextualExpression;
@@ -170,7 +171,7 @@ mod tests {
     #[test]
     fn test_can_push_down() {
         let rule = PushFilterDownGetNbrsRule::new();
-        use crate::query::validator::context::ExpressionAnalysisContext;
+        use ExpressionAnalysisContext;
         use std::sync::Arc;
 
         let start = StartNode::new();

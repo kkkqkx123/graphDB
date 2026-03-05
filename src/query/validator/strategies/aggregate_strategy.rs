@@ -267,10 +267,11 @@ impl AggregateValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::{ContextualExpression, ExpressionAnalysisContext, ExpressionMeta};
+    use crate::core::types::expression::{ContextualExpression, ExpressionMeta};
     use crate::core::types::operators::{AggregateFunction, BinaryOperator};
     use crate::core::types::DataType;
     use crate::core::Expression;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     #[test]

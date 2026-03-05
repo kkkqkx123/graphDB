@@ -9,6 +9,7 @@
 //! - **StatementPlanner**：语句级 trait，处理完整语句的规划
 //! - **ClausePlanner**：子句级 trait，处理单个子句的规划
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
@@ -146,7 +147,7 @@ mod tests {
             skip: None,
             optional: false,
         });
-        let ctx = Arc::new(crate::core::types::expression::ExpressionAnalysisContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         Arc::new(Ast::new(stmt, ctx))
     }
 

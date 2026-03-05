@@ -6,8 +6,8 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::error::{DBError, DBResult};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::core::error::{DBError, DBResult};
 use crate::core::value::dataset::List;
 use crate::core::{DataSet, Expression, Path, Value};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;

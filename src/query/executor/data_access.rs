@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::base::{BaseExecutor, ExecutorStats};
-use crate::core::{vertex_edge_path, Value};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::core::{vertex_edge_path, Value};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;

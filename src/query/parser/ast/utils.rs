@@ -4,9 +4,10 @@ use super::pattern::*;
 use super::stmt::*;
 use super::types::*;
 use crate::core::types::expression::{
-    ContextualExpression, Expression, ExpressionAnalysisContext, ExpressionMeta,
+    ContextualExpression, Expression, ExpressionMeta,
 };
 use crate::core::Value;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
 /// 表达式工厂 - 用于创建表达式节点

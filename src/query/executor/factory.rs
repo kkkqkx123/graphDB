@@ -3,6 +3,7 @@
 //! 负责根据执行计划创建对应的执行器实例
 //! 采用直接匹配模式，简单高效，易于维护
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, QueryError};
 use crate::core::{EdgeDirection, Value};
 use crate::query::executor::base::executor_stats::QueryStatsCollector;
@@ -1584,7 +1585,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         }
 
         // 创建执行上下文
-        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let execution_context = ExecutionContext::new(expr_context);
 
         // 递归构建执行树并执行
@@ -1633,7 +1634,7 @@ mod tests {
     fn test_recursion_detector_basic() {
         let mut factory = ExecutorFactory::<MockStorage>::new();
         let storage = Arc::new(Mutex::new(MockStorage));
-        let expr_context = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let context = ExecutionContext::new(expr_context);
 
         let start_node =

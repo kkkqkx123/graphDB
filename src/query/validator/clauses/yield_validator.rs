@@ -11,8 +11,8 @@
 //!    - DISTINCT 验证
 //! 3. 使用 QueryContext 统一管理上下文
 
-use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::YieldColumn;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::structs::validation_info::ValidationInfo;

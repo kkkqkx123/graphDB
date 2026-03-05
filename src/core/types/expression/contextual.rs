@@ -6,10 +6,9 @@
 use std::sync::Arc;
 
 use super::{Expression, ExpressionId, ExpressionMeta};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::DataType;
 use crate::core::Value;
-use crate::query::validator::context::ExpressionAnalysisContext;
-
 /// 增强的表达式元数据，包含查询上下文引用
 ///
 /// 轻量级的表达式引用，持有 ExpressionId 和 Context 引用。

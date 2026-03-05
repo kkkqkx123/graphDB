@@ -3,7 +3,7 @@
 //! 为图数据库表达式求值提供统一的上下文接口
 //!
 //! **注意：** 此 trait 用于运行时表达式求值。
-//! 编译时分析请使用 `crate::core::types::expression::context::ExpressionAnalysisContext`。
+//! 编译时分析请使用 `ExpressionAnalysisContext`。
 
 use crate::core::Value;
 use crate::query::executor::expression::functions::FunctionRef;
@@ -13,7 +13,7 @@ use crate::query::executor::expression::functions::FunctionRef;
 /// 为图数据库表达式求值提供统一的上下文接口
 ///
 /// **注意：** 此 trait 用于运行时表达式求值。
-/// 编译时分析请使用 `crate::core::types::expression::context::ExpressionAnalysisContext`。
+/// 编译时分析请使用 `ExpressionAnalysisContext`。
 pub trait ExpressionContext {
     /// 获取变量值
     fn get_variable(&self, name: &str) -> Option<Value>;

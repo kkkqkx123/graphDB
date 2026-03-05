@@ -1,6 +1,7 @@
 //! 类型检查工具
 //! 负责表达式类型推导、类型验证和类型兼容性检查
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::DataType;
 use crate::core::Expression;
@@ -608,7 +609,7 @@ mod tests {
     use super::*;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::Expression;
-    use crate::core::types::expression::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use std::sync::Arc;
 

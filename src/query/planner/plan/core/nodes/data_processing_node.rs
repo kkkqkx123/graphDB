@@ -597,8 +597,9 @@ mod tests {
             );
 
         use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionAnalysisContext, ExpressionMeta,
+            ContextualExpression, Expression, ExpressionMeta,
         };
+        use crate::query::validator::context::ExpressionAnalysisContext;
         use std::sync::Arc;
 
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());

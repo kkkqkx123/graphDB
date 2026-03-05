@@ -8,6 +8,7 @@
 
 use std::sync::Arc;
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::EdgeDirection;
 use crate::core::Expression;
 use crate::query::parser::ast::stmt::Steps;
@@ -168,7 +169,7 @@ impl SubgraphPlanner {
         &self,
         input: PlanNodeEnum,
         filters: &[Expression],
-        expr_context: &Arc<crate::core::types::expression::context::ExpressionAnalysisContext>,
+        expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<PlanNodeEnum, PlannerError> {
         let mut current = input;
 

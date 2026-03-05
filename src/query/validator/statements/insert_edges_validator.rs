@@ -2,6 +2,7 @@
 //! 对应 NebulaGraph InsertEdgesValidator 的功能
 //! 验证 INSERT EDGES 语句的语义正确性
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
@@ -406,7 +407,7 @@ impl StatementValidator for InsertEdgesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::context::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;

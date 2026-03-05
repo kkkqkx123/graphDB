@@ -11,8 +11,8 @@
 //!    - 表达式引用收集
 //! 3. 使用 QueryContext 统一管理上下文
 
-use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::context::ExpressionAnalysisContext;
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::OrderDirection;
 use crate::query::parser::ast::stmt::Ast;

@@ -1,6 +1,7 @@
 //! 表达式操作验证器
 //! 负责验证表达式的操作合法性和结构完整性
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::DataType;
@@ -223,7 +224,7 @@ impl ExpressionOperationsValidator {
 
         // 创建临时 ContextualExpression 用于类型推导
         let ctx =
-            std::sync::Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+            std::sync::Arc::new(ExpressionAnalysisContext::new());
         let meta = crate::core::types::expression::ExpressionMeta::new(arg.clone());
         let id = ctx.register_expression(meta);
         let contextual_arg = ContextualExpression::new(id, ctx);
@@ -284,7 +285,7 @@ impl ExpressionOperationsValidator {
 
         // 创建临时 ContextualExpression 用于类型推导
         let ctx =
-            std::sync::Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+            std::sync::Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expression.clone());
         let expr_id = ctx.register_expression(expr_meta);
         let contextual_expr = ContextualExpression::new(expr_id, ctx.clone());
@@ -666,8 +667,9 @@ impl ExpressionOperationsValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::{ContextualExpression, ExpressionAnalysisContext, ExpressionMeta};
+    use crate::core::types::expression::{ContextualExpression, ExpressionMeta};
     use crate::core::{Expression, Value};
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     /// 从 Expression 创建 ContextualExpression

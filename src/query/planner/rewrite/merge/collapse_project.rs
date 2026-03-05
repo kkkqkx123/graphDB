@@ -1,8 +1,8 @@
 //! 折叠多个投影操作的规则
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
-use crate::core::types::expression::ExpressionAnalysisContext;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::YieldColumn;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -279,7 +279,7 @@ impl MergeRule for CollapseProjectRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::ExpressionAnalysisContext;
+    use ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::YieldColumn;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;

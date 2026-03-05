@@ -5,8 +5,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use super::execution_result::ExecutionResult;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 执行上下文
 ///

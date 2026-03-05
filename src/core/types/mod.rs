@@ -62,8 +62,7 @@ pub use self::metadata::{
 };
 
 pub use self::expression::{
-    ContextualExpression, Expression, ExpressionAnalysisContext, ExpressionMeta, OptimizationFlags,
-    SerializableExpression,
+    ContextualExpression, Expression, ExpressionMeta, SerializableExpression,
 };
 pub use self::graph_schema::{
     EdgeDirection, EdgeTypeRef, GraphTypeInference, JoinType, OrderDirection, PathInfo,

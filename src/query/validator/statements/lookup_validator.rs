@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
@@ -527,7 +528,7 @@ mod tests {
     }
 
     fn create_test_ast(stmt: Stmt) -> Arc<Ast> {
-        let ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
         Arc::new(Ast::new(stmt, ctx))
     }
 

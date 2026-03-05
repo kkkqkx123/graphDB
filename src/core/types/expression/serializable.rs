@@ -5,9 +5,9 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use super::context::ExpressionAnalysisContext;
 use super::contextual::ContextualExpression;
 use super::{Expression, ExpressionId, ExpressionMeta};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::DataType;
 use crate::core::Value;
 

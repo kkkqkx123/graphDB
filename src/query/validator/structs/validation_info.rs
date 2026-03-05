@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::Span;
 use crate::query::parser::ast::stmt::Ast;
@@ -52,7 +53,7 @@ impl ValidatedStatement {
     }
 
     /// 获取表达式上下文
-    pub fn expr_context(&self) -> &Arc<crate::core::types::expression::context::ExpressionAnalysisContext> {
+    pub fn expr_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.ast.expr_context
     }
 }
