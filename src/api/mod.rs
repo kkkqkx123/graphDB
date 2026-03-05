@@ -3,7 +3,7 @@
 //! 提供多种访问方式：
 //! - `core` - 核心 API（与传输层无关）
 //! - `server` - 网络服务 API（HTTP）
-//! - `embedded` - 嵌入式 API（单机使用，包含 C API）
+//! - `embedded` - 嵌入式 API（单机使用）
 
 use log::info;
 use std::sync::Arc;

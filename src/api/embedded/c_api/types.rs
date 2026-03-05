@@ -116,7 +116,7 @@ pub struct graphdb_string_t {
 
 /// 值结构
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct graphdb_value_t {
     /// 值类型
     pub type_: graphdb_value_type_t,
@@ -126,7 +126,7 @@ pub struct graphdb_value_t {
 
 /// 值数据联合体
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub union graphdb_value_data_t {
     /// 布尔值
     pub boolean: bool,
@@ -139,9 +139,6 @@ pub union graphdb_value_data_t {
     /// 指针
     pub ptr: *mut c_void,
 }
-
-unsafe impl Send for graphdb_value_data_t {}
-unsafe impl Sync for graphdb_value_data_t {}
 
 /// 数据库配置
 #[repr(C)]

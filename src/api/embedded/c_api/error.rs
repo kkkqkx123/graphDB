@@ -2,7 +2,7 @@
 //!
 //! 提供错误码转换和错误信息管理功能
 
-use crate::api::embedded::c_api::types::graphdb_error_code_t;
+use crate::api::c_api::types::graphdb_error_code_t;
 use crate::api::core::CoreError;
 use std::ffi::CString;
 
@@ -11,11 +11,23 @@ pub fn error_code_from_core_error(error: &CoreError) -> i32 {
     match error {
         CoreError::StorageError(_) => graphdb_error_code_t::GRAPHDB_IOERR as i32,
         CoreError::QueryExecutionFailed(_) => graphdb_error_code_t::GRAPHDB_ERROR as i32,
-        CoreError::TransactionFailed(_) => graphdb_error_code_t::GRAPHDB_ABORT as i32,
-        CoreError::SchemaOperationFailed(_) => graphdb_error_code_t::GRAPHDB_SCHEMA as i32,
+        CoreError::ValidationError(_) => graphdb_error_code_t::GRAPHDB_CONSTRAINT as i32,
+        CoreError::TransactionError(_) => graphdb_error_code_t::GRAPHDB_ABORT as i32,
+        CoreError::SchemaError(_) => graphdb_error_code_t::GRAPHDB_SCHEMA as i32,
         CoreError::Internal(_) => graphdb_error_code_t::GRAPHDB_INTERNAL as i32,
-        CoreError::NotFound(_) => graphdb_error_code_t::GRAPHDB_NOTFOUND as i32,
-        CoreError::InvalidParameter(_) => graphdb_error_code_t::GRAPHDB_MISUSE as i32,
+        CoreError::NotFound => graphdb_error_code_t::GRAPHDB_NOTFOUND as i32,
+        CoreError::PermissionDenied => graphdb_error_code_t::GRAPHDB_PERM as i32,
+        CoreError::Timeout => graphdb_error_code_t::GRAPHDB_BUSY as i32,
+        CoreError::LockError => graphdb_error_code_t::GRAPHDB_LOCKED as i32,
+        CoreError::OutOfMemory => graphdb_error_code_t::GRAPHDB_NOMEM as i32,
+        CoreError::ReadOnly => graphdb_error_code_t::GRAPHDB_READONLY as i32,
+        CoreError::InvalidInput => graphdb_error_code_t::GRAPHDB_MISUSE as i32,
+        CoreError::OutOfRange => graphdb_error_code_t::GRAPHDB_RANGE as i32,
+        CoreError::TypeMismatch => graphdb_error_code_t::GRAPHDB_MISMATCH as i32,
+        CoreError::CorruptedData => graphdb_error_code_t::GRAPHDB_CORRUPT as i32,
+        CoreError::DiskFull => graphdb_error_code_t::GRAPHDB_FULL as i32,
+        CoreError::CannotOpen => graphdb_error_code_t::GRAPHDB_CANTOPEN as i32,
+        CoreError::ProtocolError => graphdb_error_code_t::GRAPHDB_PROTOCOL as i32,
     }
 }
 
