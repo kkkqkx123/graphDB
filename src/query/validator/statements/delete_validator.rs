@@ -600,7 +600,7 @@ mod tests {
     use crate::core::types::expression::context::ExpressionAnalysisContext;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
-    use crate::query::parser::ast::stmt::{Ast, DeleteStmt, DeleteTarget};
+    use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
     use crate::query::parser::ast::Span;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {

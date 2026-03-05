@@ -2,72 +2,60 @@
 
 ## Summary
 
-- **Total Errors**: 7
-- **Total Warnings**: 0
-- **Total Issues**: 7
-- **Unique Error Patterns**: 4
-- **Unique Warning Patterns**: 0
-- **Files with Issues**: 3
+- **Total Errors**: 9
+- **Total Warnings**: 2
+- **Total Issues**: 11
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 1
+- **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 7
+**Total Errors**: 9
 
 ### Error Type Breakdown
 
-- **error[E0061]**: 4 errors
-- **error[E0425]**: 1 errors
-- **error[E0308]**: 1 errors
-- **error[E0507]**: 1 errors
+- **error[E0596]**: 9 errors
 
 ### Files with Errors (Top 10)
 
-- `src\api\server\permission\permission_checker.rs`: 4 errors
-- `src\query\planner\statements\insert_planner.rs`: 2 errors
-- `src\query\parser\parser\tests.rs`: 1 errors
+- `src\query\validator\statements\insert_edges_validator.rs`: 9 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 2
+
+### Warning Type Breakdown
+
+- **warning**: 2 warnings
+
+### Files with Warnings (Top 10)
+
+- `src\query\validator\statements\insert_edges_validator.rs`: 2 warnings
 
 ## Detailed Error Categorization
 
-### error[E0061]: this method takes 4 arguments but 3 arguments were supplied
+### error[E0596]: cannot borrow `validator` as mutable, as it is not declared as mutable: cannot borrow as mutable
 
-**Total Occurrences**: 4  
+**Total Occurrences**: 9  
 **Unique Files**: 1
 
-#### `src\api\server\permission\permission_checker.rs`: 4 occurrences
+#### `src\query\validator\statements\insert_edges_validator.rs`: 9 occurrences
 
-- Line 542: this method takes 4 arguments but 3 arguments were supplied
-- Line 613: this method takes 4 arguments but 3 arguments were supplied
-- Line 616: this method takes 4 arguments but 3 arguments were supplied
-- ... 1 more occurrences in this file
+- Line 471: cannot borrow `validator` as mutable, as it is not declared as mutable: cannot borrow as mutable
+- Line 493: cannot borrow `validator` as mutable, as it is not declared as mutable: cannot borrow as mutable
+- Line 514: cannot borrow `validator` as mutable, as it is not declared as mutable: cannot borrow as mutable
+- ... 6 more occurrences in this file
 
-### error[E0425]: cannot find value `ast` in this scope: not found in this scope
+## Detailed Warning Categorization
 
-**Total Occurrences**: 1  
+### warning: variable does not need to be mutable
+
+**Total Occurrences**: 2  
 **Unique Files**: 1
 
-#### `src\query\planner\statements\insert_planner.rs`: 1 occurrences
+#### `src\query\validator\statements\insert_edges_validator.rs`: 2 occurrences
 
-- Line 448: cannot find value `ast` in this scope: not found in this scope
-
-### error[E0308]: mismatched types: expected `&Stmt`, found `&Arc<Ast>`
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\query\planner\statements\insert_planner.rs`: 1 occurrences
-
-- Line 305: mismatched types: expected `&Stmt`, found `&Arc<Ast>`
-
-### error[E0507]: cannot move out of an `Arc`: move occurs because value has type `stmt::Stmt`, which does not implement the `Copy` trait
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\query\parser\parser\tests.rs`: 1 occurrences
-
-- Line 11: cannot move out of an `Arc`: move occurs because value has type `stmt::Stmt`, which does not implement the `Copy` trait
+- Line 646: variable does not need to be mutable
+- Line 665: variable does not need to be mutable
 

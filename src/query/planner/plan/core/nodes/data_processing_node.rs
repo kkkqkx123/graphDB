@@ -546,28 +546,6 @@ impl super::plan_node_traits::SingleInputNode for PatternApplyNode {
     }
 }
 
-/// Materialize节点 - 物化操作
-///
-/// Materialize节点将子计划的结果物化到内存中，避免重复计算。
-/// 通常用于CTE（Common Table Expression）或被多次引用的子表达式。
-///
-/// # 使用场景
-///
-/// - CTE被多次引用时
-/// - 复杂子表达式被多次计算时
-/// - 需要确保表达式只执行一次时
-///
-/// # 注意事项
-///
-/// - 物化会增加内存使用
-/// - 对于大结果集，物化可能不如重新计算高效
-/// - 物化的子计划必须是确定性的（不含rand()、now()等）
-///
-/// # 示例
-///
-/// ```ignore
-/// let materialize_node = MaterializeNode::new(input_plan).unwrap();
-/// ```
 define_plan_node_with_deps! {
     pub struct MaterializeNode {
     }

@@ -38,6 +38,8 @@ impl Planner for GoPlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
+        let _ = qctx;
+        
         let go_stmt = match validated.stmt() {
             Stmt::Go(go_stmt) => go_stmt,
             _ => {

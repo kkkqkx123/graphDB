@@ -344,7 +344,7 @@ mod tests {
 
         let mut validator = LimitValidator::new().set_limit(ctx_expr);
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),

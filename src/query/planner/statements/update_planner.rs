@@ -42,6 +42,8 @@ impl Planner for UpdatePlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
+        let _ = qctx;
+        
         // 使用验证信息进行优化规划
         let validation_info = &validated.validation_info;
 

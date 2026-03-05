@@ -29,6 +29,8 @@ impl Planner for FetchEdgesPlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
+        let _ = qctx;
+        
         let fetch_stmt = match validated.stmt() {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {

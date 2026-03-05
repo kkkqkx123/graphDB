@@ -138,7 +138,6 @@ impl MatchStatementPlanner {
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let stmt = validated.stmt();
-        let expr_ctx = validated.ast.expr_context().clone();
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
                 // 使用验证信息优化规划
@@ -235,26 +234,14 @@ impl MatchStatementPlanner {
 
                             plan = if let Some(existing_root) = plan.root.take() {
                                 if let Some(ref alias) = prev_node_alias {
-                                    // 如果有前一个节点，使用连接
-                                    if let Some(ref validated) = validation_info {
-                                        self.join_node_plans(
-                                            SubPlan::new(Some(existing_root), plan.tail),
-                                            node_plan,
-                                            alias,
-                                            &node.variable,
-                                            self.expr_context.as_ref().unwrap(),
-                                        )?
-                                    } else {
-                                        self.join_node_plans(
-                                            SubPlan::new(Some(existing_root), plan.tail),
-                                            node_plan,
-                                            alias,
-                                            &node.variable,
-                                            self.expr_context.as_ref().unwrap(),
-                                        )?
-                                    }
+                                    self.join_node_plans(
+                                        SubPlan::new(Some(existing_root), plan.tail),
+                                        node_plan,
+                                        alias,
+                                        &node.variable,
+                                        self.expr_context.as_ref().unwrap(),
+                                    )?
                                 } else {
-                                    // 第一个节点，使用交叉连接
                                     self.cross_join_plans(
                                         SubPlan::new(Some(existing_root), plan.tail),
                                         node_plan,

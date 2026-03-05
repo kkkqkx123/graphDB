@@ -302,7 +302,7 @@ mod tests {
         };
         let stmt = create_test_stmt_with_insert(target.clone());
         let result = planner
-            .extract_insert_stmt(&stmt)
+            .extract_insert_stmt(&stmt.as_ref().stmt)
             .expect("Failed to extract insert statement");
         assert_eq!(result.target, target);
     }
@@ -442,6 +442,8 @@ mod tests {
             space: "test_space".to_string(),
         });
         let qctx = create_test_qctx();
+        let ctx = Arc::new(crate::core::types::expression::context::ExpressionAnalysisContext::new());
+        let ast = Arc::new(Ast::new(stmt, ctx));
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();

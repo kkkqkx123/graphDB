@@ -539,7 +539,7 @@ mod tests {
         assert!(checker.can_write_data(&god_session, 1).is_ok());
         assert!(checker.can_write_user(&god_session).is_ok());
         assert!(checker
-            .can_write_role(&god_session, 1, RoleType::Admin)
+            .can_write_role(&god_session, 1, "admin", RoleType::Admin)
             .is_ok());
     }
 
@@ -610,14 +610,14 @@ mod tests {
 
         // Admin 可以授予 User 和 Guest 角色
         assert!(checker
-            .can_write_role(&admin_session, 1, RoleType::User)
+            .can_write_role(&admin_session, 1, "user1", RoleType::User)
             .is_ok());
         assert!(checker
-            .can_write_role(&admin_session, 1, RoleType::Guest)
+            .can_write_role(&admin_session, 1, "guest1", RoleType::Guest)
             .is_ok());
         // Admin 不能授予 Admin 或 God 角色
         assert!(checker
-            .can_write_role(&admin_session, 1, RoleType::Admin)
+            .can_write_role(&admin_session, 1, "admin2", RoleType::Admin)
             .is_err());
     }
 }

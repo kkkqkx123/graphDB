@@ -38,6 +38,8 @@ impl Planner for SubgraphPlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
+        let _ = qctx;
+        
         let subgraph_stmt = match validated.stmt() {
             Stmt::Subgraph(subgraph_stmt) => subgraph_stmt,
             _ => {

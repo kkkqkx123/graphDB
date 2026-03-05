@@ -472,7 +472,7 @@ mod tests {
         let reference_count_analyzer = ReferenceCountAnalyzer::new();
         let expression_analyzer = ExpressionAnalyzer::new();
         let stats_manager = StatisticsManager::new();
-        let optimizer = MaterializationOptimizer::new(
+        let _optimizer = MaterializationOptimizer::new(
             &reference_count_analyzer,
             &expression_analyzer,
             &stats_manager,

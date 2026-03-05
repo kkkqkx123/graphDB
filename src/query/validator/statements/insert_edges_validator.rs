@@ -467,7 +467,7 @@ mod tests {
             )))],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -489,7 +489,7 @@ mod tests {
             ],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -510,7 +510,7 @@ mod tests {
             )))],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -529,7 +529,7 @@ mod tests {
             vec![],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -548,7 +548,7 @@ mod tests {
             vec![],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -569,7 +569,7 @@ mod tests {
             vec![],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_ok());
     }
@@ -586,7 +586,7 @@ mod tests {
             vec![],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_ok());
     }
@@ -603,7 +603,7 @@ mod tests {
             vec![],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -624,7 +624,7 @@ mod tests {
             vec![],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_ok());
     }
@@ -643,7 +643,7 @@ mod tests {
             vec![],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_ok());
     }
@@ -662,7 +662,7 @@ mod tests {
             vec![],
         );
 
-        let mut qctx = create_test_query_context();
+        let qctx = create_test_query_context();
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
