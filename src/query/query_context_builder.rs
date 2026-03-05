@@ -147,11 +147,11 @@ mod tests {
         let space_info = SpaceInfo {
             space_id: 1,
             space_name: "test_space".to_string(),
-            partition_num: 10,
-            replica_factor: 1,
-            vid_type: crate::core::types::VidType::Int64,
-            charset_name: "utf8".to_string(),
-            collate_name: "utf8_bin".to_string(),
+            vid_type: crate::core::types::DataType::Int64,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: crate::core::types::MetadataVersion::default(),
+            comment: None,
         };
 
         let query_context = QueryContextBuilder::new(rctx)
@@ -209,11 +209,11 @@ mod tests {
         let space_info = SpaceInfo {
             space_id: 1,
             space_name: "test_space".to_string(),
-            partition_num: 10,
-            replica_factor: 1,
-            vid_type: crate::core::types::VidType::Int64,
-            charset_name: "utf8".to_string(),
-            collate_name: "utf8_bin".to_string(),
+            vid_type: crate::core::types::DataType::Int64,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: crate::core::types::MetadataVersion::default(),
+            comment: None,
         };
 
         let query_context = QueryContextBuilder::new(rctx)

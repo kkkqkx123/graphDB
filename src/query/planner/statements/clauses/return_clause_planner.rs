@@ -11,6 +11,7 @@ use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::validator::helpers::generate_default_alias_from_contextual;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -49,7 +50,7 @@ fn extract_distinct_flag(stmt: &Stmt) -> bool {
     false
 }
 
-fn extract_return_columns(stmt: &Stmt, _qctx: &Arc<QueryContext>) -> Result<Vec<YieldColumn>, PlannerError> {
+fn extract_return_columns(stmt: &Stmt) -> Result<Vec<YieldColumn>, PlannerError> {
     let mut columns = Vec::new();
 
     if let Stmt::Match(match_stmt) = stmt {
@@ -83,40 +84,6 @@ fn extract_return_columns(stmt: &Stmt, _qctx: &Arc<QueryContext>) -> Result<Vec<
     Ok(columns)
 }
 
-/// 从 ContextualExpression 生成默认别名
-/// 注意：此方法违反了设计原则，应该在 Parser 或 Validator 层完成别名生成
-/// TODO: 将此逻辑移到 Parser 或 Validator 层
-fn generate_default_alias_from_contextual(
-    expression: &crate::core::types::expression::contextual::ContextualExpression,
-) -> String {
-    // 优先使用变量名
-    if let Some(var_name) = expression.as_variable() {
-        return var_name;
-    }
-
-    // 函数调用使用函数名
-    if let Some(func_name) = expression.as_function_name() {
-        return func_name.to_lowercase();
-    }
-
-    // 聚合函数使用函数名
-    if expression.is_aggregate() {
-        // 聚合函数名无法直接获取，使用默认值
-        return "agg".to_string();
-    }
-
-    // 属性访问
-    if expression.is_property() {
-        if let Some(prop_name) = expression.as_property_name() {
-            // 属性访问的对象无法直接获取，使用默认格式
-            return format!("prop.{}", prop_name);
-        }
-    }
-
-    // 其他情况使用默认值
-    "expr".to_string()
-}
-
 impl ClausePlanner for ReturnClausePlanner {
     fn clause_kind(&self) -> CypherClauseKind {
         CypherClauseKind::Return
@@ -124,11 +91,11 @@ impl ClausePlanner for ReturnClausePlanner {
 
     fn transform_clause(
         &self,
-        qctx: Arc<QueryContext>,
+        _qctx: Arc<QueryContext>,
         stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        let yield_columns = extract_return_columns(stmt, &qctx)?;
+        let yield_columns = extract_return_columns(stmt)?;
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("RETURN 子句需要输入计划".to_string())
@@ -226,17 +193,7 @@ mod tests {
             optional: false,
         });
 
-        let qctx = Arc::new(crate::query::QueryContext::new(
-            Arc::new(crate::query::query_request_context::QueryRequestContext {
-                session_id: None,
-                user_name: None,
-                space_name: None,
-                query: String::new(),
-                parameters: std::collections::HashMap::new(),
-            })
-        ));
-
-        let columns = extract_return_columns(&match_stmt, &qctx).expect("提取失败");
+        let columns = extract_return_columns(&match_stmt).expect("提取失败");
         assert_eq!(columns.len(), 1);
         assert_eq!(columns[0].alias, "n");
     }
@@ -262,17 +219,7 @@ mod tests {
             optional: false,
         });
 
-        let qctx = Arc::new(crate::query::QueryContext::new(
-            Arc::new(crate::query::query_request_context::QueryRequestContext {
-                session_id: None,
-                user_name: None,
-                space_name: None,
-                query: String::new(),
-                parameters: std::collections::HashMap::new(),
-            })
-        ));
-
-        let result = extract_return_columns(&match_stmt, &qctx);
+        let result = extract_return_columns(&match_stmt);
         assert!(result.is_err());
     }
 

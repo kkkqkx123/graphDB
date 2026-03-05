@@ -31,16 +31,6 @@ impl ExecutionContext {
         }
     }
 
-    /// 创建新的执行上下文（向后兼容）
-    #[deprecated(note = "请使用 new(Arc<ExpressionContext>) 替代")]
-    pub fn new_with_default_context() -> Self {
-        Self {
-            results: HashMap::new(),
-            variables: HashMap::new(),
-            expression_context: Arc::new(ExpressionAnalysisContext::new()),
-        }
-    }
-
     /// 设置中间结果
     pub fn set_result(&mut self, name: String, result: ExecutionResult) {
         self.results.insert(name, result);

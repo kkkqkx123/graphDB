@@ -15,6 +15,7 @@ use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEn
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::validator::helpers::extract_group_info;
 use crate::query::validator::structs::{
     AliasType, CypherClauseKind, OrderByClauseContext, PaginationContext, WithClauseContext,
 };
@@ -209,12 +210,11 @@ impl ClausePlanner for WithClausePlanner {
 
     fn transform_clause(
         &self,
-        qctx: Arc<QueryContext>,
+        _qctx: Arc<QueryContext>,
         stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        // 从语句中提取 WITH 子句信息
-        let with_ctx = Self::extract_with_context(stmt, &qctx)?;
+        let with_ctx = Self::extract_with_context(stmt)?;
         self.plan_with_clause(&with_ctx, &input_plan)
     }
 }
@@ -230,7 +230,6 @@ impl WithClausePlanner {
     /// - 处理聚合表达式和分组键
     fn extract_with_context(
         stmt: &Stmt,
-        qctx: &Arc<QueryContext>,
     ) -> Result<WithClauseContext, PlannerError> {
         use crate::core::YieldColumn;
         use crate::query::parser::ast::Stmt;
@@ -280,7 +279,7 @@ impl WithClausePlanner {
 
         // 提取分组键和聚合项
         let (group_keys, group_items) = if has_agg {
-            Self::extract_group_info(&yield_columns, qctx)
+            extract_group_info(&yield_columns)
         } else {
             (vec![], vec![])
         };
@@ -349,40 +348,6 @@ impl WithClausePlanner {
             query_parts: vec![],
             errors: vec![],
         })
-    }
-
-    /// 提取分组信息
-    ///
-    /// 从 YieldColumn 列表中提取分组键和聚合项
-    /// 注意：此方法违反了设计原则，应该在 Validator 层完成分组信息的提取
-    /// TODO: 将此逻辑移到 Validator 层，Planner 层只使用已注册的 ContextualExpression
-    fn extract_group_info(
-        yield_columns: &[YieldColumn],
-        _qctx: &Arc<QueryContext>,
-    ) -> (
-        Vec<crate::core::types::expression::contextual::ContextualExpression>,
-        Vec<crate::core::types::expression::contextual::ContextualExpression>,
-    ) {
-        let mut group_keys = Vec::new();
-        let mut group_items = Vec::new();
-
-        for column in yield_columns {
-            // 直接使用 YieldColumn 中的 ContextualExpression
-            // 不再创建新的 Expression，避免违反设计原则
-            if column.expression.contains_aggregate() {
-                // 包含聚合函数的表达式作为分组项
-                group_items.push(column.expression.clone());
-            } else {
-                // 不包含聚合函数的表达式作为分组键
-                group_keys.push(column.expression.clone());
-            }
-        }
-
-        // 去重
-        group_keys.dedup_by(|a, b| a.equals_by_content(b));
-        group_items.dedup_by(|a, b| a.equals_by_content(b));
-
-        (group_keys, group_items)
     }
 
     /// 推断别名类型

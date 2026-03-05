@@ -50,9 +50,6 @@ pub use result_processing::transformations::{
 // Re-export logic executors (循环控制执行器)
 pub use logic::{ForLoopExecutor, LoopExecutor, WhileLoopExecutor};
 
-// Re-export LoopState (已废弃，请使用 crate::query::core::LoopExecutionState)
-pub use logic::LoopState;
-
 // Re-export core execution states
 pub use crate::query::core::{ExecutorState, LoopExecutionState, QueryExecutionState, RowStatus};
 
