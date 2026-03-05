@@ -42,13 +42,21 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["processthreadsapi", "psapi", "sysinfoapi", "fileapi", "minwinbase"] }
 
+[lib]
+name = "graphdb"
+crate-type = ["cdylib", "rlib"]
+
 [features]
 default = ["redb", "embedded", "server"]
 redb = ["dep:redb"]
 embedded = []
 server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http"]
+c_api = ["embedded"]
 system_monitor = []
 executor_internal = []
+
+[build-dependencies]
+cbindgen = "0.29"
 
 [dev-dependencies]
 tokio-test = "0.4.4"

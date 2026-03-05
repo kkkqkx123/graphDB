@@ -39,6 +39,10 @@ pub mod session;
 pub mod statement;
 pub mod transaction;
 
+// C API 模块（通过 c_api 特性启用）
+#[cfg(feature = "c_api")]
+pub mod c_api;
+
 // 重新导出主要类型
 pub use batch::{BatchConfig, BatchError, BatchInserter, BatchItemType, BatchResult};
 pub use config::{DatabaseConfig, SyncMode};
