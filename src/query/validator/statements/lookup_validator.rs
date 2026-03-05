@@ -5,12 +5,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::{Stmt, YieldItem};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::validation_info::{
     IndexHint, OptimizationHint, ValidationInfo,
 };

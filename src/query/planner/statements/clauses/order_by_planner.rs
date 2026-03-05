@@ -2,7 +2,6 @@
 //!
 //! 负责规划 ORDER BY 子句的执行，对结果进行排序。
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::OrderByItem;
@@ -11,6 +10,7 @@ use crate::query::planner::plan::core::nodes::sort_node::{SortItem, SortNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -84,13 +84,13 @@ impl ClausePlanner for OrderByClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
-    use crate::core::Expression;
     use crate::core::types::OrderDirection;
+    use crate::core::Expression;
     use crate::query::parser::ast::{OrderByItem, Span};
     use crate::query::planner::plan::core::nodes::StartNode;
     use crate::query::planner::plan::core::PlanNodeEnum;
     use std::sync::Arc;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_order_by_clause_planner_creation() {
@@ -205,15 +205,15 @@ mod tests {
         };
 
         let planner = OrderByClausePlanner::new();
-        let qctx = Arc::new(crate::query::QueryContext::new(
-            Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &match_stmt, input_plan);
         assert!(result.is_ok());
@@ -248,15 +248,15 @@ mod tests {
         };
 
         let planner = OrderByClausePlanner::new();
-        let qctx = Arc::new(crate::query::QueryContext::new(
-            Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &match_stmt, input_plan);
         assert!(result.is_ok());
@@ -296,15 +296,15 @@ mod tests {
         };
 
         let planner = OrderByClausePlanner::new();
-        let qctx = Arc::new(crate::query::QueryContext::new(
-            Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &match_stmt, input_plan);
         assert!(result.is_err());

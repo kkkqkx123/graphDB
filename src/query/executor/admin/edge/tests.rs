@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::core::types::PropertyDef;
     use crate::core::DataType;
     use crate::query::executor::admin::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem};
@@ -10,6 +9,7 @@ mod tests {
         ShowEdgesExecutor,
     };
     use crate::query::executor::Executor;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
     use parking_lot::Mutex;
     use std::sync::Arc;
@@ -45,7 +45,8 @@ mod tests {
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string());
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let mut executor = CreateEdgeExecutor::with_if_not_exists(2, storage, edge_info, expr_context);
+        let mut executor =
+            CreateEdgeExecutor::with_if_not_exists(2, storage, edge_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -77,8 +78,13 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor =
-            DropEdgeExecutor::new(4, storage, "test_space".to_string(), "knows".to_string(), expr_context);
+        let mut executor = DropEdgeExecutor::new(
+            4,
+            storage,
+            "test_space".to_string(),
+            "knows".to_string(),
+            expr_context,
+        );
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -112,8 +118,13 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor =
-            DescEdgeExecutor::new(6, storage, "test_space".to_string(), "knows".to_string(), expr_context);
+        let mut executor = DescEdgeExecutor::new(
+            6,
+            storage,
+            "test_space".to_string(),
+            "knows".to_string(),
+            expr_context,
+        );
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -125,7 +136,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = ShowEdgesExecutor::new(7, storage, "test_space".to_string(), expr_context);
+        let mut executor =
+            ShowEdgesExecutor::new(7, storage, "test_space".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());

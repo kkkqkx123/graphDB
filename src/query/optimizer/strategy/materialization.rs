@@ -29,11 +29,11 @@
 //! let decision = optimizer.should_materialize(&cte_node);
 //! ```
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::Expression;
 use crate::query::optimizer::analysis::{ExpressionAnalyzer, ReferenceCountAnalyzer};
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planner::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// CTE 物化决策
 #[derive(Debug, Clone, PartialEq)]
@@ -223,18 +223,36 @@ impl MaterializationOptimizer {
                 }
                 self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
             }
-            PlanNodeEnum::Project(n) => self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)),
+            PlanNodeEnum::Project(n) => self.is_deterministic(
+                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                    n,
+                ),
+            ),
             PlanNodeEnum::Aggregate(n) => {
                 // 聚合函数通常是确定性的，除非它们的输入是非确定性的
                 // 我们通过递归检查输入节点来确保确定性
                 self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
             }
-            PlanNodeEnum::Sort(n) => self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)),
-            PlanNodeEnum::Limit(n) => self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)),
-            PlanNodeEnum::TopN(n) => self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)),
-            PlanNodeEnum::Union(n) => {
-                self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
-            }
+            PlanNodeEnum::Sort(n) => self.is_deterministic(
+                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                    n,
+                ),
+            ),
+            PlanNodeEnum::Limit(n) => self.is_deterministic(
+                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                    n,
+                ),
+            ),
+            PlanNodeEnum::TopN(n) => self.is_deterministic(
+                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                    n,
+                ),
+            ),
+            PlanNodeEnum::Union(n) => self.is_deterministic(
+                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                    n,
+                ),
+            ),
             PlanNodeEnum::InnerJoin(join_node) => {
                 for key in join_node.hash_keys() {
                     let analysis = self.expression_analyzer.analyze(key);
@@ -358,9 +376,12 @@ impl MaterializationOptimizer {
                     1000
                 }
             }
-            PlanNodeEnum::Filter(n) => {
-                (self.estimate_result_rows(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)) as f64 * 0.3) as u64
-            }
+            PlanNodeEnum::Filter(n) => (self.estimate_result_rows(
+                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                    n,
+                ),
+            ) as f64
+                * 0.3) as u64,
             PlanNodeEnum::InnerJoin(join_node) => {
                 let left_rows = self.estimate_result_rows(join_node.left_input());
                 let right_rows = self.estimate_result_rows(join_node.right_input());
@@ -427,7 +448,10 @@ impl MaterializationOptimizer {
     ///
     /// # 返回
     /// 包装了 MaterializeNode 的节点
-    pub fn materialize(&self, cte_node: PlanNodeEnum) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    pub fn materialize(
+        &self,
+        cte_node: PlanNodeEnum,
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         let materialize_node = MaterializeNode::new(cte_node)?;
         Ok(PlanNodeEnum::Materialize(materialize_node))
     }

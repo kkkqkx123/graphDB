@@ -16,8 +16,8 @@ use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropU
 pub use super::aggregate_node::AggregateNode;
 pub use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 pub use super::data_processing_node::{
-    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RollUpApplyNode, UnionNode,
-    UnwindNode,
+    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RollUpApplyNode,
+    UnionNode, UnwindNode,
 };
 pub use super::filter_node::FilterNode;
 pub use super::graph_scan_node::{

@@ -48,7 +48,7 @@ impl ScanSeek {
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         let all_tags = storage.list_tags("default")?;
-        
+
         let mut vertex_ids = Vec::new();
         let mut rows_scanned = 0;
 

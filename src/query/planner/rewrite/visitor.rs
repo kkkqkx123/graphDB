@@ -10,13 +10,15 @@
 //! - 易于扩展：新增节点类型时只需实现对应方法
 //! - 与现有架构兼容：利用已有的 PlanNodeVisitor
 
-use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::{
+    BinaryInputNode, MultipleInputNode, SingleInputNode,
+};
 use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{BinaryInputNode, MultipleInputNode, SingleInputNode};
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::plan_rewriter::PlanRewriter;
 use crate::query::planner::rewrite::result::RewriteResult;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
 use crate::query::planner::plan::core::nodes::data_processing_node::{
@@ -42,10 +44,6 @@ use crate::query::planner::plan::core::nodes::traversal_node::{
 use crate::query::planner::plan::core::nodes::control_flow_node::{
     ArgumentNode, LoopNode, PassThroughNode, SelectNode,
 };
-use crate::query::planner::plan::core::nodes::start_node::StartNode;
-use crate::query::planner::plan::core::nodes::tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
-};
 use crate::query::planner::plan::core::nodes::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
@@ -56,6 +54,10 @@ use crate::query::planner::plan::core::nodes::index_nodes::{
 };
 use crate::query::planner::plan::core::nodes::space_nodes::{
     CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
+};
+use crate::query::planner::plan::core::nodes::start_node::StartNode;
+use crate::query::planner::plan::core::nodes::tag_nodes::{
+    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
 };
 use crate::query::planner::plan::core::nodes::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
@@ -124,17 +126,39 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
     }
 
     impl_single_input_rewrite!(
-        visit_filter, FilterNode, Filter,
-        visit_project, ProjectNode, Project,
-        visit_aggregate, AggregateNode, Aggregate,
-        visit_sort, SortNode, Sort,
-        visit_limit, LimitNode, Limit,
-        visit_topn, TopNNode, TopN,
-        visit_sample, SampleNode, Sample,
-        visit_dedup, DedupNode, Dedup,
-        visit_unwind, UnwindNode, Unwind,
-        visit_pattern_apply, PatternApplyNode, PatternApply,
-        visit_roll_up_apply, RollUpApplyNode, RollUpApply
+        visit_filter,
+        FilterNode,
+        Filter,
+        visit_project,
+        ProjectNode,
+        Project,
+        visit_aggregate,
+        AggregateNode,
+        Aggregate,
+        visit_sort,
+        SortNode,
+        Sort,
+        visit_limit,
+        LimitNode,
+        Limit,
+        visit_topn,
+        TopNNode,
+        TopN,
+        visit_sample,
+        SampleNode,
+        Sample,
+        visit_dedup,
+        DedupNode,
+        Dedup,
+        visit_unwind,
+        UnwindNode,
+        Unwind,
+        visit_pattern_apply,
+        PatternApplyNode,
+        PatternApply,
+        visit_roll_up_apply,
+        RollUpApplyNode,
+        RollUpApply
     );
 
     fn visit_materialize(&mut self, node: &MaterializeNode) -> Self::Result {
@@ -155,12 +179,24 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
     }
 
     impl_binary_input_rewrite!(
-        visit_hash_inner_join, HashInnerJoinNode, HashInnerJoin,
-        visit_hash_left_join, HashLeftJoinNode, HashLeftJoin,
-        visit_inner_join, InnerJoinNode, InnerJoin,
-        visit_left_join, LeftJoinNode, LeftJoin,
-        visit_cross_join, CrossJoinNode, CrossJoin,
-        visit_full_outer_join, FullOuterJoinNode, FullOuterJoin
+        visit_hash_inner_join,
+        HashInnerJoinNode,
+        HashInnerJoin,
+        visit_hash_left_join,
+        HashLeftJoinNode,
+        HashLeftJoin,
+        visit_inner_join,
+        InnerJoinNode,
+        InnerJoin,
+        visit_left_join,
+        LeftJoinNode,
+        LeftJoin,
+        visit_cross_join,
+        CrossJoinNode,
+        CrossJoin,
+        visit_full_outer_join,
+        FullOuterJoinNode,
+        FullOuterJoin
     );
 
     fn visit_union(&mut self, node: &UnionNode) -> Self::Result {
@@ -355,19 +391,21 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
 
     fn visit_select(&mut self, node: &SelectNode) -> Self::Result {
         let mut new_node = node.clone();
-        
+
         if let Some(if_branch) = node.if_branch().clone() {
             let node_id = self.ctx.allocate_node_id();
             let new_if = self.rewriter.rewrite_node(self.ctx, &if_branch, node_id)?;
             new_node.set_if_branch(new_if);
         }
-        
+
         if let Some(else_branch) = node.else_branch().clone() {
             let node_id = self.ctx.allocate_node_id();
-            let new_else = self.rewriter.rewrite_node(self.ctx, &else_branch, node_id)?;
+            let new_else = self
+                .rewriter
+                .rewrite_node(self.ctx, &else_branch, node_id)?;
             new_node.set_else_branch(new_else);
         }
-        
+
         Ok(PlanNodeEnum::Select(new_node))
     }
 
@@ -547,14 +585,14 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-    use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
-    use ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use crate::core::Value;
+    use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
+    use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use std::sync::Arc;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_child_rewrite_visitor_single_input() {
@@ -565,8 +603,8 @@ mod tests {
 
         let start = PlanNodeEnum::Start(StartNode::new());
         let project = ProjectNode::new(start.clone(), vec![]).expect("创建ProjectNode失败");
-        let filter = FilterNode::new(PlanNodeEnum::Project(project), ctx_expr)
-            .expect("创建FilterNode失败");
+        let filter =
+            FilterNode::new(PlanNodeEnum::Project(project), ctx_expr).expect("创建FilterNode失败");
 
         let mut rewrite_ctx = RewriteContext::new();
         let rewriter = PlanRewriter::new();

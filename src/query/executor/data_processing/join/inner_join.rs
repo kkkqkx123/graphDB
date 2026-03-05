@@ -6,17 +6,17 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
-use ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::types::ContextualExpression;
 use crate::core::{DataSet, Expression, Value};
-use crate::query::executor::expression::evaluation_context::row_context::RowExpressionContext;
-use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
+use crate::query::executor::expression::evaluation_context::row_context::RowExpressionContext;
+use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
+use ExpressionAnalysisContext as ExpressionContextStruct;
 
 /// 内连接执行器
 pub struct InnerJoinExecutor<S: StorageClient> {
@@ -59,7 +59,14 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
         Self {
             base_executor: BaseJoinExecutor::new(
-                id, storage, left_var, right_var, hash_exprs, probe_exprs, col_names, expr_context,
+                id,
+                storage,
+                left_var,
+                right_var,
+                hash_exprs,
+                probe_exprs,
+                col_names,
+                expr_context,
             ),
             single_key_hash_table: None,
             multi_key_hash_table: None,
@@ -354,7 +361,14 @@ impl<S: StorageClient> HashInnerJoinExecutor<S> {
     ) -> Self {
         Self {
             inner: InnerJoinExecutor::new(
-                id, storage, left_var, right_var, hash_keys, probe_keys, col_names, expr_context,
+                id,
+                storage,
+                left_var,
+                right_var,
+                hash_keys,
+                probe_keys,
+                col_names,
+                expr_context,
             ),
         }
     }
@@ -439,7 +453,8 @@ mod tests {
         let expr1 = Expression::variable("id");
         let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
-        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+        let ctx_expr1 =
+            crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         let mut executor = InnerJoinExecutor::new(
             1,
@@ -492,12 +507,14 @@ mod tests {
         let expr1 = Expression::variable("a");
         let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
-        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+        let ctx_expr1 =
+            crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         let expr2 = Expression::variable("b");
         let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(expr2);
         let expr_id2 = expr_context.register_expression(expr_meta2);
-        let ctx_expr2 = crate::core::types::ContextualExpression::new(expr_id2, expr_context.clone());
+        let ctx_expr2 =
+            crate::core::types::ContextualExpression::new(expr_id2, expr_context.clone());
 
         let left_dataset = DataSet {
             col_names: vec!["a".to_string(), "b".to_string(), "name".to_string()],
@@ -576,7 +593,8 @@ mod tests {
         let expr1 = Expression::variable("id");
         let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
-        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+        let ctx_expr1 =
+            crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
@@ -631,7 +649,8 @@ mod tests {
         let expr1 = Expression::Variable("id".to_string());
         let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
-        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+        let ctx_expr1 =
+            crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         let mut executor = InnerJoinExecutor::new(
             4,

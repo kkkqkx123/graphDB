@@ -3,7 +3,6 @@
 //! 提供图查询语言（Cypher/NGQL）的执行功能
 //! 支持MATCH、CREATE、DELETE等图操作语句
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::core::types::{UserAlterInfo, UserInfo};
 use crate::core::Value as CoreValue;
@@ -16,6 +15,7 @@ use crate::query::parser::ast::stmt::{
 };
 use crate::query::planner::planner::{Planner, ValidatedStatement};
 use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::ValidationInfo;
 use crate::query::QueryContext;
 use crate::storage::StorageClient;
@@ -157,7 +157,10 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let ast = Arc::new(crate::query::parser::ast::Ast::new(Stmt::Match(clause), ctx));
+        let ast = Arc::new(crate::query::parser::ast::Ast::new(
+            Stmt::Match(clause),
+            ctx,
+        ));
         let validated = ValidatedStatement::new(ast, validation_info);
 
         let mut planner = MatchStatementPlanner::new();
@@ -218,9 +221,19 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     .with_properties(properties);
                 let expr_context = Arc::new(ExpressionAnalysisContext::new());
                 let mut executor = if clause.if_not_exists {
-                    CreateTagExecutor::with_if_not_exists(self.id, self.storage.clone(), tag_info, expr_context.clone())
+                    CreateTagExecutor::with_if_not_exists(
+                        self.id,
+                        self.storage.clone(),
+                        tag_info,
+                        expr_context.clone(),
+                    )
                 } else {
-                    CreateTagExecutor::new(self.id, self.storage.clone(), tag_info, expr_context.clone())
+                    CreateTagExecutor::new(
+                        self.id,
+                        self.storage.clone(),
+                        tag_info,
+                        expr_context.clone(),
+                    )
                 };
                 executor.open()?;
                 executor.execute()
@@ -235,9 +248,19 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     .with_properties(properties);
                 let expr_context = Arc::new(ExpressionAnalysisContext::new());
                 let mut executor = if clause.if_not_exists {
-                    CreateEdgeExecutor::with_if_not_exists(self.id, self.storage.clone(), edge_info, expr_context.clone())
+                    CreateEdgeExecutor::with_if_not_exists(
+                        self.id,
+                        self.storage.clone(),
+                        edge_info,
+                        expr_context.clone(),
+                    )
                 } else {
-                    CreateEdgeExecutor::new(self.id, self.storage.clone(), edge_info, expr_context.clone())
+                    CreateEdgeExecutor::new(
+                        self.id,
+                        self.storage.clone(),
+                        edge_info,
+                        expr_context.clone(),
+                    )
                 };
                 executor.open()?;
                 executor.execute()
@@ -257,7 +280,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                         Arc::new(ExpressionAnalysisContext::new()),
                     )
                 } else {
-                    CreateSpaceExecutor::new(self.id, self.storage.clone(), space_info, Arc::new(ExpressionAnalysisContext::new()))
+                    CreateSpaceExecutor::new(
+                        self.id,
+                        self.storage.clone(),
+                        space_info,
+                        Arc::new(ExpressionAnalysisContext::new()),
+                    )
                 };
                 executor.open()?;
                 executor.execute()
@@ -288,7 +316,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                             expr_context.clone(),
                         )
                     } else {
-                        CreateTagIndexExecutor::new(self.id, self.storage.clone(), index_info, expr_context.clone())
+                        CreateTagIndexExecutor::new(
+                            self.id,
+                            self.storage.clone(),
+                            index_info,
+                            expr_context.clone(),
+                        )
                     };
                     executor.open()?;
                     executor.execute()
@@ -313,7 +346,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                             expr_context.clone(),
                         )
                     } else {
-                        CreateEdgeIndexExecutor::new(self.id, self.storage.clone(), index_info, expr_context.clone())
+                        CreateEdgeIndexExecutor::new(
+                            self.id,
+                            self.storage.clone(),
+                            index_info,
+                            expr_context.clone(),
+                        )
                     };
                     executor.open()?;
                     executor.execute()
@@ -332,7 +370,10 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 // 创建验证后的语句
                 let validation_info = ValidationInfo::new();
                 let ctx = Arc::new(ExpressionAnalysisContext::new());
-                let ast = Arc::new(crate::query::parser::ast::Ast::new(Stmt::Create(clause), ctx));
+                let ast = Arc::new(crate::query::parser::ast::Ast::new(
+                    Stmt::Create(clause),
+                    ctx,
+                ));
                 let validated = ValidatedStatement::new(ast, validation_info);
 
                 let mut planner = CreatePlanner::new();
@@ -374,9 +415,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         &mut self,
         clause: crate::query::parser::ast::stmt::DeleteStmt,
     ) -> Result<ExecutionResult, DBError> {
+        use crate::query::executor::data_modification::DeleteExecutor;
         use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
         use crate::query::executor::expression::DefaultExpressionContext;
-        use crate::query::executor::data_modification::DeleteExecutor;
         use crate::query::parser::ast::stmt::DeleteTarget;
 
         match clause.target {
@@ -464,8 +505,14 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     edge_ids.push((src, dst, edge_type_str));
                 }
 
-                let mut executor =
-                    DeleteExecutor::new(self.id, self.storage.clone(), None, Some(edge_ids), None, Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = DeleteExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    None,
+                    Some(edge_ids),
+                    None,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor.execute()
             }
@@ -488,9 +535,14 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     vertex_ids.push(vid);
                 }
 
-                let executor =
-                    DeleteTagExecutor::new(self.id, self.storage.clone(), tag_names, vertex_ids, Arc::new(ExpressionAnalysisContext::new()))
-                        .with_space("default".to_string());
+                let executor = DeleteTagExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    tag_names,
+                    vertex_ids,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                )
+                .with_space("default".to_string());
 
                 // 支持删除所有 Tag 的标志
                 let mut executor = if is_all_tags {
@@ -512,9 +564,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         &mut self,
         clause: crate::query::parser::ast::stmt::UpdateStmt,
     ) -> Result<ExecutionResult, DBError> {
+        use crate::query::executor::data_modification::{EdgeUpdate, UpdateExecutor, VertexUpdate};
         use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
         use crate::query::executor::expression::DefaultExpressionContext;
-        use crate::query::executor::data_modification::{EdgeUpdate, UpdateExecutor, VertexUpdate};
         use crate::query::parser::ast::stmt::UpdateTarget;
 
         match clause.target {
@@ -698,10 +750,10 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         &mut self,
         clause: crate::query::parser::ast::stmt::FetchStmt,
     ) -> Result<ExecutionResult, DBError> {
-        use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-        use crate::query::executor::expression::DefaultExpressionContext;
         use crate::query::executor::data_access::GetEdgesExecutor;
         use crate::query::executor::data_access::GetVerticesExecutor;
+        use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+        use crate::query::executor::expression::DefaultExpressionContext;
         use crate::query::parser::ast::stmt::FetchTarget;
 
         match clause.target {
@@ -737,8 +789,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 rank: _,
                 properties: _,
             } => {
-                let mut executor =
-                    GetEdgesExecutor::new(self.id, self.storage.clone(), Some(edge_type), Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = GetEdgesExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    Some(edge_type),
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor.execute()
             }
@@ -889,7 +945,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     ) -> Result<ExecutionResult, DBError> {
         use crate::query::executor::admin::space::switch_space::SwitchSpaceExecutor;
 
-        let mut executor = SwitchSpaceExecutor::new(self.id, self.storage.clone(), clause.space, Arc::new(ExpressionAnalysisContext::new()));
+        let mut executor = SwitchSpaceExecutor::new(
+            self.id,
+            self.storage.clone(),
+            clause.space,
+            Arc::new(ExpressionAnalysisContext::new()),
+        );
         executor.open()?;
         executor.execute()
     }
@@ -903,48 +964,78 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         match clause.target {
             ShowTarget::Spaces => {
                 use crate::query::executor::admin::space::show_spaces::ShowSpacesExecutor;
-                let mut executor = ShowSpacesExecutor::new(self.id, self.storage.clone(), Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = ShowSpacesExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor.execute()
             }
             ShowTarget::Tags => {
                 use crate::query::executor::admin::tag::show_tags::ShowTagsExecutor;
-                let mut executor =
-                    ShowTagsExecutor::new(self.id, self.storage.clone(), String::new(), Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = ShowTagsExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    String::new(),
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor.execute()
             }
             ShowTarget::Edges => {
                 use crate::query::executor::admin::edge::show_edges::ShowEdgesExecutor;
-                let mut executor =
-                    ShowEdgesExecutor::new(self.id, self.storage.clone(), String::new(), Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = ShowEdgesExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    String::new(),
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor.execute()
             }
             ShowTarget::Tag(tag_name) => {
                 use crate::query::executor::admin::tag::desc_tag::DescTagExecutor;
-                let mut executor =
-                    DescTagExecutor::new(self.id, self.storage.clone(), String::new(), tag_name, Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = DescTagExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    String::new(),
+                    tag_name,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor.execute()
             }
             ShowTarget::Edge(edge_name) => {
                 use crate::query::executor::admin::edge::desc_edge::DescEdgeExecutor;
-                let mut executor =
-                    DescEdgeExecutor::new(self.id, self.storage.clone(), String::new(), edge_name, Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = DescEdgeExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    String::new(),
+                    edge_name,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor.execute()
             }
             ShowTarget::Indexes => {
                 use crate::query::executor::admin::index::ShowEdgeIndexesExecutor;
                 use crate::query::executor::admin::index::ShowTagIndexesExecutor;
-                let mut tag_executor =
-                    ShowTagIndexesExecutor::new(self.id, self.storage.clone(), String::new(), Arc::new(ExpressionAnalysisContext::new()));
+                let mut tag_executor = ShowTagIndexesExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    String::new(),
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 tag_executor.open()?;
                 let tag_result = tag_executor.execute();
 
-                let mut edge_executor =
-                    ShowEdgeIndexesExecutor::new(self.id, self.storage.clone(), String::new(), Arc::new(ExpressionAnalysisContext::new()));
+                let mut edge_executor = ShowEdgeIndexesExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    String::new(),
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 edge_executor.open()?;
                 let edge_result = edge_executor.execute();
 
@@ -1150,12 +1241,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         clause: crate::query::parser::ast::stmt::SubgraphStmt,
     ) -> Result<ExecutionResult, DBError> {
         use crate::core::Value;
-        use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-        use crate::query::executor::expression::DefaultExpressionContext;
         use crate::query::executor::base::EdgeDirection;
         use crate::query::executor::data_processing::graph_traversal::algorithms::{
             SubgraphConfig, SubgraphExecutor,
         };
+        use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+        use crate::query::executor::expression::DefaultExpressionContext;
 
         let storage = self.storage.clone();
 
@@ -1226,7 +1317,13 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         }
 
         // 创建并执行子图查询
-        let mut executor = SubgraphExecutor::new(self.id, storage, start_vids, config, Arc::new(ExpressionAnalysisContext::new()));
+        let mut executor = SubgraphExecutor::new(
+            self.id,
+            storage,
+            start_vids,
+            config,
+            Arc::new(ExpressionAnalysisContext::new()),
+        );
 
         executor.open()?;
 
@@ -1246,9 +1343,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         use crate::core::vertex_edge_path::Tag;
         use crate::core::Edge;
         use crate::core::Vertex;
+        use crate::query::executor::data_modification::InsertExecutor;
         use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
         use crate::query::executor::expression::DefaultExpressionContext;
-        use crate::query::executor::data_modification::InsertExecutor;
         use crate::query::parser::ast::stmt::InsertTarget;
 
         match clause.target {
@@ -1316,7 +1413,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                         expr_context.clone(),
                     )
                 } else {
-                    InsertExecutor::with_vertices(self.id, self.storage.clone(), vertices, expr_context)
+                    InsertExecutor::with_vertices(
+                        self.id,
+                        self.storage.clone(),
+                        vertices,
+                        expr_context,
+                    )
                 };
 
                 executor.open()?;
@@ -1413,8 +1515,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     edge_list.push(edge);
                 }
 
-                let mut executor =
-                    InsertExecutor::with_edges(self.id, self.storage.clone(), edge_list, Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = InsertExecutor::with_edges(
+                    self.id,
+                    self.storage.clone(),
+                    edge_list,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor.execute()
             }
@@ -1498,7 +1604,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             assignments.push((assignment.property, expr));
         }
 
-        let mut executor = AssignExecutor::new(self.id, self.storage.clone(), assignments, Arc::new(ExpressionAnalysisContext::new()));
+        let mut executor = AssignExecutor::new(
+            self.id,
+            self.storage.clone(),
+            assignments,
+            Arc::new(ExpressionAnalysisContext::new()),
+        );
         executor.open()?;
         executor.execute()
     }
@@ -1529,8 +1640,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         match clause.target {
             DropTarget::Space(space_name) => {
-                let mut executor =
-                    admin_executor::DropSpaceExecutor::new(id, self.storage.clone(), space_name, Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = admin_executor::DropSpaceExecutor::new(
+                    id,
+                    self.storage.clone(),
+                    space_name,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor
                     .execute()
@@ -1665,8 +1780,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         match clause.target {
             DescTarget::Space(space_name) => {
-                let mut executor =
-                    admin_executor::DescSpaceExecutor::new(id, self.storage.clone(), space_name, Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = admin_executor::DescSpaceExecutor::new(
+                    id,
+                    self.storage.clone(),
+                    space_name,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor
                     .execute()
@@ -1730,7 +1849,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     items.push(AlterTagItem::add_property(prop));
                 }
                 let alter_info = AlterTagInfo::new(String::new(), tag_name).with_items(items);
-                let mut executor = AlterTagExecutor::new(id, self.storage.clone(), alter_info, Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = AlterTagExecutor::new(
+                    id,
+                    self.storage.clone(),
+                    alter_info,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor
                     .execute()
@@ -1747,7 +1871,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     items.push(AlterEdgeItem::add_property(prop));
                 }
                 let alter_info = AlterEdgeInfo::new(String::new(), edge_name).with_items(items);
-                let mut executor = AlterEdgeExecutor::new(id, self.storage.clone(), alter_info, Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = AlterEdgeExecutor::new(
+                    id,
+                    self.storage.clone(),
+                    alter_info,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor
                     .execute()
@@ -1761,8 +1890,13 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 if let Some(comment_str) = comment {
                     options.push(SpaceAlterOption::Comment(comment_str));
                 }
-                let mut executor =
-                    AlterSpaceExecutor::new(id, self.storage.clone(), space_name, options, Arc::new(ExpressionAnalysisContext::new()));
+                let mut executor = AlterSpaceExecutor::new(
+                    id,
+                    self.storage.clone(),
+                    space_name,
+                    options,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
                 executor.open()?;
                 executor
                     .execute()
@@ -1777,7 +1911,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         let user_info =
             UserInfo::new(clause.username, clause.password).map_err(|e| DBError::Storage(e))?;
-        let mut executor = CreateUserExecutor::new(id, self.storage.clone(), user_info, Arc::new(ExpressionAnalysisContext::new()));
+        let mut executor = CreateUserExecutor::new(
+            id,
+            self.storage.clone(),
+            user_info,
+            Arc::new(ExpressionAnalysisContext::new()),
+        );
         executor.open()?;
         executor
             .execute()
@@ -1792,7 +1931,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         if let Some(is_locked) = clause.is_locked {
             alter_info.is_locked = Some(is_locked);
         }
-        let mut executor = AlterUserExecutor::new(id, self.storage.clone(), alter_info, Arc::new(ExpressionAnalysisContext::new()));
+        let mut executor = AlterUserExecutor::new(
+            id,
+            self.storage.clone(),
+            alter_info,
+            Arc::new(ExpressionAnalysisContext::new()),
+        );
         executor.open()?;
         executor
             .execute()
@@ -1803,7 +1947,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         use admin_executor::DropUserExecutor;
         let id = self.id;
 
-        let mut executor = DropUserExecutor::new(id, self.storage.clone(), clause.username, Arc::new(ExpressionAnalysisContext::new()));
+        let mut executor = DropUserExecutor::new(
+            id,
+            self.storage.clone(),
+            clause.username,
+            Arc::new(ExpressionAnalysisContext::new()),
+        );
         executor.open()?;
         executor
             .execute()

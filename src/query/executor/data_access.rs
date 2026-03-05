@@ -2,10 +2,10 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::base::{BaseExecutor, ExecutorStats};
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::{vertex_edge_path, Value};
-use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -213,7 +213,12 @@ pub struct GetEdgesExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> GetEdgesExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, edge_type: Option<String>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        edge_type: Option<String>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetEdgesExecutor".to_string(), storage, expr_context),
             edge_type,
@@ -413,7 +418,12 @@ impl<S: StorageClient> GetNeighborsExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "GetNeighborsExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "GetNeighborsExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             vertex_ids,
             edge_direction,
             edge_types,
@@ -937,7 +947,12 @@ impl<S: StorageClient> ScanVerticesExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ScanVerticesExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "ScanVerticesExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             tag_filter,
             vertex_filter,
             limit,

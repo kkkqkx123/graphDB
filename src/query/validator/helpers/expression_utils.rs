@@ -4,9 +4,7 @@ use crate::query::planner::PlannerError;
 /// 从表达式中提取字符串值
 ///
 /// 此方法用于在验证阶段提取字符串值，避免在 Planner 层进行此类操作
-pub fn extract_string_from_expr(
-    expr: &ContextualExpression,
-) -> Result<String, PlannerError> {
+pub fn extract_string_from_expr(expr: &ContextualExpression) -> Result<String, PlannerError> {
     // 使用 ContextualExpression 的辅助方法，避免直接访问 inner
     if let Some(var_name) = expr.as_variable() {
         return Ok(var_name);
@@ -36,9 +34,7 @@ pub fn extract_string_from_expr(
 /// 从 ContextualExpression 生成默认别名
 ///
 /// 此方法用于在验证阶段生成默认别名，避免在 Planner 层进行此类操作
-pub fn generate_default_alias_from_contextual(
-    expression: &ContextualExpression,
-) -> String {
+pub fn generate_default_alias_from_contextual(expression: &ContextualExpression) -> String {
     // 优先使用变量名
     if let Some(var_name) = expression.as_variable() {
         return var_name;
@@ -82,10 +78,7 @@ pub fn generate_default_alias_from_contextual(
 /// 此方法用于在验证阶段提取分组信息，避免在 Planner 层进行此类操作
 pub fn extract_group_info(
     yield_columns: &[crate::core::types::YieldColumn],
-) -> (
-    Vec<ContextualExpression>,
-    Vec<ContextualExpression>,
-) {
+) -> (Vec<ContextualExpression>, Vec<ContextualExpression>) {
     let mut group_keys = Vec::new();
     let mut group_items = Vec::new();
 

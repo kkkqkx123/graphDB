@@ -4,12 +4,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::stmt::{Ast, MatchStmt, OrderByClause, ReturnClause, ReturnItem};
 use crate::query::parser::ast::{Pattern, Stmt};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 
 use crate::query::validator::strategies::ExpressionValidationStrategy;
@@ -830,10 +830,10 @@ impl MatchValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;
+    use ExpressionAnalysisContext;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());

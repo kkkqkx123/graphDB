@@ -11,8 +11,8 @@
 //! - [`VariableContainsChecker`] - 检查表达式是否包含指定变量
 //! - [`PathBuildContainsChecker`] - 检查表达式是否包含PathBuild
 
-use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::types::expression::visitor::ExpressionVisitor;
+use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Expression;
 
 /// 常量检查器
@@ -69,12 +69,7 @@ impl ExpressionVisitor for ConstantChecker {
         self.is_constant = false;
     }
 
-    fn visit_binary(
-        &mut self,
-        _op: BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) {
+    fn visit_binary(&mut self, _op: BinaryOperator, left: &Expression, right: &Expression) {
         if self.is_constant {
             self.visit(left);
         }
@@ -83,11 +78,7 @@ impl ExpressionVisitor for ConstantChecker {
         }
     }
 
-    fn visit_unary(
-        &mut self,
-        _op: UnaryOperator,
-        operand: &Expression,
-    ) {
+    fn visit_unary(&mut self, _op: UnaryOperator, operand: &Expression) {
         if self.is_constant {
             self.visit(operand);
         }
@@ -104,12 +95,7 @@ impl ExpressionVisitor for ConstantChecker {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) {
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) {
         if self.is_constant {
             self.visit(arg);
         }
@@ -166,7 +152,11 @@ impl ExpressionVisitor for ConstantChecker {
         }
     }
 
-    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &crate::core::types::DataType) {
+    fn visit_type_cast(
+        &mut self,
+        expression: &Expression,
+        _target_type: &crate::core::types::DataType,
+    ) {
         if self.is_constant {
             self.visit(expression);
         }
@@ -359,12 +349,7 @@ impl ExpressionVisitor for PropertyContainsChecker {
         }
     }
 
-    fn visit_binary(
-        &mut self,
-        _op: BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) {
+    fn visit_binary(&mut self, _op: BinaryOperator, left: &Expression, right: &Expression) {
         if !self.contains {
             self.visit(left);
         }
@@ -373,11 +358,7 @@ impl ExpressionVisitor for PropertyContainsChecker {
         }
     }
 
-    fn visit_unary(
-        &mut self,
-        _op: UnaryOperator,
-        operand: &Expression,
-    ) {
+    fn visit_unary(&mut self, _op: UnaryOperator, operand: &Expression) {
         if !self.contains {
             self.visit(operand);
         }
@@ -394,12 +375,7 @@ impl ExpressionVisitor for PropertyContainsChecker {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) {
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) {
         if !self.contains {
             self.visit(arg);
         }
@@ -456,7 +432,11 @@ impl ExpressionVisitor for PropertyContainsChecker {
         }
     }
 
-    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &crate::core::types::DataType) {
+    fn visit_type_cast(
+        &mut self,
+        expression: &Expression,
+        _target_type: &crate::core::types::DataType,
+    ) {
         if !self.contains {
             self.visit(expression);
         }
@@ -660,7 +640,11 @@ impl WildcardReplacer {
                 name: name.clone(),
                 args: args.iter().map(|arg| self.replace_internal(arg)).collect(),
             },
-            Expression::Aggregate { func, arg, distinct } => Expression::Aggregate {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => Expression::Aggregate {
                 func: func.clone(),
                 arg: Box::new(self.replace_internal(arg)),
                 distinct: *distinct,
@@ -670,7 +654,9 @@ impl WildcardReplacer {
                 conditions,
                 default,
             } => Expression::Case {
-                test_expr: test_expr.as_ref().map(|e| Box::new(self.replace_internal(e))),
+                test_expr: test_expr
+                    .as_ref()
+                    .map(|e| Box::new(self.replace_internal(e))),
                 conditions: conditions
                     .iter()
                     .map(|(w, t)| (self.replace_internal(w), self.replace_internal(t)))
@@ -678,7 +664,10 @@ impl WildcardReplacer {
                 default: default.as_ref().map(|e| Box::new(self.replace_internal(e))),
             },
             Expression::List(items) => Expression::List(
-                items.iter().map(|item| self.replace_internal(item)).collect(),
+                items
+                    .iter()
+                    .map(|item| self.replace_internal(item))
+                    .collect(),
             ),
             Expression::Map(entries) => Expression::Map(
                 entries
@@ -707,7 +696,10 @@ impl WildcardReplacer {
                 end: end.as_ref().map(|e| Box::new(self.replace_internal(e))),
             },
             Expression::Path(items) => Expression::Path(
-                items.iter().map(|item| self.replace_internal(item)).collect(),
+                items
+                    .iter()
+                    .map(|item| self.replace_internal(item))
+                    .collect(),
             ),
             Expression::Label(label) => Expression::Label(label.clone()),
             Expression::ListComprehension {
@@ -725,10 +717,7 @@ impl WildcardReplacer {
                 tag: Box::new(self.replace_internal(tag)),
                 property: property.clone(),
             },
-            Expression::TagProperty {
-                tag_name,
-                property,
-            } => Expression::TagProperty {
+            Expression::TagProperty { tag_name, property } => Expression::TagProperty {
                 tag_name: tag_name.clone(),
                 property: property.clone(),
             },
@@ -757,7 +746,10 @@ impl WildcardReplacer {
                 mapping: Box::new(self.replace_internal(mapping)),
             },
             Expression::PathBuild(items) => Expression::PathBuild(
-                items.iter().map(|item| self.replace_internal(item)).collect(),
+                items
+                    .iter()
+                    .map(|item| self.replace_internal(item))
+                    .collect(),
             ),
             Expression::Parameter(name) => Expression::Parameter(name.clone()),
         }
@@ -820,12 +812,7 @@ impl ExpressionVisitor for AggregateFunctionChecker {
         }
     }
 
-    fn visit_binary(
-        &mut self,
-        _op: BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) {
+    fn visit_binary(&mut self, _op: BinaryOperator, left: &Expression, right: &Expression) {
         if !self.contains_aggregate {
             self.visit(left);
         }
@@ -851,12 +838,7 @@ impl ExpressionVisitor for AggregateFunctionChecker {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        _arg: &Expression,
-        _distinct: bool,
-    ) {
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, _arg: &Expression, _distinct: bool) {
         self.contains_aggregate = true;
     }
 
@@ -911,7 +893,11 @@ impl ExpressionVisitor for AggregateFunctionChecker {
         }
     }
 
-    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &crate::core::types::DataType) {
+    fn visit_type_cast(
+        &mut self,
+        expression: &Expression,
+        _target_type: &crate::core::types::DataType,
+    ) {
         if !self.contains_aggregate {
             self.visit(expression);
         }
@@ -1104,12 +1090,7 @@ impl ExpressionVisitor for VariableContainsChecker {
         }
     }
 
-    fn visit_binary(
-        &mut self,
-        _op: BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) {
+    fn visit_binary(&mut self, _op: BinaryOperator, left: &Expression, right: &Expression) {
         if !self.contains {
             self.visit(left);
         }
@@ -1135,12 +1116,7 @@ impl ExpressionVisitor for VariableContainsChecker {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) {
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) {
         if !self.contains {
             self.visit(arg);
         }
@@ -1197,7 +1173,11 @@ impl ExpressionVisitor for VariableContainsChecker {
         }
     }
 
-    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &crate::core::types::DataType) {
+    fn visit_type_cast(
+        &mut self,
+        expression: &Expression,
+        _target_type: &crate::core::types::DataType,
+    ) {
         if !self.contains {
             self.visit(expression);
         }
@@ -1380,12 +1360,7 @@ impl ExpressionVisitor for PathBuildContainsChecker {
         }
     }
 
-    fn visit_binary(
-        &mut self,
-        _op: BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) {
+    fn visit_binary(&mut self, _op: BinaryOperator, left: &Expression, right: &Expression) {
         if !self.contains_path_build {
             self.visit(left);
         }
@@ -1411,12 +1386,7 @@ impl ExpressionVisitor for PathBuildContainsChecker {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) {
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) {
         if !self.contains_path_build {
             self.visit(arg);
         }
@@ -1473,7 +1443,11 @@ impl ExpressionVisitor for PathBuildContainsChecker {
         }
     }
 
-    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &crate::core::types::DataType) {
+    fn visit_type_cast(
+        &mut self,
+        expression: &Expression,
+        _target_type: &crate::core::types::DataType,
+    ) {
         if !self.contains_path_build {
             self.visit(expression);
         }

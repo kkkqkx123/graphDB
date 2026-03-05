@@ -3,8 +3,8 @@
 //! 该规则识别 Traverse 节点中的 eFilter，
 //! 并将其重写为具体的边属性表达式。
 
-use crate::core::Expression;
 use crate::core::types::expression::visitor_checkers::WildcardReplacer;
+use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;

@@ -5,9 +5,9 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::RoleType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// 授予角色执行器
@@ -103,9 +103,9 @@ impl<S: StorageClient> HasStorage<S> for GrantRoleExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_grant_role_executor() {

@@ -10,7 +10,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::parser::ast::stmt::{Ast, AssignmentStmt};
+use crate::query::parser::ast::stmt::{AssignmentStmt, Ast};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_enum::Validator;
 use crate::query::validator::validator_trait::{
@@ -153,7 +153,10 @@ impl StatementValidator for AssignmentValidator {
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            let result = inner.validate(Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())), qctx);
+            let result = inner.validate(
+                Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())),
+                qctx,
+            );
 
             if result.success {
                 // 赋值语句的输出与内部语句相同

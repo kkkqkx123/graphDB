@@ -1,6 +1,5 @@
 //! 折叠多个投影操作的规则
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
 use crate::core::types::expression::ExpressionMeta;
@@ -13,6 +12,7 @@ use crate::query::planner::rewrite::expression_utils::rewrite_contextual_express
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
 /// 折叠多个投影操作的规则
@@ -279,11 +279,11 @@ impl MergeRule for CollapseProjectRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::YieldColumn;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use std::sync::Arc;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_rule_name() {

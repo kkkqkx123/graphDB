@@ -46,7 +46,8 @@ async fn test_create_and_find_session() {
     // 创建会话
     let session = session_manager
         .create_session("testuser".to_string(), "127.0.0.1".to_string())
-        .await.expect("创建会话失败");
+        .await
+        .expect("创建会话失败");
 
     assert_eq!(session.user(), "testuser");
 
@@ -70,7 +71,8 @@ async fn test_remove_session() {
 
     let session = session_manager
         .create_session("testuser".to_string(), "127.0.0.1".to_string())
-        .await.expect("创建会话失败");
+        .await
+        .expect("创建会话失败");
     let session_id = session.id();
 
     // 验证会话存在
@@ -95,7 +97,8 @@ async fn test_max_connections_limit() {
     for i in 0..3 {
         let _ = session_manager
             .create_session(format!("user{}", i), "127.0.0.1".to_string())
-            .await.expect("创建会话失败");
+            .await
+            .expect("创建会话失败");
     }
 
     // 验证已达到最大连接数
@@ -117,10 +120,12 @@ async fn test_list_sessions() {
     // 创建多个会话
     let session1 = session_manager
         .create_session("user1".to_string(), "127.0.0.1".to_string())
-        .await.expect("创建会话失败");
+        .await
+        .expect("创建会话失败");
     let _session2 = session_manager
         .create_session("user2".to_string(), "127.0.0.1".to_string())
-        .await.expect("创建会话失败");
+        .await
+        .expect("创建会话失败");
 
     // 获取会话列表
     let sessions = session_manager.list_sessions();
@@ -130,7 +135,8 @@ async fn test_list_sessions() {
     // 验证会话信息
     let session_info = session_manager
         .get_session_info(session1.id())
-        .await.expect("获取会话信息失败");
+        .await
+        .expect("获取会话信息失败");
     assert_eq!(session_info.user_name, "user1");
 }
 
@@ -145,14 +151,16 @@ async fn test_kill_session() {
     // 创建会话并设置为Admin角色
     let session = session_manager
         .create_session("admin".to_string(), "127.0.0.1".to_string())
-        .await.expect("创建会话失败");
+        .await
+        .expect("创建会话失败");
     session.set_role(0, RoleType::Admin);
     let _session_id = session.id();
 
     // 创建另一个用户会话
     let target_session = session_manager
         .create_session("user1".to_string(), "127.0.0.1".to_string())
-        .await.expect("创建会话失败");
+        .await
+        .expect("创建会话失败");
     let target_id = target_session.id();
 
     // Admin可以终止其他用户的会话
@@ -163,7 +171,8 @@ async fn test_kill_session() {
     // 非Admin用户不能终止其他用户的会话
     let other_session = session_manager
         .create_session("user2".to_string(), "127.0.0.1".to_string())
-        .await.expect("创建会话失败");
+        .await
+        .expect("创建会话失败");
     let other_id = other_session.id();
 
     let result = session_manager.kill_session(other_id, "user1", false);
@@ -712,7 +721,12 @@ async fn test_graph_service_creation() {
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     // 验证服务创建成功
-    assert!(!graph_service.get_session_manager().is_out_of_connections().await);
+    assert!(
+        !graph_service
+            .get_session_manager()
+            .is_out_of_connections()
+            .await
+    );
 }
 
 #[tokio::test]
@@ -749,7 +763,8 @@ async fn test_graph_service_signout() {
     // 认证并获取会话
     let session = graph_service
         .authenticate("root", "root")
-        .await.expect("认证失败");
+        .await
+        .expect("认证失败");
     let session_id = session.id();
 
     // 验证会话存在
@@ -782,7 +797,8 @@ async fn test_graph_service_execute_query() {
     // 认证并获取会话
     let session = graph_service
         .authenticate("root", "root")
-        .await.expect("认证失败");
+        .await
+        .expect("认证失败");
     let session_id = session.id();
 
     // 执行查询
@@ -824,7 +840,8 @@ async fn test_graph_service_list_sessions() {
     // 创建会话
     let _session = graph_service
         .authenticate("root", "root")
-        .await.expect("认证失败");
+        .await
+        .expect("认证失败");
 
     // 验证会话列表
     let sessions = graph_service.list_sessions();
@@ -847,7 +864,8 @@ async fn test_graph_service_kill_session() {
     // 创建两个会话
     let admin_session = graph_service
         .authenticate("root", "root")
-        .await.expect("认证失败");
+        .await
+        .expect("认证失败");
     let admin_session_id = admin_session.id();
 
     // root默认是Admin，可以终止会话
@@ -877,7 +895,8 @@ async fn test_full_session_lifecycle() {
     // 1. 认证创建会话
     let session = graph_service
         .authenticate("root", "root")
-        .await.expect("认证失败");
+        .await
+        .expect("认证失败");
     let session_id = session.id();
 
     // 2. 验证会话存在
@@ -926,7 +945,8 @@ async fn test_concurrent_session_operations() {
         handles.spawn(async move {
             let session = manager
                 .create_session(format!("user{}", i), "127.0.0.1".to_string())
-                .await.expect("创建会话失败");
+                .await
+                .expect("创建会话失败");
             session.set_role(1, RoleType::User);
             session.id()
         });

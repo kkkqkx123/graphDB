@@ -1,10 +1,10 @@
 //! 变量检查工具
 //! 负责验证变量的作用域、命名格式和使用
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionMeta;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 use std::sync::Arc;

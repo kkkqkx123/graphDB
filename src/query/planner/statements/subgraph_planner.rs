@@ -8,7 +8,6 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::EdgeDirection;
 use crate::core::Expression;
 use crate::query::parser::ast::stmt::Steps;
@@ -19,6 +18,7 @@ use crate::query::planner::plan::core::nodes::{
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 
 /// SUBGRAPH查询规划器
@@ -40,7 +40,7 @@ impl Planner for SubgraphPlanner {
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let _ = qctx;
-        
+
         let subgraph_stmt = match validated.stmt() {
             Stmt::Subgraph(subgraph_stmt) => subgraph_stmt,
             _ => {
@@ -176,8 +176,7 @@ impl SubgraphPlanner {
         for condition in filters {
             let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition.clone());
             let id = expr_context.register_expression(expr_meta);
-            let ctx_expr =
-                crate::core::types::ContextualExpression::new(id, expr_context.clone());
+            let ctx_expr = crate::core::types::ContextualExpression::new(id, expr_context.clone());
             current = match FilterNode::new(current.clone(), ctx_expr) {
                 Ok(node) => PlanNodeEnum::Filter(node),
                 Err(_) => current,

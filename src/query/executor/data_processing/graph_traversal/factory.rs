@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
 use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
 use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathExecutor;
 use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use parking_lot::Mutex;
 
 /// 图遍历执行器工厂
@@ -21,7 +21,14 @@ impl GraphTraversalExecutorFactory {
         max_depth: Option<usize>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> ExpandExecutor<S> {
-        ExpandExecutor::new(id, storage, edge_direction, edge_types, max_depth, expr_context)
+        ExpandExecutor::new(
+            id,
+            storage,
+            edge_direction,
+            edge_types,
+            max_depth,
+            expr_context,
+        )
     }
 
     /// 创建ExpandAllExecutor
@@ -34,7 +41,15 @@ impl GraphTraversalExecutorFactory {
         max_depth: Option<usize>,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> ExpandAllExecutor<S> {
-        ExpandAllExecutor::new(id, storage, edge_direction, edge_types, any_edge_type, max_depth, expr_context)
+        ExpandAllExecutor::new(
+            id,
+            storage,
+            edge_direction,
+            edge_types,
+            any_edge_type,
+            max_depth,
+            expr_context,
+        )
     }
 
     /// 创建TraverseExecutor

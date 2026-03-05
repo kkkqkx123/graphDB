@@ -7,11 +7,11 @@
 //! - 改进 JOIN 键处理
 //! - 添加属性投影支持
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::{ContextualExpression, EdgeDirection};
 use crate::query::parser::ast::{GoStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
@@ -40,7 +40,7 @@ impl Planner for GoPlanner {
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let _ = qctx;
-        
+
         let go_stmt = match validated.stmt() {
             Stmt::Go(go_stmt) => go_stmt,
             _ => {

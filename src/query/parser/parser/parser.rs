@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, Stmt};
 use crate::query::parser::parser::expr_parser::ExprParser;
 use crate::query::parser::parser::parse_context::ParseContext;
 use crate::query::parser::parser::stmt_parser::StmtParser;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// Parser 解析结果，包含 AST（语句 + 表达式上下文）
 ///
@@ -59,9 +59,7 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Result<ParserResult, crate::query::parser::core::error::ParseError> {
         let stmt = self.parse_statement()?;
         let ast = Ast::new(stmt, self.expr_context.clone());
-        Ok(ParserResult {
-            ast: Arc::new(ast),
-        })
+        Ok(ParserResult { ast: Arc::new(ast) })
     }
 
     pub fn parse_statement(

@@ -17,9 +17,7 @@
 
 use std::sync::Arc;
 
-use crate::query::execution::{
-    QueryExecutionState, QueryResourceContext, QuerySpaceContext,
-};
+use crate::query::execution::{QueryExecutionState, QueryResourceContext, QuerySpaceContext};
 use crate::query::query_request_context::QueryRequestContext;
 
 /// 查询上下文
@@ -119,7 +117,9 @@ impl QueryContext {
     }
 
     /// 创建构建器
-    pub fn builder(rctx: Arc<QueryRequestContext>) -> crate::query::query_context_builder::QueryContextBuilder {
+    pub fn builder(
+        rctx: Arc<QueryRequestContext>,
+    ) -> crate::query::query_context_builder::QueryContextBuilder {
         crate::query::query_context_builder::QueryContextBuilder::new(rctx)
     }
 

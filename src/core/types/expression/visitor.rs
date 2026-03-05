@@ -16,8 +16,8 @@
 
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::types::DataType;
-use crate::core::Value;
 use crate::core::Expression;
+use crate::core::Value;
 
 /// 表达式访问者 trait
 ///
@@ -67,7 +67,11 @@ pub trait ExpressionVisitor {
             Expression::Function { name, args } => {
                 self.visit_function(name, args);
             }
-            Expression::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate {
+                func,
+                arg,
+                distinct,
+            } => {
                 self.visit_aggregate(func, arg, *distinct);
             }
             Expression::Case {
@@ -75,11 +79,7 @@ pub trait ExpressionVisitor {
                 conditions,
                 default,
             } => {
-                self.visit_case(
-                    test_expr.as_deref(),
-                    conditions,
-                    default.as_deref(),
-                );
+                self.visit_case(test_expr.as_deref(), conditions, default.as_deref());
             }
             Expression::List(items) => {
                 self.visit_list(items);
@@ -93,10 +93,7 @@ pub trait ExpressionVisitor {
             } => {
                 self.visit_type_cast(expression, target_type);
             }
-            Expression::Subscript {
-                collection,
-                index,
-            } => {
+            Expression::Subscript { collection, index } => {
                 self.visit_subscript(collection, index);
             }
             Expression::Range {
@@ -104,11 +101,7 @@ pub trait ExpressionVisitor {
                 start,
                 end,
             } => {
-                self.visit_range(
-                    collection,
-                    start.as_deref(),
-                    end.as_deref(),
-                );
+                self.visit_range(collection, start.as_deref(), end.as_deref());
             }
             Expression::Path(items) => {
                 self.visit_path(items);
@@ -122,12 +115,7 @@ pub trait ExpressionVisitor {
                 filter,
                 map,
             } => {
-                self.visit_list_comprehension(
-                    variable,
-                    source,
-                    filter.as_deref(),
-                    map.as_deref(),
-                );
+                self.visit_list_comprehension(variable, source, filter.as_deref(), map.as_deref());
             }
             Expression::LabelTagProperty { tag, property } => {
                 self.visit_label_tag_property(tag, property);
@@ -135,7 +123,10 @@ pub trait ExpressionVisitor {
             Expression::TagProperty { tag_name, property } => {
                 self.visit_tag_property(tag_name, property);
             }
-            Expression::EdgeProperty { edge_name, property } => {
+            Expression::EdgeProperty {
+                edge_name,
+                property,
+            } => {
                 self.visit_edge_property(edge_name, property);
             }
             Expression::Predicate { func, args } => {
@@ -169,12 +160,7 @@ pub trait ExpressionVisitor {
     fn visit_property(&mut self, object: &Expression, property: &str);
 
     /// 访问二元运算表达式
-    fn visit_binary(
-        &mut self,
-        op: BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    );
+    fn visit_binary(&mut self, op: BinaryOperator, left: &Expression, right: &Expression);
 
     /// 访问一元运算表达式
     fn visit_unary(&mut self, op: UnaryOperator, operand: &Expression);
@@ -183,12 +169,7 @@ pub trait ExpressionVisitor {
     fn visit_function(&mut self, name: &str, args: &[Expression]);
 
     /// 访问聚合函数表达式
-    fn visit_aggregate(
-        &mut self,
-        func: &AggregateFunction,
-        arg: &Expression,
-        distinct: bool,
-    );
+    fn visit_aggregate(&mut self, func: &AggregateFunction, arg: &Expression, distinct: bool);
 
     /// 访问条件表达式
     fn visit_case(

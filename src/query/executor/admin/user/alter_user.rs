@@ -5,9 +5,9 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::UserAlterInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// 修改用户执行器
@@ -20,7 +20,12 @@ pub struct AlterUserExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> AlterUserExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, alter_info: UserAlterInfo, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        alter_info: UserAlterInfo,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AlterUserExecutor".to_string(), storage, expr_context),
             alter_info,
@@ -85,9 +90,9 @@ impl<S: StorageClient> HasStorage<S> for AlterUserExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_alter_user_executor() {

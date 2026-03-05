@@ -305,8 +305,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         &mut self,
         ast: Arc<crate::query::parser::ast::stmt::Ast>,
     ) -> DBResult<ValidationInfo> {
-        let mut validator = crate::query::validator::Validator::create_from_ast(&ast)
-            .ok_or_else(|| {
+        let mut validator =
+            crate::query::validator::Validator::create_from_ast(&ast).ok_or_else(|| {
                 DBError::from(QueryError::InvalidQuery(format!(
                     "不支持的语句类型: {:?}",
                     ast.stmt

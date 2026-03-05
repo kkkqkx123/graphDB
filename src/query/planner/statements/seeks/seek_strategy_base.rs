@@ -154,7 +154,11 @@ impl SeekStrategySelector {
         self
     }
 
-    pub fn select_best_index<'a>(&self, indexes: &'a [IndexInfo], predicates: &[Expression]) -> Option<&'a IndexInfo> {
+    pub fn select_best_index<'a>(
+        &self,
+        indexes: &'a [IndexInfo],
+        predicates: &[Expression],
+    ) -> Option<&'a IndexInfo> {
         if indexes.is_empty() {
             return None;
         }
@@ -163,9 +167,9 @@ impl SeekStrategySelector {
             .iter()
             .filter(|idx| {
                 idx.properties.iter().any(|prop| {
-                    predicates.iter().any(|pred| {
-                        PropertyContainsChecker::check(pred, &[prop.clone()])
-                    })
+                    predicates
+                        .iter()
+                        .any(|pred| PropertyContainsChecker::check(pred, &[prop.clone()]))
                 })
             })
             .collect();
@@ -174,15 +178,15 @@ impl SeekStrategySelector {
             return indexes.iter().min_by_key(|idx| idx.field_count);
         }
 
-        candidate_indexes
-            .into_iter()
-            .min_by(|a, b| {
-                let field_cmp = a.field_count.cmp(&b.field_count);
-                if field_cmp != std::cmp::Ordering::Equal {
-                    return field_cmp;
-                }
-                b.selectivity.partial_cmp(&a.selectivity).unwrap_or(std::cmp::Ordering::Equal)
-            })
+        candidate_indexes.into_iter().min_by(|a, b| {
+            let field_cmp = a.field_count.cmp(&b.field_count);
+            if field_cmp != std::cmp::Ordering::Equal {
+                return field_cmp;
+            }
+            b.selectivity
+                .partial_cmp(&a.selectivity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     pub fn select_strategy<S: StorageClient + ?Sized>(

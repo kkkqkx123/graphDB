@@ -2,9 +2,9 @@
 //! 用于验证 RETURN 语句（Cypher 风格的返回子句）
 //! 参考 nebula-graph MatchValidator.cpp 中的 Return 子句验证
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{Ast, ReturnItem, ReturnStmt};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
@@ -372,9 +372,7 @@ mod tests {
 
     #[test]
     fn test_validate_return_item_expression() {
-        use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionMeta,
-        };
+        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
         use std::sync::Arc;
 
         let mut validator = ReturnValidator::new();

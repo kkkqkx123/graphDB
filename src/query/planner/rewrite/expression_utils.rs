@@ -15,12 +15,14 @@
 //! - 重写操作需要创建新的 Expression
 //! - 新 Expression 必须注册到 ExpressionContext 才能使用
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionMeta;
-use crate::core::types::expression::{ConstantChecker, ExpressionVisitor, PropertyCollector, PropertyContainsChecker};
+use crate::core::types::expression::{
+    ConstantChecker, ExpressionVisitor, PropertyCollector, PropertyContainsChecker,
+};
 use crate::core::types::operators::BinaryOperator;
 use crate::core::Expression;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
 /// 检查表达式是否包含指定的属性名
@@ -248,20 +250,20 @@ where
     };
     let expr = expr_meta.inner();
     let (picked_expr, remained_expr) = split_filter_impl(expr, &picker);
-    
+
     let expr_context = ctx_expr.context().clone();
     let picked = picked_expr.map(|e| {
         let meta = ExpressionMeta::new(e);
         let id = expr_context.register_expression(meta);
         ContextualExpression::new(id, expr_context.clone())
     });
-    
+
     let remained = remained_expr.map(|e| {
         let meta = ExpressionMeta::new(e);
         let id = expr_context.register_expression(meta);
         ContextualExpression::new(id, expr_context.clone())
     });
-    
+
     (picked, remained)
 }
 
@@ -398,7 +400,9 @@ pub fn and_condition(
 ///
 /// # 返回
 /// 合并后的条件
-pub fn and_conditions(conditions: Vec<Option<ContextualExpression>>) -> Option<ContextualExpression> {
+pub fn and_conditions(
+    conditions: Vec<Option<ContextualExpression>>,
+) -> Option<ContextualExpression> {
     conditions.into_iter().fold(None, and_condition)
 }
 
@@ -481,21 +485,26 @@ mod tests {
         let picker = |expr: &Expression| -> bool {
             let mut collector = PropertyCollector::new();
             ExpressionVisitor::visit(&mut collector, expr);
-            collector.properties.contains(&"a".to_string()) || collector.properties.contains(&"b".to_string())
+            collector.properties.contains(&"a".to_string())
+                || collector.properties.contains(&"b".to_string())
         };
 
         let (picked, remained) = split_filter(&ctx_condition, picker);
 
         // 验证选中的部分包含 a 和 b
         assert!(picked.is_some());
-        let picked_props = extract_property_refs(&picked.as_ref().expect("Failed to get picked expression"));
+        let picked_props =
+            extract_property_refs(&picked.as_ref().expect("Failed to get picked expression"));
         assert!(picked_props.contains(&"a".to_string()));
         assert!(picked_props.contains(&"b".to_string()));
 
         // 验证剩余的部分包含 c
         assert!(remained.is_some());
-        let remained_props =
-            extract_property_refs(&remained.as_ref().expect("Failed to get remained expression"));
+        let remained_props = extract_property_refs(
+            &remained
+                .as_ref()
+                .expect("Failed to get remained expression"),
+        );
         assert!(remained_props.contains(&"c".to_string()));
     }
 

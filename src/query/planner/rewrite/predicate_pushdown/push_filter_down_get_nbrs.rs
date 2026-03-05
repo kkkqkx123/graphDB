@@ -3,7 +3,6 @@
 //! 该规则识别 Filter -> GetNeighbors 模式，
 //! 并将过滤条件下推到 GetNeighbors 节点中。
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::ContextualExpression;
@@ -14,6 +13,7 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 将过滤条件下推到GetNeighbors操作的规则
 ///
@@ -171,8 +171,8 @@ mod tests {
     #[test]
     fn test_can_push_down() {
         let rule = PushFilterDownGetNbrsRule::new();
-        use ExpressionAnalysisContext;
         use std::sync::Arc;
+        use ExpressionAnalysisContext;
 
         let start = StartNode::new();
         let start_enum = PlanNodeEnum::Start(start);

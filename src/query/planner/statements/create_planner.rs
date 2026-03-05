@@ -3,7 +3,6 @@
 //! 处理 Cypher 风格 CREATE 语句的查询规划
 //! 支持 CREATE (n:Label {props}) 和 CREATE (a)-[:Type]->(b) 语法
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::core::Value;
 use crate::core::YieldColumn;
@@ -20,6 +19,7 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
@@ -180,7 +180,12 @@ impl Planner for CreatePlanner {
                     vec![]
                 };
 
-                let info = self.build_vertex_insert_info(space_name, labels, &props, validated.expr_context())?;
+                let info = self.build_vertex_insert_info(
+                    space_name,
+                    labels,
+                    &props,
+                    validated.expr_context(),
+                )?;
 
                 (
                     PlanNodeEnum::InsertVertices(InsertVerticesNode::new(next_node_id(), info)),
@@ -223,14 +228,21 @@ impl Planner for CreatePlanner {
                 for pattern in patterns {
                     match pattern {
                         crate::query::parser::ast::pattern::Pattern::Path(path) => {
-                            let (mut vertices, mut edges) =
-                                self.process_path_pattern(path, &space_name, validated.expr_context())?;
+                            let (mut vertices, mut edges) = self.process_path_pattern(
+                                path,
+                                &space_name,
+                                validated.expr_context(),
+                            )?;
                             vertex_infos.append(&mut vertices);
                             edge_infos.append(&mut edges);
                             created_count += 1;
                         }
                         crate::query::parser::ast::pattern::Pattern::Node(node) => {
-                            let info = self.process_node_pattern(node, &space_name, validated.expr_context())?;
+                            let info = self.process_node_pattern(
+                                node,
+                                &space_name,
+                                validated.expr_context(),
+                            )?;
                             vertex_infos.push(info);
                             created_count += 1;
                         }

@@ -6,16 +6,16 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ExpressionAnalysisContext as ExpressionContextStruct;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::{DataSet, Expression, Value};
-use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::ExecutionResult;
 use crate::query::executor::data_processing::join::hash_table::JoinKey;
 use crate::query::executor::data_processing::join::join_key_evaluator::JoinKeyEvaluator;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
+use ExpressionAnalysisContext as ExpressionContextStruct;
 
 /// Join执行器的基础结构
 pub struct BaseJoinExecutor<S: StorageClient> {
@@ -74,12 +74,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(
-                id,
-                "BaseJoinExecutor".to_string(),
-                storage,
-                expr_context,
-            ),
+            base: BaseExecutor::new(id, "BaseJoinExecutor".to_string(), storage, expr_context),
             left_var,
             right_var,
             hash_keys,

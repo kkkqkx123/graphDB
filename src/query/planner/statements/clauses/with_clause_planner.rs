@@ -228,9 +228,7 @@ impl WithClausePlanner {
     /// - 处理 ORDER BY 和分页
     /// - 收集别名信息
     /// - 处理聚合表达式和分组键
-    fn extract_with_context(
-        stmt: &Stmt,
-    ) -> Result<WithClauseContext, PlannerError> {
+    fn extract_with_context(stmt: &Stmt) -> Result<WithClauseContext, PlannerError> {
         use crate::core::YieldColumn;
         use crate::query::parser::ast::Stmt;
         use crate::query::validator::structs::{
@@ -448,7 +446,6 @@ impl WithClausePlanner {
             "expr".to_string()
         }
     }
-
 }
 
 impl Default for WithClausePlanner {

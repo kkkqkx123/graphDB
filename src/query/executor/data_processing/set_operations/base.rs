@@ -7,9 +7,9 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::{DataSet, Value};
 use crate::query::executor::{BaseExecutor, ExecutionResult};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 

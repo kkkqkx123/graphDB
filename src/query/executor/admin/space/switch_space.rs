@@ -4,8 +4,8 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -19,7 +19,12 @@ pub struct SwitchSpaceExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> SwitchSpaceExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_name: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "SwitchSpaceExecutor".to_string(), storage, expr_context),
             space_name,
@@ -86,9 +91,9 @@ impl<S: StorageClient> HasStorage<S> for SwitchSpaceExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_switch_space_executor() {
@@ -96,7 +101,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = SwitchSpaceExecutor::new(1, storage, "test_space".to_string(), expr_context);
+        let mut executor =
+            SwitchSpaceExecutor::new(1, storage, "test_space".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -108,7 +114,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = SwitchSpaceExecutor::new(2, storage, "test_space".to_string(), expr_context);
+        let mut executor =
+            SwitchSpaceExecutor::new(2, storage, "test_space".to_string(), expr_context);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());

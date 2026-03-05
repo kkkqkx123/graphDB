@@ -3,7 +3,6 @@
 //! 负责根据执行计划创建对应的执行器实例
 //! 采用直接匹配模式，简单高效，易于维护
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, QueryError};
 use crate::core::{EdgeDirection, Value};
 use crate::query::executor::base::executor_stats::QueryStatsCollector;
@@ -14,6 +13,7 @@ use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     JoinNode, MultipleInputNode, SingleInputNode,
 };
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 
 use crate::storage::StorageClient;
@@ -603,7 +603,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         }
 
         match plan_node {
-            PlanNodeEnum::Start(node) => Ok(ExecutorEnum::Start(StartExecutor::new(node.id(), context.expression_context().clone()))),
+            PlanNodeEnum::Start(node) => Ok(ExecutorEnum::Start(StartExecutor::new(
+                node.id(),
+                context.expression_context().clone(),
+            ))),
 
             // 数据访问执行器
             PlanNodeEnum::ScanVertices(node) => {
@@ -682,7 +685,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                         )
                     })
                     .collect();
-                let executor = ProjectExecutor::new(node.id(), storage, columns, context.expression_context().clone());
+                let executor = ProjectExecutor::new(
+                    node.id(),
+                    storage,
+                    columns,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::Project(executor))
             }
             PlanNodeEnum::Limit(node) => {
@@ -783,10 +791,16 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             // 数据处理执行器
-            PlanNodeEnum::InnerJoin(node) => self.create_inner_join_executor(&node, storage, context),
-            PlanNodeEnum::HashInnerJoin(node) => self.create_inner_join_executor(&node, storage, context),
+            PlanNodeEnum::InnerJoin(node) => {
+                self.create_inner_join_executor(&node, storage, context)
+            }
+            PlanNodeEnum::HashInnerJoin(node) => {
+                self.create_inner_join_executor(&node, storage, context)
+            }
             PlanNodeEnum::LeftJoin(node) => self.create_left_join_executor(&node, storage, context),
-            PlanNodeEnum::HashLeftJoin(node) => self.create_left_join_executor(&node, storage, context),
+            PlanNodeEnum::HashLeftJoin(node) => {
+                self.create_left_join_executor(&node, storage, context)
+            }
             PlanNodeEnum::FullOuterJoin(node) => {
                 self.create_full_outer_join_executor(&node, storage, context)
             }
@@ -818,7 +832,13 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("union_{}", node.id()));
-                let executor = UnionExecutor::new(node.id(), storage, input_var.clone(), input_var, context.expression_context().clone());
+                let executor = UnionExecutor::new(
+                    node.id(),
+                    storage,
+                    input_var.clone(),
+                    input_var,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::Union(executor))
             }
 
@@ -833,7 +853,13 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", node.id()));
-                let executor = MinusExecutor::new(node.id(), storage, left_var, right_var, context.expression_context().clone());
+                let executor = MinusExecutor::new(
+                    node.id(),
+                    storage,
+                    left_var,
+                    right_var,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::Minus(executor))
             }
 
@@ -848,7 +874,13 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .output_var()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", node.id()));
-                let executor = IntersectExecutor::new(node.id(), storage, left_var, right_var, context.expression_context().clone());
+                let executor = IntersectExecutor::new(
+                    node.id(),
+                    storage,
+                    left_var,
+                    right_var,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::Intersect(executor))
             }
 
@@ -1021,7 +1053,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                         })?;
                     parsed_assignments.push((var_name.clone(), expression));
                 }
-                let executor = AssignExecutor::new(node.id(), storage, parsed_assignments, context.expression_context().clone());
+                let executor = AssignExecutor::new(
+                    node.id(),
+                    storage,
+                    parsed_assignments,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::Assign(executor))
             }
 
@@ -1134,24 +1171,43 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .expression()
                     .map(|meta| meta.inner().clone());
 
-                let executor =
-                    LoopExecutor::new(node.id(), storage, condition, body_executor, None, context.expression_context().clone());
+                let executor = LoopExecutor::new(
+                    node.id(),
+                    storage,
+                    condition,
+                    body_executor,
+                    None,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::Loop(executor))
             }
 
             // 特殊执行器
             PlanNodeEnum::Argument(node) => {
-                let executor = ArgumentExecutor::new(node.id(), storage, node.var(), context.expression_context().clone());
+                let executor = ArgumentExecutor::new(
+                    node.id(),
+                    storage,
+                    node.var(),
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::Argument(executor))
             }
 
             PlanNodeEnum::PassThrough(_) => {
-                let executor = PassThroughExecutor::new(plan_node.id(), storage, context.expression_context().clone());
+                let executor = PassThroughExecutor::new(
+                    plan_node.id(),
+                    storage,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::PassThrough(executor))
             }
 
             PlanNodeEnum::DataCollect(_) => {
-                let executor = DataCollectExecutor::new(plan_node.id(), storage, context.expression_context().clone());
+                let executor = DataCollectExecutor::new(
+                    plan_node.id(),
+                    storage,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::DataCollect(executor))
             }
 
@@ -1253,8 +1309,14 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .map(|branch| self.create_executor(branch, storage.clone(), context))
                     .transpose()?;
 
-                let executor =
-                    SelectExecutor::new(node.id(), storage, condition, if_executor, else_executor, context.expression_context().clone());
+                let executor = SelectExecutor::new(
+                    node.id(),
+                    storage,
+                    condition,
+                    if_executor,
+                    else_executor,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::Select(executor))
             }
 
@@ -1265,24 +1327,41 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 use crate::query::executor::admin::space::create_space::ExecutorSpaceInfo;
                 let space_info = ExecutorSpaceInfo::new(node.info().space_name.clone())
                     .with_vid_type(node.info().vid_type.clone());
-                let executor = CreateSpaceExecutor::new(node.id(), storage, space_info, context.expression_context().clone());
+                let executor = CreateSpaceExecutor::new(
+                    node.id(),
+                    storage,
+                    space_info,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::CreateSpace(executor))
             }
 
             PlanNodeEnum::DropSpace(node) => {
-                let executor =
-                    DropSpaceExecutor::new(node.id(), storage, node.space_name().to_string(), context.expression_context().clone());
+                let executor = DropSpaceExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::DropSpace(executor))
             }
 
             PlanNodeEnum::DescSpace(node) => {
-                let executor =
-                    DescSpaceExecutor::new(node.id(), storage, node.space_name().to_string(), context.expression_context().clone());
+                let executor = DescSpaceExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::DescSpace(executor))
             }
 
             PlanNodeEnum::ShowSpaces(node) => {
-                let executor = ShowSpacesExecutor::new(node.id(), storage, context.expression_context().clone());
+                let executor = ShowSpacesExecutor::new(
+                    node.id(),
+                    storage,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::ShowSpaces(executor))
             }
 
@@ -1295,7 +1374,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     properties: node.info().properties.clone(),
                     comment: None,
                 };
-                let executor = CreateTagExecutor::new(node.id(), storage, tag_info, context.expression_context().clone());
+                let executor = CreateTagExecutor::new(
+                    node.id(),
+                    storage,
+                    tag_info,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::CreateTag(executor))
             }
 
@@ -1311,7 +1395,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     let item = AlterTagItem::drop_property(prop_name.clone());
                     alter_info = alter_info.with_items(vec![item]);
                 }
-                let executor = AlterTagExecutor::new(node.id(), storage, alter_info, context.expression_context().clone());
+                let executor = AlterTagExecutor::new(
+                    node.id(),
+                    storage,
+                    alter_info,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::AlterTag(executor))
             }
 
@@ -1338,7 +1427,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::ShowTags(node) => {
-                let executor = ShowTagsExecutor::new(node.id(), storage, "".to_string(), context.expression_context().clone());
+                let executor = ShowTagsExecutor::new(
+                    node.id(),
+                    storage,
+                    "".to_string(),
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::ShowTags(executor))
             }
 
@@ -1351,7 +1445,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     properties: node.info().properties.clone(),
                     comment: None,
                 };
-                let executor = CreateEdgeExecutor::new(node.id(), storage, edge_info, context.expression_context().clone());
+                let executor = CreateEdgeExecutor::new(
+                    node.id(),
+                    storage,
+                    edge_info,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::CreateEdge(executor))
             }
 
@@ -1378,7 +1477,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::ShowEdges(node) => {
-                let executor = ShowEdgesExecutor::new(node.id(), storage, "".to_string(), context.expression_context().clone());
+                let executor = ShowEdgesExecutor::new(
+                    node.id(),
+                    storage,
+                    "".to_string(),
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::ShowEdges(executor))
             }
 
@@ -1398,7 +1502,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     let item = AlterEdgeItem::drop_property(prop_name.clone());
                     alter_info = alter_info.with_items(vec![item]);
                 }
-                let executor = AlterEdgeExecutor::new(node.id(), storage, alter_info, context.expression_context().clone());
+                let executor = AlterEdgeExecutor::new(
+                    node.id(),
+                    storage,
+                    alter_info,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::AlterEdge(executor))
             }
 
@@ -1415,7 +1524,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     IndexType::TagIndex,
                     false,
                 );
-                let executor = CreateTagIndexExecutor::new(node.id(), storage, index, context.expression_context().clone());
+                let executor = CreateTagIndexExecutor::new(
+                    node.id(),
+                    storage,
+                    index,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::CreateTagIndex(executor))
             }
 
@@ -1442,7 +1556,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::ShowTagIndexes(node) => {
-                let executor = ShowTagIndexesExecutor::new(node.id(), storage, "".to_string(), context.expression_context().clone());
+                let executor = ShowTagIndexesExecutor::new(
+                    node.id(),
+                    storage,
+                    "".to_string(),
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::ShowTagIndexes(executor))
             }
 
@@ -1470,7 +1589,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     IndexType::EdgeIndex,
                     false,
                 );
-                let executor = CreateEdgeIndexExecutor::new(node.id(), storage, index, context.expression_context().clone());
+                let executor = CreateEdgeIndexExecutor::new(
+                    node.id(),
+                    storage,
+                    index,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::CreateEdgeIndex(executor))
             }
 
@@ -1497,7 +1621,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::ShowEdgeIndexes(node) => {
-                let executor = ShowEdgeIndexesExecutor::new(node.id(), storage, "".to_string(), context.expression_context().clone());
+                let executor = ShowEdgeIndexesExecutor::new(
+                    node.id(),
+                    storage,
+                    "".to_string(),
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::ShowEdgeIndexes(executor))
             }
 
@@ -1518,7 +1647,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let user_info =
                     UserInfo::new(node.username().to_string(), node.password().to_string())
                         .map_err(|e| DBError::Storage(e))?;
-                let executor = CreateUserExecutor::new(node.id(), storage, user_info, context.expression_context().clone());
+                let executor = CreateUserExecutor::new(
+                    node.id(),
+                    storage,
+                    user_info,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::CreateUser(executor))
             }
 
@@ -1528,13 +1662,22 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 if let Some(locked) = node.is_locked() {
                     alter_info = alter_info.with_locked(locked);
                 }
-                let executor = AlterUserExecutor::new(node.id(), storage, alter_info, context.expression_context().clone());
+                let executor = AlterUserExecutor::new(
+                    node.id(),
+                    storage,
+                    alter_info,
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::AlterUser(executor))
             }
 
             PlanNodeEnum::DropUser(node) => {
-                let executor =
-                    DropUserExecutor::new(node.id(), storage, node.username().to_string(), context.expression_context().clone());
+                let executor = DropUserExecutor::new(
+                    node.id(),
+                    storage,
+                    node.username().to_string(),
+                    context.expression_context().clone(),
+                );
                 Ok(ExecutorEnum::DropUser(executor))
             }
 

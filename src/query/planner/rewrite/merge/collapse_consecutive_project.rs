@@ -12,7 +12,6 @@
 //! - 两个 Project 节点连续出现
 //! - 上层 Project 不依赖下层 Project 的别名解析
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -23,6 +22,7 @@ use crate::query::planner::rewrite::expression_utils::rewrite_contextual_express
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use std::collections::HashMap;
 
 /// 合并连续投影规则
@@ -178,9 +178,9 @@ mod tests {
 
     #[test]
     fn test_collapse_consecutive_projects() {
-        use ExpressionAnalysisContext;
         use crate::core::types::expression::ExpressionMeta;
         use std::sync::Arc;
+        use ExpressionAnalysisContext;
 
         // 创建起始节点
         let start = PlanNodeEnum::Start(StartNode::new());

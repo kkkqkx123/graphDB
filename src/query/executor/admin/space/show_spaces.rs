@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -21,7 +21,11 @@ pub struct ShowSpacesExecutor<S: StorageClient> {
 
 impl<S: StorageClient> ShowSpacesExecutor<S> {
     /// 创建新的 ShowSpacesExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ShowSpacesExecutor".to_string(), storage, expr_context),
         }

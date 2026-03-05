@@ -2,7 +2,6 @@
 //!
 //! 负责规划 UNWIND 子句的执行，将列表展开为多行。
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::data_processing_node::UnwindNode;
@@ -10,6 +9,7 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -55,7 +55,7 @@ fn extract_unwind_info(stmt: &Stmt) -> Result<(ContextualExpression, String), Pl
         return Ok((unwind_stmt.expression.clone(), unwind_stmt.variable.clone()));
     }
     Err(PlannerError::PlanGenerationFailed(
-        "期望 UNWIND 语句，但得到了其他类型的语句".to_string()
+        "期望 UNWIND 语句，但得到了其他类型的语句".to_string(),
     ))
 }
 
@@ -77,10 +77,10 @@ mod tests {
 
     #[test]
     fn test_extract_unwind_info() {
-        use ExpressionAnalysisContext;
         use crate::core::Expression;
         use crate::query::parser::ast::Span;
         use std::sync::Arc;
+        use ExpressionAnalysisContext;
 
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::List(vec![]);

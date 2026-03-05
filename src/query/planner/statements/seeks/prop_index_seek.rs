@@ -102,7 +102,10 @@ impl PropIndexSeek {
             if collector.can_convert_to_in() {
                 use crate::core::value::dataset::List;
                 predicates.push(PropertyPredicate {
-                    property: collector.property_name().expect("property_name should exist").clone(),
+                    property: collector
+                        .property_name()
+                        .expect("property_name should exist")
+                        .clone(),
                     op: PredicateOp::In,
                     value: Value::List(List {
                         values: collector.values().to_vec(),

@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::executor::admin::space::create_space::ExecutorSpaceInfo;
     use crate::query::executor::admin::space::{
         CreateSpaceExecutor, DescSpaceExecutor, DropSpaceExecutor, ShowSpacesExecutor,
     };
     use crate::query::executor::Executor;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
     use parking_lot::Mutex;
     use std::sync::Arc;
@@ -35,7 +35,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = DropSpaceExecutor::new(2, storage, "test_space".to_string(), expr_context);
+        let mut executor =
+            DropSpaceExecutor::new(2, storage, "test_space".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -51,7 +52,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = DescSpaceExecutor::new(3, storage, "test_space".to_string(), expr_context);
+        let mut executor =
+            DescSpaceExecutor::new(3, storage, "test_space".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());

@@ -5,9 +5,9 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::{PropertyDef, TagInfo};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 impl TagInfo {
@@ -77,7 +77,12 @@ pub struct CreateTagExecutor<S: StorageClient> {
 
 impl<S: StorageClient> CreateTagExecutor<S> {
     /// 创建新的 CreateTagExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, tag_info: ExecutorTagInfo, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        tag_info: ExecutorTagInfo,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateTagExecutor".to_string(), storage, expr_context),
             tag_info,
@@ -86,7 +91,12 @@ impl<S: StorageClient> CreateTagExecutor<S> {
     }
 
     /// 创建带 IF NOT EXISTS 选项的 CreateTagExecutor
-    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, tag_info: ExecutorTagInfo, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn with_if_not_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        tag_info: ExecutorTagInfo,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateTagExecutor".to_string(), storage, expr_context),
             tag_info,

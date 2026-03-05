@@ -5,9 +5,9 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::PropertyDef;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// 标签修改操作类型
@@ -85,7 +85,12 @@ pub struct AlterTagExecutor<S: StorageClient> {
 
 impl<S: StorageClient> AlterTagExecutor<S> {
     /// 创建新的 AlterTagExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, alter_info: AlterTagInfo, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        alter_info: AlterTagInfo,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AlterTagExecutor".to_string(), storage, expr_context),
             alter_info,

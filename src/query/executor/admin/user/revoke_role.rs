@@ -5,8 +5,8 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// 撤销角色执行器
@@ -20,7 +20,13 @@ pub struct RevokeRoleExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> RevokeRoleExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, username: String, space_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        username: String,
+        space_name: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "RevokeRoleExecutor".to_string(), storage, expr_context),
             username,
@@ -93,9 +99,9 @@ impl<S: StorageClient> HasStorage<S> for RevokeRoleExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_revoke_role_executor() {

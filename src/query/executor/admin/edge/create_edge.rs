@@ -5,9 +5,9 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::{EdgeTypeSchema, PropertyDef};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 impl EdgeTypeSchema {
@@ -77,7 +77,12 @@ pub struct CreateEdgeExecutor<S: StorageClient> {
 
 impl<S: StorageClient> CreateEdgeExecutor<S> {
     /// 创建新的 CreateEdgeExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, edge_info: ExecutorEdgeInfo, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        edge_info: ExecutorEdgeInfo,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateEdgeExecutor".to_string(), storage, expr_context),
             edge_info,

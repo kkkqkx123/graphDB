@@ -3,8 +3,8 @@
 //! 该规则识别 Filter -> Traverse 模式，
 //! 并将边属性过滤条件下推到 Traverse 节点中。
 
-use crate::core::Expression;
 use crate::core::types::expression::{ExpressionVisitor, VariableCollector};
+use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;

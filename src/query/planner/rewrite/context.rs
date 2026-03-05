@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 重写上下文
 ///

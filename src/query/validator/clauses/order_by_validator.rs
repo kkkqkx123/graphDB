@@ -11,11 +11,11 @@
 //!    - 表达式引用收集
 //! 3. 使用 QueryContext 统一管理上下文
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::OrderDirection;
 use crate::query::parser::ast::stmt::Ast;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -610,9 +610,7 @@ mod tests {
 
     #[test]
     fn test_add_order_column() {
-        use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionMeta,
-        };
+        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
         use std::sync::Arc;
 
         let mut validator = OrderByValidator::new();
@@ -639,9 +637,7 @@ mod tests {
 
     #[test]
     fn test_validate_valid_column() {
-        use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionMeta,
-        };
+        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
         use std::sync::Arc;
 
         let mut validator = OrderByValidator::new();

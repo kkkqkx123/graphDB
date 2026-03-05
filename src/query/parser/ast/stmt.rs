@@ -6,10 +6,10 @@ use std::sync::Arc;
 
 use super::pattern::*;
 use super::types::*;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::utils::collect_variables_from_contextual;
 use crate::core::types::expression::ContextualExpression;
 use crate::core::types::PropertyDef;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// AST 包装类型 - 包含语句和表达式上下文
 ///

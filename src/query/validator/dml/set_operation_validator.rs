@@ -237,7 +237,10 @@ impl StatementValidator for SetOperationValidator {
 
         // 验证左右子查询
         let left_outputs = if let Some(ref mut left) = self.left_validator {
-            let result = left.validate(Arc::new(Ast::new(left_stmt, ast.expr_context.clone())), qctx.clone());
+            let result = left.validate(
+                Arc::new(Ast::new(left_stmt, ast.expr_context.clone())),
+                qctx.clone(),
+            );
             if result.success {
                 result.outputs
             } else {
@@ -253,7 +256,10 @@ impl StatementValidator for SetOperationValidator {
         };
 
         let right_outputs = if let Some(ref mut right) = self.right_validator {
-            let result = right.validate(Arc::new(Ast::new(right_stmt, ast.expr_context.clone())), qctx.clone());
+            let result = right.validate(
+                Arc::new(Ast::new(right_stmt, ast.expr_context.clone())),
+                qctx.clone(),
+            );
             if result.success {
                 result.outputs
             } else {

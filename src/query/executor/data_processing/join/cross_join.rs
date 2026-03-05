@@ -5,14 +5,14 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
-use ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
+use ExpressionAnalysisContext as ExpressionContextStruct;
 
 /// 笛卡尔积执行器
 pub struct CrossJoinExecutor<S: StorageClient> {
@@ -303,9 +303,9 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::core::{DataSet, Value};
     use crate::storage::test_mock::MockStorage;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_cross_join_two_tables() {

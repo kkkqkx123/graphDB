@@ -5,10 +5,10 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::{DataSet, Value};
 use crate::core::{QueryStatus, StatsManager};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// 显示统计类型
@@ -42,21 +42,35 @@ pub struct ShowStatsExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> ShowStatsExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ShowStatsExecutor".to_string(), storage, expr_context),
             stats_type: ShowStatsType::All,
         }
     }
 
-    pub fn with_type(id: i64, storage: Arc<Mutex<S>>, stats_type: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn with_type(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        stats_type: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ShowStatsExecutor".to_string(), storage, expr_context),
             stats_type: Self::parse_stats_type(&stats_type),
         }
     }
 
-    pub fn with_stats_type(id: i64, storage: Arc<Mutex<S>>, stats_type: ShowStatsType, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn with_stats_type(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        stats_type: ShowStatsType,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ShowStatsExecutor".to_string(), storage, expr_context),
             stats_type,

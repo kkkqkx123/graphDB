@@ -3,9 +3,9 @@
 //! 提供计划节点的模式匹配功能，用于重写规则识别特定计划结构。
 //! 这是从 optimizer 层独立出来的简化版本，专注于启发式重写规则的需求。
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 生成节点匹配方法的宏
 ///

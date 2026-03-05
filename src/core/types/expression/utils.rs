@@ -240,14 +240,10 @@ fn requires_runtime_context(expression: &Expression) -> bool {
             requires_runtime_context(left) || requires_runtime_context(right)
         }
         Expression::Unary { operand, .. } => requires_runtime_context(operand),
-        Expression::Function { args, .. } => {
-            args.iter().any(|arg| requires_runtime_context(arg))
-        }
+        Expression::Function { args, .. } => args.iter().any(|arg| requires_runtime_context(arg)),
         Expression::Aggregate { arg, .. } => requires_runtime_context(arg),
         Expression::List(items) => items.iter().any(|arg| requires_runtime_context(arg)),
-        Expression::Map(pairs) => pairs
-            .iter()
-            .any(|(_, val)| requires_runtime_context(val)),
+        Expression::Map(pairs) => pairs.iter().any(|(_, val)| requires_runtime_context(val)),
         Expression::Case {
             test_expr,
             conditions,
@@ -276,13 +272,9 @@ fn requires_runtime_context(expression: &Expression) -> bool {
                 || start
                     .as_ref()
                     .map_or(false, |s| requires_runtime_context(s))
-                || end
-                    .as_ref()
-                    .map_or(false, |e| requires_runtime_context(e))
+                || end.as_ref().map_or(false, |e| requires_runtime_context(e))
         }
-        Expression::Path(items) => items
-            .iter()
-            .any(|item| requires_runtime_context(item)),
+        Expression::Path(items) => items.iter().any(|item| requires_runtime_context(item)),
         Expression::Label(_) => false,
         Expression::ListComprehension {
             source,
@@ -294,16 +286,12 @@ fn requires_runtime_context(expression: &Expression) -> bool {
                 || filter
                     .as_ref()
                     .map_or(false, |f| requires_runtime_context(f))
-                || map
-                    .as_ref()
-                    .map_or(false, |m| requires_runtime_context(m))
+                || map.as_ref().map_or(false, |m| requires_runtime_context(m))
         }
         Expression::LabelTagProperty { tag, .. } => requires_runtime_context(tag),
         Expression::TagProperty { .. } => false,
         Expression::EdgeProperty { .. } => false,
-        Expression::Predicate { args, .. } => {
-            args.iter().any(|arg| requires_runtime_context(arg))
-        }
+        Expression::Predicate { args, .. } => args.iter().any(|arg| requires_runtime_context(arg)),
         Expression::Reduce {
             initial,
             source,
@@ -314,9 +302,7 @@ fn requires_runtime_context(expression: &Expression) -> bool {
                 || requires_runtime_context(source)
                 || requires_runtime_context(mapping)
         }
-        Expression::PathBuild(exprs) => exprs
-            .iter()
-            .any(|expr| requires_runtime_context(expr)),
+        Expression::PathBuild(exprs) => exprs.iter().any(|expr| requires_runtime_context(expr)),
         Expression::Parameter(_) => true,
     }
 }

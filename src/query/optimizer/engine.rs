@@ -35,12 +35,12 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::optimizer::{
     AggregateStrategySelector, CostCalculator, CostModelConfig, ExpressionAnalyzer,
     MaterializationOptimizer, ReferenceCountAnalyzer, SelectivityEstimator,
     SortEliminationOptimizer, StatisticsManager, SubqueryUnnestingOptimizer,
 };
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 优化器引擎
 ///
@@ -78,10 +78,7 @@ impl OptimizerEngine {
     /// # 参数
     /// - `cost_config`: 代价模型配置
     pub fn new(cost_config: CostModelConfig) -> Self {
-        Self::with_expression_context(
-            Arc::new(ExpressionAnalysisContext::new()),
-            cost_config,
-        )
+        Self::with_expression_context(Arc::new(ExpressionAnalysisContext::new()), cost_config)
     }
 
     /// 使用共享的 ExpressionContext 创建优化器引擎
@@ -119,10 +116,8 @@ impl OptimizerEngine {
         );
 
         // 创建子查询去关联化优化器
-        let subquery_unnesting_optimizer = SubqueryUnnestingOptimizer::new(
-            &expression_analyzer,
-            &*stats_manager,
-        );
+        let subquery_unnesting_optimizer =
+            SubqueryUnnestingOptimizer::new(&expression_analyzer, &*stats_manager);
 
         // 创建 CTE 物化优化器
         let materialization_optimizer = MaterializationOptimizer::new(
@@ -237,10 +232,8 @@ impl OptimizerEngine {
             self.expression_analyzer.clone(),
         );
         // 重新创建子查询去关联化优化器
-        self.subquery_unnesting_optimizer = SubqueryUnnestingOptimizer::new(
-            &self.expression_analyzer,
-            &*self.stats_manager,
-        );
+        self.subquery_unnesting_optimizer =
+            SubqueryUnnestingOptimizer::new(&self.expression_analyzer, &*self.stats_manager);
         // 重新创建 CTE 物化优化器
         self.materialization_optimizer = MaterializationOptimizer::new(
             &self.reference_count_analyzer,

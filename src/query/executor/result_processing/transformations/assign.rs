@@ -5,15 +5,15 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::Value;
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::base::{ExecutionResult, Executor};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// Assign执行器
@@ -26,14 +26,14 @@ pub struct AssignExecutor<S: StorageClient + Send + 'static> {
 
 impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
     /// 创建新的AssignExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, assign_items: Vec<(String, Expression)>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        assign_items: Vec<(String, Expression)>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
-            base: BaseExecutor::new(
-                id,
-                "AssignExecutor".to_string(),
-                storage,
-                expr_context,
-            ),
+            base: BaseExecutor::new(id, "AssignExecutor".to_string(), storage, expr_context),
             assign_items,
         }
     }

@@ -8,9 +8,9 @@
 //! - [`VariableCollector`] - 收集表达式中所有使用的变量名
 //! - [`FunctionCollector`] - 收集表达式中所有使用的函数名
 
+use crate::core::types::expression::visitor::ExpressionVisitor;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::types::DataType;
-use crate::core::types::expression::visitor::ExpressionVisitor;
 use crate::core::{Expression, Value};
 
 /// 属性收集器
@@ -58,21 +58,12 @@ impl ExpressionVisitor for PropertyCollector {
         }
     }
 
-    fn visit_binary(
-        &mut self,
-        _op: BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) {
+    fn visit_binary(&mut self, _op: BinaryOperator, left: &Expression, right: &Expression) {
         self.visit(left);
         self.visit(right);
     }
 
-    fn visit_unary(
-        &mut self,
-        _op: UnaryOperator,
-        operand: &Expression,
-    ) {
+    fn visit_unary(&mut self, _op: UnaryOperator, operand: &Expression) {
         self.visit(operand);
     }
 
@@ -82,12 +73,7 @@ impl ExpressionVisitor for PropertyCollector {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) {
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) {
         self.visit(arg);
     }
 
@@ -118,7 +104,11 @@ impl ExpressionVisitor for PropertyCollector {
         }
     }
 
-    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &crate::core::types::DataType) {
+    fn visit_type_cast(
+        &mut self,
+        expression: &Expression,
+        _target_type: &crate::core::types::DataType,
+    ) {
         self.visit(expression);
     }
 
@@ -283,12 +273,7 @@ impl ExpressionVisitor for OrConditionCollector {
         }
     }
 
-    fn visit_binary(
-        &mut self,
-        op: BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) {
+    fn visit_binary(&mut self, op: BinaryOperator, left: &Expression, right: &Expression) {
         match op {
             BinaryOperator::Equal => {
                 self.visit(left);
@@ -307,11 +292,7 @@ impl ExpressionVisitor for OrConditionCollector {
         }
     }
 
-    fn visit_unary(
-        &mut self,
-        _op: UnaryOperator,
-        operand: &Expression,
-    ) {
+    fn visit_unary(&mut self, _op: UnaryOperator, operand: &Expression) {
         self.visit(operand);
     }
 
@@ -321,12 +302,7 @@ impl ExpressionVisitor for OrConditionCollector {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) {
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) {
         self.visit(arg);
     }
 
@@ -514,12 +490,7 @@ impl ExpressionVisitor for PropertyPredicateCollector {
         self.current_property = Some(property.to_string());
     }
 
-    fn visit_binary(
-        &mut self,
-        op: BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) {
+    fn visit_binary(&mut self, op: BinaryOperator, left: &Expression, right: &Expression) {
         if matches!(
             op,
             BinaryOperator::Equal
@@ -544,11 +515,7 @@ impl ExpressionVisitor for PropertyPredicateCollector {
         self.visit(right);
     }
 
-    fn visit_unary(
-        &mut self,
-        _op: UnaryOperator,
-        operand: &Expression,
-    ) {
+    fn visit_unary(&mut self, _op: UnaryOperator, operand: &Expression) {
         self.visit(operand);
     }
 
@@ -558,12 +525,7 @@ impl ExpressionVisitor for PropertyPredicateCollector {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) {
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) {
         self.visit(arg);
     }
 
@@ -725,21 +687,12 @@ impl ExpressionVisitor for VariableCollector {
         self.visit(object);
     }
 
-    fn visit_binary(
-        &mut self,
-        _op: BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) {
+    fn visit_binary(&mut self, _op: BinaryOperator, left: &Expression, right: &Expression) {
         self.visit(left);
         self.visit(right);
     }
 
-    fn visit_unary(
-        &mut self,
-        _op: UnaryOperator,
-        operand: &Expression,
-    ) {
+    fn visit_unary(&mut self, _op: UnaryOperator, operand: &Expression) {
         self.visit(operand);
     }
 
@@ -749,12 +702,7 @@ impl ExpressionVisitor for VariableCollector {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) {
+    fn visit_aggregate(&mut self, _func: &AggregateFunction, arg: &Expression, _distinct: bool) {
         self.visit(arg);
     }
 
@@ -785,7 +733,11 @@ impl ExpressionVisitor for VariableCollector {
         }
     }
 
-    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &crate::core::types::DataType) {
+    fn visit_type_cast(
+        &mut self,
+        expression: &Expression,
+        _target_type: &crate::core::types::DataType,
+    ) {
         self.visit(expression);
     }
 
@@ -939,12 +891,7 @@ impl ExpressionVisitor for FunctionCollector {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        func: &AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) {
+    fn visit_aggregate(&mut self, func: &AggregateFunction, arg: &Expression, _distinct: bool) {
         let func_name = format!("{:?}", func);
         if !self.functions.contains(&func_name) {
             self.functions.push(func_name);

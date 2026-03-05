@@ -18,13 +18,13 @@ use std::time::Instant;
 
 use rayon::prelude::*;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, NPath, Path, Value};
 use crate::query::executor::base::{
     BaseExecutor, EdgeDirection, ExecutionResult, Executor, ExecutorStats,
 };
 use crate::query::executor::recursion_detector::ParallelConfig;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 

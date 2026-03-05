@@ -18,7 +18,9 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::query::parser::ast::stmt::{Ast, FromClause, OverClause, Steps, SubgraphStmt, YieldClause};
+use crate::query::parser::ast::stmt::{
+    Ast, FromClause, OverClause, Steps, SubgraphStmt, YieldClause,
+};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{

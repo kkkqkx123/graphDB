@@ -5,8 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::core::types::{ContextualExpression};
+use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -16,6 +15,7 @@ use crate::query::planner::rewrite::expression_utils::{check_col_name, split_fil
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 将过滤条件下推到内连接操作的规则
 ///

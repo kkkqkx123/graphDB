@@ -1,11 +1,11 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::DBResult;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// ArgumentExecutor - 参数执行器
@@ -18,7 +18,12 @@ pub struct ArgumentExecutor<S: StorageClient + 'static> {
 }
 
 impl<S: StorageClient + 'static> ArgumentExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, var: &str, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        var: &str,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ArgumentExecutor".to_string(), storage, expr_context),
             var: var.to_string(),
@@ -127,7 +132,11 @@ pub struct PassThroughExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient> PassThroughExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "PassThroughExecutor".to_string(), storage, expr_context),
             input_executor: None,
@@ -206,7 +215,11 @@ pub struct DataCollectExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient> DataCollectExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DataCollectExecutor".to_string(), storage, expr_context),
             input_executor: None,
@@ -329,7 +342,8 @@ mod tests {
     fn test_argument_executor_with_result() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = ArgumentExecutor::<MockStorage>::new(1, storage, "my_result", expr_context);
+        let mut executor =
+            ArgumentExecutor::<MockStorage>::new(1, storage, "my_result", expr_context);
 
         // 设置中间结果
         let test_result = ExecutionResult::Values(vec![Value::Int(42)]);
@@ -353,7 +367,8 @@ mod tests {
     fn test_argument_executor_variable_not_found() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = ArgumentExecutor::<MockStorage>::new(1, storage, "undefined_var", expr_context);
+        let mut executor =
+            ArgumentExecutor::<MockStorage>::new(1, storage, "undefined_var", expr_context);
 
         // 执行时应该返回错误，因为变量未定义
         executor.open().expect("打开执行器失败");

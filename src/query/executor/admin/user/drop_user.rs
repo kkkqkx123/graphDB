@@ -5,8 +5,8 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// 删除用户执行器
@@ -20,7 +20,12 @@ pub struct DropUserExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DropUserExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, username: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        username: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropUserExecutor".to_string(), storage, expr_context),
             username,
@@ -28,7 +33,12 @@ impl<S: StorageClient> DropUserExecutor<S> {
         }
     }
 
-    pub fn with_if_exists(id: i64, storage: Arc<Mutex<S>>, username: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn with_if_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        username: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropUserExecutor".to_string(), storage, expr_context),
             username,
@@ -100,9 +110,9 @@ impl<S: StorageClient> HasStorage<S> for DropUserExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_drop_user_executor() {
@@ -126,7 +136,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = DropUserExecutor::with_if_exists(2, storage, "test_user".to_string(), expr_context);
+        let mut executor =
+            DropUserExecutor::with_if_exists(2, storage, "test_user".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());

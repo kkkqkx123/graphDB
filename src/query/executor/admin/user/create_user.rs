@@ -5,9 +5,9 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::UserInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// 创建用户执行器
@@ -21,7 +21,12 @@ pub struct CreateUserExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> CreateUserExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, user_info: UserInfo, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        user_info: UserInfo,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateUserExecutor".to_string(), storage, expr_context),
             user_info,
@@ -29,7 +34,12 @@ impl<S: StorageClient> CreateUserExecutor<S> {
         }
     }
 
-    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, user_info: UserInfo, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn with_if_not_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        user_info: UserInfo,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateUserExecutor".to_string(), storage, expr_context),
             user_info,
@@ -101,9 +111,9 @@ impl<S: StorageClient> HasStorage<S> for CreateUserExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_create_user_executor() {
@@ -131,7 +141,8 @@ mod tests {
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
             .expect("Failed to create user info");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = CreateUserExecutor::with_if_not_exists(2, storage, user_info, expr_context);
+        let mut executor =
+            CreateUserExecutor::with_if_not_exists(2, storage, user_info, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());

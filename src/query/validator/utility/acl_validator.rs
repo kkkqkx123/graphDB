@@ -8,9 +8,9 @@
 //! 3. 验证用户存在性和角色合法性
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::parser::ast::stmt::{Ast, 
-    AlterUserStmt, ChangePasswordStmt, CreateUserStmt, DescribeUserStmt, DropUserStmt, GrantStmt,
-    RevokeStmt, RoleType, ShowRolesStmt, ShowUsersStmt,
+use crate::query::parser::ast::stmt::{
+    AlterUserStmt, Ast, ChangePasswordStmt, CreateUserStmt, DescribeUserStmt, DropUserStmt,
+    GrantStmt, RevokeStmt, RoleType, ShowRolesStmt, ShowUsersStmt,
 };
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{

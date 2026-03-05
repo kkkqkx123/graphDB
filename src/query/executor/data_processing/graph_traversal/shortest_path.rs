@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::DBResult;
 use crate::core::{Path, Value};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -76,7 +76,12 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ShortestPathExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "ShortestPathExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             start_vertex_ids,
             end_vertex_ids,
             edge_direction,

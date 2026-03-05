@@ -4,8 +4,8 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -21,7 +21,12 @@ pub struct DropSpaceExecutor<S: StorageClient> {
 
 impl<S: StorageClient> DropSpaceExecutor<S> {
     /// 创建新的 DropSpaceExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_name: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropSpaceExecutor".to_string(), storage, expr_context),
             space_name,
@@ -30,7 +35,12 @@ impl<S: StorageClient> DropSpaceExecutor<S> {
     }
 
     /// 创建带 IF EXISTS 选项的 DropSpaceExecutor
-    pub fn with_if_exists(id: i64, storage: Arc<Mutex<S>>, space_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn with_if_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_name: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropSpaceExecutor".to_string(), storage, expr_context),
             space_name,

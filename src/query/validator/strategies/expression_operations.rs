@@ -1,11 +1,11 @@
 //! 表达式操作验证器
 //! 负责验证表达式的操作合法性和结构完整性
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::DataType;
 use crate::core::Expression;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::strategies::helpers::TypeDeduceValidator;
 use std::collections::HashSet;
 
@@ -223,8 +223,7 @@ impl ExpressionOperationsValidator {
         self.validate_expression_operations_recursive(arg, depth + 1)?;
 
         // 创建临时 ContextualExpression 用于类型推导
-        let ctx =
-            std::sync::Arc::new(ExpressionAnalysisContext::new());
+        let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
         let meta = crate::core::types::expression::ExpressionMeta::new(arg.clone());
         let id = ctx.register_expression(meta);
         let contextual_arg = ContextualExpression::new(id, ctx);
@@ -284,8 +283,7 @@ impl ExpressionOperationsValidator {
         self.validate_expression_operations_recursive(index, depth + 1)?;
 
         // 创建临时 ContextualExpression 用于类型推导
-        let ctx =
-            std::sync::Arc::new(ExpressionAnalysisContext::new());
+        let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expression.clone());
         let expr_id = ctx.register_expression(expr_meta);
         let contextual_expr = ContextualExpression::new(expr_id, ctx.clone());

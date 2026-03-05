@@ -98,19 +98,27 @@ impl StatementValidator for QueryValidator {
         self.validate_impl(query_stmt)?;
 
         // 提取第一个语句
-        let first_stmt = query_stmt.statements.iter().next().ok_or_else(|| {
-            ValidationError::new(
-                "Query must contain at least one statement".to_string(),
-                ValidationErrorType::SemanticError,
-            )
-        })?.clone();
+        let first_stmt = query_stmt
+            .statements
+            .iter()
+            .next()
+            .ok_or_else(|| {
+                ValidationError::new(
+                    "Query must contain at least one statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                )
+            })?
+            .clone();
 
         let inner = self
             .inner_validator
             .as_mut()
             .expect("inner_validator should be set after validate_impl");
 
-        let result = inner.validate(Arc::new(Ast::new(first_stmt, ast.expr_context.clone())), qctx.clone());
+        let result = inner.validate(
+            Arc::new(Ast::new(first_stmt, ast.expr_context.clone())),
+            qctx.clone(),
+        );
 
         if result.success {
             self.inputs = result.inputs;

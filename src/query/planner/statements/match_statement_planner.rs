@@ -9,7 +9,6 @@
 //! - LIMIT/SKIP 分页
 //! - 智能扫描策略选择（索引扫描、属性扫描、全表扫描）
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::core::SymbolTable;
 use crate::core::YieldColumn;
@@ -26,6 +25,7 @@ use crate::query::planner::plan::core::nodes::{
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::planner::statements::statement_planner::StatementPlanner;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::validator::ValidationInfo;
 use crate::query::QueryContext;
@@ -102,13 +102,7 @@ impl Planner for MatchStatementPlanner {
         }
 
         // 使用别名映射优化规划
-        self.plan_match_pattern(
-            validated,
-            space_id,
-            sym_table,
-            Some(validation_info),
-            &qctx,
-        )
+        self.plan_match_pattern(validated, space_id, sym_table, Some(validation_info), &qctx)
     }
 }
 
@@ -350,7 +344,10 @@ impl MatchStatementPlanner {
 
         // 如果有标签过滤，添加过滤器
         if !node.labels.is_empty() {
-            let expr_ctx = self.expr_context.as_ref().expect("expr_context should be set");
+            let expr_ctx = self
+                .expr_context
+                .as_ref()
+                .expect("expr_context should be set");
             let label_filter =
                 Self::build_label_filter_expression(&node.variable, &node.labels, expr_ctx);
             let filter_node = FilterNode::new(
@@ -631,7 +628,7 @@ impl MatchStatementPlanner {
                     }
                     if columns.is_empty() {
                         return Err(PlannerError::PlanGenerationFailed(
-                            "RETURN 子句缺少返回项".to_string()
+                            "RETURN 子句缺少返回项".to_string(),
                         ));
                     }
                     Ok(Some(columns))

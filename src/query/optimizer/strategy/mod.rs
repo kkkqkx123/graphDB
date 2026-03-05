@@ -52,5 +52,5 @@ pub use subquery_unnesting::{
 };
 
 pub use materialization::{
-    MaterializeReason, MaterializationDecision, MaterializationOptimizer, NoMaterializeReason,
+    MaterializationDecision, MaterializationOptimizer, MaterializeReason, NoMaterializeReason,
 };

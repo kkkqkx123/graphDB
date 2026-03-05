@@ -2,10 +2,10 @@
 //! 用于验证 WITH 语句（Cypher 风格的管道子句）
 //! 参考 nebula-graph MatchValidator.cpp 中的 With 子句验证
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, ReturnItem, WithStmt};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{
@@ -405,9 +405,7 @@ mod tests {
 
     #[test]
     fn test_validate_where_clause() {
-        use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionMeta,
-        };
+        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
         use std::sync::Arc;
 
         let validator = WithValidator::new();

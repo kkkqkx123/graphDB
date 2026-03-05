@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use crate::core::{Edge, Value, Vertex};
-    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::executor::base::EdgeDirection;
     use crate::query::executor::base::Executor;
     use crate::query::executor::data_processing::graph_traversal::algorithms::{
@@ -9,6 +8,7 @@ mod tests {
     };
     use crate::query::executor::data_processing::graph_traversal::factory::GraphTraversalExecutorFactory;
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::{MockStorage, StorageClient};
     use parking_lot::Mutex;
     use std::sync::Arc;

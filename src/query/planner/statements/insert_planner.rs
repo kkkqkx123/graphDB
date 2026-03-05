@@ -2,11 +2,10 @@
 //!
 //! 处理 INSERT VERTEX 和 INSERT EDGE 语句的查询规划
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
-use crate::query::parser::ast::utils::ExprFactory;
 use crate::query::parser::ast::stmt::Ast;
+use crate::query::parser::ast::utils::ExprFactory;
 use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
@@ -19,6 +18,7 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
@@ -106,10 +106,8 @@ impl InsertPlanner {
         count: usize,
         expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Vec<YieldColumn> {
-        let expr = ExprFactory::constant(
-            crate::core::Value::Int(count as i64),
-            expr_context.clone(),
-        );
+        let expr =
+            ExprFactory::constant(crate::core::Value::Int(count as i64), expr_context.clone());
         vec![YieldColumn::new(expr, "inserted_count".to_string())]
     }
 }

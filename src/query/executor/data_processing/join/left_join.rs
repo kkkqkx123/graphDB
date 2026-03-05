@@ -5,9 +5,7 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
-use ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::types::ContextualExpression;
 use crate::core::{DataSet, Expression, NullType, Value};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
@@ -15,7 +13,9 @@ use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,
     hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
+use ExpressionAnalysisContext as ExpressionContextStruct;
 
 /// 左外连接执行器
 pub struct LeftJoinExecutor<S: StorageClient> {
@@ -45,7 +45,14 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
 
         Self {
             base_executor: BaseJoinExecutor::new(
-                id, storage, left_var, right_var, hash_exprs, probe_exprs, col_names, expr_context,
+                id,
+                storage,
+                left_var,
+                right_var,
+                hash_exprs,
+                probe_exprs,
+                col_names,
+                expr_context,
             ),
             right_col_size: 0,
             use_multi_key,
@@ -321,7 +328,14 @@ impl<S: StorageClient> HashLeftJoinExecutor<S> {
     ) -> Self {
         Self {
             inner: LeftJoinExecutor::new(
-                id, storage, left_var, right_var, hash_keys, probe_keys, col_names, expr_context,
+                id,
+                storage,
+                left_var,
+                right_var,
+                hash_keys,
+                probe_keys,
+                col_names,
+                expr_context,
             ),
         }
     }
@@ -385,7 +399,8 @@ mod tests {
         let expr1 = crate::core::Expression::Variable("id".to_string());
         let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
-        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+        let ctx_expr1 =
+            crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         // 创建执行器
         let mut executor = LeftJoinExecutor::new(
@@ -394,7 +409,7 @@ mod tests {
             "left".to_string(),
             "right".to_string(),
             vec![ctx_expr1.clone()], // 左表id列作为键
-            vec![ctx_expr1], // 右表id列作为键
+            vec![ctx_expr1],         // 右表id列作为键
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
             expr_context,
         );
@@ -476,7 +491,8 @@ mod tests {
         let expr1 = Expression::Variable("0".to_string());
         let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
-        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+        let ctx_expr1 =
+            crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         // 创建执行器
         let mut executor = LeftJoinExecutor::new(

@@ -4,8 +4,8 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -110,9 +110,9 @@ impl<S: StorageClient> HasStorage<S> for AlterSpaceExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_alter_space_executor() {
@@ -121,7 +121,8 @@ mod tests {
         ));
         let options = vec![SpaceAlterOption::Comment("test".to_string())];
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = AlterSpaceExecutor::new(1, storage, "test_space".to_string(), options, expr_context);
+        let mut executor =
+            AlterSpaceExecutor::new(1, storage, "test_space".to_string(), options, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -134,7 +135,8 @@ mod tests {
         ));
         let options = vec![SpaceAlterOption::Comment("test".to_string())];
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = AlterSpaceExecutor::new(2, storage, "test_space".to_string(), options, expr_context);
+        let mut executor =
+            AlterSpaceExecutor::new(2, storage, "test_space".to_string(), options, expr_context);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -150,7 +152,8 @@ mod tests {
         ));
         let options = vec![SpaceAlterOption::Comment("test".to_string())];
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let executor = AlterSpaceExecutor::new(3, storage, "test_space".to_string(), options, expr_context);
+        let executor =
+            AlterSpaceExecutor::new(3, storage, "test_space".to_string(), options, expr_context);
 
         assert_eq!(executor.id(), 3);
         assert_eq!(executor.name(), "AlterSpaceExecutor");

@@ -6,7 +6,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::executor::base::{
@@ -14,6 +13,7 @@ use crate::query::executor::base::{
     Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -87,7 +87,12 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         let termination_map = create_termination_map(&start_vids, &end_vids);
 
         Self {
-            base: BaseExecutor::new(id, "MultiShortestPathExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "MultiShortestPathExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             start_vids,
             end_vids,
             termination_map,

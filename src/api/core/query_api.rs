@@ -41,9 +41,9 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         let start_time = Instant::now();
 
         // 构建 QueryRequestContext
-        let rctx = Arc::new(crate::query::query_request_context::QueryRequestContext::new(
-            query.to_string(),
-        ));
+        let rctx = Arc::new(
+            crate::query::query_request_context::QueryRequestContext::new(query.to_string()),
+        );
 
         // 构建空间信息
         let space_info = ctx.space_id.map(|id| crate::core::types::SpaceInfo {

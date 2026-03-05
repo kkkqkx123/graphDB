@@ -4,10 +4,10 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::core::YieldColumn;
 use crate::define_plan_node_with_deps;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 define_plan_node_with_deps! {
     pub struct ProjectNode {
@@ -78,10 +78,10 @@ impl ProjectNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use std::sync::Arc;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_project_node_creation() {

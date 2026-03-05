@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::index::{Index, IndexType};
     use crate::query::executor::admin::index::{
         CreateEdgeIndexExecutor, CreateTagIndexExecutor, DescEdgeIndexExecutor,
@@ -9,6 +8,7 @@ mod tests {
         ShowTagIndexesExecutor,
     };
     use crate::query::executor::Executor;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
     use parking_lot::Mutex;
     use std::sync::Arc;
@@ -59,7 +59,8 @@ mod tests {
             false,
         );
 
-        let mut executor = CreateTagIndexExecutor::with_if_not_exists(2, storage, index, create_test_context());
+        let mut executor =
+            CreateTagIndexExecutor::with_if_not_exists(2, storage, index, create_test_context());
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -125,7 +126,12 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = ShowTagIndexesExecutor::new(6, storage, "test_space".to_string(), create_test_context());
+        let mut executor = ShowTagIndexesExecutor::new(
+            6,
+            storage,
+            "test_space".to_string(),
+            create_test_context(),
+        );
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -194,7 +200,8 @@ mod tests {
             false,
         );
 
-        let mut executor = CreateEdgeIndexExecutor::with_if_not_exists(9, storage, index, create_test_context());
+        let mut executor =
+            CreateEdgeIndexExecutor::with_if_not_exists(9, storage, index, create_test_context());
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -260,7 +267,12 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let mut executor = ShowEdgeIndexesExecutor::new(13, storage, "test_space".to_string(), create_test_context());
+        let mut executor = ShowEdgeIndexesExecutor::new(
+            13,
+            storage,
+            "test_space".to_string(),
+            create_test_context(),
+        );
 
         let result = executor.execute();
         assert!(result.is_ok());

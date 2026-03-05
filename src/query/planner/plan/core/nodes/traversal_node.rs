@@ -5,14 +5,12 @@
 use std::sync::Arc;
 
 use super::super::common::{EdgeProp, TagProp};
-use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::core::types::{
-    ContextualExpression, EdgeDirection, SerializableExpression,
-};
+use crate::core::types::{ContextualExpression, EdgeDirection, SerializableExpression};
 use crate::core::Expression;
 use crate::define_plan_node;
 use crate::define_plan_node_with_deps;
 use crate::query::planner::plan::core::node_id_generator::next_node_id;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 define_plan_node! {
     pub struct ExpandNode {
@@ -335,7 +333,11 @@ impl TraverseNode {
         self.e_filter_serializable = None;
     }
 
-    pub fn set_e_filter_expression(&mut self, filter: Expression, ctx: Arc<ExpressionAnalysisContext>) {
+    pub fn set_e_filter_expression(
+        &mut self,
+        filter: Expression,
+        ctx: Arc<ExpressionAnalysisContext>,
+    ) {
         let expr = crate::core::types::expression::ExpressionMeta::new(filter);
         let id = ctx.register_expression(expr);
         self.e_filter = Some(ContextualExpression::new(id, ctx));
@@ -351,7 +353,11 @@ impl TraverseNode {
         self.v_filter_serializable = None;
     }
 
-    pub fn set_v_filter_expression(&mut self, filter: Expression, ctx: Arc<ExpressionAnalysisContext>) {
+    pub fn set_v_filter_expression(
+        &mut self,
+        filter: Expression,
+        ctx: Arc<ExpressionAnalysisContext>,
+    ) {
         let expr = crate::core::types::expression::ExpressionMeta::new(filter);
         let id = ctx.register_expression(expr);
         self.v_filter = Some(ContextualExpression::new(id, ctx));
@@ -504,7 +510,11 @@ impl AppendVerticesNode {
         self.src_expression_serializable = None;
     }
 
-    pub fn set_src_expression_expression(&mut self, expr: Expression, ctx: Arc<ExpressionAnalysisContext>) {
+    pub fn set_src_expression_expression(
+        &mut self,
+        expr: Expression,
+        ctx: Arc<ExpressionAnalysisContext>,
+    ) {
         let meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         self.src_expression = Some(ContextualExpression::new(id, ctx));
@@ -520,7 +530,11 @@ impl AppendVerticesNode {
         self.v_filter_serializable = None;
     }
 
-    pub fn set_v_filter_expression(&mut self, filter: Expression, ctx: Arc<ExpressionAnalysisContext>) {
+    pub fn set_v_filter_expression(
+        &mut self,
+        filter: Expression,
+        ctx: Arc<ExpressionAnalysisContext>,
+    ) {
         let expr = crate::core::types::expression::ExpressionMeta::new(filter);
         let id = ctx.register_expression(expr);
         self.v_filter = Some(ContextualExpression::new(id, ctx));

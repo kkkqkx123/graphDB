@@ -32,12 +32,11 @@
 //! - AppendVertices 的 nodeAlias 只被引用一次
 //! - Join 的 hash keys 匹配 id() 或 _joinkey() 模式
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::expression::visitor::ExpressionVisitor;
-use crate::core::types::expression::visitor_collectors::PropertyCollector;
 use crate::core::types::expression::visitor_checkers::VariableContainsChecker;
+use crate::core::types::expression::visitor_collectors::PropertyCollector;
+use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::YieldColumn;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::join_node::{HashInnerJoinNode, HashLeftJoinNode};
@@ -50,6 +49,7 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteError, RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::RewriteRule;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
 /// 移除连接下方的添加顶点操作的规则

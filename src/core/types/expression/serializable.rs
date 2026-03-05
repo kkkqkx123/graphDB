@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use super::contextual::ContextualExpression;
 use super::{Expression, ExpressionId, ExpressionMeta};
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::DataType;
 use crate::core::Value;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 可序列化的表达式引用（用于存储/传输）
 ///

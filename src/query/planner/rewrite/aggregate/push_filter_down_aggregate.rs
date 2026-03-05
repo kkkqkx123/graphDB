@@ -29,9 +29,8 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::core::types::operators::AggregateFunction;
 use crate::core::types::expression::visitor_checkers::AggregateFunctionChecker;
+use crate::core::types::operators::AggregateFunction;
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
@@ -42,6 +41,7 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 将过滤下推到聚合之前的规则
 #[derive(Debug)]

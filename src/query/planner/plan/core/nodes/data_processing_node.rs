@@ -596,9 +596,7 @@ mod tests {
                 StartNode::new(),
             );
 
-        use crate::core::types::expression::{
-            ContextualExpression, Expression, ExpressionMeta,
-        };
+        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
         use crate::query::validator::context::ExpressionAnalysisContext;
         use std::sync::Arc;
 

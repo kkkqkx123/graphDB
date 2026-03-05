@@ -5,9 +5,9 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 
@@ -368,8 +368,13 @@ mod tests {
     fn test_union_all_preserve_duplicates() {
         let storage = create_test_storage();
         let context = create_test_context();
-        let mut executor =
-            UnionAllExecutor::new(6, storage, "left_dup".to_string(), "right_dup".to_string(), context);
+        let mut executor = UnionAllExecutor::new(
+            6,
+            storage,
+            "left_dup".to_string(),
+            "right_dup".to_string(),
+            context,
+        );
 
         // 设置包含重复行的数据集
         let left_dataset = DataSet {

@@ -4,12 +4,12 @@ use std::time::Instant;
 use super::base::{BaseExecutor, ExecutorStats};
 use crate::core::types::expression::ContextualExpression;
 use crate::core::{Edge, Value, Vertex};
+use crate::index::Index;
+use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext as _;
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::index::Index;
-use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -37,7 +37,12 @@ impl<S: StorageClient> InsertExecutor<S> {
         }
     }
 
-    pub fn with_vertices(id: i64, storage: Arc<Mutex<S>>, vertex_data: Vec<Vertex>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn with_vertices(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        vertex_data: Vec<Vertex>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
             vertex_data: Some(vertex_data),
@@ -46,7 +51,12 @@ impl<S: StorageClient> InsertExecutor<S> {
         }
     }
 
-    pub fn with_edges(id: i64, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn with_edges(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        edge_data: Vec<Edge>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
             vertex_data: None,
@@ -71,7 +81,12 @@ impl<S: StorageClient> InsertExecutor<S> {
     }
 
     /// 创建带 IF NOT EXISTS 选项的 InsertExecutor（用于边）
-    pub fn with_edges_if_not_exists(id: i64, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn with_edges_if_not_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        edge_data: Vec<Edge>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage, expr_context),
             vertex_data: None,
@@ -939,7 +954,12 @@ pub struct DropIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DropIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, _index_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        _index_name: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropIndexExecutor".to_string(), storage, expr_context),
             _index_name,

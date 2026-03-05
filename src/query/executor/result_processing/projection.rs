@@ -8,18 +8,18 @@ use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::ContextualExpression;
 use crate::core::Value;
-use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::query::executor::expression::evaluator::traits::ExpressionContext;
-use crate::query::executor::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::Executor;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::DefaultExpressionContext;
 use crate::query::executor::recursion_detector::ParallelConfig;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::ExecutionResult;
 use crate::storage::StorageClient;
 
@@ -50,7 +50,12 @@ pub struct ProjectExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient> ProjectExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, columns: Vec<ProjectionColumn>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        columns: Vec<ProjectionColumn>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ProjectExecutor".to_string(), storage, expr_context),
             columns,
@@ -464,10 +469,7 @@ mod tests {
         let expr_id = expr_context.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_context.clone());
 
-        let columns = vec![ProjectionColumn::new(
-            "sum".to_string(),
-            ctx_expr,
-        )];
+        let columns = vec![ProjectionColumn::new("sum".to_string(), ctx_expr)];
 
         let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
@@ -501,18 +503,17 @@ mod tests {
         let expr1 = crate::core::Expression::Variable("id".to_string());
         let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
-        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+        let ctx_expr1 =
+            crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         let expr2 = crate::core::Expression::Variable("name".to_string());
         let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(expr2);
         let expr_id2 = expr_context.register_expression(expr_meta2);
-        let ctx_expr2 = crate::core::types::ContextualExpression::new(expr_id2, expr_context.clone());
+        let ctx_expr2 =
+            crate::core::types::ContextualExpression::new(expr_id2, expr_context.clone());
 
         let columns = vec![
-            ProjectionColumn::new(
-                "vertex_id".to_string(),
-                ctx_expr1,
-            ),
+            ProjectionColumn::new("vertex_id".to_string(), ctx_expr1),
             ProjectionColumn::new("name".to_string(), ctx_expr2),
         ];
 
@@ -573,31 +574,25 @@ mod tests {
         let expr1 = crate::core::Expression::Variable("src".to_string());
         let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
-        let ctx_expr1 = crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
+        let ctx_expr1 =
+            crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         let expr2 = crate::core::Expression::Variable("dst".to_string());
         let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(expr2);
         let expr_id2 = expr_context.register_expression(expr_meta2);
-        let ctx_expr2 = crate::core::types::ContextualExpression::new(expr_id2, expr_context.clone());
+        let ctx_expr2 =
+            crate::core::types::ContextualExpression::new(expr_id2, expr_context.clone());
 
         let expr3 = crate::core::Expression::Variable("edge_type".to_string());
         let expr_meta3 = crate::core::types::expression::ExpressionMeta::new(expr3);
         let expr_id3 = expr_context.register_expression(expr_meta3);
-        let ctx_expr3 = crate::core::types::ContextualExpression::new(expr_id3, expr_context.clone());
+        let ctx_expr3 =
+            crate::core::types::ContextualExpression::new(expr_id3, expr_context.clone());
 
         let columns = vec![
-            ProjectionColumn::new(
-                "src_id".to_string(),
-                ctx_expr1,
-            ),
-            ProjectionColumn::new(
-                "dst_id".to_string(),
-                ctx_expr2,
-            ),
-            ProjectionColumn::new(
-                "edge_type".to_string(),
-                ctx_expr3,
-            ),
+            ProjectionColumn::new("src_id".to_string(), ctx_expr1),
+            ProjectionColumn::new("dst_id".to_string(), ctx_expr2),
+            ProjectionColumn::new("edge_type".to_string(), ctx_expr3),
         ];
 
         let executor = ProjectExecutor::new(1, storage, columns, expr_context);

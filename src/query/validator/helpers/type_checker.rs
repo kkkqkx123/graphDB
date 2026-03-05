@@ -1,11 +1,11 @@
 //! 类型检查工具
 //! 负责表达式类型推导、类型验证和类型兼容性检查
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::DataType;
 use crate::core::Expression;
 use crate::core::TypeUtils;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::ValueType;
 use std::collections::HashMap;
@@ -609,9 +609,9 @@ mod tests {
     use super::*;
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::Expression;
-    use ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use std::sync::Arc;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_deduce_literal_type() {

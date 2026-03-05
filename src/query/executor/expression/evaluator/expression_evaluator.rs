@@ -10,7 +10,9 @@ use crate::core::value::NullType;
 use crate::core::Value;
 use crate::query::executor::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 use crate::query::executor::expression::evaluator::functions::FunctionEvaluator;
-use crate::query::executor::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};
+use crate::query::executor::expression::evaluator::operations::{
+    BinaryOperationEvaluator, UnaryOperationEvaluator,
+};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::functions::global_registry;
 

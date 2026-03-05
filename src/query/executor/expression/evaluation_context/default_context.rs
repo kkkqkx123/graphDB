@@ -60,7 +60,9 @@ impl Default for DefaultExpressionContext {
     }
 }
 
-impl crate::query::executor::expression::evaluator::traits::ExpressionContext for DefaultExpressionContext {
+impl crate::query::executor::expression::evaluator::traits::ExpressionContext
+    for DefaultExpressionContext
+{
     fn get_variable(&self, name: &str) -> Option<Value> {
         self.variables.get(name).cloned()
     }
@@ -69,7 +71,10 @@ impl crate::query::executor::expression::evaluator::traits::ExpressionContext fo
         self.variables.insert(name, value);
     }
 
-    fn get_function(&self, name: &str) -> Option<crate::query::executor::expression::functions::FunctionRef> {
+    fn get_function(
+        &self,
+        name: &str,
+    ) -> Option<crate::query::executor::expression::functions::FunctionRef> {
         let registry = global_registry_ref();
         registry
             .get_builtin(name)

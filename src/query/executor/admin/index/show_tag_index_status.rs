@@ -5,9 +5,9 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// 显示标签索引状态执行器
@@ -21,9 +21,19 @@ pub struct ShowTagIndexStatusExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> ShowTagIndexStatusExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_name: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ShowTagIndexStatusExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "ShowTagIndexStatusExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             space_name,
             index_name: None,
         }
@@ -37,7 +47,12 @@ impl<S: StorageClient> ShowTagIndexStatusExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "ShowTagIndexStatusExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(
+                id,
+                "ShowTagIndexStatusExecutor".to_string(),
+                storage,
+                expr_context,
+            ),
             space_name,
             index_name: Some(index_name),
         }
@@ -146,9 +161,9 @@ impl<S: StorageClient> HasStorage<S> for ShowTagIndexStatusExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::query::executor::Executor;
     use crate::storage::test_mock::MockStorage;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_show_tag_index_status_executor() {
@@ -156,7 +171,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = ShowTagIndexStatusExecutor::new(1, storage, "test_space".to_string(), expr_context);
+        let mut executor =
+            ShowTagIndexStatusExecutor::new(1, storage, "test_space".to_string(), expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -186,7 +202,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = ShowTagIndexStatusExecutor::new(3, storage, "test_space".to_string(), expr_context);
+        let mut executor =
+            ShowTagIndexStatusExecutor::new(3, storage, "test_space".to_string(), expr_context);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -201,7 +218,8 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let executor = ShowTagIndexStatusExecutor::new(4, storage, "test_space".to_string(), expr_context);
+        let executor =
+            ShowTagIndexStatusExecutor::new(4, storage, "test_space".to_string(), expr_context);
 
         assert_eq!(executor.id(), 4);
         assert_eq!(executor.name(), "ShowTagIndexStatusExecutor");

@@ -169,15 +169,15 @@ mod tests {
         };
 
         let planner = PaginationPlanner::new();
-        let qctx = std::sync::Arc::new(crate::query::QueryContext::new(
-            std::sync::Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = std::sync::Arc::new(crate::query::QueryContext::new(std::sync::Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &match_stmt, input_plan);
         assert!(result.is_ok());
@@ -212,15 +212,15 @@ mod tests {
         };
 
         let planner = PaginationPlanner::new();
-        let qctx = std::sync::Arc::new(crate::query::QueryContext::new(
-            std::sync::Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = std::sync::Arc::new(crate::query::QueryContext::new(std::sync::Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &match_stmt, input_plan);
         assert!(result.is_ok());
@@ -253,15 +253,15 @@ mod tests {
         };
 
         let planner = PaginationPlanner::new();
-        let qctx = std::sync::Arc::new(crate::query::QueryContext::new(
-            std::sync::Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = std::sync::Arc::new(crate::query::QueryContext::new(std::sync::Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &match_stmt, input_plan);
         assert!(result.is_err());

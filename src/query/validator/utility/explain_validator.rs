@@ -135,7 +135,10 @@ impl StatementValidator for ExplainValidator {
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            let result = inner.validate(Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())), qctx);
+            let result = inner.validate(
+                Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())),
+                qctx,
+            );
             if !result.success {
                 return Err(result.errors.first().cloned().unwrap_or_else(|| {
                     ValidationError::new(
@@ -297,7 +300,10 @@ impl StatementValidator for ProfileValidator {
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            let result = inner.validate(Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())), qctx);
+            let result = inner.validate(
+                Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())),
+                qctx,
+            );
             if !result.success {
                 return Err(result.errors.first().cloned().unwrap_or_else(|| {
                     ValidationError::new(

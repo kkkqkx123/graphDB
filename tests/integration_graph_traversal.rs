@@ -10,8 +10,8 @@
 mod common;
 
 use common::TestStorage;
-use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::types::ExpressionAnalysisContext;
+use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Edge, Path, Step, Value, Vertex};
 use graphdb::query::executor::base::{EdgeDirection as ExecEdgeDirection, Executor};
 use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
@@ -169,7 +169,13 @@ fn test_subgraph_executor_creation() {
 
     let config = SubgraphConfig::new(2);
 
-    let executor = SubgraphExecutor::new(1, storage.clone(), vec![Value::from("alice")], config, Arc::new(ExpressionAnalysisContext::new()));
+    let executor = SubgraphExecutor::new(
+        1,
+        storage.clone(),
+        vec![Value::from("alice")],
+        config,
+        Arc::new(ExpressionAnalysisContext::new()),
+    );
 
     assert_eq!(executor.id(), 1);
     assert_eq!(executor.name(), "SubgraphExecutor");
@@ -352,7 +358,13 @@ fn test_subgraph_zero_steps() {
 
     let config = SubgraphConfig::new(0); // 0步
 
-    let executor = SubgraphExecutor::new(1, storage.clone(), vec![Value::from("alice")], config, Arc::new(ExpressionAnalysisContext::new()));
+    let executor = SubgraphExecutor::new(
+        1,
+        storage.clone(),
+        vec![Value::from("alice")],
+        config,
+        Arc::new(ExpressionAnalysisContext::new()),
+    );
 
     assert_eq!(executor.id(), 1);
     // 验证0步配置下执行器仍能创建
@@ -414,14 +426,26 @@ fn test_expand_executor_with_loop() {
     let storage = test_storage.storage();
 
     // 创建默认执行器（with_loop = false）
-    let executor_default =
-        ExpandExecutor::new(1, storage.clone(), ExecEdgeDirection::Out, None, Some(3), Arc::new(ExpressionAnalysisContext::new()));
+    let executor_default = ExpandExecutor::new(
+        1,
+        storage.clone(),
+        ExecEdgeDirection::Out,
+        None,
+        Some(3),
+        Arc::new(ExpressionAnalysisContext::new()),
+    );
     assert!(!executor_default.with_loop);
 
     // 创建允许自环边的执行器
-    let executor_with_loop =
-        ExpandExecutor::new(2, storage.clone(), ExecEdgeDirection::Out, None, Some(3), Arc::new(ExpressionAnalysisContext::new()))
-            .with_loop(true);
+    let executor_with_loop = ExpandExecutor::new(
+        2,
+        storage.clone(),
+        ExecEdgeDirection::Out,
+        None,
+        Some(3),
+        Arc::new(ExpressionAnalysisContext::new()),
+    )
+    .with_loop(true);
     assert!(executor_with_loop.with_loop);
 }
 

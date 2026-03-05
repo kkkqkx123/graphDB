@@ -6,20 +6,20 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::Value;
-use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::query::executor::expression::evaluator::traits::ExpressionContext;
-use crate::query::executor::expression::DefaultExpressionContext;
 use crate::query::core::LoopExecutionState;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::DefaultExpressionContext;
 use crate::query::executor::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 // 使用新的类型别名（LoopState 是 LoopExecutionState 的别名，用于向后兼容）
@@ -399,7 +399,14 @@ impl<S: StorageClient + Send + 'static> WhileLoopExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            inner: LoopExecutor::new(id, storage, Some(condition), body_executor, max_iterations, expr_context),
+            inner: LoopExecutor::new(
+                id,
+                storage,
+                Some(condition),
+                body_executor,
+                max_iterations,
+                expr_context,
+            ),
         }
     }
 }
@@ -682,10 +689,10 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for SelectExecutor<S> {
 mod tests {
     use super::*;
     use crate::core::BinaryOperator;
-    use ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
     use parking_lot::Mutex;
     use std::sync::Arc;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_while_loop_executor() {
@@ -706,7 +713,8 @@ mod tests {
             expr_context.clone(),
         ));
 
-        let mut executor = WhileLoopExecutor::new(1, storage, condition, body_executor, Some(5), expr_context);
+        let mut executor =
+            WhileLoopExecutor::new(1, storage, condition, body_executor, Some(5), expr_context);
 
         let result = executor.execute().expect("Failed to execute");
 
@@ -732,8 +740,16 @@ mod tests {
             expr_context.clone(),
         ));
 
-        let mut executor =
-            ForLoopExecutor::new(1, storage, "i".to_string(), 1, 3, 1, body_executor, expr_context);
+        let mut executor = ForLoopExecutor::new(
+            1,
+            storage,
+            "i".to_string(),
+            1,
+            3,
+            1,
+            body_executor,
+            expr_context,
+        );
 
         let result = executor.execute().expect("Failed to execute");
 

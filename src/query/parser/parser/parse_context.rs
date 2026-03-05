@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::{Position, Span};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::lexer::LexError;
@@ -8,6 +7,7 @@ use crate::query::parser::lexer::Lexer;
 use crate::query::parser::ParseErrors;
 use crate::query::parser::Token;
 use crate::query::parser::TokenKind;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 pub struct ParseContext<'a> {
     lexer: Lexer<'a>,

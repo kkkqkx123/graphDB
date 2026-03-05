@@ -8,8 +8,8 @@ use crate::query::planner::plan::core::nodes::{
 use crate::query::planner::plan::core::PlanNodeEnum;
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::query::QueryContext;
 use crate::query::validator::helpers::extract_string_from_expr;
+use crate::query::QueryContext;
 use std::sync::Arc;
 
 /// FETCH EDGES查询规划器
@@ -31,7 +31,7 @@ impl Planner for FetchEdgesPlanner {
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let _ = qctx;
-        
+
         let fetch_stmt = match validated.stmt() {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
@@ -82,7 +82,8 @@ impl Planner for FetchEdgesPlanner {
             crate::core::Expression::Variable(format!("{} IS NOT EMPTY", var_name)),
         );
         let id = validated.expr_context().register_expression(expr_meta);
-        let ctx_expr = crate::core::types::ContextualExpression::new(id, validated.expr_context().clone());
+        let ctx_expr =
+            crate::core::types::ContextualExpression::new(id, validated.expr_context().clone());
         let filter_node = match FilterNode::new(get_edges_node.clone(), ctx_expr) {
             Ok(node) => PlanNodeEnum::Filter(node),
             Err(_) => get_edges_node.clone(),

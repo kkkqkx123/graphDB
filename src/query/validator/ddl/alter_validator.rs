@@ -9,7 +9,7 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::PropertyDef;
-use crate::query::parser::ast::stmt::{Ast, AlterStmt, AlterTarget, PropertyChange};
+use crate::query::parser::ast::stmt::{AlterStmt, AlterTarget, Ast, PropertyChange};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,

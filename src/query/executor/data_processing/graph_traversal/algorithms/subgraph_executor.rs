@@ -6,7 +6,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Value, Vertex};
 use crate::query::executor::base::{
@@ -14,6 +13,7 @@ use crate::query::executor::base::{
     Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -463,9 +463,10 @@ mod tests {
         let config = SubgraphConfig::new(2);
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let executor = SubgraphExecutor::new(1, storage, vec![Value::from("a")], config, expr_context);
+        let executor =
+            SubgraphExecutor::new(1, storage, vec![Value::from("a")], config, expr_context);
 
-        assert_eq!(executor.start_vids.len(),1);
+        assert_eq!(executor.start_vids.len(), 1);
         assert_eq!(executor.config.steps, 2);
         assert_eq!(executor.valid_vids.len(), 1);
     }

@@ -9,8 +9,8 @@
 use dashmap::DashMap;
 use std::sync::Arc;
 
-use crate::core::types::expression::{Expression, ExpressionId, ExpressionMeta};
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::{Expression, ExpressionId, ExpressionMeta};
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::operators::UnaryOperator;
 use crate::core::types::DataType;
@@ -378,10 +378,7 @@ impl ExpressionAnalysisContext {
     /// 创建 NOT 表达式
     ///
     /// 便捷方法，用于创建否定表达式
-    pub fn not(
-        &self,
-        operand: &ContextualExpression,
-    ) -> Option<ContextualExpression> {
+    pub fn not(&self, operand: &ContextualExpression) -> Option<ContextualExpression> {
         self.create_unary_expression(UnaryOperator::Not, operand)
     }
 }

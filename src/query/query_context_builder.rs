@@ -4,9 +4,7 @@
 
 use crate::core::types::CharsetInfo;
 use crate::core::types::SpaceInfo;
-use crate::query::execution::{
-    QueryExecutionState, QueryResourceContext, QuerySpaceContext,
-};
+use crate::query::execution::{QueryExecutionState, QueryResourceContext, QuerySpaceContext};
 use crate::query::query_request_context::QueryRequestContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -172,9 +170,7 @@ mod tests {
             parameters: HashMap::new(),
         });
 
-        let query_context = QueryContextBuilder::new(rctx)
-            .with_pool_size(2000)
-            .build();
+        let query_context = QueryContextBuilder::new(rctx).with_pool_size(2000).build();
 
         assert_eq!(query_context.current_id(), 0);
     }
@@ -189,9 +185,7 @@ mod tests {
             parameters: HashMap::new(),
         });
 
-        let query_context = QueryContextBuilder::new(rctx)
-            .with_start_id(100)
-            .build();
+        let query_context = QueryContextBuilder::new(rctx).with_start_id(100).build();
 
         assert_eq!(query_context.current_id(), 100);
     }

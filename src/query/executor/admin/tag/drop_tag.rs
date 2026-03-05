@@ -5,8 +5,8 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// 删除标签执行器
@@ -22,7 +22,13 @@ pub struct DropTagExecutor<S: StorageClient> {
 
 impl<S: StorageClient> DropTagExecutor<S> {
     /// 创建新的 DropTagExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, tag_name: String, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_name: String,
+        tag_name: String,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropTagExecutor".to_string(), storage, expr_context),
             space_name,

@@ -5,13 +5,13 @@
 //! - 复杂度评分
 //! - 属性/变量/函数提取
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::visitor::ExpressionVisitor;
 use crate::core::types::expression::visitor_collectors::{
     FunctionCollector, PropertyCollector, VariableCollector,
 };
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 表达式分析结果
 #[derive(Debug, Clone, Default)]
@@ -265,11 +265,7 @@ impl ExpressionVisitor for AnalysisVisitor<'_> {
         self.visit(right);
     }
 
-    fn visit_unary(
-        &mut self,
-        _op: crate::core::types::UnaryOperator,
-        operand: &Expression,
-    ) {
+    fn visit_unary(&mut self, _op: crate::core::types::UnaryOperator, operand: &Expression) {
         if self.options.check_complexity {
             self.analysis.complexity_score += 1;
         }
@@ -590,7 +586,8 @@ mod tests {
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let simple_meta = crate::core::types::expression::ExpressionMeta::new(simple);
         let simple_id = expr_ctx.register_expression(simple_meta);
-        let simple_ctx_expr = crate::core::types::ContextualExpression::new(simple_id, expr_ctx.clone());
+        let simple_ctx_expr =
+            crate::core::types::ContextualExpression::new(simple_id, expr_ctx.clone());
         let simple_analysis = analyzer.analyze(&simple_ctx_expr);
         assert!(simple_analysis.complexity_score < 10);
 

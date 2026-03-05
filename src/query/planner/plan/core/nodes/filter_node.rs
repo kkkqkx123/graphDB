@@ -5,9 +5,9 @@
 use std::sync::Arc;
 
 use super::plan_node_enum::PlanNodeEnum;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::define_plan_node_with_deps;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 define_plan_node_with_deps! {
     pub struct FilterNode {
@@ -63,10 +63,10 @@ impl FilterNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use std::sync::Arc;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_filter_node_creation() {

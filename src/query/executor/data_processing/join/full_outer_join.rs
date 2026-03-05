@@ -2,9 +2,7 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
-use ExpressionAnalysisContext as ExpressionContextStruct;
 use crate::core::types::ContextualExpression;
 use crate::core::{DataSet, Expression, Value};
 use crate::query::executor::base::{ExecutionResult, Executor};
@@ -12,7 +10,9 @@ use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,
     hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
+use ExpressionAnalysisContext as ExpressionContextStruct;
 
 /// 全外连接执行器
 /// 实现全外连接操作：保留左右表的所有记录，没有匹配的部分用NULL填充

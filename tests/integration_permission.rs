@@ -270,7 +270,9 @@ fn test_admin_grant_role_permissions() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    checker.permission_manager().grant_role("admin1", space_id, RoleType::Admin)
+    checker
+        .permission_manager()
+        .grant_role("admin1", space_id, RoleType::Admin)
         .expect("授予Admin角色应该成功");
     let session = create_client_session_with_role("admin1", space_id, RoleType::Admin);
 
@@ -301,7 +303,9 @@ fn test_dba_grant_role_permissions() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    checker.permission_manager().grant_role("dba1", space_id, RoleType::Dba)
+    checker
+        .permission_manager()
+        .grant_role("dba1", space_id, RoleType::Dba)
         .expect("授予Dba角色应该成功");
     let session = create_client_session_with_role("dba1", space_id, RoleType::Dba);
 
@@ -332,7 +336,9 @@ fn test_user_cannot_grant_any_role() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    checker.permission_manager().grant_role("user1", space_id, RoleType::User)
+    checker
+        .permission_manager()
+        .grant_role("user1", space_id, RoleType::User)
         .expect("授予User角色应该成功");
     let session = create_client_session_with_role("user1", space_id, RoleType::User);
 
@@ -355,7 +361,9 @@ fn test_cannot_modify_own_role() {
     let config = create_test_config();
     let checker = PermissionChecker::new(pm, config);
 
-    checker.permission_manager().grant_role("admin1", space_id, RoleType::Admin)
+    checker
+        .permission_manager()
+        .grant_role("admin1", space_id, RoleType::Admin)
         .expect("授予Admin角色应该成功");
     let session = create_client_session_with_role("admin1", space_id, RoleType::Admin);
 

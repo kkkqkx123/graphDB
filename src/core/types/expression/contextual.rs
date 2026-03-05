@@ -6,9 +6,9 @@
 use std::sync::Arc;
 
 use super::{Expression, ExpressionId, ExpressionMeta};
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::DataType;
 use crate::core::Value;
+use crate::query::validator::context::ExpressionAnalysisContext;
 /// 增强的表达式元数据，包含查询上下文引用
 ///
 /// 轻量级的表达式引用，持有 ExpressionId 和 Context 引用。
@@ -162,7 +162,9 @@ impl ContextualExpression {
 
     /// 检查表达式是否为路径构建表达式
     pub fn is_path_build(&self) -> bool {
-        self.expression().map(|e| e.is_path_build()).unwrap_or(false)
+        self.expression()
+            .map(|e| e.is_path_build())
+            .unwrap_or(false)
     }
 
     /// 检查表达式是否为标签表达式
@@ -222,7 +224,9 @@ impl ContextualExpression {
 
     /// 检查表达式是否为列表推导式
     pub fn is_list_comprehension(&self) -> bool {
-        self.expression().map(|e| e.is_list_comprehension()).unwrap_or(false)
+        self.expression()
+            .map(|e| e.is_list_comprehension())
+            .unwrap_or(false)
     }
 
     /// 获取函数名（如果是函数调用）

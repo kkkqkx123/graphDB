@@ -1,11 +1,11 @@
 //! 表达式检查工具
 //! 负责验证表达式的操作合法性和结构完整性
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::DataType;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use std::collections::HashSet;
 use std::sync::Arc;
 

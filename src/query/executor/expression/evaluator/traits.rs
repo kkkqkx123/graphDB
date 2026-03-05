@@ -34,7 +34,9 @@ pub trait ExpressionContext {
     /// 获取缓存管理器（如果支持）
     fn get_cache(
         &mut self,
-    ) -> Option<&mut crate::query::executor::expression::evaluation_context::cache_manager::CacheManager> {
+    ) -> Option<
+        &mut crate::query::executor::expression::evaluation_context::cache_manager::CacheManager,
+    > {
         None
     }
 }

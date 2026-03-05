@@ -5,10 +5,10 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
 use crate::query::executor::base::ExecutionResult;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -255,7 +255,10 @@ impl ResultProcessorFactory {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> crate::query::executor::result_processing::projection::ProjectExecutor<S> {
         crate::query::executor::result_processing::projection::ProjectExecutor::new(
-            id, storage, columns, expr_context,
+            id,
+            storage,
+            columns,
+            expr_context,
         )
     }
 

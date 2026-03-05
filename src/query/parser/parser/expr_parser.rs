@@ -5,9 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::expression::{
-    ContextualExpression, Expression, ExpressionMeta,
-};
+use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::core::types::{Position, Span};
 use crate::core::Value;

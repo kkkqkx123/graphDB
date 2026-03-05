@@ -76,8 +76,8 @@ mod traverse;
 mod type_deduce;
 pub mod utils;
 pub mod visitor;
-pub mod visitor_collectors;
 pub mod visitor_checkers;
+pub mod visitor_collectors;
 
 // 统一导出
 pub use contextual::ContextualExpression;
@@ -85,8 +85,11 @@ pub use def::Expression;
 pub use expression::{ExpressionId, ExpressionMeta};
 pub use serializable::SerializableExpression;
 pub use visitor::ExpressionVisitor;
-pub use visitor_collectors::{FunctionCollector, OrConditionCollector, PropertyCollector, PropertyPredicate, PropertyPredicateCollector, VariableCollector};
 pub use visitor_checkers::{ConstantChecker, PropertyContainsChecker};
+pub use visitor_collectors::{
+    FunctionCollector, OrConditionCollector, PropertyCollector, PropertyPredicate,
+    PropertyPredicateCollector, VariableCollector,
+};
 
 // 重新导出工具类型
 pub use utils::extract_group_suite;

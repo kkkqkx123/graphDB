@@ -3,13 +3,13 @@
 //! 负责将 YIELD 子句转换为执行计划节点
 //! 支持 YIELD ... WHERE ... 语法
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -298,7 +298,8 @@ mod tests {
             limit: None,
         });
 
-        let (columns, filter, skip, limit) = YieldClausePlanner::extract_yield_info(&yield_stmt).expect("提取失败");
+        let (columns, filter, skip, limit) =
+            YieldClausePlanner::extract_yield_info(&yield_stmt).expect("提取失败");
         assert_eq!(columns.len(), 1);
         assert_eq!(columns[0].alias, "n");
         assert!(filter.is_none());
@@ -343,7 +344,8 @@ mod tests {
             }),
         });
 
-        let (columns, filter, skip, limit) = YieldClausePlanner::extract_yield_info(&go_stmt).expect("提取失败");
+        let (columns, filter, skip, limit) =
+            YieldClausePlanner::extract_yield_info(&go_stmt).expect("提取失败");
         assert_eq!(columns.len(), 1);
         assert!(filter.is_none());
         assert_eq!(skip, Some(5));
@@ -418,15 +420,15 @@ mod tests {
         };
 
         let planner = YieldClausePlanner::new();
-        let qctx = Arc::new(crate::query::QueryContext::new(
-            Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &yield_stmt, input_plan);
         assert!(result.is_ok());
@@ -469,15 +471,15 @@ mod tests {
         };
 
         let planner = YieldClausePlanner::new();
-        let qctx = Arc::new(crate::query::QueryContext::new(
-            Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &yield_stmt, input_plan);
         assert!(result.is_err());

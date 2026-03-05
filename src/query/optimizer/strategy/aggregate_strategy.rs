@@ -20,11 +20,11 @@
 
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::ContextualExpression;
 use crate::query::optimizer::analysis::ExpressionAnalyzer;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::decision::OptimizationDecision;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 聚合策略类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -218,7 +218,8 @@ impl AggregateStrategySelector {
             } else {
                 // 分析表达式并缓存结果
                 let analysis = self.expression_analyzer.analyze(ctx_expr);
-                self.expression_context.set_analysis(expr_id, analysis.clone());
+                self.expression_context
+                    .set_analysis(expr_id, analysis.clone());
 
                 if !analysis.is_deterministic {
                     context.is_deterministic = false;

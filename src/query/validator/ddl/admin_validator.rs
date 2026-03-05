@@ -8,8 +8,8 @@
 //! 3. 验证目标对象是否存在
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::parser::ast::stmt::{Ast, 
-    DescStmt, DescTarget, KillQueryStmt, ShowConfigsStmt, ShowCreateStmt, ShowCreateTarget,
+use crate::query::parser::ast::stmt::{
+    Ast, DescStmt, DescTarget, KillQueryStmt, ShowConfigsStmt, ShowCreateStmt, ShowCreateTarget,
     ShowQueriesStmt, ShowSessionsStmt, ShowStmt, ShowTarget,
 };
 use crate::query::validator::structs::validation_info::ValidationInfo;

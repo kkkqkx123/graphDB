@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::DBResult;
 use crate::core::value::dataset::List;
 use crate::core::{Edge, NPath, Path, Value, Vertex};
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};

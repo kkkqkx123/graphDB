@@ -6,15 +6,15 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::dataset::List;
 use crate::core::{DataSet, Expression, Path, Value};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::base::{ExecutionResult, Executor};
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// RollUpApply执行器
@@ -65,12 +65,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(
-                id,
-                "RollUpApplyExecutor".to_string(),
-                storage,
-                expr_context,
-            ),
+            base: BaseExecutor::new(id, "RollUpApplyExecutor".to_string(), storage, expr_context),
             left_input_var,
             right_input_var,
             compare_cols,
@@ -124,9 +119,10 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
                 }
                 _ => {
                     return Err(DBError::Query(
-                        crate::core::error::QueryError::ExecutionError(
-                            format!("Invalid path element: {:?}", value),
-                        ),
+                        crate::core::error::QueryError::ExecutionError(format!(
+                            "Invalid path element: {:?}",
+                            value
+                        )),
                     ))
                 }
             }

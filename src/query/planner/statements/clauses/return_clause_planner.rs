@@ -2,7 +2,6 @@
 //!
 //! 负责规划 RETURN 子句的执行，实现结果投影。
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
@@ -12,6 +11,7 @@ use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::helpers::generate_default_alias_from_contextual;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
@@ -62,9 +62,9 @@ fn extract_return_columns(stmt: &Stmt) -> Result<Vec<YieldColumn>, PlannerError>
                         expression,
                         alias,
                     } => {
-                        let alias = alias.clone().or_else(|| {
-                            Some(generate_default_alias_from_contextual(expression))
-                        });
+                        let alias = alias
+                            .clone()
+                            .or_else(|| Some(generate_default_alias_from_contextual(expression)));
                         columns.push(YieldColumn {
                             expression: expression.clone(),
                             alias: alias.unwrap_or_else(|| "expr".to_string()),
@@ -78,7 +78,7 @@ fn extract_return_columns(stmt: &Stmt) -> Result<Vec<YieldColumn>, PlannerError>
 
     if columns.is_empty() {
         return Err(PlannerError::PlanGenerationFailed(
-            "RETURN 子句缺少返回项".to_string()
+            "RETURN 子句缺少返回项".to_string(),
         ));
     }
 
@@ -120,12 +120,12 @@ impl ClausePlanner for ReturnClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ExpressionAnalysisContext;
     use crate::core::Expression;
     use crate::query::parser::ast::Span;
     use crate::query::planner::plan::core::nodes::StartNode;
     use crate::query::planner::plan::core::PlanNodeEnum;
     use std::sync::Arc;
+    use ExpressionAnalysisContext;
 
     #[test]
     fn test_return_clause_planner_creation() {
@@ -293,15 +293,15 @@ mod tests {
         };
 
         let planner = ReturnClausePlanner::new();
-        let qctx = Arc::new(crate::query::QueryContext::new(
-            Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &match_stmt, input_plan);
         assert!(result.is_ok());
@@ -354,15 +354,15 @@ mod tests {
         };
 
         let planner = ReturnClausePlanner::with_distinct(true);
-        let qctx = Arc::new(crate::query::QueryContext::new(
-            Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &match_stmt, input_plan);
         assert!(result.is_ok());
@@ -412,15 +412,15 @@ mod tests {
         };
 
         let planner = ReturnClausePlanner::new();
-        let qctx = Arc::new(crate::query::QueryContext::new(
-            Arc::new(crate::query::query_request_context::QueryRequestContext {
+        let qctx = Arc::new(crate::query::QueryContext::new(Arc::new(
+            crate::query::query_request_context::QueryRequestContext {
                 session_id: None,
                 user_name: None,
                 space_name: None,
                 query: String::new(),
                 parameters: std::collections::HashMap::new(),
-            })
-        ));
+            },
+        )));
 
         let result = planner.transform_clause(qctx, &match_stmt, input_plan);
         assert!(result.is_err());

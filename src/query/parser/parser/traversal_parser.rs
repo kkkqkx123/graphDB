@@ -577,7 +577,10 @@ impl TraversalParser {
         let expr = CoreExpression::variable("true");
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.expression_context().register_expression(expr_meta);
-        Ok(ContextualExpression::new(id, ctx.expression_context_clone()))
+        Ok(ContextualExpression::new(
+            id,
+            ctx.expression_context_clone(),
+        ))
     }
 
     /// 解析表达式

@@ -1,10 +1,10 @@
 //! 别名验证策略
 //! 负责验证表达式中的别名引用和可用性
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionMeta;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 use std::sync::Arc;

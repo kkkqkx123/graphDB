@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
-use crate::query::parser::ast::{CreateTarget, FetchTarget, Stmt};
 use crate::query::parser::ast::stmt::Ast;
+use crate::query::parser::ast::{CreateTarget, FetchTarget, Stmt};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
@@ -600,9 +600,10 @@ impl Validator {
             StatementType::ShowRoles => Validator::ShowRoles(ShowRolesValidator::new()),
             StatementType::Alter => Validator::Alter(AlterValidator::new()),
             StatementType::Drop => Validator::Drop(DropValidator::new()),
-            StatementType::Create | StatementType::CreateSpace | StatementType::CreateTag | StatementType::CreateEdge => {
-                Validator::Create(CreateValidator::new())
-            }
+            StatementType::Create
+            | StatementType::CreateSpace
+            | StatementType::CreateTag
+            | StatementType::CreateEdge => Validator::Create(CreateValidator::new()),
             StatementType::Use => Validator::Use(UseValidator::new()),
             StatementType::Set => Validator::Set(SetValidator::new()),
             StatementType::Assignment => Validator::Assignment(AssignmentValidator::new()),
@@ -635,12 +636,17 @@ impl Validator {
             StatementType::Explain => Validator::Explain(ExplainValidator::new()),
             StatementType::Profile => Validator::Profile(ProfileValidator::new()),
             StatementType::UpdateConfigs => Validator::UpdateConfig(UpdateConfigsValidator::new()),
-            StatementType::DropSpace | StatementType::DropTag | StatementType::DropEdge | StatementType::AlterTag | StatementType::AlterEdge => {
-                Validator::Drop(DropValidator::new())
-            }
-            StatementType::ShowSpaces | StatementType::ShowTags | StatementType::ShowEdges | StatementType::DescribeSpace | StatementType::DescribeTag | StatementType::DescribeEdge => {
-                Validator::Show(ShowValidator::new())
-            }
+            StatementType::DropSpace
+            | StatementType::DropTag
+            | StatementType::DropEdge
+            | StatementType::AlterTag
+            | StatementType::AlterEdge => Validator::Drop(DropValidator::new()),
+            StatementType::ShowSpaces
+            | StatementType::ShowTags
+            | StatementType::ShowEdges
+            | StatementType::DescribeSpace
+            | StatementType::DescribeTag
+            | StatementType::DescribeEdge => Validator::Show(ShowValidator::new()),
         }
     }
 

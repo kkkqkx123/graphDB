@@ -6,10 +6,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::Span;
 use crate::query::parser::ast::stmt::Ast;
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::ValueType;
