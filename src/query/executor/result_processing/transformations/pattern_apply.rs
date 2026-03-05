@@ -78,15 +78,15 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
         key_cols: Vec<Expression>,
         col_names: Vec<String>,
         is_anti_predicate: bool,
-        _context: crate::query::executor::base::ExecutionContext,
+        context: crate::query::executor::base::ExecutionContext,
         expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(
+            base: BaseExecutor::with_context(
                 id,
                 "PatternApplyExecutor".to_string(),
                 storage,
-                expr_context,
+                context,
             ),
             left_input_var,
             right_input_var,

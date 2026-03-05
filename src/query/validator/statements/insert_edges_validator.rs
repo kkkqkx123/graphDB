@@ -117,7 +117,7 @@ impl InsertEdgesValidator {
     ) -> Result<(), ValidationError> {
         if expr.expression().is_none() {
             return Err(ValidationError::new(
-                format!("{} 顶点 ID 表达式无效", role),
+                format!("{} vertex ID expression is invalid", role),
                 ValidationErrorType::SemanticError,
             ));
         }
@@ -130,16 +130,30 @@ impl InsertEdgesValidator {
             if let Some(value) = expr.as_literal() {
                 if value.is_null() || value.is_empty() {
                     return Err(ValidationError::new(
-                        format!("{} 顶点 ID 不能为空", role),
+                        format!("{} vertex ID cannot be empty", role),
                         ValidationErrorType::SemanticError,
                     ));
                 }
-                return Ok(());
+                // 检查空字符串
+                if let Value::String(s) = value {
+                    if s.is_empty() {
+                        return Err(ValidationError::new(
+                            format!("{} vertex ID cannot be empty", role),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                    return Ok(());
+                }
+                // 只接受字符串字面量
+                return Err(ValidationError::new(
+                    format!("{} vertex ID must be a string constant or variable", role),
+                    ValidationErrorType::SemanticError,
+                ));
             }
         }
 
         Err(ValidationError::new(
-            format!("{} 顶点 ID 必须是常量或变量", role),
+            format!("{} vertex ID must be a string constant or variable", role),
             ValidationErrorType::SemanticError,
         ))
     }
@@ -149,7 +163,7 @@ impl InsertEdgesValidator {
         if let Some(rank_expr) = rank {
             if rank_expr.expression().is_none() {
                 return Err(ValidationError::new(
-                    "Rank 表达式无效".to_string(),
+                    "Rank expression is invalid".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -158,6 +172,17 @@ impl InsertEdgesValidator {
                     "Rank must be an integer constant or variable".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
+            }
+            // 检查字面量是否为整数
+            if rank_expr.is_literal() {
+                if let Some(value) = rank_expr.as_literal() {
+                    if !matches!(value, Value::Int(_)) {
+                        return Err(ValidationError::new(
+                            "Rank must be an integer constant or variable".to_string(),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
             }
         }
         Ok(())

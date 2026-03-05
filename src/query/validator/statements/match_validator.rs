@@ -904,9 +904,10 @@ mod tests {
         );
 
         // 测试有聚合函数的表达式
-        let agg_expression = create_contextual_expr(Expression::Function {
-            name: "COUNT".to_string(),
-            args: vec![Expression::Variable("n".to_string())],
+        let agg_expression = create_contextual_expr(Expression::Aggregate {
+            func: crate::core::types::operators::AggregateFunction::Count(None),
+            arg: Box::new(Expression::Variable("n".to_string())),
+            distinct: false,
         });
         assert_eq!(validator.has_aggregate_expression(&agg_expression), true);
     }

@@ -110,6 +110,21 @@ impl PushFilterDownAggregateRule {
                 }
             }
 
+            // 递归检查 Binary 表达式的子表达式
+            if let Expression::Binary { left, right, .. } = expr {
+                if check_expr(left, group_keys, agg_funcs) {
+                    return true;
+                }
+                if check_expr(right, group_keys, agg_funcs) {
+                    return true;
+                }
+            }
+
+            // 递归检查其他复合表达式
+            if let Expression::Unary { operand, .. } = expr {
+                return check_expr(operand, group_keys, agg_funcs);
+            }
+
             false
         }
 

@@ -677,11 +677,17 @@ impl SchemaValidator {
 mod tests {
     use super::*;
     use crate::core::types::PropertyDef;
+    use redb::Database;
+    use std::sync::Arc;
 
     fn create_test_validator() -> SchemaValidator {
-        // 由于现在使用具体类型 RedbSchemaManager，测试需要创建一个真实的 RedbSchemaManager
-        // 或者使用其他方法。这里暂时注释掉，需要后续修复测试
-        panic!("测试需要更新以使用 RedbSchemaManager");
+        let db = Arc::new(
+            Database::builder()
+                .create_with_backend(redb::backends::InMemoryBackend::new())
+                .expect("Failed to create in-memory database"),
+        );
+        let schema_manager = Arc::new(RedbSchemaManager::new(db));
+        SchemaValidator::new(schema_manager)
     }
 
     #[test]

@@ -46,6 +46,11 @@ winapi = { version = "0.3", features = ["processthreadsapi", "psapi", "sysinfoap
 name = "graphdb"
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "graphdb-server"
+path = "src/main.rs"
+required-features = ["server"]
+
 [features]
 default = ["redb", "embedded", "server", "c-api"]
 redb = ["dep:redb"]

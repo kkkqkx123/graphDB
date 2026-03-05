@@ -223,7 +223,7 @@ impl ExpressionVisitor for PropertyCollector {
 /// assert_eq!(collector.property_name(), Some("age".to_string()));
 /// assert_eq!(collector.values(), vec![Value::Int(10), Value::Int(20)]);
 /// ```
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct OrConditionCollector {
     is_or: bool,
     property_name: Option<String>,
@@ -233,14 +233,19 @@ pub struct OrConditionCollector {
 
 impl OrConditionCollector {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            is_or: false,
+            property_name: None,
+            values: Vec::new(),
+            can_convert: true,
+        }
     }
 
     pub fn clear(&mut self) {
         self.is_or = false;
         self.property_name = None;
         self.values.clear();
-        self.can_convert = false;
+        self.can_convert = true;
     }
 
     pub fn is_or(&self) -> bool {
@@ -266,6 +271,10 @@ impl ExpressionVisitor for OrConditionCollector {
     fn visit_variable(&mut self, _name: &str) {}
 
     fn visit_property(&mut self, _object: &Expression, property: &str) {
+        if !self.is_or {
+            self.can_convert = false;
+            return;
+        }
         if self.property_name.is_none() {
             self.property_name = Some(property.to_string());
         } else if self.property_name.as_ref() != Some(&property.to_string()) {
@@ -275,7 +284,15 @@ impl ExpressionVisitor for OrConditionCollector {
 
     fn visit_binary(&mut self, op: BinaryOperator, left: &Expression, right: &Expression) {
         match op {
+            BinaryOperator::Or => {
+                self.is_or = true;
+                self.visit(left);
+                self.visit(right);
+            }
             BinaryOperator::Equal => {
+                if !self.is_or {
+                    self.can_convert = false;
+                }
                 self.visit(left);
                 self.visit(right);
                 if self.can_convert {

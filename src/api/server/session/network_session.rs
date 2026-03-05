@@ -107,7 +107,7 @@ impl ClientSession {
     }
 
     pub fn idle_seconds(&self) -> u64 {
-        self.idle_start_time.read().elapsed().as_secs()
+        self.idle_start_time.read().elapsed().as_millis() as u64
     }
 
     pub fn charge(&self) {

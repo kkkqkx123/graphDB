@@ -39,7 +39,7 @@ impl SessionInfo {
             space_name: session.space_name(),
             graph_addr: session.graph_addr(),
             create_time,
-            last_access_time: SystemTime::now() - Duration::from_secs(session.idle_seconds()),
+            last_access_time: SystemTime::now() - Duration::from_millis(session.idle_seconds()),
             active_queries: session.active_queries_count(),
             timezone: session.timezone(),
         }
