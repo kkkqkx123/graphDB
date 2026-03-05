@@ -39,6 +39,10 @@ pub mod session;
 pub mod statement;
 pub mod transaction;
 
+// C API 模块（条件编译）
+#[cfg(feature = "c_api")]
+pub mod c_api;
+
 // 重新导出主要类型
 pub use batch::{BatchConfig, BatchError, BatchInserter, BatchItemType, BatchResult};
 pub use config::{DatabaseConfig, SyncMode};
@@ -47,6 +51,17 @@ pub use result::{QueryResult, ResultMetadata, Row};
 pub use session::Session;
 pub use statement::PreparedStatement;
 pub use transaction::{Transaction, TransactionConfig, TransactionInfo};
+
+// C API 重新导出
+#[cfg(feature = "c_api")]
+pub use c_api::{
+    types::{
+        graphdb_value_type_t, graphdb_t, graphdb_session_t,
+        graphdb_stmt_t, graphdb_txn_t, graphdb_result_t, graphdb_batch_t,
+        graphdb_string_t, graphdb_value_t, graphdb_value_data_t, graphdb_config_t,
+    },
+    error::graphdb_error_code_t,
+};
 
 // 错误类型
 pub use crate::api::core::CoreError as EmbeddedError;

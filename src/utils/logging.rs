@@ -3,11 +3,29 @@
 // 封装 flexi_logger 的初始化和关闭操作，确保异步日志正确 flush
 
 use crate::config::Config;
-use flexi_logger::{Cleanup, Criterion, FileSpec, Logger, LoggerHandle, Naming, WriteMode};
+use flexi_logger::{Cleanup, Criterion, DeferredNow, FileSpec, Logger, LoggerHandle, Naming, TS_DASHES_BLANK_COLONS_DOT_BLANK, WriteMode};
 use parking_lot::Mutex;
 
 /// 全局日志句柄，用于程序退出时 flush
 static LOGGER_HANDLE: Mutex<Option<LoggerHandle>> = Mutex::new(None);
+
+/// 自定义日志格式化函数，添加时间戳
+///
+/// 格式：YYYY-MM-DD HH:MM:SS.mmm [LEVEL] module_path: 消息内容
+fn log_format(
+    w: &mut dyn std::io::Write,
+    now: &mut DeferredNow,
+    record: &log::Record,
+) -> Result<(), std::io::Error> {
+    write!(
+        w,
+        "{} [{}] {}: {}",
+        now.format(TS_DASHES_BLANK_COLONS_DOT_BLANK),
+        record.level(),
+        record.module_path().unwrap_or("unknown"),
+        &record.args()
+    )
+}
 
 /// 初始化日志系统
 ///
@@ -33,6 +51,7 @@ pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
                 .basename(&config.log.file)
                 .directory(&config.log.dir),
         )
+        .format_for_files(log_format)
         .rotate(
             Criterion::Size(config.log.max_file_size),
             Naming::Numbers,

@@ -1,14 +1,15 @@
 //! C API 模块
 //!
-//! 提供 GraphDB 的 C 语言接口，允许 C/C++ 程序调用 GraphDB 功能
-
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
-#![allow(dead_code)]
-#![allow(clippy::missing_safety_doc)]
+//! 提供 GraphDB 的 C 语言接口
 
 pub mod types;
 pub mod error;
+pub mod database;
+pub mod session;
+pub mod result;
 
 pub use types::*;
 pub use error::*;
+pub use database::*;
+pub use session::*;
+pub use result::*;

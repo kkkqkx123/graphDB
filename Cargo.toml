@@ -47,7 +47,7 @@ name = "graphdb"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["redb", "embedded", "server"]
+default = ["redb", "embedded", "server", "c_api"]
 redb = ["dep:redb"]
 embedded = []
 server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http"]

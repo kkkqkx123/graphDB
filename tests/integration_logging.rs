@@ -462,3 +462,92 @@ fn test_log_level_validation() {
         assert_eq!(config.log.level, level);
     }
 }
+
+/// 测试日志时间戳格式
+/// 验证日志输出包含时间戳，并且时间戳格式正确
+#[test]
+fn test_log_timestamp_format() {
+    use flexi_logger::{Cleanup, Criterion, DeferredNow, FileSpec, Logger, Naming, TS_DASHES_BLANK_COLONS_DOT_BLANK, WriteMode};
+
+    let temp_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("test-logs")
+        .join(format!("timestamp_test_{}", std::process::id()));
+
+    // 清理并创建测试目录
+    let _ = fs::remove_dir_all(&temp_dir);
+    fs::create_dir_all(&temp_dir).expect("创建测试目录失败");
+
+    let test_dir = temp_dir.join("timestamp");
+    fs::create_dir_all(&test_dir).expect("创建测试目录失败");
+
+    // 自定义日志格式化函数，与实际日志系统保持一致
+    fn log_format(
+        w: &mut dyn std::io::Write,
+        now: &mut DeferredNow,
+        record: &log::Record,
+    ) -> Result<(), std::io::Error> {
+        write!(
+            w,
+            "{} [{}] {}: {}",
+            now.format(TS_DASHES_BLANK_COLONS_DOT_BLANK),
+            record.level(),
+            record.module_path().unwrap_or("unknown"),
+            &record.args()
+        )
+    }
+
+    // 使用自定义格式（包含时间戳）初始化 logger
+    let _logger = Logger::try_with_str("info")
+        .expect("创建 logger 失败")
+        .log_to_file(
+            FileSpec::default()
+                .basename("timestamp_test")
+                .directory(&test_dir),
+        )
+        .format_for_files(log_format)
+        .write_mode(WriteMode::Direct)
+        .start()
+        .expect("启动 logger 失败");
+
+    // 写入测试日志
+    log::info!("时间戳格式测试日志");
+    log::warn!("警告日志时间戳测试");
+    log::error!("错误日志时间戳测试");
+
+    // 等待日志写入
+    std::thread::sleep(Duration::from_millis(500));
+
+    // 查找生成的日志文件
+    let log_files: Vec<_> = fs::read_dir(&test_dir)
+        .expect("读取目录失败")
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            name.starts_with("timestamp_test") && name.ends_with(".log")
+        })
+        .collect();
+
+    assert!(!log_files.is_empty(), "应该至少有一个日志文件");
+
+    // 读取第一个日志文件
+    let log_file = &log_files[0];
+    let content = fs::read_to_string(log_file.path()).expect("读取日志文件失败");
+
+    // 打印日志内容以便调试
+    println!("日志文件路径: {:?}", log_file.path());
+    println!("日志内容:\n{}", content);
+
+    // 验证日志内容
+    assert!(content.contains("时间戳格式测试日志"), "日志应包含测试消息");
+
+    // 验证时间戳格式：YYYY-MM-DD HH:MM:SS.mmm
+    let timestamp_regex = regex::Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}").expect("创建正则表达式失败");
+    assert!(timestamp_regex.is_match(&content), "日志应包含时间戳，格式为 YYYY-MM-DD HH:MM:SS.mmm");
+
+    // 验证日志级别标记
+    assert!(content.contains("[INFO]") || content.contains("[WARN]") || content.contains("[ERROR]"), "日志应包含日志级别标记");
+
+    // 清理
+    let _ = fs::remove_dir_all(&temp_dir);
+}

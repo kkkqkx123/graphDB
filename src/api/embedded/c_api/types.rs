@@ -4,56 +4,6 @@
 
 use std::ffi::{c_char, c_int, c_void};
 
-/// 错误码
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum graphdb_error_code_t {
-    /// 成功
-    GRAPHDB_OK = 0,
-    /// 一般错误
-    GRAPHDB_ERROR = 1,
-    /// 内部错误
-    GRAPHDB_INTERNAL = 2,
-    /// 权限被拒绝
-    GRAPHDB_PERM = 3,
-    /// 操作被中止
-    GRAPHDB_ABORT = 4,
-    /// 数据库忙
-    GRAPHDB_BUSY = 5,
-    /// 数据库被锁定
-    GRAPHDB_LOCKED = 6,
-    /// 内存不足
-    GRAPHDB_NOMEM = 7,
-    /// 只读
-    GRAPHDB_READONLY = 8,
-    /// 操作被中断
-    GRAPHDB_INTERRUPT = 9,
-    /// IO 错误
-    GRAPHDB_IOERR = 10,
-    /// 数据损坏
-    GRAPHDB_CORRUPT = 11,
-    /// 未找到
-    GRAPHDB_NOTFOUND = 12,
-    /// 磁盘已满
-    GRAPHDB_FULL = 13,
-    /// 无法打开
-    GRAPHDB_CANTOPEN = 14,
-    /// 协议错误
-    GRAPHDB_PROTOCOL = 15,
-    /// 模式错误
-    GRAPHDB_SCHEMA = 16,
-    /// 数据过大
-    GRAPHDB_TOOBIG = 17,
-    /// 约束违反
-    GRAPHDB_CONSTRAINT = 18,
-    /// 类型不匹配
-    GRAPHDB_MISMATCH = 19,
-    /// 误用
-    GRAPHDB_MISUSE = 20,
-    /// 超出范围
-    GRAPHDB_RANGE = 21,
-}
-
 /// 值类型
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,7 +66,7 @@ pub struct graphdb_string_t {
 
 /// 值结构
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct graphdb_value_t {
     /// 值类型
     pub type_: graphdb_value_type_t,
@@ -124,9 +74,17 @@ pub struct graphdb_value_t {
     pub data: graphdb_value_data_t,
 }
 
+impl std::fmt::Debug for graphdb_value_t {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("graphdb_value_t")
+            .field("type_", &self.type_)
+            .finish()
+    }
+}
+
 /// 值数据联合体
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub union graphdb_value_data_t {
     /// 布尔值
     pub boolean: bool,
