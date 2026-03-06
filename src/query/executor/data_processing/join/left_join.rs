@@ -83,7 +83,7 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
         let hash_table = build_hash_table(build_dataset, self.base_executor.get_probe_keys())
             .map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                    "构建哈希表失败: {}",
+                    "Failed to build hash table: {}",
                     e
                 )))
             })?;
@@ -164,7 +164,7 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
         let hash_table = build_hash_table(build_dataset, self.base_executor.get_probe_keys())
             .map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
-                    "构建多键哈希表失败: {}",
+                    "Failed to build multi-key hash table: {}",
                     e
                 )))
             })?;

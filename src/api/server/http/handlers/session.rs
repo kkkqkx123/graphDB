@@ -29,7 +29,7 @@ pub async fn create<S: StorageClient + Clone + Send + Sync + 'static>(
     let session = session_manager
         .create_session(request.username, request.client_ip)
         .await
-        .map_err(|e| HttpError::BadRequest(format!("创建会话失败: {}", e)))?;
+        .map_err(|e| HttpError::BadRequest(format!("Failed to create session: {}", e)))?;
 
     Ok(JsonResponse(SessionResponse {
         session_id: session.id(),
@@ -48,7 +48,7 @@ pub async fn get_session<S: StorageClient + Clone + Send + Sync + 'static>(
     let session_manager = state.server.get_session_manager();
     let session = session_manager
         .find_session(session_id)
-        .ok_or_else(|| HttpError::NotFound("会话不存在".to_string()))?;
+        .ok_or_else(|| HttpError::NotFound("Session not found".to_string()))?;
 
     Ok(JsonResponse(serde_json::json!({
         "session_id": session.id(),

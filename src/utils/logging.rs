@@ -64,7 +64,7 @@ pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
     // 保存句柄供后续 flush 使用
     *LOGGER_HANDLE.lock() = Some(handle);
 
-    log::info!("日志系统初始化完成: {}/{}", config.log.dir, config.log.file);
+    log::info!("Logging system initialized: {}/{}", config.log.dir, config.log.file);
     Ok(())
 }
 
@@ -111,7 +111,7 @@ mod tests {
         assert!(is_initialized());
 
         // 写入测试日志
-        log::info!("测试日志消息");
+        log::info!("Test log message");
 
         // 关闭日志
         shutdown();

@@ -68,7 +68,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ArgumentExecutor<S> {
         } else {
             // 变量不存在，返回错误
             Err(crate::core::error::DBError::Internal(format!(
-                "变量 '{}' 未定义",
+                "Variable '{}' is not defined",
                 self.var
             )))
         }
@@ -325,9 +325,9 @@ mod tests {
         );
 
         // 执行并验证结果
-        executor.open().expect("打开执行器失败");
-        let result = executor.execute().expect("执行失败");
-        executor.close().expect("关闭执行器失败");
+        executor.open().expect("Failed to open executor");
+        let result = executor.execute().expect("Execution failed");
+        executor.close().expect("Failed to close executor");
 
         match result {
             ExecutionResult::Values(values) => {
@@ -370,12 +370,12 @@ mod tests {
         let mut executor =
             ArgumentExecutor::<MockStorage>::new(1, storage, "undefined_var", expr_context);
 
-        // 执行时应该返回错误，因为变量未定义
+        // Execution should return error because variable is not defined
         executor.open().expect("打开执行器失败");
         let result = executor.execute();
         executor.close().expect("关闭执行器失败");
 
-        assert!(result.is_err(), "当变量未定义时应该返回错误");
+        assert!(result.is_err(), "Should return error when variable is not defined");
     }
 
     #[test]

@@ -1738,7 +1738,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         // 执行根执行器
         let result = executor
             .execute()
-            .map_err(|e| QueryError::ExecutionError(format!("执行器执行失败: {}", e)))?;
+            .map_err(|e| QueryError::ExecutionError(format!("Executor execution failed: {}", e)))?;
 
         // 返回执行结果
         Ok(result)

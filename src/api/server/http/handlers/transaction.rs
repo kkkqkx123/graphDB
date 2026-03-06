@@ -44,11 +44,11 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
                 transaction_id: txn_id,
                 status: "Active".to_string(),
             }),
-            Err(e) => Err(HttpError::InternalError(format!("开始事务失败: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!("Failed to begin transaction: {}", e))),
         }
     })
     .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
 }
@@ -69,14 +69,14 @@ pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
 
         match txn_manager.commit_transaction(txn_id) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "事务提交成功",
+                "message": "Transaction committed successfully",
                 "transaction_id": txn_id,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("提交事务失败: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!("Failed to commit transaction: {}", e))),
         }
     })
     .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
 }
@@ -92,14 +92,14 @@ pub async fn rollback<S: StorageClient + Clone + Send + Sync + 'static>(
 
         match txn_manager.abort_transaction(txn_id) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "事务回滚成功",
+                "message": "Transaction rolled back successfully",
                 "transaction_id": txn_id,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("回滚事务失败: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!("Failed to rollback transaction: {}", e))),
         }
     })
     .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
 }

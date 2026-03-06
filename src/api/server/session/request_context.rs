@@ -257,7 +257,7 @@ impl RequestContext {
         self.response
             .read()
             .map(|guard| guard.clone())
-            .map_err(|_| "获取响应锁失败".to_string())
+            .map_err(|_| "Failed to acquire response lock".to_string())
     }
 
     /// 设置响应
@@ -265,7 +265,7 @@ impl RequestContext {
         let mut guard = self
             .response
             .write()
-            .map_err(|_| "获取响应写锁失败".to_string())?;
+            .map_err(|_| "Failed to acquire response write lock".to_string())?;
         *guard = response;
         Ok(())
     }
@@ -315,7 +315,7 @@ impl RequestContext {
         let mut guard = self
             .response
             .write()
-            .map_err(|_| "获取响应写锁失败".to_string())?;
+            .map_err(|_| "Failed to acquire response write lock".to_string())?;
         guard.success = false;
         guard.error_code = ErrorCode::ExecutionError;
         guard.error_message = Some(error);
@@ -331,7 +331,7 @@ impl RequestContext {
         let mut guard = self
             .response
             .write()
-            .map_err(|_| "获取响应写锁失败".to_string())?;
+            .map_err(|_| "Failed to acquire response write lock".to_string())?;
         guard.success = false;
         guard.error_code = code;
         guard.error_message = Some(error);
@@ -343,7 +343,7 @@ impl RequestContext {
         let mut guard = self
             .response
             .write()
-            .map_err(|_| "获取响应写锁失败".to_string())?;
+            .map_err(|_| "Failed to acquire response write lock".to_string())?;
         guard.warnings.push(warning);
         Ok(())
     }
@@ -354,7 +354,7 @@ impl RequestContext {
         let mut guard = self
             .response
             .write()
-            .map_err(|_| "获取响应写锁失败".to_string())?;
+            .map_err(|_| "Failed to acquire response write lock".to_string())?;
         guard.execution_time_ms = elapsed;
         Ok(())
     }

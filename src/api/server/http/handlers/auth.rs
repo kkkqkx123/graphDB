@@ -36,7 +36,7 @@ pub async fn login<S: StorageClient + Clone + Send + Sync + 'static>(
         })
     })
     .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
 }

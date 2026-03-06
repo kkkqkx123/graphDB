@@ -6,15 +6,15 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum IndexError {
-    #[error("索引创建错误: {0}")]
+    #[error("Index creation error: {0}")]
     IndexCreationError(String),
-    #[error("索引更新错误: {0}")]
+    #[error("Index update error: {0}")]
     IndexUpdateError(String),
-    #[error("索引查询错误: {0}")]
+    #[error("Index query error: {0}")]
     IndexQueryError(String),
-    #[error("索引不存在: {0}")]
+    #[error("Index not found: {0}")]
     IndexNotFound(String),
-    #[error("索引状态错误: {0}")]
+    #[error("Index status error: {0}")]
     IndexStatusError(String),
 }
 
@@ -36,19 +36,19 @@ mod tests {
 
     #[test]
     fn test_index_error_creation() {
-        let error = IndexError::IndexCreationError("创建失败".to_string());
-        assert_eq!(format!("{}", error), "索引创建错误: 创建失败");
+        let error = IndexError::IndexCreationError("Creation failed".to_string());
+        assert_eq!(format!("{}", error), "Index creation error: Creation failed");
     }
 
     #[test]
     fn test_index_error_not_found() {
         let error = IndexError::IndexNotFound("test_index".to_string());
-        assert_eq!(format!("{}", error), "索引不存在: test_index");
+        assert_eq!(format!("{}", error), "Index not found: test_index");
     }
 
     #[test]
     fn test_index_error_from_string() {
-        let error: IndexError = "测试错误".to_string().into();
-        assert_eq!(format!("{}", error), "索引查询错误: 测试错误");
+        let error: IndexError = "Test error".to_string().into();
+        assert_eq!(format!("{}", error), "Index query error: Test error");
     }
 }

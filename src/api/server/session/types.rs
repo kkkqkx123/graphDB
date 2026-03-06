@@ -21,7 +21,7 @@ pub struct UserInfo {
 impl UserInfo {
     pub fn new(username: String, password: String) -> Result<Self, StorageError> {
         let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST)
-            .map_err(|e| StorageError::DbError(format!("密码加密失败: {}", e)))?;
+            .map_err(|e| StorageError::DbError(format!("Password encryption failed: {}", e)))?;
 
         let now = chrono::Utc::now().timestamp_millis();
 

@@ -178,7 +178,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
         for row in &dataset.rows {
             let key = JoinKeyEvaluator::evaluate_key(hash_key_expression, context)
-                .map_err(|e| QueryError::ExecutionError(format!("键求值失败: {}", e)))?;
+                .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
 
             hash_table
                 .entry(key)
@@ -201,7 +201,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
         for row in &dataset.rows {
             let key_values = JoinKeyEvaluator::evaluate_keys(hash_key_exprs, context)
-                .map_err(|e| QueryError::ExecutionError(format!("键求值失败: {}", e)))?;
+                .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
 
             let join_key = JoinKey::new(key_values);
             hash_table
@@ -226,7 +226,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
         for probe_row in &probe_dataset.rows {
             let key = JoinKeyEvaluator::evaluate_key(probe_key_expression, context)
-                .map_err(|e| QueryError::ExecutionError(format!("探测键求值失败: {}", e)))?;
+                .map_err(|e| QueryError::ExecutionError(format!("Probe key evaluation failed: {}", e)))?;
 
             if let Some(matching_rows) = hash_table.get(&key) {
                 results.push((probe_row.clone(), matching_rows.clone()));
@@ -249,7 +249,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
         for probe_row in &probe_dataset.rows {
             let key_values = JoinKeyEvaluator::evaluate_keys(probe_key_exprs, context)
-                .map_err(|e| QueryError::ExecutionError(format!("探测键求值失败: {}", e)))?;
+                .map_err(|e| QueryError::ExecutionError(format!("Probe key evaluation failed: {}", e)))?;
 
             let join_key = JoinKey::new(key_values);
 
@@ -270,7 +270,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         for row in &dataset.rows {
             let key_idx = hash_key
                 .parse::<usize>()
-                .map_err(|_| QueryError::ExecutionError("无效的键索引".to_string()))?;
+                .map_err(|_| QueryError::ExecutionError("Invalid key index".to_string()))?;
 
             if key_idx < row.len() {
                 let key = row[key_idx].clone();
@@ -294,12 +294,12 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             for hash_key in hash_keys {
                 let key_idx = hash_key
                     .parse::<usize>()
-                    .map_err(|_| QueryError::ExecutionError("无效的键索引".to_string()))?;
+                    .map_err(|_| QueryError::ExecutionError("Invalid key index".to_string()))?;
 
                 if key_idx < row.len() {
                     key_values.push(row[key_idx].clone());
                 } else {
-                    return Err(QueryError::ExecutionError("键索引超出范围".to_string()));
+                    return Err(QueryError::ExecutionError("Key index out of range".to_string()));
                 }
             }
 

@@ -7,25 +7,25 @@ use thiserror::Error;
 /// 核心层错误类型
 #[derive(Error, Debug, Clone)]
 pub enum CoreError {
-    #[error("查询执行失败: {0}")]
+    #[error("Query execution failed: {0}")]
     QueryExecutionFailed(String),
 
-    #[error("事务操作失败: {0}")]
+    #[error("Transaction operation failed: {0}")]
     TransactionFailed(String),
 
-    #[error("Schema操作失败: {0}")]
+    #[error("Schema operation failed: {0}")]
     SchemaOperationFailed(String),
 
-    #[error("存储错误: {0}")]
+    #[error("Storage error: {0}")]
     StorageError(String),
 
-    #[error("无效的参数: {0}")]
+    #[error("Invalid parameter: {0}")]
     InvalidParameter(String),
 
-    #[error("资源不存在: {0}")]
+    #[error("Resource not found: {0}")]
     NotFound(String),
 
-    #[error("内部错误: {0}")]
+    #[error("Internal error: {0}")]
     Internal(String),
 }
 

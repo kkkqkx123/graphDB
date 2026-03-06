@@ -38,14 +38,14 @@ pub async fn create_space<S: StorageClient + Clone + Send + Sync + 'static>(
 
         match schema_api.create_space(&request.name, config) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "图空间创建成功",
+                "message": "Space created successfully",
                 "space_name": request.name,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("创建图空间失败: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!("Failed to create space: {}", e))),
         }
     })
     .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
 }
@@ -65,11 +65,11 @@ pub async fn get_space<S: StorageClient + Clone + Send + Sync + 'static>(
                     "id": space_id,
                 }
             })),
-            Err(_e) => Err(HttpError::NotFound(format!("图空间 '{}' 不存在", name))),
+            Err(_e) => Err(HttpError::NotFound(format!("Space '{}' not found", name))),
         }
     })
     .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
 }
@@ -84,14 +84,14 @@ pub async fn drop_space<S: StorageClient + Clone + Send + Sync + 'static>(
 
         match schema_api.drop_space(&name) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "图空间删除成功",
+                "message": "Space deleted successfully",
                 "space_name": name,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("删除图空间失败: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!("Failed to delete space: {}", e))),
         }
     })
     .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
 }
@@ -158,15 +158,15 @@ pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
 
         match schema_api.create_tag(space_id, &request.name, properties) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "标签创建成功",
+                "message": "Tag created successfully",
                 "tag_name": request.name,
                 "space_name": space_name,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("创建标签失败: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!("Failed to create tag: {}", e))),
         }
     })
     .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
 }
@@ -227,15 +227,15 @@ pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
 
         match schema_api.create_edge_type(space_id, &request.name, properties) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
-                "message": "边类型创建成功",
+                "message": "Edge type created successfully",
                 "edge_type_name": request.name,
                 "space_name": space_name,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("创建边类型失败: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!("Failed to create edge type: {}", e))),
         }
     })
     .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
 }

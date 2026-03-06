@@ -35,11 +35,11 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
                 result,
                 execution_time_ms: 0, // GraphService 返回的结果中不包含执行时间，后续可以改进
             }),
-            Err(e) => Err(HttpError::InternalError(format!("查询执行失败: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!("Query execution failed: {}", e))),
         }
     })
     .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
+    .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
 }
@@ -55,6 +55,6 @@ pub async fn validate(
 ) -> Result<JsonResponse<ValidateResponse>, HttpError> {
     Ok(JsonResponse(ValidateResponse {
         valid: true,
-        message: "语法正确".to_string(),
+        message: "Syntax is correct".to_string(),
     }))
 }
