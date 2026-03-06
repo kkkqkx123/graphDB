@@ -296,8 +296,7 @@ impl StatementValidator for SetOperationValidator {
             }
         }
 
-        let mut info = ValidationInfo::new();
-        info.semantic_info.set_operation_type = Some(format!("{:?}", self.op_type));
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }

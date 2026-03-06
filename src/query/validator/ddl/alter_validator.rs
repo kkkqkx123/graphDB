@@ -327,10 +327,7 @@ impl StatementValidator for AlterValidator {
 
         self.validate_impl(alter_stmt)?;
 
-        let mut info = ValidationInfo::new();
-
-        info.semantic_info.altered_objects =
-            vec![format!("{:?}: {}", self.target_type, self.target_name)];
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }

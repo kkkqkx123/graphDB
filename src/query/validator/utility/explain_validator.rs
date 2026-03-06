@@ -149,8 +149,7 @@ impl StatementValidator for ExplainValidator {
             }
         }
 
-        let mut info = ValidationInfo::new();
-        info.semantic_info.explanation_format = Some(format!("{:?}", self.format));
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }
@@ -314,8 +313,7 @@ impl StatementValidator for ProfileValidator {
             }
         }
 
-        let mut info = ValidationInfo::new();
-        info.semantic_info.explanation_format = Some(format!("{:?}", self.format));
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }

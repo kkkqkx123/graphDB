@@ -126,9 +126,7 @@ impl StatementValidator for CreateUserValidator {
 
         self.validate_impl(create_user_stmt)?;
 
-        let mut info = ValidationInfo::new();
-
-        info.semantic_info.affected_users = vec![self.username.clone()];
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }
@@ -235,9 +233,7 @@ impl StatementValidator for DropUserValidator {
 
         self.validate_impl(drop_user_stmt)?;
 
-        let mut info = ValidationInfo::new();
-
-        info.semantic_info.affected_users = vec![self.username.clone()];
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }
@@ -363,9 +359,7 @@ impl StatementValidator for AlterUserValidator {
 
         self.validate_impl(alter_user_stmt)?;
 
-        let mut info = ValidationInfo::new();
-
-        info.semantic_info.affected_users = vec![self.username.clone()];
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }
@@ -487,10 +481,6 @@ impl StatementValidator for ChangePasswordValidator {
         self.validate_impl(change_password_stmt)?;
 
         let mut info = ValidationInfo::new();
-
-        if let Some(ref username) = self.username {
-            info.semantic_info.affected_users = vec![username.clone()];
-        }
 
         Ok(ValidationResult::success_with_info(info))
     }
@@ -617,9 +607,7 @@ impl StatementValidator for GrantValidator {
 
         self.validate_impl(grant_stmt)?;
 
-        let mut info = ValidationInfo::new();
-
-        info.semantic_info.affected_users = vec![self.username.clone()];
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }
@@ -738,9 +726,7 @@ impl StatementValidator for RevokeValidator {
 
         self.validate_impl(revoke_stmt)?;
 
-        let mut info = ValidationInfo::new();
-
-        info.semantic_info.affected_users = vec![self.username.clone()];
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }
@@ -843,9 +829,7 @@ impl StatementValidator for DescribeUserValidator {
 
         self.validate_impl(describe_user_stmt)?;
 
-        let mut info = ValidationInfo::new();
-
-        info.semantic_info.affected_users = vec![self.username.clone()];
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }

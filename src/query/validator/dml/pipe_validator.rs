@@ -278,15 +278,7 @@ impl StatementValidator for PipeValidator {
                 .collect()
         };
 
-        let mut info = ValidationInfo::new();
-
-        for col in &self.left_output_cols {
-            info.semantic_info.pipeline_steps.push(format!(
-                "{}: {}",
-                col.name,
-                format!("{:?}", col.type_)
-            ));
-        }
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }

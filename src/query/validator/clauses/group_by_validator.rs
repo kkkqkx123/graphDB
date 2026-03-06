@@ -340,17 +340,7 @@ impl StatementValidator for GroupByValidator {
 
         self.validate_impl(group_by_stmt)?;
 
-        let mut info = ValidationInfo::new();
-
-        for key in &self.group_keys {
-            info.semantic_info.grouping_keys.push(format!("{:?}", key));
-        }
-
-        for item in &self.group_items {
-            info.semantic_info
-                .aggregate_functions
-                .push(format!("{:?}", item));
-        }
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }

@@ -203,10 +203,7 @@ impl StatementValidator for DropValidator {
 
         self.validate_impl(drop_stmt)?;
 
-        let mut info = ValidationInfo::new();
-
-        info.semantic_info.dropped_objects =
-            vec![format!("{:?}: {}", self.target_type, self.target_name)];
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }

@@ -285,6 +285,9 @@ pub enum ClauseKind {
 }
 
 /// 语义信息
+///
+/// 存储验证阶段收集的语义信息，用于优化器和执行器。
+/// 设计原则：只保留规划阶段真正需要的信息，避免冗余。
 #[derive(Debug, Clone, Default)]
 pub struct SemanticInfo {
     /// 引用的标签
@@ -299,10 +302,6 @@ pub struct SemanticInfo {
     pub defined_variables: Vec<String>,
     /// 聚合函数调用
     pub aggregate_calls: Vec<AggregateCallInfo>,
-    /// 分组键
-    pub grouping_keys: Vec<String>,
-    /// 聚合函数
-    pub aggregate_functions: Vec<String>,
     /// 输出字段
     pub output_fields: Vec<String>,
     /// 排序字段
@@ -311,24 +310,10 @@ pub struct SemanticInfo {
     pub pagination_offset: Option<usize>,
     /// 分页限制
     pub pagination_limit: Option<usize>,
-    /// 管道步骤
-    pub pipeline_steps: Vec<String>,
-    /// 修改的对象
-    pub altered_objects: Vec<String>,
-    /// 删除的对象
-    pub dropped_objects: Vec<String>,
-    /// 受影响的用户
-    pub affected_users: Vec<String>,
     /// 查询类型
     pub query_type: Option<String>,
     /// 查询复杂度
     pub query_complexity: Option<usize>,
-    /// 集合操作类型
-    pub set_operation_type: Option<String>,
-    /// 解释格式
-    pub explanation_format: Option<String>,
-    /// 使用的空间
-    pub used_space: Option<String>,
 }
 
 /// 聚合函数调用信息

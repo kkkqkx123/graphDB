@@ -215,9 +215,7 @@ impl StatementValidator for UseValidator {
             return Ok(ValidationResult::failure(errors));
         }
 
-        let mut info = ValidationInfo::new();
-
-        info.semantic_info.used_space = Some(self.space_name.clone());
+        let info = ValidationInfo::new();
 
         // 返回成功的验证结果
         Ok(ValidationResult::success_with_info(info))

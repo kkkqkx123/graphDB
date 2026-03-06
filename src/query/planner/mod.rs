@@ -4,6 +4,7 @@
 // 核心模块
 pub mod connector;
 pub mod plan;
+pub mod plan_cache;
 pub mod planner;
 pub mod template_extractor;
 
@@ -16,6 +17,10 @@ pub mod rewrite;
 // 重新导出主要的类型
 pub use connector::SegmentsConnector;
 pub use plan::execution_plan::{ExecutionPlan, SubPlan};
+pub use plan_cache::{
+    CachedPlan, ParamPosition, PlanCacheConfig, PlanCacheKey, PlanCacheStats,
+    ParameterizedQueryHandler, QueryPlanCache,
+};
 pub use planner::{Planner, PlannerConfig, PlannerError};
 pub use template_extractor::{ParameterizedResult, ParameterizingTransformer, TemplateExtractor};
 
