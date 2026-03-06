@@ -172,7 +172,6 @@ pub extern "C" fn graphdb_txn_execute(
                 let query_result = crate::api::embedded::result::QueryResult::from_core(core_result);
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
-                    current_row: 0,
                 });
                 *result = Box::into_raw(result_handle) as *mut graphdb_result_t;
                 graphdb_error_code_t::GRAPHDB_OK as c_int

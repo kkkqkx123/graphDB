@@ -11,8 +11,6 @@ use crate::core::Value;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-use crate::query::executor::expression::evaluator::traits::ExpressionContext;
-use crate::query::executor::expression::DefaultExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
@@ -59,13 +57,14 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
 
     /// 执行赋值操作
     fn execute_assign(&mut self) -> DBResult<()> {
-        let mut expr_context = DefaultExpressionContext::new();
+        // 直接使用 ExecutionContext，因为它现在实现了 ExpressionContext trait
+        // 这样可以避免在两个上下文之间复制变量
 
         // 执行每个赋值项
         for (var_name, expression) in &self.assign_items {
             // 计算表达式的值
             let value =
-                ExpressionEvaluator::evaluate(expression, &mut expr_context).map_err(|e| {
+                ExpressionEvaluator::evaluate(expression, &mut self.base.context).map_err(|e| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(
                         e.to_string(),
                     ))
@@ -93,13 +92,10 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
                 }
             }
 
-            // 同时设置变量以便后续使用
+            // 设置变量以便后续使用
             self.base
                 .context
-                .set_variable(var_name.clone(), value.clone());
-
-            // 同时更新表达式上下文，以便后续表达式可以使用这个变量
-            expr_context.set_variable(var_name.clone(), value);
+                .set_variable(var_name.clone(), value);
         }
 
         Ok(())

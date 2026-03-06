@@ -3,13 +3,11 @@
 //! 提供预编译语句功能，支持语句准备、参数绑定和重复执行
 
 use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
-use crate::api::embedded::c_api::result::GraphDbResultHandle;
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
-use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, graphdb_stmt_t, graphdb_value_t};
+use crate::api::embedded::c_api::types::{graphdb_session_t, graphdb_stmt_t, graphdb_value_t};
 use crate::api::embedded::c_api::types::graphdb_value_type_t;
 use crate::api::embedded::statement::PreparedStatement;
 use crate::core::Value;
-use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::ptr;
 

@@ -17,6 +17,7 @@ use crate::storage::operations::{EdgeReader, EdgeWriter, VertexReader, VertexWri
 use crate::storage::operations::{RedbReader, RedbWriter};
 use crate::storage::serializer::{edge_to_bytes, vertex_to_bytes};
 use crate::storage::Schema;
+use crate::transaction::TransactionContext;
 use parking_lot::Mutex;
 use redb::Database;
 use std::collections::HashMap;
@@ -25,7 +26,7 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct RedbStorage {
-    reader: RedbReader,
+    reader: Arc<Mutex<RedbReader>>,
     writer: Arc<Mutex<RedbWriter>>,
     index_data_manager: RedbIndexDataManager,
     pub schema_manager: Arc<RedbSchemaManager>,
@@ -34,6 +35,7 @@ pub struct RedbStorage {
     users: Arc<Mutex<HashMap<String, UserInfo>>>,
     db: Arc<Database>,
     db_path: PathBuf,
+    current_txn_context: Arc<Mutex<Option<Arc<TransactionContext>>>>,
 }
 
 impl std::fmt::Debug for RedbStorage {
@@ -130,6 +132,7 @@ impl RedbStorage {
         let extended_schema_manager = Arc::new(RedbExtendedSchemaManager::new(db.clone()));
 
         let reader = RedbReader::new(db.clone())?;
+        let reader = Arc::new(Mutex::new(reader));
         let writer = Arc::new(Mutex::new(RedbWriter::new(db.clone())?));
 
         let index_data_manager = RedbIndexDataManager::new(db.clone());
@@ -146,6 +149,7 @@ impl RedbStorage {
             users,
             db,
             db_path: path,
+            current_txn_context: Arc::new(Mutex::new(None)),
         })
     }
 }
@@ -155,12 +159,27 @@ impl RedbStorage {
         &self.db
     }
 
-    pub fn get_reader(&self) -> &RedbReader {
+    pub fn get_reader(&self) -> &Arc<Mutex<RedbReader>> {
         &self.reader
     }
 
     pub fn get_writer(&self) -> Arc<Mutex<RedbWriter>> {
         self.writer.clone()
+    }
+
+    pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
+        *self.current_txn_context.lock() = context.clone();
+
+        // 同时设置 reader 的事务上下文
+        if let Some(ctx) = &context {
+            self.reader.lock().set_transaction_context(Some(ctx.clone()));
+        } else {
+            self.reader.lock().set_transaction_context(None);
+        }
+    }
+
+    pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
+        self.current_txn_context.lock().clone()
     }
 
     // 解析顶点ID
@@ -175,7 +194,7 @@ impl RedbStorage {
 
     // 删除顶点相关边
     fn delete_vertex_edges(&mut self, space: &str, vertex_id: &Value) -> Result<(), StorageError> {
-        let edges = self.reader.scan_all_edges(space)?;
+        let edges = self.reader.lock().scan_all_edges(space)?;
 
         // 获取 space_id
         let space_id = self.get_space_id(space)?;
@@ -213,7 +232,7 @@ impl RedbStorage {
         op: &UpdateOp,
         value: &Value,
     ) -> Result<(), StorageError> {
-        if let Some(mut vertex) = self.reader.get_vertex(space, vertex_id)? {
+        if let Some(mut vertex) = self.reader.lock().get_vertex(space, vertex_id)? {
             for tag_data in &mut vertex.tags {
                 if tag_data.name == tag {
                     match op {
@@ -297,15 +316,16 @@ impl RedbStorage {
 
 impl StorageClient for RedbStorage {
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
-        self.reader.get_vertex(space, id)
+        self.reader.lock().get_vertex(space, id)
     }
 
     fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError> {
-        self.reader.scan_vertices(space).map(|r| r.into_vec())
+        self.reader.lock().scan_vertices(space).map(|r| r.into_vec())
     }
 
     fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
         self.reader
+            .lock()
             .scan_vertices_by_tag(space, tag)
             .map(|r| r.into_vec())
     }
@@ -318,6 +338,7 @@ impl StorageClient for RedbStorage {
         value: &Value,
     ) -> Result<Vec<Vertex>, StorageError> {
         self.reader
+            .lock()
             .scan_vertices_by_prop(space, tag, prop, value)
             .map(|r| r.into_vec())
     }
@@ -329,7 +350,7 @@ impl StorageClient for RedbStorage {
         dst: &Value,
         edge_type: &str,
     ) -> Result<Option<Edge>, StorageError> {
-        self.reader.get_edge(space, src, dst, edge_type)
+        self.reader.lock().get_edge(space, src, dst, edge_type)
     }
 
     fn get_node_edges(
@@ -339,6 +360,7 @@ impl StorageClient for RedbStorage {
         direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
         self.reader
+            .lock()
             .get_node_edges(space, node_id, direction)
             .map(|r| r.into_vec())
     }
@@ -351,22 +373,31 @@ impl StorageClient for RedbStorage {
         filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync + 'static>>,
     ) -> Result<Vec<Edge>, StorageError> {
         self.reader
+            .lock()
             .get_node_edges_filtered(space, node_id, direction, filter)
             .map(|r| r.into_vec())
     }
 
     fn scan_edges_by_type(&self, space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
         self.reader
+            .lock()
             .scan_edges_by_type(space, edge_type)
             .map(|r| r.into_vec())
     }
 
     fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
-        self.reader.scan_all_edges(space).map(|r| r.into_vec())
+        self.reader.lock().scan_all_edges(space).map(|r| r.into_vec())
     }
 
     fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
         let mut writer = self.writer.lock();
+
+        if let Some(ctx) = self.get_transaction_context() {
+            writer.bind_transaction_context(ctx);
+        } else {
+            writer.unbind_transaction_context();
+        }
+
         let id = writer.insert_vertex(space, vertex.clone())?;
 
         // 获取 space_id
@@ -404,11 +435,25 @@ impl StorageClient for RedbStorage {
 
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
+
+        if let Some(ctx) = self.get_transaction_context() {
+            writer.bind_transaction_context(ctx);
+        } else {
+            writer.unbind_transaction_context();
+        }
+
         writer.update_vertex(space, vertex)
     }
 
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
+
+        if let Some(ctx) = self.get_transaction_context() {
+            writer.bind_transaction_context(ctx);
+        } else {
+            writer.unbind_transaction_context();
+        }
+
         writer.delete_vertex(space, id)?;
 
         // 获取 space_id
@@ -427,6 +472,13 @@ impl StorageClient for RedbStorage {
 
         // 然后删除顶点本身
         let mut writer = self.writer.lock();
+
+        if let Some(ctx) = self.get_transaction_context() {
+            writer.bind_transaction_context(ctx);
+        } else {
+            writer.unbind_transaction_context();
+        }
+
         writer.delete_vertex(space, id)?;
 
         // 获取 space_id
@@ -445,6 +497,13 @@ impl StorageClient for RedbStorage {
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
         let mut writer = self.writer.lock();
+
+        if let Some(ctx) = self.get_transaction_context() {
+            writer.bind_transaction_context(ctx);
+        } else {
+            writer.unbind_transaction_context();
+        }
+
         writer.batch_insert_vertices(space, vertices)
     }
 
@@ -455,6 +514,13 @@ impl StorageClient for RedbStorage {
         tag_names: &[String],
     ) -> Result<usize, StorageError> {
         let mut writer = self.writer.lock();
+
+        if let Some(ctx) = self.get_transaction_context() {
+            writer.bind_transaction_context(ctx);
+        } else {
+            writer.unbind_transaction_context();
+        }
+
         let deleted_count = writer.delete_tags(space, vertex_id, tag_names)?;
 
         // 获取 space_id
@@ -471,6 +537,13 @@ impl StorageClient for RedbStorage {
 
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
+
+        if let Some(ctx) = self.get_transaction_context() {
+            writer.bind_transaction_context(ctx);
+        } else {
+            writer.unbind_transaction_context();
+        }
+
         writer.insert_edge(space, edge.clone())?;
 
         // 获取 space_id
@@ -513,6 +586,13 @@ impl StorageClient for RedbStorage {
         edge_type: &str,
     ) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
+
+        if let Some(ctx) = self.get_transaction_context() {
+            writer.bind_transaction_context(ctx);
+        } else {
+            writer.unbind_transaction_context();
+        }
+
         writer.delete_edge(space, src, dst, edge_type)?;
 
         // 获取 space_id
@@ -533,6 +613,13 @@ impl StorageClient for RedbStorage {
 
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
+
+        if let Some(ctx) = self.get_transaction_context() {
+            writer.bind_transaction_context(ctx);
+        } else {
+            writer.unbind_transaction_context();
+        }
+
         writer.batch_insert_edges(space, edges)
     }
 
@@ -941,7 +1028,7 @@ impl StorageClient for RedbStorage {
         self.index_data_manager
             .clear_edge_index(space_id, index_name)?;
 
-        let edges = self.reader.scan_all_edges(space)?;
+        let edges = self.reader.lock().scan_all_edges(space)?;
         for edge in edges {
             self.index_data_manager
                 .build_edge_index_entry(space_id, &index, &edge)?;
@@ -977,7 +1064,7 @@ impl StorageClient for RedbStorage {
         };
 
         // 获取或创建顶点
-        let vertex = match self.reader.get_vertex(space, &info.vertex_id)? {
+        let vertex = match self.reader.lock().get_vertex(space, &info.vertex_id)? {
             Some(mut existing_vertex) => {
                 // 更新现有顶点
                 existing_vertex.tags.retain(|t| t.name != tag_name);
@@ -1112,7 +1199,7 @@ impl StorageClient for RedbStorage {
         let space_id = self.get_space_id(space)?;
 
         // 扫描找到匹配的边
-        let edges = self.reader.scan_all_edges(space)?;
+        let edges = self.reader.lock().scan_all_edges(space)?;
         let mut deleted = false;
 
         for edge in edges {
@@ -1295,7 +1382,7 @@ impl StorageClient for RedbStorage {
         id: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
         // 获取顶点
-        if let Some(vertex) = self.reader.get_vertex(space, id)? {
+        if let Some(vertex) = self.reader.lock().get_vertex(space, id)? {
             // 获取标签信息
             let tag_info = self.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
                 StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
@@ -1319,7 +1406,7 @@ impl StorageClient for RedbStorage {
         dst: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
         // 获取边
-        if let Some(edge) = self.reader.get_edge(space, src, dst, edge_type)? {
+        if let Some(edge) = self.reader.lock().get_edge(space, src, dst, edge_type)? {
             // 获取边类型信息
             let edge_type_info = self
                 .schema_manager
@@ -1357,7 +1444,7 @@ impl StorageClient for RedbStorage {
         let schema = self.build_vertex_schema(&tag_info)?;
 
         // 扫描所有顶点并过滤
-        let vertices = self.reader.scan_vertices(space)?;
+        let vertices = self.reader.lock().scan_vertices(space)?;
         for vertex in vertices {
             if vertex.tags.iter().any(|t| t.name == tag) {
                 let vertex_data = vertex_to_bytes(&vertex)?;
@@ -1390,7 +1477,7 @@ impl StorageClient for RedbStorage {
         let schema = self.build_edge_schema(&edge_type_info)?;
 
         // 扫描所有边并过滤
-        let edges = self.reader.scan_edges_by_type(space, edge_type)?;
+        let edges = self.reader.lock().scan_edges_by_type(space, edge_type)?;
         for edge in edges {
             let edge_data = edge_to_bytes(&edge)?;
             results.push((schema.clone(), edge_data));
@@ -1431,11 +1518,13 @@ impl StorageClient for RedbStorage {
         // 使用 reader 统计顶点数量
         let total_vertices = self
             .reader
+            .lock()
             .scan_vertices("")
             .map(|r| r.into_vec().len())
             .unwrap_or(0);
         let total_edges = self
             .reader
+            .lock()
             .scan_all_edges("")
             .map(|r| r.into_vec().len())
             .unwrap_or(0);
@@ -1453,13 +1542,13 @@ impl StorageClient for RedbStorage {
         let mut dangling_edges = Vec::new();
 
         // 获取所有边
-        let edges = self.reader.scan_all_edges(space)?;
+        let edges = self.reader.lock().scan_all_edges(space)?;
 
         for edge in edges {
             // 检查起点是否存在
-            let src_exists = self.reader.get_vertex(space, &edge.src)?.is_some();
+            let src_exists = self.reader.lock().get_vertex(space, &edge.src)?.is_some();
             // 检查终点是否存在
-            let dst_exists = self.reader.get_vertex(space, &edge.dst)?.is_some();
+            let dst_exists = self.reader.lock().get_vertex(space, &edge.dst)?.is_some();
 
             // 如果起点或终点不存在，则为悬挂边
             if !src_exists || !dst_exists {

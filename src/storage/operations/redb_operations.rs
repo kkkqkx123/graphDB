@@ -4,7 +4,7 @@ use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
 use crate::storage::serializer::{
     edge_from_bytes, edge_to_bytes, value_to_bytes, vertex_from_bytes, vertex_to_bytes,
 };
-use crate::transaction::TransactionContext;
+use crate::transaction::{OperationLog, TransactionContext};
 use crate::utils::id_gen::generate_id;
 use lru::LruCache;
 use parking_lot::Mutex;
@@ -16,11 +16,14 @@ pub struct RedbReader {
     db: Arc<Database>,
     vertex_cache: Arc<Mutex<LruCache<Vec<u8>, Vertex>>>,
     edge_cache: Arc<Mutex<LruCache<Vec<u8>, Edge>>>,
+    txn_context: Option<Arc<TransactionContext>>,
 }
 
 impl std::fmt::Debug for RedbReader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RedbReader").finish()
+        f.debug_struct("RedbReader")
+            .field("has_txn_context", &self.txn_context.is_some())
+            .finish()
     }
 }
 
@@ -37,7 +40,16 @@ impl RedbReader {
             db,
             vertex_cache,
             edge_cache,
+            txn_context: None,
         })
+    }
+
+    pub fn set_transaction_context(&mut self, context: Option<Arc<TransactionContext>>) {
+        self.txn_context = context;
+    }
+
+    pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
+        self.txn_context.clone()
     }
 
     fn get_node_from_bytes(&self, id_bytes: &[u8]) -> Result<Option<Vertex>, StorageError> {
@@ -338,6 +350,10 @@ impl<'a> WriteTxnExecutor<'a> {
     {
         match &self.bound_context {
             Some(ctx) => {
+                // 检查事务状态
+                ctx.can_execute()
+                    .map_err(|e| StorageError::DbError(format!("事务状态不允许执行操作: {}", e)))?;
+
                 // 在绑定的事务上下文中执行
                 ctx.with_write_txn(operation)
                     .map_err(|e| StorageError::DbError(e.to_string()))
@@ -419,6 +435,20 @@ impl RedbWriter {
             None => WriteTxnExecutor::independent(&self.db),
         }
     }
+
+    /// 记录操作日志
+    fn log_operation(&self, operation: OperationLog) {
+        if let Some(ctx) = &self.txn_context {
+            ctx.add_operation_log(operation);
+        }
+    }
+
+    /// 记录表修改
+    fn record_table_modification(&self, table_name: &str) {
+        if let Some(ctx) = &self.txn_context {
+            ctx.record_table_modification(table_name);
+        }
+    }
 }
 
 impl RedbWriter {
@@ -447,6 +477,15 @@ impl RedbWriter {
             Ok(())
         })?;
 
+        // 记录操作日志
+        self.log_operation(OperationLog::InsertVertex {
+            space: "default".to_string(),
+            vertex_id: value_to_bytes(&id)?,
+        });
+
+        // 记录表修改
+        self.record_table_modification("NODES_TABLE");
+
         Ok(id)
     }
 
@@ -470,7 +509,18 @@ impl RedbWriter {
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             Ok(())
-        })
+        })?;
+
+        // 记录操作日志
+        self.log_operation(OperationLog::UpdateVertex {
+            space: "default".to_string(),
+            vertex_id: value_to_bytes(&vertex.vid)?,
+        });
+
+        // 记录表修改
+        self.record_table_modification("NODES_TABLE");
+
+        Ok(())
     }
 
     /// 删除顶点的内部实现
@@ -496,7 +546,18 @@ impl RedbWriter {
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             Ok(())
-        })
+        })?;
+
+        // 记录操作日志
+        self.log_operation(OperationLog::DeleteVertex {
+            space: "default".to_string(),
+            vertex_id: value_to_bytes(id)?,
+        });
+
+        // 记录表修改
+        self.record_table_modification("NODES_TABLE");
+
+        Ok(())
     }
 
     /// 批量插入顶点的内部实现
@@ -527,6 +588,17 @@ impl RedbWriter {
             Ok(())
         })?;
 
+        // 记录操作日志
+        for id in &ids {
+            self.log_operation(OperationLog::InsertVertex {
+                space: "default".to_string(),
+                vertex_id: value_to_bytes(id)?,
+            });
+        }
+
+        // 记录表修改
+        self.record_table_modification("NODES_TABLE");
+
         Ok(ids)
     }
 
@@ -540,7 +612,7 @@ impl RedbWriter {
         let tag_names = tag_names.to_vec(); // 克隆以便在闭包中使用
 
         let executor = self.get_executor();
-        executor.execute(|write_txn| {
+        let deleted_count = executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -577,7 +649,18 @@ impl RedbWriter {
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             Ok(deleted_count)
-        })
+        })?;
+
+        // 记录操作日志（删除标签实际上是更新顶点）
+        self.log_operation(OperationLog::UpdateVertex {
+            space: "default".to_string(),
+            vertex_id: value_to_bytes(vertex_id)?,
+        });
+
+        // 记录表修改
+        self.record_table_modification("NODES_TABLE");
+
+        Ok(deleted_count)
     }
 }
 
@@ -632,11 +715,22 @@ impl RedbWriter {
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             table
-                .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
+                .insert(ByteKey(edge_key_bytes.clone()), ByteKey(edge_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             Ok(())
-        })
+        })?;
+
+        // 记录操作日志
+        self.log_operation(OperationLog::InsertEdge {
+            space: "default".to_string(),
+            edge_key: edge_key_bytes,
+        });
+
+        // 记录表修改
+        self.record_table_modification("EDGES_TABLE");
+
+        Ok(())
     }
 
     /// 删除边的内部实现
@@ -671,11 +765,24 @@ impl RedbWriter {
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             Ok(())
-        })
+        })?;
+
+        // 记录操作日志
+        self.log_operation(OperationLog::DeleteEdge {
+            space: "default".to_string(),
+            edge_key: edge_key_bytes,
+        });
+
+        // 记录表修改
+        self.record_table_modification("EDGES_TABLE");
+
+        Ok(())
     }
 
     /// 批量插入边的内部实现
     fn batch_insert_edges_internal(&self, edges: Vec<Edge>) -> Result<(), StorageError> {
+        let mut edge_keys = Vec::new();
+
         let executor = self.get_executor();
         executor.execute(|write_txn| {
             let mut table = write_txn
@@ -685,6 +792,8 @@ impl RedbWriter {
             for edge in edges {
                 let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
                 let edge_key_bytes = edge_key.as_bytes().to_vec();
+                edge_keys.push(edge_key_bytes.clone());
+
                 let edge_bytes = edge_to_bytes(&edge)?;
 
                 table
@@ -693,7 +802,20 @@ impl RedbWriter {
             }
 
             Ok(())
-        })
+        })?;
+
+        // 记录操作日志
+        for edge_key in &edge_keys {
+            self.log_operation(OperationLog::InsertEdge {
+                space: "default".to_string(),
+                edge_key: edge_key.clone(),
+            });
+        }
+
+        // 记录表修改
+        self.record_table_modification("EDGES_TABLE");
+
+        Ok(())
     }
 }
 

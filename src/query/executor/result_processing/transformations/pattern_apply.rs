@@ -79,7 +79,6 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
         col_names: Vec<String>,
         is_anti_predicate: bool,
         context: crate::query::executor::base::ExecutionContext,
-        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         Self {
             base: BaseExecutor::with_context(
@@ -388,7 +387,6 @@ mod tests {
             vec!["matched".to_string()],
             false,
             context,
-            expr_context,
         );
 
         let result = executor.execute().expect("Failed to execute pattern apply");
@@ -422,7 +420,6 @@ mod tests {
             vec!["matched".to_string()],
             true,
             context,
-            expr_context,
         );
 
         let result = executor.execute().expect("Failed to execute pattern apply");
@@ -456,7 +453,6 @@ mod tests {
             vec!["matched".to_string()],
             false,
             context,
-            expr_context,
         );
 
         let result = executor.execute().expect("Failed to execute pattern apply");
@@ -488,7 +484,6 @@ mod tests {
             vec!["matched".to_string()],
             false,
             context,
-            expr_context,
         );
 
         let result = executor.execute().expect("Failed to execute pattern apply");

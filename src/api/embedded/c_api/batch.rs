@@ -8,7 +8,7 @@ use crate::api::embedded::c_api::types::{graphdb_batch_t, graphdb_session_t, gra
 use crate::api::embedded::c_api::types::graphdb_value_type_t;
 use crate::core::{Edge, Value, Vertex};
 use std::collections::HashMap;
-use std::ffi::{CStr, CString, c_char, c_int, c_void};
+use std::ffi::{CStr, CString, c_char, c_int};
 use std::ptr;
 
 /// 批量操作句柄内部结构
@@ -104,7 +104,9 @@ pub extern "C" fn graphdb_batch_add_vertex(
     unsafe {
         let handle = &mut *(batch as *mut GraphDbBatchHandle);
 
-        let vertex = Vertex::with_vid(Value::Int(vid));
+        let mut vertex = Vertex::with_vid(Value::Int(vid));
+        let tag = crate::core::vertex_edge_path::Tag::new(tag_str.to_string(), props);
+        vertex.add_tag(tag);
         handle.inner.add_vertex(vertex);
         graphdb_error_code_t::GRAPHDB_OK as c_int
     }

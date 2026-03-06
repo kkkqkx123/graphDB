@@ -8,7 +8,7 @@ use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, graphdb_value_t};
 use crate::core::Value;
 use std::collections::HashMap;
-use std::ffi::{CStr, CString, c_char, c_int, c_void};
+use std::ffi::{CStr, CString, c_char, c_int};
 use std::ptr;
 
 /// 执行简单查询
@@ -45,7 +45,6 @@ pub extern "C" fn graphdb_execute(
             Ok(query_result) => {
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
-                    current_row: 0,
                 });
                 *result = Box::into_raw(result_handle) as *mut graphdb_result_t;
                 graphdb_error_code_t::GRAPHDB_OK as c_int
@@ -113,7 +112,6 @@ pub extern "C" fn graphdb_execute_params(
             Ok(query_result) => {
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
-                    current_row: 0,
                 });
                 *result = Box::into_raw(result_handle) as *mut graphdb_result_t;
                 graphdb_error_code_t::GRAPHDB_OK as c_int

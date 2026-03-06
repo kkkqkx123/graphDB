@@ -480,7 +480,7 @@ impl StatementValidator for ChangePasswordValidator {
 
         self.validate_impl(change_password_stmt)?;
 
-        let mut info = ValidationInfo::new();
+        let info = ValidationInfo::new();
 
         Ok(ValidationResult::success_with_info(info))
     }

@@ -11,7 +11,6 @@ use std::ptr;
 /// 结果集句柄内部结构
 pub struct GraphDbResultHandle {
     pub(crate) inner: QueryResult,
-    pub(crate) current_row: usize,
 }
 
 /// 释放结果集

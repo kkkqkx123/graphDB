@@ -6,6 +6,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::execution_result::ExecutionResult;
+use crate::core::Value;
+use crate::query::executor::expression::evaluator::traits::ExpressionContext;
+use crate::query::executor::expression::functions::global_registry_ref;
+use crate::query::executor::expression::functions::FunctionRef;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 执行上下文
@@ -65,5 +69,27 @@ impl Default for ExecutionContext {
             variables: HashMap::new(),
             expression_context: Arc::new(ExpressionAnalysisContext::new()),
         }
+    }
+}
+
+impl ExpressionContext for ExecutionContext {
+    fn get_variable(&self, name: &str) -> Option<Value> {
+        self.variables.get(name).cloned()
+    }
+
+    fn set_variable(&mut self, name: String, value: Value) {
+        self.variables.insert(name, value);
+    }
+
+    fn get_function(&self, name: &str) -> Option<FunctionRef> {
+        let registry = global_registry_ref();
+        registry
+            .get_builtin(name)
+            .map(|f| FunctionRef::Builtin(f))
+            .or_else(|| {
+                registry
+                    .get_custom(name)
+                    .map(|f| FunctionRef::Custom(f))
+            })
     }
 }

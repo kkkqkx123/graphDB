@@ -6,7 +6,6 @@ use crate::api::core::CoreError;
 use std::cell::RefCell;
 use std::ffi::CString;
 
-/// 线程局部存储最后的错误消息
 thread_local! {
     static LAST_ERROR_MESSAGE: RefCell<Option<CString>> = RefCell::new(None);
 }
@@ -16,13 +15,6 @@ pub(crate) fn set_last_error_message(msg: String) {
     LAST_ERROR_MESSAGE.with(|m| {
         *m.borrow_mut() = CString::new(msg).ok();
     });
-}
-
-/// 获取最后的错误消息（内部使用）
-pub(crate) fn get_last_error_message() -> Option<CString> {
-    LAST_ERROR_MESSAGE.with(|m| {
-        m.borrow().as_ref().map(|s| s.clone())
-    })
 }
 
 /// 错误码

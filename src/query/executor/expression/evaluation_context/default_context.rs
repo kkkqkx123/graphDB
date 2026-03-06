@@ -47,6 +47,27 @@ impl DefaultExpressionContext {
         }
         self
     }
+
+    /// 从 ExecutionContext 创建 DefaultExpressionContext
+    ///
+    /// 复制 ExecutionContext 中的所有变量到新的 DefaultExpressionContext
+    pub fn from_execution_context(ctx: &crate::query::executor::base::ExecutionContext) -> Self {
+        Self {
+            variables: ctx.variables.clone(),
+        }
+    }
+
+    /// 将变量同步回 ExecutionContext
+    ///
+    /// 将当前 DefaultExpressionContext 中的所有变量同步到 ExecutionContext
+    pub fn sync_to_execution_context(
+        self,
+        ctx: &mut crate::query::executor::base::ExecutionContext,
+    ) {
+        for (name, value) in self.variables {
+            ctx.set_variable(name, value);
+        }
+    }
 }
 
 impl Default for DefaultExpressionContext {

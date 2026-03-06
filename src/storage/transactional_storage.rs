@@ -93,11 +93,15 @@ impl TransactionalStorage {
                 self.txn_manager
                     .commit_transaction(txn_id)
                     .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+                // 清除事务上下文
+                self.inner.set_transaction_context(None);
                 Ok(result)
             }
             Err(e) => {
                 // 中止事务
                 let _ = self.txn_manager.abort_transaction(txn_id);
+                // 清除事务上下文
+                self.inner.set_transaction_context(None);
                 Err(e)
             }
         }
@@ -156,6 +160,9 @@ impl<'a> TransactionalStorageClient<'a> {
         txn_manager: &'a TransactionManager,
         txn_id: TransactionId,
     ) -> Self {
+        let ctx = txn_manager.get_context(txn_id).expect("获取事务上下文失败");
+        storage.set_transaction_context(Some(ctx));
+
         Self {
             storage,
             txn_manager,

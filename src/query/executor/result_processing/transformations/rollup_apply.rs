@@ -62,7 +62,6 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         collect_col: Expression,
         col_names: Vec<String>,
         context: crate::query::executor::base::ExecutionContext,
-        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::with_context(id, "RollUpApplyExecutor".to_string(), storage, context),
@@ -580,7 +579,6 @@ mod tests {
             collect_col,
             vec!["key".to_string(), "collected".to_string()],
             context,
-            expr_context,
         );
 
         let result = executor
@@ -624,7 +622,6 @@ mod tests {
             collect_col,
             vec!["collected".to_string()],
             context,
-            expr_context,
         );
 
         let result = executor
@@ -693,7 +690,6 @@ mod tests {
                 "collected".to_string(),
             ],
             context,
-            expr_context,
         );
 
         let result = executor
@@ -737,7 +733,6 @@ mod tests {
             collect_col,
             vec!["key".to_string(), "collected".to_string()],
             context,
-            expr_context,
         );
 
         let result = executor
@@ -785,7 +780,6 @@ mod tests {
             collect_col,
             vec!["key".to_string(), "collected".to_string()],
             context,
-            expr_context,
         );
 
         let result = executor
