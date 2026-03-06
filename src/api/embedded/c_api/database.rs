@@ -2,7 +2,7 @@
 //!
 //! 提供数据库的打开、关闭和基本管理功能
 
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t};
+use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::types::graphdb_t;
 use crate::api::embedded::GraphDatabase;
 use crate::storage::RedbStorage;
@@ -54,6 +54,8 @@ pub extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb_t) -> 
         }
         Err(e) => {
             let error_code = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
             unsafe {
                 *db = ptr::null_mut();
             }

@@ -2,7 +2,7 @@
 //!
 //! 提供基于 HTTP 的 GraphDB 服务接口
 
-use crate::api::core::{QueryApi, SchemaApi, TransactionApi};
+use crate::api::core::{QueryApi, SchemaApi};
 use crate::api::server::auth::PasswordAuthenticator;
 use crate::api::server::graph_service::GraphService;
 use crate::api::server::session::GraphSessionManager;
@@ -19,7 +19,7 @@ use std::sync::Arc;
 pub struct HttpServer<S: StorageClient + Clone + 'static> {
     graph_service: Arc<GraphService<S>>,
     query_api: QueryApi<S>,
-    txn_api: TransactionApi,
+    txn_manager: Arc<TransactionManager>,
     schema_api: SchemaApi<S>,
     auth_service: PasswordAuthenticator,
 }
@@ -35,7 +35,7 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
         Self {
             graph_service: graph_service.clone(),
             query_api: QueryApi::new(storage.clone()),
-            txn_api: TransactionApi::new(txn_manager.clone()),
+            txn_manager,
             schema_api: SchemaApi::new(storage.clone()),
             auth_service: PasswordAuthenticator::new_default(config.auth.clone()),
         }
@@ -56,9 +56,9 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
         &self.query_api
     }
 
-    /// 获取事务 API
-    pub fn get_txn_api(&self) -> &TransactionApi {
-        &self.txn_api
+    /// 获取事务管理器
+    pub fn get_txn_manager(&self) -> Arc<TransactionManager> {
+        self.txn_manager.clone()
     }
 
     /// 获取 Schema API

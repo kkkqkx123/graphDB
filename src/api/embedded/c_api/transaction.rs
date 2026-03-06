@@ -2,18 +2,22 @@
 //!
 //! 提供事务管理功能，包括事务开始、提交、回滚和保存点
 
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t};
+use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::result::GraphDbResultHandle;
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, graphdb_txn_t};
 use crate::api::core::TransactionHandle;
 use crate::api::embedded::transaction::TransactionConfig;
+use crate::transaction::TransactionManager;
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::ptr;
+use std::sync::Arc;
 
 /// 事务句柄内部结构
 pub struct GraphDbTxnHandle {
     pub(crate) session: *mut GraphDbSessionHandle,
+    pub(crate) txn_manager: Arc<TransactionManager>,
+    pub(crate) txn: Option<Box<dyn std::any::Any>>,
     pub(crate) txn_handle: Option<TransactionHandle>,
     pub(crate) last_error: Option<CString>,
     pub(crate) committed: bool,
@@ -43,18 +47,23 @@ pub extern "C" fn graphdb_txn_begin(
 
         match handle.inner.begin_transaction() {
             Ok(txn_obj) => {
-                let txn_handle = Box::new(GraphDbTxnHandle {
+                let txn_manager = handle.inner.txn_manager();
+                let handle = Box::new(GraphDbTxnHandle {
                     session: session as *mut GraphDbSessionHandle,
-                    txn_handle: Some(txn_obj.txn_handle()),
+                    txn_manager,
+                    txn: Some(Box::new(txn_obj)),
+                    txn_handle: None,
                     last_error: None,
                     committed: false,
                     rolled_back: false,
                 });
-                *txn = Box::into_raw(txn_handle) as *mut graphdb_txn_t;
+                *txn = Box::into_raw(handle) as *mut graphdb_txn_t;
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg);
                 *txn = ptr::null_mut();
                 error_code
             }
@@ -86,9 +95,12 @@ pub extern "C" fn graphdb_txn_begin_readonly(
         let config = TransactionConfig::new().read_only();
         match handle.inner.begin_transaction_with_config(config) {
             Ok(txn_obj) => {
+                let txn_manager = handle.inner.txn_manager();
                 let txn_handle = Box::new(GraphDbTxnHandle {
                     session: session as *mut GraphDbSessionHandle,
-                    txn_handle: Some(txn_obj.txn_handle()),
+                    txn_manager,
+                    txn: Some(Box::new(txn_obj)),
+                    txn_handle: None,
                     last_error: None,
                     committed: false,
                     rolled_back: false,
@@ -98,6 +110,8 @@ pub extern "C" fn graphdb_txn_begin_readonly(
             }
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg);
                 *txn = ptr::null_mut();
                 error_code
             }
@@ -165,7 +179,9 @@ pub extern "C" fn graphdb_txn_execute(
             }
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 *result = ptr::null_mut();
                 error_code
             }
@@ -194,20 +210,36 @@ pub extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
             return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
         }
 
-        let session = &*(handle.session);
-        let txn_handle = match handle.txn_handle.take() {
-            Some(h) => h,
-            None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
+        if handle.txn.is_none() {
+            return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
+        }
+        
+        let txn = handle.txn.take().unwrap();
+        let txn_any = txn.as_ref();
+        
+        // 尝试将 Any 转换回 Transaction
+        use crate::api::embedded::transaction::Transaction;
+        use crate::storage::RedbStorage;
+        
+        let txn_obj = match txn_any.downcast_ref::<Transaction<'_, RedbStorage>>() {
+            Some(t) => t,
+            None => {
+                return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
+            }
         };
+        
+        let txn_handle = txn_obj.handle();
 
-        match session.inner.txn_api().commit(txn_handle) {
+        match handle.txn_manager.commit_transaction(txn_handle.0) {
             Ok(_) => {
                 handle.committed = true;
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_code = graphdb_error_code_t::GRAPHDB_ABORT as c_int;
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }
@@ -235,20 +267,36 @@ pub extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int {
             return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
         }
 
-        let session = &*(handle.session);
-        let txn_handle = match handle.txn_handle.take() {
-            Some(h) => h,
-            None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
+        if handle.txn.is_none() {
+            return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
+        }
+        
+        let txn = handle.txn.take().unwrap();
+        let txn_any = txn.as_ref();
+        
+        // 尝试将 Any 转换回 Transaction
+        use crate::api::embedded::transaction::Transaction;
+        use crate::storage::RedbStorage;
+        
+        let txn_obj = match txn_any.downcast_ref::<Transaction<'_, RedbStorage>>() {
+            Some(t) => t,
+            None => {
+                return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
+            }
         };
+        
+        let txn_handle = txn_obj.handle();
 
-        match session.inner.txn_api().rollback(txn_handle) {
+        match handle.txn_manager.abort_transaction(txn_handle.0) {
             Ok(_) => {
                 handle.rolled_back = true;
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_code = graphdb_error_code_t::GRAPHDB_ABORT as c_int;
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }
@@ -333,7 +381,9 @@ pub extern "C" fn graphdb_txn_release_savepoint(
             Err(e) => {
                 let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
                 let error_code = error_code_from_core_error(&core_error);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }
@@ -366,7 +416,7 @@ pub extern "C" fn graphdb_txn_rollback_to_savepoint(
         }
 
         let session = &*(handle.session);
-        let txn_handle = match handle.txn_handle {
+        let _txn_handle = match handle.txn_handle {
             Some(h) => h,
             None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
         };
@@ -377,7 +427,9 @@ pub extern "C" fn graphdb_txn_rollback_to_savepoint(
             Err(e) => {
                 let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
                 let error_code = error_code_from_core_error(&core_error);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }
@@ -403,8 +455,7 @@ pub extern "C" fn graphdb_txn_free(txn: *mut graphdb_txn_t) -> c_int {
 
         if !handle.committed && !handle.rolled_back {
             if let Some(txn_handle) = handle.txn_handle.take() {
-                let session = &*(handle.session);
-                let _ = session.inner.txn_api().rollback(txn_handle);
+                let _ = handle.txn_manager.abort_transaction(txn_handle.0);
             }
         }
     }

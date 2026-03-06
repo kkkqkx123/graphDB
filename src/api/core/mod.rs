@@ -12,7 +12,6 @@ pub mod types;
 pub use error::{CoreError, CoreResult};
 pub use query_api::QueryApi;
 pub use schema_api::SchemaApi;
-pub use transaction_api::TransactionApi;
 pub use types::*;
 
 // 从 core 层重新导出统计类型

@@ -2,7 +2,7 @@
 //!
 //! 提供会话（Session）概念，作为查询执行的上下文
 
-use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi, TransactionApi};
+use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi};
 use crate::api::embedded::batch::BatchInserter;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::statement::PreparedStatement;
@@ -48,9 +48,9 @@ pub struct Session<S: StorageClient + Clone + 'static> {
 }
 
 /// 数据库内部结构，用于在 Session 和 GraphDatabase 之间共享
+#[repr(C)]
 pub(crate) struct GraphDatabaseInner<S: StorageClient + 'static> {
     pub(crate) query_api: Arc<Mutex<QueryApi<S>>>,
-    pub(crate) txn_api: TransactionApi,
     pub(crate) schema_api: SchemaApi<S>,
     pub(crate) txn_manager: Arc<TransactionManager>,
     pub(crate) savepoint_manager: Arc<SavepointManager>,
@@ -165,7 +165,10 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// - 失败时返回错误
     pub fn begin_transaction(&self) -> CoreResult<Transaction<S>> {
         let options = TransactionOptions::default();
-        let txn_handle = self.db.txn_api.begin(options)?;
+        let txn_id = self.db.txn_manager
+            .begin_transaction(options)
+            .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
+        let txn_handle = crate::api::core::TransactionHandle(txn_id);
 
         Ok(Transaction::new(self, txn_handle))
     }
@@ -203,7 +206,10 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         config: TransactionConfig,
     ) -> CoreResult<Transaction<S>> {
         let options = config.into_options();
-        let txn_handle = self.db.txn_api.begin(options)?;
+        let txn_id = self.db.txn_manager
+            .begin_transaction(options)
+            .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
+        let txn_handle = crate::api::core::TransactionHandle(txn_id);
 
         Ok(Transaction::new(self, txn_handle))
     }
@@ -276,11 +282,6 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// 获取查询 API 的锁（内部使用）
     pub(crate) fn query_api(&self) -> parking_lot::MutexGuard<'_, QueryApi<S>> {
         self.db.query_api.as_ref().lock()
-    }
-
-    /// 获取事务 API 的引用（内部使用）
-    pub(crate) fn txn_api(&self) -> &TransactionApi {
-        &self.db.txn_api
     }
 
     /// 获取空间 ID（内部使用）

@@ -44,7 +44,10 @@ impl Planner for MaintainPlanner {
         })?;
 
         // 3. 不同类型的操作可能需要不同处理
-        let final_node = if stmt_type == "SUBMIT JOB" {
+        let final_node = if stmt_type == "SHOW" {
+            // SHOW 语句使用 PassThrough 节点，避免变量未定义的问题
+            PlanNodeEnum::PassThrough(crate::query::planner::plan::core::PassThroughNode::new(1))
+        } else if stmt_type == "SUBMIT JOB" {
             // 提交作业类型的维护操作
             PlanNodeEnum::Project(project_node)
         } else if stmt_type.starts_with("CREATE") {
@@ -69,6 +72,10 @@ impl Planner for MaintainPlanner {
         stmt_type == "SUBMIT JOB"
             || stmt_type.starts_with("CREATE")
             || stmt_type.starts_with("DROP")
+            || stmt_type.starts_with("SHOW")
+            || stmt_type == "DESC"
+            || stmt_type.starts_with("ALTER")
+            || stmt_type.starts_with("DESCRIBE")
     }
 }
 

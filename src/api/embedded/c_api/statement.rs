@@ -2,7 +2,7 @@
 //!
 //! 提供预编译语句功能，支持语句准备、参数绑定和重复执行
 
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t};
+use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::result::GraphDbResultHandle;
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, graphdb_stmt_t, graphdb_value_t};
@@ -60,6 +60,8 @@ pub extern "C" fn graphdb_prepare(
             }
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg);
                 *stmt = ptr::null_mut();
                 error_code
             }
@@ -90,7 +92,9 @@ pub extern "C" fn graphdb_bind_null(stmt: *mut graphdb_stmt_t, index: c_int) -> 
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }
@@ -125,7 +129,9 @@ pub extern "C" fn graphdb_bind_bool(
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }
@@ -160,7 +166,9 @@ pub extern "C" fn graphdb_bind_int(
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }
@@ -195,7 +203,9 @@ pub extern "C" fn graphdb_bind_float(
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }
@@ -242,7 +252,9 @@ pub extern "C" fn graphdb_bind_string(
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }
@@ -285,7 +297,9 @@ pub extern "C" fn graphdb_bind_by_name(
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }

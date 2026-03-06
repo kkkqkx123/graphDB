@@ -2,7 +2,7 @@
 //!
 //! 提供 GraphDatabase 结构体，作为嵌入式 API 的主要入口点
 
-use crate::api::core::{CoreError, CoreResult, QueryApi, SchemaApi, SpaceConfig, TransactionApi};
+use crate::api::core::{CoreError, CoreResult, QueryApi, SchemaApi, SpaceConfig};
 use crate::api::embedded::config::DatabaseConfig;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::{GraphDatabaseInner, Session};
@@ -104,12 +104,10 @@ impl GraphDatabase<RedbStorage> {
         let savepoint_manager = Arc::new(SavepointManager::new());
 
         let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
-        let txn_api = TransactionApi::new(txn_manager.clone());
         let schema_api = SchemaApi::new(storage.clone());
 
         let inner = Arc::new(GraphDatabaseInner {
             query_api,
-            txn_api,
             schema_api,
             txn_manager,
             savepoint_manager,
@@ -237,12 +235,10 @@ impl GraphDatabase<MockStorage> {
         let savepoint_manager = Arc::new(SavepointManager::new());
 
         let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
-        let txn_api = TransactionApi::new(txn_manager.clone());
         let schema_api = SchemaApi::new(storage.clone());
 
         let inner = Arc::new(GraphDatabaseInner {
             query_api,
-            txn_api,
             schema_api,
             txn_manager,
             savepoint_manager,

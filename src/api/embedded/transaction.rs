@@ -211,7 +211,10 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     pub fn commit(mut self) -> CoreResult<()> {
         self.check_active()?;
 
-        self.session.txn_api().commit(self.txn_handle)?;
+        self.session
+            .txn_manager()
+            .commit_transaction(self.txn_handle.0)
+            .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
         self.committed = true;
         Ok(())
     }
@@ -227,7 +230,10 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     pub fn rollback(mut self) -> CoreResult<()> {
         self.check_active()?;
 
-        self.session.txn_api().rollback(self.txn_handle)?;
+        self.session
+            .txn_manager()
+            .abort_transaction(self.txn_handle.0)
+            .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
         self.rolled_back = true;
         Ok(())
     }
@@ -411,7 +417,9 @@ impl<'sess, S: StorageClient + Clone + 'static> Drop for Transaction<'sess, S> {
     fn drop(&mut self) {
         // 如果事务仍处于活动状态，自动回滚
         if self.is_active() {
-            let _ = self.session.txn_api().rollback(self.txn_handle);
+            let _ = self.session
+                .txn_manager()
+                .abort_transaction(self.txn_handle.0);
         }
     }
 }

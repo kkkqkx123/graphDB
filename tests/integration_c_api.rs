@@ -144,6 +144,19 @@ fn test_c_api_execute_simple_query() {
         )
     };
     
+    // 打印错误信息用于调试
+    if rc != graphdb_error_code_t::GRAPHDB_OK as i32 {
+        let error_msg = unsafe {
+            graphdb::api::embedded::c_api::error::graphdb_get_last_error_message()
+        };
+        if !error_msg.is_null() {
+            let msg = unsafe {
+                std::ffi::CStr::from_ptr(error_msg).to_string_lossy().to_string()
+            };
+            eprintln!("错误码: {}, 错误信息: {}", rc, msg);
+        }
+    }
+    
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
     assert!(!result.is_null());
     
@@ -298,10 +311,27 @@ fn test_c_api_transaction_begin_commit() {
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
     assert!(!txn.is_null());
     
+    // 打印事务句柄的地址（用于调试）
+    eprintln!("事务句柄地址: {:?}", txn);
+    
     // 提交事务
     let rc = unsafe {
         graphdb::api::embedded::c_api::transaction::graphdb_txn_commit(txn)
     };
+    
+    // 打印错误信息用于调试
+    if rc != graphdb_error_code_t::GRAPHDB_OK as i32 {
+        let error_msg = unsafe {
+            graphdb::api::embedded::c_api::error::graphdb_get_last_error_message()
+        };
+        if !error_msg.is_null() {
+            let msg = unsafe {
+                std::ffi::CStr::from_ptr(error_msg).to_string_lossy().to_string()
+            };
+            eprintln!("事务提交失败 - 错误码: {}, 错误信息: {}", rc, msg);
+        }
+    }
+    
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
     
     // 清理事务句柄

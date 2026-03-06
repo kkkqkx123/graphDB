@@ -3,6 +3,27 @@
 //! 提供错误码转换和错误信息管理功能
 
 use crate::api::core::CoreError;
+use std::cell::RefCell;
+use std::ffi::CString;
+
+/// 线程局部存储最后的错误消息
+thread_local! {
+    static LAST_ERROR_MESSAGE: RefCell<Option<CString>> = RefCell::new(None);
+}
+
+/// 设置最后的错误消息
+pub(crate) fn set_last_error_message(msg: String) {
+    LAST_ERROR_MESSAGE.with(|m| {
+        *m.borrow_mut() = CString::new(msg).ok();
+    });
+}
+
+/// 获取最后的错误消息（内部使用）
+pub(crate) fn get_last_error_message() -> Option<CString> {
+    LAST_ERROR_MESSAGE.with(|m| {
+        m.borrow().as_ref().map(|s| s.clone())
+    })
+}
 
 /// 错误码
 #[repr(C)]
@@ -68,31 +89,31 @@ pub fn error_code_from_core_error(error: &CoreError) -> i32 {
     }
 }
 
-/// 获取错误码对应的描述字符串
-pub fn error_code_to_string(code: graphdb_error_code_t) -> &'static str {
+/// 获取错误码对应的描述字符串（null 终止）
+pub fn error_code_to_string(code: graphdb_error_code_t) -> &'static [u8] {
     match code {
-        graphdb_error_code_t::GRAPHDB_OK => "成功",
-        graphdb_error_code_t::GRAPHDB_ERROR => "一般错误",
-        graphdb_error_code_t::GRAPHDB_INTERNAL => "内部错误",
-        graphdb_error_code_t::GRAPHDB_PERM => "权限被拒绝",
-        graphdb_error_code_t::GRAPHDB_ABORT => "操作被中止",
-        graphdb_error_code_t::GRAPHDB_BUSY => "数据库忙",
-        graphdb_error_code_t::GRAPHDB_LOCKED => "数据库被锁定",
-        graphdb_error_code_t::GRAPHDB_NOMEM => "内存不足",
-        graphdb_error_code_t::GRAPHDB_READONLY => "只读",
-        graphdb_error_code_t::GRAPHDB_INTERRUPT => "操作被中断",
-        graphdb_error_code_t::GRAPHDB_IOERR => "IO 错误",
-        graphdb_error_code_t::GRAPHDB_CORRUPT => "数据损坏",
-        graphdb_error_code_t::GRAPHDB_NOTFOUND => "未找到",
-        graphdb_error_code_t::GRAPHDB_FULL => "磁盘已满",
-        graphdb_error_code_t::GRAPHDB_CANTOPEN => "无法打开",
-        graphdb_error_code_t::GRAPHDB_PROTOCOL => "协议错误",
-        graphdb_error_code_t::GRAPHDB_SCHEMA => "模式错误",
-        graphdb_error_code_t::GRAPHDB_TOOBIG => "数据过大",
-        graphdb_error_code_t::GRAPHDB_CONSTRAINT => "约束违反",
-        graphdb_error_code_t::GRAPHDB_MISMATCH => "类型不匹配",
-        graphdb_error_code_t::GRAPHDB_MISUSE => "误用",
-        graphdb_error_code_t::GRAPHDB_RANGE => "超出范围",
+        graphdb_error_code_t::GRAPHDB_OK => b"Success\0",
+        graphdb_error_code_t::GRAPHDB_ERROR => b"General error\0",
+        graphdb_error_code_t::GRAPHDB_INTERNAL => b"Internal error\0",
+        graphdb_error_code_t::GRAPHDB_PERM => b"Permission denied\0",
+        graphdb_error_code_t::GRAPHDB_ABORT => b"Operation aborted\0",
+        graphdb_error_code_t::GRAPHDB_BUSY => b"Database is busy\0",
+        graphdb_error_code_t::GRAPHDB_LOCKED => b"Database is locked\0",
+        graphdb_error_code_t::GRAPHDB_NOMEM => b"Out of memory\0",
+        graphdb_error_code_t::GRAPHDB_READONLY => b"Read-only\0",
+        graphdb_error_code_t::GRAPHDB_INTERRUPT => b"Operation interrupted\0",
+        graphdb_error_code_t::GRAPHDB_IOERR => b"I/O error\0",
+        graphdb_error_code_t::GRAPHDB_CORRUPT => b"Database corrupted\0",
+        graphdb_error_code_t::GRAPHDB_NOTFOUND => b"Not found\0",
+        graphdb_error_code_t::GRAPHDB_FULL => b"Disk full\0",
+        graphdb_error_code_t::GRAPHDB_CANTOPEN => b"Unable to open\0",
+        graphdb_error_code_t::GRAPHDB_PROTOCOL => b"Protocol error\0",
+        graphdb_error_code_t::GRAPHDB_SCHEMA => b"Schema error\0",
+        graphdb_error_code_t::GRAPHDB_TOOBIG => b"Data too large\0",
+        graphdb_error_code_t::GRAPHDB_CONSTRAINT => b"Constraint violation\0",
+        graphdb_error_code_t::GRAPHDB_MISMATCH => b"Type mismatch\0",
+        graphdb_error_code_t::GRAPHDB_MISUSE => b"Misuse\0",
+        graphdb_error_code_t::GRAPHDB_RANGE => b"Out of range\0",
     }
 }
 
@@ -113,11 +134,15 @@ pub extern "C" fn graphdb_errmsg(
         return 0;
     }
 
-    let message = "错误信息功能待实现";
-    let c_message = std::ffi::CString::new(message).unwrap_or_default();
-    let bytes = c_message.as_bytes_with_nul();
-
+    let message = LAST_ERROR_MESSAGE.with(|m| {
+        m.borrow().as_ref().map(|s| s.clone()).unwrap_or_else(|| {
+            CString::new("无错误信息").unwrap()
+        })
+    });
+    
+    let bytes = message.as_bytes_with_nul();
     let copy_len = std::cmp::min(len - 1, bytes.len() - 1);
+    
     unsafe {
         std::ptr::copy_nonoverlapping(
             bytes.as_ptr() as *const std::ffi::c_char,
@@ -126,7 +151,7 @@ pub extern "C" fn graphdb_errmsg(
         );
         *msg.add(copy_len) = 0;
     }
-
+    
     copy_len as i32
 }
 
@@ -168,4 +193,18 @@ pub extern "C" fn graphdb_error_string(code: i32) -> *const std::ffi::c_char {
     let desc = error_code_to_string(error_code);
     // 注意：这里返回的字符串是静态的，不需要释放
     desc.as_ptr() as *const std::ffi::c_char
+}
+
+/// 获取最后的错误消息
+///
+/// # 返回
+/// - 错误消息字符串指针（线程局部存储，不需要释放）
+#[no_mangle]
+pub extern "C" fn graphdb_get_last_error_message() -> *const std::ffi::c_char {
+    LAST_ERROR_MESSAGE.with(|m| {
+        match m.borrow().as_ref() {
+            Some(s) => s.as_ptr() as *const std::ffi::c_char,
+            None => std::ptr::null(),
+        }
+    })
 }

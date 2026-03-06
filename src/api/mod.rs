@@ -17,7 +17,7 @@ pub mod server;
 pub mod embedded;
 
 // 便捷导出
-pub use core::{CoreError, CoreResult, QueryApi, SchemaApi, TransactionApi};
+pub use core::{CoreError, CoreResult, QueryApi, SchemaApi};
 
 #[cfg(feature = "server")]
 pub use server::{session, HttpServer};

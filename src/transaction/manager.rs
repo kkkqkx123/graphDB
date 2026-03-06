@@ -141,7 +141,13 @@ impl TransactionManager {
             let entry = self
                 .active_transactions
                 .get(&txn_id)
-                .ok_or(TransactionError::TransactionNotFound(txn_id))?;
+                .ok_or(TransactionError::TransactionNotFound(txn_id));
+
+            if entry.is_err() {
+                return entry.map(|_| ());
+            }
+
+            let entry = entry.unwrap();
             let ctx = entry.value().clone();
             drop(entry);
 

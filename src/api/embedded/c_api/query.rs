@@ -2,7 +2,7 @@
 //!
 //! 提供查询执行功能，包括简单查询和参数化查询
 
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t};
+use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::result::GraphDbResultHandle;
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, graphdb_value_t};
@@ -52,7 +52,9 @@ pub extern "C" fn graphdb_execute(
             }
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 *result = ptr::null_mut();
                 error_code
             }

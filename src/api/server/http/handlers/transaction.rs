@@ -30,7 +30,7 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
     Json(request): Json<BeginTransactionRequest>,
 ) -> Result<JsonResponse<TransactionResponse>, HttpError> {
     let result = task::spawn_blocking(move || {
-        let txn_api = state.server.get_txn_api();
+        let txn_manager = state.server.get_txn_manager();
 
         let options = TransactionOptions {
             read_only: request.read_only,
@@ -39,9 +39,9 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
             two_phase_commit: false,
         };
 
-        match txn_api.begin(options) {
-            Ok(handle) => Ok::<_, HttpError>(TransactionResponse {
-                transaction_id: handle.0,
+        match txn_manager.begin_transaction(options) {
+            Ok(txn_id) => Ok::<_, HttpError>(TransactionResponse {
+                transaction_id: txn_id,
                 status: "Active".to_string(),
             }),
             Err(e) => Err(HttpError::InternalError(format!("开始事务失败: {}", e))),
@@ -65,10 +65,9 @@ pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
     Json(_request): Json<TransactionActionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let result = task::spawn_blocking(move || {
-        let txn_api = state.server.get_txn_api();
-        let handle = crate::api::core::TransactionHandle(txn_id);
+        let txn_manager = state.server.get_txn_manager();
 
-        match txn_api.commit(handle) {
+        match txn_manager.commit_transaction(txn_id) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
                 "message": "事务提交成功",
                 "transaction_id": txn_id,
@@ -89,10 +88,9 @@ pub async fn rollback<S: StorageClient + Clone + Send + Sync + 'static>(
     Json(_request): Json<TransactionActionRequest>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let result = task::spawn_blocking(move || {
-        let txn_api = state.server.get_txn_api();
-        let handle = crate::api::core::TransactionHandle(txn_id);
+        let txn_manager = state.server.get_txn_manager();
 
-        match txn_api.rollback(handle) {
+        match txn_manager.abort_transaction(txn_id) {
             Ok(()) => Ok::<_, HttpError>(serde_json::json!({
                 "message": "事务回滚成功",
                 "transaction_id": txn_id,

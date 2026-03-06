@@ -3,7 +3,7 @@
 //! 提供会话的创建、销毁和基本管理功能
 
 use crate::api::embedded::c_api::database::GraphDbHandle;
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t};
+use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::types::{graphdb_t, graphdb_session_t};
 use crate::api::embedded::Session;
 use crate::storage::RedbStorage;
@@ -48,6 +48,8 @@ pub extern "C" fn graphdb_session_create(
             }
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg);
                 *session = ptr::null_mut();
                 error_code
             }
@@ -108,7 +110,9 @@ pub extern "C" fn graphdb_session_use_space(
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 error_code
             }
         }
