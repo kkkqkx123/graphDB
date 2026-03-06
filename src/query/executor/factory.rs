@@ -5,7 +5,6 @@
 
 use crate::core::error::{DBError, QueryError};
 use crate::core::{EdgeDirection, Value};
-use crate::query::executor::base::executor_stats::QueryStatsCollector;
 use crate::query::executor::base::Executor;
 use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 use crate::query::executor::executor_enum::ExecutorEnum;
@@ -108,8 +107,6 @@ pub struct ExecutorFactory<S: StorageClient + 'static> {
     config: ExecutorSafetyConfig,
     recursion_detector: RecursionDetector,
     safety_validator: ExecutorSafetyValidator,
-    /// 可选的统计收集器
-    stats_collector: Option<Arc<Mutex<QueryStatsCollector>>>,
 }
 
 impl<S: StorageClient + 'static> ExecutorFactory<S> {
@@ -124,7 +121,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             config,
             recursion_detector,
             safety_validator,
-            stats_collector: None,
         }
     }
 
@@ -139,61 +135,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             config,
             recursion_detector,
             safety_validator,
-            stats_collector: None,
-        }
-    }
-
-    /// 设置统计收集器
-    pub fn with_stats_collector(mut self, collector: Arc<Mutex<QueryStatsCollector>>) -> Self {
-        self.stats_collector = Some(collector);
-        self
-    }
-
-    /// 获取统计收集器
-    pub fn stats_collector(&self) -> Option<Arc<Mutex<QueryStatsCollector>>> {
-        self.stats_collector.clone()
-    }
-
-    /// 开始收集执行器统计
-    pub fn start_executor_stats(&self, executor_id: i64, executor_type: impl Into<String>) {
-        if let Some(ref collector) = self.stats_collector {
-            let mut c = collector.lock();
-            c.start_executor(executor_id, executor_type);
-        }
-    }
-
-    /// 结束收集执行器统计
-    pub fn end_executor_stats(
-        &self,
-    ) -> Option<crate::query::executor::base::executor_stats::ExecutorStatSnapshot> {
-        if let Some(ref collector) = self.stats_collector {
-            let mut c = collector.lock();
-            return c.end_executor().map(|(snapshot, _)| snapshot);
-        }
-        None
-    }
-
-    /// 记录处理的行数
-    pub fn record_rows(&self, count: usize) {
-        if let Some(ref collector) = self.stats_collector {
-            let mut c = collector.lock();
-            c.record_rows(count);
-        }
-    }
-
-    /// 记录缓存命中
-    pub fn record_cache_hit(&self) {
-        if let Some(ref collector) = self.stats_collector {
-            let mut c = collector.lock();
-            c.record_cache_hit();
-        }
-    }
-
-    /// 记录缓存未命中
-    pub fn record_cache_miss(&self) {
-        if let Some(ref collector) = self.stats_collector {
-            let mut c = collector.lock();
-            c.record_cache_miss();
         }
     }
 

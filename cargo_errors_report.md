@@ -23,16 +23,16 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\query\optimizer\stats\property.rs`: 1 warnings
+- `src\query\executor\base\result_processor.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `crate::core::value::Value`
+### warning: unused import: `crate::query::validator::context::ExpressionAnalysisContext`
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\optimizer\stats\property.rs`: 1 occurrences
+#### `src\query\executor\base\result_processor.rs`: 1 occurrences
 
-- Line 5: unused import: `crate::core::value::Value`
+- Line 11: unused import: `crate::query::validator::context::ExpressionAnalysisContext`
 

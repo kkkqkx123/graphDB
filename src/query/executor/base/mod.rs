@@ -11,20 +11,16 @@
 
 pub mod execution_context;
 pub mod execution_result;
-pub mod execution_stats;
 pub mod executor_base;
 pub mod executor_stats;
 pub mod result_processor;
 
 pub use execution_context::ExecutionContext;
 pub use execution_result::{DBResult, ExecutionResult, IntoExecutionResult};
-pub use execution_stats::NodeExecutionStats;
 pub use executor_base::{
     BaseExecutor, ChainableExecutor, Executor, HasInput, HasStorage, InputExecutor, StartExecutor,
 };
 pub use executor_stats::ExecutorStats;
-pub use result_processor::{
-    BaseResultProcessor, ResultProcessor, ResultProcessorContext, ResultProcessorFactory,
-};
+pub use result_processor::{BaseResultProcessor, ResultProcessor, ResultProcessorContext};
 
 pub use crate::core::types::EdgeDirection;

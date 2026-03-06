@@ -38,9 +38,6 @@ pub use result_processing::{
     SampleExecutor, SampleMethod, SortExecutor, SortKey, SortOrder, TopNExecutor,
 };
 
-// Re-export ResultProcessorFactory from base module
-pub use base::ResultProcessorFactory;
-
 // Re-export transformations (数据转换执行器)
 pub use result_processing::transformations::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,

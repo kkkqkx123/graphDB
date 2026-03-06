@@ -35,10 +35,10 @@
 - **状态**: ✅ 保留
 
 #### 1.5 流式处理
-- **文件**: `src/query/executor/base/result_processor.rs:219`
-- **代码**: `fn process_stream(&mut self, input_stream: Box<dyn Iterator<Item = DBResult<ExecutionResult>>>) -> DBResult<ExecutionResult>`
-- **分析**: 在 `StreamableResultProcessor` trait 中定义，用于流式处理大数据集。目前该 trait 在整个代码库中没有被任何类型实现或使用，属于预留的接口设计。如果未来需要使用，建议改造为泛型形式以获得更好的性能：`fn process_stream<I: Iterator<Item = DBResult<ExecutionResult>>>(&mut self, input_stream: I)`。
-- **状态**: ⚠️ 预留接口
+- **文件**: `src/query/executor/base/result_processor.rs` (已删除)
+- **原代码**: `fn process_stream(&mut self, input_stream: Box<dyn Iterator<Item = DBResult<ExecutionResult>>>) -> DBResult<ExecutionResult>`
+- **分析**: 原在 `StreamableResultProcessor` trait 中定义，用于流式处理大数据集。该 trait 在整个代码库中没有被任何类型实现或使用，属于过度设计的预留接口。已在代码重构中删除。
+- **状态**: ❌ 已删除
 
 #### 1.6 执行器静态分发
 - **文件**: `src/query/executor/executor_enum.rs`

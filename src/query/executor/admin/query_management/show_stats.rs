@@ -6,7 +6,6 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use crate::core::{DataSet, Value};
-use crate::core::{QueryStatus, StatsManager};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
@@ -14,22 +13,10 @@ use crate::storage::StorageClient;
 /// 显示统计类型
 #[derive(Debug, Clone)]
 pub enum ShowStatsType {
-    /// 显示所有统计
-    All,
-    /// 显示查询统计
-    Query,
-    /// 显示存储统计
+    /// 显示存储统计（顶点、边、空间、标签、边类型数量）
     Storage,
-    /// 显示空间统计
+    /// 显示空间统计（空间列表）
     Space,
-    /// 显示最近查询
-    RecentQueries { limit: usize },
-    /// 显示慢查询
-    SlowQueries { limit: usize },
-    /// 显示执行器统计
-    Executors,
-    /// 显示指定查询详情
-    QueryDetail { trace_id: String },
 }
 
 /// 显示统计执行器
@@ -45,59 +32,12 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        expr_context: Arc<ExpressionAnalysisContext>,
-    ) -> Self {
-        Self {
-            base: BaseExecutor::new(id, "ShowStatsExecutor".to_string(), storage, expr_context),
-            stats_type: ShowStatsType::All,
-        }
-    }
-
-    pub fn with_type(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        stats_type: String,
-        expr_context: Arc<ExpressionAnalysisContext>,
-    ) -> Self {
-        Self {
-            base: BaseExecutor::new(id, "ShowStatsExecutor".to_string(), storage, expr_context),
-            stats_type: Self::parse_stats_type(&stats_type),
-        }
-    }
-
-    pub fn with_stats_type(
-        id: i64,
-        storage: Arc<Mutex<S>>,
         stats_type: ShowStatsType,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ShowStatsExecutor".to_string(), storage, expr_context),
             stats_type,
-        }
-    }
-
-    /// 解析统计类型字符串
-    fn parse_stats_type(stats_type: &str) -> ShowStatsType {
-        let parts: Vec<&str> = stats_type.split_whitespace().collect();
-
-        match parts.as_slice() {
-            ["queries"] | ["queries", "recent"] => ShowStatsType::RecentQueries { limit: 10 },
-            ["queries", "recent", limit] => ShowStatsType::RecentQueries {
-                limit: limit.parse().unwrap_or(10),
-            },
-            ["slow", "queries"] => ShowStatsType::SlowQueries { limit: 10 },
-            ["slow", "queries", limit] => ShowStatsType::SlowQueries {
-                limit: limit.parse().unwrap_or(10),
-            },
-            ["executors"] => ShowStatsType::Executors,
-            ["query", trace_id] => ShowStatsType::QueryDetail {
-                trace_id: trace_id.to_string(),
-            },
-            ["query"] => ShowStatsType::Query,
-            ["storage"] => ShowStatsType::Storage,
-            ["space"] => ShowStatsType::Space,
-            _ => ShowStatsType::All,
         }
     }
 }
@@ -108,14 +48,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowStatsExecutor
         let storage_guard = storage.lock();
 
         let dataset = match &self.stats_type {
-            ShowStatsType::All => self.show_all_stats(&*storage_guard),
-            ShowStatsType::Query => self.show_query_stats(),
             ShowStatsType::Storage => self.show_storage_stats(&*storage_guard),
             ShowStatsType::Space => self.show_space_stats(&*storage_guard),
-            ShowStatsType::RecentQueries { limit } => self.show_recent_queries(*limit),
-            ShowStatsType::SlowQueries { limit } => self.show_slow_queries(*limit),
-            ShowStatsType::Executors => self.show_executor_stats(),
-            ShowStatsType::QueryDetail { trace_id } => self.show_query_detail(trace_id),
         };
 
         Ok(ExecutionResult::DataSet(dataset))
@@ -155,280 +89,6 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowStatsExecutor
 }
 
 impl<S: StorageClient> ShowStatsExecutor<S> {
-    fn show_all_stats(&self, storage: &S) -> DataSet {
-        let storage_stats = storage.get_storage_stats();
-
-        let rows = vec![
-            vec![
-                Value::String("Total Vertices".to_string()),
-                Value::Int(storage_stats.total_vertices as i64),
-            ],
-            vec![
-                Value::String("Total Edges".to_string()),
-                Value::Int(storage_stats.total_edges as i64),
-            ],
-            vec![
-                Value::String("Total Spaces".to_string()),
-                Value::Int(storage_stats.total_spaces as i64),
-            ],
-            vec![
-                Value::String("Total Tags".to_string()),
-                Value::Int(storage_stats.total_tags as i64),
-            ],
-            vec![
-                Value::String("Total Edge Types".to_string()),
-                Value::Int(storage_stats.total_edge_types as i64),
-            ],
-        ];
-
-        DataSet {
-            col_names: vec!["Statistic".to_string(), "Value".to_string()],
-            rows,
-        }
-    }
-
-    fn show_query_stats(&self) -> DataSet {
-        let rows = if let Some(stats_manager) = Self::get_stats_manager() {
-            // 使用 Metrics 获取查询统计
-            let total_queries = stats_manager
-                .get_value(crate::core::stats::MetricType::NumQueries)
-                .unwrap_or(0);
-            let active_queries = stats_manager
-                .get_value(crate::core::stats::MetricType::NumActiveQueries)
-                .unwrap_or(0);
-
-            vec![
-                vec![
-                    Value::String("Total Queries".to_string()),
-                    Value::Int(total_queries as i64),
-                ],
-                vec![
-                    Value::String("Active Queries".to_string()),
-                    Value::Int(active_queries as i64),
-                ],
-            ]
-        } else {
-            vec![]
-        };
-
-        DataSet {
-            col_names: vec!["Statistic".to_string(), "Value".to_string()],
-            rows,
-        }
-    }
-
-    fn show_recent_queries(&self, limit: usize) -> DataSet {
-        let rows = if let Some(stats_manager) = Self::get_stats_manager() {
-            stats_manager
-                .get_recent_queries(limit)
-                .into_iter()
-                .map(|profile| {
-                    vec![
-                        Value::String(profile.trace_id),
-                        Value::Int(profile.session_id),
-                        Value::String(Self::truncate_query(&profile.query_text, 50)),
-                        Value::Int(profile.total_duration_ms as i64),
-                        Value::Int(profile.result_count as i64),
-                        Value::String(match profile.status {
-                            QueryStatus::Success => "SUCCESS".to_string(),
-                            QueryStatus::Failed => "FAILED".to_string(),
-                        }),
-                    ]
-                })
-                .collect()
-        } else {
-            vec![]
-        };
-
-        DataSet {
-            col_names: vec![
-                "Trace ID".to_string(),
-                "Session ID".to_string(),
-                "Query".to_string(),
-                "Duration (ms)".to_string(),
-                "Rows".to_string(),
-                "Status".to_string(),
-            ],
-            rows,
-        }
-    }
-
-    fn show_slow_queries(&self, limit: usize) -> DataSet {
-        let rows = if let Some(stats_manager) = Self::get_stats_manager() {
-            stats_manager
-                .get_slow_queries(limit)
-                .into_iter()
-                .map(|profile| {
-                    vec![
-                        Value::String(profile.trace_id),
-                        Value::Int(profile.session_id),
-                        Value::String(Self::truncate_query(&profile.query_text, 50)),
-                        Value::Int(profile.total_duration_ms as i64),
-                        Value::Int(profile.stages.parse_ms as i64),
-                        Value::Int(profile.stages.execute_ms as i64),
-                    ]
-                })
-                .collect()
-        } else {
-            vec![]
-        };
-
-        DataSet {
-            col_names: vec![
-                "Trace ID".to_string(),
-                "Session ID".to_string(),
-                "Query".to_string(),
-                "Total (ms)".to_string(),
-                "Parse (ms)".to_string(),
-                "Execute (ms)".to_string(),
-            ],
-            rows,
-        }
-    }
-
-    fn show_executor_stats(&self) -> DataSet {
-        let rows = if let Some(stats_manager) = Self::get_stats_manager() {
-            stats_manager
-                .get_executor_stats_summary()
-                .into_iter()
-                .map(|(executor_type, (total_time, total_rows, count))| {
-                    let avg_time = if count > 0 {
-                        total_time / count as u64
-                    } else {
-                        0
-                    };
-                    vec![
-                        Value::String(executor_type),
-                        Value::Int(count as i64),
-                        Value::Int(total_time as i64),
-                        Value::Int(avg_time as i64),
-                        Value::Int(total_rows as i64),
-                    ]
-                })
-                .collect()
-        } else {
-            vec![]
-        };
-
-        DataSet {
-            col_names: vec![
-                "Executor Type".to_string(),
-                "Count".to_string(),
-                "Total Time (ms)".to_string(),
-                "Avg Time (ms)".to_string(),
-                "Total Rows".to_string(),
-            ],
-            rows,
-        }
-    }
-
-    fn show_query_detail(&self, trace_id: &str) -> DataSet {
-        if let Some(stats_manager) = Self::get_stats_manager() {
-            if let Some(profile) = stats_manager.get_query_profile(trace_id) {
-                let mut rows = vec![
-                    vec![
-                        Value::String("Trace ID".to_string()),
-                        Value::String(profile.trace_id),
-                    ],
-                    vec![
-                        Value::String("Session ID".to_string()),
-                        Value::Int(profile.session_id),
-                    ],
-                    vec![
-                        Value::String("Query".to_string()),
-                        Value::String(profile.query_text),
-                    ],
-                    vec![
-                        Value::String("Total Duration".to_string()),
-                        Value::Int(profile.total_duration_ms as i64),
-                    ],
-                    vec![
-                        Value::String("Parse Time".to_string()),
-                        Value::Int(profile.stages.parse_ms as i64),
-                    ],
-                    vec![
-                        Value::String("Validate Time".to_string()),
-                        Value::Int(profile.stages.validate_ms as i64),
-                    ],
-                    vec![
-                        Value::String("Plan Time".to_string()),
-                        Value::Int(profile.stages.plan_ms as i64),
-                    ],
-                    vec![
-                        Value::String("Optimize Time".to_string()),
-                        Value::Int(profile.stages.optimize_ms as i64),
-                    ],
-                    vec![
-                        Value::String("Execute Time".to_string()),
-                        Value::Int(profile.stages.execute_ms as i64),
-                    ],
-                    vec![
-                        Value::String("Result Count".to_string()),
-                        Value::Int(profile.result_count as i64),
-                    ],
-                    vec![
-                        Value::String("Status".to_string()),
-                        Value::String(match profile.status {
-                            QueryStatus::Success => "SUCCESS".to_string(),
-                            QueryStatus::Failed => "FAILED".to_string(),
-                        }),
-                    ],
-                ];
-
-                // 添加执行器统计
-                for (i, exec_stat) in profile.executor_stats.iter().enumerate() {
-                    rows.push(vec![
-                        Value::String(format!("Executor {}", i + 1)),
-                        Value::String(format!(
-                            "{} (id={}) {}ms rows={}",
-                            exec_stat.executor_type,
-                            exec_stat.executor_id,
-                            exec_stat.duration_ms,
-                            exec_stat.rows_processed
-                        )),
-                    ]);
-                }
-
-                if let Some(error) = profile.error_message {
-                    rows.push(vec![
-                        Value::String("Error".to_string()),
-                        Value::String(error),
-                    ]);
-                }
-
-                return DataSet {
-                    col_names: vec!["Property".to_string(), "Value".to_string()],
-                    rows,
-                };
-            }
-        }
-
-        // 查询未找到
-        DataSet {
-            col_names: vec!["Message".to_string()],
-            rows: vec![vec![Value::String(format!(
-                "Query {} not found in cache",
-                trace_id
-            ))]],
-        }
-    }
-
-    /// 获取 StatsManager 实例
-    fn get_stats_manager() -> Option<Arc<StatsManager>> {
-        // 从全局服务管理器获取，这里简化处理
-        // 实际实现中应该从全局状态获取
-        None
-    }
-
-    /// 截断查询文本
-    fn truncate_query(query: &str, max_len: usize) -> String {
-        if query.len() <= max_len {
-            query.to_string()
-        } else {
-            format!("{}...", &query[..max_len])
-        }
-    }
-
     fn show_storage_stats(&self, storage: &S) -> DataSet {
         let storage_stats = storage.get_storage_stats();
 
@@ -491,5 +151,226 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
 impl<S: StorageClient> HasStorage<S> for ShowStatsExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("Storage not available")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::query::executor::admin::query_management::show_stats::{ShowStatsExecutor, ShowStatsType};
+    use crate::query::executor::Executor;
+    use crate::query::validator::context::ExpressionAnalysisContext;
+    use crate::storage::test_mock::MockStorage;
+    use parking_lot::Mutex;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_show_stats_executor_storage() {
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ShowStatsExecutor::new(
+            1,
+            storage,
+            ShowStatsType::Storage,
+            expr_context,
+        );
+
+        let result = executor.execute();
+        assert!(result.is_ok());
+
+        match result.expect("Failed to execute query") {
+            crate::query::executor::base::ExecutionResult::DataSet(dataset) => {
+                assert_eq!(dataset.col_names, vec!["Statistic".to_string(), "Value".to_string()]);
+                assert_eq!(dataset.rows.len(), 5);
+                
+                let stats_map: std::collections::HashMap<String, i64> = dataset
+                    .rows
+                    .iter()
+                    .filter_map(|row| {
+                        if row.len() >= 2 {
+                            if let (crate::core::Value::String(key), crate::core::Value::Int(value)) = (&row[0], &row[1]) {
+                                Some((key.clone(), *value))
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                assert_eq!(stats_map.get("Total Vertices"), Some(&0));
+                assert_eq!(stats_map.get("Total Edges"), Some(&0));
+                assert_eq!(stats_map.get("Total Spaces"), Some(&0));
+                assert_eq!(stats_map.get("Total Tags"), Some(&0));
+                assert_eq!(stats_map.get("Total Edge Types"), Some(&0));
+            }
+            _ => panic!("Expected DataSet result"),
+        }
+    }
+
+    #[test]
+    fn test_show_stats_executor_space() {
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ShowStatsExecutor::new(
+            2,
+            storage,
+            ShowStatsType::Space,
+            expr_context,
+        );
+
+        let result = executor.execute();
+        assert!(result.is_ok());
+
+        match result.expect("Failed to execute query") {
+            crate::query::executor::base::ExecutionResult::DataSet(dataset) => {
+                assert_eq!(
+                    dataset.col_names,
+                    vec![
+                        "Space Name".to_string(),
+                        "Space ID".to_string(),
+                        "Tags".to_string(),
+                        "Edge Types".to_string(),
+                    ]
+                );
+            }
+            _ => panic!("Expected DataSet result"),
+        }
+    }
+
+    #[test]
+    fn test_executor_lifecycle() {
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ShowStatsExecutor::new(
+            3,
+            storage,
+            ShowStatsType::Storage,
+            expr_context,
+        );
+
+        assert!(!executor.is_open());
+        assert!(executor.open().is_ok());
+        assert!(executor.is_open());
+        assert!(executor.close().is_ok());
+        assert!(!executor.is_open());
+    }
+
+    #[test]
+    fn test_executor_metadata() {
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let executor = ShowStatsExecutor::new(
+            4,
+            storage,
+            ShowStatsType::Space,
+            expr_context,
+        );
+
+        assert_eq!(executor.id(), 4);
+        assert_eq!(executor.name(), "ShowStatsExecutor");
+        assert_eq!(executor.description(), "Shows database statistics");
+        assert!(executor.stats().num_rows == 0);
+    }
+
+    #[test]
+    fn test_show_stats_type_storage() {
+        let stats_type = ShowStatsType::Storage;
+        assert!(matches!(stats_type, ShowStatsType::Storage));
+    }
+
+    #[test]
+    fn test_show_stats_type_space() {
+        let stats_type = ShowStatsType::Space;
+        assert!(matches!(stats_type, ShowStatsType::Space));
+    }
+
+    #[test]
+    fn test_show_stats_type_clone() {
+        let stats_type = ShowStatsType::Storage;
+        let cloned = stats_type.clone();
+        assert!(matches!(cloned, ShowStatsType::Storage));
+    }
+
+    #[test]
+    fn test_show_stats_type_debug() {
+        let stats_type = ShowStatsType::Space;
+        let debug_str = format!("{:?}", stats_type);
+        assert!(debug_str.contains("Space"));
+    }
+
+    #[test]
+    fn test_executor_with_different_ids() {
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+
+        let executor1 = ShowStatsExecutor::new(10, storage.clone(), ShowStatsType::Storage, expr_context.clone());
+        let executor2 = ShowStatsExecutor::new(20, storage.clone(), ShowStatsType::Space, expr_context.clone());
+
+        assert_eq!(executor1.id(), 10);
+        assert_eq!(executor2.id(), 20);
+    }
+
+    #[test]
+    fn test_executor_stats_mutable() {
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ShowStatsExecutor::new(
+            5,
+            storage,
+            ShowStatsType::Storage,
+            expr_context,
+        );
+
+        let stats = executor.stats();
+        assert_eq!(stats.num_rows, 0);
+
+        let stats_mut = executor.stats_mut();
+        stats_mut.num_rows = 100;
+
+        assert_eq!(executor.stats().num_rows, 100);
+    }
+
+    #[test]
+    fn test_multiple_executions() {
+        let storage = Arc::new(Mutex::new(
+            MockStorage::new().expect("Failed to create MockStorage"),
+        ));
+        let expr_context = Arc::new(ExpressionAnalysisContext::new());
+        let mut executor = ShowStatsExecutor::new(
+            6,
+            storage,
+            ShowStatsType::Storage,
+            expr_context,
+        );
+
+        let result1 = executor.execute();
+        assert!(result1.is_ok());
+
+        let result2 = executor.execute();
+        assert!(result2.is_ok());
+
+        match (result1, result2) {
+            (
+                Ok(crate::query::executor::base::ExecutionResult::DataSet(dataset1)),
+                Ok(crate::query::executor::base::ExecutionResult::DataSet(dataset2)),
+            ) => {
+                assert_eq!(dataset1.col_names, dataset2.col_names);
+                assert_eq!(dataset1.rows.len(), dataset2.rows.len());
+            }
+            _ => panic!("Expected DataSet results"),
+        }
     }
 }
