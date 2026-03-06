@@ -32,11 +32,9 @@ pub trait ExpressionContext {
     }
 
     /// 获取缓存管理器（如果支持）
-    fn get_cache(
-        &mut self,
-    ) -> Option<
-        &mut crate::query::executor::expression::evaluation_context::cache_manager::CacheManager,
-    > {
+    /// 
+    /// 注意：缓存功能已移除，返回None
+    fn get_cache(&mut self) -> Option<&mut ()> {
         None
     }
 }

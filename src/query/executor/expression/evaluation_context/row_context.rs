@@ -78,16 +78,4 @@ impl crate::query::executor::expression::evaluator::traits::ExpressionContext
     ) -> Option<crate::query::executor::expression::functions::FunctionRef> {
         None
     }
-
-    fn supports_cache(&self) -> bool {
-        false
-    }
-
-    fn get_cache(
-        &mut self,
-    ) -> Option<
-        &mut crate::query::executor::expression::evaluation_context::cache_manager::CacheManager,
-    > {
-        None
-    }
 }

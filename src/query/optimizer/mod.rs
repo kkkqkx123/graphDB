@@ -60,8 +60,6 @@ pub use strategy::{
 };
 
 pub use decision::{
-    AccessPath, CachedDecision, DecisionCache, DecisionCacheConfig, DecisionCacheError,
-    DecisionCacheKey, DecisionCacheStats, EntityIndexChoice, EntityType, IndexChoice,
-    IndexSelectionDecision, JoinAlgorithm, JoinOrderDecision, OptimizationDecision, RewriteRuleId,
-    TraversalStartDecision,
+    AccessPath, EntityIndexChoice, EntityType, IndexChoice, IndexSelectionDecision, JoinAlgorithm,
+    JoinOrderDecision, OptimizationDecision, RewriteRuleId, TraversalStartDecision,
 };

@@ -81,13 +81,13 @@ pub struct ParamPosition {
 
 /// 查询计划缓存键
 ///
-/// 使用查询文本的哈希作为键，支持快速查找
+/// 使用查询文本的哈希作为键，支持快速查找。
+/// 同时存储查询文本用于冲突检测。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PlanCacheKey {
     /// 查询文本的哈希值
     pub hash: u64,
-    /// 查询文本（用于调试）
-    #[allow(dead_code)]
+    /// 查询文本（用于冲突检测，不只是调试）
     query_text: String,
 }
 
@@ -106,6 +106,16 @@ impl PlanCacheKey {
             query_text: query.to_string(),
         }
     }
+
+    /// 验证查询文本是否匹配（用于冲突检测）
+    pub fn verify_query(&self, query: &str) -> bool {
+        self.query_text == query
+    }
+
+    /// 获取查询文本（用于调试或日志）
+    pub fn query_text(&self) -> &str {
+        &self.query_text
+    }
 }
 
 /// 查询计划缓存统计
@@ -121,8 +131,10 @@ pub struct PlanCacheStats {
     pub expirations: u64,
     /// 当前缓存条目数
     pub current_entries: usize,
-    /// 总内存占用（估算，字节）
-    pub estimated_memory_bytes: usize,
+    /// 平均查询模板大小（字节）
+    pub avg_query_template_bytes: usize,
+    /// 总查询模板大小（字节）
+    pub total_query_template_bytes: usize,
 }
 
 impl PlanCacheStats {
@@ -134,6 +146,14 @@ impl PlanCacheStats {
         } else {
             self.hits as f64 / total as f64
         }
+    }
+
+    /// 估算总内存占用（基于平均模板大小和条目数）
+    pub fn estimated_memory_bytes(&self) -> usize {
+        // 基础开销 + 每个条目的估算内存
+        // 每个条目大约包含：CachedPlan结构体 + ExecutionPlan + 查询模板字符串
+        const PER_ENTRY_OVERHEAD: usize = 1024; // 结构体和执行计划的估算开销
+        self.total_query_template_bytes + (self.current_entries * PER_ENTRY_OVERHEAD)
     }
 }
 
@@ -173,7 +193,7 @@ impl QueryPlanCache {
     ///
     /// # 返回
     /// - `Some(Arc<CachedPlan>)`: 缓存的计划
-    /// - `None`: 未找到
+    /// - `None`: 未找到或哈希冲突
     pub fn get(&self, query: &str) -> Option<Arc<CachedPlan>> {
         let key = PlanCacheKey::from_query(query);
         let ttl = Duration::from_secs(self.config.ttl_seconds);
@@ -187,6 +207,19 @@ impl QueryPlanCache {
                 // 过期，移除并返回 None
                 cache.pop(&key);
                 stats.expirations += 1;
+                stats.misses += 1;
+                return None;
+            }
+
+            // 哈希冲突检测：验证查询文本是否匹配
+            if plan.query_template != query {
+                // 发生哈希冲突，记录日志并返回 None
+                log::warn!(
+                    "查询计划缓存哈希冲突 detected: hash={}, expected_query={}, cached_query={}",
+                    key.hash,
+                    query,
+                    plan.query_template
+                );
                 stats.misses += 1;
                 return None;
             }
@@ -213,6 +246,7 @@ impl QueryPlanCache {
         param_positions: Vec<ParamPosition>,
     ) {
         let key = PlanCacheKey::from_query(query);
+        let query_bytes = query.len();
 
         let cached_plan = Arc::new(CachedPlan {
             query_template: query.to_string(),
@@ -227,16 +261,36 @@ impl QueryPlanCache {
 
         let mut cache = self.cache.lock();
         let old_len = cache.len();
+
+        // 检查是否是更新已有条目
+        let is_update = cache.contains(&key);
+
         cache.put(key, cached_plan);
         let new_len = cache.len();
 
         // 更新统计
         let mut stats = self.stats.lock();
-        if new_len <= old_len && old_len > 0 {
+        if new_len <= old_len && old_len > 0 && !is_update {
             // 发生了淘汰
             stats.evictions += 1;
         }
+
+        // 更新大小统计
+        if is_update {
+            // 更新已有条目，重新计算总大小
+            stats.total_query_template_bytes = cache
+                .iter()
+                .map(|(_, plan)| plan.query_template.len())
+                .sum();
+        } else {
+            // 新条目
+            stats.total_query_template_bytes += query_bytes;
+        }
+
         stats.current_entries = new_len;
+        if stats.current_entries > 0 {
+            stats.avg_query_template_bytes = stats.total_query_template_bytes / stats.current_entries;
+        }
     }
 
     /// 记录计划执行统计
@@ -288,7 +342,8 @@ impl QueryPlanCache {
 
         let mut stats = self.stats.lock();
         stats.current_entries = 0;
-        stats.estimated_memory_bytes = 0;
+        stats.total_query_template_bytes = 0;
+        stats.avg_query_template_bytes = 0;
     }
 
     /// 获取统计信息
@@ -400,7 +455,7 @@ impl ParameterizedQueryHandler {
         let positions = self.extract_params(template);
 
         if positions.len() != params.len() {
-            return Err(DBError::ValidationError(format!(
+            return Err(DBError::Validation(format!(
                 "参数数量不匹配: 期望 {}, 实际 {}",
                 positions.len(),
                 params.len()
@@ -408,7 +463,7 @@ impl ParameterizedQueryHandler {
         }
 
         let mut result = template.to_string();
-        let param_strings: Vec<String> = params.iter().map(|v| v.to_string()).collect();
+        let param_strings: Vec<String> = params.iter().map(|v| format!("{}", v)).collect();
 
         // 从后向前替换，避免位置偏移
         for (pos, value) in positions.iter().zip(param_strings.iter()).rev() {

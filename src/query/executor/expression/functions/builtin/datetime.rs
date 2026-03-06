@@ -5,7 +5,6 @@ use crate::core::value::{DateTimeValue, DateValue, NullType, TimeValue};
 use crate::core::Value;
 use crate::define_datetime_extractor;
 use crate::define_function_enum;
-use crate::query::executor::expression::evaluation_context::CacheManager;
 use chrono::{Datelike, Timelike};
 
 define_function_enum! {
@@ -96,21 +95,10 @@ impl DateTimeFunction {
     pub fn execute_with_cache(
         &self,
         args: &[Value],
-        cache: &mut CacheManager,
+        _cache: &mut (),
     ) -> Result<Value, ExpressionError> {
-        match self {
-            DateTimeFunction::Now => execute_now(args),
-            DateTimeFunction::Date => execute_date_with_cache(args, cache),
-            DateTimeFunction::Time => execute_time_with_cache(args, cache),
-            DateTimeFunction::DateTime => execute_datetime_with_cache(args, cache),
-            DateTimeFunction::Year => execute_year(args),
-            DateTimeFunction::Month => execute_month(args),
-            DateTimeFunction::Day => execute_day(args),
-            DateTimeFunction::Hour => execute_hour(args),
-            DateTimeFunction::Minute => execute_minute(args),
-            DateTimeFunction::Second => execute_second(args),
-            DateTimeFunction::TimeStamp => execute_timestamp(args),
-        }
+        // 缓存功能已移除，直接调用execute
+        self.execute(args)
     }
 }
 
@@ -123,16 +111,7 @@ fn execute_now(_args: &[Value]) -> Result<Value, ExpressionError> {
     Ok(Value::Int(now as i64))
 }
 
-fn execute_date(_args: &[Value]) -> Result<Value, ExpressionError> {
-    // 无缓存版本，创建临时缓存
-    let mut cache = CacheManager::new();
-    execute_date_with_cache(_args, &mut cache)
-}
-
-fn execute_date_with_cache(
-    args: &[Value],
-    cache: &mut CacheManager,
-) -> Result<Value, ExpressionError> {
+fn execute_date(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.is_empty() {
         // 返回当前日期
         let now = chrono::Utc::now();
@@ -144,10 +123,6 @@ fn execute_date_with_cache(
     } else {
         match &args[0] {
             Value::String(s) => {
-                // 尝试从缓存获取
-                if let Some(cached) = cache.get_date(s) {
-                    return Ok(Value::Date(cached.clone()));
-                }
                 // 解析日期
                 let naivedate = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| {
                     ExpressionError::type_error("无法解析日期字符串，期望格式: YYYY-MM-DD")
@@ -157,8 +132,6 @@ fn execute_date_with_cache(
                     month: naivedate.month(),
                     day: naivedate.day(),
                 };
-                // 存入缓存
-                cache.set_date(s.clone(), date.clone());
                 Ok(Value::Date(date))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
@@ -167,16 +140,7 @@ fn execute_date_with_cache(
     }
 }
 
-fn execute_time(_args: &[Value]) -> Result<Value, ExpressionError> {
-    // 无缓存版本，创建临时缓存
-    let mut cache = CacheManager::new();
-    execute_time_with_cache(_args, &mut cache)
-}
-
-fn execute_time_with_cache(
-    args: &[Value],
-    cache: &mut CacheManager,
-) -> Result<Value, ExpressionError> {
+fn execute_time(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.is_empty() {
         // 返回当前时间
         let now = chrono::Utc::now();
@@ -189,10 +153,6 @@ fn execute_time_with_cache(
     } else {
         match &args[0] {
             Value::String(s) => {
-                // 尝试从缓存获取
-                if let Some(cached) = cache.get_time(s) {
-                    return Ok(Value::Time(cached.clone()));
-                }
                 // 解析时间
                 let time = chrono::NaiveTime::parse_from_str(s, "%H:%M:%S%.f")
                     .or_else(|_| chrono::NaiveTime::parse_from_str(s, "%H:%M:%S"))
@@ -205,8 +165,6 @@ fn execute_time_with_cache(
                     sec: time.second(),
                     microsec: time.nanosecond() / 1000,
                 };
-                // 存入缓存
-                cache.set_time(s.clone(), time_val.clone());
                 Ok(Value::Time(time_val))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),
@@ -222,15 +180,7 @@ define_datetime_extractor!(execute_hour, Time => hour, DateTime => hour);
 define_datetime_extractor!(execute_minute, Time => minute, DateTime => minute);
 define_datetime_extractor!(execute_second, Time => sec, DateTime => sec);
 
-fn execute_datetime(_args: &[Value]) -> Result<Value, ExpressionError> {
-    let mut cache = CacheManager::new();
-    execute_datetime_with_cache(_args, &mut cache)
-}
-
-fn execute_datetime_with_cache(
-    args: &[Value],
-    cache: &mut CacheManager,
-) -> Result<Value, ExpressionError> {
+fn execute_datetime(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.is_empty() {
         let now = chrono::Utc::now();
         Ok(Value::DateTime(DateTimeValue {
@@ -245,9 +195,6 @@ fn execute_datetime_with_cache(
     } else {
         match &args[0] {
             Value::String(s) => {
-                if let Some(cached) = cache.get_datetime(s) {
-                    return Ok(Value::DateTime(cached.clone()));
-                }
                 let datetime = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
                     .map_err(|_| {
                         ExpressionError::type_error(
@@ -263,7 +210,6 @@ fn execute_datetime_with_cache(
                     sec: datetime.second(),
                     microsec: datetime.nanosecond() / 1000,
                 };
-                cache.set_datetime(s.clone(), dt_val.clone());
                 Ok(Value::DateTime(dt_val))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),

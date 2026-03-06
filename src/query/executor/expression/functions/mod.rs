@@ -39,7 +39,6 @@ pub use builtin::utility::UtilityFunction;
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
-use crate::query::executor::expression::evaluation_context::CacheManager;
 
 /// 函数引用枚举，用于表达式中引用函数
 #[derive(Debug, Clone)]
@@ -84,15 +83,14 @@ impl OwnedFunctionRef {
     }
 
     /// 执行函数（带缓存）
+    /// 
+    /// 注意：缓存功能已移除，直接调用execute
     pub fn execute_with_cache(
         &self,
         args: &[Value],
-        cache: &mut CacheManager,
+        _cache: &mut (),
     ) -> Result<Value, ExpressionError> {
-        match self {
-            OwnedFunctionRef::Builtin(f) => f.execute_with_cache(args, cache),
-            OwnedFunctionRef::Custom(f) => f.execute(args),
-        }
+        self.execute(args)
     }
 }
 
@@ -231,16 +229,14 @@ impl BuiltinFunction {
     }
 
     /// 执行函数（带缓存）
+    /// 
+    /// 注意：缓存功能已移除，此方法直接调用execute
     pub fn execute_with_cache(
         &self,
         args: &[Value],
-        cache: &mut CacheManager,
+        _cache: &mut (),
     ) -> Result<Value, ExpressionError> {
-        match self {
-            BuiltinFunction::Regex(f) => f.execute_with_cache(args, cache),
-            BuiltinFunction::DateTime(f) => f.execute_with_cache(args, cache),
-            _ => self.execute(args),
-        }
+        self.execute(args)
     }
 }
 

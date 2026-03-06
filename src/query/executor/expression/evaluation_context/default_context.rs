@@ -6,7 +6,6 @@
 //! 编译时分析请使用 `ExpressionAnalysisContext`。
 
 use crate::core::Value;
-use crate::query::executor::expression::evaluation_context::cache_manager::CacheManager;
 use crate::query::executor::expression::functions::global_registry_ref;
 use std::collections::HashMap;
 
@@ -15,7 +14,6 @@ use std::collections::HashMap;
 /// 提供表达式求值所需的上下文环境，包括：
 /// - 变量存储
 /// - 函数注册（使用全局函数注册表）
-/// - 正则缓存
 ///
 /// **注意：** 此上下文用于运行时表达式求值。
 /// 编译时分析请使用 `ExpressionAnalysisContext`。
@@ -23,8 +21,6 @@ use std::collections::HashMap;
 pub struct DefaultExpressionContext {
     /// 变量存储
     variables: HashMap<String, Value>,
-    /// 缓存管理器
-    cache_manager: CacheManager,
 }
 
 impl DefaultExpressionContext {
@@ -32,7 +28,6 @@ impl DefaultExpressionContext {
     pub fn new() -> Self {
         Self {
             variables: HashMap::new(),
-            cache_manager: CacheManager::new(),
         }
     }
 
@@ -84,13 +79,5 @@ impl crate::query::executor::expression::evaluator::traits::ExpressionContext
                     .get_custom(name)
                     .map(|f| crate::query::executor::expression::functions::FunctionRef::Custom(f))
             })
-    }
-
-    fn supports_cache(&self) -> bool {
-        true
-    }
-
-    fn get_cache(&mut self) -> Option<&mut CacheManager> {
-        Some(&mut self.cache_manager)
     }
 }

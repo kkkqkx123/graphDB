@@ -40,7 +40,7 @@ use crate::query::optimizer::{
     MaterializationOptimizer, ReferenceCountAnalyzer, SelectivityEstimator,
     SortEliminationOptimizer, StatisticsManager, SubqueryUnnestingOptimizer,
 };
-use crate::query::validator::context::{ExpressionAnalysisContext, GlobalExpressionCache};
+use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 优化器引擎
 ///
@@ -50,8 +50,6 @@ use crate::query::validator::context::{ExpressionAnalysisContext, GlobalExpressi
 pub struct OptimizerEngine {
     /// 表达式上下文，用于跨阶段共享表达式信息
     expression_context: Arc<ExpressionAnalysisContext>,
-    /// 全局表达式缓存，跨查询共享表达式分析结果
-    expression_cache: Arc<GlobalExpressionCache>,
     /// 统计信息管理器
     stats_manager: Arc<StatisticsManager>,
     /// 代价计算器
@@ -92,23 +90,6 @@ impl OptimizerEngine {
         expression_context: Arc<ExpressionAnalysisContext>,
         cost_config: CostModelConfig,
     ) -> Self {
-        // 创建全局表达式缓存
-        let expression_cache = Arc::new(GlobalExpressionCache::default());
-
-        Self::with_caches(expression_context, expression_cache, cost_config)
-    }
-
-    /// 使用共享的缓存创建优化器引擎
-    ///
-    /// # 参数
-    /// - `expression_context`: 共享的表达式上下文
-    /// - `expression_cache`: 全局表达式缓存
-    /// - `cost_config`: 代价模型配置
-    pub fn with_caches(
-        expression_context: Arc<ExpressionAnalysisContext>,
-        expression_cache: Arc<GlobalExpressionCache>,
-        cost_config: CostModelConfig,
-    ) -> Self {
         // 创建统计信息管理器
         let stats_manager = Arc::new(StatisticsManager::new());
 
@@ -147,7 +128,6 @@ impl OptimizerEngine {
 
         Self {
             expression_context,
-            expression_cache,
             stats_manager,
             cost_calculator,
             selectivity_estimator,
@@ -209,21 +189,6 @@ impl OptimizerEngine {
     /// 获取表达式上下文
     pub fn expression_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expression_context
-    }
-
-    /// 获取全局表达式缓存
-    pub fn expression_cache(&self) -> &Arc<GlobalExpressionCache> {
-        &self.expression_cache
-    }
-
-    /// 获取表达式缓存统计信息
-    pub fn expression_cache_stats(&self) -> crate::query::validator::context::ExpressionCacheStats {
-        self.expression_cache.stats()
-    }
-
-    /// 清理表达式缓存中的过期条目
-    pub fn cleanup_expression_cache(&self) {
-        self.expression_cache.cleanup_expired();
     }
 
     /// 获取引用计数分析器
