@@ -25,7 +25,7 @@
 
 #define TEST(name) \
     do { \
-        printf("测试: %s... ", name); \
+        printf("测试: %s... ", #name); \
         test_##name(); \
         printf("通过\n"); \
     } while (0)
@@ -177,7 +177,7 @@ void test_session_null_params(void) {
     ASSERT_EQ(GRAPHDB_MISUSE, rc);
 }
 
-/* ==================== 查询执行测试 ====================
+/* ==================== 查询执行测试 ==================== */
 
 void test_execute_simple_query(void) {
     graphdb_t* db = NULL;
@@ -220,7 +220,7 @@ void test_execute_null_params(void) {
     ASSERT_EQ(GRAPHDB_MISUSE, rc);
 }
 
-/* ==================== 结果处理测试 ====================
+/* ==================== 结果处理测试 ==================== */
 
 void test_result_metadata(void) {
     graphdb_t* db = NULL;
@@ -272,7 +272,7 @@ void test_result_null_params(void) {
     ASSERT_NULL(name);
 }
 
-/* ==================== 事务管理测试 ====================
+/* ==================== 事务管理测试 ==================== */
 
 void test_transaction_begin_commit(void) {
     graphdb_t* db = NULL;
@@ -356,7 +356,7 @@ void test_transaction_null_params(void) {
     ASSERT_EQ(GRAPHDB_MISUSE, rc);
 }
 
-/* ==================== 预编译语句测试 ====================
+/* ==================== 预编译语句测试 ==================== */
 
 void test_prepare_finalize(void) {
     graphdb_t* db = NULL;
@@ -409,7 +409,7 @@ void test_bind_null_invalid_index(void) {
     ASSERT_EQ(GRAPHDB_MISUSE, rc);
 }
 
-/* ==================== 批量操作测试 ====================
+/* ==================== 批量操作测试 ==================== */
 
 void test_batch_inserter_create_free(void) {
     graphdb_t* db = NULL;
@@ -461,7 +461,7 @@ void test_batch_buffered_counts_null(void) {
     ASSERT_EQ(-1, count);
 }
 
-/* ==================== 错误处理测试 ====================
+/* ==================== 错误处理测试 ==================== */
 
 void test_error_string(void) {
     const char* error_str = graphdb_error_string(GRAPHDB_OK);
@@ -498,7 +498,7 @@ void test_errmsg(void) {
     ASSERT_TRUE((size_t)len < sizeof(buffer));
 }
 
-/* ==================== 内存管理测试 ====================
+/* ==================== 内存管理测试 ==================== */
 
 void test_free_string(void) {
     /* 注意：这个测试需要实际分配的字符串，暂时跳过 */
@@ -510,7 +510,7 @@ void test_free(void) {
     /* graphdb_free() 应该释放由 GraphDB 分配的内存 */
 }
 
-/* ==================== 集成场景测试 ====================
+/* ==================== 集成场景测试 ==================== */
 
 void test_full_workflow(void) {
     graphdb_t* db = NULL;
@@ -593,7 +593,7 @@ void test_full_workflow(void) {
     remove(db_path);
 }
 
-/* ==================== 主函数 ====================
+/* ==================== 主函数 ==================== */
 
 int main(void) {
     printf("========================================\n");

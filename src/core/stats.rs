@@ -479,103 +479,60 @@ impl StatsManager {
 
     /// 写入慢查询日志
     fn write_slow_query_log(&self, profile: &QueryProfile) {
-        // 构建错误信息对象
-        let error_info = if let Some(ref info) = profile.error_info {
-            serde_json::json!({
-                "type": info.error_type.to_string(),
-                "phase": info.error_phase.to_string(),
-                "message": &info.error_message,
-                "details": &info.error_details,
-            })
-        } else if let Some(ref msg) = profile.error_message {
-            serde_json::json!({
-                "type": "unknown",
-                "phase": "unknown",
-                "message": msg,
-                "details": null,
-            })
-        } else {
-            serde_json::Value::Null
-        };
-
-        // 构建执行器统计数组
-        let executor_stats: Vec<serde_json::Value> = profile
+        // 构建执行器统计摘要
+        let executor_summary: Vec<String> = profile
             .executor_stats
             .iter()
             .map(|stat| {
-                serde_json::json!({
-                    "type": &stat.executor_type,
-                    "id": stat.executor_id,
-                    "duration_ms": stat.duration_ms,
-                    "rows_processed": stat.rows_processed,
-                    "memory_used": stat.memory_used,
-                })
+                format!(
+                    "{}[id={}, {}ms, rows={}, mem={}]",
+                    stat.executor_type,
+                    stat.executor_id,
+                    stat.duration_ms,
+                    stat.rows_processed,
+                    stat.memory_used
+                )
             })
             .collect();
 
-        let log_entry = serde_json::json!({
-            "timestamp": chrono::Local::now().to_rfc3339(),
-            "trace_id": &profile.trace_id,
-            "session_id": profile.session_id,
-            "query_text": &profile.query_text,
-            "duration_ms": profile.total_duration_ms,
-            "stages": {
-                "parse_ms": profile.stages.parse_ms,
-                "validate_ms": profile.stages.validate_ms,
-                "plan_ms": profile.stages.plan_ms,
-                "optimize_ms": profile.stages.optimize_ms,
-                "execute_ms": profile.stages.execute_ms,
-            },
-            "result_count": profile.result_count,
-            "status": match profile.status {
+        // 构建错误信息
+        let error_str = if let Some(ref info) = profile.error_info {
+            format!(
+                " [error={} phase={}]: {}",
+                info.error_type, info.error_phase, info.error_message
+            )
+        } else if let Some(ref msg) = profile.error_message {
+            format!(" [error]: {}", msg)
+        } else {
+            String::new()
+        };
+
+        // 使用项目统一的带时间戳日志系统记录慢查询
+        log::warn!(
+            "慢查询 [trace_id={}] [session_id={}] [duration={}ms] [status={}]\n\
+             查询: {}\n\
+             阶段统计: parse={}ms validate={}ms plan={}ms optimize={}ms execute={}ms\n\
+             结果数: {} 执行器数: {} 执行器总时间: {}ms\n\
+             执行器详情: {}{}",
+            profile.trace_id,
+            profile.session_id,
+            profile.total_duration_ms,
+            match profile.status {
                 QueryStatus::Success => "success",
                 QueryStatus::Failed => "failed",
             },
-            "error": error_info,
-            "executor_stats": executor_stats,
-            "executor_count": profile.executor_stats.len(),
-            "total_executor_time_ms": profile.total_executor_time_ms(),
-        });
-
-        let log_line = format!("{}\n", log_entry.to_string());
-
-        // 确保日志目录存在
-        let log_dir = std::path::Path::new(&self.config.slow_query_log_dir);
-        if let Err(e) = std::fs::create_dir_all(log_dir) {
-            log::warn!("Failed to create slow query log directory: {}", e);
-            return;
-        }
-
-        // 按天轮转日志文件
-        let date = chrono::Local::now().format("%Y-%m-%d");
-        let log_file = log_dir.join(format!("slow_queries_{}.log", date));
-
-        if let Err(e) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&log_file)
-            .and_then(|mut file| {
-                use std::io::Write;
-                file.write_all(log_line.as_bytes())
-            })
-        {
-            log::warn!("Failed to write slow query log: {}", e);
-        }
-
-        // 同时记录到系统错误日志（如果是失败查询）
-        if profile.status == QueryStatus::Failed {
-            if let Some(ref info) = profile.error_info {
-                log::error!(
-                    "慢查询执行失败 [trace_id={}] [type={}] [phase={}]: {}",
-                    profile.trace_id,
-                    info.error_type,
-                    info.error_phase,
-                    info.error_message
-                );
-            } else if let Some(ref msg) = profile.error_message {
-                log::error!("慢查询执行失败 [trace_id={}]: {}", profile.trace_id, msg);
-            }
-        }
+            profile.query_text,
+            profile.stages.parse_ms,
+            profile.stages.validate_ms,
+            profile.stages.plan_ms,
+            profile.stages.optimize_ms,
+            profile.stages.execute_ms,
+            profile.result_count,
+            profile.executor_stats.len(),
+            profile.total_executor_time_ms(),
+            executor_summary.join(", "),
+            error_str
+        );
     }
 
     /// 获取最近的查询画像
