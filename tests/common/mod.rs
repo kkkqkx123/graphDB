@@ -5,6 +5,7 @@
 pub mod assertions;
 pub mod data_fixtures;
 pub mod storage_helpers;
+pub mod c_api_helpers;
 
 use graphdb::core::error::DBResult;
 use graphdb::storage::redb_storage::RedbStorage;
