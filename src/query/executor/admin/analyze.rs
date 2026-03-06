@@ -92,10 +92,6 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
         stats.vertex_count = vertices.len() as u64;
 
         if stats.vertex_count > 0 {
-            // 计算平均顶点大小
-            let total_size: usize = vertices.iter().map(|v| v.estimated_size()).sum();
-            stats.avg_vertex_size = total_size / vertices.len();
-
             // 计算平均度数
             let (avg_out, avg_in) = self.calculate_average_degrees(storage, space, &vertices)?;
             stats.avg_out_degree = avg_out;
@@ -164,7 +160,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
             }
 
             stats.unique_src_vertices = unique_src.len() as u64;
-            stats.unique_dst_vertices = unique_dst.len() as u64;
+            let unique_dst_count = unique_dst.len() as u64;
 
             // 计算平均出度和入度
             stats.avg_out_degree = if stats.unique_src_vertices > 0 {
@@ -172,8 +168,8 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
             } else {
                 0.0
             };
-            stats.avg_in_degree = if stats.unique_dst_vertices > 0 {
-                stats.edge_count as f64 / stats.unique_dst_vertices as f64
+            stats.avg_in_degree = if unique_dst_count > 0 {
+                stats.edge_count as f64 / unique_dst_count as f64
             } else {
                 0.0
             };

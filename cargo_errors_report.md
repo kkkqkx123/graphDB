@@ -23,16 +23,16 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\query\optimizer\cost\node_estimators\data_processing.rs`: 1 warnings
+- `src\query\optimizer\stats\property.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: function `create_test_calculator` is never used
+### warning: unused import: `crate::core::value::Value`
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\optimizer\cost\node_estimators\data_processing.rs`: 1 occurrences
+#### `src\query\optimizer\stats\property.rs`: 1 occurrences
 
-- Line 152: function `create_test_calculator` is never used
+- Line 5: unused import: `crate::core::value::Value`
 

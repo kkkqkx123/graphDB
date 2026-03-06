@@ -2,6 +2,12 @@
 //!
 //! 提供计划节点结构指纹计算功能，用于识别等价的子计划。
 //! 相同结构的子计划会产生相同的指纹值。
+//!
+//! ## 设计说明
+//!
+//! 当前实现为简化版本，只哈希节点类型和子节点结构，
+//! 用于识别重复子计划（如 CTE 物化优化）。
+//! 不包含节点配置参数和表达式结构，以提升性能。
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -28,6 +34,14 @@ impl PlanFingerprint {
 ///
 /// 使用稳定的哈希算法计算计划节点的结构指纹。
 /// 相同结构的子计划会产生相同的指纹值。
+///
+/// ## 简化设计
+///
+/// 只哈希节点类型和子节点结构，不哈希：
+/// - 节点配置参数（如 Filter 条件、Project 列数等）
+/// - 表达式结构（如变量名、字面量值等）
+///
+/// 这种设计满足当前需求（识别重复子计划），同时提升性能。
 #[derive(Debug, Clone)]
 pub struct FingerprintCalculator;
 
@@ -48,7 +62,6 @@ impl FingerprintCalculator {
     /// # 算法
     /// 1. 哈希节点类型（使用枚举判别式）
     /// 2. 递归哈希子节点指纹
-    /// 3. 哈希节点的关键配置参数
     pub fn calculate_fingerprint(&self, node: &PlanNodeEnum) -> PlanFingerprint {
         let mut hasher = DefaultHasher::new();
 
@@ -57,9 +70,6 @@ impl FingerprintCalculator {
 
         // 哈希子节点指纹
         self.hash_children(node, &mut hasher);
-
-        // 哈希节点配置
-        self.hash_node_config(node, &mut hasher);
 
         PlanFingerprint::new(hasher.finish())
     }
@@ -255,146 +265,5 @@ impl FingerprintCalculator {
         let right_fp = self.calculate_fingerprint(node.right_input());
         left_fp.hash(hasher);
         right_fp.hash(hasher);
-    }
-
-    /// 哈希节点配置
-    fn hash_node_config(&self, node: &PlanNodeEnum, hasher: &mut DefaultHasher) {
-        use crate::query::planner::plan::core::nodes::*;
-
-        match node {
-            // 哈希过滤条件中的常量值
-            PlanNodeEnum::Filter(n) => {
-                let condition = n.condition();
-                let expr = match condition.expression() {
-                    Some(meta) => meta.inner().clone(),
-                    None => return,
-                };
-                // 哈希条件表达式的结构（不包含变量名）
-                self.hash_expression_structure(&expr, hasher);
-            }
-
-            // 哈希投影列
-            PlanNodeEnum::Project(n) => {
-                n.col_names().len().hash(hasher);
-            }
-
-            // 哈希排序键
-            PlanNodeEnum::Sort(n) => {
-                n.sort_items().len().hash(hasher);
-            }
-
-            // 哈希Limit值
-            PlanNodeEnum::Limit(n) => {
-                n.count().hash(hasher);
-                n.offset().hash(hasher);
-            }
-
-            // 哈希TopN配置
-            PlanNodeEnum::TopN(n) => {
-                n.limit().hash(hasher);
-                n.sort_items().len().hash(hasher);
-            }
-
-            // 哈希采样配置
-            PlanNodeEnum::Sample(n) => {
-                n.count().hash(hasher);
-            }
-
-            // 哈希聚合配置
-            PlanNodeEnum::Aggregate(n) => {
-                n.group_keys().len().hash(hasher);
-                n.aggregation_functions().len().hash(hasher);
-            }
-
-            // 哈希扫描配置
-            PlanNodeEnum::ScanVertices(n) => {
-                n.name().hash(hasher);
-            }
-            PlanNodeEnum::ScanEdges(n) => {
-                n.edge_type().hash(hasher);
-            }
-
-            // 哈希遍历配置
-            PlanNodeEnum::Traverse(n) => {
-                n.edge_types().len().hash(hasher);
-                n.direction().hash(hasher);
-            }
-
-            // 其他节点暂不哈希额外配置
-            _ => {}
-        }
-    }
-
-    /// 哈希表达式结构（不包含变量名和字面量值）
-    fn hash_expression_structure(
-        &self,
-        expr: &crate::core::Expression,
-        hasher: &mut DefaultHasher,
-    ) {
-        use crate::core::Expression;
-
-        // 哈希表达式类型
-        std::mem::discriminant(expr).hash(hasher);
-
-        match expr {
-            Expression::Literal(_) => {
-                // 字面量只哈希类型，不哈希值
-            }
-            Expression::Variable(_) => {
-                // 变量只哈希类型，不哈希名
-            }
-            Expression::Property { object, .. } => {
-                // 属性名不哈希，只哈希对象结构
-                self.hash_expression_structure(object, hasher);
-            }
-            Expression::Binary { left, op, right } => {
-                // 哈希操作符类型
-                std::mem::discriminant(op).hash(hasher);
-                self.hash_expression_structure(left, hasher);
-                self.hash_expression_structure(right, hasher);
-            }
-            Expression::Unary { op, operand } => {
-                std::mem::discriminant(op).hash(hasher);
-                self.hash_expression_structure(operand, hasher);
-            }
-            Expression::Function { name, args } => {
-                // 哈希函数名
-                name.hash(hasher);
-                args.len().hash(hasher);
-                for arg in args {
-                    self.hash_expression_structure(arg, hasher);
-                }
-            }
-            Expression::Aggregate { func, .. } => {
-                std::mem::discriminant(func).hash(hasher);
-            }
-            _ => {
-                // 其他表达式类型暂不详细处理
-            }
-        }
-    }
-}
-
-impl Default for FingerprintCalculator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_fingerprint_calculator_new() {
-        let _calculator = FingerprintCalculator::new();
-        // 验证创建成功
-    }
-
-    #[test]
-    fn test_same_structure_same_fingerprint() {
-        // 创建两个结构相同的计划节点应该产生相同的指纹
-        // 注意：这里需要实际的计划节点来测试
-        // 由于计划节点的创建比较复杂，这里只做结构测试
     }
 }

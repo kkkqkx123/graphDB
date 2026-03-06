@@ -172,8 +172,6 @@ mod tests {
             vertex_count: 1000,
             avg_out_degree: 5.0,
             avg_in_degree: 5.0,
-            avg_vertex_size: 100,
-            last_analyzed: std::time::SystemTime::now(),
         };
         stats_manager.update_tag_stats(tag_stats);
 
@@ -185,8 +183,6 @@ mod tests {
             max_out_degree: 10,
             max_in_degree: 8,
             unique_src_vertices: 1000,
-            unique_dst_vertices: 1000,
-            last_analyzed: std::time::SystemTime::now(),
         };
         stats_manager.update_edge_stats(edge_stats);
 

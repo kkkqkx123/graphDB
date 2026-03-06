@@ -36,9 +36,12 @@ pub mod reference_count;
 
 // 重新导出主要类型
 pub use expression::{
-    AnalysisOptions, ExpressionAnalysis, ExpressionAnalyzer, NondeterministicChecker,
+    AnalysisMode, AnalysisOptions, ExpressionAnalysis, ExpressionAnalyzer, NondeterministicChecker,
 };
 pub use fingerprint::{FingerprintCalculator, PlanFingerprint};
 pub use reference_count::{
     ReferenceCountAnalysis, ReferenceCountAnalyzer, SubplanId, SubplanReferenceInfo,
 };
+
+#[cfg(test)]
+mod integration_test;

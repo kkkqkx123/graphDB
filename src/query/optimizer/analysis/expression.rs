@@ -30,8 +30,6 @@ pub struct ExpressionAnalysis {
     pub contains_aggregate: bool,
     /// 是否包含子查询
     pub contains_subquery: bool,
-    /// 表达式深度
-    pub depth: u32,
     /// 节点数量
     pub node_count: u32,
 }
@@ -44,6 +42,21 @@ impl ExpressionAnalysis {
             ..Default::default()
         }
     }
+}
+
+/// 表达式分析模式
+///
+/// 预设的分析模式，简化配置。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnalysisMode {
+    /// 完整分析（默认）
+    Full,
+    /// 只检查确定性
+    DeterministicOnly,
+    /// 只提取属性引用
+    PropertyExtractor,
+    /// 只提取变量引用
+    VariableExtractor,
 }
 
 /// 表达式分析选项
@@ -69,6 +82,42 @@ impl Default for AnalysisOptions {
             extract_properties: true,
             extract_variables: true,
             count_functions: true,
+        }
+    }
+}
+
+impl AnalysisOptions {
+    /// 从分析模式创建选项
+    fn from_mode(mode: AnalysisMode) -> Self {
+        match mode {
+            AnalysisMode::Full => AnalysisOptions {
+                check_deterministic: true,
+                check_complexity: true,
+                extract_properties: true,
+                extract_variables: true,
+                count_functions: true,
+            },
+            AnalysisMode::DeterministicOnly => AnalysisOptions {
+                check_deterministic: true,
+                check_complexity: false,
+                extract_properties: false,
+                extract_variables: false,
+                count_functions: false,
+            },
+            AnalysisMode::PropertyExtractor => AnalysisOptions {
+                check_deterministic: false,
+                check_complexity: false,
+                extract_properties: true,
+                extract_variables: false,
+                count_functions: false,
+            },
+            AnalysisMode::VariableExtractor => AnalysisOptions {
+                check_deterministic: false,
+                check_complexity: false,
+                extract_properties: false,
+                extract_variables: true,
+                count_functions: false,
+            },
         }
     }
 }
@@ -106,7 +155,7 @@ impl NondeterministicChecker {
 
 /// 表达式分析器
 ///
-/// 分析表达式的各种特性，支持按需分析（通过AnalysisOptions配置）。
+/// 分析表达式的各种特性，支持按需分析（通过预设模式配置）。
 #[derive(Debug, Clone)]
 pub struct ExpressionAnalyzer {
     /// 分析选项
@@ -114,7 +163,7 @@ pub struct ExpressionAnalyzer {
 }
 
 impl ExpressionAnalyzer {
-    /// 创建默认的表达式分析器
+    /// 创建默认的表达式分析器（完整分析模式）
     pub fn new() -> Self {
         Self {
             options: AnalysisOptions::default(),
@@ -128,24 +177,23 @@ impl ExpressionAnalyzer {
 
     /// 创建只检查确定性的分析器
     pub fn deterministic_only() -> Self {
-        Self::with_options(AnalysisOptions {
-            check_deterministic: true,
-            check_complexity: false,
-            extract_properties: false,
-            extract_variables: false,
-            count_functions: false,
-        })
+        Self {
+            options: AnalysisOptions::from_mode(AnalysisMode::DeterministicOnly),
+        }
     }
 
     /// 创建只提取属性引用的分析器
     pub fn property_extractor() -> Self {
-        Self::with_options(AnalysisOptions {
-            check_deterministic: false,
-            check_complexity: false,
-            extract_properties: true,
-            extract_variables: false,
-            count_functions: false,
-        })
+        Self {
+            options: AnalysisOptions::from_mode(AnalysisMode::PropertyExtractor),
+        }
+    }
+
+    /// 创建只提取变量引用的分析器
+    pub fn variable_extractor() -> Self {
+        Self {
+            options: AnalysisOptions::from_mode(AnalysisMode::VariableExtractor),
+        }
     }
 
     /// 分析表达式（接受 ContextualExpression）

@@ -5,18 +5,15 @@
 //! ## 模块结构
 //!
 //! - `manager` - 统计信息管理器，统一管理所有统计信息
-//! - `collector` - 统计信息收集器，从存储引擎收集统计信息
 //! - `tag` - 标签统计信息
 //! - `edge` - 边类型统计信息
 //! - `property` - 属性统计信息
 
-pub mod collector;
 pub mod edge;
 pub mod manager;
 pub mod property;
 pub mod tag;
 
-pub use collector::{StatisticsCollection, StatisticsCollector};
 pub use edge::EdgeTypeStatistics;
 pub use manager::StatisticsManager;
 pub use property::PropertyStatistics;

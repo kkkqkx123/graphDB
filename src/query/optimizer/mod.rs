@@ -34,8 +34,7 @@ pub mod strategy;
 pub use engine::OptimizerEngine;
 
 pub use stats::{
-    EdgeTypeStatistics, PropertyStatistics, StatisticsCollection, StatisticsCollector,
-    StatisticsManager, TagStatistics,
+    EdgeTypeStatistics, PropertyStatistics, StatisticsManager, TagStatistics,
 };
 
 pub use crate::core::error::optimize::CostError;

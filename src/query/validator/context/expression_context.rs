@@ -538,7 +538,6 @@ mod tests {
             called_functions: vec![],
             contains_aggregate: false,
             contains_subquery: false,
-            depth: 1,
             node_count: 1,
         };
 
