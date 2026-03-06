@@ -69,3 +69,175 @@ impl<'a> NodeEstimator for GraphAlgorithmEstimator<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::optimizer::cost::config::CostModelConfig;
+    use crate::query::planner::plan::algorithms::*;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use std::sync::Arc;
+
+    fn create_test_calculator() -> CostCalculator {
+        let stats_manager = Arc::new(crate::query::optimizer::stats::StatisticsManager::new());
+        let config = CostModelConfig::default();
+        CostCalculator::with_config(stats_manager, config)
+    }
+
+    fn create_test_start_node() -> PlanNodeEnum {
+        PlanNodeEnum::Start(StartNode::new())
+    }
+
+    #[test]
+    fn test_shortest_path_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = GraphAlgorithmEstimator::new(&calculator);
+
+        let left = create_test_start_node();
+        let right = create_test_start_node();
+        let node = PlanNodeEnum::ShortestPath(ShortestPath::new(
+            1, left, right, vec!["friend".to_string()], 5,
+        ));
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 1);
+    }
+
+    #[test]
+    fn test_all_paths_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = GraphAlgorithmEstimator::new(&calculator);
+
+        let left = create_test_start_node();
+        let right = create_test_start_node();
+        let node = PlanNodeEnum::AllPaths(AllPaths::new(
+            1,
+            left,
+            right,
+            3,
+            vec!["friend".to_string()],
+            1,
+            3,
+            false,
+        ));
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows > 1);
+    }
+
+    #[test]
+    fn test_multi_shortest_path_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = GraphAlgorithmEstimator::new(&calculator);
+
+        let left = create_test_start_node();
+        let right = create_test_start_node();
+        let node = PlanNodeEnum::MultiShortestPath(MultiShortestPath::new(1, left, right, 4));
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows > 1);
+    }
+
+    #[test]
+    fn test_bfs_shortest_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = GraphAlgorithmEstimator::new(&calculator);
+
+        let left = create_test_start_node();
+        let right = create_test_start_node();
+        let node = PlanNodeEnum::BFSShortest(BFSShortest::new(
+            1,
+            left,
+            right,
+            3,
+            vec!["friend".to_string()],
+            false,
+        ));
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 1);
+    }
+
+    #[test]
+    fn test_unsupported_node_type() {
+        let calculator = create_test_calculator();
+        let estimator = GraphAlgorithmEstimator::new(&calculator);
+
+        let node = PlanNodeEnum::Start(StartNode::new());
+        let child_estimates = vec![];
+        let result = estimator.estimate(&node, &child_estimates);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_shortest_path_different_max_steps() {
+        let calculator = create_test_calculator();
+        let estimator = GraphAlgorithmEstimator::new(&calculator);
+
+        for max_step in [1, 3, 5, 10] {
+            let left = create_test_start_node();
+            let right = create_test_start_node();
+            let node = PlanNodeEnum::ShortestPath(ShortestPath::new(
+                1,
+                left,
+                right,
+                vec!["friend".to_string()],
+                max_step,
+            ));
+
+            let child_estimates = vec![];
+            let result = estimator.estimate(&node, &child_estimates);
+
+            assert!(result.is_ok());
+            let (cost, _) = result.unwrap();
+            assert!(cost > 0.0);
+        }
+    }
+
+    #[test]
+    fn test_all_paths_output_rows_limit() {
+        let calculator = create_test_calculator();
+        let estimator = GraphAlgorithmEstimator::new(&calculator);
+
+        let left = create_test_start_node();
+        let right = create_test_start_node();
+        let node = PlanNodeEnum::AllPaths(AllPaths::new(
+            1,
+            left,
+            right,
+            15,
+            vec!["friend".to_string()],
+            1,
+            15,
+            false,
+        ));
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (_, output_rows) = result.unwrap();
+        assert!(output_rows <= 1024);
+    }
+}

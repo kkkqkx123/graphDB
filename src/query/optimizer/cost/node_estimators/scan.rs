@@ -158,3 +158,329 @@ impl<'a> NodeEstimator for ScanEstimator<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::optimizer::cost::config::CostModelConfig;
+    use crate::query::optimizer::stats::{EdgeTypeStatistics, TagStatistics};
+    use crate::query::planner::plan::algorithms::{IndexLimit, ScanType};
+    use crate::query::planner::plan::core::nodes::graph_scan_node::*;
+    use std::sync::Arc;
+
+    fn create_test_calculator() -> CostCalculator {
+        let stats_manager = Arc::new(crate::query::optimizer::stats::StatisticsManager::new());
+        let config = CostModelConfig::default();
+        CostCalculator::with_config(stats_manager, config)
+    }
+
+    fn create_test_calculator_with_stats() -> CostCalculator {
+        let stats_manager = Arc::new(crate::query::optimizer::stats::StatisticsManager::new());
+        
+        let tag_stats = TagStatistics {
+            tag_name: "Person".to_string(),
+            vertex_count: 1000,
+            avg_out_degree: 5.0,
+            avg_in_degree: 5.0,
+            avg_vertex_size: 100,
+            last_analyzed: std::time::SystemTime::now(),
+        };
+        stats_manager.update_tag_stats(tag_stats);
+
+        let edge_stats = EdgeTypeStatistics {
+            edge_type: "friend".to_string(),
+            edge_count: 5000,
+            avg_out_degree: 3.0,
+            avg_in_degree: 2.0,
+            max_out_degree: 10,
+            max_in_degree: 8,
+            unique_src_vertices: 1000,
+            unique_dst_vertices: 1000,
+            last_analyzed: std::time::SystemTime::now(),
+        };
+        stats_manager.update_edge_stats(edge_stats);
+
+        let config = CostModelConfig::default();
+        CostCalculator::with_config(stats_manager, config)
+    }
+
+    #[test]
+    fn test_scan_vertices_estimation() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let mut node = ScanVerticesNode::new(1);
+        node.set_tag("Person");
+        let plan_node = PlanNodeEnum::ScanVertices(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 1000);
+    }
+
+    #[test]
+    fn test_scan_edges_estimation() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let node = ScanEdgesNode::new(1, "friend");
+        let plan_node = PlanNodeEnum::ScanEdges(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 5000);
+    }
+
+    #[test]
+    fn test_index_scan_estimation() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
+            1,
+            1,
+            1,
+            1,
+            ScanType::Unique,
+        );
+        node.scan_limits = vec![IndexLimit::equal("Person.name", "Alice")];
+        let plan_node = PlanNodeEnum::IndexScan(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 1);
+    }
+
+    #[test]
+    fn test_edge_index_scan_estimation() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let mut node = EdgeIndexScanNode::new(1, "friend", "friend_index");
+        node.set_scan_limits(vec![IndexLimit::equal("friend.rank", "1")]);
+        let plan_node = PlanNodeEnum::EdgeIndexScan(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 1);
+    }
+
+    #[test]
+    fn test_unsupported_node_type() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new());
+        let child_estimates = vec![];
+        let result = estimator.estimate(&node, &child_estimates);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_estimate_index_scan_selectivity_empty() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let node = crate::query::planner::plan::algorithms::IndexScan::new(
+            1,
+            1,
+            1,
+            1,
+            ScanType::Unique,
+        );
+        let selectivity = estimator.estimate_index_scan_selectivity(&node);
+        assert_eq!(selectivity, 0.1);
+    }
+
+    #[test]
+    fn test_estimate_index_scan_selectivity_unique() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
+            1,
+            1,
+            1,
+            1,
+            ScanType::Unique,
+        );
+        node.scan_limits = vec![IndexLimit::equal("Person.name", "Alice")];
+        let selectivity = estimator.estimate_index_scan_selectivity(&node);
+        assert_eq!(selectivity, 0.01);
+    }
+
+    #[test]
+    fn test_estimate_index_scan_selectivity_prefix() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
+            1,
+            1,
+            1,
+            1,
+            ScanType::Prefix,
+        );
+        node.scan_limits = vec![IndexLimit::prefix("Person.name", "A")];
+        let selectivity = estimator.estimate_index_scan_selectivity(&node);
+        assert_eq!(selectivity, 0.05);
+    }
+
+    #[test]
+    fn test_estimate_index_scan_selectivity_range() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
+            1,
+            1,
+            1,
+            1,
+            ScanType::Range,
+        );
+        node.scan_limits = vec![IndexLimit::range("Person.age", Some("20"), Some("30"), true, true)];
+        let selectivity = estimator.estimate_index_scan_selectivity(&node);
+        assert_eq!(selectivity, 0.1);
+    }
+
+    #[test]
+    fn test_estimate_index_scan_selectivity_multiple() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
+            1,
+            1,
+            1,
+            1,
+            ScanType::Unique,
+        );
+        node.scan_limits = vec![
+            IndexLimit::equal("Person.name", "Alice"),
+            IndexLimit::equal("Person.age", "25"),
+        ];
+        let selectivity = estimator.estimate_index_scan_selectivity(&node);
+        assert_eq!(selectivity, 0.0001);
+    }
+
+    #[test]
+    fn test_estimate_edge_index_scan_selectivity_empty() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let node = EdgeIndexScanNode::new(1, "friend", "friend_index");
+        let selectivity = estimator.estimate_edge_index_scan_selectivity(&node);
+        assert_eq!(selectivity, 0.1);
+    }
+
+    #[test]
+    fn test_estimate_edge_index_scan_selectivity_unique() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let mut node = EdgeIndexScanNode::new(1, "friend", "friend_index");
+        node.set_scan_limits(vec![IndexLimit::equal("friend.rank", "1")]);
+        let selectivity = estimator.estimate_edge_index_scan_selectivity(&node);
+        assert_eq!(selectivity, 0.01);
+    }
+
+    #[test]
+    fn test_scan_vertices_no_tag() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let node = ScanVerticesNode::new(1);
+        let plan_node = PlanNodeEnum::ScanVertices(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert_eq!(cost, 0.0);
+        assert_eq!(output_rows, 1);
+    }
+
+    #[test]
+    fn test_scan_edges_no_edge_type() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let node = ScanEdgesNode::new(1, "");
+        let plan_node = PlanNodeEnum::ScanEdges(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert_eq!(cost, 0.0);
+        assert_eq!(output_rows, 1);
+    }
+
+    #[test]
+    fn test_get_tag_name_from_index_scan_with_id() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let node = crate::query::planner::plan::algorithms::IndexScan::new(
+            1,
+            1,
+            1,
+            1,
+            ScanType::Unique,
+        );
+        let tag_name = estimator.get_tag_name_from_index_scan(&node);
+        assert_eq!(tag_name, "default");
+    }
+
+    #[test]
+    fn test_get_property_name_from_index_scan() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
+            1,
+            1,
+            1,
+            1,
+            ScanType::Unique,
+        );
+        node.scan_limits = vec![IndexLimit::equal("Person.name", "Alice")];
+        let property_name = estimator.get_property_name_from_index_scan(&node);
+        assert_eq!(property_name, "Person.name");
+    }
+
+    #[test]
+    fn test_get_property_name_from_index_scan_empty() {
+        let calculator = create_test_calculator();
+        let estimator = ScanEstimator::new(&calculator);
+
+        let node = crate::query::planner::plan::algorithms::IndexScan::new(
+            1,
+            1,
+            1,
+            1,
+            ScanType::Unique,
+        );
+        let property_name = estimator.get_property_name_from_index_scan(&node);
+        assert_eq!(property_name, "default");
+    }
+}

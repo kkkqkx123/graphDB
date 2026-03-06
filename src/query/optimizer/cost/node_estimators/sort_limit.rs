@@ -133,3 +133,355 @@ impl<'a> NodeEstimator for SortLimitEstimator<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::operators::AggregateFunction;
+    use crate::query::optimizer::cost::config::CostModelConfig;
+    use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
+    use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
+    use crate::query::planner::plan::core::nodes::sample_node::SampleNode;
+    use crate::query::planner::plan::core::nodes::sort_node::*;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use std::sync::Arc;
+
+    fn create_test_calculator() -> CostCalculator {
+        let stats_manager = Arc::new(crate::query::optimizer::stats::StatisticsManager::new());
+        let config = CostModelConfig::default();
+        CostCalculator::with_config(stats_manager, config)
+    }
+
+    #[test]
+    fn test_sort_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let sort_items = vec![
+            SortItem::asc("name".to_string()),
+            SortItem::desc("age".to_string()),
+        ];
+        let node = SortNode::new(input, sort_items).unwrap();
+        let plan_node = PlanNodeEnum::Sort(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_limit_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let node = LimitNode::new(input, 10, 50).unwrap();
+        let plan_node = PlanNodeEnum::Limit(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 50);
+    }
+
+    #[test]
+    fn test_topn_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let sort_items = vec![SortItem::asc("name".to_string())];
+        let node = TopNNode::new(input, sort_items, 10).unwrap();
+        let plan_node = PlanNodeEnum::TopN(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 10);
+    }
+
+    #[test]
+    fn test_aggregate_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let group_keys = vec!["category".to_string()];
+        let agg_funcs = vec![AggregateFunction::Count(None)];
+        let node = AggregateNode::new(input, group_keys, agg_funcs).unwrap();
+        let plan_node = PlanNodeEnum::Aggregate(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 1);
+        assert!(output_rows <= 100);
+    }
+
+    #[test]
+    fn test_dedup_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let node = DedupNode::new(input).unwrap();
+        let plan_node = PlanNodeEnum::Dedup(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 70);
+    }
+
+    #[test]
+    fn test_sample_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let node = SampleNode::new(input, 50).unwrap();
+        let plan_node = PlanNodeEnum::Sample(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 50);
+    }
+
+    #[test]
+    fn test_unsupported_node_type() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let node = PlanNodeEnum::Start(StartNode::new());
+        let child_estimates = vec![];
+        let result = estimator.estimate(&node, &child_estimates);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_limit_with_zero_offset() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let node = LimitNode::new(input, 0, 100).unwrap();
+        let plan_node = PlanNodeEnum::Limit(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 1000)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_limit_with_large_offset() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let node = LimitNode::new(input, 500, 100).unwrap();
+        let plan_node = PlanNodeEnum::Limit(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 1000)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_aggregate_with_no_group_by() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let group_keys = vec![];
+        let agg_funcs = vec![AggregateFunction::Count(None)];
+        let node = AggregateNode::new(input, group_keys, agg_funcs).unwrap();
+        let plan_node = PlanNodeEnum::Aggregate(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 1);
+    }
+
+    #[test]
+    fn test_aggregate_with_multiple_group_keys() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let group_keys = vec!["category".to_string(), "type".to_string(), "status".to_string()];
+        let agg_funcs = vec![AggregateFunction::Count(None)];
+        let node = AggregateNode::new(input, group_keys, agg_funcs).unwrap();
+        let plan_node = PlanNodeEnum::Aggregate(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 1000)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 10);
+        assert!(output_rows <= 1000);
+    }
+
+    #[test]
+    fn test_sample_with_large_count() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let node = SampleNode::new(input, 1000).unwrap();
+        let plan_node = PlanNodeEnum::Sample(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_sample_with_zero_count() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let node = SampleNode::new(input, 0).unwrap();
+        let plan_node = PlanNodeEnum::Sample(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 1);
+    }
+
+    #[test]
+    fn test_sort_with_multiple_sort_keys() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let sort_items = vec![
+            SortItem::asc("name".to_string()),
+            SortItem::desc("age".to_string()),
+            SortItem::asc("score".to_string()),
+        ];
+        let node = SortNode::new(input, sort_items).unwrap();
+        let plan_node = PlanNodeEnum::Sort(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_topn_with_large_limit() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let sort_items = vec![SortItem::asc("name".to_string())];
+        let node = TopNNode::new(input, sort_items, 1000).unwrap();
+        let plan_node = PlanNodeEnum::TopN(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_dedup_with_zero_input() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let node = DedupNode::new(input).unwrap();
+        let plan_node = PlanNodeEnum::Dedup(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(0.0, 0.0, 0)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost >= 0.0);
+        assert_eq!(output_rows, 1);
+    }
+
+    #[test]
+    fn test_estimate_group_by_cardinality_no_keys() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let group_keys: Vec<String> = vec![];
+        let cardinality = estimator.estimate_group_by_cardinality(&group_keys, 100);
+        assert_eq!(cardinality, 1);
+    }
+
+    #[test]
+    fn test_estimate_group_by_cardinality_single_key() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let group_keys = vec!["category".to_string()];
+        let cardinality = estimator.estimate_group_by_cardinality(&group_keys, 1000);
+        assert!(cardinality >= 10);
+        assert!(cardinality <= 1000);
+    }
+
+    #[test]
+    fn test_estimate_group_by_cardinality_multiple_keys() {
+        let calculator = create_test_calculator();
+        let estimator = SortLimitEstimator::new(&calculator);
+
+        let group_keys = vec!["category".to_string(), "type".to_string()];
+        let cardinality = estimator.estimate_group_by_cardinality(&group_keys, 1000);
+        assert!(cardinality >= 10);
+        assert!(cardinality <= 1000);
+    }
+}

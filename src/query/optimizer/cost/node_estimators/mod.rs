@@ -53,3 +53,83 @@ pub fn get_input_rows(child_estimates: &[NodeCostEstimate], index: usize) -> u64
 pub fn sum_child_costs(child_estimates: &[NodeCostEstimate]) -> f64 {
     child_estimates.iter().map(|e| e.total_cost).sum()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_input_rows() {
+        let estimates = vec![
+            NodeCostEstimate::new(10.0, 5.0, 100),
+            NodeCostEstimate::new(20.0, 10.0, 200),
+            NodeCostEstimate::new(30.0, 15.0, 300),
+        ];
+
+        assert_eq!(get_input_rows(&estimates, 0), 100);
+        assert_eq!(get_input_rows(&estimates, 1), 200);
+        assert_eq!(get_input_rows(&estimates, 2), 300);
+    }
+
+    #[test]
+    fn test_get_input_rows_empty() {
+        let estimates: Vec<NodeCostEstimate> = vec![];
+        assert_eq!(get_input_rows(&estimates, 0), 1);
+    }
+
+    #[test]
+    fn test_get_input_rows_out_of_bounds() {
+        let estimates = vec![NodeCostEstimate::new(10.0, 5.0, 100)];
+        assert_eq!(get_input_rows(&estimates, 1), 1);
+    }
+
+    #[test]
+    fn test_sum_child_costs() {
+        let estimates = vec![
+            NodeCostEstimate::new(10.0, 5.0, 100),
+            NodeCostEstimate::new(20.0, 10.0, 200),
+            NodeCostEstimate::new(30.0, 15.0, 300),
+        ];
+
+        let sum = sum_child_costs(&estimates);
+        assert_eq!(sum, 30.0);
+    }
+
+    #[test]
+    fn test_sum_child_costs_empty() {
+        let estimates: Vec<NodeCostEstimate> = vec![];
+        let sum = sum_child_costs(&estimates);
+        assert_eq!(sum, 0.0);
+    }
+
+    #[test]
+    fn test_sum_child_costs_single() {
+        let estimates = vec![NodeCostEstimate::new(10.0, 5.0, 100)];
+        let sum = sum_child_costs(&estimates);
+        assert_eq!(sum, 5.0);
+    }
+
+    #[test]
+    fn test_node_cost_estimate_creation() {
+        let estimate = NodeCostEstimate::new(10.0, 5.0, 100);
+        assert_eq!(estimate.node_cost, 10.0);
+        assert_eq!(estimate.total_cost, 5.0);
+        assert_eq!(estimate.output_rows, 100);
+    }
+
+    #[test]
+    fn test_node_cost_estimate_with_zero_values() {
+        let estimate = NodeCostEstimate::new(0.0, 0.0, 0);
+        assert_eq!(estimate.node_cost, 0.0);
+        assert_eq!(estimate.total_cost, 0.0);
+        assert_eq!(estimate.output_rows, 0);
+    }
+
+    #[test]
+    fn test_node_cost_estimate_with_large_values() {
+        let estimate = NodeCostEstimate::new(1_000_000.0, 500_000.0, 1_000_000);
+        assert_eq!(estimate.node_cost, 1_000_000.0);
+        assert_eq!(estimate.total_cost, 500_000.0);
+        assert_eq!(estimate.output_rows, 1_000_000);
+    }
+}

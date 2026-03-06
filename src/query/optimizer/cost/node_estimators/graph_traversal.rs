@@ -146,3 +146,298 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::optimizer::cost::config::CostModelConfig;
+    use crate::query::optimizer::stats::{EdgeTypeStatistics, TagStatistics};
+    use crate::query::planner::plan::core::nodes::graph_scan_node::*;
+    use crate::query::planner::plan::core::nodes::plan_node_traits::{MultipleInputNode, SingleInputNode};
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::traversal_node::*;
+    use std::sync::Arc;
+
+    fn create_test_calculator() -> CostCalculator {
+        let stats_manager = Arc::new(crate::query::optimizer::stats::StatisticsManager::new());
+        let config = CostModelConfig::default();
+        CostCalculator::with_config(stats_manager, config)
+    }
+
+    fn create_test_calculator_with_stats() -> CostCalculator {
+        let stats_manager = Arc::new(crate::query::optimizer::stats::StatisticsManager::new());
+        
+        let tag_stats = TagStatistics {
+            tag_name: "Person".to_string(),
+            vertex_count: 1000,
+            avg_out_degree: 5.0,
+            avg_in_degree: 5.0,
+            avg_vertex_size: 100,
+            last_analyzed: std::time::SystemTime::now(),
+        };
+        stats_manager.update_tag_stats(tag_stats);
+
+        let edge_stats = EdgeTypeStatistics {
+            edge_type: "friend".to_string(),
+            edge_count: 5000,
+            avg_out_degree: 3.0,
+            avg_in_degree: 2.0,
+            max_out_degree: 10,
+            max_in_degree: 8,
+            unique_src_vertices: 1000,
+            unique_dst_vertices: 1000,
+            last_analyzed: std::time::SystemTime::now(),
+        };
+        stats_manager.update_edge_stats(edge_stats);
+
+        let config = CostModelConfig::default();
+        CostCalculator::with_config(stats_manager, config)
+    }
+
+    fn create_test_start_node() -> PlanNodeEnum {
+        PlanNodeEnum::Start(StartNode::new())
+    }
+
+    #[test]
+    fn test_expand_estimation() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let input = create_test_start_node();
+        let mut node = ExpandNode::new(1, vec!["friend".to_string()], EdgeDirection::Out);
+        node.add_input(input);
+        let plan_node = PlanNodeEnum::Expand(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 1);
+    }
+
+    #[test]
+    fn test_expand_all_estimation() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let input = create_test_start_node();
+        let mut node = ExpandAllNode::new(1, vec!["friend".to_string()], "OUT");
+        node.add_input(input);
+        let plan_node = PlanNodeEnum::ExpandAll(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 1);
+    }
+
+    #[test]
+    fn test_traverse_estimation() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let input = create_test_start_node();
+        let mut node = TraverseNode::new(1, "vid", 1, 3);
+        node.set_input(input);
+        let plan_node = PlanNodeEnum::Traverse(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 1);
+    }
+
+    #[test]
+    fn test_append_vertices_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let input = create_test_start_node();
+        let mut node = AppendVerticesNode::new(1, "Person");
+        node.add_input(input);
+        let plan_node = PlanNodeEnum::AppendVertices(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_get_neighbors_estimation() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let input = create_test_start_node();
+        let mut node = GetNeighborsNode::new(1, "vid");
+        node.add_input(input);
+        let plan_node = PlanNodeEnum::GetNeighbors(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 1);
+    }
+
+    #[test]
+    fn test_get_vertices_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let mut node = GetVerticesNode::new(1, "vid");
+        node.set_limit(50);
+        let plan_node = PlanNodeEnum::GetVertices(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 50);
+    }
+
+    #[test]
+    fn test_get_edges_estimation() {
+        let calculator = create_test_calculator();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let mut node = GetEdgesNode::new(1, "src", "edge", "rank", "dst");
+        node.set_limit(100);
+        let plan_node = PlanNodeEnum::GetEdges(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_unsupported_node_type() {
+        let calculator = create_test_calculator();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let node = PlanNodeEnum::Start(StartNode::new());
+        let child_estimates = vec![];
+        let result = estimator.estimate(&node, &child_estimates);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_expand_different_directions() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let input = create_test_start_node();
+
+        for direction in [EdgeDirection::Out, EdgeDirection::In, EdgeDirection::Both] {
+            let mut node = ExpandNode::new(1, vec!["friend".to_string()], direction);
+            node.add_input(input.clone());
+            let plan_node = PlanNodeEnum::Expand(node);
+
+            let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+            let result = estimator.estimate(&plan_node, &child_estimates);
+
+            assert!(result.is_ok());
+            let (cost, output_rows) = result.unwrap();
+            assert!(cost > 0.0);
+            assert!(output_rows >= 1);
+        }
+    }
+
+    #[test]
+    fn test_traverse_different_steps() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let input = create_test_start_node();
+
+        for (min_steps, max_steps) in [(1, 2), (1, 3), (2, 5)] {
+            let mut node = TraverseNode::new(1, "vid", min_steps, max_steps);
+            node.set_input(input.clone());
+            let plan_node = PlanNodeEnum::Traverse(node);
+
+            let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+            let result = estimator.estimate(&plan_node, &child_estimates);
+
+            assert!(result.is_ok());
+            let (cost, output_rows) = result.unwrap();
+            assert!(cost > 0.0);
+            assert!(output_rows >= 1);
+        }
+    }
+
+    #[test]
+    fn test_expand_all_direction_parsing() {
+        let calculator = create_test_calculator_with_stats();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let input = create_test_start_node();
+
+        for direction in ["OUT", "IN", "BOTH", "out", "in", "both"] {
+            let mut node = ExpandAllNode::new(1, vec!["friend".to_string()], direction);
+            node.add_input(input.clone());
+            let plan_node = PlanNodeEnum::ExpandAll(node);
+
+            let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+            let result = estimator.estimate(&plan_node, &child_estimates);
+
+            assert!(result.is_ok());
+            let (cost, output_rows) = result.unwrap();
+            assert!(cost > 0.0);
+            assert!(output_rows >= 1);
+        }
+    }
+
+    #[test]
+    fn test_get_vertices_no_limit() {
+        let calculator = create_test_calculator();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let node = GetVerticesNode::new(1, "vid");
+        let plan_node = PlanNodeEnum::GetVertices(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_get_edges_no_limit() {
+        let calculator = create_test_calculator();
+        let estimator = GraphTraversalEstimator::new(&calculator);
+
+        let node = GetEdgesNode::new(1, "src", "edge", "rank", "dst");
+        let plan_node = PlanNodeEnum::GetEdges(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+}

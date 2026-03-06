@@ -27,7 +27,7 @@ use crate::query::executor::base::ExecutionResult;
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::optimizer::OptimizerEngine;
 use crate::query::parser::Parser;
-use crate::query::planner::{PlanCacheConfig, QueryPlanCache};
+use crate::query::planner::{ParameterizedQueryHandler, PlanCacheConfig, QueryPlanCache};
 use crate::query::query_request_context::QueryRequestContext;
 use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::QueryContext;
@@ -46,6 +46,8 @@ pub struct QueryPipelineManager<S: StorageClient + 'static> {
     optimizer_engine: Arc<OptimizerEngine>,
     /// 查询计划缓存
     plan_cache: Arc<QueryPlanCache>,
+    /// 参数化查询处理器
+    param_handler: ParameterizedQueryHandler,
 }
 
 impl<S: StorageClient + 'static> QueryPipelineManager<S> {
@@ -64,6 +66,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     ) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
         let plan_cache = Arc::new(QueryPlanCache::default());
+        let param_handler = ParameterizedQueryHandler::default();
 
         log::info!("查询管道管理器已创建，使用优化器引擎和查询计划缓存");
 
@@ -72,6 +75,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             stats_manager,
             optimizer_engine,
             plan_cache,
+            param_handler,
         }
     }
 
@@ -90,6 +94,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     ) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
         let plan_cache = Arc::new(QueryPlanCache::new(plan_cache_config));
+        let param_handler = ParameterizedQueryHandler::default();
 
         log::info!("查询管道管理器已创建，使用优化器引擎和自定义查询计划缓存");
 
@@ -98,6 +103,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             stats_manager,
             optimizer_engine,
             plan_cache,
+            param_handler,
         }
     }
 
@@ -176,7 +182,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let execution_time_ms = execute_start.elapsed().as_millis() as f64;
 
         // 8. 缓存查询计划
-        let param_positions = Vec::new(); // TODO: 提取参数位置
+        let param_positions = self.param_handler.extract_params(query_text);
         self.plan_cache.put(query_text, optimized_plan, param_positions);
         self.plan_cache.record_execution(query_text, execution_time_ms);
 

@@ -134,3 +134,327 @@ impl<'a> NodeEstimator for DataProcessingEstimator<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::{Expression, Value};
+    use crate::query::optimizer::cost::config::CostModelConfig;
+    use crate::query::planner::plan::core::nodes::data_processing_node::*;
+    use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
+    use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::validator::context::ExpressionAnalysisContext;
+    use crate::core::YieldColumn;
+    use std::sync::Arc;
+
+    fn create_test_expression() -> crate::core::types::ContextualExpression {
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        let expr_meta = ExpressionMeta::new(Expression::Variable("condition".to_string()));
+        let id = ctx.register_expression(expr_meta);
+        crate::core::types::ContextualExpression::new(id, ctx)
+    }
+
+    fn create_test_calculator_with_selectivity() -> (CostCalculator, SelectivityEstimator) {
+        let stats_manager = Arc::new(crate::query::optimizer::stats::StatisticsManager::new());
+        let config = CostModelConfig::default();
+        let calculator = CostCalculator::with_config(stats_manager.clone(), config);
+        let selectivity_estimator = SelectivityEstimator::new(stats_manager);
+        (calculator, selectivity_estimator)
+    }
+
+    #[test]
+    fn test_filter_estimation() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let condition = create_test_expression();
+        let node = FilterNode::new(input, condition).unwrap();
+        let plan_node = PlanNodeEnum::Filter(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 1);
+    }
+
+    #[test]
+    fn test_project_estimation() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        let expr_meta = ExpressionMeta::new(Expression::Variable("col".to_string()));
+        let id = ctx.register_expression(expr_meta);
+        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+        let columns = vec![YieldColumn {
+            expression: ctx_expr,
+            alias: "col".to_string(),
+            is_matched: false,
+        }];
+        let node = ProjectNode::new(input, columns).unwrap();
+        let plan_node = PlanNodeEnum::Project(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_unwind_estimation() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let list_expr = create_test_expression();
+        let node = UnwindNode::new(input, "item", list_expr).unwrap();
+        let plan_node = PlanNodeEnum::Unwind(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 1);
+    }
+
+    #[test]
+    fn test_data_collect_estimation() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let node = DataCollectNode::new(input, "ROW").unwrap();
+        let plan_node = PlanNodeEnum::DataCollect(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_start_estimation() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let node = StartNode::new();
+        let plan_node = PlanNodeEnum::Start(node);
+
+        let child_estimates = vec![];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert_eq!(cost, 0.0);
+        assert_eq!(output_rows, 0);
+    }
+
+    #[test]
+    fn test_unsupported_node_type() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let node = PlanNodeEnum::ScanVertices(crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode::new(1));
+        let child_estimates = vec![];
+        let result = estimator.estimate(&node, &child_estimates);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_count_filter_conditions_simple() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let condition = Expression::Binary {
+            op: BinaryOperator::Equal,
+            left: Box::new(Expression::Variable("a".to_string())),
+            right: Box::new(Expression::Literal(Value::String("1".to_string()))),
+        };
+        let count = estimator.count_filter_conditions(&condition);
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_count_filter_conditions_and() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let condition = Expression::Binary {
+            op: BinaryOperator::And,
+            left: Box::new(Expression::Variable("a".to_string())),
+            right: Box::new(Expression::Variable("b".to_string())),
+        };
+        let count = estimator.count_filter_conditions(&condition);
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn test_count_filter_conditions_or() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let condition = Expression::Binary {
+            op: BinaryOperator::Or,
+            left: Box::new(Expression::Variable("a".to_string())),
+            right: Box::new(Expression::Variable("b".to_string())),
+        };
+        let count = estimator.count_filter_conditions(&condition);
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn test_count_filter_conditions_complex() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let condition = Expression::Binary {
+            op: BinaryOperator::And,
+            left: Box::new(Expression::Binary {
+                op: BinaryOperator::Equal,
+                left: Box::new(Expression::Variable("a".to_string())),
+                right: Box::new(Expression::Literal(Value::String("1".to_string()))),
+            }),
+            right: Box::new(Expression::Binary {
+                op: BinaryOperator::Or,
+                left: Box::new(Expression::Variable("b".to_string())),
+                right: Box::new(Expression::Variable("c".to_string())),
+            }),
+        };
+        let count = estimator.count_filter_conditions(&condition);
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn test_filter_with_zero_input() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let condition = create_test_expression();
+        let node = FilterNode::new(input, condition).unwrap();
+        let plan_node = PlanNodeEnum::Filter(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(0.0, 0.0, 0)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost >= 0.0);
+        assert_eq!(output_rows, 1);
+    }
+
+    #[test]
+    fn test_project_with_multiple_columns() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        let columns = vec![
+            YieldColumn {
+                expression: {
+                    let expr_meta = ExpressionMeta::new(Expression::Variable("a".to_string()));
+                    let id = ctx.register_expression(expr_meta);
+                    crate::core::types::ContextualExpression::new(id, ctx.clone())
+                },
+                alias: "a".to_string(),
+                is_matched: false,
+            },
+            YieldColumn {
+                expression: {
+                    let expr_meta = ExpressionMeta::new(Expression::Variable("b".to_string()));
+                    let id = ctx.register_expression(expr_meta);
+                    crate::core::types::ContextualExpression::new(id, ctx.clone())
+                },
+                alias: "b".to_string(),
+                is_matched: false,
+            },
+            YieldColumn {
+                expression: {
+                    let expr_meta = ExpressionMeta::new(Expression::Variable("c".to_string()));
+                    let id = ctx.register_expression(expr_meta);
+                    crate::core::types::ContextualExpression::new(id, ctx.clone())
+                },
+                alias: "c".to_string(),
+                is_matched: false,
+            },
+        ];
+        let node = ProjectNode::new(input, columns).unwrap();
+        let plan_node = PlanNodeEnum::Project(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 100);
+    }
+
+    #[test]
+    fn test_unwind_with_large_list() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let list_expr = create_test_expression();
+        let node = UnwindNode::new(input, "item", list_expr).unwrap();
+        let plan_node = PlanNodeEnum::Unwind(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 1000)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert!(output_rows >= 1);
+    }
+
+    #[test]
+    fn test_data_collect_with_large_input() {
+        let (calculator, selectivity_estimator) = create_test_calculator_with_selectivity();
+        let config = CostModelConfig::default();
+        let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
+
+        let input = PlanNodeEnum::Start(StartNode::new());
+        let node = DataCollectNode::new(input, "ROW").unwrap();
+        let plan_node = PlanNodeEnum::DataCollect(node);
+
+        let child_estimates = vec![NodeCostEstimate::new(1000.0, 1000.0, 1_000_000)];
+        let result = estimator.estimate(&plan_node, &child_estimates);
+
+        assert!(result.is_ok());
+        let (cost, output_rows) = result.unwrap();
+        assert!(cost > 0.0);
+        assert_eq!(output_rows, 1_000_000);
+    }
+}

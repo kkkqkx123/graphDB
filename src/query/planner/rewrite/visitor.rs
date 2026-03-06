@@ -22,7 +22,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 
 use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
 use crate::query::planner::plan::core::nodes::data_processing_node::{
-    DedupNode, MaterializeNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
+    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::graph_scan_node::{
@@ -118,11 +118,70 @@ macro_rules! impl_binary_input_rewrite {
     };
 }
 
+/// 生成多输入节点（使用 dependencies）的重写方法
+macro_rules! impl_multi_input_deps_rewrite {
+    ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
+        $(
+            fn $method(&mut self, node: &$node_type) -> Self::Result {
+                let deps: Vec<PlanNodeEnum> = node
+                    .dependencies()
+                    .iter()
+                    .map(|dep| dep.as_ref().clone())
+                    .collect();
+                let mut new_deps = Vec::new();
+                for dep in deps.iter() {
+                    let node_id = self.ctx.allocate_node_id();
+                    let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
+                    new_deps.push(new_dep);
+                }
+                let mut new_node = node.clone();
+                new_node.set_dependencies(new_deps);
+                Ok(PlanNodeEnum::$enum_variant(new_node))
+            }
+        )*
+    };
+}
+
+/// 生成多输入节点（使用 inputs）的重写方法
+macro_rules! impl_multi_input_inputs_rewrite {
+    ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
+        $(
+            fn $method(&mut self, node: &$node_type) -> Self::Result {
+                let deps: Vec<PlanNodeEnum> = node
+                    .inputs()
+                    .iter()
+                    .map(|dep| dep.as_ref().clone())
+                    .collect();
+                let mut new_deps = Vec::new();
+                for dep in deps.iter() {
+                    let node_id = self.ctx.allocate_node_id();
+                    let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
+                    new_deps.push(new_dep);
+                }
+                let mut new_node = node.clone();
+                *new_node.inputs_mut() = new_deps.into_iter().map(Box::new).collect();
+                Ok(PlanNodeEnum::$enum_variant(new_node))
+            }
+        )*
+    };
+}
+
+/// 生成无输入节点的重写方法
+macro_rules! impl_no_input_rewrite {
+    ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
+        $(
+            fn $method(&mut self, node: &$node_type) -> Self::Result {
+                Ok(PlanNodeEnum::$enum_variant(node.clone()))
+            }
+        )*
+    };
+}
+
 impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
     type Result = RewriteResult<PlanNodeEnum>;
 
     fn visit_default(&mut self) -> RewriteResult<PlanNodeEnum> {
-        todo!("visit_default should not be called")
+        unreachable!("visit_default should not be called - all node types should have specific visit methods")
     }
 
     impl_single_input_rewrite!(
@@ -158,25 +217,32 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         PatternApply,
         visit_roll_up_apply,
         RollUpApplyNode,
-        RollUpApply
+        RollUpApply,
+        visit_data_collect,
+        DataCollectNode,
+        DataCollect,
+        visit_assign,
+        AssignNode,
+        Assign
     );
 
-    fn visit_materialize(&mut self, node: &MaterializeNode) -> Self::Result {
-        let deps: Vec<PlanNodeEnum> = node
-            .dependencies()
-            .iter()
-            .map(|dep| dep.as_ref().clone())
-            .collect();
-        let mut new_deps = Vec::new();
-        for dep in deps.iter() {
-            let node_id = self.ctx.allocate_node_id();
-            let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
-            new_deps.push(new_dep);
-        }
-        let mut new_node = node.clone();
-        new_node.set_dependencies(new_deps);
-        Ok(PlanNodeEnum::Materialize(new_node))
-    }
+    impl_multi_input_inputs_rewrite!(
+        visit_expand,
+        ExpandNode,
+        Expand,
+        visit_expand_all,
+        ExpandAllNode,
+        ExpandAll,
+        visit_append_vertices,
+        AppendVerticesNode,
+        AppendVertices,
+        visit_get_vertices,
+        GetVerticesNode,
+        GetVertices,
+        visit_get_neighbors,
+        GetNeighborsNode,
+        GetNeighbors
+    );
 
     impl_binary_input_rewrite!(
         visit_hash_inner_join,
@@ -196,181 +262,149 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         CrossJoin,
         visit_full_outer_join,
         FullOuterJoinNode,
-        FullOuterJoin
+        FullOuterJoin,
+        visit_multi_shortest_path,
+        MultiShortestPath,
+        MultiShortestPath,
+        visit_bfs_shortest,
+        BFSShortest,
+        BFSShortest,
+        visit_all_paths,
+        AllPaths,
+        AllPaths,
+        visit_shortest_path,
+        ShortestPath,
+        ShortestPath
     );
 
-    fn visit_union(&mut self, node: &UnionNode) -> Self::Result {
-        let deps: Vec<PlanNodeEnum> = node
-            .dependencies()
-            .iter()
-            .map(|dep| dep.as_ref().clone())
-            .collect();
-        let mut new_deps = Vec::new();
-        for dep in deps.iter() {
-            let node_id = self.ctx.allocate_node_id();
-            let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
-            new_deps.push(new_dep);
-        }
-        let mut new_node = node.clone();
-        new_node.set_dependencies(new_deps);
-        Ok(PlanNodeEnum::Union(new_node))
-    }
+    impl_no_input_rewrite!(
+        visit_get_edges,
+        GetEdgesNode,
+        GetEdges,
+        visit_scan_vertices,
+        ScanVerticesNode,
+        ScanVertices,
+        visit_scan_edges,
+        ScanEdgesNode,
+        ScanEdges,
+        visit_edge_index_scan,
+        EdgeIndexScanNode,
+        EdgeIndexScan,
+        visit_argument,
+        ArgumentNode,
+        Argument,
+        visit_pass_through,
+        PassThroughNode,
+        PassThrough,
+        visit_start,
+        StartNode,
+        Start,
+        visit_create_space,
+        CreateSpaceNode,
+        CreateSpace,
+        visit_drop_space,
+        DropSpaceNode,
+        DropSpace,
+        visit_desc_space,
+        DescSpaceNode,
+        DescSpace,
+        visit_show_spaces,
+        ShowSpacesNode,
+        ShowSpaces,
+        visit_create_tag,
+        CreateTagNode,
+        CreateTag,
+        visit_alter_tag,
+        AlterTagNode,
+        AlterTag,
+        visit_desc_tag,
+        DescTagNode,
+        DescTag,
+        visit_drop_tag,
+        DropTagNode,
+        DropTag,
+        visit_show_tags,
+        ShowTagsNode,
+        ShowTags,
+        visit_create_edge,
+        CreateEdgeNode,
+        CreateEdge,
+        visit_alter_edge,
+        AlterEdgeNode,
+        AlterEdge,
+        visit_desc_edge,
+        DescEdgeNode,
+        DescEdge,
+        visit_drop_edge,
+        DropEdgeNode,
+        DropEdge,
+        visit_show_edges,
+        ShowEdgesNode,
+        ShowEdges,
+        visit_create_tag_index,
+        CreateTagIndexNode,
+        CreateTagIndex,
+        visit_drop_tag_index,
+        DropTagIndexNode,
+        DropTagIndex,
+        visit_desc_tag_index,
+        DescTagIndexNode,
+        DescTagIndex,
+        visit_show_tag_indexes,
+        ShowTagIndexesNode,
+        ShowTagIndexes,
+        visit_create_edge_index,
+        CreateEdgeIndexNode,
+        CreateEdgeIndex,
+        visit_drop_edge_index,
+        DropEdgeIndexNode,
+        DropEdgeIndex,
+        visit_desc_edge_index,
+        DescEdgeIndexNode,
+        DescEdgeIndex,
+        visit_show_edge_indexes,
+        ShowEdgeIndexesNode,
+        ShowEdgeIndexes,
+        visit_rebuild_tag_index,
+        RebuildTagIndexNode,
+        RebuildTagIndex,
+        visit_rebuild_edge_index,
+        RebuildEdgeIndexNode,
+        RebuildEdgeIndex,
+        visit_create_user,
+        CreateUserNode,
+        CreateUser,
+        visit_alter_user,
+        AlterUserNode,
+        AlterUser,
+        visit_drop_user,
+        DropUserNode,
+        DropUser,
+        visit_change_password,
+        ChangePasswordNode,
+        ChangePassword,
+        visit_index_scan,
+        IndexScan,
+        IndexScan
+    );
 
-    fn visit_minus(&mut self, node: &MinusNode) -> Self::Result {
-        let deps: Vec<PlanNodeEnum> = node
-            .dependencies()
-            .iter()
-            .map(|dep| dep.as_ref().clone())
-            .collect();
-        let mut new_deps = Vec::new();
-        for dep in deps.iter() {
-            let node_id = self.ctx.allocate_node_id();
-            let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
-            new_deps.push(new_dep);
-        }
-        let mut new_node = node.clone();
-        new_node.set_dependencies(new_deps);
-        Ok(PlanNodeEnum::Minus(new_node))
-    }
-
-    fn visit_intersect(&mut self, node: &IntersectNode) -> Self::Result {
-        let deps: Vec<PlanNodeEnum> = node
-            .dependencies()
-            .iter()
-            .map(|dep| dep.as_ref().clone())
-            .collect();
-        let mut new_deps = Vec::new();
-        for dep in deps.iter() {
-            let node_id = self.ctx.allocate_node_id();
-            let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
-            new_deps.push(new_dep);
-        }
-        let mut new_node = node.clone();
-        new_node.set_dependencies(new_deps);
-        Ok(PlanNodeEnum::Intersect(new_node))
-    }
-
-    fn visit_expand(&mut self, node: &ExpandNode) -> Self::Result {
-        let deps: Vec<PlanNodeEnum> = node
-            .inputs()
-            .iter()
-            .map(|dep| dep.as_ref().clone())
-            .collect();
-        let mut new_deps = Vec::new();
-        for dep in deps.iter() {
-            let node_id = self.ctx.allocate_node_id();
-            let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
-            new_deps.push(new_dep);
-        }
-        let mut new_node = node.clone();
-        *new_node.inputs_mut() = new_deps.into_iter().map(Box::new).collect();
-        Ok(PlanNodeEnum::Expand(new_node))
-    }
-
-    fn visit_expand_all(&mut self, node: &ExpandAllNode) -> Self::Result {
-        let deps: Vec<PlanNodeEnum> = node
-            .inputs()
-            .iter()
-            .map(|dep| dep.as_ref().clone())
-            .collect();
-        let mut new_deps = Vec::new();
-        for dep in deps.iter() {
-            let node_id = self.ctx.allocate_node_id();
-            let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
-            new_deps.push(new_dep);
-        }
-        let mut new_node = node.clone();
-        *new_node.inputs_mut() = new_deps.into_iter().map(Box::new).collect();
-        Ok(PlanNodeEnum::ExpandAll(new_node))
-    }
-
-    fn visit_traverse(&mut self, node: &TraverseNode) -> Self::Result {
-        let deps: Vec<PlanNodeEnum> = node
-            .dependencies()
-            .iter()
-            .map(|dep| dep.as_ref().clone())
-            .collect();
-        let mut new_deps = Vec::new();
-        for dep in deps.iter() {
-            let node_id = self.ctx.allocate_node_id();
-            let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
-            new_deps.push(new_dep);
-        }
-        let mut new_node = node.clone();
-        new_node.set_dependencies(new_deps);
-        Ok(PlanNodeEnum::Traverse(new_node))
-    }
-
-    fn visit_append_vertices(&mut self, node: &AppendVerticesNode) -> Self::Result {
-        let deps: Vec<PlanNodeEnum> = node
-            .inputs()
-            .iter()
-            .map(|dep| dep.as_ref().clone())
-            .collect();
-        let mut new_deps = Vec::new();
-        for dep in deps.iter() {
-            let node_id = self.ctx.allocate_node_id();
-            let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
-            new_deps.push(new_dep);
-        }
-        let mut new_node = node.clone();
-        *new_node.inputs_mut() = new_deps.into_iter().map(Box::new).collect();
-        Ok(PlanNodeEnum::AppendVertices(new_node))
-    }
-
-    fn visit_get_vertices(&mut self, node: &GetVerticesNode) -> Self::Result {
-        let deps: Vec<PlanNodeEnum> = node
-            .inputs()
-            .iter()
-            .map(|dep| dep.as_ref().clone())
-            .collect();
-        let mut new_deps = Vec::new();
-        for dep in deps.iter() {
-            let node_id = self.ctx.allocate_node_id();
-            let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
-            new_deps.push(new_dep);
-        }
-        let mut new_node = node.clone();
-        *new_node.inputs_mut() = new_deps.into_iter().map(Box::new).collect();
-        Ok(PlanNodeEnum::GetVertices(new_node))
-    }
-
-    fn visit_get_edges(&mut self, _node: &GetEdgesNode) -> Self::Result {
-        Ok(PlanNodeEnum::GetEdges(_node.clone()))
-    }
-
-    fn visit_get_neighbors(&mut self, node: &GetNeighborsNode) -> Self::Result {
-        let deps: Vec<PlanNodeEnum> = node
-            .inputs()
-            .iter()
-            .map(|dep| dep.as_ref().clone())
-            .collect();
-        let mut new_deps = Vec::new();
-        for dep in deps.iter() {
-            let node_id = self.ctx.allocate_node_id();
-            let new_dep = self.rewriter.rewrite_node(self.ctx, dep, node_id)?;
-            new_deps.push(new_dep);
-        }
-        let mut new_node = node.clone();
-        *new_node.inputs_mut() = new_deps.into_iter().map(Box::new).collect();
-        Ok(PlanNodeEnum::GetNeighbors(new_node))
-    }
-
-    fn visit_scan_vertices(&mut self, _node: &ScanVerticesNode) -> Self::Result {
-        Ok(PlanNodeEnum::ScanVertices(_node.clone()))
-    }
-
-    fn visit_scan_edges(&mut self, _node: &ScanEdgesNode) -> Self::Result {
-        Ok(PlanNodeEnum::ScanEdges(_node.clone()))
-    }
-
-    fn visit_edge_index_scan(&mut self, _node: &EdgeIndexScanNode) -> Self::Result {
-        Ok(PlanNodeEnum::EdgeIndexScan(_node.clone()))
-    }
-
-    fn visit_argument(&mut self, _node: &ArgumentNode) -> Self::Result {
-        Ok(PlanNodeEnum::Argument(_node.clone()))
-    }
+    impl_multi_input_deps_rewrite!(
+        visit_materialize,
+        MaterializeNode,
+        Materialize,
+        visit_union,
+        UnionNode,
+        Union,
+        visit_minus,
+        MinusNode,
+        Minus,
+        visit_intersect,
+        IntersectNode,
+        Intersect,
+        visit_traverse,
+        TraverseNode,
+        Traverse
+    );
 
     fn visit_loop(&mut self, node: &LoopNode) -> Self::Result {
         let body = node.body().clone();
@@ -383,10 +417,6 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         } else {
             Ok(PlanNodeEnum::Loop(node.clone()))
         }
-    }
-
-    fn visit_pass_through(&mut self, _node: &PassThroughNode) -> Self::Result {
-        Ok(PlanNodeEnum::PassThrough(_node.clone()))
     }
 
     fn visit_select(&mut self, node: &SelectNode) -> Self::Result {
@@ -407,178 +437,6 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         }
 
         Ok(PlanNodeEnum::Select(new_node))
-    }
-
-    fn visit_start(&mut self, _node: &StartNode) -> Self::Result {
-        Ok(PlanNodeEnum::Start(_node.clone()))
-    }
-
-    fn visit_create_space(&mut self, _node: &CreateSpaceNode) -> Self::Result {
-        Ok(PlanNodeEnum::CreateSpace(_node.clone()))
-    }
-
-    fn visit_drop_space(&mut self, _node: &DropSpaceNode) -> Self::Result {
-        Ok(PlanNodeEnum::DropSpace(_node.clone()))
-    }
-
-    fn visit_desc_space(&mut self, _node: &DescSpaceNode) -> Self::Result {
-        Ok(PlanNodeEnum::DescSpace(_node.clone()))
-    }
-
-    fn visit_show_spaces(&mut self, _node: &ShowSpacesNode) -> Self::Result {
-        Ok(PlanNodeEnum::ShowSpaces(_node.clone()))
-    }
-
-    fn visit_create_tag(&mut self, _node: &CreateTagNode) -> Self::Result {
-        Ok(PlanNodeEnum::CreateTag(_node.clone()))
-    }
-
-    fn visit_alter_tag(&mut self, _node: &AlterTagNode) -> Self::Result {
-        Ok(PlanNodeEnum::AlterTag(_node.clone()))
-    }
-
-    fn visit_desc_tag(&mut self, _node: &DescTagNode) -> Self::Result {
-        Ok(PlanNodeEnum::DescTag(_node.clone()))
-    }
-
-    fn visit_drop_tag(&mut self, _node: &DropTagNode) -> Self::Result {
-        Ok(PlanNodeEnum::DropTag(_node.clone()))
-    }
-
-    fn visit_show_tags(&mut self, _node: &ShowTagsNode) -> Self::Result {
-        Ok(PlanNodeEnum::ShowTags(_node.clone()))
-    }
-
-    fn visit_create_edge(&mut self, _node: &CreateEdgeNode) -> Self::Result {
-        Ok(PlanNodeEnum::CreateEdge(_node.clone()))
-    }
-
-    fn visit_alter_edge(&mut self, _node: &AlterEdgeNode) -> Self::Result {
-        Ok(PlanNodeEnum::AlterEdge(_node.clone()))
-    }
-
-    fn visit_desc_edge(&mut self, _node: &DescEdgeNode) -> Self::Result {
-        Ok(PlanNodeEnum::DescEdge(_node.clone()))
-    }
-
-    fn visit_drop_edge(&mut self, _node: &DropEdgeNode) -> Self::Result {
-        Ok(PlanNodeEnum::DropEdge(_node.clone()))
-    }
-
-    fn visit_show_edges(&mut self, _node: &ShowEdgesNode) -> Self::Result {
-        Ok(PlanNodeEnum::ShowEdges(_node.clone()))
-    }
-
-    fn visit_create_tag_index(&mut self, _node: &CreateTagIndexNode) -> Self::Result {
-        Ok(PlanNodeEnum::CreateTagIndex(_node.clone()))
-    }
-
-    fn visit_drop_tag_index(&mut self, _node: &DropTagIndexNode) -> Self::Result {
-        Ok(PlanNodeEnum::DropTagIndex(_node.clone()))
-    }
-
-    fn visit_desc_tag_index(&mut self, _node: &DescTagIndexNode) -> Self::Result {
-        Ok(PlanNodeEnum::DescTagIndex(_node.clone()))
-    }
-
-    fn visit_show_tag_indexes(&mut self, _node: &ShowTagIndexesNode) -> Self::Result {
-        Ok(PlanNodeEnum::ShowTagIndexes(_node.clone()))
-    }
-
-    fn visit_create_edge_index(&mut self, _node: &CreateEdgeIndexNode) -> Self::Result {
-        Ok(PlanNodeEnum::CreateEdgeIndex(_node.clone()))
-    }
-
-    fn visit_drop_edge_index(&mut self, _node: &DropEdgeIndexNode) -> Self::Result {
-        Ok(PlanNodeEnum::DropEdgeIndex(_node.clone()))
-    }
-
-    fn visit_desc_edge_index(&mut self, _node: &DescEdgeIndexNode) -> Self::Result {
-        Ok(PlanNodeEnum::DescEdgeIndex(_node.clone()))
-    }
-
-    fn visit_show_edge_indexes(&mut self, _node: &ShowEdgeIndexesNode) -> Self::Result {
-        Ok(PlanNodeEnum::ShowEdgeIndexes(_node.clone()))
-    }
-
-    fn visit_rebuild_tag_index(&mut self, _node: &RebuildTagIndexNode) -> Self::Result {
-        Ok(PlanNodeEnum::RebuildTagIndex(_node.clone()))
-    }
-
-    fn visit_rebuild_edge_index(&mut self, _node: &RebuildEdgeIndexNode) -> Self::Result {
-        Ok(PlanNodeEnum::RebuildEdgeIndex(_node.clone()))
-    }
-
-    fn visit_create_user(&mut self, _node: &CreateUserNode) -> Self::Result {
-        Ok(PlanNodeEnum::CreateUser(_node.clone()))
-    }
-
-    fn visit_alter_user(&mut self, _node: &AlterUserNode) -> Self::Result {
-        Ok(PlanNodeEnum::AlterUser(_node.clone()))
-    }
-
-    fn visit_drop_user(&mut self, _node: &DropUserNode) -> Self::Result {
-        Ok(PlanNodeEnum::DropUser(_node.clone()))
-    }
-
-    fn visit_change_password(&mut self, _node: &ChangePasswordNode) -> Self::Result {
-        Ok(PlanNodeEnum::ChangePassword(_node.clone()))
-    }
-
-    fn visit_index_scan(&mut self, _node: &IndexScan) -> Self::Result {
-        Ok(PlanNodeEnum::IndexScan(_node.clone()))
-    }
-
-    fn visit_multi_shortest_path(&mut self, node: &MultiShortestPath) -> Self::Result {
-        let left = node.left_input().clone_plan_node();
-        let right = node.right_input().clone_plan_node();
-        let left_id = self.ctx.allocate_node_id();
-        let right_id = self.ctx.allocate_node_id();
-        let new_left = self.rewriter.rewrite_node(self.ctx, &left, left_id)?;
-        let new_right = self.rewriter.rewrite_node(self.ctx, &right, right_id)?;
-        let mut new_node = node.clone();
-        new_node.set_left_input(new_left);
-        new_node.set_right_input(new_right);
-        Ok(PlanNodeEnum::MultiShortestPath(new_node))
-    }
-
-    fn visit_bfs_shortest(&mut self, node: &BFSShortest) -> Self::Result {
-        let left = node.left_input().clone_plan_node();
-        let right = node.right_input().clone_plan_node();
-        let left_id = self.ctx.allocate_node_id();
-        let right_id = self.ctx.allocate_node_id();
-        let new_left = self.rewriter.rewrite_node(self.ctx, &left, left_id)?;
-        let new_right = self.rewriter.rewrite_node(self.ctx, &right, right_id)?;
-        let mut new_node = node.clone();
-        new_node.set_left_input(new_left);
-        new_node.set_right_input(new_right);
-        Ok(PlanNodeEnum::BFSShortest(new_node))
-    }
-
-    fn visit_all_paths(&mut self, node: &AllPaths) -> Self::Result {
-        let left = node.left_input().clone_plan_node();
-        let right = node.right_input().clone_plan_node();
-        let left_id = self.ctx.allocate_node_id();
-        let right_id = self.ctx.allocate_node_id();
-        let new_left = self.rewriter.rewrite_node(self.ctx, &left, left_id)?;
-        let new_right = self.rewriter.rewrite_node(self.ctx, &right, right_id)?;
-        let mut new_node = node.clone();
-        new_node.set_left_input(new_left);
-        new_node.set_right_input(new_right);
-        Ok(PlanNodeEnum::AllPaths(new_node))
-    }
-
-    fn visit_shortest_path(&mut self, node: &ShortestPath) -> Self::Result {
-        let left = node.left_input().clone_plan_node();
-        let right = node.right_input().clone_plan_node();
-        let left_id = self.ctx.allocate_node_id();
-        let right_id = self.ctx.allocate_node_id();
-        let new_left = self.rewriter.rewrite_node(self.ctx, &left, left_id)?;
-        let new_right = self.rewriter.rewrite_node(self.ctx, &right, right_id)?;
-        let mut new_node = node.clone();
-        new_node.set_left_input(new_left);
-        new_node.set_right_input(new_right);
-        Ok(PlanNodeEnum::ShortestPath(new_node))
     }
 }
 
