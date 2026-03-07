@@ -2,37 +2,37 @@
 
 ## Summary
 
-- **Total Errors**: 1
-- **Total Warnings**: 0
+- **Total Errors**: 0
+- **Total Warnings**: 1
 - **Total Issues**: 1
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 0
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 1
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 1
-
-### Error Type Breakdown
-
-- **error[E0505]**: 1 errors
-
-### Files with Errors (Top 10)
-
-- `src\storage\metadata\redb_schema_manager.rs`: 1 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 1
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0505]: cannot move out of `write_txn` because it is borrowed: move out of `write_txn` occurs here
+- **warning**: 1 warnings
+
+### Files with Warnings (Top 10)
+
+- `src\transaction\context.rs`: 1 warnings
+
+## Detailed Warning Categorization
+
+### warning: variable does not need to be mutable
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\storage\metadata\redb_schema_manager.rs`: 1 occurrences
+#### `src\transaction\context.rs`: 1 occurrences
 
-- Line 179: cannot move out of `write_txn` because it is borrowed: move out of `write_txn` occurs here
+- Line 323: variable does not need to be mutable
 

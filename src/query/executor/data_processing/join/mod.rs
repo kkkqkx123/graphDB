@@ -23,8 +23,7 @@ pub use base_join::BaseJoinExecutor;
 pub use cross_join::CrossJoinExecutor;
 pub use full_outer_join::FullOuterJoinExecutor;
 pub use hash_table::{
-    HashTableBuilder, HashTableProbe, HashTableStats, JoinKey, MultiKeyHashTable,
-    SingleKeyHashTable,
+    HashTableBuilder, JoinKey,
 };
 pub use inner_join::{HashInnerJoinExecutor, InnerJoinExecutor};
 pub use join_key_evaluator::JoinKeyEvaluator;
@@ -50,8 +49,6 @@ pub struct JoinConfig {
     pub output_columns: Vec<String>,
     /// 是否启用并行处理
     pub enable_parallel: bool,
-    /// 内存限制（字节）
-    pub memory_limit: Option<usize>,
 }
 
 impl JoinConfig {
@@ -71,7 +68,6 @@ impl JoinConfig {
             right_keys,
             output_columns,
             enable_parallel: false,
-            memory_limit: None,
         }
     }
 
@@ -91,7 +87,6 @@ impl JoinConfig {
             right_keys,
             output_columns,
             enable_parallel: false,
-            memory_limit: None,
         }
     }
 }
