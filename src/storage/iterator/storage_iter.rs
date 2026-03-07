@@ -1,14 +1,21 @@
 //! 存储迭代器 - 提供与存储引擎交互的迭代接口
 //!
-//! 对应原C++中的StorageIterator
 //! 提供：
 //! - StorageIterator: 存储引擎迭代器接口
-//! - VertexIter: 顶点迭代器
-//! - EdgeIter: 边迭代器
-//! - PropIter: 属性迭代器
+//! - VecPairIterator: 简单的 KV 对迭代器
+//! - IterStats: 迭代器统计信息
+//! - IterConfig: 迭代器配置
 
 use crate::core::StorageError;
-use crate::storage::iterator::StorageIterator;
+
+/// 存储引擎迭代器接口
+/// 用于底层KV存储的迭代操作
+pub trait StorageIterator: Send {
+    fn key(&self) -> Option<&[u8]>;
+    fn value(&self) -> Option<&[u8]>;
+    fn next(&mut self) -> bool;
+    fn estimate_remaining(&self) -> Option<usize>;
+}
 
 /// 迭代器错误类型
 #[derive(Debug, Clone, PartialEq)]

@@ -2,37 +2,48 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 1
-- **Total Issues**: 1
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 1
+- **Total Errors**: 2
+- **Total Warnings**: 0
+- **Total Issues**: 2
+- **Unique Error Patterns**: 2
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 2
+
+### Error Type Breakdown
+
+- **error[E0603]**: 1 errors
+- **error[E0432]**: 1 errors
+
+### Files with Errors (Top 10)
+
+- `src\storage\iterator\storage_iter.rs`: 1 errors
+- `src\storage\iterator\mod.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 1 warnings
-
-### Files with Warnings (Top 10)
-
-- `src\transaction\context.rs`: 1 warnings
-
-## Detailed Warning Categorization
-
-### warning: method `savepoint_manager` is never used
+### error[E0432]: unresolved import `crate::storage::iterator::StorageIterator`: no `StorageIterator` in `storage::iterator`
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\transaction\context.rs`: 1 occurrences
+#### `src\storage\iterator\storage_iter.rs`: 1 occurrences
 
-- Line 287: method `savepoint_manager` is never used
+- Line 11: unresolved import `crate::storage::iterator::StorageIterator`: no `StorageIterator` in `storage::iterator`
+
+### error[E0603]: unresolved item import `StorageIterator` is private: private unresolved item import
+
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `src\storage\iterator\mod.rs`: 1 occurrences
+
+- Line 21: unresolved item import `StorageIterator` is private: private unresolved item import
 
