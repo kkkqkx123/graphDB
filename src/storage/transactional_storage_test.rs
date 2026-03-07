@@ -482,9 +482,15 @@ fn test_transactional_storage_client_create_savepoint() {
     let result = transactional.execute_in_transaction(
         TransactionOptions::default(),
         |client| {
+            // 创建保存点 sp1，此时操作日志长度为 0
             let sp1 = client.create_savepoint(Some("sp1".to_string()))?;
             assert_eq!(sp1.value(), 0);
 
+            // 插入一个顶点，操作日志长度变为 1
+            let v1 = create_test_vertex(1);
+            client.insert_vertex("test_space", v1)?;
+
+            // 创建保存点 sp2，此时操作日志长度为 1
             let sp2 = client.create_savepoint(Some("sp2".to_string()))?;
             assert_eq!(sp2.value(), 1);
 

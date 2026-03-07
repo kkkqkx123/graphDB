@@ -365,13 +365,16 @@ impl StorageClient for RedbStorage {
             .map(|r| r.into_vec())
     }
 
-    fn get_node_edges_filtered(
+    fn get_node_edges_filtered<F>(
         &self,
         space: &str,
         node_id: &Value,
         direction: EdgeDirection,
-        filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync + 'static>>,
-    ) -> Result<Vec<Edge>, StorageError> {
+        filter: Option<F>,
+    ) -> Result<Vec<Edge>, StorageError>
+    where
+        F: Fn(&Edge) -> bool,
+    {
         self.reader
             .lock()
             .get_node_edges_filtered(space, node_id, direction, filter)

@@ -31,13 +31,15 @@ pub trait EdgeReader: Send + Sync {
         node_id: &Value,
         direction: EdgeDirection,
     ) -> Result<ScanResult<Edge>, StorageError>;
-    fn get_node_edges_filtered(
+    fn get_node_edges_filtered<F>(
         &self,
         space: &str,
         node_id: &Value,
         direction: EdgeDirection,
-        filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
-    ) -> Result<ScanResult<Edge>, StorageError>;
+        filter: Option<F>,
+    ) -> Result<ScanResult<Edge>, StorageError>
+    where
+        F: Fn(&Edge) -> bool;
     fn scan_edges_by_type(
         &self,
         space: &str,

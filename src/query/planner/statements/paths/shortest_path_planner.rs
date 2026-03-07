@@ -147,13 +147,16 @@ impl StorageClient for DummyStorage {
     ) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn get_node_edges_filtered(
+    fn get_node_edges_filtered<F>(
         &self,
         _space: &str,
         _node_id: &Value,
         _direction: EdgeDirection,
-        _filter: Option<Box<dyn Fn(&crate::core::Edge) -> bool + Send + Sync>>,
-    ) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
+        _filter: Option<F>,
+    ) -> Result<Vec<crate::core::Edge>, crate::core::StorageError>
+    where
+        F: Fn(&crate::core::Edge) -> bool,
+    {
         Ok(Vec::new())
     }
     fn delete_edge(

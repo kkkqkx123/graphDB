@@ -23,16 +23,16 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\storage\operations\operation_log_rollback.rs`: 1 warnings
+- `src\transaction\two_phase_test.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: method `rollback_operation` is never used
+### warning: associated items `new`, `fail_prepare`, `fail_commit`, and `fail_abort` are never used
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\storage\operations\operation_log_rollback.rs`: 1 occurrences
+#### `src\transaction\two_phase_test.rs`: 1 occurrences
 
-- Line 82: method `rollback_operation` is never used
+- Line 22: associated items `new`, `fail_prepare`, `fail_commit`, and `fail_abort` are never used
 

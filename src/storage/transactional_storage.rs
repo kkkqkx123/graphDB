@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::operations::writer::{EdgeWriter, VertexWriter};
+use crate::storage::operations::{OperationExecutor, StorageOperationExecutor};
 use crate::storage::{RedbStorage, RedbWriter};
 use crate::transaction::{
     SavepointId, TransactionContext, TransactionId, TransactionManager, TransactionOptions,
@@ -346,12 +347,8 @@ impl<'a> TransactionalStorageClient<'a> {
         // 创建保存点ID（使用操作日志索引作为ID）
         let savepoint_id = SavepointId::new(operation_log_index as u64);
 
-        // 记录保存点信息到操作日志
-        ctx.add_operation_log(crate::transaction::OperationLog::InsertVertex {
-            space: format!("__savepoint__{}", savepoint_id.value()),
-            vertex_id: operation_log_index.to_be_bytes().to_vec(),
-            previous_state: None,
-        });
+        // 注意：不再添加特殊的保存点标记到操作日志
+        // 保存点ID本身就是操作日志的索引位置
 
         Ok(savepoint_id)
     }
@@ -365,19 +362,40 @@ impl<'a> TransactionalStorageClient<'a> {
     /// * `Ok(())` - 回滚成功
     /// * `Err(StorageError)` - 回滚失败
     ///
-    /// # 注意
-    /// redb 本身不支持保存点回滚。此功能通过操作日志实现。
-    /// 回滚时，会撤销保存点之后的所有操作。
-    /// 由于 redb 不支持撤销操作，此实现仅清空操作日志，实际回滚需要中止整个事务。
+    /// # 实现说明
+    /// 保存点回滚通过操作日志实现：
+    /// 1. 获取保存点之后的所有操作日志
+    /// 2. 逆序执行每个操作的逆操作（回滚）
+    /// 3. 截断操作日志到保存点位置
     pub fn rollback_to_savepoint(&mut self, savepoint_id: SavepointId) -> Result<(), StorageError> {
         let ctx = self.get_context()?;
+        let savepoint_index = savepoint_id.value() as usize;
+        let current_log_len = ctx.operation_log_len();
+
+        // 验证保存点索引是否有效
+        if savepoint_index > current_log_len {
+            return Err(StorageError::DbError(format!(
+                "无效的保存点索引: {}, 当前操作日志长度: {}",
+                savepoint_index, current_log_len
+            )));
+        }
+
+        // 获取需要回滚的操作日志
+        let logs_to_rollback = ctx.get_operation_logs(savepoint_index, current_log_len);
+
+        if !logs_to_rollback.is_empty() {
+            // 获取 writer 并绑定到当前事务
+            let writer_arc = self.storage.get_writer();
+            let mut writer = writer_arc.lock().clone();
+            writer.bind_transaction_context(ctx.clone());
+
+            // 创建操作执行器并执行回滚
+            let mut executor = StorageOperationExecutor::new(&mut writer, "default");
+            executor.execute_rollback_batch(&logs_to_rollback)?;
+        }
 
         // 截断操作日志到保存点位置
-        ctx.truncate_operation_log(savepoint_id.value() as usize);
-
-        // 注意：由于 redb 不支持撤销操作，实际的回滚需要中止整个事务
-        // 这里我们只是清空操作日志，实际的回滚逻辑需要由调用者决定
-        // 如果需要真正的回滚，应该调用 abort_transaction 并重新开始事务
+        ctx.truncate_operation_log(savepoint_index);
 
         Ok(())
     }

@@ -11,15 +11,15 @@ use crate::transaction::two_phase::{
 use crate::transaction::types::{TransactionError, TransactionId};
 
 /// 模拟资源管理器
-struct MockResourceManager {
+struct _MockResourceManager {
     id: String,
     should_fail_prepare: bool,
     should_fail_commit: bool,
     should_fail_abort: bool,
 }
 
-impl MockResourceManager {
-    fn new(id: &str) -> Self {
+impl _MockResourceManager {
+    fn _new(id: &str) -> Self {
         Self {
             id: id.to_string(),
             should_fail_prepare: false,
@@ -28,23 +28,23 @@ impl MockResourceManager {
         }
     }
 
-    fn fail_prepare(mut self) -> Self {
+    fn _fail_prepare(mut self) -> Self {
         self.should_fail_prepare = true;
         self
     }
 
-    fn fail_commit(mut self) -> Self {
+    fn _fail_commit(mut self) -> Self {
         self.should_fail_commit = true;
         self
     }
 
-    fn fail_abort(mut self) -> Self {
+    fn _fail_abort(mut self) -> Self {
         self.should_fail_abort = true;
         self
     }
 }
 
-impl ResourceManager for MockResourceManager {
+impl ResourceManager for _MockResourceManager {
     fn id(&self) -> &str {
         &self.id
     }

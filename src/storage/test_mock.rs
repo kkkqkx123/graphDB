@@ -105,13 +105,16 @@ impl StorageClient for MockStorage {
         Ok(Vec::new())
     }
 
-    fn get_node_edges_filtered(
+    fn get_node_edges_filtered<F>(
         &self,
         _space: &str,
         _node_id: &Value,
         _direction: EdgeDirection,
-        _filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
-    ) -> Result<Vec<Edge>, StorageError> {
+        _filter: Option<F>,
+    ) -> Result<Vec<Edge>, StorageError>
+    where
+        F: Fn(&Edge) -> bool,
+    {
         Ok(Vec::new())
     }
 

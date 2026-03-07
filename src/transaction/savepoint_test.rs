@@ -304,7 +304,7 @@ fn test_release_after_rollback() {
     let sp1 = manager
         .create_savepoint(txn_id, None)
         .expect("创建保存点1失败");
-    let sp2 = manager
+    let _sp2 = manager
         .create_savepoint(txn_id, None)
         .expect("创建保存点2失败");
 
@@ -517,10 +517,10 @@ fn test_savepoint_stats() {
     let sp1 = manager
         .create_savepoint(txn_id, None)
         .expect("创建保存点失败");
-    let sp2 = manager
+    let _sp2 = manager
         .create_savepoint(txn_id, None)
         .expect("创建保存点失败");
-    let sp3 = manager
+    let _sp3 = manager
         .create_savepoint(txn_id, None)
         .expect("创建保存点失败");
 
