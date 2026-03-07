@@ -320,7 +320,7 @@ impl TransactionContext {
             return Err(TransactionError::TransactionExpired);
         }
 
-        let mut manager = self.savepoint_manager.write();
+        let manager = self.savepoint_manager.write();
         let savepoint_info = manager.get_savepoint(id)
             .cloned()
             .ok_or(TransactionError::SavepointNotFound(id))?;
