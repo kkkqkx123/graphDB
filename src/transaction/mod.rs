@@ -29,6 +29,15 @@ pub mod savepoint;
 pub mod two_phase;
 pub mod types;
 
+#[cfg(test)]
+pub mod context_test;
+#[cfg(test)]
+pub mod manager_test;
+#[cfg(test)]
+pub mod savepoint_test;
+#[cfg(test)]
+pub mod two_phase_test;
+
 pub use context::TransactionContext;
 pub use manager::TransactionManager;
 pub use savepoint::{

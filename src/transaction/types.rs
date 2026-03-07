@@ -297,26 +297,55 @@ impl TransactionStats {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OperationLog {
     /// 插入顶点
-    InsertVertex { space: String, vertex_id: Vec<u8> },
+    InsertVertex {
+        space: String,
+        vertex_id: Vec<u8>,
+        /// 插入前该位置的状态，None表示不存在
+        previous_state: Option<Vec<u8>>,
+    },
     /// 更新顶点
-    UpdateVertex { space: String, vertex_id: Vec<u8> },
+    UpdateVertex {
+        space: String,
+        vertex_id: Vec<u8>,
+        /// 更新前的顶点数据
+        previous_data: Vec<u8>,
+    },
     /// 删除顶点
-    DeleteVertex { space: String, vertex_id: Vec<u8> },
+    DeleteVertex {
+        space: String,
+        vertex_id: Vec<u8>,
+        /// 被删除的顶点数据（用于恢复）
+        deleted_data: Vec<u8>,
+    },
     /// 插入边
-    InsertEdge { space: String, edge_key: Vec<u8> },
+    InsertEdge {
+        space: String,
+        edge_key: Vec<u8>,
+        /// 插入前该位置的状态，None表示不存在
+        previous_state: Option<Vec<u8>>,
+    },
     /// 删除边
-    DeleteEdge { space: String, edge_key: Vec<u8> },
+    DeleteEdge {
+        space: String,
+        edge_key: Vec<u8>,
+        /// 被删除的边数据（用于恢复）
+        deleted_data: Vec<u8>,
+    },
     /// 更新索引
     UpdateIndex {
         space: String,
         index_name: String,
         key: Vec<u8>,
+        /// 更新前的索引值
+        previous_value: Option<Vec<u8>>,
     },
     /// 删除索引
     DeleteIndex {
         space: String,
         index_name: String,
         key: Vec<u8>,
+        /// 被删除的索引值
+        deleted_value: Vec<u8>,
     },
 }
 

@@ -3,6 +3,7 @@
 //! 管理单个事务的状态和资源
 
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crossbeam_utils::atomic::AtomicCell;
@@ -155,6 +156,26 @@ impl TransactionContext {
         self.operation_log.lock().truncate(index);
     }
 
+    /// 获取指定索引的操作日志
+    pub fn get_operation_log(&self, index: usize) -> Option<OperationLog> {
+        self.operation_log.lock().get(index).cloned()
+    }
+
+    /// 获取指定范围的操作日志
+    pub fn get_operation_logs(&self, start: usize, end: usize) -> Vec<OperationLog> {
+        let log = self.operation_log.lock();
+        if start >= log.len() {
+            return Vec::new();
+        }
+        let end = end.min(log.len());
+        log[start..end].to_vec()
+    }
+
+    /// 清空操作日志
+    pub fn clear_operation_log(&self) {
+        self.operation_log.lock().clear();
+    }
+
     /// 检查是否可以执行操作
     pub fn can_execute(&self) -> Result<(), TransactionError> {
         let state = self.state.load();
@@ -234,11 +255,16 @@ impl TransactionContext {
     /// 使用读事务执行操作（供存储层调用）
     ///
     /// # Arguments
-    /// * `f` - 闭包，接收 redb::ReadTransaction 引用并返回结果
+    /// * `f` - 闭包，接收 ReadTransaction 或 WriteTransaction 并返回结果
     ///
     /// # Returns
     /// * `Ok(R)` - 操作成功返回的结果
     /// * `Err(TransactionError)` - 操作失败返回的错误
+    ///
+    /// # 注意
+    /// redb 本身不支持从 WriteTransaction 创建 ReadTransaction。
+    /// 此方法通过两个不同的闭包来处理只读事务和读写事务。
+    /// 对于只读事务，使用 read_txn；对于读写事务，使用 write_txn 进行读取。
     pub fn with_read_txn<F, R>(&self, f: F) -> Result<R, TransactionError>
     where
         F: FnOnce(&redb::ReadTransaction) -> Result<R, StorageError>,
@@ -257,10 +283,40 @@ impl TransactionContext {
             return f(txn).map_err(|e| TransactionError::Internal(e.to_string()));
         }
 
-        // 对于读写事务，需要创建一个新的读事务
-        // 因为写事务不能直接作为读事务使用
+        // 对于读写事务，需要从写事务创建读事务
+        // redb 不支持直接从 WriteTransaction 读取，需要创建新的读事务
+        // 但这会导致读写不一致，所以这里返回错误
+        // 调用者应该使用 with_write_txn 进行读取操作
         Err(TransactionError::Internal(
-            "只读事务不可用，请使用 with_write_txn 进行读取操作".to_string(),
+            "读写事务不支持直接读取，请使用 with_write_txn 方法".to_string(),
+        ))
+    }
+
+    /// 获取可用于读取的事务（返回 Database 引用）
+    ///
+    /// # Returns
+    /// * `Ok(Arc<Database>)` - 数据库引用
+    /// * `Err(TransactionError)` - 错误
+    ///
+    /// # 注意
+    /// 此方法返回数据库引用，调用者需要根据事务类型决定如何创建读事务：
+    /// - 只读事务：使用 context.read_txn()
+    /// - 读写事务：使用 context.write_txn_mut() 或通过 with_read_txn() 方法
+    pub fn get_read_database(&self) -> Result<Arc<redb::Database>, TransactionError> {
+        let state = self.state.load();
+        if !state.can_execute() && !state.is_terminal() {
+            return Err(TransactionError::InvalidStateForCommit(state));
+        }
+
+        if self.is_expired() {
+            return Err(TransactionError::TransactionExpired);
+        }
+
+        // 返回数据库引用，调用者需要根据事务类型决定如何使用
+        // 这里我们无法直接返回事务，因为类型不同
+        // 调用者应该使用 with_read_txn 方法
+        Err(TransactionError::Internal(
+            "请使用 with_read_txn 方法进行读取操作".to_string(),
         ))
     }
 

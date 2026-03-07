@@ -17,3 +17,7 @@ pub mod logging;
 pub use logging::{
     init as init_logging, is_initialized as is_logging_initialized, shutdown as shutdown_logging,
 };
+
+// 错误转换模块
+pub mod error_convert;
+pub use error_convert::{ErrorConvert, ErrorContext, ResultErrorConvert};

@@ -53,6 +53,57 @@ impl RedbReader {
     }
 
     fn get_node_from_bytes(&self, id_bytes: &[u8]) -> Result<Option<Vertex>, StorageError> {
+        // 如果有事务上下文，使用事务上下文进行读取
+        if let Some(ref ctx) = self.txn_context {
+            // 对于只读事务，使用 with_read_txn
+            if ctx.read_only {
+                return ctx
+                    .with_read_txn(|read_txn| {
+                        let table = read_txn
+                            .open_table(NODES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        match table
+                            .get(ByteKey(id_bytes.to_vec()))
+                            .map_err(|e| StorageError::DbError(e.to_string()))?
+                        {
+                            Some(value) => {
+                                let byte_key_value = value.value();
+                                let vertex_bytes = byte_key_value.0.clone();
+                                let vertex: Vertex = vertex_from_bytes(&vertex_bytes)?;
+                                Ok(Some(vertex))
+                            }
+                            None => Ok(None),
+                        }
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            } else {
+                // 对于读写事务，使用 with_write_txn 进行读取
+                return ctx
+                    .with_write_txn(|write_txn| {
+                        let table = write_txn
+                            .open_table(NODES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let result = table
+                            .get(ByteKey(id_bytes.to_vec()))
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        match result {
+                            Some(value) => {
+                                let byte_key_value = value.value();
+                                let vertex_bytes = byte_key_value.0.clone();
+                                let vertex: Vertex = vertex_from_bytes(&vertex_bytes)?;
+                                Ok(Some(vertex))
+                            }
+                            None => Ok(None),
+                        }
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            }
+        }
+
+        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -61,13 +112,15 @@ impl RedbReader {
             .open_table(NODES_TABLE)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        match table
+        let result = table
             .get(ByteKey(id_bytes.to_vec()))
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-        {
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        match result {
             Some(value) => {
-                let vertex_bytes = value.value();
-                let vertex: Vertex = vertex_from_bytes(&vertex_bytes.0)?;
+                let byte_key_value = value.value();
+                let vertex_bytes = byte_key_value.0.clone();
+                let vertex: Vertex = vertex_from_bytes(&vertex_bytes)?;
                 Ok(Some(vertex))
             }
             None => Ok(None),
@@ -75,6 +128,58 @@ impl RedbReader {
     }
 
     fn get_edge_from_bytes(&self, edge_key_bytes: &[u8]) -> Result<Option<Edge>, StorageError> {
+        // 如果有事务上下文，使用事务上下文进行读取
+        if let Some(ref ctx) = self.txn_context {
+            // 对于只读事务，使用 with_read_txn
+            if ctx.read_only {
+                return ctx
+                    .with_read_txn(|read_txn| {
+                        let table = read_txn
+                            .open_table(EDGES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let result = table
+                            .get(ByteKey(edge_key_bytes.to_vec()))
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        match result {
+                            Some(value) => {
+                                let byte_key_value = value.value();
+                                let edge_bytes = byte_key_value.0.clone();
+                                let edge: Edge = edge_from_bytes(&edge_bytes)?;
+                                Ok(Some(edge))
+                            }
+                            None => Ok(None),
+                        }
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            } else {
+                // 对于读写事务，使用 with_write_txn 进行读取
+                return ctx
+                    .with_write_txn(|write_txn| {
+                        let table = write_txn
+                            .open_table(EDGES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let result = table
+                            .get(ByteKey(edge_key_bytes.to_vec()))
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        match result {
+                            Some(value) => {
+                                let byte_key_value = value.value();
+                                let edge_bytes = byte_key_value.0.clone();
+                                let edge: Edge = edge_from_bytes(&edge_bytes)?;
+                                Ok(Some(edge))
+                            }
+                            None => Ok(None),
+                        }
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            }
+        }
+
+        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -83,13 +188,15 @@ impl RedbReader {
             .open_table(EDGES_TABLE)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        match table
+        let result = table
             .get(ByteKey(edge_key_bytes.to_vec()))
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-        {
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        match result {
             Some(value) => {
-                let edge_bytes = value.value();
-                let edge: Edge = edge_from_bytes(&edge_bytes.0)?;
+                let byte_key_value = value.value();
+                let edge_bytes = byte_key_value.0.clone();
+                let edge: Edge = edge_from_bytes(&edge_bytes)?;
                 Ok(Some(edge))
             }
             None => Ok(None),
@@ -121,6 +228,54 @@ impl VertexReader for RedbReader {
     }
 
     fn scan_vertices(&self, _space: &str) -> Result<ScanResult<Vertex>, StorageError> {
+        // 如果有事务上下文，使用事务上下文进行读取
+        if let Some(ref ctx) = self.txn_context {
+            // 对于只读事务，使用 with_read_txn
+            if ctx.read_only {
+                return ctx
+                    .with_read_txn(|read_txn| {
+                        let table = read_txn
+                            .open_table(NODES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let mut vertices = Vec::new();
+                        for result in table
+                            .iter()
+                            .map_err(|e| StorageError::DbError(e.to_string()))?
+                        {
+                            let (_, vertex_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+                            let vertex: Vertex = vertex_from_bytes(&vertex_bytes.value().0)?;
+                            vertices.push(vertex);
+                        }
+
+                        Ok(ScanResult::new(vertices))
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            } else {
+                // 对于读写事务，使用 with_write_txn 进行读取
+                return ctx
+                    .with_write_txn(|write_txn| {
+                        let table = write_txn
+                            .open_table(NODES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let mut vertices = Vec::new();
+                        for result in table
+                            .iter()
+                            .map_err(|e| StorageError::DbError(e.to_string()))?
+                        {
+                            let (_, vertex_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+                            let vertex: Vertex = vertex_from_bytes(&vertex_bytes.value().0)?;
+                            vertices.push(vertex);
+                        }
+
+                        Ok(ScanResult::new(vertices))
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            }
+        }
+
+        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -224,6 +379,82 @@ impl EdgeReader for RedbReader {
         direction: EdgeDirection,
         filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
     ) -> Result<ScanResult<Edge>, StorageError> {
+        // 如果有事务上下文，使用事务上下文进行读取
+        if let Some(ref ctx) = self.txn_context {
+            // 对于只读事务，使用 with_read_txn
+            if ctx.read_only {
+                return ctx
+                    .with_read_txn(|read_txn| {
+                        let table = read_txn
+                            .open_table(EDGES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let mut edges = Vec::new();
+                        for result in table
+                            .iter()
+                            .map_err(|e| StorageError::DbError(e.to_string()))?
+                        {
+                            let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+
+                            let matches_direction = match direction {
+                                EdgeDirection::Out => *edge.src == *node_id,
+                                EdgeDirection::In => *edge.dst == *node_id,
+                                EdgeDirection::Both => *edge.src == *node_id || *edge.dst == *node_id,
+                            };
+
+                            if matches_direction {
+                                if let Some(ref f) = filter {
+                                    if !f(&edge) {
+                                        continue;
+                                    }
+                                }
+                                edges.push(edge);
+                            }
+                        }
+
+                        Ok(ScanResult::new(edges))
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            } else {
+                // 对于读写事务，使用 with_write_txn 进行读取
+                return ctx
+                    .with_write_txn(|write_txn| {
+                        let table = write_txn
+                            .open_table(EDGES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let mut edges = Vec::new();
+                        for result in table
+                            .iter()
+                            .map_err(|e| StorageError::DbError(e.to_string()))?
+                        {
+                            let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+
+                            let matches_direction = match direction {
+                                EdgeDirection::Out => *edge.src == *node_id,
+                                EdgeDirection::In => *edge.dst == *node_id,
+                                EdgeDirection::Both => *edge.src == *node_id || *edge.dst == *node_id,
+                            };
+
+                            if matches_direction {
+                                if let Some(ref f) = filter {
+                                    if !f(&edge) {
+                                        continue;
+                                    }
+                                }
+                                edges.push(edge);
+                            }
+                        }
+
+                        Ok(ScanResult::new(edges))
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            }
+        }
+
+        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -264,6 +495,64 @@ impl EdgeReader for RedbReader {
         _space: &str,
         edge_type: &str,
     ) -> Result<ScanResult<Edge>, StorageError> {
+        // 如果有事务上下文，使用事务上下文进行读取
+        if let Some(ref ctx) = self.txn_context {
+            // 对于只读事务，使用 with_read_txn
+            if ctx.read_only {
+                return ctx
+                    .with_read_txn(|read_txn| {
+                        let table = read_txn
+                            .open_table(EDGES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let mut edges = Vec::new();
+                        for result in table
+                            .iter()
+                            .map_err(|e| StorageError::DbError(e.to_string()))?
+                        {
+                            let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+                            edges.push(edge);
+                        }
+
+                        let filtered_edges: Vec<Edge> = edges
+                            .into_iter()
+                            .filter(|e| e.edge_type == edge_type)
+                            .collect();
+
+                        Ok(ScanResult::new(filtered_edges))
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            } else {
+                // 对于读写事务，使用 with_write_txn 进行读取
+                return ctx
+                    .with_write_txn(|write_txn| {
+                        let table = write_txn
+                            .open_table(EDGES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let mut edges = Vec::new();
+                        for result in table
+                            .iter()
+                            .map_err(|e| StorageError::DbError(e.to_string()))?
+                        {
+                            let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+                            edges.push(edge);
+                        }
+
+                        let filtered_edges: Vec<Edge> = edges
+                            .into_iter()
+                            .filter(|e| e.edge_type == edge_type)
+                            .collect();
+
+                        Ok(ScanResult::new(filtered_edges))
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            }
+        }
+
+        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -291,6 +580,54 @@ impl EdgeReader for RedbReader {
     }
 
     fn scan_all_edges(&self, _space: &str) -> Result<ScanResult<Edge>, StorageError> {
+        // 如果有事务上下文，使用事务上下文进行读取
+        if let Some(ref ctx) = self.txn_context {
+            // 对于只读事务，使用 with_read_txn
+            if ctx.read_only {
+                return ctx
+                    .with_read_txn(|read_txn| {
+                        let table = read_txn
+                            .open_table(EDGES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let mut edges = Vec::new();
+                        for result in table
+                            .iter()
+                            .map_err(|e| StorageError::DbError(e.to_string()))?
+                        {
+                            let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+                            edges.push(edge);
+                        }
+
+                        Ok(ScanResult::new(edges))
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            } else {
+                // 对于读写事务，使用 with_write_txn 进行读取
+                return ctx
+                    .with_write_txn(|write_txn| {
+                        let table = write_txn
+                            .open_table(EDGES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                        let mut edges = Vec::new();
+                        for result in table
+                            .iter()
+                            .map_err(|e| StorageError::DbError(e.to_string()))?
+                        {
+                            let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+                            edges.push(edge);
+                        }
+
+                        Ok(ScanResult::new(edges))
+                    })
+                    .map_err(|e| StorageError::DbError(e.to_string()));
+            }
+        }
+
+        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -464,6 +801,9 @@ impl RedbWriter {
         let vertex_bytes = vertex_to_bytes(&vertex_with_id)?;
         let id_bytes = value_to_bytes(&id)?;
 
+        // 记录插入前的状态
+        let previous_state = self.get_vertex_bytes(&id)?;
+
         let executor = self.get_executor();
         executor.execute(|write_txn| {
             let mut table = write_txn
@@ -481,12 +821,53 @@ impl RedbWriter {
         self.log_operation(OperationLog::InsertVertex {
             space: "default".to_string(),
             vertex_id: value_to_bytes(&id)?,
+            previous_state,
         });
 
         // 记录表修改
         self.record_table_modification("NODES_TABLE");
 
         Ok(id)
+    }
+
+    /// 获取顶点的字节表示（用于记录操作前状态）
+    fn get_vertex_bytes(&self, id: &Value) -> Result<Option<Vec<u8>>, StorageError> {
+        let id_bytes = value_to_bytes(id)?;
+
+        let executor = self.get_executor();
+        executor.execute(|write_txn| {
+            let table = write_txn
+                .open_table(NODES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let result = table
+                .get(ByteKey(id_bytes))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            match result {
+                Some(value) => Ok(Some(value.value().0)),
+                None => Ok(None),
+            }
+        })
+    }
+
+    /// 获取边的字节表示（用于记录操作前状态）
+    fn get_edge_bytes(&self, edge_key: &[u8]) -> Result<Option<Vec<u8>>, StorageError> {
+        let executor = self.get_executor();
+        executor.execute(|write_txn| {
+            let table = write_txn
+                .open_table(EDGES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let result = table
+                .get(ByteKey(edge_key.to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            match result {
+                Some(value) => Ok(Some(value.value().0)),
+                None => Ok(None),
+            }
+        })
     }
 
     /// 更新顶点的内部实现
@@ -497,6 +878,11 @@ impl RedbWriter {
 
         let vertex_bytes = vertex_to_bytes(&vertex)?;
         let id_bytes = value_to_bytes(&vertex.vid)?;
+
+        // 记录更新前的数据
+        let previous_data = self
+            .get_vertex_bytes(&vertex.vid)?
+            .ok_or_else(|| StorageError::NodeNotFound((*vertex.vid).clone()))?;
 
         let executor = self.get_executor();
         executor.execute(|write_txn| {
@@ -515,6 +901,7 @@ impl RedbWriter {
         self.log_operation(OperationLog::UpdateVertex {
             space: "default".to_string(),
             vertex_id: value_to_bytes(&vertex.vid)?,
+            previous_data,
         });
 
         // 记录表修改
@@ -527,19 +914,16 @@ impl RedbWriter {
     fn delete_vertex_internal(&self, id: &Value) -> Result<(), StorageError> {
         let id_bytes = value_to_bytes(id)?;
 
+        // 记录删除前的数据
+        let deleted_data = self
+            .get_vertex_bytes(id)?
+            .ok_or_else(|| StorageError::NodeNotFound(id.clone()))?;
+
         let executor = self.get_executor();
         executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            if table
-                .get(ByteKey(id_bytes.to_vec()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?
-                .is_none()
-            {
-                return Err(StorageError::NodeNotFound(id.clone()));
-            }
 
             table
                 .remove(ByteKey(id_bytes.to_vec()))
@@ -552,6 +936,7 @@ impl RedbWriter {
         self.log_operation(OperationLog::DeleteVertex {
             space: "default".to_string(),
             vertex_id: value_to_bytes(id)?,
+            deleted_data,
         });
 
         // 记录表修改
@@ -566,6 +951,17 @@ impl RedbWriter {
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
         let mut ids = Vec::new();
+        let mut previous_states = Vec::new();
+
+        // 预先收集插入前的状态
+        for vertex in &vertices {
+            let id = match vertex.vid() {
+                Value::Int(0) | Value::Null(_) => Value::Int(generate_id() as i64),
+                _ => vertex.vid().clone(),
+            };
+            let previous_state = self.get_vertex_bytes(&id)?;
+            previous_states.push((id, previous_state));
+        }
 
         let executor = self.get_executor();
         executor.execute(|write_txn| {
@@ -573,8 +969,8 @@ impl RedbWriter {
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-            for vertex in vertices {
-                let id = Value::Int(generate_id() as i64);
+            for (i, vertex) in vertices.into_iter().enumerate() {
+                let id = previous_states[i].0.clone();
                 let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
                 let vertex_bytes = vertex_to_bytes(&vertex_with_id)?;
                 let id_bytes = value_to_bytes(&id)?;
@@ -589,10 +985,11 @@ impl RedbWriter {
         })?;
 
         // 记录操作日志
-        for id in &ids {
+        for (i, id) in ids.iter().enumerate() {
             self.log_operation(OperationLog::InsertVertex {
                 space: "default".to_string(),
                 vertex_id: value_to_bytes(id)?,
+                previous_state: previous_states[i].1.clone(),
             });
         }
 
@@ -610,6 +1007,11 @@ impl RedbWriter {
     ) -> Result<usize, StorageError> {
         let id_bytes = value_to_bytes(vertex_id)?;
         let tag_names = tag_names.to_vec(); // 克隆以便在闭包中使用
+
+        // 记录更新前的数据
+        let previous_data = self
+            .get_vertex_bytes(vertex_id)?
+            .ok_or_else(|| StorageError::NodeNotFound(vertex_id.clone()))?;
 
         let executor = self.get_executor();
         let deleted_count = executor.execute(|write_txn| {
@@ -655,6 +1057,7 @@ impl RedbWriter {
         self.log_operation(OperationLog::UpdateVertex {
             space: "default".to_string(),
             vertex_id: value_to_bytes(vertex_id)?,
+            previous_data,
         });
 
         // 记录表修改
@@ -708,6 +1111,9 @@ impl RedbWriter {
         let edge_key_bytes = edge_key.as_bytes().to_vec();
         let edge_bytes = edge_to_bytes(&edge)?;
 
+        // 记录插入前的状态
+        let previous_state = self.get_edge_bytes(&edge_key_bytes)?;
+
         let executor = self.get_executor();
         executor.execute(|write_txn| {
             let mut table = write_txn
@@ -725,6 +1131,7 @@ impl RedbWriter {
         self.log_operation(OperationLog::InsertEdge {
             space: "default".to_string(),
             edge_key: edge_key_bytes,
+            previous_state,
         });
 
         // 记录表修改
@@ -743,22 +1150,16 @@ impl RedbWriter {
         let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
+        // 记录删除前的数据
+        let deleted_data = self
+            .get_edge_bytes(&edge_key_bytes)?
+            .ok_or_else(|| StorageError::EdgeNotFound(Value::String(edge_key.clone())))?;
+
         let executor = self.get_executor();
         executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(EDGES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            if table
-                .get(ByteKey(edge_key_bytes.to_vec()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?
-                .is_none()
-            {
-                return Err(StorageError::EdgeNotFound(Value::String(format!(
-                    "{:?}_{:?}_{}",
-                    src, dst, edge_type
-                ))));
-            }
 
             table
                 .remove(ByteKey(edge_key_bytes.to_vec()))
@@ -771,6 +1172,7 @@ impl RedbWriter {
         self.log_operation(OperationLog::DeleteEdge {
             space: "default".to_string(),
             edge_key: edge_key_bytes,
+            deleted_data,
         });
 
         // 记录表修改
@@ -782,6 +1184,16 @@ impl RedbWriter {
     /// 批量插入边的内部实现
     fn batch_insert_edges_internal(&self, edges: Vec<Edge>) -> Result<(), StorageError> {
         let mut edge_keys = Vec::new();
+        let mut previous_states = Vec::new();
+
+        // 预先收集插入前的状态
+        for edge in &edges {
+            let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
+            let edge_key_bytes = edge_key.as_bytes().to_vec();
+            let previous_state = self.get_edge_bytes(&edge_key_bytes)?;
+            edge_keys.push(edge_key_bytes);
+            previous_states.push(previous_state);
+        }
 
         let executor = self.get_executor();
         executor.execute(|write_txn| {
@@ -789,15 +1201,11 @@ impl RedbWriter {
                 .open_table(EDGES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-            for edge in edges {
-                let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
-                let edge_key_bytes = edge_key.as_bytes().to_vec();
-                edge_keys.push(edge_key_bytes.clone());
-
+            for (i, edge) in edges.into_iter().enumerate() {
                 let edge_bytes = edge_to_bytes(&edge)?;
 
                 table
-                    .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
+                    .insert(ByteKey(edge_keys[i].clone()), ByteKey(edge_bytes))
                     .map_err(|e| StorageError::DbError(e.to_string()))?;
             }
 
@@ -805,10 +1213,11 @@ impl RedbWriter {
         })?;
 
         // 记录操作日志
-        for edge_key in &edge_keys {
+        for (i, edge_key) in edge_keys.iter().enumerate() {
             self.log_operation(OperationLog::InsertEdge {
                 space: "default".to_string(),
                 edge_key: edge_key.clone(),
+                previous_state: previous_states[i].clone(),
             });
         }
 

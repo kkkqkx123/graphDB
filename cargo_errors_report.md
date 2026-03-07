@@ -23,16 +23,16 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\query\executor\base\result_processor.rs`: 1 warnings
+- `src\storage\operations\operation_log_rollback.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `crate::query::validator::context::ExpressionAnalysisContext`
+### warning: method `rollback_operation` is never used
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\executor\base\result_processor.rs`: 1 occurrences
+#### `src\storage\operations\operation_log_rollback.rs`: 1 occurrences
 
-- Line 11: unused import: `crate::query::validator::context::ExpressionAnalysisContext`
+- Line 82: method `rollback_operation` is never used
 

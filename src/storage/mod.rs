@@ -11,11 +11,16 @@ pub mod runtime_context;
 pub mod schema;
 pub mod serializer;
 pub mod storage_client;
+pub mod transaction_context_guard;
 pub mod transactional_storage;
 pub mod types;
 
 #[cfg(test)]
 pub mod test_mock;
+#[cfg(test)]
+pub mod transaction_context_guard_test;
+#[cfg(test)]
+pub mod transactional_storage_test;
 
 pub use index::*;
 pub use iterator::*;
@@ -25,6 +30,7 @@ pub use operations::*;
 pub use redb_storage::DefaultStorage;
 pub use redb_storage::*;
 pub use storage_client::*;
+pub use transaction_context_guard::*;
 pub use transactional_storage::*;
 
 pub use crate::core::StorageError;
