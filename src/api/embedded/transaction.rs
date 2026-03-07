@@ -7,7 +7,8 @@ use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::Session;
 use crate::core::Value;
 use crate::storage::StorageClient;
-use crate::transaction::{DurabilityLevel, SavepointId, SavepointInfo, TransactionOptions};
+use crate::transaction::{DurabilityLevel, TransactionOptions};
+use crate::transaction::types::{SavepointId, SavepointInfo};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -41,8 +42,6 @@ pub struct TransactionConfig {
     pub read_only: bool,
     /// 持久性级别
     pub durability: DurabilityLevel,
-    /// 是否启用两阶段提交
-    pub two_phase_commit: bool,
 }
 
 impl Default for TransactionConfig {
@@ -51,7 +50,6 @@ impl Default for TransactionConfig {
             timeout: None,
             read_only: false,
             durability: DurabilityLevel::Immediate,
-            two_phase_commit: false,
         }
     }
 }
@@ -80,19 +78,12 @@ impl TransactionConfig {
         self
     }
 
-    /// 启用两阶段提交
-    pub fn with_two_phase_commit(mut self) -> Self {
-        self.two_phase_commit = true;
-        self
-    }
-
     /// 转换为内部 TransactionOptions
     pub(crate) fn into_options(self) -> TransactionOptions {
         TransactionOptions {
             timeout: self.timeout,
             read_only: self.read_only,
             durability: self.durability,
-            two_phase_commit: self.two_phase_commit,
         }
     }
 }
@@ -293,7 +284,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
         let savepoint_manager = self.session.savepoint_manager();
         savepoint_manager
-            .rollback_to_savepoint(savepoint_id)
+            .rollback_to_savepoint(self.txn_handle.0, savepoint_id)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
@@ -312,7 +303,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
         let savepoint_manager = self.session.savepoint_manager();
         savepoint_manager
-            .release_savepoint(savepoint_id)
+            .release_savepoint(self.txn_handle.0, savepoint_id)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
@@ -479,13 +470,11 @@ mod tests {
         let config = TransactionConfig::new()
             .read_only()
             .with_timeout(Duration::from_secs(60))
-            .with_durability(DurabilityLevel::None)
-            .with_two_phase_commit();
+            .with_durability(DurabilityLevel::None);
 
         assert!(config.read_only);
         assert_eq!(config.timeout, Some(Duration::from_secs(60)));
         assert_eq!(config.durability, DurabilityLevel::None);
-        assert!(config.two_phase_commit);
     }
 
     #[test]

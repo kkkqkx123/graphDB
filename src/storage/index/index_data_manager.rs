@@ -96,13 +96,15 @@ impl RedbIndexDataManager {
     /// 序列化值
     /// 使用标准序列化函数，确保与存储层其他部分一致
     fn serialize_value(value: &Value) -> Result<Vec<u8>, StorageError> {
-        encode_to_vec(value, standard())
+        encode_to_vec(value, standard()).map_err(|e| StorageError::SerializeError(e.to_string()))
     }
 
     /// 反序列化值
     /// 使用标准反序列化函数，确保与存储层其他部分一致
     fn deserialize_value(data: &[u8]) -> Result<Value, StorageError> {
-        decode_from_slice(data, standard())?.0
+        decode_from_slice(data, standard())
+            .map(|(v, _)| v)
+            .map_err(|e| StorageError::DeserializeError(e.to_string()))
     }
 
     /// 构建顶点正向索引键

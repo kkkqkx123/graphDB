@@ -12,6 +12,52 @@ use thiserror::Error;
 /// 事务ID
 pub type TransactionId = u64;
 
+/// 保存点ID
+pub type SavepointId = u64;
+
+/// 保存点信息
+#[derive(Debug, Clone)]
+pub struct SavepointInfo {
+    pub id: SavepointId,
+    pub name: Option<String>,
+    pub created_at: std::time::Instant,
+}
+
+/// 操作日志
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum OperationLog {
+    InsertVertex {
+        space: String,
+        vertex_id: Vec<u8>,
+        previous_state: Option<Vec<u8>>,
+    },
+    UpdateVertex {
+        space: String,
+        vertex_id: Vec<u8>,
+        previous_data: Vec<u8>,
+    },
+    DeleteVertex {
+        space: String,
+        vertex_id: Vec<u8>,
+        vertex: Vec<u8>,
+    },
+    InsertEdge {
+        space: String,
+        edge_id: Vec<u8>,
+        previous_state: Option<Vec<u8>>,
+    },
+    UpdateEdge {
+        space: String,
+        edge_id: Vec<u8>,
+        previous_data: Vec<u8>,
+    },
+    DeleteEdge {
+        space: String,
+        edge_id: Vec<u8>,
+        edge: Vec<u8>,
+    },
+}
+
 /// 事务状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TransactionState {
@@ -79,6 +125,18 @@ pub enum TransactionError {
     #[error("事务未找到: {0}")]
     TransactionNotFound(TransactionId),
 
+    #[error("保存点创建失败: {0}")]
+    SavepointFailed(String),
+
+    #[error("保存点未找到: {0}")]
+    SavepointNotFound(TransactionId),
+
+    #[error("保存点未激活: {0}")]
+    SavepointNotActive(TransactionId),
+
+    #[error("事务中无保存点")]
+    NoSavepointsInTransaction,
+
     #[error("无效的状态转换: 从 {from} 到 {to}")]
     InvalidStateTransition {
         from: TransactionState,
@@ -105,6 +163,9 @@ pub enum TransactionError {
 
     #[error("只读事务")]
     ReadOnlyTransaction,
+
+    #[error("写事务冲突")]
+    WriteTransactionConflict,
 
     #[error("恢复失败: {0}")]
     RecoveryFailed(String),
@@ -190,6 +251,8 @@ pub struct TransactionManagerConfig {
     pub default_timeout: Duration,
     /// 最大并发事务数
     pub max_concurrent_transactions: usize,
+    /// 是否自动清理过期事务
+    pub auto_cleanup: bool,
 }
 
 impl Default for TransactionManagerConfig {
@@ -197,6 +260,7 @@ impl Default for TransactionManagerConfig {
         Self {
             default_timeout: Duration::from_secs(30),
             max_concurrent_transactions: 1000,
+            auto_cleanup: true,
         }
     }
 }

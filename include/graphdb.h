@@ -10,8 +10,6 @@
 
 #define DEFAULT_MAX_ALLOWED_CONNECTIONS 100
 
-#define INDEX_KEY_SEPARATOR 255
-
 /**
  * 等值查询默认选择性（假设10个不同值）
  */

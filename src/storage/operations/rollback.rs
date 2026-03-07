@@ -5,7 +5,7 @@
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::operations::{EdgeWriter, VertexWriter};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
-use crate::transaction::OperationLog;
+use crate::transaction::types::OperationLog;
 
 /// 操作日志上下文 trait
 ///
@@ -37,7 +37,7 @@ impl OperationLogContext for crate::transaction::context::TransactionContext {
     }
 
     fn get_operation_logs(&self, start: usize, end: usize) -> Vec<OperationLog> {
-        self.get_operation_logs(start, end)
+        self.get_operation_logs_range(start, end)
     }
 
     fn clear_operation_log(&self) {
@@ -101,7 +101,9 @@ impl<'a> StorageRollbackExecutor<'a> {
 
     /// 解析顶点ID
     fn parse_vertex_id(&self, bytes: &[u8]) -> Result<Value, StorageError> {
-        decode_from_slice(bytes, standard())?.0
+        decode_from_slice(bytes, standard())
+            .map(|(v, _)| v)
+            .map_err(|e| StorageError::DeserializeError(e.to_string()))
     }
 
     /// 解析边键
@@ -207,19 +209,19 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
             OperationLog::DeleteVertex {
                 space: _,
                 vertex_id: _,
-                deleted_data,
+                vertex,
             } => {
-                let vertex = decode_from_slice(deleted_data, standard())?.0;
-                self.writer.insert_vertex(&self.space, vertex)?;
+                let decoded_vertex = decode_from_slice(vertex, standard())?.0;
+                self.writer.insert_vertex(&self.space, decoded_vertex)?;
                 Ok(())
             }
 
             OperationLog::InsertEdge {
                 space: _,
-                edge_key,
+                edge_id,
                 previous_state,
             } => {
-                let (src, dst, edge_type) = self.parse_edge_key(edge_key)?;
+                let (src, dst, edge_type) = self.parse_edge_key(edge_id)?;
 
                 if previous_state.is_some() {
                     let edge = decode_from_slice(previous_state.as_ref().unwrap(), standard())?.0;
@@ -233,29 +235,21 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
 
             OperationLog::DeleteEdge {
                 space: _,
-                edge_key: _,
-                deleted_data,
+                edge_id: _,
+                edge,
             } => {
-                let edge = decode_from_slice(deleted_data, standard())?.0;
+                let decoded_edge = decode_from_slice(edge, standard())?.0;
+                self.writer.insert_edge(&self.space, decoded_edge)?;
+                Ok(())
+            }
+
+            OperationLog::UpdateEdge {
+                space: _,
+                edge_id: _,
+                previous_data,
+            } => {
+                let edge = decode_from_slice(previous_data, standard())?.0;
                 self.writer.insert_edge(&self.space, edge)?;
-                Ok(())
-            }
-
-            OperationLog::UpdateIndex {
-                space: _,
-                index_name: _,
-                key: _,
-                previous_value: _,
-            } => {
-                Ok(())
-            }
-
-            OperationLog::DeleteIndex {
-                space: _,
-                index_name: _,
-                key: _,
-                deleted_value: _,
-            } => {
                 Ok(())
             }
         }
@@ -575,7 +569,7 @@ mod tests {
         let log = OperationLog::DeleteVertex {
             space: "test_space".to_string(),
             vertex_id: 1i64.to_be_bytes().to_vec(),
-            deleted_data: vertex_bytes,
+            vertex: vertex_bytes,
         };
 
         executor.execute_rollback(&log).expect("回滚失败");

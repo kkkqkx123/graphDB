@@ -442,7 +442,7 @@ mod tests {
                 session_idle_timeout_secs: 3600,
                 default_username: "root".to_string(),
                 default_password: "root".to_string(),
-                force_change_default_default_password: true,
+                force_change_default_password: true,
             },
             bootstrap: crate::config::BootstrapConfig {
                 auto_create_default_space: true,

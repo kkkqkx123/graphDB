@@ -26,7 +26,6 @@ fn test_transaction_context_writable_creation() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
     let durability = DurabilityLevel::Immediate;
-    let two_phase_commit = false;
 
     let write_txn = db
         .begin_write()
@@ -36,7 +35,6 @@ fn test_transaction_context_writable_creation() {
         txn_id,
         timeout,
         durability,
-        two_phase_commit,
         write_txn,
     );
 
@@ -44,7 +42,6 @@ fn test_transaction_context_writable_creation() {
     assert_eq!(ctx.state(), TransactionState::Active);
     assert!(!ctx.read_only);
     assert_eq!(ctx.durability, durability);
-    assert!(!ctx.two_phase_commit);
 }
 
 #[test]
@@ -78,17 +75,10 @@ fn test_transaction_context_state_transitions() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
-    // Active -> Prepared
-    assert!(ctx
-        .transition_to(TransactionState::Prepared)
-        .is_ok());
-    assert_eq!(ctx.state(), TransactionState::Prepared);
-
-    // Prepared -> Committing
+    // Active -> Committing
     assert!(ctx
         .transition_to(TransactionState::Committing)
         .is_ok());
@@ -115,7 +105,6 @@ fn test_transaction_context_invalid_state_transition() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -127,10 +116,7 @@ fn test_transaction_context_invalid_state_transition() {
         TransactionError::InvalidStateTransition { .. }
     ));
 
-    // 正确的状态转换路径: Active -> Prepared -> Committing -> Committed
-    assert!(ctx.transition_to(TransactionState::Prepared).is_ok());
-    assert_eq!(ctx.state(), TransactionState::Prepared);
-
+    // 正确的状态转换路径: Active -> Committing -> Committed
     assert!(ctx.transition_to(TransactionState::Committing).is_ok());
     assert_eq!(ctx.state(), TransactionState::Committing);
 
@@ -152,7 +138,6 @@ fn test_transaction_context_timeout() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -180,7 +165,6 @@ fn test_transaction_context_remaining_time() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -211,7 +195,6 @@ fn test_transaction_context_modified_tables() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -220,7 +203,7 @@ fn test_transaction_context_modified_tables() {
     ctx.record_table_modification("edges");
     ctx.record_table_modification("vertices"); // 重复记录
 
-    let modified = ctx.modified_tables();
+    let modified = ctx.get_modified_tables();
     assert_eq!(modified.len(), 2);
     assert!(modified.contains(&"vertices".to_string()));
     assert!(modified.contains(&"edges".to_string()));
@@ -240,7 +223,6 @@ fn test_transaction_context_operation_log() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -283,18 +265,17 @@ fn test_transaction_context_can_execute() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
     // Active 状态可以执行
     assert!(ctx.can_execute().is_ok());
 
-    // 转换到 Prepared 状态
-    ctx.transition_to(TransactionState::Prepared)
+    // 转换到 Committing 状态
+    ctx.transition_to(TransactionState::Committing)
         .expect("状态转换失败");
 
-    // Prepared 状态不能执行
+    // Committing 状态不能执行
     assert!(ctx.can_execute().is_err());
 }
 
@@ -312,7 +293,6 @@ fn test_transaction_context_can_execute_expired() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -342,7 +322,6 @@ fn test_transaction_context_info() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -371,7 +350,6 @@ fn test_transaction_context_take_write_txn() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -415,7 +393,6 @@ fn test_transaction_context_with_write_txn() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -485,7 +462,6 @@ fn test_transaction_context_writable_with_read_txn() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -515,7 +491,6 @@ fn test_transaction_context_with_write_txn_expired() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
@@ -548,13 +523,10 @@ fn test_transaction_context_with_write_txn_invalid_state() {
         txn_id,
         timeout,
         DurabilityLevel::Immediate,
-        false,
         write_txn,
     );
 
-    // 正确的状态转换路径: Active -> Prepared -> Committing -> Committed
-    ctx.transition_to(TransactionState::Prepared)
-        .expect("状态转换失败");
+    // 正确的状态转换路径: Active -> Committing -> Committed
     ctx.transition_to(TransactionState::Committing)
         .expect("状态转换失败");
     ctx.transition_to(TransactionState::Committed)

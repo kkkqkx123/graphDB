@@ -341,7 +341,7 @@ pub extern "C" fn graphdb_txn_savepoint(
         };
 
         match session.inner.savepoint_manager().create_savepoint(txn_handle.0, Some(name_str.to_string())) {
-            Ok(id) => id.value() as i64,
+            Ok(id) => id as i64,
             Err(_) => -1,
         }
     }
@@ -373,9 +373,12 @@ pub extern "C" fn graphdb_txn_release_savepoint(
         }
 
         let session = &*(handle.session);
+        let _txn_handle = match handle.txn_handle {
+            Some(h) => h,
+            None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+        };
 
-        use crate::transaction::SavepointId;
-        match session.inner.savepoint_manager().release_savepoint(SavepointId::new(savepoint_id as u64)) {
+        match session.inner.savepoint_manager().release_savepoint(_txn_handle.0, savepoint_id as u64) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
@@ -420,8 +423,7 @@ pub extern "C" fn graphdb_txn_rollback_to_savepoint(
             None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
         };
 
-        use crate::transaction::SavepointId;
-        match session.inner.savepoint_manager().rollback_to_savepoint(SavepointId::new(savepoint_id as u64)) {
+        match session.inner.savepoint_manager().rollback_to_savepoint(_txn_handle.0, savepoint_id as u64) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));

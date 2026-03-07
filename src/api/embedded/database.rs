@@ -9,6 +9,7 @@ use crate::api::embedded::session::{GraphDatabaseInner, Session};
 use crate::core::Value;
 use crate::storage::{RedbStorage, StorageClient};
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
+use crate::transaction::manager::SavepointManager;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::Path;
@@ -104,11 +105,13 @@ impl GraphDatabase<RedbStorage> {
 
         let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
         let schema_api = SchemaApi::new(storage.clone());
+        let savepoint_manager = SavepointManager::new();
 
         let inner = Arc::new(GraphDatabaseInner {
             query_api,
             schema_api,
             txn_manager,
+            savepoint_manager,
             storage,
         });
 
@@ -231,6 +234,8 @@ impl GraphDatabase<MockStorage> {
         let txn_manager_config = TransactionManagerConfig::default();
         let txn_manager = Arc::new(TransactionManager::new(db, txn_manager_config));
 
+        let savepoint_manager = crate::transaction::manager::SavepointManager::new();
+
         let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
         let schema_api = SchemaApi::new(storage.clone());
 
@@ -238,6 +243,7 @@ impl GraphDatabase<MockStorage> {
             query_api,
             schema_api,
             txn_manager,
+            savepoint_manager,
             storage,
         });
 

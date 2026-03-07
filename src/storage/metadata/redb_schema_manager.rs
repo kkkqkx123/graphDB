@@ -2,8 +2,8 @@ use crate::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::value::Value;
 use crate::core::StorageError;
 use crate::storage::redb_types::{
-    ByteKey, EDGE_TYPES_TABLE, EDGE_TYPE_ID_COUNTER_TABLE, EDGE_TYPE_NAME_INDEX_TABLE,
-    SPACES_TABLE, TAGS_TABLE, TAG_ID_COUNTER_TABLE, TAG_NAME_INDEX_TABLE,
+    ByteKey, EDGE_TYPES_TABLE, EDGE_TYPE_ID_COUNTER_TABLE,
+    SPACES_TABLE, TAGS_TABLE, TAG_ID_COUNTER_TABLE,
 };
 use crate::storage::{FieldDef, Schema};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
@@ -140,7 +140,7 @@ impl super::SchemaManager for RedbSchemaManager {
             })?;
 
             while let Some(result) = iter.next() {
-                let (key, value) = result.map_err(|e| {
+                let (_key, value) = result.map_err(|e| {
                     StorageError::DbError(format!("迭代空间失败: {}", e))
                 })?;
                 let space: SpaceInfo = decode_from_slice(&value.value().0, standard())?.0;

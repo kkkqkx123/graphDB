@@ -550,12 +550,12 @@ mod tests {
         assert!(client_session.savepoint_stack().is_empty());
 
         // 添加保存点
-        client_session.push_savepoint(SavepointId::new(1));
-        client_session.push_savepoint(SavepointId::new(2));
+        client_session.push_savepoint(1);
+        client_session.push_savepoint(2);
         assert_eq!(client_session.savepoint_count(), 2);
         assert_eq!(
             client_session.savepoint_stack(),
-            vec![SavepointId::new(1), SavepointId::new(2)]
+            vec![1, 2]
         );
 
         // 清空保存点

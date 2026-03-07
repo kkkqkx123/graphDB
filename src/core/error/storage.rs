@@ -80,9 +80,15 @@ impl<T> From<std::sync::PoisonError<T>> for StorageError {
     }
 }
 
-impl From<bincode::Error> for StorageError {
-    fn from(e: bincode::Error) -> Self {
+impl From<bincode::error::EncodeError> for StorageError {
+    fn from(e: bincode::error::EncodeError) -> Self {
         StorageError::SerializeError(e.to_string())
+    }
+}
+
+impl From<bincode::error::DecodeError> for StorageError {
+    fn from(e: bincode::error::DecodeError) -> Self {
+        StorageError::DeserializeError(e.to_string())
     }
 }
 

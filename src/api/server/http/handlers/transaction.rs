@@ -36,7 +36,6 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
             read_only: request.read_only,
             timeout: request.timeout_seconds.map(std::time::Duration::from_secs),
             durability: DurabilityLevel::Immediate,
-            two_phase_commit: false,
         };
 
         match txn_manager.begin_transaction(options) {

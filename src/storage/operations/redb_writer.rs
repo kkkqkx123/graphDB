@@ -2,7 +2,8 @@ use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::operations::{EdgeWriter, VertexWriter};
 use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
-use crate::transaction::{OperationLog, TransactionContext};
+use crate::transaction::TransactionContext;
+use crate::transaction::types::OperationLog;
 use crate::utils::id_gen::generate_id;
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
@@ -205,7 +206,7 @@ impl RedbWriter {
         self.log_operation(OperationLog::DeleteVertex {
             space: "default".to_string(),
             vertex_id: encode_to_vec(id, standard())?,
-            deleted_data,
+            vertex: deleted_data,
         });
 
         self.record_table_modification("NODES_TABLE");
@@ -281,7 +282,7 @@ impl RedbWriter {
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-            let vertex = match table
+            let vertex: Vertex = match table
                 .get(ByteKey(id_bytes.to_vec()))
                 .map_err(|e| StorageError::DbError(e.to_string()))?
             {
@@ -382,7 +383,7 @@ impl RedbWriter {
 
         self.log_operation(OperationLog::InsertEdge {
             space: "default".to_string(),
-            edge_key: edge_key_bytes,
+            edge_id: edge_key_bytes,
             previous_state,
         });
 
@@ -419,8 +420,8 @@ impl RedbWriter {
 
         self.log_operation(OperationLog::DeleteEdge {
             space: "default".to_string(),
-            edge_key: edge_key_bytes,
-            deleted_data,
+            edge_id: edge_key_bytes,
+            edge: deleted_data,
         });
 
         self.record_table_modification("EDGES_TABLE");
@@ -460,7 +461,7 @@ impl RedbWriter {
         for (i, edge_key) in edge_keys.iter().enumerate() {
             self.log_operation(OperationLog::InsertEdge {
                 space: "default".to_string(),
-                edge_key: edge_key.clone(),
+                edge_id: edge_key.clone(),
                 previous_state: previous_states[i].clone(),
             });
         }

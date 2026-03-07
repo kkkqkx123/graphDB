@@ -2,7 +2,7 @@
 //!
 //! 管理单个事务的状态和资源
 
-use std::sync::Arc;
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use crossbeam_utils::atomic::AtomicCell;
@@ -30,6 +30,51 @@ pub struct TransactionContext {
     pub read_txn: Option<redb::ReadTransaction>,
     /// 持久性级别
     pub durability: DurabilityLevel,
+    /// 操作日志
+    operation_logs: Mutex<Vec<OperationLog>>,
+    /// 修改的表
+    modified_tables: Mutex<Vec<String>>,
+    /// 保存点管理器
+    savepoint_manager: Mutex<SavepointManager>,
+}
+
+/// 保存点管理器
+pub(crate) struct SavepointManager {
+    savepoints: HashMap<SavepointId, SavepointInfo>,
+    next_id: SavepointId,
+}
+
+impl SavepointManager {
+    fn new() -> Self {
+        Self {
+            savepoints: HashMap::new(),
+            next_id: 1,
+        }
+    }
+
+    fn create_savepoint(&mut self, name: Option<String>) -> SavepointId {
+        let id = self.next_id;
+        self.next_id += 1;
+        let info = SavepointInfo {
+            id,
+            name,
+            created_at: Instant::now(),
+        };
+        self.savepoints.insert(id, info);
+        id
+    }
+
+    fn get_savepoint(&self, id: SavepointId) -> Option<&SavepointInfo> {
+        self.savepoints.get(&id)
+    }
+
+    fn remove_savepoint(&mut self, id: SavepointId) -> Option<SavepointInfo> {
+        self.savepoints.remove(&id)
+    }
+
+    fn clear(&mut self) {
+        self.savepoints.clear();
+    }
 }
 
 impl TransactionContext {
@@ -49,6 +94,9 @@ impl TransactionContext {
             write_txn: Mutex::new(Some(write_txn)),
             read_txn: None,
             durability,
+            operation_logs: Mutex::new(Vec::new()),
+            modified_tables: Mutex::new(Vec::new()),
+            savepoint_manager: Mutex::new(SavepointManager::new()),
         }
     }
 
@@ -67,6 +115,9 @@ impl TransactionContext {
             write_txn: Mutex::new(None),
             read_txn: Some(read_txn),
             durability: DurabilityLevel::Immediate,
+            operation_logs: Mutex::new(Vec::new()),
+            modified_tables: Mutex::new(Vec::new()),
+            savepoint_manager: Mutex::new(SavepointManager::new()),
         }
     }
 
@@ -131,15 +182,105 @@ impl TransactionContext {
 
     /// 获取事务信息
     pub fn info(&self) -> TransactionInfo {
+        let tables = self.modified_tables.lock();
+        let savepoints = self.savepoint_manager.lock();
         TransactionInfo {
             id: self.id,
             state: self.state.load(),
             start_time: self.start_time,
             elapsed: self.start_time.elapsed(),
             is_read_only: self.read_only,
-            modified_tables: Vec::new(),
-            savepoint_count: 0,
+            modified_tables: tables.clone(),
+            savepoint_count: savepoints.savepoints.len(),
         }
+    }
+
+    /// 添加操作日志
+    pub fn add_operation_log(&self, operation: OperationLog) {
+        let mut logs = self.operation_logs.lock();
+        logs.push(operation);
+    }
+
+    /// 获取操作日志
+    pub fn get_operation_logs(&self) -> Vec<OperationLog> {
+        let logs = self.operation_logs.lock();
+        logs.clone()
+    }
+
+    /// 获取操作日志长度
+    pub fn operation_log_len(&self) -> usize {
+        let logs = self.operation_logs.lock();
+        logs.len()
+    }
+
+    /// 获取指定索引的操作日志
+    pub fn get_operation_log(&self, index: usize) -> Option<OperationLog> {
+        let logs = self.operation_logs.lock();
+        logs.get(index).cloned()
+    }
+
+    /// 获取指定范围的操作日志
+    pub fn get_operation_logs_range(&self, start: usize, end: usize) -> Vec<OperationLog> {
+        let logs = self.operation_logs.lock();
+        if start >= logs.len() {
+            return Vec::new();
+        }
+        let end = end.min(logs.len());
+        logs[start..end].to_vec()
+    }
+
+    /// 截断操作日志到指定索引
+    pub fn truncate_operation_log(&self, index: usize) {
+        let mut logs = self.operation_logs.lock();
+        if index < logs.len() {
+            logs.truncate(index);
+        }
+    }
+
+    /// 清空操作日志
+    pub fn clear_operation_log(&self) {
+        let mut logs = self.operation_logs.lock();
+        logs.clear();
+    }
+
+    /// 记录表修改
+    pub fn record_table_modification(&self, table_name: &str) {
+        let mut tables = self.modified_tables.lock();
+        if !tables.contains(&table_name.to_string()) {
+            tables.push(table_name.to_string());
+        }
+    }
+
+    /// 获取修改的表
+    pub fn get_modified_tables(&self) -> Vec<String> {
+        let tables = self.modified_tables.lock();
+        tables.clone()
+    }
+
+    /// 创建保存点
+    pub fn create_savepoint(&self, name: Option<String>) -> SavepointId {
+        let mut manager = self.savepoint_manager.lock();
+        manager.create_savepoint(name)
+    }
+
+    /// 获取保存点信息
+    pub fn get_savepoint(&self, id: SavepointId) -> Option<SavepointInfo> {
+        let manager = self.savepoint_manager.lock();
+        manager.get_savepoint(id).cloned()
+    }
+
+    /// 释放保存点
+    pub fn release_savepoint(&self, id: SavepointId) -> Result<(), TransactionError> {
+        let mut manager = self.savepoint_manager.lock();
+        manager.remove_savepoint(id)
+            .map(|_| ())
+            .ok_or(TransactionError::SavepointNotFound(id))
+    }
+
+    /// 清除所有保存点
+    pub fn clear_savepoints(&self) {
+        let mut manager = self.savepoint_manager.lock();
+        manager.clear();
     }
 
     /// 取出写事务（用于提交）

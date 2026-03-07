@@ -7,7 +7,6 @@
 
 use crate::storage::metadata::RedbSchemaManager;
 use crate::storage::redb_storage::RedbStorage;
-use crate::storage::StorageClient;
 use std::sync::Arc;
 
 /// 存储环境

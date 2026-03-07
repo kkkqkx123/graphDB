@@ -563,30 +563,6 @@ fn test_cleanup_expired_transactions() {
 }
 
 #[test]
-fn test_transaction_with_two_phase_commit() {
-    let (manager, _db, _temp) = create_test_manager();
-
-    let options = TransactionOptions::new()
-        .with_two_phase_commit()
-        .with_durability(DurabilityLevel::Immediate);
-
-    let txn_id = manager
-        .begin_transaction(options)
-        .expect("开始两阶段提交事务失败");
-
-    let context = manager
-        .get_context(txn_id)
-        .expect("获取事务上下文失败");
-
-    assert!(context.two_phase_commit);
-    assert_eq!(context.durability, DurabilityLevel::Immediate);
-
-    manager
-        .commit_transaction(txn_id)
-        .expect("提交事务失败");
-}
-
-#[test]
 fn test_shutdown_manager() {
     let (manager, _db, _temp) = create_test_manager();
 

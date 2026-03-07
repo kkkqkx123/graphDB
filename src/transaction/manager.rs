@@ -2,6 +2,7 @@
 //!
 //! 管理所有事务的生命周期，提供事务的开始、提交、中止等操作
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -10,6 +11,101 @@ use redb::Database;
 
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::*;
+
+/// 保存点管理器
+pub struct SavepointManager {
+    savepoints: DashMap<TransactionId, HashMap<SavepointId, SavepointInfo>>,
+    next_id: AtomicU64,
+}
+
+impl SavepointManager {
+    pub fn new() -> Self {
+        Self {
+            savepoints: DashMap::new(),
+            next_id: AtomicU64::new(1),
+        }
+    }
+
+    pub fn create_savepoint(
+        &self,
+        txn_id: TransactionId,
+        name: Option<String>,
+    ) -> Result<SavepointId, TransactionError> {
+        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
+        let info = SavepointInfo {
+            id,
+            name,
+            created_at: std::time::Instant::now(),
+        };
+
+        self.savepoints
+            .entry(txn_id)
+            .or_insert_with(HashMap::new)
+            .insert(id, info);
+
+        Ok(id)
+    }
+
+    pub fn get_savepoint(&self, txn_id: TransactionId, id: SavepointId) -> Option<SavepointInfo> {
+        self.savepoints
+            .get(&txn_id)
+            .and_then(|map| map.get(&id).cloned())
+    }
+
+    pub fn release_savepoint(&self, txn_id: TransactionId, id: SavepointId) -> Result<(), TransactionError> {
+        let removed = self.savepoints
+            .get_mut(&txn_id)
+            .and_then(|mut map| map.remove(&id))
+            .is_some();
+        
+        if removed {
+            Ok(())
+        } else {
+            Err(TransactionError::SavepointNotFound(id))
+        }
+    }
+
+    pub fn rollback_to_savepoint(&self, txn_id: TransactionId, id: SavepointId) -> Result<(), TransactionError> {
+        let exists = self.savepoints.get(&txn_id)
+            .map(|map| map.contains_key(&id))
+            .unwrap_or(false);
+        
+        if !exists {
+            return Err(TransactionError::SavepointNotFound(id));
+        }
+        Ok(())
+    }
+
+    pub fn find_savepoint_by_name(&self, txn_id: TransactionId, name: &str) -> Option<SavepointId> {
+        self.savepoints
+            .get(&txn_id)
+            .and_then(|map| {
+                for (id, info) in map.iter() {
+                    if info.name.as_deref() == Some(name) {
+                        return Some(*id);
+                    }
+                }
+                None
+            })
+    }
+
+    pub fn get_active_savepoints(&self, txn_id: TransactionId) -> Vec<SavepointInfo> {
+        self.savepoints
+            .get(&txn_id)
+            .map(|map| map.values().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    pub fn clear_transaction_savepoints(&self, txn_id: TransactionId) {
+        self.savepoints.remove(&txn_id);
+    }
+}
+
+impl Default for SavepointManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// 事务管理器
 pub struct TransactionManager {
@@ -46,6 +142,16 @@ impl TransactionManager {
         let active_count = self.active_transactions.len();
         if active_count >= self.config.max_concurrent_transactions {
             return Err(TransactionError::TooManyTransactions);
+        }
+
+        // 检查是否已经有活跃的写事务
+        if !options.read_only {
+            for entry in self.active_transactions.iter() {
+                let context = entry.value();
+                if !context.read_only {
+                    return Err(TransactionError::WriteTransactionConflict);
+                }
+            }
         }
 
         let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);

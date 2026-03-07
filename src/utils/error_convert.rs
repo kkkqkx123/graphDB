@@ -22,9 +22,6 @@ impl ErrorConvert<StorageError> for TransactionError {
             TransactionError::TransactionNotFound(id) => {
                 StorageError::DbError(format!("事务未找到: {}", id))
             }
-            TransactionError::TransactionNotPrepared(id) => {
-                StorageError::DbError(format!("事务未准备: {}", id))
-            }
             TransactionError::InvalidStateTransition { from, to } => {
                 StorageError::DbError(format!("无效的状态转换: 从 {} 到 {}", from, to))
             }
@@ -47,9 +44,6 @@ impl ErrorConvert<StorageError> for TransactionError {
             }
             TransactionError::NoSavepointsInTransaction => {
                 StorageError::DbError("事务中无保存点".to_string())
-            }
-            TransactionError::TwoPhaseNotFound(id) => {
-                StorageError::DbError(format!("2PC事务未找到: {}", id))
             }
             TransactionError::RollbackFailed(msg) => {
                 StorageError::DbError(format!("回滚失败: {}", msg))
