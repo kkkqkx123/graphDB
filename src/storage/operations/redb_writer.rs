@@ -1,9 +1,7 @@
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::operations::{EdgeWriter, VertexWriter};
 use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
-use crate::storage::serializer::{
-    edge_to_bytes, value_to_bytes, vertex_from_bytes, vertex_to_bytes,
-};
+use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use crate::transaction::{OperationLog, TransactionContext};
 use crate::utils::id_gen::generate_id;
 use redb::{Database, ReadableTable};
@@ -81,8 +79,8 @@ impl RedbWriter {
         };
         let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
 
-        let vertex_bytes = vertex_to_bytes(&vertex_with_id)?;
-        let id_bytes = value_to_bytes(&id)?;
+        let vertex_bytes = encode_to_vec(&vertex_with_id, standard())?;
+        let id_bytes = encode_to_vec(&id, standard())?;
 
         let previous_state = self.get_vertex_bytes(&id)?;
 
@@ -101,7 +99,7 @@ impl RedbWriter {
 
         self.log_operation(OperationLog::InsertVertex {
             space: "default".to_string(),
-            vertex_id: value_to_bytes(&id)?,
+            vertex_id: encode_to_vec(&id, standard())?,
             previous_state,
         });
 
@@ -111,7 +109,7 @@ impl RedbWriter {
     }
 
     fn get_vertex_bytes(&self, id: &Value) -> Result<Option<Vec<u8>>, StorageError> {
-        let id_bytes = value_to_bytes(id)?;
+        let id_bytes = encode_to_vec(id, standard())?;
 
         let executor = self.get_executor();
         executor.execute(|write_txn| {
@@ -153,8 +151,8 @@ impl RedbWriter {
             return Err(StorageError::NodeNotFound(Value::Null(Default::default())));
         }
 
-        let vertex_bytes = vertex_to_bytes(&vertex)?;
-        let id_bytes = value_to_bytes(&vertex.vid)?;
+        let vertex_bytes = encode_to_vec(&vertex, standard())?;
+        let id_bytes = encode_to_vec(&vertex.vid, standard())?;
 
         let previous_data = self
             .get_vertex_bytes(&vertex.vid)?
@@ -175,7 +173,7 @@ impl RedbWriter {
 
         self.log_operation(OperationLog::UpdateVertex {
             space: "default".to_string(),
-            vertex_id: value_to_bytes(&vertex.vid)?,
+            vertex_id: encode_to_vec(&vertex.vid, standard())?,
             previous_data,
         });
 
@@ -185,7 +183,7 @@ impl RedbWriter {
     }
 
     fn delete_vertex_internal(&self, id: &Value) -> Result<(), StorageError> {
-        let id_bytes = value_to_bytes(id)?;
+        let id_bytes = encode_to_vec(id, standard())?;
 
         let deleted_data = self
             .get_vertex_bytes(id)?
@@ -206,7 +204,7 @@ impl RedbWriter {
 
         self.log_operation(OperationLog::DeleteVertex {
             space: "default".to_string(),
-            vertex_id: value_to_bytes(id)?,
+            vertex_id: encode_to_vec(id, standard())?,
             deleted_data,
         });
 
@@ -240,8 +238,8 @@ impl RedbWriter {
             for (i, vertex) in vertices.into_iter().enumerate() {
                 let id = previous_states[i].0.clone();
                 let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
-                let vertex_bytes = vertex_to_bytes(&vertex_with_id)?;
-                let id_bytes = value_to_bytes(&id)?;
+                let vertex_bytes = encode_to_vec(&vertex_with_id, standard())?;
+                let id_bytes = encode_to_vec(&id, standard())?;
 
                 table
                     .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
@@ -255,7 +253,7 @@ impl RedbWriter {
         for (i, id) in ids.iter().enumerate() {
             self.log_operation(OperationLog::InsertVertex {
                 space: "default".to_string(),
-                vertex_id: value_to_bytes(id)?,
+                vertex_id: encode_to_vec(id, standard())?,
                 previous_state: previous_states[i].1.clone(),
             });
         }
@@ -270,7 +268,7 @@ impl RedbWriter {
         vertex_id: &Value,
         tag_names: &[String],
     ) -> Result<usize, StorageError> {
-        let id_bytes = value_to_bytes(vertex_id)?;
+        let id_bytes = encode_to_vec(vertex_id, standard())?;
         let tag_names = tag_names.to_vec();
 
         let previous_data = self
@@ -289,7 +287,7 @@ impl RedbWriter {
             {
                 Some(value) => {
                     let vertex_bytes = value.value();
-                    vertex_from_bytes(&vertex_bytes.0)?
+                    decode_from_slice(&vertex_bytes.0, standard())?.0
                 }
                 None => return Err(StorageError::NodeNotFound(vertex_id.clone())),
             };
@@ -304,7 +302,7 @@ impl RedbWriter {
             let deleted_count = original_tag_count - remaining_tags.len();
 
             let updated_vertex = Vertex::new(vertex_id.clone(), remaining_tags);
-            let vertex_bytes = vertex_to_bytes(&updated_vertex)?;
+            let vertex_bytes = encode_to_vec(&updated_vertex, standard())?;
 
             table
                 .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
@@ -315,7 +313,7 @@ impl RedbWriter {
 
         self.log_operation(OperationLog::UpdateVertex {
             space: "default".to_string(),
-            vertex_id: value_to_bytes(vertex_id)?,
+            vertex_id: encode_to_vec(vertex_id, standard())?,
             previous_data,
         });
 
@@ -365,7 +363,7 @@ impl RedbWriter {
     fn insert_edge_internal(&self, edge: Edge) -> Result<(), StorageError> {
         let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
-        let edge_bytes = edge_to_bytes(&edge)?;
+        let edge_bytes = encode_to_vec(&edge, standard())?;
 
         let previous_state = self.get_edge_bytes(&edge_key_bytes)?;
 
@@ -449,7 +447,7 @@ impl RedbWriter {
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             for (i, edge) in edges.into_iter().enumerate() {
-                let edge_bytes = edge_to_bytes(&edge)?;
+                let edge_bytes = encode_to_vec(&edge, standard())?;
 
                 table
                     .insert(ByteKey(edge_keys[i].clone()), ByteKey(edge_bytes))

@@ -2,53 +2,15 @@
 
 use crate::core::DataType;
 use crate::core::Value;
-use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
+use crate::core::types::PropertyDef;
 
 // 重新导出core层的DataType作为FieldType
 pub type FieldType = DataType;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
-pub struct InsertVertexInfo {
-    pub space_id: u64,
-    pub vertex_id: Value,
-    pub tag_name: String,
-    pub props: Vec<(String, Value)>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
-pub struct InsertEdgeInfo {
-    pub space_id: u64,
-    pub src_vertex_id: Value,
-    pub dst_vertex_id: Value,
-    pub edge_name: String,
-    pub rank: i64,
-    pub props: Vec<(String, Value)>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
-pub struct UpdateTarget {
-    pub space_name: String,
-    pub label: String,
-    pub id: Value,
-    pub prop: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
-pub enum UpdateOp {
-    Set,
-    Add,
-    Subtract,
-    Append,
-    Remove,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
-pub struct UpdateInfo {
-    pub update_target: UpdateTarget,
-    pub update_op: UpdateOp,
-    pub value: Value,
-}
+// 重新导出core层的类型，避免重复定义
+pub use crate::core::types::{
+    InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
+};
 
 /// 字段定义
 #[derive(Debug, Clone)]
@@ -133,6 +95,21 @@ impl FieldDef {
             DataType::Geography => 8,
             DataType::Duration => 16,
             _ => 8,
+        }
+    }
+}
+
+impl From<PropertyDef> for FieldDef {
+    fn from(prop: PropertyDef) -> Self {
+        Self {
+            name: prop.name,
+            field_type: prop.data_type,
+            nullable: prop.nullable,
+            default_value: prop.default,
+            fixed_length: None,
+            offset: 0,
+            null_flag_pos: None,
+            geo_shape: None,
         }
     }
 }

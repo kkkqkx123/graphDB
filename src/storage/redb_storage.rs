@@ -14,7 +14,7 @@ use crate::storage::metadata::{
 };
 use crate::storage::operations::{EdgeReader, EdgeWriter, VertexReader, VertexWriter};
 use crate::storage::operations::{RedbReader, RedbWriter};
-use crate::storage::serializer::{edge_to_bytes, vertex_to_bytes};
+use bincode::{config::standard, encode_to_vec};
 use crate::storage::Schema;
 use crate::transaction::TransactionContext;
 use parking_lot::Mutex;
@@ -1393,7 +1393,7 @@ impl StorageClient for RedbStorage {
             let schema = self.build_vertex_schema(&tag_info)?;
 
             // 序列化顶点数据
-            let vertex_data = vertex_to_bytes(&vertex)?;
+            let vertex_data = encode_to_vec(&vertex, standard())?;
 
             return Ok(Some((schema, vertex_data)));
         }
@@ -1423,7 +1423,7 @@ impl StorageClient for RedbStorage {
             let schema = self.build_edge_schema(&edge_type_info)?;
 
             // 序列化边数据
-            let edge_data = edge_to_bytes(&edge)?;
+            let edge_data = encode_to_vec(&edge, standard())?;
 
             return Ok(Some((schema, edge_data)));
         }
@@ -1449,7 +1449,7 @@ impl StorageClient for RedbStorage {
         let vertices = self.reader.lock().scan_vertices(space)?;
         for vertex in vertices {
             if vertex.tags.iter().any(|t| t.name == tag) {
-                let vertex_data = vertex_to_bytes(&vertex)?;
+                let vertex_data = encode_to_vec(&vertex, standard())?;
                 results.push((schema.clone(), vertex_data));
             }
         }
@@ -1481,7 +1481,7 @@ impl StorageClient for RedbStorage {
         // 扫描所有边并过滤
         let edges = self.reader.lock().scan_edges_by_type(space, edge_type)?;
         for edge in edges {
-            let edge_data = edge_to_bytes(&edge)?;
+            let edge_data = encode_to_vec(&edge, standard())?;
             results.push((schema.clone(), edge_data));
         }
 

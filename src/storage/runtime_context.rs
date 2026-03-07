@@ -5,32 +5,25 @@
 //! - 计划上下文（PlanContext）
 //! - 运行时上下文（RuntimeContext）
 
-use crate::storage::metadata::SchemaManager;
+use crate::storage::metadata::RedbSchemaManager;
+use crate::storage::redb_storage::RedbStorage;
 use crate::storage::StorageClient;
 use std::sync::Arc;
 
 /// 存储环境
 #[derive(Clone)]
-pub struct StorageEnv<S, M>
-where
-    S: StorageClient,
-    M: SchemaManager,
-{
+pub struct StorageEnv {
     /// 存储引擎
-    pub storage_engine: Arc<S>,
+    pub storage_engine: Arc<RedbStorage>,
     /// Schema管理器
-    pub schema_manager: Arc<M>,
+    pub schema_manager: Arc<RedbSchemaManager>,
 }
 
-impl<S, M> std::fmt::Debug for StorageEnv<S, M>
-where
-    S: StorageClient,
-    M: SchemaManager,
-{
+impl std::fmt::Debug for StorageEnv {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("StorageEnv")
-            .field("storage_engine", &"<StorageClient>")
-            .field("schema_manager", &"<SchemaManager>")
+            .field("storage_engine", &"<RedbStorage>")
+            .field("schema_manager", &"<RedbSchemaManager>")
             .finish()
     }
 }
@@ -38,13 +31,9 @@ where
 /// 计划上下文（存储层）
 /// 存储处理过程中不变的信息
 #[derive(Debug, Clone)]
-pub struct PlanContext<S, M>
-where
-    S: StorageClient,
-    M: SchemaManager,
-{
+pub struct PlanContext {
     /// 存储环境引用
-    pub storage_env: Arc<StorageEnv<S, M>>,
+    pub storage_env: Arc<StorageEnv>,
     /// 空间ID
     pub space_id: u64,
 }
@@ -52,27 +41,19 @@ where
 /// 运行时上下文
 /// 存储处理过程中可能变化的信息
 #[derive(Debug, Clone)]
-pub struct RuntimeContext<S, M>
-where
-    S: StorageClient,
-    M: SchemaManager,
-{
+pub struct RuntimeContext {
     /// 计划上下文引用
-    pub plan_context: Arc<PlanContext<S, M>>,
+    pub plan_context: Arc<PlanContext>,
 }
 
-impl<S, M> RuntimeContext<S, M>
-where
-    S: StorageClient,
-    M: SchemaManager,
-{
+impl RuntimeContext {
     /// 创建新的运行时上下文
-    pub fn new(plan_context: Arc<PlanContext<S, M>>) -> Self {
+    pub fn new(plan_context: Arc<PlanContext>) -> Self {
         Self { plan_context }
     }
 
     /// 获取存储环境
-    pub fn env(&self) -> &Arc<StorageEnv<S, M>> {
+    pub fn env(&self) -> &Arc<StorageEnv> {
         &self.plan_context.storage_env
     }
 
@@ -82,24 +63,12 @@ where
     }
 }
 
-/// 使用默认存储类型的运行时上下文类型别名
-pub type DefaultRuntimeContext =
-    RuntimeContext<crate::storage::redb_storage::RedbStorage, crate::storage::metadata::RedbSchemaManager>;
-
-/// 使用默认存储类型的计划上下文类型别名
-pub type DefaultPlanContext =
-    PlanContext<crate::storage::redb_storage::RedbStorage, crate::storage::metadata::RedbSchemaManager>;
-
-/// 使用默认存储类型的存储环境类型别名
-pub type DefaultStorageEnv =
-    StorageEnv<crate::storage::redb_storage::RedbStorage, crate::storage::metadata::RedbSchemaManager>;
-
-impl DefaultRuntimeContext {
+impl RuntimeContext {
     /// 创建简单的运行时上下文（用于不需要完整PlanContext的场景）
     pub fn new_simple() -> Arc<Self> {
         let storage = Arc::new(
-            crate::storage::redb_storage::DefaultStorage::new()
-                .expect("Failed to create DefaultStorage"),
+            RedbStorage::new()
+                .expect("Failed to create RedbStorage"),
         );
         let storage_env = Arc::new(StorageEnv {
             storage_engine: storage.clone(),

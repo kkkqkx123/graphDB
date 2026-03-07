@@ -4,7 +4,7 @@
 
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::operations::{EdgeWriter, VertexWriter};
-use crate::storage::serializer::{edge_from_bytes, vertex_from_bytes};
+use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use crate::transaction::OperationLog;
 
 /// 操作日志上下文 trait
@@ -101,7 +101,7 @@ impl<'a> StorageRollbackExecutor<'a> {
 
     /// 解析顶点ID
     fn parse_vertex_id(&self, bytes: &[u8]) -> Result<Value, StorageError> {
-        crate::storage::serializer::value_from_bytes(bytes)
+        decode_from_slice(bytes, standard())?.0
     }
 
     /// 解析边键
@@ -186,7 +186,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 let id = self.parse_vertex_id(vertex_id)?;
 
                 if previous_state.is_some() {
-                    let vertex = vertex_from_bytes(previous_state.as_ref().unwrap())?;
+                    let vertex = decode_from_slice(previous_state.as_ref().unwrap(), standard())?.0;
                     self.writer.update_vertex(&self.space, vertex)?;
                 } else {
                     self.writer.delete_vertex(&self.space, &id)?;
@@ -199,7 +199,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 vertex_id: _,
                 previous_data,
             } => {
-                let vertex = vertex_from_bytes(previous_data)?;
+                let vertex = decode_from_slice(previous_data, standard())?.0;
                 self.writer.update_vertex(&self.space, vertex)?;
                 Ok(())
             }
@@ -209,7 +209,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 vertex_id: _,
                 deleted_data,
             } => {
-                let vertex = vertex_from_bytes(deleted_data)?;
+                let vertex = decode_from_slice(deleted_data, standard())?.0;
                 self.writer.insert_vertex(&self.space, vertex)?;
                 Ok(())
             }
@@ -222,7 +222,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 let (src, dst, edge_type) = self.parse_edge_key(edge_key)?;
 
                 if previous_state.is_some() {
-                    let edge = edge_from_bytes(previous_state.as_ref().unwrap())?;
+                    let edge = decode_from_slice(previous_state.as_ref().unwrap(), standard())?.0;
                     self.writer.insert_edge(&self.space, edge)?;
                 } else {
                     self.writer
@@ -236,7 +236,7 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
                 edge_key: _,
                 deleted_data,
             } => {
-                let edge = edge_from_bytes(deleted_data)?;
+                let edge = decode_from_slice(deleted_data, standard())?.0;
                 self.writer.insert_edge(&self.space, edge)?;
                 Ok(())
             }
@@ -510,7 +510,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex1_bytes = crate::storage::serializer::vertex_to_bytes(&vertex1).unwrap();
+        let vertex1_bytes = encode_to_vec(&vertex1, standard()).unwrap();
 
         let vertex2 = Vertex::new(
             Value::Int(2),
@@ -519,7 +519,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex2_bytes = crate::storage::serializer::vertex_to_bytes(&vertex2).unwrap();
+        let vertex2_bytes = encode_to_vec(&vertex2, standard()).unwrap();
 
         ctx.add_log(OperationLog::InsertVertex {
             space: "test".to_string(),
@@ -570,7 +570,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex_bytes = crate::storage::serializer::vertex_to_bytes(&vertex).unwrap();
+        let vertex_bytes = encode_to_vec(&vertex, standard()).unwrap();
 
         let log = OperationLog::DeleteVertex {
             space: "test_space".to_string(),

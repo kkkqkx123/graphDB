@@ -1,9 +1,7 @@
 use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
 use crate::storage::operations::{EdgeReader, ScanResult, VertexReader};
 use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
-use crate::storage::serializer::{
-    edge_from_bytes, value_to_bytes, vertex_from_bytes,
-};
+use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use crate::transaction::TransactionContext;
 use lru::LruCache;
 use parking_lot::Mutex;
@@ -67,7 +65,7 @@ impl RedbReader {
                             Some(value) => {
                                 let byte_key_value = value.value();
                                 let vertex_bytes = byte_key_value.0.clone();
-                                let vertex: Vertex = vertex_from_bytes(&vertex_bytes)?;
+                                let vertex: Vertex = decode_from_slice(&vertex_bytes, standard())?.0;
                                 Ok(Some(vertex))
                             }
                             None => Ok(None),
@@ -89,7 +87,7 @@ impl RedbReader {
                             Some(value) => {
                                 let byte_key_value = value.value();
                                 let vertex_bytes = byte_key_value.0.clone();
-                                let vertex: Vertex = vertex_from_bytes(&vertex_bytes)?;
+                                let vertex: Vertex = decode_from_slice(&vertex_bytes, standard())?.0;
                                 Ok(Some(vertex))
                             }
                             None => Ok(None),
@@ -115,7 +113,7 @@ impl RedbReader {
             Some(value) => {
                 let byte_key_value = value.value();
                 let vertex_bytes = byte_key_value.0.clone();
-                let vertex: Vertex = vertex_from_bytes(&vertex_bytes)?;
+                let vertex: Vertex = decode_from_slice(&vertex_bytes, standard())?.0;
                 Ok(Some(vertex))
             }
             None => Ok(None),
@@ -139,7 +137,7 @@ impl RedbReader {
                             Some(value) => {
                                 let byte_key_value = value.value();
                                 let edge_bytes = byte_key_value.0.clone();
-                                let edge: Edge = edge_from_bytes(&edge_bytes)?;
+                                let edge: Edge = decode_from_slice(&edge_bytes, standard())?.0;
                                 Ok(Some(edge))
                             }
                             None => Ok(None),
@@ -161,7 +159,7 @@ impl RedbReader {
                             Some(value) => {
                                 let byte_key_value = value.value();
                                 let edge_bytes = byte_key_value.0.clone();
-                                let edge: Edge = edge_from_bytes(&edge_bytes)?;
+                                let edge: Edge = decode_from_slice(&edge_bytes, standard())?.0;
                                 Ok(Some(edge))
                             }
                             None => Ok(None),
@@ -187,7 +185,7 @@ impl RedbReader {
             Some(value) => {
                 let byte_key_value = value.value();
                 let edge_bytes = byte_key_value.0.clone();
-                let edge: Edge = edge_from_bytes(&edge_bytes)?;
+                let edge: Edge = decode_from_slice(&edge_bytes, standard())?.0;
                 Ok(Some(edge))
             }
             None => Ok(None),
@@ -197,7 +195,7 @@ impl RedbReader {
 
 impl VertexReader for RedbReader {
     fn get_vertex(&self, _space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
-        let id_bytes = value_to_bytes(id)?;
+        let id_bytes = encode_to_vec(id, standard())?;
 
         {
             let mut cache = self.vertex_cache.lock();
@@ -233,7 +231,7 @@ impl VertexReader for RedbReader {
                             .map_err(|e| StorageError::DbError(e.to_string()))?
                         {
                             let (_, vertex_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let vertex: Vertex = vertex_from_bytes(&vertex_bytes.value().0)?;
+                            let vertex: Vertex = decode_from_slice(&vertex_bytes.value().0, standard())?.0;
                             vertices.push(vertex);
                         }
 
@@ -253,7 +251,7 @@ impl VertexReader for RedbReader {
                             .map_err(|e| StorageError::DbError(e.to_string()))?
                         {
                             let (_, vertex_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let vertex: Vertex = vertex_from_bytes(&vertex_bytes.value().0)?;
+                            let vertex: Vertex = decode_from_slice(&vertex_bytes.value().0, standard())?.0;
                             vertices.push(vertex);
                         }
 
@@ -277,7 +275,7 @@ impl VertexReader for RedbReader {
             .map_err(|e| StorageError::DbError(e.to_string()))?
         {
             let (_, vertex_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let vertex: Vertex = vertex_from_bytes(&vertex_bytes.value().0)?;
+            let vertex: Vertex = decode_from_slice(&vertex_bytes.value().0, standard())?.0;
             vertices.push(vertex);
         }
 
@@ -383,7 +381,7 @@ impl EdgeReader for RedbReader {
                             .map_err(|e| StorageError::DbError(e.to_string()))?
                         {
                             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+                            let edge: Edge = decode_from_slice(&edge_bytes.value().0, standard())?.0;
 
                             let matches_direction = match direction {
                                 EdgeDirection::Out => *edge.src == *node_id,
@@ -417,7 +415,7 @@ impl EdgeReader for RedbReader {
                             .map_err(|e| StorageError::DbError(e.to_string()))?
                         {
                             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+                            let edge: Edge = decode_from_slice(&edge_bytes.value().0, standard())?.0;
 
                             let matches_direction = match direction {
                                 EdgeDirection::Out => *edge.src == *node_id,
@@ -455,7 +453,7 @@ impl EdgeReader for RedbReader {
             .map_err(|e| StorageError::DbError(e.to_string()))?
         {
             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+            let edge: Edge = decode_from_slice(&edge_bytes.value().0, standard())?.0;
 
             let matches_direction = match direction {
                 EdgeDirection::Out => *edge.src == *node_id,
@@ -495,7 +493,7 @@ impl EdgeReader for RedbReader {
                             .map_err(|e| StorageError::DbError(e.to_string()))?
                         {
                             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+                            let edge: Edge = decode_from_slice(&edge_bytes.value().0, standard())?.0;
                             edges.push(edge);
                         }
 
@@ -520,7 +518,7 @@ impl EdgeReader for RedbReader {
                             .map_err(|e| StorageError::DbError(e.to_string()))?
                         {
                             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+                            let edge: Edge = decode_from_slice(&edge_bytes.value().0, standard())?.0;
                             edges.push(edge);
                         }
 
@@ -549,7 +547,7 @@ impl EdgeReader for RedbReader {
             .map_err(|e| StorageError::DbError(e.to_string()))?
         {
             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+            let edge: Edge = decode_from_slice(&edge_bytes.value().0, standard())?.0;
             edges.push(edge);
         }
 
@@ -576,7 +574,7 @@ impl EdgeReader for RedbReader {
                             .map_err(|e| StorageError::DbError(e.to_string()))?
                         {
                             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+                            let edge: Edge = decode_from_slice(&edge_bytes.value().0, standard())?.0;
                             edges.push(edge);
                         }
 
@@ -596,7 +594,7 @@ impl EdgeReader for RedbReader {
                             .map_err(|e| StorageError::DbError(e.to_string()))?
                         {
                             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-                            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+                            let edge: Edge = decode_from_slice(&edge_bytes.value().0, standard())?.0;
                             edges.push(edge);
                         }
 
@@ -620,7 +618,7 @@ impl EdgeReader for RedbReader {
             .map_err(|e| StorageError::DbError(e.to_string()))?
         {
             let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+            let edge: Edge = decode_from_slice(&edge_bytes.value().0, standard())?.0;
             edges.push(edge);
         }
 

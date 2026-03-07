@@ -80,6 +80,12 @@ impl<T> From<std::sync::PoisonError<T>> for StorageError {
     }
 }
 
+impl From<bincode::Error> for StorageError {
+    fn from(e: bincode::Error) -> Self {
+        StorageError::SerializeError(e.to_string())
+    }
+}
+
 impl ToPublicError for StorageError {
     fn to_public_error(&self) -> PublicError {
         PublicError::new(self.to_error_code(), self.to_public_message())
