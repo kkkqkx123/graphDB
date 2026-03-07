@@ -9,9 +9,7 @@
 //! 索引存储实现已迁移至 src/storage/index/ 目录
 
 pub mod binary;
-pub mod error;
 pub mod types;
 
 pub use binary::*;
-pub use error::*;
 pub use types::*;

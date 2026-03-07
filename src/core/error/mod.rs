@@ -145,12 +145,6 @@ impl ToPublicError for DBError {
 
 // ==================== 外部错误转换实现 ====================
 
-impl From<crate::index::IndexError> for DBError {
-    fn from(err: crate::index::IndexError) -> Self {
-        DBError::Index(err.to_string())
-    }
-}
-
 impl From<serde_json::Error> for DBError {
     fn from(err: serde_json::Error) -> Self {
         DBError::Serialization(err.to_string())
