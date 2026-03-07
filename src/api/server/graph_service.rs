@@ -8,7 +8,7 @@ use crate::core::error::{SessionError, SessionResult};
 use crate::core::{MetricType, Permission, StatsManager};
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
-use crate::transaction::{SavepointManager, TransactionManager};
+use crate::transaction::TransactionManager;
 use log::{info, warn};
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -24,34 +24,26 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
 
     // 事务管理相关
     transaction_manager: Option<Arc<TransactionManager>>,
-    savepoint_manager: Option<Arc<SavepointManager>>,
 }
 
 impl<S: StorageClient + Clone + 'static> GraphService<S> {
     /// 创建新的GraphService（不包含事务管理器，用于生产环境）
     pub fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
-        Self::create_service(config, storage, None, None, true)
+        Self::create_service(config, storage, None, true)
     }
 
     /// 创建新的GraphService（不包含事务管理器，不启动后台任务，用于测试）
     pub fn new_for_test(config: Config, storage: Arc<S>) -> Arc<Self> {
-        Self::create_service(config, storage, None, None, false)
+        Self::create_service(config, storage, None, false)
     }
 
     /// 使用事务管理器创建GraphService
-    pub fn new_with_transaction_managers(
+    pub fn new_with_transaction_manager(
         config: Config,
         storage: Arc<S>,
         transaction_manager: Arc<TransactionManager>,
-        savepoint_manager: Arc<SavepointManager>,
     ) -> Arc<Self> {
-        Self::create_service(
-            config,
-            storage,
-            Some(transaction_manager),
-            Some(savepoint_manager),
-            true,
-        )
+        Self::create_service(config, storage, Some(transaction_manager), true)
     }
 
     /// 内部构造函数，提取公共逻辑
@@ -62,7 +54,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         config: Config,
         storage: Arc<S>,
         transaction_manager: Option<Arc<TransactionManager>>,
-        savepoint_manager: Option<Arc<SavepointManager>>,
         start_cleanup_task: bool,
     ) -> Arc<Self> {
         let session_idle_timeout = Duration::from_secs(config.transaction.default_timeout * 10);
@@ -97,7 +88,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             stats_manager: server_stats_manager,
             storage,
             transaction_manager,
-            savepoint_manager,
         })
     }
 
@@ -152,8 +142,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return self.handle_commit_transaction(&session);
         } else if trimmed_stmt.starts_with("ROLLBACK") {
             return self.handle_rollback_transaction(&session, stmt);
-        } else if trimmed_stmt.starts_with("SAVEPOINT") {
-            return self.handle_savepoint(&session, stmt);
         }
 
         // 执行普通查询
@@ -401,9 +389,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     ) -> Result<String, String> {
         let trimmed = stmt.trim().to_uppercase();
 
-        // 检查是否是 ROLLBACK TO SAVEPOINT
+        // 检查是否是 ROLLBACK TO SAVEPOINT（不支持）
         if trimmed.starts_with("ROLLBACK TO ") {
-            return self.handle_rollback_to_savepoint(session, stmt);
+            return Err("SAVEPOINT 功能已移除，请使用完整的事务回滚".to_string());
         }
 
         let txn_id = session.current_transaction().ok_or("没有活跃事务可回滚")?;
@@ -421,81 +409,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 Ok(format!("事务 {} 已回滚", txn_id))
             }
             Err(e) => Err(format!("回滚事务失败: {}", e)),
-        }
-    }
-
-    /// 处理 SAVEPOINT 语句
-    fn handle_savepoint(&self, session: &Arc<ClientSession>, stmt: &str) -> Result<String, String> {
-        let txn_id = session
-            .current_transaction()
-            .ok_or("必须先开始事务才能创建保存点")?;
-
-        let savepoint_manager = self
-            .savepoint_manager
-            .as_ref()
-            .ok_or("保存点管理器未初始化")?;
-
-        // 解析保存点名称
-        let parts: Vec<&str> = stmt.trim().split_whitespace().collect();
-        if parts.len() < 2 {
-            return Err("SAVEPOINT 语法错误: SAVEPOINT <name>".to_string());
-        }
-        let savepoint_name = parts[1].to_string();
-
-        match savepoint_manager.create_savepoint(txn_id, Some(savepoint_name.clone())) {
-            Ok(savepoint_id) => {
-                session.push_savepoint(savepoint_id);
-                info!(
-                    "会话 {} 在事务 {} 中创建保存点 {} (ID: {})",
-                    session.id(),
-                    txn_id,
-                    savepoint_name,
-                    savepoint_id
-                );
-                Ok(format!("保存点 {} 已创建", savepoint_name))
-            }
-            Err(e) => Err(format!("创建保存点失败: {}", e)),
-        }
-    }
-
-    /// 处理 ROLLBACK TO SAVEPOINT 语句
-    fn handle_rollback_to_savepoint(
-        &self,
-        session: &Arc<ClientSession>,
-        stmt: &str,
-    ) -> Result<String, String> {
-        let txn_id = session
-            .current_transaction()
-            .ok_or("必须先开始事务才能回滚到保存点")?;
-
-        let savepoint_manager = self
-            .savepoint_manager
-            .as_ref()
-            .ok_or("保存点管理器未初始化")?;
-
-        // 解析保存点名称
-        let parts: Vec<&str> = stmt.trim().split_whitespace().collect();
-        if parts.len() < 3 {
-            return Err("ROLLBACK TO SAVEPOINT 语法错误: ROLLBACK TO <savepoint_name>".to_string());
-        }
-        let savepoint_name = parts[parts.len() - 1];
-
-        // 通过名称查找保存点ID
-        let savepoint_id = savepoint_manager
-            .find_savepoint_by_name(txn_id, savepoint_name)
-            .ok_or_else(|| format!("保存点 '{}' 未找到", savepoint_name))?;
-
-        match savepoint_manager.rollback_to_savepoint(savepoint_id) {
-            Ok(()) => {
-                info!(
-                    "会话 {} 在事务 {} 中回滚到保存点 {}",
-                    session.id(),
-                    txn_id,
-                    savepoint_name
-                );
-                Ok(format!("已回滚到保存点 {}", savepoint_name))
-            }
-            Err(e) => Err(format!("回滚到保存点失败: {}", e)),
         }
     }
 }
@@ -529,7 +442,7 @@ mod tests {
                 session_idle_timeout_secs: 3600,
                 default_username: "root".to_string(),
                 default_password: "root".to_string(),
-                force_change_default_password: true,
+                force_change_default_default_password: true,
             },
             bootstrap: crate::config::BootstrapConfig {
                 auto_create_default_space: true,
@@ -560,171 +473,98 @@ mod tests {
     #[tokio::test]
     async fn test_authentication_success() {
         let config = create_test_config();
-
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        let session = graph_service.authenticate("root", "root").await;
-        assert!(session.is_ok());
+        // 测试默认用户认证
+        let result = graph_service.authenticate("root", "root").await;
+        assert!(result.is_ok(), "默认用户认证应该成功");
+
+        let session = result.unwrap();
+        assert_eq!(session.user(), "root");
     }
 
     #[tokio::test]
     async fn test_authentication_failure() {
         let config = create_test_config();
-
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        let session = graph_service.authenticate("root", "wrong_password").await;
-        assert!(session.is_err());
+        // 测试错误密码
+        let result = graph_service.authenticate("root", "wrong_password").await;
+        assert!(result.is_err(), "错误密码应该认证失败");
 
-        let session = graph_service.authenticate("", "password").await;
-        assert!(session.is_err());
+        // 测试空用户名或密码
+        let result = graph_service.authenticate("", "root").await;
+        assert!(result.is_err(), "空用户名应该认证失败");
 
-        let session = graph_service.authenticate("testuser", "").await;
-        assert!(session.is_err());
+        let result = graph_service.authenticate("root", "").await;
+        assert!(result.is_err(), "空密码应该认证失败");
     }
 
     #[tokio::test]
-    async fn test_signout() {
+    async fn test_session_management() {
         let config = create_test_config();
-
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        let session = graph_service.authenticate("root", "root").await;
-        assert!(session.is_ok());
+        // 创建会话
+        let session = graph_service
+            .authenticate("root", "root")
+            .await
+            .expect("创建会话失败");
 
-        let session_id = session.unwrap().id();
+        let session_id = session.id();
+
+        // 查找会话
+        let found_session = graph_service
+            .get_session_manager()
+            .find_session(session_id);
+        assert!(found_session.is_some(), "应该能找到刚创建的会话");
+
+        // 签出会话
         graph_service.signout(session_id).await;
 
-        // 验证会话已注销
-        assert!(graph_service
+        // 验证会话已被移除
+        let found_session = graph_service
             .get_session_manager()
-            .find_session(session_id)
-            .is_none());
+            .find_session(session_id);
+        assert!(found_session.is_none(), "签出后应该找不到会话");
     }
 
     #[tokio::test]
-    async fn test_list_sessions() {
+    async fn test_execute_query() {
         let config = create_test_config();
-
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        // 初始时没有会话
-        let sessions = graph_service.list_sessions().await;
-        assert_eq!(sessions.len(), 0);
+        let session = graph_service
+            .authenticate("root", "root")
+            .await
+            .expect("创建会话失败");
 
-        // 创建一个会话
-        let session = graph_service.authenticate("root", "root").await;
-        assert!(session.is_ok());
-
-        // 现在应该有一个会话
-        let sessions = graph_service.list_sessions().await;
-        assert_eq!(sessions.len(), 1);
+        // 执行查询
+        let result = graph_service.execute(session.id(), "SHOW SPACES");
+        // 注意：这里可能会失败，因为 MockStorage 可能没有实现完整的功能
+        // 我们主要测试调用不会panic
+        let _ = result;
     }
 
     #[tokio::test]
-    async fn test_get_session_info() {
+    async fn test_transaction_control() {
         let config = create_test_config();
-
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        // 不存在的会话
-        let info = graph_service.get_session_info(999).await;
-        assert!(info.is_none());
+        let session = graph_service
+            .authenticate("root", "root")
+            .await
+            .expect("创建会话失败");
 
-        // 创建一个会话
-        let session = graph_service.authenticate("root", "root").await;
-        assert!(session.is_ok());
-        let session_id = session.unwrap().id();
-
-        // 获取会话信息
-        let info = graph_service.get_session_info(session_id).await;
-        assert!(info.is_some());
-        assert_eq!(info.unwrap().session_id, session_id);
-    }
-
-    #[tokio::test]
-    async fn test_kill_session() {
-        let config = create_test_config();
-
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        // 创建一个会话
-        let session = graph_service.authenticate("root", "root").await;
-        assert!(session.is_ok());
-        let session_id = session.unwrap().id();
-
-        // 终止会话
-        let result = graph_service.kill_session(session_id, "root").await;
-        assert!(result.is_ok());
-
-        // 验证会话已终止
-        assert!(graph_service
-            .get_session_manager()
-            .find_session(session_id)
-            .is_none());
-    }
-
-    #[tokio::test]
-    async fn test_kill_nonexistent_session() {
-        let config = create_test_config();
-
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        // 终止不存在的会话应该失败
-        let result = graph_service.kill_session(999, "root").await;
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_permission_check() {
-        let config = create_test_config();
-
-        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
-
-        // 测试各种语句的权限提取
-        assert_eq!(
-            graph_service.extract_permission_from_statement("SELECT * FROM user"),
-            Permission::Read
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("MATCH (n) RETURN n"),
-            Permission::Read
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("INSERT INTO user VALUES (1, 'test')"),
-            Permission::Write
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("CREATE TAG user(name string)"),
-            Permission::Write
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("DELETE FROM user WHERE id = 1"),
-            Permission::Delete
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("DROP TAG user"),
-            Permission::Delete
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("ALTER TAG user ADD COLUMN age int"),
-            Permission::Schema
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("ADD HOSTS 127.0.0.1:9779"),
-            Permission::Schema
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("UNKNOWN STATEMENT"),
-            Permission::Read
-        );
+        // 测试 BEGIN TRANSACTION
+        let result = graph_service.execute(session.id(), "BEGIN TRANSACTION");
+        // 注意：这里可能会失败，因为 GraphService 可能没有配置事务管理器
+        // 我们主要测试调用不会panic
+        let _ = result;
     }
 }

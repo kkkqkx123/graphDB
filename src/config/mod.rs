@@ -34,12 +34,6 @@ pub struct TransactionConfig {
     pub default_timeout: u64,
     /// 最大并发事务数
     pub max_concurrent_transactions: usize,
-    /// 是否启用两阶段提交（2PC）
-    pub enable_2pc: bool,
-    /// 是否自动清理过期事务
-    pub auto_cleanup: bool,
-    /// 清理任务执行间隔（秒）
-    pub cleanup_interval: u64,
 }
 
 impl Default for TransactionConfig {
@@ -47,9 +41,6 @@ impl Default for TransactionConfig {
         Self {
             default_timeout: 30,
             max_concurrent_transactions: 1000,
-            enable_2pc: false,
-            auto_cleanup: true,
-            cleanup_interval: 10,
         }
     }
 }
@@ -339,21 +330,6 @@ impl Config {
     pub fn max_concurrent_transactions(&self) -> usize {
         self.transaction.max_concurrent_transactions
     }
-
-    /// 是否启用两阶段提交
-    pub fn enable_2pc(&self) -> bool {
-        self.transaction.enable_2pc
-    }
-
-    /// 是否自动清理过期事务
-    pub fn auto_cleanup(&self) -> bool {
-        self.transaction.auto_cleanup
-    }
-
-    /// 获取清理间隔（秒）
-    pub fn cleanup_interval(&self) -> u64 {
-        self.transaction.cleanup_interval
-    }
 }
 
 #[cfg(test)]
@@ -403,9 +379,6 @@ max_connections = 100
 [transaction]
 default_timeout = 60
 max_concurrent_transactions = 500
-enable_2pc = true
-auto_cleanup = false
-cleanup_interval = 30
 
 [log]
 level = "debug"
@@ -453,9 +426,6 @@ enabled_rules = ["RemoveUselessNodeRule"]
         assert_eq!(config.database.port, 8080);
         assert_eq!(config.transaction.default_timeout, 60);
         assert_eq!(config.transaction.max_concurrent_transactions, 500);
-        assert_eq!(config.transaction.enable_2pc, true);
-        assert_eq!(config.transaction.auto_cleanup, false);
-        assert_eq!(config.transaction.cleanup_interval, 30);
         assert_eq!(config.log.level, "debug");
         assert_eq!(config.auth.enable_authorize, false);
         assert_eq!(config.auth.default_username, "admin");

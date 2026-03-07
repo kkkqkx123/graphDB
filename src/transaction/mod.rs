@@ -2,8 +2,6 @@
 //!
 //! 提供GraphDB的事务管理功能，包括：
 //! - 事务生命周期管理（开始、提交、中止）
-//! - 保存点管理（创建、回滚、释放）
-//! - 两阶段提交（2PC）支持
 //! - 事务统计与监控
 //!
 //! ## 使用示例
@@ -25,28 +23,15 @@
 
 pub mod context;
 pub mod manager;
-pub mod savepoint;
-pub mod two_phase;
 pub mod types;
 
 #[cfg(test)]
 pub mod context_test;
 #[cfg(test)]
 pub mod manager_test;
-#[cfg(test)]
-pub mod savepoint_test;
-#[cfg(test)]
-pub mod two_phase_test;
 
 pub use context::TransactionContext;
 pub use manager::TransactionManager;
-pub use savepoint::{
-    Savepoint, SavepointId, SavepointInfo, SavepointManager, SavepointState, SavepointStats,
-};
-pub use two_phase::{
-    ParticipantState, ParticipantVote, ResourceManager, TwoPhaseCoordinator, TwoPhaseId,
-    TwoPhaseState, TwoPhaseTransaction,
-};
 pub use types::*;
 
 /// 事务管理模块版本
@@ -65,13 +50,6 @@ pub fn readonly_options() -> TransactionOptions {
 /// 创建高性能写事务选项（不保证立即持久化）
 pub fn high_performance_write_options() -> TransactionOptions {
     TransactionOptions::new().with_durability(DurabilityLevel::None)
-}
-
-/// 创建安全写事务选项（两阶段提交）
-pub fn safe_write_options() -> TransactionOptions {
-    TransactionOptions::new()
-        .with_durability(DurabilityLevel::Immediate)
-        .with_two_phase_commit()
 }
 
 #[cfg(test)]
@@ -132,13 +110,5 @@ mod tests {
     fn test_high_performance_options() {
         let options = high_performance_write_options();
         assert_eq!(options.durability, DurabilityLevel::None);
-        assert!(!options.two_phase_commit);
-    }
-
-    #[test]
-    fn test_safe_write_options() {
-        let options = safe_write_options();
-        assert_eq!(options.durability, DurabilityLevel::Immediate);
-        assert!(options.two_phase_commit);
     }
 }

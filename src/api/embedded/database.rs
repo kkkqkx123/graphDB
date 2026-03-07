@@ -8,7 +8,7 @@ use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::{GraphDatabaseInner, Session};
 use crate::core::Value;
 use crate::storage::{RedbStorage, StorageClient};
-use crate::transaction::{SavepointManager, TransactionManager, TransactionManagerConfig};
+use crate::transaction::{TransactionManager, TransactionManagerConfig};
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::Path;
@@ -101,7 +101,6 @@ impl GraphDatabase<RedbStorage> {
 
         let txn_manager_config = TransactionManagerConfig::default();
         let txn_manager = Arc::new(TransactionManager::new(db, txn_manager_config));
-        let savepoint_manager = Arc::new(SavepointManager::new());
 
         let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
         let schema_api = SchemaApi::new(storage.clone());
@@ -110,7 +109,6 @@ impl GraphDatabase<RedbStorage> {
             query_api,
             schema_api,
             txn_manager,
-            savepoint_manager,
             storage,
         });
 
@@ -211,7 +209,7 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
 // 1. GraphDatabase 内部使用 Arc<GraphDatabaseInner<S>> 来共享数据，Arc 本身是 Send + Sync 的
 // 2. GraphDatabaseInner 中的 QueryApi 使用 Mutex 保护，确保线程安全
 // 3. StorageClient 要求实现 Clone + 'static，确保可以安全跨线程传递
-// 4. TransactionManager 和 SavepointManager 使用 Arc 包装，可以安全跨线程共享
+// 4. TransactionManager 使用 Arc 包装，可以安全跨线程共享
 // 5. config 是独立的 DatabaseConfig，可以安全跨线程传递
 // 因此 GraphDatabase 可以安全地实现 Send 和 Sync
 unsafe impl<S: StorageClient + Clone + 'static> Send for GraphDatabase<S> {}
@@ -232,7 +230,6 @@ impl GraphDatabase<MockStorage> {
 
         let txn_manager_config = TransactionManagerConfig::default();
         let txn_manager = Arc::new(TransactionManager::new(db, txn_manager_config));
-        let savepoint_manager = Arc::new(SavepointManager::new());
 
         let query_api = Arc::new(Mutex::new(QueryApi::new(storage.clone())));
         let schema_api = SchemaApi::new(storage.clone());
@@ -241,7 +238,6 @@ impl GraphDatabase<MockStorage> {
             query_api,
             schema_api,
             txn_manager,
-            savepoint_manager,
             storage,
         });
 

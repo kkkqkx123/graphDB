@@ -2,7 +2,6 @@
 //!
 //! 管理单个事务的状态和资源
 
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -29,14 +28,8 @@ pub struct TransactionContext {
     pub write_txn: Mutex<Option<redb::WriteTransaction>>,
     /// redb读事务（只读事务时存在）
     pub read_txn: Option<redb::ReadTransaction>,
-    /// 已修改的表集合（用于冲突检测）
-    modified_tables: Mutex<HashSet<String>>,
-    /// 操作日志（用于恢复）
-    operation_log: Mutex<Vec<OperationLog>>,
     /// 持久性级别
     pub durability: DurabilityLevel,
-    /// 是否启用两阶段提交
-    pub two_phase_commit: bool,
 }
 
 impl TransactionContext {
@@ -45,7 +38,6 @@ impl TransactionContext {
         id: TransactionId,
         timeout: Duration,
         durability: DurabilityLevel,
-        two_phase_commit: bool,
         write_txn: redb::WriteTransaction,
     ) -> Self {
         Self {
@@ -56,10 +48,7 @@ impl TransactionContext {
             read_only: false,
             write_txn: Mutex::new(Some(write_txn)),
             read_txn: None,
-            modified_tables: Mutex::new(HashSet::new()),
-            operation_log: Mutex::new(Vec::new()),
             durability,
-            two_phase_commit,
         }
     }
 
@@ -77,10 +66,7 @@ impl TransactionContext {
             read_only: true,
             write_txn: Mutex::new(None),
             read_txn: Some(read_txn),
-            modified_tables: Mutex::new(HashSet::new()),
-            operation_log: Mutex::new(Vec::new()),
             durability: DurabilityLevel::Immediate,
-            two_phase_commit: false,
         }
     }
 
@@ -110,11 +96,8 @@ impl TransactionContext {
 
         // 验证状态转换是否合法
         let valid_transition = match (current, new_state) {
-            (TransactionState::Active, TransactionState::Prepared) => true,
             (TransactionState::Active, TransactionState::Committing) => true,
             (TransactionState::Active, TransactionState::Aborting) => true,
-            (TransactionState::Prepared, TransactionState::Committing) => true,
-            (TransactionState::Prepared, TransactionState::Aborting) => true,
             (TransactionState::Committing, TransactionState::Committed) => true,
             (TransactionState::Aborting, TransactionState::Aborted) => true,
             _ => false,
@@ -129,51 +112,6 @@ impl TransactionContext {
 
         self.state.store(new_state);
         Ok(())
-    }
-
-    /// 记录表修改
-    pub fn record_table_modification(&self, table_name: &str) {
-        self.modified_tables.lock().insert(table_name.to_string());
-    }
-
-    /// 获取已修改的表
-    pub fn modified_tables(&self) -> Vec<String> {
-        self.modified_tables.lock().iter().cloned().collect()
-    }
-
-    /// 添加操作日志
-    pub fn add_operation_log(&self, operation: OperationLog) {
-        self.operation_log.lock().push(operation);
-    }
-
-    /// 获取操作日志长度
-    pub fn operation_log_len(&self) -> usize {
-        self.operation_log.lock().len()
-    }
-
-    /// 获取操作日志（用于保存点回滚）
-    pub fn truncate_operation_log(&self, index: usize) {
-        self.operation_log.lock().truncate(index);
-    }
-
-    /// 获取指定索引的操作日志
-    pub fn get_operation_log(&self, index: usize) -> Option<OperationLog> {
-        self.operation_log.lock().get(index).cloned()
-    }
-
-    /// 获取指定范围的操作日志
-    pub fn get_operation_logs(&self, start: usize, end: usize) -> Vec<OperationLog> {
-        let log = self.operation_log.lock();
-        if start >= log.len() {
-            return Vec::new();
-        }
-        let end = end.min(log.len());
-        log[start..end].to_vec()
-    }
-
-    /// 清空操作日志
-    pub fn clear_operation_log(&self) {
-        self.operation_log.lock().clear();
     }
 
     /// 检查是否可以执行操作
@@ -199,8 +137,8 @@ impl TransactionContext {
             start_time: self.start_time,
             elapsed: self.start_time.elapsed(),
             is_read_only: self.read_only,
-            modified_tables: self.modified_tables(),
-            savepoint_count: 0, // 由SavepointManager维护
+            modified_tables: Vec::new(),
+            savepoint_count: 0,
         }
     }
 
@@ -286,37 +224,9 @@ impl TransactionContext {
         // 对于读写事务，需要从写事务创建读事务
         // redb 不支持直接从 WriteTransaction 读取，需要创建新的读事务
         // 但这会导致读写不一致，所以这里返回错误
-        // 调用者应该使用 with_write_txn 进行读取操作
+        // 调用者应该使用 with_write_txn 方法
         Err(TransactionError::Internal(
             "读写事务不支持直接读取，请使用 with_write_txn 方法".to_string(),
-        ))
-    }
-
-    /// 获取可用于读取的事务（返回 Database 引用）
-    ///
-    /// # Returns
-    /// * `Ok(Arc<Database>)` - 数据库引用
-    /// * `Err(TransactionError)` - 错误
-    ///
-    /// # 注意
-    /// 此方法返回数据库引用，调用者需要根据事务类型决定如何创建读事务：
-    /// - 只读事务：使用 context.read_txn()
-    /// - 读写事务：使用 context.write_txn_mut() 或通过 with_read_txn() 方法
-    pub fn get_read_database(&self) -> Result<Arc<redb::Database>, TransactionError> {
-        let state = self.state.load();
-        if !state.can_execute() && !state.is_terminal() {
-            return Err(TransactionError::InvalidStateForCommit(state));
-        }
-
-        if self.is_expired() {
-            return Err(TransactionError::TransactionExpired);
-        }
-
-        // 返回数据库引用，调用者需要根据事务类型决定如何使用
-        // 这里我们无法直接返回事务，因为类型不同
-        // 调用者应该使用 with_read_txn 方法
-        Err(TransactionError::Internal(
-            "请使用 with_read_txn 方法进行读取操作".to_string(),
         ))
     }
 
@@ -371,7 +281,7 @@ impl Drop for TransactionContext {
     fn drop(&mut self) {
         // 如果事务仍处于活跃状态，自动中止
         let state = self.state.load();
-        if state == TransactionState::Active || state == TransactionState::Prepared {
+        if state == TransactionState::Active {
             // redb的WriteTransaction在Drop时会自动回滚
             // 这里只需要更新状态
             self.state.store(TransactionState::Aborted);

@@ -30,7 +30,7 @@ use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::core::error::DBResult;
 use crate::storage::redb_storage::DefaultStorage;
-use crate::transaction::{SavepointManager, TransactionManager, TransactionManagerConfig};
+use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
 /// 使用配置文件路径启动服务（已弃用，请使用 start_service_with_config）
 #[cfg(feature = "server")]
@@ -68,22 +68,16 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     let txn_config = TransactionManagerConfig {
         default_timeout: std::time::Duration::from_secs(config.transaction.default_timeout),
         max_concurrent_transactions: config.transaction.max_concurrent_transactions,
-        enable_2pc: config.transaction.enable_2pc,
-        deadlock_detection_interval: std::time::Duration::from_secs(5),
-        auto_cleanup: config.transaction.auto_cleanup,
-        cleanup_interval: std::time::Duration::from_secs(config.transaction.cleanup_interval),
     };
     let transaction_manager = Arc::new(TransactionManager::new(db, txn_config));
-    let savepoint_manager = Arc::new(SavepointManager::new());
-    println!("Transaction managers initialized");
+    println!("Transaction manager initialized");
 
-    let _graph_service = GraphService::<DefaultStorage>::new_with_transaction_managers(
+    let _graph_service = GraphService::<DefaultStorage>::new_with_transaction_manager(
         config.clone(),
         storage,
         transaction_manager,
-        savepoint_manager,
     );
-    println!("Graph service initialized with session and transaction management");
+    println!("Graph service initialized with transaction management");
 
     println!(
         "Starting HTTP server on {}:{}",

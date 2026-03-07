@@ -1,14 +1,10 @@
 //! 事务管理器
 //!
 //! 管理所有事务的生命周期，提供事务的开始、提交、中止等操作
-//!
-//! 注意：由于redb使用单写者多读者模型，本管理器采用延迟创建写事务策略，
-//! 只在真正需要写入时才获取redb写锁。
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-use crossbeam_utils::atomic::AtomicCell;
 use dashmap::DashMap;
 use redb::Database;
 
@@ -27,33 +23,18 @@ pub struct TransactionManager {
     id_generator: AtomicU64,
     /// 统计信息
     stats: Arc<TransactionStats>,
-    /// 运行状态
-    running: Arc<AtomicCell<bool>>,
-    /// 是否有活跃的redb写事务
-    has_redb_write_txn: Arc<AtomicCell<bool>>,
 }
 
 impl TransactionManager {
     /// 创建新的事务管理器
     pub fn new(db: Arc<Database>, config: TransactionManagerConfig) -> Self {
-        let auto_cleanup = config.auto_cleanup;
-        let cleanup_interval = config.cleanup_interval;
-        let manager = Self {
+        Self {
             db,
             config,
             active_transactions: Arc::new(DashMap::new()),
             id_generator: AtomicU64::new(1),
             stats: Arc::new(TransactionStats::new()),
-            running: Arc::new(AtomicCell::new(true)),
-            has_redb_write_txn: Arc::new(AtomicCell::new(false)),
-        };
-
-        // 启动后台清理任务
-        if auto_cleanup {
-            manager.start_cleanup_task(cleanup_interval);
         }
-
-        manager
     }
 
     /// 开始新事务
@@ -61,13 +42,6 @@ impl TransactionManager {
         &self,
         options: TransactionOptions,
     ) -> Result<TransactionId, TransactionError> {
-        // 检查管理器是否仍在运行
-        if !self.running.load() {
-            return Err(TransactionError::Internal(
-                "Transaction manager is shutting down".to_string(),
-            ));
-        }
-
         // 检查并发事务数限制
         let active_count = self.active_transactions.len();
         if active_count >= self.config.max_concurrent_transactions {
@@ -78,7 +52,6 @@ impl TransactionManager {
         let timeout = options.timeout.unwrap_or(self.config.default_timeout);
 
         // 创建事务上下文
-        // 对于读写事务，延迟创建redb写事务，避免阻塞
         let context = if options.read_only {
             let read_txn = self
                 .db
@@ -87,23 +60,16 @@ impl TransactionManager {
 
             Arc::new(TransactionContext::new_readonly(txn_id, timeout, read_txn))
         } else {
-            // 检查是否已有redb写事务
-            if self.has_redb_write_txn.load() {
-                return Err(TransactionError::WriteTransactionConflict);
-            }
-
-            // 尝试获取redb写事务
-            self.has_redb_write_txn.store(true);
-            let write_txn = self.db.begin_write().map_err(|e| {
-                self.has_redb_write_txn.store(false);
-                TransactionError::BeginFailed(e.to_string())
-            })?;
+            // redb 会自动处理单写者限制，不需要手动管理
+            let write_txn = self
+                .db
+                .begin_write()
+                .map_err(|e| TransactionError::BeginFailed(e.to_string()))?;
 
             Arc::new(TransactionContext::new_writable(
                 txn_id,
                 timeout,
                 options.durability,
-                options.two_phase_commit,
                 write_txn,
             ))
         };
@@ -141,13 +107,8 @@ impl TransactionManager {
             let entry = self
                 .active_transactions
                 .get(&txn_id)
-                .ok_or(TransactionError::TransactionNotFound(txn_id));
+                .ok_or(TransactionError::TransactionNotFound(txn_id))?;
 
-            if entry.is_err() {
-                return entry.map(|_| ());
-            }
-
-            let entry = entry.unwrap();
             let ctx = entry.value().clone();
             drop(entry);
 
@@ -182,18 +143,10 @@ impl TransactionManager {
             let durability: redb::Durability = context.durability.into();
             write_txn.set_durability(durability);
 
-            // 如果启用2PC，设置两阶段提交
-            if context.two_phase_commit {
-                write_txn.set_two_phase_commit(true);
-            }
-
             // 提交事务
             write_txn
                 .commit()
                 .map_err(|e| TransactionError::CommitFailed(e.to_string()))?;
-
-            // 释放redb写事务标记
-            self.has_redb_write_txn.store(false);
         }
 
         context.transition_to(TransactionState::Committed)?;
@@ -219,8 +172,6 @@ impl TransactionManager {
         // 取出写事务，Drop时会自动回滚
         if !context.read_only {
             let _ = context.take_write_txn();
-            // 释放redb写事务标记
-            self.has_redb_write_txn.store(false);
         }
 
         self.stats.decrement_active();
@@ -297,55 +248,8 @@ impl TransactionManager {
         }
     }
 
-    /// 启动后台清理任务
-    fn start_cleanup_task(&self, interval: std::time::Duration) {
-        let active_transactions = self.active_transactions.clone();
-        let stats = self.stats.clone();
-        let running = self.running.clone();
-        let has_redb_write_txn = self.has_redb_write_txn.clone();
-
-        std::thread::spawn(move || {
-            while running.load() {
-                std::thread::sleep(interval);
-
-                if !running.load() {
-                    break;
-                }
-
-                // 先收集所有过期的事务ID和相关信息
-                let expired: Vec<(TransactionId, bool, bool)> = {
-                    active_transactions
-                        .iter()
-                        .filter(|entry| entry.value().is_expired())
-                        .map(|entry| {
-                            let ctx = entry.value();
-                            (*entry.key(), ctx.state().can_abort(), ctx.read_only)
-                        })
-                        .collect()
-                };
-
-                // 然后逐个处理
-                for (txn_id, can_abort, is_readonly) in expired {
-                    if can_abort {
-                        if let Some((_, ctx)) = active_transactions.remove(&txn_id) {
-                            let _ = ctx.transition_to(TransactionState::Aborting);
-                            if !is_readonly {
-                                let _ = ctx.take_write_txn();
-                                has_redb_write_txn.store(false);
-                            }
-                            stats.decrement_active();
-                            stats.increment_timeout();
-                        }
-                    }
-                }
-            }
-        });
-    }
-
     /// 关闭事务管理器
     pub fn shutdown(&self) {
-        self.running.store(false);
-
         // 中止所有活跃事务
         let txn_ids: Vec<TransactionId> = {
             self.active_transactions
@@ -383,10 +287,7 @@ mod tests {
             Database::create(temp_dir.path().join("test.db"))
                 .expect("Failed to create test database"),
         );
-        let config = TransactionManagerConfig {
-            auto_cleanup: false, // 禁用后台清理，避免测试中的死锁
-            ..TransactionManagerConfig::default()
-        };
+        let config = TransactionManagerConfig::default();
         let manager = TransactionManager::new(db.clone(), config);
         (manager, db, temp_dir)
     }
@@ -531,36 +432,6 @@ mod tests {
             manager.stats().aborted_transactions.load(Ordering::Relaxed),
             1
         );
-    }
-
-    #[test]
-    fn test_write_transaction_conflict() {
-        let (manager, _db, _temp) = create_test_manager();
-
-        // 开始第一个写事务
-        let txn1 = manager
-            .begin_transaction(TransactionOptions::default())
-            .expect("Failed to begin transaction");
-
-        // 尝试开始第二个写事务应该失败（因为redb只支持单写者）
-        let result = manager.begin_transaction(TransactionOptions::default());
-        assert!(matches!(
-            result,
-            Err(TransactionError::WriteTransactionConflict)
-        ));
-
-        // 提交第一个事务
-        manager
-            .commit_transaction(txn1)
-            .expect("Failed to commit transaction");
-
-        // 现在可以开始新的事务了
-        let txn2 = manager
-            .begin_transaction(TransactionOptions::default())
-            .expect("Failed to begin transaction");
-        manager
-            .commit_transaction(txn2)
-            .expect("Failed to commit transaction");
     }
 
     #[test]

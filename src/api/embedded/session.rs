@@ -2,14 +2,15 @@
 //!
 //! 提供会话（Session）概念，作为查询执行的上下文
 
-use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi};
+use crate::api::core::{CoreError, CoreResult, QueryApi, SchemaApi};
 use crate::api::embedded::batch::BatchInserter;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::statement::PreparedStatement;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
 use crate::core::Value;
 use crate::storage::StorageClient;
-use crate::transaction::{SavepointManager, TransactionManager, TransactionOptions};
+use crate::transaction::TransactionManager;
+use crate::transaction::TransactionOptions;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -53,7 +54,6 @@ pub(crate) struct GraphDatabaseInner<S: StorageClient + 'static> {
     pub(crate) query_api: Arc<Mutex<QueryApi<S>>>,
     pub(crate) schema_api: SchemaApi<S>,
     pub(crate) txn_manager: Arc<TransactionManager>,
-    pub(crate) savepoint_manager: Arc<SavepointManager>,
     pub(crate) storage: Arc<Mutex<S>>,
 }
 
@@ -287,11 +287,6 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// 获取事务管理器（内部使用）
     pub(crate) fn txn_manager(&self) -> Arc<TransactionManager> {
         self.db.txn_manager.clone()
-    }
-
-    /// 获取保存点管理器（内部使用）
-    pub(crate) fn savepoint_manager(&self) -> Arc<SavepointManager> {
-        self.db.savepoint_manager.clone()
     }
 
     /// 获取存储的锁（内部使用）
