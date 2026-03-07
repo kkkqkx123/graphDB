@@ -10,7 +10,6 @@
 //! - 智能扫描策略选择（索引扫描、属性扫描、全表扫描）
 
 use crate::core::types::ContextualExpression;
-use crate::core::SymbolTable;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::pattern::{PathElement, Pattern, RepetitionType};
 use crate::query::parser::ast::Stmt;
@@ -88,7 +87,6 @@ impl Planner for MatchStatementPlanner {
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let space_id = qctx.space_id().unwrap_or(1);
-        let sym_table = qctx.sym_table();
 
         // 使用验证信息进行优化规划
         let validation_info = &validated.validation_info;
@@ -102,7 +100,7 @@ impl Planner for MatchStatementPlanner {
         }
 
         // 使用别名映射优化规划
-        self.plan_match_pattern(validated, space_id, sym_table, Some(validation_info), &qctx)
+        self.plan_match_pattern(validated, space_id, validation_info, &qctx)
     }
 }
 
@@ -128,27 +126,24 @@ impl MatchStatementPlanner {
         &self,
         validated: &ValidatedStatement,
         space_id: u64,
-        sym_table: &SymbolTable,
-        validation_info: Option<&ValidationInfo>,
+        validation_info: &ValidationInfo,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let stmt = validated.stmt();
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
                 // 使用验证信息优化规划
-                if let Some(info) = validation_info {
-                    // 使用索引提示
-                    for hint in &info.index_hints {
-                        if hint.estimated_selectivity < 0.1 {
-                            log::debug!("使用高选择性索引: {}", hint.index_name);
-                        }
+                // 使用索引提示
+                for hint in &validation_info.index_hints {
+                    if hint.estimated_selectivity < 0.1 {
+                        log::debug!("使用高选择性索引: {}", hint.index_name);
                     }
+                }
 
-                    // 使用语义信息优化连接顺序
-                    let referenced_tags = &info.semantic_info.referenced_tags;
-                    if !referenced_tags.is_empty() {
-                        log::debug!("引用的标签: {:?}", referenced_tags);
-                    }
+                // 使用语义信息优化连接顺序
+                let referenced_tags = &validation_info.semantic_info.referenced_tags;
+                if !referenced_tags.is_empty() {
+                    log::debug!("引用的标签: {:?}", referenced_tags);
                 }
 
                 // 处理路径模式
@@ -161,7 +156,6 @@ impl MatchStatementPlanner {
                     self.plan_path_pattern(
                         first_pattern,
                         space_id,
-                        sym_table,
                         validation_info,
                         qctx,
                     )?
@@ -172,7 +166,6 @@ impl MatchStatementPlanner {
                     let path_plan = self.plan_path_pattern(
                         pattern,
                         space_id,
-                        sym_table,
                         validation_info,
                         qctx,
                     )?;
@@ -208,8 +201,7 @@ impl MatchStatementPlanner {
         &self,
         pattern: &Pattern,
         space_id: u64,
-        sym_table: &SymbolTable,
-        validation_info: Option<&ValidationInfo>,
+        validation_info: &ValidationInfo,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         match pattern {
@@ -272,7 +264,6 @@ impl MatchStatementPlanner {
                                 patterns,
                                 space_id,
                                 prev_node_alias.as_deref(),
-                                sym_table,
                                 validation_info,
                                 qctx,
                             )?;
@@ -328,7 +319,7 @@ impl MatchStatementPlanner {
                 Ok(plan)
             }
             // 非路径模式委托给 plan_pattern 处理
-            _ => self.plan_pattern(pattern, space_id, sym_table, validation_info, qctx),
+            _ => self.plan_pattern(pattern, space_id, validation_info, qctx),
         }
     }
 
@@ -679,8 +670,7 @@ impl MatchStatementPlanner {
         patterns: &[Pattern],
         space_id: u64,
         _prev_alias: Option<&str>,
-        sym_table: &SymbolTable,
-        validation_info: Option<&ValidationInfo>,
+        validation_info: &ValidationInfo,
         qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         if patterns.is_empty() {
@@ -691,12 +681,12 @@ impl MatchStatementPlanner {
 
         // 规划第一个路径选项
         let mut plan =
-            self.plan_pattern(&patterns[0], space_id, sym_table, validation_info, qctx)?;
+            self.plan_pattern(&patterns[0], space_id, validation_info, qctx)?;
 
         // 将剩余路径选项通过并集合并
         for pattern in patterns.iter().skip(1) {
             let pattern_plan =
-                self.plan_pattern(pattern, space_id, sym_table, validation_info, qctx)?;
+                self.plan_pattern(pattern, space_id, validation_info, qctx)?;
             plan = self.union_plans(plan, pattern_plan)?;
         }
 
@@ -708,17 +698,16 @@ impl MatchStatementPlanner {
         &self,
         pattern: &Pattern,
         space_id: u64,
-        sym_table: &SymbolTable,
-        validation_info: Option<&ValidationInfo>,
+        validation_info: &ValidationInfo,
         _qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         match pattern {
             Pattern::Node(node) => self.plan_pattern_node(node, space_id),
             Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id),
             Pattern::Path(_) => {
-                self.plan_path_pattern(pattern, space_id, sym_table, validation_info, _qctx)
+                self.plan_path_pattern(pattern, space_id, validation_info, _qctx)
             }
-            Pattern::Variable(var) => self.plan_variable_pattern(var, space_id, sym_table),
+            Pattern::Variable(var) => self.plan_variable_pattern(var, space_id, validation_info),
         }
     }
 
@@ -744,20 +733,15 @@ impl MatchStatementPlanner {
         &self,
         var: &crate::query::parser::ast::pattern::VariablePattern,
         _space_id: u64,
-        sym_table: &SymbolTable,
+        validation_info: &ValidationInfo,
     ) -> Result<SubPlan, PlannerError> {
-        // 使用 SymbolTable 验证变量是否存在
-        if !sym_table.has_variable(&var.name) {
+        // 使用 ValidationInfo 的 alias_map 验证变量是否存在
+        if !validation_info.alias_map.contains_key(&var.name) {
             return Err(PlannerError::PlanGenerationFailed(format!(
                 "变量 '{}' 未定义",
                 var.name
             )));
         }
-
-        // 获取变量信息（用于类型检查）
-        let _var_info = sym_table.get_variable_info(&var.name).ok_or_else(|| {
-            PlannerError::PlanGenerationFailed(format!("无法获取变量 '{}' 的信息", var.name))
-        })?;
 
         // 创建 ArgumentNode 来引用变量
         // ArgumentNode 表示从外部变量输入数据，用于子查询或模式引用
@@ -803,7 +787,7 @@ impl MatchStatementPlanner {
         element: &PathElement,
         space_id: u64,
         _prev_alias: Option<&str>,
-        _validation_info: Option<&ValidationInfo>,
+        _validation_info: &ValidationInfo,
         _qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 规划可选元素
@@ -857,7 +841,7 @@ impl MatchStatementPlanner {
         rep_type: RepetitionType,
         space_id: u64,
         _prev_alias: Option<&str>,
-        _validation_info: Option<&ValidationInfo>,
+        _validation_info: &ValidationInfo,
         expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 规划重复元素的基本计划

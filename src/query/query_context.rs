@@ -183,16 +183,6 @@ impl QueryContext {
         self.resource_context.current_id()
     }
 
-    /// 获取符号表
-    pub fn sym_table(&self) -> &crate::core::SymbolTable {
-        self.resource_context.sym_table()
-    }
-
-    /// 获取符号表的 Arc 引用
-    pub fn sym_table_arc(&self) -> Arc<crate::core::SymbolTable> {
-        self.resource_context.sym_table_arc()
-    }
-
     /// 获取当前空间信息
     pub fn space_info(&self) -> Option<&crate::core::types::SpaceInfo> {
         self.space_context.space_info()
