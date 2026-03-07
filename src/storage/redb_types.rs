@@ -77,7 +77,9 @@ pub const TAG_ID_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> =
 pub const EDGE_TYPE_ID_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> =
     TableDefinition::new("edge_type_id_counters");
 
-// Tag/Edge 名称索引表 - 用于名称到ID的映射
+// Space/Tag/Edge 名称索引表 - 用于名称到ID的映射
+pub const SPACE_NAME_INDEX_TABLE: TableDefinition<ByteKey, ByteKey> =
+    TableDefinition::new("space_name_index");
 pub const TAG_NAME_INDEX_TABLE: TableDefinition<ByteKey, ByteKey> =
     TableDefinition::new("tag_name_index");
 pub const EDGE_TYPE_NAME_INDEX_TABLE: TableDefinition<ByteKey, ByteKey> =

@@ -83,51 +83,7 @@ impl Index {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct IndexStats {
-    pub index_id: i32,
-    pub index_name: String,
-    pub total_entries: usize,
-    pub unique_entries: usize,
-    pub last_updated: i64,
-    pub memory_usage_bytes: usize,
-    pub query_count: u64,
-    pub avg_query_time_ms: f64,
-}
 
-impl IndexStats {
-    pub fn new(index_id: i32, index_name: String) -> Self {
-        Self {
-            index_id,
-            index_name,
-            total_entries: 0,
-            unique_entries: 0,
-            last_updated: 0,
-            memory_usage_bytes: 0,
-            query_count: 0,
-            avg_query_time_ms: 0.0,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct IndexOptimization {
-    pub index_id: i32,
-    pub index_name: String,
-    pub suggestions: Vec<String>,
-    pub priority: String,
-}
-
-impl IndexOptimization {
-    pub fn new(index_id: i32, index_name: String) -> Self {
-        Self {
-            index_id,
-            index_name,
-            suggestions: Vec::new(),
-            priority: String::new(),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -199,15 +155,5 @@ mod tests {
         assert_eq!(index.schema_name, "person");
         assert_eq!(index.fields.len(), 1);
         assert_eq!(index.status, IndexStatus::Active);
-    }
-
-    #[test]
-    fn test_index_stats_creation() {
-        let info = IndexStats::new(1, "test_index".to_string());
-
-        assert_eq!(info.index_id, 1);
-        assert_eq!(info.index_name, "test_index");
-        assert_eq!(info.total_entries, 0);
-        assert_eq!(info.query_count, 0);
     }
 }

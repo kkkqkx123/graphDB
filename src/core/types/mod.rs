@@ -47,7 +47,7 @@ pub enum DataType {
 
 // 从原子模块导出基础Schema类型
 pub use self::edge::EdgeTypeInfo;
-pub use self::index::{Index, IndexField, IndexOptimization, IndexStats, IndexStatus, IndexType};
+pub use self::index::{Index, IndexField, IndexStatus, IndexType};
 pub use self::property::PropertyDef;
 pub use self::space::{generate_space_id, reset_space_id_counter, SpaceInfo};
 pub use self::tag::TagInfo;

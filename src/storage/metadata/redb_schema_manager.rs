@@ -3,7 +3,7 @@ use crate::core::value::Value;
 use crate::core::StorageError;
 use crate::storage::redb_types::{
     ByteKey, EDGE_TYPES_TABLE, EDGE_TYPE_ID_COUNTER_TABLE,
-    SPACES_TABLE, TAGS_TABLE, TAG_ID_COUNTER_TABLE,
+    SPACES_TABLE, TAGS_TABLE, TAG_ID_COUNTER_TABLE, SPACE_NAME_INDEX_TABLE,
 };
 use crate::storage::{FieldDef, Schema};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
@@ -95,24 +95,38 @@ impl super::SchemaManager for RedbSchemaManager {
             .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
 
         {
-            let mut spaces_table = write_txn
-                .open_table(SPACES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+            // 检查名称索引
+            let mut name_index = write_txn
+                .open_table(SPACE_NAME_INDEX_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e)))?;
 
-            let key = ByteKey(space.space_id.to_be_bytes().to_vec());
-            let value = ByteKey(encode_to_vec(space, standard())?);
+            let name_key = ByteKey(space.space_name.as_bytes().to_vec());
 
-            if spaces_table
-                .get(&key)
-                .map_err(|e| StorageError::DbError(format!("查询空间失败: {}", e)))?
+            if name_index
+                .get(&name_key)
+                .map_err(|e| StorageError::DbError(format!("查询名称索引失败: {}", e)))?
                 .is_some()
             {
                 return Ok(false);
             }
 
+            // 插入主表
+            let mut spaces_table = write_txn
+                .open_table(SPACES_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+
+            let space_key = ByteKey(space.space_id.to_be_bytes().to_vec());
+            let space_value = ByteKey(encode_to_vec(space, standard())?);
+
             spaces_table
-                .insert(key, value)
+                .insert(space_key, space_value)
                 .map_err(|e| StorageError::DbError(format!("插入空间失败: {}", e)))?;
+
+            // 插入名称索引
+            let id_value = ByteKey(space.space_id.to_be_bytes().to_vec());
+            name_index
+                .insert(name_key, id_value)
+                .map_err(|e| StorageError::DbError(format!("插入名称索引失败: {}", e)))?;
         }
 
         write_txn
@@ -128,49 +142,59 @@ impl super::SchemaManager for RedbSchemaManager {
             .begin_write()
             .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
 
-        let mut space_id: Option<u64> = None;
+        // 通过名称索引查找ID
+        let name_key = ByteKey(space_name.as_bytes().to_vec());
+        let space_id_option = {
+            let name_index = write_txn
+                .open_table(SPACE_NAME_INDEX_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e)))?;
 
-        {
-            let spaces_table = write_txn
-                .open_table(SPACES_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+            let result = name_index
+                .get(&name_key)
+                .map_err(|e| StorageError::DbError(format!("查询名称索引失败: {}", e)))?;
 
-            let mut iter = spaces_table.iter().map_err(|e| {
-                StorageError::DbError(format!("遍历空间失败: {}", e))
-            })?;
-
-            while let Some(result) = iter.next() {
-                let (_key, value) = result.map_err(|e| {
-                    StorageError::DbError(format!("迭代空间失败: {}", e))
-                })?;
-                let space: SpaceInfo = decode_from_slice(&value.value().0, standard())?.0;
-                if space.space_name == space_name {
-                    space_id = Some(space.space_id);
-                    break;
+            match result {
+                Some(id_value) => {
+                    let bytes = id_value.value().0;
+                    let array: [u8; 8] = bytes[0..8].try_into().unwrap();
+                    Some(u64::from_be_bytes(array))
                 }
+                None => None,
             }
-        }
+        };
 
-        if let Some(id) = space_id {
+        if let Some(space_id) = space_id_option {
+            // 删除主表记录
             {
                 let mut spaces_table = write_txn
                     .open_table(SPACES_TABLE)
                     .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
 
-                let key = ByteKey(id.to_be_bytes().to_vec());
+                let space_key = ByteKey(space_id.to_be_bytes().to_vec());
                 spaces_table
-                    .remove(&key)
+                    .remove(&space_key)
                     .map_err(|e| StorageError::DbError(format!("删除空间失败: {}", e)))?;
+            }
+
+            // 删除名称索引
+            {
+                let mut name_index = write_txn
+                    .open_table(SPACE_NAME_INDEX_TABLE)
+                    .map_err(|e| StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e)))?;
+
+                name_index
+                    .remove(&name_key)
+                    .map_err(|e| StorageError::DbError(format!("删除名称索引失败: {}", e)))?;
             }
 
             write_txn
                 .commit()
                 .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
 
-            return Ok(true);
+            Ok(true)
+        } else {
+            Ok(false)
         }
-
-        Ok(false)
     }
 
     fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
@@ -179,20 +203,34 @@ impl super::SchemaManager for RedbSchemaManager {
             .begin_read()
             .map_err(|e| StorageError::DbError(format!("开始读事务失败: {}", e)))?;
 
-        let spaces_table = read_txn
-            .open_table(SPACES_TABLE)
-            .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+        // 通过名称索引查找
+        let name_index = read_txn
+            .open_table(SPACE_NAME_INDEX_TABLE)
+            .map_err(|e| StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e)))?;
 
-        let mut iter = spaces_table.iter().map_err(|e| {
-            StorageError::DbError(format!("遍历空间失败: {}", e))
-        })?;
+        let name_key = ByteKey(space_name.as_bytes().to_vec());
 
-        while let Some(result) = iter.next() {
-            let (_key, value) = result.map_err(|e| {
-                StorageError::DbError(format!("迭代空间失败: {}", e))
-            })?;
-            let space: SpaceInfo = decode_from_slice(&value.value().0, standard())?.0;
-            if space.space_name == space_name {
+        if let Some(id_value) = name_index
+            .get(&name_key)
+            .map_err(|e| StorageError::DbError(format!("查询名称索引失败: {}", e)))?
+        {
+            let id_bytes = id_value.value().0;
+            let space_id = u64::from_be_bytes(
+                id_bytes[0..8].try_into().unwrap()
+            );
+
+            // 通过ID获取完整信息
+            let spaces_table = read_txn
+                .open_table(SPACES_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+
+            let space_key = ByteKey(space_id.to_be_bytes().to_vec());
+
+            if let Some(space_value) = spaces_table
+                .get(&space_key)
+                .map_err(|e| StorageError::DbError(format!("查询空间失败: {}", e)))?
+            {
+                let space: SpaceInfo = decode_from_slice(&space_value.value().0, standard())?.0;
                 return Ok(Some(space));
             }
         }

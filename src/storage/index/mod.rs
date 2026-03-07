@@ -6,6 +6,6 @@
 pub mod index_data_manager;
 pub mod index_updater;
 
-pub use crate::core::types::{Index, IndexOptimization, IndexStats, IndexStatus, IndexType};
+pub use crate::core::types::{Index, IndexStatus, IndexType};
 pub use index_data_manager::*;
 pub use index_updater::*;

@@ -112,6 +112,9 @@ impl RedbStorage {
                     .map_err(|e| {
                         StorageError::DbError(format!("打开EDGE_TYPE_ID_COUNTER_TABLE失败: {}", e))
                     })?;
+                let _ = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
+                    StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e))
+                })?;
                 let _ = write_txn.open_table(TAG_NAME_INDEX_TABLE).map_err(|e| {
                     StorageError::DbError(format!("打开TAG_NAME_INDEX_TABLE失败: {}", e))
                 })?;
