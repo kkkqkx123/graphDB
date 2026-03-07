@@ -1,6 +1,7 @@
 pub mod edge;
 pub mod expression;
 pub mod graph_schema;
+pub mod index;
 pub mod metadata;
 pub mod metadata_version;
 pub mod operators;
@@ -46,6 +47,7 @@ pub enum DataType {
 
 // 从原子模块导出基础Schema类型
 pub use self::edge::EdgeTypeInfo;
+pub use self::index::{Index, IndexField, IndexOptimization, IndexStats, IndexStatus, IndexType};
 pub use self::property::PropertyDef;
 pub use self::space::{generate_space_id, reset_space_id_counter, SpaceInfo};
 pub use self::tag::TagInfo;

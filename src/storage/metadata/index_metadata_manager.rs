@@ -1,5 +1,5 @@
 use crate::core::StorageError;
-use crate::index::Index;
+use crate::core::types::Index;
 
 /// 索引元数据管理器 trait
 ///

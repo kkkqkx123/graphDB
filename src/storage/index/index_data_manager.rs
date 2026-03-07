@@ -6,7 +6,7 @@
 
 use crate::core::Edge;
 use crate::core::{StorageError, Value};
-use crate::index::Index;
+use crate::core::types::Index;
 use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
 use crate::storage::serializer::{value_from_bytes, value_to_bytes};
 use redb::{Database, ReadableTable};
@@ -1007,7 +1007,7 @@ impl IndexDataManager for RedbIndexDataManager {
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::index::{Index, IndexField, IndexType};
+    use crate::core::types::{Index, IndexField, IndexType};
     use std::sync::Arc;
     use tempfile::TempDir;
 

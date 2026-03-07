@@ -1454,7 +1454,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 标签索引管理执行器
             PlanNodeEnum::CreateTagIndex(node) => {
-                use crate::index::{Index, IndexType};
+                use crate::core::types::{Index, IndexType};
                 let index = Index::new(
                     0,
                     node.info().index_name.clone(),
@@ -1519,7 +1519,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 边索引管理执行器
             PlanNodeEnum::CreateEdgeIndex(node) => {
-                use crate::index::{Index, IndexType};
+                use crate::core::types::{Index, IndexType};
                 let index = Index::new(
                     0,
                     node.info().index_name.clone(),

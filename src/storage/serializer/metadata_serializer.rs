@@ -1,6 +1,5 @@
-use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
+use crate::core::types::{EdgeTypeInfo, Index, SpaceInfo, TagInfo};
 use crate::core::StorageError;
-use crate::index::Index;
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 
 pub fn space_to_bytes(space: &SpaceInfo) -> Result<Vec<u8>, StorageError> {

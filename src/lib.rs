@@ -7,7 +7,6 @@ pub mod api;
 pub mod common;
 pub mod config;
 pub mod core;
-pub mod index;
 pub mod query;
 pub mod storage;
 pub mod transaction;

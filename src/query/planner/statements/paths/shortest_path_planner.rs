@@ -294,7 +294,7 @@ impl StorageClient for DummyStorage {
     fn create_tag_index(
         &mut self,
         _space: &str,
-        _info: &crate::index::Index,
+        _info: &crate::core::types::Index,
     ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
@@ -309,13 +309,13 @@ impl StorageClient for DummyStorage {
         &self,
         _space: &str,
         _index_name: &str,
-    ) -> Result<Option<crate::index::Index>, crate::core::StorageError> {
+    ) -> Result<Option<crate::core::types::Index>, crate::core::StorageError> {
         Ok(None)
     }
     fn list_tag_indexes(
         &self,
         _space: &str,
-    ) -> Result<Vec<crate::index::Index>, crate::core::StorageError> {
+    ) -> Result<Vec<crate::core::types::Index>, crate::core::StorageError> {
         Ok(Vec::new())
     }
     fn rebuild_tag_index(
@@ -328,7 +328,7 @@ impl StorageClient for DummyStorage {
     fn create_edge_index(
         &mut self,
         _space: &str,
-        _info: &crate::index::Index,
+        _info: &crate::core::types::Index,
     ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
@@ -343,13 +343,13 @@ impl StorageClient for DummyStorage {
         &self,
         _space: &str,
         _index_name: &str,
-    ) -> Result<Option<crate::index::Index>, crate::core::StorageError> {
+    ) -> Result<Option<crate::core::types::Index>, crate::core::StorageError> {
         Ok(None)
     }
     fn list_edge_indexes(
         &self,
         _space: &str,
-    ) -> Result<Vec<crate::index::Index>, crate::core::StorageError> {
+    ) -> Result<Vec<crate::core::types::Index>, crate::core::StorageError> {
         Ok(Vec::new())
     }
     fn rebuild_edge_index(

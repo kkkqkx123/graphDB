@@ -6,7 +6,7 @@
 
 use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, StorageError, Value};
-use crate::index::Index;
+use crate::core::types::Index;
 use crate::storage::index::IndexDataManager;
 use crate::storage::metadata::IndexMetadataManager;
 
@@ -427,7 +427,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::index::{IndexField, IndexType};
+    use crate::core::types::{IndexField, IndexType};
 
     #[test]
     fn test_index_field_creation() {

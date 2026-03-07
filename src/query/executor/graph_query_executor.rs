@@ -198,7 +198,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         &mut self,
         clause: crate::query::parser::ast::stmt::CreateStmt,
     ) -> Result<ExecutionResult, DBError> {
-        use crate::index::{Index, IndexType};
+        use crate::core::types::{Index, IndexType};
         use crate::query::executor::admin::edge::create_edge::{
             CreateEdgeExecutor, ExecutorEdgeInfo,
         };

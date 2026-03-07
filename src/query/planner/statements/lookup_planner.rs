@@ -10,7 +10,7 @@
 
 use crate::core::value::types::NullType;
 use crate::core::Expression;
-use crate::index::Index;
+use crate::core::types::Index;
 use crate::query::parser::ast::{LookupStmt, Stmt};
 use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
 use crate::query::planner::plan::SubPlan;
@@ -77,11 +77,11 @@ impl Planner for LookupPlanner {
             log::debug!("LOOKUP 使用索引提示: {:?}", hint);
 
             // 使用验证器提供的索引提示
-            let index_fields: Vec<crate::index::IndexField> = hint
+            let index_fields: Vec<crate::core::types::IndexField> = hint
                 .columns
                 .iter()
                 .map(|col| {
-                    crate::index::IndexField::new(
+                    crate::core::types::IndexField::new(
                         col.clone(),
                         crate::core::Value::Null(NullType::Null),
                         true,
@@ -96,8 +96,8 @@ impl Planner for LookupPlanner {
                 schema_name: hint.table_name.clone(),
                 fields: index_fields,
                 properties: hint.columns.clone(),
-                index_type: crate::index::IndexType::TagIndex,
-                status: crate::index::IndexStatus::Active,
+                index_type: crate::core::types::IndexType::TagIndex,
+                status: crate::core::types::IndexStatus::Active,
                 is_unique: false,
                 comment: None,
             });

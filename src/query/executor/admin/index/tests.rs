@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::index::{Index, IndexType};
+    use crate::core::types::{Index, IndexType};
     use crate::query::executor::admin::index::{
         CreateEdgeIndexExecutor, CreateTagIndexExecutor, DescEdgeIndexExecutor,
         DescTagIndexExecutor, DropEdgeIndexExecutor, DropTagIndexExecutor,

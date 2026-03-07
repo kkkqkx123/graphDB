@@ -1,5 +1,5 @@
 use crate::core::StorageError;
-use crate::index::Index;
+use crate::core::types::Index;
 use crate::storage::metadata::IndexMetadataManager;
 use crate::storage::redb_types::{ByteKey, EDGE_INDEXES_TABLE, TAG_INDEXES_TABLE};
 use crate::storage::serializer::{storage_index_from_bytes, storage_index_to_bytes};

@@ -1,13 +1,12 @@
 use super::StorageClient;
 pub use crate::core::types::EdgeTypeInfo as EdgeTypeSchema;
 use crate::core::types::{
-    EdgeTypeInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SchemaChange,
+    EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SchemaChange,
     SchemaChangeType, SpaceInfo, TagInfo, UpdateInfo, UpdateOp,
 };
 use crate::core::types::{UserAlterInfo, UserInfo};
 use crate::core::RoleType;
 use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
-use crate::index::Index;
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
 use crate::storage::metadata::{
     ExtendedSchemaManager, IndexMetadataManager, RedbExtendedSchemaManager,

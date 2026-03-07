@@ -4,7 +4,7 @@ use std::time::Instant;
 use super::base::{BaseExecutor, ExecutorStats};
 use crate::core::types::expression::ContextualExpression;
 use crate::core::{Edge, Value, Vertex};
-use crate::index::Index;
+use crate::core::types::Index;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
@@ -836,7 +836,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
 pub struct CreateIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     index_name: String,
-    index_type: crate::index::IndexType,
+    index_type: crate::core::types::IndexType,
     properties: Vec<String>,
     tag_name: Option<String>,
 }
@@ -846,7 +846,7 @@ impl<S: StorageClient> CreateIndexExecutor<S> {
         id: i64,
         storage: Arc<Mutex<S>>,
         index_name: String,
-        index_type: crate::index::IndexType,
+        index_type: crate::core::types::IndexType,
         properties: Vec<String>,
         tag_name: Option<String>,
         expr_context: Arc<ExpressionAnalysisContext>,
@@ -935,10 +935,10 @@ impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
         );
 
         match index_type {
-            crate::index::IndexType::TagIndex => {
+            crate::core::types::IndexType::TagIndex => {
                 storage.create_tag_index("default", &index)?;
             }
-            crate::index::IndexType::EdgeIndex => {
+            crate::core::types::IndexType::EdgeIndex => {
                 storage.create_edge_index("default", &index)?;
             }
         }

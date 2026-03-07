@@ -1,11 +1,8 @@
 use crate::core::types::{
-    EdgeTypeInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo, TagInfo,
-    UpdateInfo,
+    EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo, TagInfo,
+    UpdateInfo, UserAlterInfo, UserInfo,
 };
-use crate::core::types::{UserAlterInfo, UserInfo};
-use crate::core::RoleType;
-use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
-use crate::index::Index;
+use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::storage::Schema;
 
 pub trait StorageClient: Send + Sync + std::fmt::Debug {

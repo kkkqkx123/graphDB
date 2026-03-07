@@ -4,8 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::Expression;
-use crate::index::Index;
+use crate::core::types::{Expression, Index};
 use crate::query::optimizer::cost::{CostCalculator, SelectivityEstimator};
 
 /// 索引选择器

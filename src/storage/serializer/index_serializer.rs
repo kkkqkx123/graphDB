@@ -1,5 +1,5 @@
 use crate::core::StorageError;
-use crate::index::Index;
+use crate::core::types::Index;
 use bincode;
 
 pub fn index_to_bytes(index: &Index) -> Result<Vec<u8>, StorageError> {
