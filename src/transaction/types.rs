@@ -21,6 +21,8 @@ pub struct SavepointInfo {
     pub id: SavepointId,
     pub name: Option<String>,
     pub created_at: std::time::Instant,
+    /// 对应的操作日志索引
+    pub operation_log_index: usize,
 }
 
 /// 操作日志

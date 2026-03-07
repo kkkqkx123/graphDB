@@ -48,7 +48,7 @@ impl OperationLogContext for crate::transaction::context::TransactionContext {
 /// 回滚执行器 trait
 ///
 /// 定义如何执行单个操作的逆操作
-pub trait RollbackExecutor {
+pub trait RollbackExecutor: Send {
     /// 执行单个操作日志的逆操作（回滚）
     ///
     /// # Arguments

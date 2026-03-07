@@ -54,7 +54,6 @@ pub(crate) struct GraphDatabaseInner<S: StorageClient + 'static> {
     pub(crate) query_api: Arc<Mutex<QueryApi<S>>>,
     pub(crate) schema_api: SchemaApi<S>,
     pub(crate) txn_manager: Arc<TransactionManager>,
-    pub(crate) savepoint_manager: crate::transaction::manager::SavepointManager,
     pub(crate) storage: Arc<Mutex<S>>,
 }
 
@@ -298,11 +297,6 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// 获取当前空间名称（内部使用）
     pub(crate) fn space_name(&self) -> Option<&str> {
         self.space_name.as_deref()
-    }
-
-    /// 获取保存点管理器（内部使用）
-    pub(crate) fn savepoint_manager(&self) -> &crate::transaction::manager::SavepointManager {
-        &self.db.savepoint_manager
     }
 
     /// 创建批量插入器

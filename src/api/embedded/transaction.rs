@@ -262,8 +262,8 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     pub fn create_savepoint(&self, name: Option<String>) -> CoreResult<SavepointId> {
         self.check_active()?;
 
-        let savepoint_manager = self.session.savepoint_manager();
-        savepoint_manager
+        let txn_manager = self.session.txn_manager();
+        txn_manager
             .create_savepoint(self.txn_handle.0, name)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
@@ -282,8 +282,8 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     pub fn rollback_to_savepoint(&self, savepoint_id: SavepointId) -> CoreResult<()> {
         self.check_active()?;
 
-        let savepoint_manager = self.session.savepoint_manager();
-        savepoint_manager
+        let txn_manager = self.session.txn_manager();
+        txn_manager
             .rollback_to_savepoint(self.txn_handle.0, savepoint_id)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
@@ -301,8 +301,8 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     pub fn release_savepoint(&self, savepoint_id: SavepointId) -> CoreResult<()> {
         self.check_active()?;
 
-        let savepoint_manager = self.session.savepoint_manager();
-        savepoint_manager
+        let txn_manager = self.session.txn_manager();
+        txn_manager
             .release_savepoint(self.txn_handle.0, savepoint_id)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
@@ -320,8 +320,8 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             return None;
         }
 
-        let savepoint_manager = self.session.savepoint_manager();
-        savepoint_manager.find_savepoint_by_name(self.txn_handle.0, name)
+        let txn_manager = self.session.txn_manager();
+        txn_manager.find_savepoint_by_name(self.txn_handle.0, name).map(|info| info.id)
     }
 
     /// 获取所有活跃保存点
@@ -333,8 +333,8 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             return Vec::new();
         }
 
-        let savepoint_manager = self.session.savepoint_manager();
-        savepoint_manager.get_active_savepoints(self.txn_handle.0)
+        let txn_manager = self.session.txn_manager();
+        txn_manager.get_active_savepoints(self.txn_handle.0)
     }
 
     /// 获取事务信息

@@ -40,15 +40,15 @@ impl RedbWriter {
         })
     }
 
-    pub fn bind_transaction_context(&mut self, context: Arc<TransactionContext>) {
+    pub fn set_transaction_context(&mut self, context: Arc<TransactionContext>) {
         self.txn_context = Some(context);
     }
 
-    pub fn unbind_transaction_context(&mut self) {
+    pub fn clear_transaction_context(&mut self) {
         self.txn_context = None;
     }
 
-    pub fn is_bound(&self) -> bool {
+    pub fn has_transaction_context(&self) -> bool {
         self.txn_context.is_some()
     }
 
@@ -220,6 +220,7 @@ impl RedbWriter {
     ) -> Result<Vec<Value>, StorageError> {
         let mut ids = Vec::new();
         let mut previous_states = Vec::new();
+        let mut operation_logs = Vec::new();
 
         for vertex in &vertices {
             let id = match vertex.vid() {
@@ -251,12 +252,19 @@ impl RedbWriter {
             Ok(())
         })?;
 
+        // 数据操作成功后，记录所有操作日志
         for (i, id) in ids.iter().enumerate() {
-            self.log_operation(OperationLog::InsertVertex {
+            let log = OperationLog::InsertVertex {
                 space: "default".to_string(),
                 vertex_id: encode_to_vec(id, standard())?,
                 previous_state: previous_states[i].1.clone(),
-            });
+            };
+            operation_logs.push(log);
+        }
+
+        // 批量记录操作日志（确保原子性）
+        if let Some(ctx) = &self.txn_context {
+            ctx.add_operation_logs(operation_logs);
         }
 
         self.record_table_modification("NODES_TABLE");
@@ -432,6 +440,7 @@ impl RedbWriter {
     fn batch_insert_edges_internal(&self, edges: Vec<Edge>) -> Result<(), StorageError> {
         let mut edge_keys = Vec::new();
         let mut previous_states = Vec::new();
+        let mut operation_logs = Vec::new();
 
         for edge in &edges {
             let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
@@ -458,12 +467,19 @@ impl RedbWriter {
             Ok(())
         })?;
 
+        // 数据操作成功后，记录所有操作日志
         for (i, edge_key) in edge_keys.iter().enumerate() {
-            self.log_operation(OperationLog::InsertEdge {
+            let log = OperationLog::InsertEdge {
                 space: "default".to_string(),
                 edge_id: edge_key.clone(),
                 previous_state: previous_states[i].clone(),
-            });
+            };
+            operation_logs.push(log);
+        }
+
+        // 批量记录操作日志（确保原子性）
+        if let Some(ctx) = &self.txn_context {
+            ctx.add_operation_logs(operation_logs);
         }
 
         self.record_table_modification("EDGES_TABLE");

@@ -2,110 +2,16 @@
 //!
 //! 管理所有事务的生命周期，提供事务的开始、提交、中止等操作
 
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use dashmap::DashMap;
+use parking_lot::Mutex;
 use redb::Database;
 
+use crate::storage::operations::rollback::RollbackExecutor;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::*;
-
-/// 保存点管理器
-pub struct SavepointManager {
-    savepoints: DashMap<TransactionId, HashMap<SavepointId, SavepointInfo>>,
-    next_id: AtomicU64,
-}
-
-impl SavepointManager {
-    pub fn new() -> Self {
-        Self {
-            savepoints: DashMap::new(),
-            next_id: AtomicU64::new(1),
-        }
-    }
-
-    pub fn create_savepoint(
-        &self,
-        txn_id: TransactionId,
-        name: Option<String>,
-    ) -> Result<SavepointId, TransactionError> {
-        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
-        let info = SavepointInfo {
-            id,
-            name,
-            created_at: std::time::Instant::now(),
-        };
-
-        self.savepoints
-            .entry(txn_id)
-            .or_insert_with(HashMap::new)
-            .insert(id, info);
-
-        Ok(id)
-    }
-
-    pub fn get_savepoint(&self, txn_id: TransactionId, id: SavepointId) -> Option<SavepointInfo> {
-        self.savepoints
-            .get(&txn_id)
-            .and_then(|map| map.get(&id).cloned())
-    }
-
-    pub fn release_savepoint(&self, txn_id: TransactionId, id: SavepointId) -> Result<(), TransactionError> {
-        let removed = self.savepoints
-            .get_mut(&txn_id)
-            .and_then(|mut map| map.remove(&id))
-            .is_some();
-        
-        if removed {
-            Ok(())
-        } else {
-            Err(TransactionError::SavepointNotFound(id))
-        }
-    }
-
-    pub fn rollback_to_savepoint(&self, txn_id: TransactionId, id: SavepointId) -> Result<(), TransactionError> {
-        let exists = self.savepoints.get(&txn_id)
-            .map(|map| map.contains_key(&id))
-            .unwrap_or(false);
-        
-        if !exists {
-            return Err(TransactionError::SavepointNotFound(id));
-        }
-        Ok(())
-    }
-
-    pub fn find_savepoint_by_name(&self, txn_id: TransactionId, name: &str) -> Option<SavepointId> {
-        self.savepoints
-            .get(&txn_id)
-            .and_then(|map| {
-                for (id, info) in map.iter() {
-                    if info.name.as_deref() == Some(name) {
-                        return Some(*id);
-                    }
-                }
-                None
-            })
-    }
-
-    pub fn get_active_savepoints(&self, txn_id: TransactionId) -> Vec<SavepointInfo> {
-        self.savepoints
-            .get(&txn_id)
-            .map(|map| map.values().cloned().collect())
-            .unwrap_or_default()
-    }
-
-    pub fn clear_transaction_savepoints(&self, txn_id: TransactionId) {
-        self.savepoints.remove(&txn_id);
-    }
-}
-
-impl Default for SavepointManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 /// 事务管理器
 pub struct TransactionManager {
@@ -119,6 +25,10 @@ pub struct TransactionManager {
     id_generator: AtomicU64,
     /// 统计信息
     stats: Arc<TransactionStats>,
+    /// 是否已关闭
+    shutdown_flag: AtomicU64,
+    /// 回滚执行器工厂（用于为每个事务创建回滚执行器）
+    rollback_executor_factory: Mutex<Option<Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>>>,
 }
 
 impl TransactionManager {
@@ -130,6 +40,8 @@ impl TransactionManager {
             active_transactions: Arc::new(DashMap::new()),
             id_generator: AtomicU64::new(1),
             stats: Arc::new(TransactionStats::new()),
+            shutdown_flag: AtomicU64::new(0),
+            rollback_executor_factory: Mutex::new(None),
         }
     }
 
@@ -138,6 +50,11 @@ impl TransactionManager {
         &self,
         options: TransactionOptions,
     ) -> Result<TransactionId, TransactionError> {
+        // 检查是否已关闭
+        if self.shutdown_flag.load(Ordering::SeqCst) != 0 {
+            return Err(TransactionError::Internal("事务管理器已关闭".to_string()));
+        }
+
         // 检查并发事务数限制
         let active_count = self.active_transactions.len();
         if active_count >= self.config.max_concurrent_transactions {
@@ -179,6 +96,15 @@ impl TransactionManager {
                 write_txn,
             ))
         };
+
+        // 为读写事务设置回滚执行器
+        if !options.read_only {
+            let factory_guard = self.rollback_executor_factory.lock();
+            if let Some(factory) = factory_guard.as_ref() {
+                let executor = (**factory)();
+                context.set_rollback_executor(executor);
+            }
+        }
 
         self.active_transactions.insert(txn_id, context);
         self.stats.increment_total();
@@ -356,6 +282,9 @@ impl TransactionManager {
 
     /// 关闭事务管理器
     pub fn shutdown(&self) {
+        // 设置关闭标志
+        self.shutdown_flag.store(1, Ordering::SeqCst);
+
         // 中止所有活跃事务
         let txn_ids: Vec<TransactionId> = {
             self.active_transactions
@@ -370,8 +299,136 @@ impl TransactionManager {
     }
 
     /// 获取配置
-    pub fn config(&self) -> &TransactionManagerConfig {
-        &self.config
+    pub fn config(&self) -> TransactionManagerConfig {
+        self.config.clone()
+    }
+
+    /// 创建保存点
+    ///
+    /// # Arguments
+    /// * `txn_id` - 事务ID
+    /// * `name` - 保存点名称（可选）
+    ///
+    /// # Returns
+    /// * `Ok(SavepointId)` - 保存点ID
+    /// * `Err(TransactionError)` - 失败时返回错误
+    pub fn create_savepoint(
+        &self,
+        txn_id: TransactionId,
+        name: Option<String>,
+    ) -> Result<SavepointId, TransactionError> {
+        let context = self.get_context(txn_id)?;
+        Ok(context.create_savepoint(name))
+    }
+
+    /// 获取保存点信息
+    ///
+    /// # Arguments
+    /// * `txn_id` - 事务ID
+    /// * `id` - 保存点ID
+    ///
+    /// # Returns
+    /// * `Some(SavepointInfo)` - 保存点信息
+    /// * `None` - 保存点不存在
+    pub fn get_savepoint(
+        &self,
+        txn_id: TransactionId,
+        id: SavepointId,
+    ) -> Option<SavepointInfo> {
+        let context = self.get_context(txn_id).ok()?;
+        context.get_savepoint(id)
+    }
+
+    /// 释放保存点
+    ///
+    /// # Arguments
+    /// * `txn_id` - 事务ID
+    /// * `id` - 保存点ID
+    ///
+    /// # Returns
+    /// * `Ok(())` - 成功
+    /// * `Err(TransactionError)` - 失败时返回错误
+    pub fn release_savepoint(
+        &self,
+        txn_id: TransactionId,
+        id: SavepointId,
+    ) -> Result<(), TransactionError> {
+        let context = self.get_context(txn_id)?;
+        context.release_savepoint(id)
+    }
+
+    /// 回滚到保存点
+    ///
+    /// # Arguments
+    /// * `txn_id` - 事务ID
+    /// * `id` - 保存点ID
+    ///
+    /// # Returns
+    /// * `Ok(())` - 成功
+    /// * `Err(TransactionError)` - 失败时返回错误
+    ///
+    /// # 注意
+    /// 此方法会移除该保存点之后的所有保存点
+    /// 实际的数据回滚需要与存储层配合实现
+    pub fn rollback_to_savepoint(
+        &self,
+        txn_id: TransactionId,
+        id: SavepointId,
+    ) -> Result<(), TransactionError> {
+        let context = self.get_context(txn_id)?;
+        context.rollback_to_savepoint(id)
+    }
+
+    /// 获取事务的所有活跃保存点
+    ///
+    /// # Arguments
+    /// * `txn_id` - 事务ID
+    ///
+    /// # Returns
+    /// * `Vec<SavepointInfo>` - 保存点信息列表
+    pub fn get_active_savepoints(&self, txn_id: TransactionId) -> Vec<SavepointInfo> {
+        let context = match self.get_context(txn_id) {
+            Ok(ctx) => ctx,
+            Err(_) => return Vec::new(),
+        };
+        context.get_all_savepoints()
+    }
+
+    /// 通过名称查找保存点
+    ///
+    /// # Arguments
+    /// * `txn_id` - 事务ID
+    /// * `name` - 保存点名称
+    ///
+    /// # Returns
+    /// * `Some(SavepointInfo)` - 保存点信息
+    /// * `None` - 保存点不存在
+    pub fn find_savepoint_by_name(
+        &self,
+        txn_id: TransactionId,
+        name: &str,
+    ) -> Option<SavepointInfo> {
+        let context = self.get_context(txn_id).ok()?;
+        context.find_savepoint_by_name(name)
+    }
+
+    /// 设置回滚执行器工厂
+    ///
+    /// # Arguments
+    /// * `factory` - 回滚执行器工厂，用于为每个事务创建回滚执行器
+    ///
+    /// # 注意
+    /// 此方法用于将存储层的回滚能力集成到事务管理器中，
+    /// 使得保存点回滚能够执行实际的数据回滚操作
+    pub fn set_rollback_executor_factory(&self, factory: Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>) {
+        let mut guard = self.rollback_executor_factory.lock();
+        *guard = Some(factory);
+    }
+
+    /// 清除回滚执行器工厂
+    pub fn clear_rollback_executor_factory(&self) {
+        let mut guard = self.rollback_executor_factory.lock();
+        *guard = None;
     }
 }
 

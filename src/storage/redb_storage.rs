@@ -184,6 +184,26 @@ impl RedbStorage {
         self.current_txn_context.lock().clone()
     }
 
+    /// 使用 writer 执行操作，自动设置事务上下文
+    ///
+    /// 这个方法会自动将当前的事务上下文设置到 writer 上，
+    /// 然后执行提供的操作，最后恢复 writer 的状态。
+    fn with_writer<F, R>(&self, f: F) -> Result<R, StorageError>
+    where
+        F: FnOnce(&mut RedbWriter) -> Result<R, StorageError>,
+    {
+        let mut writer = self.writer.lock();
+        let ctx = self.get_transaction_context();
+
+        if let Some(ctx) = ctx {
+            writer.set_transaction_context(ctx);
+        } else {
+            writer.clear_transaction_context();
+        }
+
+        f(&mut writer)
+    }
+
     // 解析顶点ID
     fn parse_vertex_id(&self, vertex_id: &str) -> Result<Value, StorageError> {
         // 尝试解析为整数
@@ -395,15 +415,9 @@ impl StorageClient for RedbStorage {
     }
 
     fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
-        let mut writer = self.writer.lock();
-
-        if let Some(ctx) = self.get_transaction_context() {
-            writer.bind_transaction_context(ctx);
-        } else {
-            writer.unbind_transaction_context();
-        }
-
-        let id = writer.insert_vertex(space, vertex.clone())?;
+        let id = self.with_writer(|writer| {
+            writer.insert_vertex(space, vertex.clone())
+        })?;
 
         // 获取 space_id
         let space_id = self.get_space_id(space)?;
@@ -439,27 +453,15 @@ impl StorageClient for RedbStorage {
     }
 
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock();
-
-        if let Some(ctx) = self.get_transaction_context() {
-            writer.bind_transaction_context(ctx);
-        } else {
-            writer.unbind_transaction_context();
-        }
-
-        writer.update_vertex(space, vertex)
+        self.with_writer(|writer| {
+            writer.update_vertex(space, vertex)
+        })
     }
 
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock();
-
-        if let Some(ctx) = self.get_transaction_context() {
-            writer.bind_transaction_context(ctx);
-        } else {
-            writer.unbind_transaction_context();
-        }
-
-        writer.delete_vertex(space, id)?;
+        self.with_writer(|writer| {
+            writer.delete_vertex(space, id)
+        })?;
 
         // 获取 space_id
         let space_id = self.get_space_id(space)?;
@@ -476,15 +478,9 @@ impl StorageClient for RedbStorage {
         self.delete_vertex_edges(space, id)?;
 
         // 然后删除顶点本身
-        let mut writer = self.writer.lock();
-
-        if let Some(ctx) = self.get_transaction_context() {
-            writer.bind_transaction_context(ctx);
-        } else {
-            writer.unbind_transaction_context();
-        }
-
-        writer.delete_vertex(space, id)?;
+        self.with_writer(|writer| {
+            writer.delete_vertex(space, id)
+        })?;
 
         // 获取 space_id
         let space_id = self.get_space_id(space)?;
@@ -501,15 +497,9 @@ impl StorageClient for RedbStorage {
         space: &str,
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError> {
-        let mut writer = self.writer.lock();
-
-        if let Some(ctx) = self.get_transaction_context() {
-            writer.bind_transaction_context(ctx);
-        } else {
-            writer.unbind_transaction_context();
-        }
-
-        writer.batch_insert_vertices(space, vertices)
+        self.with_writer(|writer| {
+            writer.batch_insert_vertices(space, vertices)
+        })
     }
 
     fn delete_tags(
@@ -518,15 +508,9 @@ impl StorageClient for RedbStorage {
         vertex_id: &Value,
         tag_names: &[String],
     ) -> Result<usize, StorageError> {
-        let mut writer = self.writer.lock();
-
-        if let Some(ctx) = self.get_transaction_context() {
-            writer.bind_transaction_context(ctx);
-        } else {
-            writer.unbind_transaction_context();
-        }
-
-        let deleted_count = writer.delete_tags(space, vertex_id, tag_names)?;
+        let deleted_count = self.with_writer(|writer| {
+            writer.delete_tags(space, vertex_id, tag_names)
+        })?;
 
         // 获取 space_id
         let space_id = self.get_space_id(space)?;
@@ -541,15 +525,9 @@ impl StorageClient for RedbStorage {
     }
 
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock();
-
-        if let Some(ctx) = self.get_transaction_context() {
-            writer.bind_transaction_context(ctx);
-        } else {
-            writer.unbind_transaction_context();
-        }
-
-        writer.insert_edge(space, edge.clone())?;
+        self.with_writer(|writer| {
+            writer.insert_edge(space, edge.clone())
+        })?;
 
         // 获取 space_id
         let space_id = self.get_space_id(space)?;
@@ -590,15 +568,9 @@ impl StorageClient for RedbStorage {
         dst: &Value,
         edge_type: &str,
     ) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock();
-
-        if let Some(ctx) = self.get_transaction_context() {
-            writer.bind_transaction_context(ctx);
-        } else {
-            writer.unbind_transaction_context();
-        }
-
-        writer.delete_edge(space, src, dst, edge_type)?;
+        self.with_writer(|writer| {
+            writer.delete_edge(space, src, dst, edge_type)
+        })?;
 
         // 获取 space_id
         let space_id = self.get_space_id(space)?;
@@ -617,15 +589,9 @@ impl StorageClient for RedbStorage {
     }
 
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock();
-
-        if let Some(ctx) = self.get_transaction_context() {
-            writer.bind_transaction_context(ctx);
-        } else {
-            writer.unbind_transaction_context();
-        }
-
-        writer.batch_insert_edges(space, edges)
+        self.with_writer(|writer| {
+            writer.batch_insert_edges(space, edges)
+        })
     }
 
     fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError> {

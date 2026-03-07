@@ -6,9 +6,10 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use crossbeam_utils::atomic::AtomicCell;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 use crate::core::StorageError;
+use crate::storage::operations::rollback::RollbackExecutor;
 use crate::transaction::types::*;
 
 /// 事务上下文
@@ -30,12 +31,14 @@ pub struct TransactionContext {
     pub read_txn: Option<redb::ReadTransaction>,
     /// 持久性级别
     pub durability: DurabilityLevel,
-    /// 操作日志
-    operation_logs: Mutex<Vec<OperationLog>>,
+    /// 操作日志（使用 RwLock 优化读多写少的场景）
+    operation_logs: RwLock<Vec<OperationLog>>,
     /// 修改的表
     modified_tables: Mutex<Vec<String>>,
-    /// 保存点管理器
-    savepoint_manager: Mutex<SavepointManager>,
+    /// 保存点管理器（使用 RwLock 优化读多写少的场景）
+    savepoint_manager: RwLock<SavepointManager>,
+    /// 回滚执行器（用于保存点回滚时执行实际的数据回滚）
+    rollback_executor: Mutex<Option<Box<dyn RollbackExecutor>>>,
 }
 
 /// 保存点管理器
@@ -52,13 +55,14 @@ impl SavepointManager {
         }
     }
 
-    fn create_savepoint(&mut self, name: Option<String>) -> SavepointId {
+    fn create_savepoint(&mut self, name: Option<String>, operation_log_index: usize) -> SavepointId {
         let id = self.next_id;
         self.next_id += 1;
         let info = SavepointInfo {
             id,
             name,
             created_at: Instant::now(),
+            operation_log_index,
         };
         self.savepoints.insert(id, info);
         id
@@ -74,6 +78,13 @@ impl SavepointManager {
 
     fn clear(&mut self) {
         self.savepoints.clear();
+    }
+
+    fn find_by_name(&self, name: &str) -> Option<SavepointInfo> {
+        self.savepoints
+            .values()
+            .find(|sp| sp.name.as_deref() == Some(name))
+            .cloned()
     }
 }
 
@@ -94,9 +105,10 @@ impl TransactionContext {
             write_txn: Mutex::new(Some(write_txn)),
             read_txn: None,
             durability,
-            operation_logs: Mutex::new(Vec::new()),
+            operation_logs: RwLock::new(Vec::new()),
             modified_tables: Mutex::new(Vec::new()),
-            savepoint_manager: Mutex::new(SavepointManager::new()),
+            savepoint_manager: RwLock::new(SavepointManager::new()),
+            rollback_executor: Mutex::new(None),
         }
     }
 
@@ -115,9 +127,10 @@ impl TransactionContext {
             write_txn: Mutex::new(None),
             read_txn: Some(read_txn),
             durability: DurabilityLevel::Immediate,
-            operation_logs: Mutex::new(Vec::new()),
+            operation_logs: RwLock::new(Vec::new()),
             modified_tables: Mutex::new(Vec::new()),
-            savepoint_manager: Mutex::new(SavepointManager::new()),
+            savepoint_manager: RwLock::new(SavepointManager::new()),
+            rollback_executor: Mutex::new(None),
         }
     }
 
@@ -183,7 +196,7 @@ impl TransactionContext {
     /// 获取事务信息
     pub fn info(&self) -> TransactionInfo {
         let tables = self.modified_tables.lock();
-        let savepoints = self.savepoint_manager.lock();
+        let savepoints = self.savepoint_manager.read();
         TransactionInfo {
             id: self.id,
             state: self.state.load(),
@@ -197,31 +210,37 @@ impl TransactionContext {
 
     /// 添加操作日志
     pub fn add_operation_log(&self, operation: OperationLog) {
-        let mut logs = self.operation_logs.lock();
+        let mut logs = self.operation_logs.write();
         logs.push(operation);
+    }
+
+    /// 批量添加操作日志
+    pub fn add_operation_logs(&self, operations: Vec<OperationLog>) {
+        let mut logs = self.operation_logs.write();
+        logs.extend(operations);
     }
 
     /// 获取操作日志
     pub fn get_operation_logs(&self) -> Vec<OperationLog> {
-        let logs = self.operation_logs.lock();
+        let logs = self.operation_logs.read();
         logs.clone()
     }
 
     /// 获取操作日志长度
     pub fn operation_log_len(&self) -> usize {
-        let logs = self.operation_logs.lock();
+        let logs = self.operation_logs.read();
         logs.len()
     }
 
     /// 获取指定索引的操作日志
     pub fn get_operation_log(&self, index: usize) -> Option<OperationLog> {
-        let logs = self.operation_logs.lock();
+        let logs = self.operation_logs.read();
         logs.get(index).cloned()
     }
 
     /// 获取指定范围的操作日志
     pub fn get_operation_logs_range(&self, start: usize, end: usize) -> Vec<OperationLog> {
-        let logs = self.operation_logs.lock();
+        let logs = self.operation_logs.read();
         if start >= logs.len() {
             return Vec::new();
         }
@@ -231,7 +250,7 @@ impl TransactionContext {
 
     /// 截断操作日志到指定索引
     pub fn truncate_operation_log(&self, index: usize) {
-        let mut logs = self.operation_logs.lock();
+        let mut logs = self.operation_logs.write();
         if index < logs.len() {
             logs.truncate(index);
         }
@@ -239,7 +258,7 @@ impl TransactionContext {
 
     /// 清空操作日志
     pub fn clear_operation_log(&self) {
-        let mut logs = self.operation_logs.lock();
+        let mut logs = self.operation_logs.write();
         logs.clear();
     }
 
@@ -259,28 +278,120 @@ impl TransactionContext {
 
     /// 创建保存点
     pub fn create_savepoint(&self, name: Option<String>) -> SavepointId {
-        let mut manager = self.savepoint_manager.lock();
-        manager.create_savepoint(name)
+        let mut manager = self.savepoint_manager.write();
+        let operation_log_index = self.operation_log_len();
+        manager.create_savepoint(name, operation_log_index)
     }
 
     /// 获取保存点信息
     pub fn get_savepoint(&self, id: SavepointId) -> Option<SavepointInfo> {
-        let manager = self.savepoint_manager.lock();
+        let manager = self.savepoint_manager.read();
         manager.get_savepoint(id).cloned()
+    }
+
+    /// 获取所有保存点
+    pub fn get_all_savepoints(&self) -> Vec<SavepointInfo> {
+        let manager = self.savepoint_manager.read();
+        manager.savepoints.values().cloned().collect()
+    }
+
+    /// 通过名称查找保存点
+    pub fn find_savepoint_by_name(&self, name: &str) -> Option<SavepointInfo> {
+        let manager = self.savepoint_manager.read();
+        manager.find_by_name(name)
     }
 
     /// 释放保存点
     pub fn release_savepoint(&self, id: SavepointId) -> Result<(), TransactionError> {
-        let mut manager = self.savepoint_manager.lock();
+        let mut manager = self.savepoint_manager.write();
         manager.remove_savepoint(id)
             .map(|_| ())
             .ok_or(TransactionError::SavepointNotFound(id))
     }
 
+    /// 回滚到保存点
+    pub fn rollback_to_savepoint(&self, id: SavepointId) -> Result<(), TransactionError> {
+        let state = self.state.load();
+        if !state.can_execute() {
+            return Err(TransactionError::InvalidStateForAbort(state));
+        }
+
+        if self.is_expired() {
+            return Err(TransactionError::TransactionExpired);
+        }
+
+        let mut manager = self.savepoint_manager.write();
+        let savepoint_info = manager.get_savepoint(id)
+            .cloned()
+            .ok_or(TransactionError::SavepointNotFound(id))?;
+
+        // 获取需要回滚的操作日志（从保存点索引到当前日志末尾）
+        let logs_to_rollback = {
+            let logs = self.operation_logs.read();
+            if savepoint_info.operation_log_index >= logs.len() {
+                Vec::new()
+            } else {
+                logs[savepoint_info.operation_log_index..].to_vec()
+            }
+        };
+
+        drop(manager);
+
+        // 先执行数据回滚（使用回滚执行器）
+        if !logs_to_rollback.is_empty() {
+            let mut executor_guard = self.rollback_executor.lock();
+            let executor = executor_guard.as_mut()
+                .ok_or_else(|| TransactionError::RollbackFailed("未设置回滚执行器".to_string()))?;
+            
+            // 按逆序执行回滚操作
+            for log in logs_to_rollback.iter().rev() {
+                executor.execute_rollback(log)
+                    .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
+            }
+        }
+
+        // 数据回滚成功后，再截断操作日志
+        self.truncate_operation_log(savepoint_info.operation_log_index);
+
+        // 移除该保存点之后的所有保存点
+        let mut manager = self.savepoint_manager.write();
+        let savepoints_to_remove: Vec<SavepointId> = manager
+            .savepoints
+            .keys()
+            .filter(|&&k| k > id)
+            .copied()
+            .collect();
+
+        for sp_id in savepoints_to_remove {
+            manager.remove_savepoint(sp_id);
+        }
+
+        Ok(())
+    }
+
     /// 清除所有保存点
     pub fn clear_savepoints(&self) {
-        let mut manager = self.savepoint_manager.lock();
+        let mut manager = self.savepoint_manager.write();
         manager.clear();
+    }
+
+    /// 设置回滚执行器
+    ///
+    /// # Arguments
+    /// * `executor` - 回滚执行器实例
+    ///
+    /// # 注意
+    /// 此方法用于将存储层的回滚能力集成到事务上下文中，
+    /// 使得保存点回滚能够执行实际的数据回滚操作
+    pub fn set_rollback_executor(&self, executor: Box<dyn RollbackExecutor>) {
+        let mut guard = self.rollback_executor.lock();
+        *guard = Some(executor);
+    }
+
+    /// 清除回滚执行器
+    pub fn clear_rollback_executor(&self) {
+        let mut guard = self.rollback_executor.lock();
+        *guard = None;
     }
 
     /// 取出写事务（用于提交）
@@ -427,6 +538,15 @@ impl Drop for TransactionContext {
             // 这里只需要更新状态
             self.state.store(TransactionState::Aborted);
         }
+
+        // 清理保存点资源
+        let mut manager = self.savepoint_manager.write();
+        manager.clear();
+        drop(manager);
+
+        // 清理回滚执行器
+        let mut executor_guard = self.rollback_executor.lock();
+        *executor_guard = None;
     }
 }
 

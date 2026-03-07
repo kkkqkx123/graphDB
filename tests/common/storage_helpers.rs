@@ -2,10 +2,9 @@
 //!
 //! 提供存储层测试的辅助函数
 
-use graphdb::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
+use graphdb::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo, Index, IndexField, IndexType};
 use graphdb::core::DataType;
 use graphdb::core::Value;
-use graphdb::index::{Index, IndexField, IndexType};
 
 /// 创建测试图空间信息
 pub fn create_test_space(name: &str) -> SpaceInfo {
