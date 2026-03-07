@@ -52,9 +52,7 @@ impl RedbReader {
     }
 
     fn get_node_from_bytes(&self, id_bytes: &[u8]) -> Result<Option<Vertex>, StorageError> {
-        // 如果有事务上下文，使用事务上下文进行读取
         if let Some(ref ctx) = self.txn_context {
-            // 对于只读事务，使用 with_read_txn
             if ctx.read_only {
                 return ctx
                     .with_read_txn(|read_txn| {
@@ -77,7 +75,6 @@ impl RedbReader {
                     })
                     .map_err(|e| StorageError::DbError(e.to_string()));
             } else {
-                // 对于读写事务，使用 with_write_txn 进行读取
                 return ctx
                     .with_write_txn(|write_txn| {
                         let table = write_txn
@@ -102,7 +99,6 @@ impl RedbReader {
             }
         }
 
-        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -127,9 +123,7 @@ impl RedbReader {
     }
 
     fn get_edge_from_bytes(&self, edge_key_bytes: &[u8]) -> Result<Option<Edge>, StorageError> {
-        // 如果有事务上下文，使用事务上下文进行读取
         if let Some(ref ctx) = self.txn_context {
-            // 对于只读事务，使用 with_read_txn
             if ctx.read_only {
                 return ctx
                     .with_read_txn(|read_txn| {
@@ -153,7 +147,6 @@ impl RedbReader {
                     })
                     .map_err(|e| StorageError::DbError(e.to_string()));
             } else {
-                // 对于读写事务，使用 with_write_txn 进行读取
                 return ctx
                     .with_write_txn(|write_txn| {
                         let table = write_txn
@@ -178,7 +171,6 @@ impl RedbReader {
             }
         }
 
-        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -227,9 +219,7 @@ impl VertexReader for RedbReader {
     }
 
     fn scan_vertices(&self, _space: &str) -> Result<ScanResult<Vertex>, StorageError> {
-        // 如果有事务上下文，使用事务上下文进行读取
         if let Some(ref ctx) = self.txn_context {
-            // 对于只读事务，使用 with_read_txn
             if ctx.read_only {
                 return ctx
                     .with_read_txn(|read_txn| {
@@ -251,7 +241,6 @@ impl VertexReader for RedbReader {
                     })
                     .map_err(|e| StorageError::DbError(e.to_string()));
             } else {
-                // 对于读写事务，使用 with_write_txn 进行读取
                 return ctx
                     .with_write_txn(|write_txn| {
                         let table = write_txn
@@ -274,7 +263,6 @@ impl VertexReader for RedbReader {
             }
         }
 
-        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -381,9 +369,7 @@ impl EdgeReader for RedbReader {
     where
         F: Fn(&Edge) -> bool,
     {
-        // 如果有事务上下文，使用事务上下文进行读取
         if let Some(ref ctx) = self.txn_context {
-            // 对于只读事务，使用 with_read_txn
             if ctx.read_only {
                 return ctx
                     .with_read_txn(|read_txn| {
@@ -419,7 +405,6 @@ impl EdgeReader for RedbReader {
                     })
                     .map_err(|e| StorageError::DbError(e.to_string()));
             } else {
-                // 对于读写事务，使用 with_write_txn 进行读取
                 return ctx
                     .with_write_txn(|write_txn| {
                         let table = write_txn
@@ -456,7 +441,6 @@ impl EdgeReader for RedbReader {
             }
         }
 
-        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -497,9 +481,7 @@ impl EdgeReader for RedbReader {
         _space: &str,
         edge_type: &str,
     ) -> Result<ScanResult<Edge>, StorageError> {
-        // 如果有事务上下文，使用事务上下文进行读取
         if let Some(ref ctx) = self.txn_context {
-            // 对于只读事务，使用 with_read_txn
             if ctx.read_only {
                 return ctx
                     .with_read_txn(|read_txn| {
@@ -526,7 +508,6 @@ impl EdgeReader for RedbReader {
                     })
                     .map_err(|e| StorageError::DbError(e.to_string()));
             } else {
-                // 对于读写事务，使用 with_write_txn 进行读取
                 return ctx
                     .with_write_txn(|write_txn| {
                         let table = write_txn
@@ -554,7 +535,6 @@ impl EdgeReader for RedbReader {
             }
         }
 
-        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()
@@ -582,9 +562,7 @@ impl EdgeReader for RedbReader {
     }
 
     fn scan_all_edges(&self, _space: &str) -> Result<ScanResult<Edge>, StorageError> {
-        // 如果有事务上下文，使用事务上下文进行读取
         if let Some(ref ctx) = self.txn_context {
-            // 对于只读事务，使用 with_read_txn
             if ctx.read_only {
                 return ctx
                     .with_read_txn(|read_txn| {
@@ -606,7 +584,6 @@ impl EdgeReader for RedbReader {
                     })
                     .map_err(|e| StorageError::DbError(e.to_string()));
             } else {
-                // 对于读写事务，使用 with_write_txn 进行读取
                 return ctx
                     .with_write_txn(|write_txn| {
                         let table = write_txn
@@ -629,7 +606,6 @@ impl EdgeReader for RedbReader {
             }
         }
 
-        // 否则，创建新的读事务（redb 原生功能）
         let read_txn = self
             .db
             .begin_read()

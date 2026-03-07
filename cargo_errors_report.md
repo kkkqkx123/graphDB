@@ -2,37 +2,38 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 1
-- **Total Issues**: 1
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
+- **Total Errors**: 2
+- **Total Warnings**: 0
+- **Total Issues**: 2
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 0
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 2
+
+### Error Type Breakdown
+
+- **error[E0277]**: 2 errors
+
+### Files with Errors (Top 10)
+
+- `src\storage\operations\rollback.rs`: 2 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 1 warnings
+### error[E0277]: `RefCell<Vec<std::string::String>>` cannot be shared between threads safely: `RefCell<Vec<std::string::String>>` cannot be shared between threads safely
 
-### Files with Warnings (Top 10)
-
-- `src\transaction\two_phase_test.rs`: 1 warnings
-
-## Detailed Warning Categorization
-
-### warning: associated items `new`, `fail_prepare`, `fail_commit`, and `fail_abort` are never used
-
-**Total Occurrences**: 1  
+**Total Occurrences**: 2  
 **Unique Files**: 1
 
-#### `src\transaction\two_phase_test.rs`: 1 occurrences
+#### `src\storage\operations\rollback.rs`: 2 occurrences
 
-- Line 22: associated items `new`, `fail_prepare`, `fail_commit`, and `fail_abort` are never used
+- Line 399: `RefCell<Vec<std::string::String>>` cannot be shared between threads safely: `RefCell<Vec<std::string::String>>` cannot be shared between threads safely
+- Line 444: `RefCell<Vec<std::string::String>>` cannot be shared between threads safely: `RefCell<Vec<std::string::String>>` cannot be shared between threads safely
 

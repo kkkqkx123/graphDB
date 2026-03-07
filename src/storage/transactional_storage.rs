@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::operations::writer::{EdgeWriter, VertexWriter};
-use crate::storage::operations::{OperationExecutor, StorageOperationExecutor};
+use crate::storage::operations::{RollbackExecutor, StorageRollbackExecutor};
 use crate::storage::{RedbStorage, RedbWriter};
 use crate::transaction::{
     SavepointId, TransactionContext, TransactionId, TransactionManager, TransactionOptions,
@@ -390,7 +390,7 @@ impl<'a> TransactionalStorageClient<'a> {
             writer.bind_transaction_context(ctx.clone());
 
             // 创建操作执行器并执行回滚
-            let mut executor = StorageOperationExecutor::new(&mut writer, "default");
+            let mut executor = StorageRollbackExecutor::new(&mut writer, "default");
             executor.execute_rollback_batch(&logs_to_rollback)?;
         }
 
