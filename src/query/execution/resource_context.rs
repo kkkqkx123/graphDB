@@ -1,18 +1,14 @@
 //! 查询资源上下文
 //!
-//! 管理查询执行过程中需要的资源，包括对象池、ID 生成器等。
+//! 管理查询执行过程中需要的资源，包括 ID 生成器等。
 
-use crate::utils::{IdGenerator, ObjectPool};
+use crate::utils::IdGenerator;
 
 /// 查询资源上下文
 ///
 /// 管理查询执行过程中需要的资源，包括：
-/// - 对象池（用于字符串等对象的复用）
 /// - ID 生成器（用于生成唯一的 ID）
 pub struct QueryResourceContext {
-    /// 对象池
-    obj_pool: ObjectPool<String>,
-
     /// ID 生成器
     id_gen: IdGenerator,
 }
@@ -21,27 +17,15 @@ impl QueryResourceContext {
     /// 创建新的资源上下文
     pub fn new() -> Self {
         Self {
-            obj_pool: ObjectPool::new(1000),
             id_gen: IdGenerator::new(0),
         }
     }
 
     /// 创建带自定义配置的资源上下文
-    pub fn with_config(pool_size: usize, start_id: i64) -> Self {
+    pub fn with_config(start_id: i64) -> Self {
         Self {
-            obj_pool: ObjectPool::new(pool_size),
             id_gen: IdGenerator::new(start_id),
         }
-    }
-
-    /// 获取对象池
-    pub fn obj_pool(&self) -> &ObjectPool<String> {
-        &self.obj_pool
-    }
-
-    /// 获取可变对象池
-    pub fn obj_pool_mut(&mut self) -> &mut ObjectPool<String> {
-        &mut self.obj_pool
     }
 
     /// 生成 ID

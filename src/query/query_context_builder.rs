@@ -77,15 +77,9 @@ impl QueryContextBuilder {
         self
     }
 
-    /// 设置对象池大小
-    pub fn with_pool_size(mut self, pool_size: usize) -> Self {
-        self.resource_context = Some(QueryResourceContext::with_config(pool_size, 0));
-        self
-    }
-
     /// 设置 ID 起始值
     pub fn with_start_id(mut self, start_id: i64) -> Self {
-        self.resource_context = Some(QueryResourceContext::with_config(1000, start_id));
+        self.resource_context = Some(QueryResourceContext::with_config(start_id));
         self
     }
 
@@ -161,21 +155,6 @@ mod tests {
     }
 
     #[test]
-    fn test_builder_with_pool_size() {
-        let rctx = Arc::new(QueryRequestContext {
-            session_id: None,
-            user_name: None,
-            space_name: None,
-            query: "MATCH (n) RETURN n".to_string(),
-            parameters: HashMap::new(),
-        });
-
-        let query_context = QueryContextBuilder::new(rctx).with_pool_size(2000).build();
-
-        assert_eq!(query_context.current_id(), 0);
-    }
-
-    #[test]
     fn test_builder_with_start_id() {
         let rctx = Arc::new(QueryRequestContext {
             session_id: None,
@@ -212,7 +191,6 @@ mod tests {
 
         let query_context = QueryContextBuilder::new(rctx)
             .with_space_info(space_info)
-            .with_pool_size(2000)
             .with_start_id(100)
             .build();
 

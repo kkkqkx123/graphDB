@@ -64,16 +64,6 @@ pub fn generate_id() -> u64 {
         .as_nanos() as u64
 }
 
-/// 验证ID是否有效
-///
-/// 有效ID必须大于0
-pub fn is_valid_id(id: u64) -> bool {
-    id != 0
-}
-
-/// 无效ID常量
-pub const INVALID_ID: i64 = -1;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,15 +87,5 @@ mod tests {
         let id2 = generate_id();
 
         assert_ne!(id1, id2);
-        assert!(is_valid_id(id1));
-        assert!(is_valid_id(id2));
-    }
-
-    #[test]
-    fn test_is_valid_id() {
-        assert!(is_valid_id(1));
-        assert!(is_valid_id(42));
-        assert!(is_valid_id(u64::MAX));
-        assert!(!is_valid_id(0));
     }
 }

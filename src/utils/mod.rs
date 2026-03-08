@@ -2,11 +2,7 @@
 
 // ID生成模块
 pub mod id_gen;
-pub use id_gen::{generate_id, is_valid_id, IdGenerator, INVALID_ID};
-
-// 对象池模块
-pub mod object_pool;
-pub use object_pool::ObjectPool;
+pub use id_gen::{generate_id, IdGenerator};
 
 // 日志模块
 pub mod logging;

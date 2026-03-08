@@ -163,16 +163,6 @@ impl QueryContext {
         self.space_context.set_charset_info(charset_info);
     }
 
-    /// 获取对象池
-    pub fn obj_pool(&self) -> &crate::utils::ObjectPool<String> {
-        self.resource_context.obj_pool()
-    }
-
-    /// 获取可变对象池
-    pub fn obj_pool_mut(&mut self) -> &mut crate::utils::ObjectPool<String> {
-        self.resource_context.obj_pool_mut()
-    }
-
     /// 生成 ID
     pub fn gen_id(&self) -> i64 {
         self.resource_context.gen_id()
