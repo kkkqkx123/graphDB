@@ -28,6 +28,15 @@
 #define GRAPHDB_OPEN_PRIVATECACHE 262144
 
 /**
+ * 钩子类型常量
+ */
+#define GRAPHDB_HOOK_INSERT 1
+
+#define GRAPHDB_HOOK_UPDATE 2
+
+#define GRAPHDB_HOOK_DELETE 3
+
+/**
  * 等值查询默认选择性（假设10个不同值）
  */
 #define EQUALITY 0.1
@@ -142,6 +151,18 @@ typedef struct graphdb_t {
 } graphdb_t;
 
 /**
+ * SQL 追踪回调类型
+ */
+typedef void (*graphdb_trace_callback)(const char *sql, void *user_data);
+
+/**
+ * 钩子回调类型
+ */
+typedef int (*graphdb_commit_hook_callback)(void *user_data);
+
+typedef void (*graphdb_rollback_hook_callback)(void *user_data);
+
+/**
  * 结果集句柄（不透明指针）
  */
 typedef struct graphdb_result_t {
@@ -240,6 +261,37 @@ typedef struct graphdb_txn_t {
 typedef struct graphdb_batch_t {
 
 } graphdb_batch_t;
+
+/**
+ * 函数执行上下文（不透明指针）
+ */
+typedef struct graphdb_context_t {
+
+} graphdb_context_t;
+
+/**
+ * 标量函数回调类型
+ */
+typedef void (*graphdb_scalar_function_callback)(struct graphdb_context_t *context,
+                                                 int argc,
+                                                 struct graphdb_value_t *argv);
+
+/**
+ * 函数析构回调类型
+ */
+typedef void (*graphdb_function_destroy_callback)(void *user_data);
+
+/**
+ * 聚合函数步骤回调类型
+ */
+typedef void (*graphdb_aggregate_step_callback)(struct graphdb_context_t *context,
+                                                int argc,
+                                                struct graphdb_value_t *argv);
+
+/**
+ * 聚合函数最终回调类型
+ */
+typedef void (*graphdb_aggregate_final_callback)(struct graphdb_context_t *context);
 
 /**
  * 获取最后一个错误消息（线程安全）
@@ -540,6 +592,64 @@ int graphdb_busy_timeout(struct graphdb_session_t *session, int timeout_ms);
  * - 超时时间（毫秒），如果会话无效则返回 0
  */
 int graphdb_busy_timeout_get(struct graphdb_session_t *session);
+
+/**
+ * 设置 SQL 追踪回调
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `callback`: 追踪回调函数，NULL 表示取消追踪
+ * - `user_data`: 用户数据指针，将传递给回调函数
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ *
+ * # 示例
+ * ```c
+ * extern void my_trace_callback(const char* sql, void* data) {
+ *     printf("Executing: %s\n", sql);
+ * }
+ *
+ * graphdb_trace(session, my_trace_callback, NULL);
+ * ```
+ */
+int graphdb_trace(struct graphdb_session_t *session,
+                  graphdb_trace_callback callback,
+                  void *user_data);
+
+/**
+ * 设置提交钩子
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `callback`: 提交钩子回调函数，NULL 表示取消钩子
+ * - `user_data`: 用户数据指针，将传递给回调函数
+ *
+ * # 返回
+ * - 之前的钩子用户数据指针（如果有）
+ *
+ * # 说明
+ * 提交钩子在事务提交前被调用。如果回调返回非零值，事务将回滚。
+ */
+void *graphdb_commit_hook(struct graphdb_session_t *session,
+                          graphdb_commit_hook_callback callback,
+                          void *user_data);
+
+/**
+ * 设置回滚钩子
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `callback`: 回滚钩子回调函数，NULL 表示取消钩子
+ * - `user_data`: 用户数据指针，将传递给回调函数
+ *
+ * # 返回
+ * - 之前的钩子用户数据指针（如果有）
+ */
+void *graphdb_rollback_hook(struct graphdb_session_t *session,
+                            graphdb_rollback_hook_callback callback,
+                            void *user_data);
 
 /**
  * 执行简单查询
@@ -1130,3 +1240,107 @@ const char *graphdb_get_string_by_index(struct graphdb_result_t *result,
  * - 列类型，错误返回 GRAPHDB_NULL
  */
 enum graphdb_value_type_t graphdb_column_type(struct graphdb_result_t *result, int col);
+
+/**
+ * 创建自定义标量函数
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `name`: 函数名称
+ * - `argc`: 参数数量，-1 表示可变参数
+ * - `user_data`: 用户数据指针
+ * - `x_func`: 标量函数回调
+ * - `x_destroy`: 析构回调，可为 NULL
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ *
+ * # 示例
+ * ```c
+ * extern void my_function(graphdb_context_t* ctx, int argc, graphdb_value_t* argv) {
+ *     // 实现函数逻辑
+ * }
+ *
+ * graphdb_create_function(session, "my_func", 2, NULL, my_function, NULL);
+ * ```
+ */
+int graphdb_create_function(struct graphdb_session_t *session,
+                            const char *name,
+                            int argc,
+                            void *user_data,
+                            graphdb_scalar_function_callback x_func,
+                            graphdb_function_destroy_callback x_destroy);
+
+/**
+ * 创建自定义聚合函数
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `name`: 函数名称
+ * - `argc`: 参数数量，-1 表示可变参数
+ * - `user_data`: 用户数据指针
+ * - `x_step`: 聚合步骤回调
+ * - `x_final`: 聚合最终回调
+ * - `x_destroy`: 析构回调，可为 NULL
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_create_aggregate(struct graphdb_session_t *session,
+                             const char *name,
+                             int argc,
+                             void *user_data,
+                             graphdb_aggregate_step_callback x_step,
+                             graphdb_aggregate_final_callback x_final,
+                             graphdb_function_destroy_callback x_destroy);
+
+/**
+ * 删除自定义函数
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `name`: 函数名称
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_delete_function(struct graphdb_session_t *session, const char *name);
+
+/**
+ * 设置函数返回值
+ *
+ * # 参数
+ * - `context`: 函数执行上下文
+ * - `value`: 返回值
+ *
+ * # 说明
+ * 在标量函数或聚合函数的 xFinal 回调中调用此函数设置返回值
+ */
+int graphdb_context_set_result(struct graphdb_context_t *_context,
+                               const struct graphdb_value_t *_value);
+
+/**
+ * 获取函数返回值的类型
+ *
+ * # 参数
+ * - `context`: 函数执行上下文
+ *
+ * # 返回
+ * - 值类型
+ */
+enum graphdb_value_type_t graphdb_context_result_type(struct graphdb_context_t *_context);
+
+/**
+ * 设置错误消息
+ *
+ * # 参数
+ * - `context`: 函数执行上下文
+ * - `error_msg`: 错误消息
+ *
+ * # 说明
+ * 在函数执行出错时调用此函数设置错误消息
+ */
+int graphdb_context_set_error(struct graphdb_context_t *_context, const char *error_msg);

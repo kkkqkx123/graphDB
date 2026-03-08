@@ -209,24 +209,31 @@ pub extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
             return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
         }
 
+        // 调用提交钩子
+        let session = &*(handle.session);
+        if !session.invoke_commit_hook() {
+            // 钩子返回非零，回滚事务
+            return graphdb_txn_rollback(txn);
+        }
+
         if handle.txn.is_none() {
             return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
         }
-        
+
         let txn = handle.txn.take().unwrap();
         let txn_any = txn.as_ref();
-        
+
         // 尝试将 Any 转换回 Transaction
         use crate::api::embedded::transaction::Transaction;
         use crate::storage::RedbStorage;
-        
+
         let txn_obj = match txn_any.downcast_ref::<Transaction<'_, RedbStorage>>() {
             Some(t) => t,
             None => {
                 return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
             }
         };
-        
+
         let txn_handle = txn_obj.handle();
 
         match handle.txn_manager.commit_transaction(txn_handle.0) {
@@ -266,24 +273,28 @@ pub extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int {
             return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
         }
 
+        // 调用回滚钩子
+        let session = &*(handle.session);
+        session.invoke_rollback_hook();
+
         if handle.txn.is_none() {
             return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
         }
-        
+
         let txn = handle.txn.take().unwrap();
         let txn_any = txn.as_ref();
-        
+
         // 尝试将 Any 转换回 Transaction
         use crate::api::embedded::transaction::Transaction;
         use crate::storage::RedbStorage;
-        
+
         let txn_obj = match txn_any.downcast_ref::<Transaction<'_, RedbStorage>>() {
             Some(t) => t,
             None => {
                 return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
             }
         };
-        
+
         let txn_handle = txn_obj.handle();
 
         match handle.txn_manager.abort_transaction(txn_handle.0) {

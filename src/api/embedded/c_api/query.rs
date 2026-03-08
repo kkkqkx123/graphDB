@@ -43,6 +43,9 @@ pub extern "C" fn graphdb_execute(
     unsafe {
         let handle = &mut *(session as *mut GraphDbSessionHandle);
 
+        // 调用 SQL 追踪回调
+        handle.trace(query_str);
+
         match handle.inner.execute(query_str) {
             Ok(query_result) => {
                 handle.clear_error();

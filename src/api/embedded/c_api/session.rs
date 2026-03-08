@@ -7,10 +7,13 @@ use crate::api::embedded::c_api::error::{
     error_code_from_core_error, extended_error_code_from_core_error, graphdb_error_code_t,
     set_last_error_message,
 };
-use crate::api::embedded::c_api::types::{graphdb_extended_error_code_t, graphdb_t, graphdb_session_t};
+use crate::api::embedded::c_api::types::{
+    graphdb_commit_hook_callback, graphdb_extended_error_code_t, graphdb_rollback_hook_callback,
+    graphdb_session_t, graphdb_t, graphdb_trace_callback,
+};
 use crate::api::embedded::Session;
 use crate::storage::RedbStorage;
-use std::ffi::{CStr, CString, c_char, c_int};
+use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::ptr;
 
 /// 会话句柄内部结构
@@ -23,7 +26,24 @@ pub struct GraphDbSessionHandle {
     pub(crate) last_error_offset: Option<usize>,
     /// 最后扩展错误码
     pub(crate) last_extended_error: Option<graphdb_extended_error_code_t>,
+    /// SQL 追踪回调
+    pub(crate) trace_callback: graphdb_trace_callback,
+    /// SQL 追踪回调用户数据
+    pub(crate) trace_user_data: *mut c_void,
+    /// 提交钩子回调
+    pub(crate) commit_hook: graphdb_commit_hook_callback,
+    /// 提交钩子用户数据
+    pub(crate) commit_hook_user_data: *mut c_void,
+    /// 回滚钩子回调
+    pub(crate) rollback_hook: graphdb_rollback_hook_callback,
+    /// 回滚钩子用户数据
+    pub(crate) rollback_hook_user_data: *mut c_void,
 }
+
+// 手动实现 Send 和 Sync，因为 *mut c_void 不是线程安全的
+// 但这里我们只在 C API 层使用，由调用者保证线程安全
+unsafe impl Send for GraphDbSessionHandle {}
+unsafe impl Sync for GraphDbSessionHandle {}
 
 impl GraphDbSessionHandle {
     /// 创建新的会话句柄
@@ -34,6 +54,39 @@ impl GraphDbSessionHandle {
             busy_timeout_ms: 5000, // 默认 5 秒
             last_error_offset: None,
             last_extended_error: None,
+            trace_callback: None,
+            trace_user_data: ptr::null_mut(),
+            commit_hook: None,
+            commit_hook_user_data: ptr::null_mut(),
+            rollback_hook: None,
+            rollback_hook_user_data: ptr::null_mut(),
+        }
+    }
+
+    /// 调用 SQL 追踪回调
+    pub(crate) fn trace(&self, sql: &str) {
+        if let Some(callback) = self.trace_callback {
+            if let Ok(c_sql) = CString::new(sql) {
+                callback(c_sql.as_ptr(), self.trace_user_data);
+            }
+        }
+    }
+
+    /// 调用提交钩子
+    /// 返回 true 表示继续提交，false 表示回滚
+    pub(crate) fn invoke_commit_hook(&self) -> bool {
+        if let Some(callback) = self.commit_hook {
+            let result = callback(self.commit_hook_user_data);
+            result == 0
+        } else {
+            true
+        }
+    }
+
+    /// 调用回滚钩子
+    pub(crate) fn invoke_rollback_hook(&self) {
+        if let Some(callback) = self.rollback_hook {
+            callback(self.rollback_hook_user_data);
         }
     }
 
@@ -366,6 +419,102 @@ pub extern "C" fn graphdb_busy_timeout_get(
     unsafe {
         let handle = &*(session as *mut GraphDbSessionHandle);
         handle.busy_timeout_ms as c_int
+    }
+}
+
+/// 设置 SQL 追踪回调
+///
+/// # 参数
+/// - `session`: 会话句柄
+/// - `callback`: 追踪回调函数，NULL 表示取消追踪
+/// - `user_data`: 用户数据指针，将传递给回调函数
+///
+/// # 返回
+/// - 成功: GRAPHDB_OK
+/// - 失败: 错误码
+///
+/// # 示例
+/// ```c
+/// extern void my_trace_callback(const char* sql, void* data) {
+///     printf("Executing: %s\n", sql);
+/// }
+///
+/// graphdb_trace(session, my_trace_callback, NULL);
+/// ```
+#[no_mangle]
+pub extern "C" fn graphdb_trace(
+    session: *mut graphdb_session_t,
+    callback: graphdb_trace_callback,
+    user_data: *mut c_void,
+) -> c_int {
+    if session.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    unsafe {
+        let handle = &mut *(session as *mut GraphDbSessionHandle);
+        handle.trace_callback = callback;
+        handle.trace_user_data = user_data;
+        graphdb_error_code_t::GRAPHDB_OK as c_int
+    }
+}
+
+/// 设置提交钩子
+///
+/// # 参数
+/// - `session`: 会话句柄
+/// - `callback`: 提交钩子回调函数，NULL 表示取消钩子
+/// - `user_data`: 用户数据指针，将传递给回调函数
+///
+/// # 返回
+/// - 之前的钩子用户数据指针（如果有）
+///
+/// # 说明
+/// 提交钩子在事务提交前被调用。如果回调返回非零值，事务将回滚。
+#[no_mangle]
+pub extern "C" fn graphdb_commit_hook(
+    session: *mut graphdb_session_t,
+    callback: graphdb_commit_hook_callback,
+    user_data: *mut c_void,
+) -> *mut c_void {
+    if session.is_null() {
+        return ptr::null_mut();
+    }
+
+    unsafe {
+        let handle = &mut *(session as *mut GraphDbSessionHandle);
+        let old_user_data = handle.commit_hook_user_data;
+        handle.commit_hook = callback;
+        handle.commit_hook_user_data = user_data;
+        old_user_data
+    }
+}
+
+/// 设置回滚钩子
+///
+/// # 参数
+/// - `session`: 会话句柄
+/// - `callback`: 回滚钩子回调函数，NULL 表示取消钩子
+/// - `user_data`: 用户数据指针，将传递给回调函数
+///
+/// # 返回
+/// - 之前的钩子用户数据指针（如果有）
+#[no_mangle]
+pub extern "C" fn graphdb_rollback_hook(
+    session: *mut graphdb_session_t,
+    callback: graphdb_rollback_hook_callback,
+    user_data: *mut c_void,
+) -> *mut c_void {
+    if session.is_null() {
+        return ptr::null_mut();
+    }
+
+    unsafe {
+        let handle = &mut *(session as *mut GraphDbSessionHandle);
+        let old_user_data = handle.rollback_hook_user_data;
+        handle.rollback_hook = callback;
+        handle.rollback_hook_user_data = user_data;
+        old_user_data
     }
 }
 

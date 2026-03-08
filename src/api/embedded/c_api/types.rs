@@ -150,6 +150,25 @@ pub const GRAPHDB_OPEN_FULLMUTEX: c_int = 0x00010000;
 pub const GRAPHDB_OPEN_SHAREDCACHE: c_int = 0x00020000;
 pub const GRAPHDB_OPEN_PRIVATECACHE: c_int = 0x00040000;
 
+/// SQL 追踪回调类型
+pub type graphdb_trace_callback = Option<extern "C" fn(sql: *const c_char, user_data: *mut c_void)>;
+
+/// 钩子回调类型
+pub type graphdb_commit_hook_callback = Option<extern "C" fn(user_data: *mut c_void) -> c_int>;
+pub type graphdb_rollback_hook_callback = Option<extern "C" fn(user_data: *mut c_void)>;
+pub type graphdb_update_hook_callback = Option<extern "C" fn(
+    user_data: *mut c_void,
+    operation: c_int,
+    database: *const c_char,
+    table: *const c_char,
+    rowid: i64,
+)>;
+
+/// 钩子类型常量
+pub const GRAPHDB_HOOK_INSERT: c_int = 1;
+pub const GRAPHDB_HOOK_UPDATE: c_int = 2;
+pub const GRAPHDB_HOOK_DELETE: c_int = 3;
+
 /// 扩展错误码
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

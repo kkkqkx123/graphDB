@@ -4,7 +4,9 @@
 
 use crate::api::core::CoreError;
 use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
-use crate::api::embedded::c_api::types::{graphdb_t, GRAPHDB_OPEN_READONLY, GRAPHDB_OPEN_READWRITE, GRAPHDB_OPEN_CREATE};
+use crate::api::embedded::c_api::types::{
+    graphdb_t, GRAPHDB_OPEN_CREATE, GRAPHDB_OPEN_READONLY, GRAPHDB_OPEN_READWRITE,
+};
 use crate::api::embedded::{DatabaseConfig, GraphDatabase};
 use crate::storage::{RedbStorage, StorageClient};
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
@@ -323,14 +325,14 @@ mod tests {
         let temp_dir = std::env::temp_dir().join("graphdb_c_api_test");
         std::fs::create_dir_all(&temp_dir).ok();
         let db_path = temp_dir.join(format!("test_db_{}_{}.db", std::process::id(), counter));
-        
+
         // 确保数据库文件不存在
         if db_path.exists() {
             std::fs::remove_file(&db_path).ok();
             // 等待文件系统完成删除操作
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
-        
+
         db_path
     }
 
