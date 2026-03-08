@@ -7,9 +7,7 @@
 //! - `config` - 配置和数据结构
 //! - `parameter_extractor` - 参数提取功能
 //! - `statement` - 预编译语句核心功能
-//! - `builder` - 构建器模式
 
-pub mod builder;
 pub mod config;
 pub mod parameter_extractor;
 pub mod statement;
@@ -17,6 +15,5 @@ pub mod statement;
 #[cfg(test)]
 mod statement_tests;
 
-pub use builder::PreparedStatementBuilder;
 pub use config::{ExecutionStats, ParameterInfo, StatementConfig};
 pub use statement::PreparedStatement;
