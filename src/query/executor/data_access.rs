@@ -174,6 +174,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                                         crate::core::Value::Int(i) => i != 0,
                                         crate::core::Value::Float(f) => f != 0.0,
                                         crate::core::Value::String(s) => !s.is_empty(),
+                                        crate::core::Value::Blob(b) => !b.is_empty(),
                                         crate::core::Value::List(l) => !l.is_empty(),
                                         crate::core::Value::Map(m) => !m.is_empty(),
                                         crate::core::Value::Set(s) => !s.is_empty(),

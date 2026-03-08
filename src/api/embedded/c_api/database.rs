@@ -3,8 +3,8 @@
 //! 提供数据库的打开、关闭和基本管理功能
 
 use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
-use crate::api::embedded::c_api::types::graphdb_t;
-use crate::api::embedded::GraphDatabase;
+use crate::api::embedded::c_api::types::{graphdb_t, GRAPHDB_OPEN_READONLY, GRAPHDB_OPEN_READWRITE, GRAPHDB_OPEN_CREATE};
+use crate::api::embedded::{DatabaseConfig, GraphDatabase};
 use crate::storage::RedbStorage;
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::ptr;
@@ -42,6 +42,87 @@ pub extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb_t) -> 
 
     // 打开数据库
     match GraphDatabase::open(path_str) {
+        Ok(graphdb) => {
+            let handle = Box::new(GraphDbHandle {
+                inner: Arc::new(graphdb),
+                last_error: None,
+            });
+            unsafe {
+                *db = Box::into_raw(handle) as *mut graphdb_t;
+            }
+            graphdb_error_code_t::GRAPHDB_OK as c_int
+        }
+        Err(e) => {
+            let error_code = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
+            unsafe {
+                *db = ptr::null_mut();
+            }
+            error_code
+        }
+    }
+}
+
+/// 使用标志打开数据库
+///
+/// # 参数
+/// - `path`: 数据库文件路径（UTF-8 编码）
+/// - `db`: 输出参数，数据库句柄
+/// - `flags`: 打开标志
+/// - `vfs`: VFS 名称（保留参数，当前未使用，可为 NULL）
+///
+/// # 返回
+/// - 成功: GRAPHDB_OK
+/// - 失败: 错误码
+///
+/// # 标志说明
+/// - GRAPHDB_OPEN_READONLY: 只读模式
+/// - GRAPHDB_OPEN_READWRITE: 读写模式
+/// - GRAPHDB_OPEN_CREATE: 如果数据库不存在则创建
+#[no_mangle]
+pub extern "C" fn graphdb_open_v2(
+    path: *const c_char,
+    db: *mut *mut graphdb_t,
+    flags: c_int,
+    _vfs: *const c_char,
+) -> c_int {
+    // 参数验证（vfs 可以为 NULL）
+    if path.is_null() || db.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    // 转换路径字符串
+    let path_str = unsafe {
+        match CStr::from_ptr(path).to_str() {
+            Ok(s) => s,
+            Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+        }
+    };
+
+    // 解析标志
+    let read_only = (flags & GRAPHDB_OPEN_READONLY) != 0;
+    let read_write = (flags & GRAPHDB_OPEN_READWRITE) != 0;
+    let create = (flags & GRAPHDB_OPEN_CREATE) != 0;
+
+    // 验证标志组合
+    if read_only && read_write {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    // 构建配置
+    let mut config = if read_only {
+        DatabaseConfig::file(path_str).with_read_only(true)
+    } else {
+        DatabaseConfig::file(path_str)
+    };
+
+    if create {
+        config = config.with_create_if_missing(true);
+    }
+
+    // 打开数据库
+    match GraphDatabase::open_with_config(config) {
         Ok(graphdb) => {
             let handle = Box::new(GraphDbHandle {
                 inner: Arc::new(graphdb),

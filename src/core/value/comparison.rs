@@ -106,58 +106,62 @@ impl Hash for Value {
                 5u8.hash(state);
                 s.hash(state);
             }
-            Value::Date(d) => {
+            Value::Blob(b) => {
                 6u8.hash(state);
+                b.hash(state);
+            }
+            Value::Date(d) => {
+                7u8.hash(state);
                 d.hash(state);
             }
             Value::Time(t) => {
-                7u8.hash(state);
+                8u8.hash(state);
                 t.hash(state);
             }
             Value::DateTime(dt) => {
-                8u8.hash(state);
+                9u8.hash(state);
                 dt.hash(state);
             }
             Value::Vertex(v) => {
-                9u8.hash(state);
+                10u8.hash(state);
                 v.hash(state);
             }
             Value::Edge(e) => {
-                10u8.hash(state);
+                11u8.hash(state);
                 e.hash(state);
             }
             Value::Path(p) => {
-                11u8.hash(state);
+                12u8.hash(state);
                 p.hash(state);
             }
             Value::List(l) => {
-                12u8.hash(state);
+                13u8.hash(state);
                 l.hash(state);
             }
             Value::Map(m) => {
-                13u8.hash(state);
+                14u8.hash(state);
                 // 通过排序后的键值对哈希映射
                 let mut pairs: Vec<_> = m.iter().collect();
                 pairs.sort_by_key(|&(k, _)| k);
                 pairs.hash(state);
             }
             Value::Set(s) => {
-                14u8.hash(state);
+                15u8.hash(state);
                 // 对于集合，我们将按排序顺序哈希所有值以确保一致性
                 let mut values: Vec<_> = s.iter().collect();
                 values.sort();
                 values.hash(state);
             }
             Value::Geography(g) => {
-                15u8.hash(state);
+                16u8.hash(state);
                 g.hash(state);
             }
             Value::Duration(d) => {
-                16u8.hash(state);
+                17u8.hash(state);
                 d.hash(state);
             }
             Value::DataSet(ds) => {
-                17u8.hash(state);
+                18u8.hash(state);
                 ds.hash(state);
             }
         }

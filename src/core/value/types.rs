@@ -220,6 +220,7 @@ impl Value {
     pub fn length(&self) -> Result<Value, String> {
         match self {
             Value::String(s) => Ok(Value::Int(s.len() as i64)),
+            Value::Blob(b) => Ok(Value::Int(b.len() as i64)),
             Value::List(list) => Ok(Value::Int(list.values.len() as i64)),
             Value::Map(map) => Ok(Value::Int(map.len() as i64)),
             Value::Set(set) => Ok(Value::Int(set.len() as i64)),
@@ -238,6 +239,7 @@ impl Value {
             Value::Int(_) => base_size,
             Value::Float(_) => base_size,
             Value::String(s) => base_size + std::mem::size_of::<String>() + s.capacity(),
+            Value::Blob(b) => base_size + std::mem::size_of::<Vec<u8>>() + b.capacity(),
             Value::Date(d) => base_size + d.estimated_size(),
             Value::Time(t) => base_size + t.estimated_size(),
             Value::DateTime(dt) => base_size + dt.estimated_size(),
@@ -299,6 +301,7 @@ impl std::fmt::Display for Value {
             Value::Int(i) => write!(f, "{}", i),
             Value::Float(fl) => write!(f, "{}", fl),
             Value::String(s) => write!(f, "\"{}\"", s),
+            Value::Blob(b) => write!(f, "Blob({} bytes)", b.len()),
             Value::Date(d) => write!(f, "{:04}-{:02}-{:02}", d.year, d.month, d.day),
             Value::Time(t) => write!(
                 f,

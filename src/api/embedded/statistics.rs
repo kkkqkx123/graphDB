@@ -186,7 +186,7 @@ impl QueryStatistics {
     pub fn from_metadata(metadata: &crate::api::core::ExecutionMetadata) -> Self {
         Self {
             rows_affected: metadata.rows_returned,
-            rows_returned: metadata.rows_returned as usize,
+            rows_returned: metadata.rows_returned as u64,
             ..Default::default()
         }
     }

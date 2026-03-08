@@ -11,6 +11,23 @@
 #define DEFAULT_MAX_ALLOWED_CONNECTIONS 100
 
 /**
+ * 数据库打开标志
+ */
+#define GRAPHDB_OPEN_READONLY 1
+
+#define GRAPHDB_OPEN_READWRITE 2
+
+#define GRAPHDB_OPEN_CREATE 4
+
+#define GRAPHDB_OPEN_NOMUTEX 32768
+
+#define GRAPHDB_OPEN_FULLMUTEX 65536
+
+#define GRAPHDB_OPEN_SHAREDCACHE 131072
+
+#define GRAPHDB_OPEN_PRIVATECACHE 262144
+
+/**
  * 等值查询默认选择性（假设10个不同值）
  */
 #define EQUALITY 0.1
@@ -267,6 +284,26 @@ const char *graphdb_get_last_error_message(void);
  * - 失败: 错误码
  */
 int graphdb_open(const char *path, struct graphdb_t **db);
+
+/**
+ * 使用标志打开数据库
+ *
+ * # 参数
+ * - `path`: 数据库文件路径（UTF-8 编码）
+ * - `db`: 输出参数，数据库句柄
+ * - `flags`: 打开标志
+ * - `vfs`: VFS 名称（保留参数，当前未使用，可为 NULL）
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ *
+ * # 标志说明
+ * - GRAPHDB_OPEN_READONLY: 只读模式
+ * - GRAPHDB_OPEN_READWRITE: 读写模式
+ * - GRAPHDB_OPEN_CREATE: 如果数据库不存在则创建
+ */
+int graphdb_open_v2(const char *path, struct graphdb_t **db, int flags, const char *_vfs);
 
 /**
  * 关闭数据库
@@ -1001,3 +1038,47 @@ const uint8_t *graphdb_get_blob(struct graphdb_result_t *result,
                                 int row,
                                 const char *col,
                                 int *len);
+
+/**
+ * 获取整数值（按列索引）
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列索引（从 0 开始）
+ * - `value`: 输出参数，整数值
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_get_int_by_index(struct graphdb_result_t *result, int row, int col, int64_t *value);
+
+/**
+ * 获取字符串值（按列索引）
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列索引（从 0 开始）
+ * - `len`: 输出参数，字符串长度
+ *
+ * # 返回
+ * - 字符串值（UTF-8 编码），错误返回 NULL
+ */
+const char *graphdb_get_string_by_index(struct graphdb_result_t *result,
+                                        int row,
+                                        int col,
+                                        int *len);
+
+/**
+ * 获取列类型
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `col`: 列索引（从 0 开始）
+ *
+ * # 返回
+ * - 列类型，错误返回 GRAPHDB_NULL
+ */
+enum graphdb_value_type_t graphdb_column_type(struct graphdb_result_t *result, int col);

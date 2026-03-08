@@ -158,7 +158,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         let result = query_api.execute(query, ctx)?;
 
         // 更新统计信息
-        self.statistics.record_changes(result.metadata.rows_affected);
+        self.statistics.record_changes(result.metadata.rows_returned);
 
         Ok(QueryResult::from_core(result))
     }

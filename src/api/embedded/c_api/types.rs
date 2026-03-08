@@ -140,3 +140,12 @@ impl Default for graphdb_config_t {
         }
     }
 }
+
+/// 数据库打开标志
+pub const GRAPHDB_OPEN_READONLY: c_int = 0x00000001;
+pub const GRAPHDB_OPEN_READWRITE: c_int = 0x00000002;
+pub const GRAPHDB_OPEN_CREATE: c_int = 0x00000004;
+pub const GRAPHDB_OPEN_NOMUTEX: c_int = 0x00008000;
+pub const GRAPHDB_OPEN_FULLMUTEX: c_int = 0x00010000;
+pub const GRAPHDB_OPEN_SHAREDCACHE: c_int = 0x00020000;
+pub const GRAPHDB_OPEN_PRIVATECACHE: c_int = 0x00040000;

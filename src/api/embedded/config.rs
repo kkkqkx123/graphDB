@@ -37,6 +37,10 @@ pub struct DatabaseConfig {
     pub enable_wal: bool,
     /// 同步模式
     pub sync_mode: SyncMode,
+    /// 是否只读
+    pub read_only: bool,
+    /// 不存在时是否创建
+    pub create_if_missing: bool,
 }
 
 /// 同步模式
@@ -59,6 +63,8 @@ impl DatabaseConfig {
             default_timeout: Duration::from_secs(30),
             enable_wal: true,
             sync_mode: SyncMode::Normal,
+            read_only: false,
+            create_if_missing: true,
         }
     }
 
@@ -70,6 +76,8 @@ impl DatabaseConfig {
             default_timeout: Duration::from_secs(30),
             enable_wal: true,
             sync_mode: SyncMode::Normal,
+            read_only: false,
+            create_if_missing: true,
         }
     }
 
@@ -99,6 +107,18 @@ impl DatabaseConfig {
     /// 设置同步模式
     pub fn with_sync_mode(mut self, mode: SyncMode) -> Self {
         self.sync_mode = mode;
+        self
+    }
+
+    /// 设置是否只读
+    pub fn with_read_only(mut self, read_only: bool) -> Self {
+        self.read_only = read_only;
+        self
+    }
+
+    /// 设置不存在时是否创建
+    pub fn with_create_if_missing(mut self, create: bool) -> Self {
+        self.create_if_missing = create;
         self
     }
 
