@@ -433,37 +433,50 @@ fn test_prepared_statement_create() {
 }
 
 #[test]
-fn test_prepared_statement_bind() {
+fn test_prepared_statement_with_parameters() {
     let test_db = create_test_database();
     let db = &test_db.db;
     let session = db.session().expect("创建会话失败");
 
     let mut stmt = session
-        .prepare("CREATE SPACE IF NOT EXISTS test_space")
+        .prepare("MATCH (n:User {id: $user_id}) RETURN n.name")
         .expect("预编译语句失败");
 
-    let result = stmt.bind("test", Value::Int(42));
-    assert!(result.is_err());
+    let result = stmt.bind("user_id", Value::Int(1));
+    assert!(result.is_ok(), "绑定参数应该成功");
 }
 
 #[test]
-fn test_prepared_statement_execute() {
+fn test_prepared_statement_bind_unknown_parameter() {
     let test_db = create_test_database();
     let db = &test_db.db;
     let session = db.session().expect("创建会话失败");
 
     let mut stmt = session
-        .prepare("CREATE SPACE IF NOT EXISTS test_space")
+        .prepare("MATCH (n:User {id: $user_id}) RETURN n")
         .expect("预编译语句失败");
 
-    let space_config = SpaceConfig::default();
-    session.create_space("test_space", space_config)
-        .expect("创建空间失败");
+    let result = stmt.bind("unknown_param", Value::Int(42));
+    assert!(result.is_err(), "绑定未知参数应该失败");
+}
 
-    let spaces = session.list_spaces().expect("列出空间失败");
-    assert!(spaces.contains(&"test_space".to_string()));
+#[test]
+fn test_prepared_statement_bind_and_execute() {
+    let test_db = create_test_database();
+    let db = &test_db.db;
+    let session = db.session().expect("创建会话失败");
 
-    assert_eq!(stmt.query(), "CREATE SPACE IF NOT EXISTS test_space");
+    let mut stmt = session
+        .prepare("MATCH (n:User {id: $user_id}) WHERE n.age > $min_age RETURN n.name")
+        .expect("预编译语句失败");
+
+    stmt.bind("user_id", Value::Int(1))
+        .expect("绑定 user_id 失败");
+    stmt.bind("min_age", Value::Int(18))
+        .expect("绑定 min_age 失败");
+
+    let result = stmt.execute();
+    assert!(result.is_ok(), "执行预编译语句应该成功");
 }
 
 #[test]
@@ -473,12 +486,15 @@ fn test_prepared_statement_reset() {
     let session = db.session().expect("创建会话失败");
 
     let mut stmt = session
-        .prepare("CREATE SPACE IF NOT EXISTS test_space")
+        .prepare("MATCH (n:User {id: $user_id}) RETURN n")
         .expect("预编译语句失败");
 
-    let result = stmt.bind("test", Value::Int(42));
-    assert!(result.is_err());
+    stmt.bind("user_id", Value::Int(1))
+        .expect("绑定参数失败");
+    assert!(stmt.is_bound("user_id"), "参数应该已绑定");
+
     stmt.reset();
+    assert!(!stmt.is_bound("user_id"), "重置后参数应该未绑定");
 }
 
 #[test]
@@ -487,11 +503,52 @@ fn test_prepared_statement_stats() {
     let db = &test_db.db;
     let session = db.session().expect("创建会话失败");
 
-    let stmt = session
-        .prepare("CREATE SPACE IF NOT EXISTS test_space")
+    let mut stmt = session
+        .prepare("MATCH (n:User {id: $user_id}) RETURN n")
         .expect("预编译语句失败");
+
     let stats = stmt.stats();
     assert_eq!(stats.execution_count, 0);
+
+    stmt.bind("user_id", Value::Int(1))
+        .expect("绑定参数失败");
+    let _ = stmt.execute();
+
+    let stats = stmt.stats();
+    assert_eq!(stats.execution_count, 1);
+}
+
+#[test]
+fn test_prepared_statement_parameters() {
+    let test_db = create_test_database();
+    let db = &test_db.db;
+    let session = db.session().expect("创建会话失败");
+
+    let stmt = session
+        .prepare("MATCH (n:User {id: $user_id}) WHERE n.age > $min_age AND n.age < $max_age RETURN n")
+        .expect("预编译语句失败");
+
+    let params = stmt.parameters();
+    assert_eq!(params.len(), 3);
+    assert!(params.contains_key("user_id"));
+    assert!(params.contains_key("min_age"));
+    assert!(params.contains_key("max_age"));
+}
+
+#[test]
+fn test_prepared_statement_parameter_info() {
+    let test_db = create_test_database();
+    let db = &test_db.db;
+    let session = db.session().expect("创建会话失败");
+
+    let stmt = session
+        .prepare("MATCH (n:User {id: $user_id}) RETURN n")
+        .expect("预编译语句失败");
+
+    let param_info = stmt.parameter_info();
+    assert_eq!(param_info.len(), 1);
+    assert_eq!(param_info[0].name, "user_id");
+    assert!(param_info[0].required);
 }
 
 // ==================== BatchInserter 测试 ====================

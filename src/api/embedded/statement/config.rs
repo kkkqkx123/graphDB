@@ -10,8 +10,6 @@ use std::time::{Duration, Instant};
 /// 用于配置预编译语句的行为
 #[derive(Debug, Clone)]
 pub struct StatementConfig {
-    /// 是否启用查询计划缓存
-    pub enable_cache: bool,
     /// 是否启用类型检查
     pub enable_type_check: bool,
     /// 最大执行历史记录数
@@ -21,7 +19,6 @@ pub struct StatementConfig {
 impl Default for StatementConfig {
     fn default() -> Self {
         Self {
-            enable_cache: true,
             enable_type_check: true,
             max_history_size: 100,
         }
@@ -32,12 +29,6 @@ impl StatementConfig {
     /// 创建默认配置
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// 禁用缓存
-    pub fn disable_cache(mut self) -> Self {
-        self.enable_cache = false;
-        self
     }
 
     /// 禁用类型检查

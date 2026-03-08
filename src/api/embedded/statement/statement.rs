@@ -5,7 +5,7 @@
 use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest};
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::statement::config::{ExecutionStats, ParameterInfo, StatementConfig};
-use crate::api::embedded::statement::parameter_extractor::ParameterExtractor;
+use crate::api::embedded::statement::parameter_extractor::{extract_parameters, type_matches};
 use crate::core::{DataType, Value};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -73,7 +73,7 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
         space_id: Option<u64>,
         config: StatementConfig,
     ) -> CoreResult<Self> {
-        let parameter_types = ParameterExtractor::extract_parameters(&query)?;
+        let parameter_types = extract_parameters(&query)?;
 
         Ok(Self {
             query_api,
@@ -103,7 +103,7 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
 
         if self.config.enable_type_check {
             if let Some(expected_type) = self.parameter_types.get(name) {
-                if !ParameterExtractor::type_matches(&value, expected_type) {
+                if !type_matches(&value, expected_type) {
                     return Err(CoreError::InvalidParameter(format!(
                         "类型不匹配: 期望 {:?}, 实际 {:?}",
                         expected_type, value
