@@ -1561,68 +1561,6 @@ impl StorageClient for RedbStorage {
         Ok(count)
     }
 
-    fn backup(&self, dest_path: &str) -> Result<(), StorageError> {
-        use std::fs;
-        use std::path::Path;
-
-        let dest = Path::new(dest_path);
-
-        // 确保目标目录存在
-        if let Some(parent) = dest.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| StorageError::DbError(format!("Failed to create backup directory: {}", e)))?;
-        }
-
-        // 检查源数据库文件是否存在
-        if !self.db_path.exists() {
-            return Err(StorageError::DbError(format!(
-                "Source database file does not exist: {}",
-                self.db_path.display()
-            )));
-        }
-
-        // 复制数据库文件
-        fs::copy(&self.db_path, dest)
-            .map_err(|e| StorageError::DbError(format!("Failed to backup database: {}", e)))?;
-
-        Ok(())
-    }
-
-    fn restore(&mut self, src_path: &str) -> Result<(), StorageError> {
-        use std::fs;
-        use std::path::Path;
-
-        let src = Path::new(src_path);
-
-        // 检查源备份文件是否存在
-        if !src.exists() {
-            return Err(StorageError::DbError(format!(
-                "Backup file does not exist: {}",
-                src.display()
-            )));
-        }
-
-        // 关闭当前数据库连接
-        drop(self.db.clone());
-
-        // 如果目标文件存在，先删除
-        if self.db_path.exists() {
-            fs::remove_file(&self.db_path)
-                .map_err(|e| StorageError::DbError(format!("Failed to remove old database file: {}", e)))?;
-        }
-
-        // 复制备份文件到目标位置
-        fs::copy(src, &self.db_path)
-            .map_err(|e| StorageError::DbError(format!("Failed to restore database: {}", e)))?;
-
-        // 重新打开数据库
-        let db = Database::open(&self.db_path)
-            .map_err(|e| StorageError::DbError(format!("Failed to reopen database: {}", e)))?;
-        self.db = Arc::new(db);
-
-        Ok(())
-    }
-
     fn get_db_path(&self) -> &str {
         self.db_path.to_str().unwrap_or("")
     }

@@ -558,14 +558,6 @@ impl StorageClient for DummyStorage {
         Ok(0)
     }
 
-    fn backup(&self, _dest_path: &str) -> Result<(), crate::core::StorageError> {
-        Ok(())
-    }
-
-    fn restore(&mut self, _src_path: &str) -> Result<(), crate::core::StorageError> {
-        Ok(())
-    }
-
     fn get_db_path(&self) -> &str {
         ""
     }

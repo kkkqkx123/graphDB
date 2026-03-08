@@ -453,14 +453,6 @@ impl StorageClient for MockStorage {
         Ok(0)
     }
 
-    fn backup(&self, _dest_path: &str) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn restore(&mut self, _src_path: &str) -> Result<(), StorageError> {
-        Ok(())
-    }
-
     fn get_db_path(&self) -> &str {
         ""
     }

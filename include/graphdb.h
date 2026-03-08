@@ -452,32 +452,6 @@ void graphdb_free_string(char *str);
 void graphdb_free(void *ptr);
 
 /**
- * 备份数据库
- *
- * # 参数
- * - `db`: 数据库句柄
- * - `dest_path`: 目标备份文件路径（UTF-8 编码）
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_backup(struct graphdb_t *db, const char *dest_path);
-
-/**
- * 从备份恢复数据库
- *
- * # 参数
- * - `db`: 数据库句柄
- * - `src_path`: 源备份文件路径（UTF-8 编码）
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_restore(struct graphdb_t *db, const char *src_path);
-
-/**
  * 创建会话
  *
  * # 参数
