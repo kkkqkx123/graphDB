@@ -536,7 +536,7 @@ mod tests {
 
         // 等待所有任务完成
         for handle in handles {
-            let _ = handle.await.unwrap();
+            let _ = handle.await.expect("Task should complete");
         }
 
         // 验证所有会话都创建成功

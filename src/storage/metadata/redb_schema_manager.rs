@@ -156,7 +156,9 @@ impl super::SchemaManager for RedbSchemaManager {
             match result {
                 Some(id_value) => {
                     let bytes = id_value.value().0;
-                    let array: [u8; 8] = bytes[0..8].try_into().unwrap();
+                    let array: [u8; 8] = bytes[0..8].try_into().map_err(|_| {
+                        StorageError::DbError("ID字节长度不足8字节".to_string())
+                    })?;
                     Some(u64::from_be_bytes(array))
                 }
                 None => None,
@@ -216,8 +218,10 @@ impl super::SchemaManager for RedbSchemaManager {
         {
             let id_bytes = id_value.value().0;
             let space_id = u64::from_be_bytes(
-                id_bytes[0..8].try_into().unwrap()
-            );
+            id_bytes[0..8].try_into().map_err(|_| {
+                StorageError::DbError("ID字节长度不足8字节".to_string())
+            })?
+        );
 
             // 通过ID获取完整信息
             let spaces_table = read_txn

@@ -74,7 +74,7 @@ impl GraphDbSessionHandle {
         if let Some(callback) = self.update_hook {
             if let Ok(c_space) = CString::new(space_name) {
                 // 对于图数据库，table 参数使用空字符串
-                let empty_table = CString::new("").unwrap();
+                let empty_table = CString::new("").expect("Failed to create empty table CString");
                 callback(
                     self.update_hook_user_data,
                     operation,
@@ -591,7 +591,7 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
         
-        let path_cstring = CString::new(db_path.to_str().unwrap()).unwrap();
+        let path_cstring = CString::new(db_path.to_str().expect("Invalid path")).expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
         
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);

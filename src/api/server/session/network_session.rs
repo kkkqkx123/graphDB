@@ -347,12 +347,12 @@ mod tests {
         };
         client_session.set_space(space_info.clone());
 
-        assert_eq!(client_session.space().unwrap().id, 456);
-        assert_eq!(client_session.space().unwrap().name, "test_space");
+        assert_eq!(client_session.space().expect("Space should exist").id, 456);
+        assert_eq!(client_session.space().expect("Space should exist").name, "test_space");
 
         // 更新空间名称
         client_session.update_space_name("new_space".to_string());
-        assert_eq!(client_session.space_name().unwrap(), "new_space");
+        assert_eq!(client_session.space_name().expect("Space name should exist"), "new_space");
     }
 
     #[test]
@@ -374,7 +374,7 @@ mod tests {
 
         // 设置Admin角色
         client_session.set_role(1, RoleType::Admin);
-        assert_eq!(client_session.role_with_space(1).unwrap(), RoleType::Admin);
+        assert_eq!(client_session.role_with_space(1).expect("Role should exist"), RoleType::Admin);
         assert!(client_session.is_admin());
         assert!(!client_session.is_god());
 
@@ -428,7 +428,7 @@ mod tests {
 
         // 设置时区
         client_session.set_timezone(8);
-        assert_eq!(client_session.timezone().unwrap(), 8);
+        assert_eq!(client_session.timezone().expect("Timezone should exist"), 8);
     }
 
     #[test]
@@ -448,7 +448,7 @@ mod tests {
 
         // 更新地址
         client_session.update_graph_addr("127.0.0.1:9779".to_string());
-        assert_eq!(client_session.graph_addr().unwrap(), "127.0.0.1:9779");
+        assert_eq!(client_session.graph_addr().expect("Graph addr should exist"), "127.0.0.1:9779");
     }
 
     #[test]
@@ -516,7 +516,7 @@ mod tests {
 
         // 绑定事务
         client_session.bind_transaction(1001);
-        assert_eq!(client_session.current_transaction().unwrap(), 1001);
+        assert_eq!(client_session.current_transaction().expect("Transaction should exist"), 1001);
         assert!(client_session.has_active_transaction());
 
         // 解绑事务

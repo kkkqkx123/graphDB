@@ -480,7 +480,7 @@ mod tests {
         let result = graph_service.authenticate("root", "root").await;
         assert!(result.is_ok(), "默认用户认证应该成功");
 
-        let session = result.unwrap();
+        let session = result.expect("Failed to get session");
         assert_eq!(session.user(), "root");
     }
 

@@ -319,7 +319,9 @@ pub extern "C" fn graphdb_errmsg(
 
     let message = LAST_ERROR_MESSAGE.with(|m| {
         m.borrow().as_ref().map(|s| s.clone()).unwrap_or_else(|| {
-            CString::new("No error message").unwrap()
+            CString::new("No error message").unwrap_or_else(|_| {
+                CString::new("?").expect("Failed to create fallback error message")
+            })
         })
     });
     

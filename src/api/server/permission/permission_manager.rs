@@ -282,7 +282,7 @@ mod tests {
     fn test_grant_and_get_role() {
         let pm = PermissionManager::new();
 
-        pm.grant_role("user1", 1, RoleType::Admin).unwrap();
+        pm.grant_role("user1", 1, RoleType::Admin).expect("Failed to grant role");
 
         assert_eq!(pm.get_role("user1", 1), Some(RoleType::Admin));
         assert_eq!(pm.get_role("user1", 2), None);
@@ -307,8 +307,8 @@ mod tests {
     fn test_check_permission() {
         let pm = PermissionManager::new();
 
-        pm.grant_role("user1", 1, RoleType::User).unwrap();
-        pm.grant_role("guest1", 1, RoleType::Guest).unwrap();
+        pm.grant_role("user1", 1, RoleType::User).expect("Failed to grant role");
+        pm.grant_role("guest1", 1, RoleType::Guest).expect("Failed to grant role");
 
         // User 角色有 Read 和 Write 权限
         assert!(pm.check_permission("user1", 1, Permission::Read).is_ok());
@@ -326,8 +326,8 @@ mod tests {
     fn test_can_grant_role() {
         let pm = PermissionManager::new();
 
-        pm.grant_role("admin", 1, RoleType::Admin).unwrap();
-        pm.grant_role("user", 1, RoleType::User).unwrap();
+        pm.grant_role("admin", 1, RoleType::Admin).expect("Failed to grant role");
+        pm.grant_role("user", 1, RoleType::User).expect("Failed to grant role");
 
         // Admin 可以授予 User 和 Guest 角色
         assert!(pm.can_grant_role("admin", 1, RoleType::User));
@@ -354,9 +354,9 @@ mod tests {
         let pm = PermissionManager::new();
 
         // 给用户在不同Space授予不同角色
-        pm.grant_role("multi_user", 1, RoleType::Admin).unwrap();
-        pm.grant_role("multi_user", 2, RoleType::User).unwrap();
-        pm.grant_role("multi_user", 3, RoleType::Guest).unwrap();
+        pm.grant_role("multi_user", 1, RoleType::Admin).expect("Failed to grant role");
+        pm.grant_role("multi_user", 2, RoleType::User).expect("Failed to grant role");
+        pm.grant_role("multi_user", 3, RoleType::Guest).expect("Failed to grant role");
 
         // 列出用户所有角色
         let roles = pm.list_user_roles("multi_user");
@@ -379,9 +379,9 @@ mod tests {
         let space_id = 1i64;
 
         // 给多个用户授予角色
-        pm.grant_role("user1", space_id, RoleType::User).unwrap();
-        pm.grant_role("user2", space_id, RoleType::Admin).unwrap();
-        pm.grant_role("user3", space_id, RoleType::Guest).unwrap();
+        pm.grant_role("user1", space_id, RoleType::User).expect("Failed to grant role");
+        pm.grant_role("user2", space_id, RoleType::Admin).expect("Failed to grant role");
+        pm.grant_role("user3", space_id, RoleType::Guest).expect("Failed to grant role");
 
         // 列出Space中的所有用户
         let users = pm.list_space_users(space_id);

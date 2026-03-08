@@ -133,7 +133,7 @@ fn test_c_api_execute_simple_query() {
     let test_db = CApiTestDatabase::new();
     let session = CApiTestSession::from_db(&test_db);
     
-    let query = CString::new("SHOW SPACES").unwrap();
+    let query = CString::new("SHOW SPACES").expect("创建CString失败");
     let mut result: *mut graphdb::api::embedded::c_api::types::graphdb_result_t = ptr::null_mut();
     
     let rc = unsafe {
@@ -196,7 +196,7 @@ fn test_c_api_result_metadata() {
     let test_db = CApiTestDatabase::new();
     let session = CApiTestSession::from_db(&test_db);
     
-    let query = CString::new("SHOW SPACES").unwrap();
+    let query = CString::new("SHOW SPACES").expect("创建CString失败");
     let mut result: *mut graphdb::api::embedded::c_api::types::graphdb_result_t = ptr::null_mut();
     
     let rc = unsafe {
@@ -231,7 +231,7 @@ fn test_c_api_result_column_name() {
     let test_db = CApiTestDatabase::new();
     let session = CApiTestSession::from_db(&test_db);
     
-    let query = CString::new("SHOW SPACES").unwrap();
+    let query = CString::new("SHOW SPACES").expect("创建CString失败");
     let mut result: *mut graphdb::api::embedded::c_api::types::graphdb_result_t = ptr::null_mut();
     
     let rc = unsafe {
@@ -411,7 +411,7 @@ fn test_c_api_prepare_finalize() {
     let test_db = CApiTestDatabase::new();
     let session = CApiTestSession::from_db(&test_db);
     
-    let query = CString::new("SHOW SPACES").unwrap();
+    let query = CString::new("SHOW SPACES").expect("创建CString失败");
     let mut stmt: *mut graphdb::api::embedded::c_api::types::graphdb_stmt_t = ptr::null_mut();
     
     // 准备语句
@@ -586,7 +586,7 @@ fn test_c_api_errmsg() {
 
 #[test]
 fn test_c_api_free_string() {
-    let test_str = CString::new("test string").unwrap();
+    let test_str = CString::new("test string").expect("创建CString失败");
     let ptr = test_str.into_raw();
     
     assert!(!ptr.is_null());

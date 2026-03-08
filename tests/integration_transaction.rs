@@ -261,7 +261,7 @@ fn test_find_savepoint_by_name() {
     // 通过名称查找保存点
     let found = txn_manager.find_savepoint_by_name(txn_id, "checkpoint");
     assert!(found.is_some());
-    assert_eq!(found.unwrap().id, savepoint_id);
+    assert_eq!(found.expect("保存点应存在").id, savepoint_id);
 
     // 查找不存在的保存点
     let not_found = txn_manager.find_savepoint_by_name(txn_id, "nonexistent");
@@ -442,7 +442,7 @@ fn test_get_savepoint_info() {
     // 获取保存点信息
     let savepoint_info = txn_manager.get_savepoint(txn_id, savepoint_id);
     assert!(savepoint_info.is_some());
-    assert_eq!(savepoint_info.unwrap().id, savepoint_id);
+    assert_eq!(savepoint_info.expect("保存点信息应存在").id, savepoint_id);
 
     // 获取不存在的保存点信息
     let nonexistent = txn_manager.get_savepoint(txn_id, 999);

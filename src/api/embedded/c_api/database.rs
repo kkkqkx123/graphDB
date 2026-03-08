@@ -257,7 +257,7 @@ mod tests {
         let version = unsafe {
             CStr::from_ptr(graphdb_libversion())
                 .to_str()
-                .unwrap()
+                .expect("Failed to convert version to str")
         };
         assert!(!version.is_empty());
     }
@@ -266,7 +266,7 @@ mod tests {
     fn test_graphdb_open_close_file() {
         let db_path = get_test_db_path();
         
-        let path_cstring = CString::new(db_path.to_str().unwrap()).unwrap();
+        let path_cstring = CString::new(db_path.to_str().expect("Invalid path")).expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
         
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);

@@ -187,8 +187,8 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
             } => {
                 let id = self.parse_vertex_id(vertex_id)?;
 
-                if previous_state.is_some() {
-                    let vertex = decode_from_slice(previous_state.as_ref().unwrap(), standard())?.0;
+                if let Some(ref state) = previous_state {
+                    let vertex = decode_from_slice(state, standard())?.0;
                     self.writer.update_vertex(&self.space, vertex)?;
                 } else {
                     self.writer.delete_vertex(&self.space, &id)?;
@@ -223,8 +223,8 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
             } => {
                 let (src, dst, edge_type) = self.parse_edge_key(edge_id)?;
 
-                if previous_state.is_some() {
-                    let edge = decode_from_slice(previous_state.as_ref().unwrap(), standard())?.0;
+                if let Some(ref state) = previous_state {
+                    let edge = decode_from_slice(state, standard())?.0;
                     self.writer.insert_edge(&self.space, edge)?;
                 } else {
                     self.writer

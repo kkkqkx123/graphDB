@@ -36,7 +36,7 @@ pub async fn create<S: StorageClient + Clone + Send + Sync + 'static>(
         username: session.user(),
         created_at: std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("SystemTime before UNIX_EPOCH")
             .as_secs(),
     }))
 }

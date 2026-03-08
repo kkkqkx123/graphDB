@@ -37,7 +37,7 @@ impl CApiTestDatabase {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
         
-        let path_cstring = CString::new(db_path.to_str().unwrap()).unwrap();
+        let path_cstring = CString::new(db_path.to_str().expect("路径转换为字符串失败")).expect("创建CString失败");
         let mut db: *mut graphdb::api::embedded::c_api::types::graphdb_t = ptr::null_mut();
         
         let rc = unsafe {

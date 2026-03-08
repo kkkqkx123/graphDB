@@ -497,7 +497,7 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
-        let path_cstring = CString::new(db_path.to_str().unwrap()).unwrap();
+        let path_cstring = CString::new(db_path.to_str().expect("Invalid path")).expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);

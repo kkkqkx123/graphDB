@@ -1626,7 +1626,7 @@ mod tests {
 
         if let Err(StorageError::DbError(msg)) = result {
             assert!(msg.contains("打开数据库失败"), "错误信息应该包含'打开数据库失败'");
-            assert!(msg.contains(db_path.to_str().unwrap()), "错误信息应该包含数据库路径");
+            assert!(msg.contains(db_path.to_str().expect("路径转换为字符串失败")), "错误信息应该包含数据库路径");
             assert!(msg.contains("如需恢复，请手动删除数据库文件后重试"), "错误信息应该包含恢复提示");
         } else {
             panic!("应该返回 StorageError::DbError");

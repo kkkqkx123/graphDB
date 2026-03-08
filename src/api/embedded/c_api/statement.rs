@@ -559,7 +559,7 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
-        let path_cstring = CString::new(db_path.to_str().unwrap()).unwrap();
+        let path_cstring = CString::new(db_path.to_str().expect("Invalid path")).expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
@@ -600,7 +600,7 @@ mod tests {
         let rc = graphdb_session_create(db, &mut session);
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
-        let query = CString::new("SHOW SPACES").unwrap();
+        let query = CString::new("SHOW SPACES").expect("Failed to create query CString");
         let mut stmt: *mut graphdb_stmt_t = ptr::null_mut();
 
         let rc = graphdb_prepare(session, query.as_ptr(), &mut stmt);
