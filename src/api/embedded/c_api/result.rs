@@ -217,6 +217,81 @@ pub extern "C" fn graphdb_get_string(
     }
 }
 
+/// 获取二进制数据
+///
+/// # 参数
+/// - `result`: 结果集句柄
+/// - `row`: 行索引（从 0 开始）
+/// - `col`: 列名（UTF-8 编码）
+/// - `len`: 输出参数，数据长度（字节）
+///
+/// # 返回
+/// - 数据指针，错误返回 NULL
+///
+/// # 注意
+/// 返回的指针生命周期与结果集绑定，调用者不应释放
+#[no_mangle]
+pub extern "C" fn graphdb_get_blob(
+    result: *mut graphdb_result_t,
+    row: c_int,
+    col: *const c_char,
+    len: *mut c_int,
+) -> *const u8 {
+    if result.is_null() || col.is_null() {
+        if !len.is_null() {
+            unsafe { *len = -1; }
+        }
+        return ptr::null();
+    }
+
+    let col_str = unsafe {
+        match CStr::from_ptr(col).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                if !len.is_null() {
+                    unsafe { *len = -1; }
+                }
+                return ptr::null();
+            }
+        }
+    };
+
+    unsafe {
+        let handle = &*(result as *mut GraphDbResultHandle);
+
+        match handle.inner.get(row as usize) {
+            Some(row_data) => {
+                match row_data.get(col_str) {
+                    Some(crate::core::Value::Blob(blob)) => {
+                        if !len.is_null() {
+                            *len = blob.len() as c_int;
+                        }
+                        blob.as_ptr()
+                    }
+                    Some(_) => {
+                        if !len.is_null() {
+                            *len = -1;
+                        }
+                        ptr::null()
+                    }
+                    None => {
+                        if !len.is_null() {
+                            *len = -1;
+                        }
+                        ptr::null()
+                    }
+                }
+            }
+            None => {
+                if !len.is_null() {
+                    *len = -1;
+                }
+                ptr::null()
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -61,11 +61,6 @@
 #define OR_CORRELATION 0.9
 
 /**
- * 无效ID常量
- */
-#define INVALID_ID -1
-
-/**
  * 值类型
  */
 typedef enum graphdb_value_type_t {
@@ -109,6 +104,10 @@ typedef enum graphdb_value_type_t {
    * 路径
    */
   GRAPHDB_PATH = 9,
+  /**
+   * 二进制数据
+   */
+  GRAPHDB_BLOB = 10,
 } graphdb_value_type_t;
 
 /**
@@ -147,6 +146,20 @@ typedef struct graphdb_string_t {
 } graphdb_string_t;
 
 /**
+ * 二进制数据结构
+ */
+typedef struct graphdb_blob_t {
+  /**
+   * 数据指针
+   */
+  const uint8_t *data;
+  /**
+   * 数据长度
+   */
+  uintptr_t len;
+} graphdb_blob_t;
+
+/**
  * 值数据联合体
  */
 typedef union graphdb_value_data_t {
@@ -166,6 +179,10 @@ typedef union graphdb_value_data_t {
    * 字符串
    */
   struct graphdb_string_t string;
+  /**
+   * 二进制数据
+   */
+  struct graphdb_blob_t blob;
   /**
    * 指针
    */
@@ -372,6 +389,74 @@ int graphdb_session_set_autocommit(struct graphdb_session_t *session, bool autoc
 bool graphdb_session_get_autocommit(struct graphdb_session_t *session);
 
 /**
+ * 获取上次操作影响的行数
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ *
+ * # 返回
+ * - 影响的行数，如果会话无效则返回 0
+ */
+int graphdb_changes(struct graphdb_session_t *session);
+
+/**
+ * 获取总会话变更数
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ *
+ * # 返回
+ * - 总会话变更数，如果会话无效则返回 0
+ */
+int64_t graphdb_total_changes(struct graphdb_session_t *session);
+
+/**
+ * 获取最后插入的顶点 ID
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ *
+ * # 返回
+ * - 最后插入的顶点 ID，如果没有则返回 -1
+ */
+int64_t graphdb_last_insert_vertex_id(struct graphdb_session_t *session);
+
+/**
+ * 获取最后插入的边 ID
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ *
+ * # 返回
+ * - 最后插入的边 ID，如果没有则返回 -1
+ */
+int64_t graphdb_last_insert_edge_id(struct graphdb_session_t *session);
+
+/**
+ * 设置忙等待超时
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `timeout_ms`: 超时时间（毫秒），0 表示不等待
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_busy_timeout(struct graphdb_session_t *session, int timeout_ms);
+
+/**
+ * 获取忙等待超时
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ *
+ * # 返回
+ * - 超时时间（毫秒），如果会话无效则返回 0
+ */
+int graphdb_busy_timeout_get(struct graphdb_session_t *session);
+
+/**
  * 执行简单查询
  *
  * # 参数
@@ -492,6 +577,21 @@ int graphdb_bind_float(struct graphdb_stmt_t *stmt, int index, double value);
  * - 失败: 错误码
  */
 int graphdb_bind_string(struct graphdb_stmt_t *stmt, int index, const char *value, int len);
+
+/**
+ * 绑定二进制数据（按索引）
+ *
+ * # 参数
+ * - `stmt`: 语句句柄
+ * - `index`: 参数索引（从 1 开始）
+ * - `data`: 二进制数据指针
+ * - `len`: 数据长度（字节）
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_bind_blob(struct graphdb_stmt_t *stmt, int index, const uint8_t *data, int len);
 
 /**
  * 绑定参数（按名称）
@@ -881,3 +981,23 @@ int graphdb_get_int(struct graphdb_result_t *result, int row, const char *col, i
  * - 字符串值（UTF-8 编码），错误返回 NULL
  */
 const char *graphdb_get_string(struct graphdb_result_t *result, int row, const char *col, int *len);
+
+/**
+ * 获取二进制数据
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列名（UTF-8 编码）
+ * - `len`: 输出参数，数据长度（字节）
+ *
+ * # 返回
+ * - 数据指针，错误返回 NULL
+ *
+ * # 注意
+ * 返回的指针生命周期与结果集绑定，调用者不应释放
+ */
+const uint8_t *graphdb_get_blob(struct graphdb_result_t *result,
+                                int row,
+                                const char *col,
+                                int *len);

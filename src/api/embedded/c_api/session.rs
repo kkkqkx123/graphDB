@@ -14,6 +14,19 @@ use std::ptr;
 pub struct GraphDbSessionHandle {
     pub(crate) inner: Session<RedbStorage>,
     pub(crate) last_error: Option<CString>,
+    /// 忙等待超时（毫秒）
+    pub(crate) busy_timeout_ms: u32,
+}
+
+impl GraphDbSessionHandle {
+    /// 创建新的会话句柄
+    pub(crate) fn new(inner: Session<RedbStorage>) -> Self {
+        Self {
+            inner,
+            last_error: None,
+            busy_timeout_ms: 5000, // 默认 5 秒
+        }
+    }
 }
 
 /// 创建会话
@@ -39,10 +52,7 @@ pub extern "C" fn graphdb_session_create(
         
         match db_handle.inner.session() {
             Ok(sess) => {
-                let handle = Box::new(GraphDbSessionHandle {
-                    inner: sess,
-                    last_error: None,
-                });
+                let handle = Box::new(GraphDbSessionHandle::new(sess));
                 *session = Box::into_raw(handle) as *mut graphdb_session_t;
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
@@ -196,6 +206,133 @@ pub extern "C" fn graphdb_session_get_autocommit(session: *mut graphdb_session_t
     unsafe {
         let handle = &*(session as *mut GraphDbSessionHandle);
         handle.inner.auto_commit()
+    }
+}
+
+/// 获取上次操作影响的行数
+///
+/// # 参数
+/// - `session`: 会话句柄
+///
+/// # 返回
+/// - 影响的行数，如果会话无效则返回 0
+#[no_mangle]
+pub extern "C" fn graphdb_changes(session: *mut graphdb_session_t) -> c_int {
+    if session.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let handle = &*(session as *mut GraphDbSessionHandle);
+        handle.inner.changes() as c_int
+    }
+}
+
+/// 获取总会话变更数
+///
+/// # 参数
+/// - `session`: 会话句柄
+///
+/// # 返回
+/// - 总会话变更数，如果会话无效则返回 0
+#[no_mangle]
+pub extern "C" fn graphdb_total_changes(session: *mut graphdb_session_t) -> i64 {
+    if session.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let handle = &*(session as *mut GraphDbSessionHandle);
+        handle.inner.total_changes() as i64
+    }
+}
+
+/// 获取最后插入的顶点 ID
+///
+/// # 参数
+/// - `session`: 会话句柄
+///
+/// # 返回
+/// - 最后插入的顶点 ID，如果没有则返回 -1
+#[no_mangle]
+pub extern "C" fn graphdb_last_insert_vertex_id(
+    session: *mut graphdb_session_t,
+) -> i64 {
+    if session.is_null() {
+        return -1;
+    }
+
+    unsafe {
+        let handle = &*(session as *mut GraphDbSessionHandle);
+        handle.inner.last_insert_vertex_id().unwrap_or(-1)
+    }
+}
+
+/// 获取最后插入的边 ID
+///
+/// # 参数
+/// - `session`: 会话句柄
+///
+/// # 返回
+/// - 最后插入的边 ID，如果没有则返回 -1
+#[no_mangle]
+pub extern "C" fn graphdb_last_insert_edge_id(
+    session: *mut graphdb_session_t,
+) -> i64 {
+    if session.is_null() {
+        return -1;
+    }
+
+    unsafe {
+        let handle = &*(session as *mut GraphDbSessionHandle);
+        handle.inner.last_insert_edge_id().unwrap_or(-1)
+    }
+}
+
+/// 设置忙等待超时
+///
+/// # 参数
+/// - `session`: 会话句柄
+/// - `timeout_ms`: 超时时间（毫秒），0 表示不等待
+///
+/// # 返回
+/// - 成功: GRAPHDB_OK
+/// - 失败: 错误码
+#[no_mangle]
+pub extern "C" fn graphdb_busy_timeout(
+    session: *mut graphdb_session_t,
+    timeout_ms: c_int,
+) -> c_int {
+    if session.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    unsafe {
+        let handle = &mut *(session as *mut GraphDbSessionHandle);
+        // 存储超时设置到句柄中
+        handle.busy_timeout_ms = timeout_ms.max(0) as u32;
+        graphdb_error_code_t::GRAPHDB_OK as c_int
+    }
+}
+
+/// 获取忙等待超时
+///
+/// # 参数
+/// - `session`: 会话句柄
+///
+/// # 返回
+/// - 超时时间（毫秒），如果会话无效则返回 0
+#[no_mangle]
+pub extern "C" fn graphdb_busy_timeout_get(
+    session: *mut graphdb_session_t,
+) -> c_int {
+    if session.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let handle = &*(session as *mut GraphDbSessionHandle);
+        handle.busy_timeout_ms as c_int
     }
 }
 

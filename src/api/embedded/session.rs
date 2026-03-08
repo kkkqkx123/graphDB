@@ -6,6 +6,7 @@ use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi}
 use crate::api::embedded::batch::BatchInserter;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::statement::PreparedStatement;
+use crate::api::embedded::statistics::SessionStatistics;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
 use crate::core::Value;
 use crate::storage::StorageClient;
@@ -46,6 +47,8 @@ pub struct Session<S: StorageClient + Clone + 'static> {
     space_id: Option<u64>,
     space_name: Option<String>,
     auto_commit: bool,
+    /// 会话级变更统计
+    statistics: SessionStatistics,
 }
 
 /// 数据库内部结构，用于在 Session 和 GraphDatabase 之间共享
@@ -65,7 +68,33 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             space_id: None,
             space_name: None,
             auto_commit: true,
+            statistics: SessionStatistics::new(),
         }
+    }
+
+    /// 获取上次操作影响的行数
+    pub fn changes(&self) -> u64 {
+        self.statistics.last_changes()
+    }
+
+    /// 获取总会话变更数
+    pub fn total_changes(&self) -> u64 {
+        self.statistics.total_changes()
+    }
+
+    /// 获取最后插入的顶点 ID
+    pub fn last_insert_vertex_id(&self) -> Option<i64> {
+        self.statistics.last_insert_vertex_id()
+    }
+
+    /// 获取最后插入的边 ID
+    pub fn last_insert_edge_id(&self) -> Option<i64> {
+        self.statistics.last_insert_edge_id()
+    }
+
+    /// 获取统计信息引用
+    pub fn statistics(&self) -> &SessionStatistics {
+        &self.statistics
     }
 
     /// 切换图空间
@@ -115,6 +144,9 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// - 成功时返回查询结果
     /// - 失败时返回错误
     pub fn execute(&self, query: &str) -> CoreResult<QueryResult> {
+        // 重置上次变更记录
+        self.statistics.reset_last();
+
         let ctx = QueryRequest {
             space_id: self.space_id,
             auto_commit: self.auto_commit,
@@ -124,6 +156,10 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
         let mut query_api = self.db.query_api.lock();
         let result = query_api.execute(query, ctx)?;
+
+        // 更新统计信息
+        self.statistics.record_changes(result.metadata.rows_affected);
+
         Ok(QueryResult::from_core(result))
     }
 

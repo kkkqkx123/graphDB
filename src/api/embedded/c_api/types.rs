@@ -29,6 +29,18 @@ pub enum graphdb_value_type_t {
     GRAPHDB_EDGE = 8,
     /// 路径
     GRAPHDB_PATH = 9,
+    /// 二进制数据
+    GRAPHDB_BLOB = 10,
+}
+
+/// 二进制数据结构
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct graphdb_blob_t {
+    /// 数据指针
+    pub data: *const u8,
+    /// 数据长度
+    pub len: usize,
 }
 
 /// 数据库句柄（不透明指针）
@@ -95,6 +107,8 @@ pub union graphdb_value_data_t {
     pub floating: f64,
     /// 字符串
     pub string: graphdb_string_t,
+    /// 二进制数据
+    pub blob: graphdb_blob_t,
     /// 指针
     pub ptr: *mut c_void,
 }

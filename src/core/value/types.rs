@@ -116,6 +116,8 @@ pub enum Value {
     Int(i64),
     Float(f64),
     String(String),
+    /// 二进制数据
+    Blob(Vec<u8>),
     Date(super::date_time::DateValue),
     Time(super::date_time::TimeValue),
     DateTime(super::date_time::DateTimeValue),
@@ -140,6 +142,7 @@ impl Value {
             Value::Int(_) => DataType::Int,
             Value::Float(_) => DataType::Float,
             Value::String(_) => DataType::String,
+            Value::Blob(_) => DataType::Blob,
             Value::Date(_) => DataType::Date,
             Value::Time(_) => DataType::Time,
             Value::DateTime(_) => DataType::DateTime,

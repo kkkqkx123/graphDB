@@ -259,6 +259,49 @@ pub extern "C" fn graphdb_bind_string(
     }
 }
 
+/// 绑定二进制数据（按索引）
+///
+/// # 参数
+/// - `stmt`: 语句句柄
+/// - `index`: 参数索引（从 1 开始）
+/// - `data`: 二进制数据指针
+/// - `len`: 数据长度（字节）
+///
+/// # 返回
+/// - 成功: GRAPHDB_OK
+/// - 失败: 错误码
+#[no_mangle]
+pub extern "C" fn graphdb_bind_blob(
+    stmt: *mut graphdb_stmt_t,
+    index: c_int,
+    data: *const u8,
+    len: c_int,
+) -> c_int {
+    if stmt.is_null() || index < 1 || data.is_null() || len < 0 {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let blob_data = unsafe {
+        std::slice::from_raw_parts(data, len as usize).to_vec()
+    };
+
+    unsafe {
+        let handle = &mut *(stmt as *mut GraphDbStmtHandle);
+        let param_name = format!("param_{}", index - 1);
+
+        match handle.inner.bind(&param_name, Value::Blob(blob_data)) {
+            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+            Err(e) => {
+                let error_code = error_code_from_core_error(&e);
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+                error_code
+            }
+        }
+    }
+}
+
 /// 绑定参数（按名称）
 ///
 /// # 参数
@@ -476,6 +519,17 @@ unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
                 );
                 let s = String::from_utf8_unchecked(slice.to_vec());
                 Value::String(s)
+            }
+        }
+        graphdb_value_type_t::GRAPHDB_BLOB => {
+            if c_value.data.blob.data.is_null() || c_value.data.blob.len == 0 {
+                Value::Blob(Vec::new())
+            } else {
+                let slice = std::slice::from_raw_parts(
+                    c_value.data.blob.data,
+                    c_value.data.blob.len,
+                );
+                Value::Blob(slice.to_vec())
             }
         }
         _ => Value::Null(crate::core::value::NullType::Null),
