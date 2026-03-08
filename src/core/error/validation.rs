@@ -33,21 +33,21 @@ pub enum ValidationErrorType {
 impl fmt::Display for ValidationErrorType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ValidationErrorType::SyntaxError => write!(f, "语法错误"),
-            ValidationErrorType::SemanticError => write!(f, "语义错误"),
-            ValidationErrorType::TypeError => write!(f, "类型错误"),
-            ValidationErrorType::TypeMismatch => write!(f, "类型不匹配"),
-            ValidationErrorType::AliasError => write!(f, "别名错误"),
-            ValidationErrorType::AggregateError => write!(f, "聚合函数错误"),
-            ValidationErrorType::PaginationError => write!(f, "分页错误"),
-            ValidationErrorType::ExpressionDepthError => write!(f, "表达式深度错误"),
-            ValidationErrorType::VariableNotFound => write!(f, "变量未找到"),
-            ValidationErrorType::CyclicReference => write!(f, "循环引用"),
-            ValidationErrorType::DivisionByZero => write!(f, "除零错误"),
-            ValidationErrorType::TooManyArguments => write!(f, "参数过多"),
-            ValidationErrorType::TooManyElements => write!(f, "元素过多"),
-            ValidationErrorType::DuplicateKey => write!(f, "重复键"),
-            ValidationErrorType::ConstraintViolation => write!(f, "约束违反"),
+            ValidationErrorType::SyntaxError => write!(f, "Syntax error"),
+            ValidationErrorType::SemanticError => write!(f, "Semantic error"),
+            ValidationErrorType::TypeError => write!(f, "Type error"),
+            ValidationErrorType::TypeMismatch => write!(f, "Type mismatch"),
+            ValidationErrorType::AliasError => write!(f, "Alias error"),
+            ValidationErrorType::AggregateError => write!(f, "Aggregate error"),
+            ValidationErrorType::PaginationError => write!(f, "Pagination error"),
+            ValidationErrorType::ExpressionDepthError => write!(f, "Expression depth error"),
+            ValidationErrorType::VariableNotFound => write!(f, "Variable not found"),
+            ValidationErrorType::CyclicReference => write!(f, "Cyclic reference"),
+            ValidationErrorType::DivisionByZero => write!(f, "Division by zero"),
+            ValidationErrorType::TooManyArguments => write!(f, "Too many arguments"),
+            ValidationErrorType::TooManyElements => write!(f, "Too many elements"),
+            ValidationErrorType::DuplicateKey => write!(f, "Duplicate key"),
+            ValidationErrorType::ConstraintViolation => write!(f, "Constraint violation"),
         }
     }
 }
@@ -108,25 +108,25 @@ impl std::error::Error for ValidationError {}
 /// Schema验证错误类型
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum SchemaValidationError {
-    #[error("Schema未找到: {0}")]
+    #[error("Schema not found: {0}")]
     SchemaNotFound(String),
 
-    #[error("无效的Schema定义: {0}")]
+    #[error("Invalid schema definition: {0}")]
     InvalidSchema(String),
 
-    #[error("属性类型错误: {0}")]
+    #[error("Property type error: {0}")]
     PropertyTypeError(String),
 
-    #[error("必需的属性缺失: {0}")]
+    #[error("Required property missing: {0}")]
     RequiredPropertyMissing(String),
 
-    #[error("属性值验证失败: {0}")]
+    #[error("Property validation failed: {0}")]
     PropertyValidationFailed(String),
 
-    #[error("Schema冲突: {0}")]
+    #[error("Schema conflict: {0}")]
     SchemaConflict(String),
 
-    #[error("不支持的Schema操作: {0}")]
+    #[error("Unsupported schema operation: {0}")]
     UnsupportedOperation(String),
 }
 

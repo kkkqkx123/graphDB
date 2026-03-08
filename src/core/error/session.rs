@@ -12,25 +12,25 @@ pub type SessionResult<T> = Result<T, SessionError>;
 /// 会话相关错误
 #[derive(Error, Debug, Clone)]
 pub enum SessionError {
-    #[error("会话不存在: {0}")]
+    #[error("Session not found: {0}")]
     SessionNotFound(i64),
 
-    #[error("会话已过期")]
+    #[error("Session expired")]
     SessionExpired,
 
-    #[error("超过最大连接数限制")]
+    #[error("Maximum connections exceeded")]
     MaxConnectionsExceeded,
 
-    #[error("查询不存在: {0}")]
+    #[error("Query not found: {0}")]
     QueryNotFound(u32),
 
-    #[error("无法终止会话: {0}")]
+    #[error("Failed to kill session: {0}")]
     KillSessionFailed(String),
 
-    #[error("会话管理器错误: {0}")]
+    #[error("Session manager error: {0}")]
     ManagerError(String),
 
-    #[error("权限不足，无法执行此操作")]
+    #[error("Insufficient permission to perform this operation")]
     InsufficientPermission,
 }
 

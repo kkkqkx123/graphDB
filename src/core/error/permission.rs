@@ -12,77 +12,76 @@ pub type PermissionResult<T> = Result<T, PermissionError>;
 /// 权限相关错误
 #[derive(Error, Debug, Clone)]
 pub enum PermissionError {
-    #[error("权限不足")]
+    #[error("Insufficient permission")]
     InsufficientPermission,
 
-    #[error("用户 {user} 在空间 {space_id} 中没有角色")]
+    #[error("User {user} has no role in space {space_id}")]
     NoRoleInSpace { user: String, space_id: i64 },
 
-    #[error("权限被拒绝: {permission} for user {user}")]
+    #[error("Permission denied: {permission} for user {user}")]
     PermissionDenied { permission: String, user: String },
 
-    #[error("角色不存在: {0}")]
+    #[error("Role not found: {0}")]
     RoleNotFound(String),
 
-    #[error("用户不存在: {0}")]
+    #[error("User not found: {0}")]
     UserNotFound(String),
 
-    #[error("无法授予角色: {0}")]
+    #[error("Failed to grant role: {0}")]
     GrantRoleFailed(String),
 
-    #[error("无法撤销角色: {0}")]
+    #[error("Failed to revoke role: {0}")]
     RevokeRoleFailed(String),
 
-    // 业务规则错误
-    #[error("权限被拒绝: 只有 GOD 角色可以创建/删除空间")]
+    #[error("Permission denied: only GOD role can create/delete spaces")]
     OnlyGodCanManageSpaces,
 
-    #[error("权限被拒绝: 只有 GOD 角色可以管理用户")]
+    #[error("Permission denied: only GOD role can manage users")]
     OnlyGodCanManageUsers,
 
-    #[error("读取Space操作需要提供Space ID")]
+    #[error("Space ID required for read Space operation")]
     SpaceIdRequired,
 
-    #[error("读取Schema操作需要提供Space ID")]
+    #[error("Space ID required for read Schema operation")]
     SchemaSpaceIdRequired,
 
-    #[error("写入Schema操作需要提供Space ID")]
+    #[error("Space ID required for write Schema operation")]
     SchemaWriteSpaceIdRequired,
 
-    #[error("写入Schema失败: 在空间 {space_id} 中用户 {user} 权限不足")]
+    #[error("Schema write permission denied: user {user} has insufficient privileges in space {space_id}")]
     SchemaWritePermissionDenied { space_id: i64, user: String },
 
-    #[error("读取数据操作需要提供Space ID")]
+    #[error("Space ID required for read data operation")]
     DataReadSpaceIdRequired,
 
-    #[error("写入数据操作需要提供Space ID")]
+    #[error("Space ID required for write data operation")]
     DataWriteSpaceIdRequired,
 
-    #[error("Guest角色没有写入数据的权限")]
+    #[error("Guest role has no permission to write data")]
     GuestCannotWriteData,
 
-    #[error("没有权限读取用户信息")]
+    #[error("No permission to read user information")]
     CannotReadUserInfo,
 
-    #[error("角色操作需要提供Space ID")]
+    #[error("Space ID required for role operation")]
     RoleOperationSpaceIdRequired,
 
-    #[error("角色操作需要提供目标角色")]
+    #[error("Target role required for role operation")]
     RoleOperationTargetRoleRequired,
 
-    #[error("权限被拒绝: 只有 Admin 或 God 可以管理角色")]
+    #[error("Permission denied: only Admin or God can manage roles")]
     OnlyAdminOrGodCanManageRoles,
 
-    #[error("权限被拒绝: 无法授予角色 {role}")]
+    #[error("Permission denied: cannot grant role {role}")]
     CannotGrantRole { role: String },
 
-    #[error("不能修改自己的角色")]
+    #[error("Cannot modify own role")]
     CannotModifyOwnRole,
 
-    #[error("修改密码操作需要提供目标用户")]
+    #[error("Target user required for change password operation")]
     ChangePasswordTargetUserRequired,
 
-    #[error("只能修改自己的密码")]
+    #[error("Can only change own password")]
     CanOnlyChangeOwnPassword,
 }
 

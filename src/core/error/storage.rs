@@ -12,35 +12,35 @@ pub type StorageResult<T> = Result<T, StorageError>;
 /// 存储层错误类型
 #[derive(Error, Debug, Clone)]
 pub enum StorageError {
-    #[error("数据库错误: {0}")]
+    #[error("Database error: {0}")]
     DbError(String),
-    #[error("存储错误: {0}")]
+    #[error("Storage error: {0}")]
     StorageError(String),
-    #[error("序列化错误: {0}")]
+    #[error("Serialization error: {0}")]
     SerializeError(String),
-    #[error("反序列化错误: {0}")]
+    #[error("Deserialization error: {0}")]
     DeserializeError(String),
-    #[error("节点未找到: {0:?}")]
+    #[error("Node not found: {0:?}")]
     NodeNotFound(crate::core::Value),
-    #[error("边未找到: {0:?}")]
+    #[error("Edge not found: {0:?}")]
     EdgeNotFound(crate::core::Value),
-    #[error("操作不支持: {0}")]
+    #[error("Operation not supported: {0}")]
     NotSupported(String),
-    #[error("冲突错误: {0}")]
+    #[error("Conflict: {0}")]
     Conflict(String),
-    #[error("锁超时: {0}")]
+    #[error("Lock timeout: {0}")]
     LockTimeout(String),
-    #[error("死锁检测")]
+    #[error("Deadlock detected")]
     Deadlock,
-    #[error("IO错误: {0}")]
+    #[error("IO error: {0}")]
     IOError(String),
-    #[error("未找到: {0}")]
+    #[error("Not found: {0}")]
     NotFound(String),
-    #[error("已存在: {0}")]
+    #[error("Already exists: {0}")]
     AlreadyExists(String),
-    #[error("无效输入: {0}")]
+    #[error("Invalid input: {0}")]
     InvalidInput(String),
-    #[error("解析错误: {0}")]
+    #[error("Parse error: {0}")]
     ParseError(String),
 }
 
@@ -114,11 +114,11 @@ impl ToPublicError for StorageError {
 
     fn to_public_message(&self) -> String {
         match self {
-            StorageError::NodeNotFound(_) => "节点不存在".to_string(),
-            StorageError::EdgeNotFound(_) => "边不存在".to_string(),
-            StorageError::NotFound(name) => format!("资源不存在: {}", name),
-            StorageError::AlreadyExists(name) => format!("资源已存在: {}", name),
-            _ => "存储操作失败".to_string(),
+            StorageError::NodeNotFound(_) => "Node does not exist".to_string(),
+            StorageError::EdgeNotFound(_) => "Edge does not exist".to_string(),
+            StorageError::NotFound(name) => format!("Resource not found: {}", name),
+            StorageError::AlreadyExists(name) => format!("Resource already exists: {}", name),
+            _ => "Storage operation failed".to_string(),
         }
     }
 }

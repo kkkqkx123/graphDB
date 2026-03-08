@@ -72,29 +72,29 @@ pub enum ExpressionErrorType {
 impl std::fmt::Display for ExpressionErrorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ExpressionErrorType::TypeError => write!(f, "类型错误"),
-            ExpressionErrorType::UndefinedVariable => write!(f, "未定义变量"),
-            ExpressionErrorType::UndefinedFunction => write!(f, "未定义函数"),
-            ExpressionErrorType::UnknownFunction => write!(f, "未知函数"),
-            ExpressionErrorType::FunctionError => write!(f, "函数错误"),
-            ExpressionErrorType::ArgumentCountError => write!(f, "参数数量错误"),
-            ExpressionErrorType::InvalidArgumentCount => write!(f, "无效参数数量"),
-            ExpressionErrorType::Overflow => write!(f, "溢出错误"),
-            ExpressionErrorType::IndexOutOfBounds => write!(f, "索引越界"),
-            ExpressionErrorType::NullError => write!(f, "空值错误"),
-            ExpressionErrorType::SyntaxError => write!(f, "语法错误"),
-            ExpressionErrorType::InvalidOperation => write!(f, "无效操作"),
-            ExpressionErrorType::PropertyNotFound => write!(f, "属性未找到"),
-            ExpressionErrorType::RuntimeError => write!(f, "运行时错误"),
-            ExpressionErrorType::UnsupportedOperation => write!(f, "不支持的操作"),
-            ExpressionErrorType::TypeConversionError => write!(f, "类型转换错误"),
-            ExpressionErrorType::OperatorError => write!(f, "操作符错误"),
-            ExpressionErrorType::LabelNotFound => write!(f, "标签未找到"),
-            ExpressionErrorType::EdgeNotFound => write!(f, "边未找到"),
-            ExpressionErrorType::PathError => write!(f, "路径错误"),
-            ExpressionErrorType::RangeError => write!(f, "范围错误"),
-            ExpressionErrorType::AggregateError => write!(f, "聚合函数错误"),
-            ExpressionErrorType::ValidationError => write!(f, "验证错误"),
+            ExpressionErrorType::TypeError => write!(f, "Type error"),
+            ExpressionErrorType::UndefinedVariable => write!(f, "Undefined variable"),
+            ExpressionErrorType::UndefinedFunction => write!(f, "Undefined function"),
+            ExpressionErrorType::UnknownFunction => write!(f, "Unknown function"),
+            ExpressionErrorType::FunctionError => write!(f, "Function error"),
+            ExpressionErrorType::ArgumentCountError => write!(f, "Argument count error"),
+            ExpressionErrorType::InvalidArgumentCount => write!(f, "Invalid argument count"),
+            ExpressionErrorType::Overflow => write!(f, "Overflow error"),
+            ExpressionErrorType::IndexOutOfBounds => write!(f, "Index out of bounds"),
+            ExpressionErrorType::NullError => write!(f, "Null error"),
+            ExpressionErrorType::SyntaxError => write!(f, "Syntax error"),
+            ExpressionErrorType::InvalidOperation => write!(f, "Invalid operation"),
+            ExpressionErrorType::PropertyNotFound => write!(f, "Property not found"),
+            ExpressionErrorType::RuntimeError => write!(f, "Runtime error"),
+            ExpressionErrorType::UnsupportedOperation => write!(f, "Unsupported operation"),
+            ExpressionErrorType::TypeConversionError => write!(f, "Type conversion error"),
+            ExpressionErrorType::OperatorError => write!(f, "Operator error"),
+            ExpressionErrorType::LabelNotFound => write!(f, "Label not found"),
+            ExpressionErrorType::EdgeNotFound => write!(f, "Edge not found"),
+            ExpressionErrorType::PathError => write!(f, "Path error"),
+            ExpressionErrorType::RangeError => write!(f, "Range error"),
+            ExpressionErrorType::AggregateError => write!(f, "Aggregate error"),
+            ExpressionErrorType::ValidationError => write!(f, "Validation error"),
         }
     }
 }
@@ -148,7 +148,7 @@ impl ExpressionError {
     pub fn undefined_variable(name: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::UndefinedVariable,
-            format!("未定义的变量: {}", name.into()),
+            format!("Undefined variable: {}", name.into()),
         )
     }
 
@@ -156,7 +156,7 @@ impl ExpressionError {
     pub fn undefined_function(name: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::UndefinedFunction,
-            format!("未定义的函数: {}", name.into()),
+            format!("Undefined function: {}", name.into()),
         )
     }
 
@@ -164,7 +164,7 @@ impl ExpressionError {
     pub fn argument_count_error(expected: usize, actual: usize) -> Self {
         Self::new(
             ExpressionErrorType::ArgumentCountError,
-            format!("参数数量错误: 期望 {}, 实际 {}", expected, actual),
+            format!("Argument count error: expected {}, got {}", expected, actual),
         )
     }
 
@@ -177,7 +177,7 @@ impl ExpressionError {
     pub fn index_out_of_bounds(index: isize, size: usize) -> Self {
         Self::new(
             ExpressionErrorType::IndexOutOfBounds,
-            format!("索引越界: 索引 {}, 大小 {}", index, size),
+            format!("Index out of bounds: index {}, size {}", index, size),
         )
     }
 
@@ -215,7 +215,7 @@ impl ExpressionError {
     pub fn unknown_function(name: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::UnknownFunction,
-            format!("未知函数: {}", name.into()),
+            format!("Unknown function: {}", name.into()),
         )
     }
 
@@ -223,7 +223,7 @@ impl ExpressionError {
     pub fn invalid_argument_count(name: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::InvalidArgumentCount,
-            format!("无效参数数量: {}", name.into()),
+            format!("Invalid argument count: {}", name.into()),
         )
     }
 
@@ -235,7 +235,7 @@ impl ExpressionError {
         Self::new(
             ExpressionErrorType::UnsupportedOperation,
             format!(
-                "不支持的操作: {}, 建议: {}",
+                "Unsupported operation: {}, suggestion: {}",
                 operation.into(),
                 suggestion.into()
             ),
@@ -247,7 +247,7 @@ impl ExpressionError {
         Self::new(
             ExpressionErrorType::TypeConversionError,
             format!(
-                "类型转换错误: 无法从 {} 转换为 {}",
+                "Type conversion error: cannot convert from {} to {}",
                 from_type.into(),
                 to_type.into()
             ),
@@ -258,7 +258,7 @@ impl ExpressionError {
     pub fn operator_error(operator: impl Into<String>, message: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::OperatorError,
-            format!("操作符错误: {}: {}", operator.into(), message.into()),
+            format!("Operator error: {}: {}", operator.into(), message.into()),
         )
     }
 
@@ -266,7 +266,7 @@ impl ExpressionError {
     pub fn label_not_found(label: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::LabelNotFound,
-            format!("标签未找到: {}", label.into()),
+            format!("Label not found: {}", label.into()),
         )
     }
 
@@ -274,7 +274,7 @@ impl ExpressionError {
     pub fn edge_not_found(edge: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::EdgeNotFound,
-            format!("边未找到: {}", edge.into()),
+            format!("Edge not found: {}", edge.into()),
         )
     }
 

@@ -17,11 +17,11 @@ use crate::core::error::DBError;
 /// 涵盖查询计划遍历和验证过程中的错误
 #[derive(Error, Debug, Clone)]
 pub enum PlanNodeVisitError {
-    #[error("访问错误: {0}")]
+    #[error("Visit error: {0}")]
     VisitError(String),
-    #[error("遍历错误: {0}")]
+    #[error("Traversal error: {0}")]
     TraversalError(String),
-    #[error("验证错误: {0}")]
+    #[error("Validation error: {0}")]
     ValidationError(String),
 }
 
@@ -31,32 +31,31 @@ pub type QueryResult<T> = Result<T, QueryError>;
 /// 查询层错误类型
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum QueryError {
-    #[error("存储错误: {0}")]
+    #[error("Storage error: {0}")]
     StorageError(String),
 
-    #[error("解析错误: {0}")]
+    #[error("Parse error: {0}")]
     ParseError(String),
 
-    /// 带位置信息的解析错误
-    #[error("解析错误在偏移量 {offset}: {message}")]
+    #[error("Parse error at offset {offset}: {message}")]
     ParseErrorWithOffset { message: String, offset: usize },
 
-    #[error("规划错误: {0}")]
+    #[error("Planning error: {0}")]
     PlanningError(String),
 
-    #[error("优化错误: {0}")]
+    #[error("Optimization error: {0}")]
     OptimizationError(String),
 
-    #[error("无效查询: {0}")]
+    #[error("Invalid query: {0}")]
     InvalidQuery(String),
 
-    #[error("执行错误: {0}")]
+    #[error("Execution error: {0}")]
     ExecutionError(String),
 
-    #[error("表达式错误: {0}")]
+    #[error("Expression error: {0}")]
     ExpressionError(String),
 
-    #[error("计划节点访问错误: {0}")]
+    #[error("Plan node visit error: {0}")]
     PlanNodeVisitError(String),
 }
 

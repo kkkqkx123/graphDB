@@ -12,19 +12,19 @@ pub type AuthResult<T> = Result<T, AuthError>;
 /// 认证相关错误
 #[derive(Error, Debug, Clone)]
 pub enum AuthError {
-    #[error("认证失败: {0}")]
+    #[error("Authentication failed: {0}")]
     AuthenticationFailed(String),
 
-    #[error("用户名或密码不能为空")]
+    #[error("Username or password cannot be empty")]
     EmptyCredentials,
 
-    #[error("用户名或密码错误，还剩 {0} 次尝试机会")]
+    #[error("Invalid username or password, {0} attempts remaining")]
     InvalidCredentials(u32),
 
-    #[error("已达到最大尝试次数")]
+    #[error("Maximum attempts exceeded")]
     MaxAttemptsExceeded,
 
-    #[error("认证器错误: {0}")]
+    #[error("Authenticator error: {0}")]
     AuthenticatorError(String),
 }
 

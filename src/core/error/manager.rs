@@ -21,28 +21,28 @@ pub enum ErrorCategory {
 /// 管理器错误类型
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum ManagerError {
-    #[error("资源未找到: {0}")]
+    #[error("Resource not found: {0}")]
     NotFound(String),
 
-    #[error("资源已存在: {0}")]
+    #[error("Resource already exists: {0}")]
     AlreadyExists(String),
 
-    #[error("无效输入: {0}")]
+    #[error("Invalid input: {0}")]
     InvalidInput(String),
 
-    #[error("存储错误: {0}")]
+    #[error("Storage error: {0}")]
     StorageError(String),
 
-    #[error("Schema错误: {0}")]
+    #[error("Schema error: {0}")]
     SchemaError(String),
 
-    #[error("事务错误: {0}")]
+    #[error("Transaction error: {0}")]
     TransactionError(String),
 
-    #[error("超时错误: {0}")]
+    #[error("Timeout error: {0}")]
     TimeoutError(String),
 
-    #[error("其他错误: {0}")]
+    #[error("Other error: {0}")]
     Other(String),
 }
 
