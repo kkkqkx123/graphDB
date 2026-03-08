@@ -2,19 +2,164 @@
 //!
 //! 提供批量操作功能，支持批量插入、批量更新和批量删除
 
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
+use crate::api::embedded::c_api::error::{graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_batch_t, graphdb_session_t, graphdb_value_t};
 use crate::api::embedded::c_api::types::graphdb_value_type_t;
 use crate::core::{Edge, Value, Vertex};
+use crate::storage::StorageClient;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::ptr;
 
+/// 批量操作项类型
+enum BatchItem {
+    Vertex(Vertex),
+    Edge(Edge),
+}
+
 /// 批量操作句柄内部结构
+/// 
+/// 注意：此结构体持有会话指针，但不拥有会话的所有权。
+/// 调用者必须确保在批量操作句柄被释放之前不关闭会话。
 pub struct GraphDbBatchHandle {
-    pub(crate) inner: crate::api::embedded::batch::BatchInserter<'static, crate::storage::RedbStorage>,
+    /// 关联的会话指针（用于验证会话有效性）
+    session_ptr: *mut GraphDbSessionHandle,
+    /// 批次大小
+    batch_size: usize,
+    /// 缓冲区
+    buffer: Vec<BatchItem>,
+    /// 已插入的顶点数量
+    vertices_inserted: usize,
+    /// 已插入的边数量
+    edges_inserted: usize,
+    /// 错误列表
+    errors: Vec<String>,
+    /// 最后错误
     pub(crate) last_error: Option<CString>,
+}
+
+impl GraphDbBatchHandle {
+    /// 检查会话是否仍然有效
+    fn is_session_valid(&self) -> bool {
+        !self.session_ptr.is_null()
+    }
+
+    /// 获取会话引用（如果有效）
+    fn get_session(&self) -> Option<&GraphDbSessionHandle> {
+        if self.is_session_valid() {
+            Some(unsafe { &*self.session_ptr })
+        } else {
+            None
+        }
+    }
+
+    /// 刷新顶点缓冲区
+    fn flush_vertices(&mut self) -> Result<(), String> {
+        // 分离顶点和边
+        let mut vertices = Vec::new();
+        let mut remaining = Vec::new();
+        
+        for item in self.buffer.drain(..) {
+            match item {
+                BatchItem::Vertex(v) => vertices.push(v),
+                _ => remaining.push(item),
+            }
+        }
+        
+        // 将边放回缓冲区
+        self.buffer.extend(remaining);
+
+        if vertices.is_empty() {
+            return Ok(());
+        }
+
+        let vertex_count = vertices.len();
+        
+        // 将会话相关操作放在独立作用域中，避免借用冲突
+        let result = {
+            let session = self.get_session()
+                .ok_or_else(|| "会话无效或已关闭".to_string())?;
+
+            let space_name = session.inner.space_name()
+                .ok_or_else(|| "未选择图空间".to_string())?;
+
+            // 调用存储层的批量插入接口
+            let mut storage = session.inner.storage();
+            storage.batch_insert_vertices(space_name, vertices)
+        };
+        
+        match result {
+            Ok(_) => {
+                self.vertices_inserted += vertex_count;
+                Ok(())
+            }
+            Err(e) => {
+                let err_msg = format!("批量插入顶点失败: {}", e);
+                self.errors.push(err_msg.clone());
+                Err(err_msg)
+            }
+        }
+    }
+
+    /// 刷新边缓冲区
+    fn flush_edges(&mut self) -> Result<(), String> {
+        // 分离边和顶点
+        let mut edges = Vec::new();
+        let mut remaining = Vec::new();
+        
+        for item in self.buffer.drain(..) {
+            match item {
+                BatchItem::Edge(e) => edges.push(e),
+                _ => remaining.push(item),
+            }
+        }
+        
+        // 将顶点放回缓冲区
+        self.buffer.extend(remaining);
+
+        if edges.is_empty() {
+            return Ok(());
+        }
+
+        let edge_count = edges.len();
+        
+        // 将会话相关操作放在独立作用域中，避免借用冲突
+        let result = {
+            let session = self.get_session()
+                .ok_or_else(|| "会话无效或已关闭".to_string())?;
+
+            let space_name = session.inner.space_name()
+                .ok_or_else(|| "未选择图空间".to_string())?;
+
+            // 调用存储层的批量插入接口
+            let mut storage = session.inner.storage();
+            storage.batch_insert_edges(space_name, edges)
+        };
+        
+        match result {
+            Ok(_) => {
+                self.edges_inserted += edge_count;
+                Ok(())
+            }
+            Err(e) => {
+                let err_msg = format!("批量插入边失败: {}", e);
+                self.errors.push(err_msg.clone());
+                Err(err_msg)
+            }
+        }
+    }
+
+    /// 执行批量插入，刷新所有缓冲的数据
+    fn execute(&mut self) -> Result<(), String> {
+        // 先刷新顶点
+        self.flush_vertices()?;
+        
+        // 再刷新边
+        self.flush_edges()?;
+
+        Ok(())
+    }
 }
 
 /// 创建批量插入器
@@ -27,6 +172,10 @@ pub struct GraphDbBatchHandle {
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # 安全说明
+/// 创建的批量操作句柄持有会话指针，但不拥有会话的所有权。
+/// 调用者必须确保在批量操作句柄被释放之前不关闭会话。
 #[no_mangle]
 pub extern "C" fn graphdb_batch_inserter_create(
     session: *mut graphdb_session_t,
@@ -40,16 +189,13 @@ pub extern "C" fn graphdb_batch_inserter_create(
     let size = if batch_size <= 0 { 100 } else { batch_size as usize };
 
     unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
-
-        let session_ref: &'static GraphDbSessionHandle = std::mem::transmute(handle);
-        let inserter = crate::api::embedded::batch::BatchInserter::new_static(
-            &session_ref.inner,
-            size,
-        );
-
         let batch_handle = Box::new(GraphDbBatchHandle {
-            inner: inserter,
+            session_ptr: session as *mut GraphDbSessionHandle,
+            batch_size: size,
+            buffer: Vec::with_capacity(size),
+            vertices_inserted: 0,
+            edges_inserted: 0,
+            errors: Vec::new(),
             last_error: None,
         });
         *batch = Box::into_raw(batch_handle) as *mut graphdb_batch_t;
@@ -104,10 +250,27 @@ pub extern "C" fn graphdb_batch_add_vertex(
     unsafe {
         let handle = &mut *(batch as *mut GraphDbBatchHandle);
 
+        // 检查会话有效性
+        if !handle.is_session_valid() {
+            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+        }
+
         let mut vertex = Vertex::with_vid(Value::Int(vid));
         let tag = crate::core::vertex_edge_path::Tag::new(tag_str.to_string(), props);
         vertex.add_tag(tag);
-        handle.inner.add_vertex(vertex);
+        
+        handle.buffer.push(BatchItem::Vertex(vertex));
+        
+        // 如果达到批次大小，自动刷新
+        if handle.buffer.len() >= handle.batch_size {
+            if let Err(e) = handle.flush_vertices() {
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+                return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
+            }
+        }
+        
         graphdb_error_code_t::GRAPHDB_OK as c_int
     }
 }
@@ -163,14 +326,31 @@ pub extern "C" fn graphdb_batch_add_edge(
     unsafe {
         let handle = &mut *(batch as *mut GraphDbBatchHandle);
 
+        // 检查会话有效性
+        if !handle.is_session_valid() {
+            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+        }
+
         let edge = Edge::new(
             Value::Int(src_vid),
             Value::Int(dst_vid),
             edge_type_str.to_string(),
             rank,
-            HashMap::new(),
+            props,
         );
-        handle.inner.add_edge(edge);
+        
+        handle.buffer.push(BatchItem::Edge(edge));
+        
+        // 如果达到批次大小，自动刷新
+        if handle.buffer.len() >= handle.batch_size {
+            if let Err(e) = handle.flush_edges() {
+                let error_msg = format!("{}", e);
+                set_last_error_message(error_msg.clone());
+                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+                return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
+            }
+        }
+        
         graphdb_error_code_t::GRAPHDB_OK as c_int
     }
 }
@@ -192,23 +372,18 @@ pub extern "C" fn graphdb_batch_flush(batch: *mut graphdb_batch_t) -> c_int {
     unsafe {
         let handle = &mut *(batch as *mut GraphDbBatchHandle);
 
-        let session_ref: &'static GraphDbSessionHandle = std::mem::transmute(&*(batch as *const GraphDbBatchHandle));
-        let inserter = std::mem::replace(
-            &mut handle.inner,
-            crate::api::embedded::batch::BatchInserter::new_static(
-                &session_ref.inner,
-                100,
-            ),
-        );
+        // 检查会话有效性
+        if !handle.is_session_valid() {
+            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+        }
 
-        match inserter.execute() {
+        match handle.execute() {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                error_code
+                graphdb_error_code_t::GRAPHDB_ERROR as c_int
             }
         }
     }
@@ -229,7 +404,7 @@ pub extern "C" fn graphdb_batch_buffered_vertices(batch: *mut graphdb_batch_t) -
 
     unsafe {
         let handle = &*(batch as *mut GraphDbBatchHandle);
-        handle.inner.buffered_vertices() as c_int
+        handle.buffer.iter().filter(|item| matches!(item, BatchItem::Vertex(_))).count() as c_int
     }
 }
 
@@ -248,7 +423,7 @@ pub extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_t) -> c
 
     unsafe {
         let handle = &*(batch as *mut GraphDbBatchHandle);
-        handle.inner.buffered_edges() as c_int
+        handle.buffer.iter().filter(|item| matches!(item, BatchItem::Edge(_))).count() as c_int
     }
 }
 

@@ -2,37 +2,42 @@
 
 ## Summary
 
-- **Total Errors**: 1
-- **Total Warnings**: 0
-- **Total Issues**: 1
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 0
-- **Files with Issues**: 1
+- **Total Errors**: 0
+- **Total Warnings**: 2
+- **Total Issues**: 2
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 2
+- **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 1
-
-### Error Type Breakdown
-
-- **error[E0308]**: 1 errors
-
-### Files with Errors (Top 10)
-
-- `src\api\embedded\c_api\query.rs`: 1 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 2
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0308]: mismatched types: expected `&str`, found `String`
+- **warning**: 2 warnings
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+### Files with Warnings (Top 10)
 
-#### `src\api\embedded\c_api\query.rs`: 1 occurrences
+- `src\api\embedded\c_api\batch.rs`: 1 warnings
+- `src\api\embedded\batch.rs`: 1 warnings
 
-- Line 131: mismatched types: expected `&str`, found `String`
+## Detailed Warning Categorization
+
+### warning: method `get_session_mut` is never used
+
+**Total Occurrences**: 2  
+**Unique Files**: 2
+
+#### `src\api\embedded\c_api\batch.rs`: 1 occurrences
+
+- Line 58: method `get_session_mut` is never used
+
+#### `src\api\embedded\batch.rs`: 1 occurrences
+
+- Line 95: associated function `new_static` is never used
 

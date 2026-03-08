@@ -95,24 +95,6 @@ impl GraphDbSessionHandle {
         }
     }
 
-    /// 调用提交钩子
-    /// 返回 true 表示继续提交，false 表示回滚
-    pub(crate) fn invoke_commit_hook(&self) -> bool {
-        if let Some(callback) = self.commit_hook {
-            let result = callback(self.commit_hook_user_data);
-            result == 0
-        } else {
-            true
-        }
-    }
-
-    /// 调用回滚钩子
-    pub(crate) fn invoke_rollback_hook(&self) {
-        if let Some(callback) = self.rollback_hook {
-            callback(self.rollback_hook_user_data);
-        }
-    }
-
     /// 设置错误信息
     pub(crate) fn set_error(
         &mut self,
@@ -245,12 +227,25 @@ pub extern "C" fn graphdb_session_use_space(
 ///
 /// # 返回
 /// - 当前图空间名称（UTF-8 编码），如果没有则返回 NULL
+///
+/// # 内存管理
+/// 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+/// 以避免内存泄漏。
+///
+/// # 示例
+/// ```c
+/// char* space = graphdb_session_current_space(session);
+/// if (space) {
+///     printf("Current space: %s\n", space);
+///     graphdb_free_string(space);  // 必须释放
+/// }
+/// ```
 #[no_mangle]
 pub extern "C" fn graphdb_session_current_space(
     session: *mut graphdb_session_t,
-) -> *const c_char {
+) -> *mut c_char {
     if session.is_null() {
-        return ptr::null();
+        return ptr::null_mut();
     }
 
     unsafe {
@@ -258,18 +253,16 @@ pub extern "C" fn graphdb_session_current_space(
         
         match handle.inner.current_space() {
             Some(name) => {
-                // 注意：这里返回的字符串生命周期与 session 绑定
-                // 调用者不应释放此字符串
                 match CString::new(name) {
                     Ok(c_name) => {
-                        // 将 CString 转换为原始指针并泄漏它
+                        // 将 CString 转换为原始指针
                         // 调用者需要使用 graphdb_free_string 释放
                         c_name.into_raw()
                     }
-                    Err(_) => ptr::null(),
+                    Err(_) => ptr::null_mut(),
                 }
             }
-            None => ptr::null(),
+            None => ptr::null_mut(),
         }
     }
 }

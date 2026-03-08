@@ -80,13 +80,17 @@ pub extern "C" fn graphdb_row_count(result: *mut graphdb_result_t) -> c_int {
 ///
 /// # 返回
 /// - 列名（UTF-8 编码），错误返回 NULL
+///
+/// # 内存管理
+/// 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+/// 以避免内存泄漏。
 #[no_mangle]
 pub extern "C" fn graphdb_column_name(
     result: *mut graphdb_result_t,
     index: c_int,
-) -> *const c_char {
+) -> *mut c_char {
     if result.is_null() {
-        return ptr::null();
+        return ptr::null_mut();
     }
 
     unsafe {
@@ -96,10 +100,10 @@ pub extern "C" fn graphdb_column_name(
             Some(name) => {
                 match CString::new(name.as_str()) {
                     Ok(c_name) => c_name.into_raw(),
-                    Err(_) => ptr::null(),
+                    Err(_) => ptr::null_mut(),
                 }
             }
-            None => ptr::null(),
+            None => ptr::null_mut(),
         }
     }
 }
@@ -162,18 +166,22 @@ pub extern "C" fn graphdb_get_int(
 ///
 /// # 返回
 /// - 字符串值（UTF-8 编码），错误返回 NULL
+///
+/// # 内存管理
+/// 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+/// 以避免内存泄漏。
 #[no_mangle]
 pub extern "C" fn graphdb_get_string(
     result: *mut graphdb_result_t,
     row: c_int,
     col: *const c_char,
     len: *mut c_int,
-) -> *const c_char {
+) -> *mut c_char {
     if result.is_null() || col.is_null() {
         if !len.is_null() {
             unsafe { *len = -1; }
         }
-        return ptr::null();
+        return ptr::null_mut();
     }
 
     let col_str = unsafe {
@@ -183,7 +191,7 @@ pub extern "C" fn graphdb_get_string(
                 if !len.is_null() {
                     *len = -1;
                 }
-                return ptr::null();
+                return ptr::null_mut();
             }
         }
     };
@@ -200,19 +208,19 @@ pub extern "C" fn graphdb_get_string(
                         }
                         match CString::new(s.as_str()) {
                             Ok(c_str) => c_str.into_raw(),
-                            Err(_) => ptr::null(),
+                            Err(_) => ptr::null_mut(),
                         }
                     }
                     Some(_) => {
                         if !len.is_null() {
                             *len = -1;
                         }
-                        ptr::null()
+                        ptr::null_mut()
                     }
-                    None => ptr::null(),
+                    None => ptr::null_mut(),
                 }
             }
-            None => ptr::null(),
+            None => ptr::null_mut(),
         }
     }
 }
@@ -350,18 +358,22 @@ pub extern "C" fn graphdb_get_int_by_index(
 ///
 /// # 返回
 /// - 字符串值（UTF-8 编码），错误返回 NULL
+///
+/// # 内存管理
+/// 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+/// 以避免内存泄漏。
 #[no_mangle]
 pub extern "C" fn graphdb_get_string_by_index(
     result: *mut graphdb_result_t,
     row: c_int,
     col: c_int,
     len: *mut c_int,
-) -> *const c_char {
+) -> *mut c_char {
     if result.is_null() || col < 0 {
         if !len.is_null() {
             unsafe { *len = -1; }
         }
-        return ptr::null();
+        return ptr::null_mut();
     }
 
     unsafe {
@@ -374,7 +386,7 @@ pub extern "C" fn graphdb_get_string_by_index(
                 if !len.is_null() {
                     *len = -1;
                 }
-                return ptr::null();
+                return ptr::null_mut();
             }
         };
 
@@ -387,20 +399,20 @@ pub extern "C" fn graphdb_get_string_by_index(
                         }
                         match CString::new(s.as_str()) {
                             Ok(c_str) => c_str.into_raw(),
-                            Err(_) => ptr::null(),
+                            Err(_) => ptr::null_mut(),
                         }
                     }
                     Some(_) => {
                         if !len.is_null() {
                             *len = -1;
                         }
-                        ptr::null()
+                        ptr::null_mut()
                     }
                     None => {
                         if !len.is_null() {
                             *len = -1;
                         }
-                        ptr::null()
+                        ptr::null_mut()
                     }
                 }
             }
@@ -408,7 +420,7 @@ pub extern "C" fn graphdb_get_string_by_index(
                 if !len.is_null() {
                     *len = -1;
                 }
-                ptr::null()
+                ptr::null_mut()
             }
         }
     }

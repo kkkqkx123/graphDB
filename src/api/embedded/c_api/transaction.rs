@@ -9,19 +9,46 @@ use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, gr
 use crate::api::core::TransactionHandle;
 use crate::api::embedded::transaction::TransactionConfig;
 use crate::transaction::TransactionManager;
-use std::ffi::{CStr, CString, c_char, c_int};
+use std::ffi::{CStr, c_char, c_int};
 use std::ptr;
 use std::sync::Arc;
 
 /// 事务句柄内部结构
+///
+/// 注意：此结构体持有会话指针，但不拥有会话的所有权。
+/// 调用者必须确保在事务完成之前不关闭会话。
 pub struct GraphDbTxnHandle {
     pub(crate) session: *mut GraphDbSessionHandle,
     pub(crate) txn_manager: Arc<TransactionManager>,
-    pub(crate) txn: Option<Box<dyn std::any::Any>>,
     pub(crate) txn_handle: Option<TransactionHandle>,
-    pub(crate) last_error: Option<CString>,
     pub(crate) committed: bool,
     pub(crate) rolled_back: bool,
+}
+
+impl GraphDbTxnHandle {
+    /// 检查会话是否仍然有效
+    fn is_session_valid(&self) -> bool {
+        !self.session.is_null()
+    }
+
+    /// 获取会话引用（如果有效）
+    fn get_session(&self) -> Option<&GraphDbSessionHandle> {
+        if self.is_session_valid() {
+            Some(unsafe { &*self.session })
+        } else {
+            None
+        }
+    }
+}
+
+impl Drop for GraphDbTxnHandle {
+    fn drop(&mut self) {
+        if !self.committed && !self.rolled_back {
+            if let Some(txn_handle) = self.txn_handle.take() {
+                let _ = self.txn_manager.abort_transaction(txn_handle.0);
+            }
+        }
+    }
 }
 
 /// 开始事务
@@ -48,12 +75,11 @@ pub extern "C" fn graphdb_txn_begin(
         match handle.inner.begin_transaction() {
             Ok(txn_obj) => {
                 let txn_manager = handle.inner.txn_manager();
+                let txn_handle = txn_obj.handle();
                 let handle = Box::new(GraphDbTxnHandle {
                     session: session as *mut GraphDbSessionHandle,
                     txn_manager,
-                    txn: Some(Box::new(txn_obj)),
-                    txn_handle: None,
-                    last_error: None,
+                    txn_handle: Some(txn_handle),
                     committed: false,
                     rolled_back: false,
                 });
@@ -96,12 +122,11 @@ pub extern "C" fn graphdb_txn_begin_readonly(
         match handle.inner.begin_transaction_with_config(config) {
             Ok(txn_obj) => {
                 let txn_manager = handle.inner.txn_manager();
+                let handle_id = txn_obj.handle();
                 let txn_handle = Box::new(GraphDbTxnHandle {
                     session: session as *mut GraphDbSessionHandle,
                     txn_manager,
-                    txn: Some(Box::new(txn_obj)),
-                    txn_handle: None,
-                    last_error: None,
+                    txn_handle: Some(handle_id),
                     committed: false,
                     rolled_back: false,
                 });
@@ -153,7 +178,12 @@ pub extern "C" fn graphdb_txn_execute(
             return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
         }
 
-        let session = &*(handle.session);
+        // 检查会话有效性
+        let session = match handle.get_session() {
+            Some(s) => s,
+            None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+        };
+
         let txn_handle = match handle.txn_handle.as_ref() {
             Some(h) => h,
             None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
@@ -170,13 +200,6 @@ pub extern "C" fn graphdb_txn_execute(
         match query_api.execute(query_str, ctx) {
             Ok(core_result) => {
                 let query_result = crate::api::embedded::result::QueryResult::from_core(core_result);
-                
-                // 检查是否是数据修改操作，并调用更新钩子
-                if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result) {
-                    let space_name = session.inner.current_space().unwrap_or("default");
-                    session.invoke_update_hook(operation, space_name, rowid);
-                }
-                
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
                 });
@@ -186,8 +209,7 @@ pub extern "C" fn graphdb_txn_execute(
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+                set_last_error_message(error_msg);
                 *result = ptr::null_mut();
                 error_code
             }
@@ -216,32 +238,23 @@ pub extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
             return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
         }
 
-        // 调用提交钩子
-        let session = &*(handle.session);
-        if !session.invoke_commit_hook() {
-            // 钩子返回非零，回滚事务
-            return graphdb_txn_rollback(txn);
-        }
-
-        if handle.txn.is_none() {
-            return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
-        }
-
-        let txn = handle.txn.take().unwrap();
-        let txn_any = txn.as_ref();
-
-        // 尝试将 Any 转换回 Transaction
-        use crate::api::embedded::transaction::Transaction;
-        use crate::storage::RedbStorage;
-
-        let txn_obj = match txn_any.downcast_ref::<Transaction<'_, RedbStorage>>() {
-            Some(t) => t,
-            None => {
-                return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
-            }
+        // 检查会话有效性
+        let session = match handle.get_session() {
+            Some(s) => s,
+            None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
         };
+        
+        if let Some(callback) = session.commit_hook {
+            let result = callback(session.commit_hook_user_data);
+            if result != 0 {
+                return graphdb_txn_rollback(txn);
+            }
+        }
 
-        let txn_handle = txn_obj.handle();
+        let txn_handle = match handle.txn_handle.take() {
+            Some(h) => h,
+            None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
+        };
 
         match handle.txn_manager.commit_transaction(txn_handle.0) {
             Ok(_) => {
@@ -251,8 +264,7 @@ pub extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
             Err(e) => {
                 let error_code = graphdb_error_code_t::GRAPHDB_ABORT as c_int;
                 let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+                set_last_error_message(error_msg);
                 error_code
             }
         }
@@ -280,29 +292,20 @@ pub extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int {
             return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
         }
 
-        // 调用回滚钩子
-        let session = &*(handle.session);
-        session.invoke_rollback_hook();
-
-        if handle.txn.is_none() {
-            return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
+        // 检查会话有效性
+        let session = match handle.get_session() {
+            Some(s) => s,
+            None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+        };
+        
+        if let Some(callback) = session.rollback_hook {
+            callback(session.rollback_hook_user_data);
         }
 
-        let txn = handle.txn.take().unwrap();
-        let txn_any = txn.as_ref();
-
-        // 尝试将 Any 转换回 Transaction
-        use crate::api::embedded::transaction::Transaction;
-        use crate::storage::RedbStorage;
-
-        let txn_obj = match txn_any.downcast_ref::<Transaction<'_, RedbStorage>>() {
-            Some(t) => t,
-            None => {
-                return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int;
-            }
+        let txn_handle = match handle.txn_handle.take() {
+            Some(h) => h,
+            None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
         };
-
-        let txn_handle = txn_obj.handle();
 
         match handle.txn_manager.abort_transaction(txn_handle.0) {
             Ok(_) => {
@@ -312,8 +315,7 @@ pub extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int {
             Err(e) => {
                 let error_code = graphdb_error_code_t::GRAPHDB_ABORT as c_int;
                 let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+                set_last_error_message(error_msg);
                 error_code
             }
         }
@@ -352,7 +354,6 @@ pub extern "C" fn graphdb_txn_savepoint(
             return -1;
         }
 
-        let _session = &*(handle.session);
         let txn_handle = match handle.txn_handle.as_ref() {
             Some(h) => h,
             None => return -1,
@@ -390,20 +391,18 @@ pub extern "C" fn graphdb_txn_release_savepoint(
             return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
         }
 
-        let _session = &*(handle.session);
-        let _txn_handle = match handle.txn_handle {
+        let txn_handle = match handle.txn_handle.as_ref() {
             Some(h) => h,
             None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
         };
 
-        match handle.txn_manager.release_savepoint(_txn_handle.0, savepoint_id as u64) {
+        match handle.txn_manager.release_savepoint(txn_handle.0, savepoint_id as u64) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
                 let error_code = error_code_from_core_error(&core_error);
                 let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+                set_last_error_message(error_msg);
                 error_code
             }
         }
@@ -435,20 +434,18 @@ pub extern "C" fn graphdb_txn_rollback_to_savepoint(
             return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
         }
 
-        let _session = &*(handle.session);
-        let _txn_handle = match handle.txn_handle {
+        let txn_handle = match handle.txn_handle.as_ref() {
             Some(h) => h,
             None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
         };
 
-        match handle.txn_manager.rollback_to_savepoint(_txn_handle.0, savepoint_id as u64) {
+        match handle.txn_manager.rollback_to_savepoint(txn_handle.0, savepoint_id as u64) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
                 let error_code = error_code_from_core_error(&core_error);
                 let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+                set_last_error_message(error_msg);
                 error_code
             }
         }
@@ -470,46 +467,10 @@ pub extern "C" fn graphdb_txn_free(txn: *mut graphdb_txn_t) -> c_int {
     }
 
     unsafe {
-        let mut handle = Box::from_raw(txn as *mut GraphDbTxnHandle);
-
-        if !handle.committed && !handle.rolled_back {
-            if let Some(txn_handle) = handle.txn_handle.take() {
-                let _ = handle.txn_manager.abort_transaction(txn_handle.0);
-            }
-        }
+        let _ = Box::from_raw(txn as *mut GraphDbTxnHandle);
     }
 
     graphdb_error_code_t::GRAPHDB_OK as c_int
-}
-
-/// 检测查询是否是数据修改操作
-///
-/// 返回 (操作类型, 行ID) 的元组，如果不是数据修改操作则返回 None
-/// 操作类型：1=INSERT, 2=UPDATE, 3=DELETE
-fn detect_data_modification(query: &str, _result: &crate::api::embedded::result::QueryResult) -> Option<(i32, i64)> {
-    let query_upper = query.trim().to_uppercase();
-    
-    // 检查是否是 INSERT 操作
-    if query_upper.starts_with("INSERT") {
-        return Some((1, 0));
-    }
-    
-    // 检查是否是 UPDATE 操作
-    if query_upper.starts_with("UPDATE") {
-        return Some((2, 0));
-    }
-    
-    // 检查是否是 DELETE 操作
-    if query_upper.starts_with("DELETE") {
-        return Some((3, 0));
-    }
-    
-    // 检查是否是 REMOVE 操作
-    if query_upper.starts_with("REMOVE") {
-        return Some((2, 0));
-    }
-    
-    None
 }
 
 #[cfg(test)]
@@ -518,6 +479,7 @@ mod tests {
     use crate::api::embedded::c_api::database::{graphdb_close, graphdb_open};
     use crate::api::embedded::c_api::session::{graphdb_session_close, graphdb_session_create};
     use crate::api::embedded::c_api::types::graphdb_t;
+    use std::ffi::CString;
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);

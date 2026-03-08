@@ -512,8 +512,21 @@ int graphdb_session_use_space(struct graphdb_session_t *session, const char *spa
  *
  * # 返回
  * - 当前图空间名称（UTF-8 编码），如果没有则返回 NULL
+ *
+ * # 内存管理
+ * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+ * 以避免内存泄漏。
+ *
+ * # 示例
+ * ```c
+ * char* space = graphdb_session_current_space(session);
+ * if (space) {
+ *     printf("Current space: %s\n", space);
+ *     graphdb_free_string(space);  // 必须释放
+ * }
+ * ```
  */
-const char *graphdb_session_current_space(struct graphdb_session_t *session);
+char *graphdb_session_current_space(struct graphdb_session_t *session);
 
 /**
  * 设置自动提交模式
@@ -1044,6 +1057,10 @@ int graphdb_txn_free(struct graphdb_txn_t *txn);
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # 安全说明
+ * 创建的批量操作句柄持有会话指针，但不拥有会话的所有权。
+ * 调用者必须确保在批量操作句柄被释放之前不关闭会话。
  */
 int graphdb_batch_inserter_create(struct graphdb_session_t *session,
                                   int batch_size,
@@ -1182,8 +1199,12 @@ int graphdb_row_count(struct graphdb_result_t *result);
  *
  * # 返回
  * - 列名（UTF-8 编码），错误返回 NULL
+ *
+ * # 内存管理
+ * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+ * 以避免内存泄漏。
  */
-const char *graphdb_column_name(struct graphdb_result_t *result, int index);
+char *graphdb_column_name(struct graphdb_result_t *result, int index);
 
 /**
  * 获取整数值
@@ -1211,8 +1232,12 @@ int graphdb_get_int(struct graphdb_result_t *result, int row, const char *col, i
  *
  * # 返回
  * - 字符串值（UTF-8 编码），错误返回 NULL
+ *
+ * # 内存管理
+ * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+ * 以避免内存泄漏。
  */
-const char *graphdb_get_string(struct graphdb_result_t *result, int row, const char *col, int *len);
+char *graphdb_get_string(struct graphdb_result_t *result, int row, const char *col, int *len);
 
 /**
  * 获取二进制数据
@@ -1260,11 +1285,12 @@ int graphdb_get_int_by_index(struct graphdb_result_t *result, int row, int col, 
  *
  * # 返回
  * - 字符串值（UTF-8 编码），错误返回 NULL
+ *
+ * # 内存管理
+ * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+ * 以避免内存泄漏。
  */
-const char *graphdb_get_string_by_index(struct graphdb_result_t *result,
-                                        int row,
-                                        int col,
-                                        int *len);
+char *graphdb_get_string_by_index(struct graphdb_result_t *result, int row, int col, int *len);
 
 /**
  * 获取布尔值（按列索引）
