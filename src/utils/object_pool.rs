@@ -1,15 +1,9 @@
 //! 对象池模块
 //!
-//! 提供统一的对象池实现，支持以下使用场景：
-//! 1. 需要 Default 的轻量级场景（优化器节点）
-//! 2. 需要工厂函数的通用场景（查询上下文）
-//! 3. 需要线程安全的并发场景
-//!
-//! 参考 nebula-graph 的 ObjectPool 设计，采用工厂模式 + 线程安全设计
+//! 提供轻量级的对象池实现，用于对象的复用和缓存
 
 use std::collections::VecDeque;
 use std::fmt::Debug;
-use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct ObjectPool<T> {
@@ -24,13 +18,6 @@ impl<T> ObjectPool<T> {
     {
         Self {
             pool: VecDeque::new(),
-            max_size,
-        }
-    }
-
-    pub fn with_capacity(capacity: usize, max_size: usize) -> Self {
-        Self {
-            pool: VecDeque::with_capacity(capacity),
             max_size,
         }
     }
@@ -52,108 +39,14 @@ impl<T> ObjectPool<T> {
         self.pool.len()
     }
 
-    pub fn capacity(&self) -> usize {
-        self.max_size
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.pool.is_empty()
-    }
-
     pub fn clear(&mut self) {
         self.pool.clear();
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        self.pool.iter()
-    }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        self.pool.iter_mut()
-    }
-
-    pub fn pop(&mut self) -> Option<T> {
-        self.pool.pop_front()
-    }
-
-    pub fn push(&mut self, obj: T) {
-        if self.pool.len() < self.max_size {
-            self.pool.push_back(obj);
-        }
-    }
-
-    pub fn release_inner(&mut self, obj: T) {
-        self.release(obj);
     }
 }
 
 impl<T: Default> Default for ObjectPool<T> {
     fn default() -> Self {
         Self::new(1000)
-    }
-}
-
-/// 线程安全的对象池
-///
-/// 使用 Arc<RwLock> 实现线程安全
-/// 通过工厂函数创建对象，支持任意类型
-pub struct ThreadSafeObjectPool<T: Clone + Send + 'static> {
-    pool: Arc<RwLock<Vec<T>>>,
-    factory: Arc<dyn Fn() -> T + Send + Sync>,
-    max_size: usize,
-}
-
-impl<T: Clone + Send + 'static> ThreadSafeObjectPool<T> {
-    pub fn new<F>(factory: F, max_size: usize) -> Self
-    where
-        F: Fn() -> T + Send + Sync + 'static,
-    {
-        Self {
-            pool: Arc::new(RwLock::new(Vec::with_capacity(max_size))),
-            factory: Arc::new(factory),
-            max_size,
-        }
-    }
-
-    pub fn acquire(&self) -> T {
-        if let Ok(mut pool) = self.pool.write() {
-            if let Some(obj) = pool.pop() {
-                return obj;
-            }
-        }
-        (self.factory)()
-    }
-
-    pub fn release(&self, obj: T) {
-        if let Ok(mut pool) = self.pool.write() {
-            if pool.len() < self.max_size {
-                pool.push(obj);
-            }
-        }
-    }
-
-    pub fn size(&self) -> usize {
-        self.pool.read().map(|p| p.len()).unwrap_or(0)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.size() == 0
-    }
-
-    pub fn clear(&self) {
-        if let Ok(mut pool) = self.pool.write() {
-            pool.clear();
-        }
-    }
-}
-
-impl<T: Clone + Send + 'static> Clone for ThreadSafeObjectPool<T> {
-    fn clone(&self) -> Self {
-        Self {
-            pool: Arc::clone(&self.pool),
-            factory: Arc::clone(&self.factory),
-            max_size: self.max_size,
-        }
     }
 }
 
@@ -188,48 +81,15 @@ mod tests {
     }
 
     #[test]
-    fn test_object_pool_non_default() {
-        let mut pool: ObjectPool<String> = ObjectPool::with_capacity(10, 100);
+    fn test_object_pool_clear() {
+        let mut pool: ObjectPool<String> = ObjectPool::new(10);
 
         pool.release("test1".to_string());
         pool.release("test2".to_string());
 
         assert_eq!(pool.size(), 2);
 
-        let obj = pool.pop();
-        assert_eq!(obj, Some("test1".to_string()));
-
-        pool.push("test3".to_string());
-        assert_eq!(pool.size(), 2);
-    }
-
-    #[test]
-    fn test_thread_safe_object_pool() {
-        let pool: ThreadSafeObjectPool<String> =
-            ThreadSafeObjectPool::new(|| "default".to_string(), 10);
-
-        let obj1 = pool.acquire();
-        assert_eq!(obj1, "default");
-
-        pool.release(obj1);
-        assert_eq!(pool.size(), 1);
-
-        let obj2 = pool.acquire();
-        assert_eq!(obj2, "default");
+        pool.clear();
         assert_eq!(pool.size(), 0);
-    }
-
-    #[test]
-    fn test_thread_safe_clone() {
-        let pool: ThreadSafeObjectPool<i32> = ThreadSafeObjectPool::new(|| 42, 10);
-
-        let obj = pool.acquire();
-        assert_eq!(obj, 42);
-
-        pool.release(obj);
-
-        let cloned_pool = pool.clone();
-        let obj2 = cloned_pool.acquire();
-        assert_eq!(obj2, 42);
     }
 }

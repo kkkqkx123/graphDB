@@ -2,47 +2,37 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 3
-- **Total Issues**: 3
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 3
-- **Files with Issues**: 3
+- **Total Errors**: 1
+- **Total Warnings**: 0
+- **Total Issues**: 1
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 1
+
+### Error Type Breakdown
+
+- **error[E0583]**: 1 errors
+
+### Files with Errors (Top 10)
+
+- `src\core\types\mod.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 3 warnings
+### error[E0583]: file not found for module `metadata`
 
-### Files with Warnings (Top 10)
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
-- `src\core\result\result.rs`: 1 warnings
-- `src\query\execution\resource_context.rs`: 1 warnings
-- `src\core\result\result_iterator.rs`: 1 warnings
+#### `src\core\types\mod.rs`: 1 occurrences
 
-## Detailed Warning Categorization
-
-### warning: associated function `from_builder` is never used
-
-**Total Occurrences**: 3  
-**Unique Files**: 3
-
-#### `src\core\result\result.rs`: 1 occurrences
-
-- Line 72: associated function `from_builder` is never used
-
-#### `src\core\result\result_iterator.rs`: 1 occurrences
-
-- Line 1: unused import: `crate::core::value::Value`
-
-#### `src\query\execution\resource_context.rs`: 1 occurrences
-
-- Line 6: unused import: `std::sync::Arc`
+- Line 9: file not found for module `metadata`
 

@@ -6,7 +6,6 @@ pub mod expression;
 pub mod graph_schema;
 pub mod import_export;
 pub mod index;
-pub mod metadata;
 pub mod metadata_version;
 pub mod operators;
 pub mod property;
