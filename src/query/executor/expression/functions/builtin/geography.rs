@@ -123,9 +123,6 @@ fn execute_st_geogfromtext(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
         Value::String(wkt) => match Geography::from_wkt(wkt) {
             Ok(Geography::Point(geo)) => Ok(Value::Geography(geo)),
-            Ok(_) => Err(ExpressionError::type_error(
-                "st_geogfromtext目前只支持点类型",
-            )),
             Err(e) => Err(ExpressionError::type_error(&format!("解析WKT失败: {}", e))),
         },
         Value::Null(_) => Ok(Value::Null(NullType::Null)),

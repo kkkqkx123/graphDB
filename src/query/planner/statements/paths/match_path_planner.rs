@@ -454,14 +454,14 @@ impl StorageClient for DummyStorage {
 
     fn create_user(
         &mut self,
-        _info: &crate::core::types::metadata::UserInfo,
+        _info: &crate::core::types::UserInfo,
     ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
     fn alter_user(
         &mut self,
-        _info: &crate::core::types::metadata::UserAlterInfo,
+        _info: &crate::core::types::UserAlterInfo,
     ) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }

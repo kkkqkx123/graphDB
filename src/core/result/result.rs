@@ -68,29 +68,6 @@ impl Result {
         }
     }
 
-    /// 内部构造函数，供 ResultBuilder 使用
-    pub(crate) fn from_builder(
-        rows: Vec<Vec<Value>>,
-        col_names: Vec<String>,
-        state: ResultState,
-        iterator: Option<ResultIteratorEnum>,
-    ) -> Self {
-        let row_count = rows.len();
-        let col_count = col_names.len();
-
-        Self {
-            rows,
-            col_names,
-            meta: ResultMeta {
-                row_count,
-                col_count,
-                state,
-                memory_usage: 0,
-            },
-            iterator,
-        }
-    }
-
     /// 从行集合和列名创建 Result
     ///
     /// 此方法是创建 Result 的推荐方式，自动设置状态为 Completed

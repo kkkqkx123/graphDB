@@ -3,11 +3,11 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 1
-- **Total Issues**: 1
+- **Total Warnings**: 3
+- **Total Issues**: 3
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 1
+- **Unique Warning Patterns**: 3
+- **Files with Issues**: 3
 
 ## Error Statistics
 
@@ -15,24 +15,34 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 3
 
 ### Warning Type Breakdown
 
-- **warning**: 1 warnings
+- **warning**: 3 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\transaction\context.rs`: 1 warnings
+- `src\core\result\result.rs`: 1 warnings
+- `src\query\execution\resource_context.rs`: 1 warnings
+- `src\core\result\result_iterator.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: variable does not need to be mutable
+### warning: associated function `from_builder` is never used
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+**Total Occurrences**: 3  
+**Unique Files**: 3
 
-#### `src\transaction\context.rs`: 1 occurrences
+#### `src\core\result\result.rs`: 1 occurrences
 
-- Line 323: variable does not need to be mutable
+- Line 72: associated function `from_builder` is never used
+
+#### `src\core\result\result_iterator.rs`: 1 occurrences
+
+- Line 1: unused import: `crate::core::value::Value`
+
+#### `src\query\execution\resource_context.rs`: 1 occurrences
+
+- Line 6: unused import: `std::sync::Arc`
 

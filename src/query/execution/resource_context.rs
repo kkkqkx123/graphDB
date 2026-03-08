@@ -3,7 +3,6 @@
 //! 管理查询执行过程中需要的资源，包括对象池、ID 生成器等。
 
 use crate::utils::{IdGenerator, ObjectPool};
-use std::sync::Arc;
 
 /// 查询资源上下文
 ///

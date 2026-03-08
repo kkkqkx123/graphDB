@@ -5,6 +5,7 @@
 use crate::core::Value;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
+use super::property_trait::PropertyTypeTrait;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub enum IndexStatus {
@@ -26,11 +27,61 @@ pub enum IndexType {
     EdgeIndex,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct IndexField {
     pub name: String,
     pub value_type: Value,
     pub is_nullable: bool,
+}
+
+impl PropertyTypeTrait for IndexField {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn data_type(&self) -> &crate::core::DataType {
+        match &self.value_type {
+            Value::Int(_) => &crate::core::DataType::Int,
+            Value::Float(_) => &crate::core::DataType::Float,
+            Value::Bool(_) => &crate::core::DataType::Bool,
+            Value::String(_) => &crate::core::DataType::String,
+            Value::Null(_) => &crate::core::DataType::Null,
+            _ => &crate::core::DataType::String,
+        }
+    }
+
+    fn is_nullable(&self) -> bool {
+        self.is_nullable
+    }
+
+    fn default_value(&self) -> Option<&Value> {
+        None
+    }
+
+    fn comment(&self) -> Option<&str> {
+        None
+    }
+
+    fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
+    fn set_data_type(&mut self, _data_type: crate::core::DataType) {
+    }
+
+    fn set_nullable(&mut self, nullable: bool) {
+        self.is_nullable = nullable;
+    }
+
+    fn set_default_value(&mut self, _default: Option<Value>) {
+    }
+
+    fn set_comment(&mut self, _comment: Option<String>) {
+    }
+
+    fn property_type_name(&self) -> &'static str {
+        "IndexField"
+    }
 }
 
 impl IndexField {

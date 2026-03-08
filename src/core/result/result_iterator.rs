@@ -1,4 +1,3 @@
-use crate::core::value::Value;
 use crate::core::DBResult;
 
 pub trait ResultIterator<'a, T: 'a>: Send + Sync + std::fmt::Debug {

@@ -1,15 +1,23 @@
+pub mod charset;
+pub mod cluster;
+pub mod data_modification;
 pub mod edge;
 pub mod expression;
 pub mod graph_schema;
+pub mod import_export;
 pub mod index;
 pub mod metadata;
 pub mod metadata_version;
 pub mod operators;
 pub mod property;
+pub mod property_trait;
 pub mod query;
+pub mod schema_change;
+pub mod schema_trait;
 pub mod space;
 pub mod span;
 pub mod tag;
+pub mod user;
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -55,13 +63,18 @@ pub use self::tag::TagInfo;
 // 从metadata_version导出版本类型
 pub use self::metadata_version::{MetadataVersion, SchemaHistory, SchemaVersion};
 
-// 从metadata导出其他类型（后续逐步迁移）
-pub use self::metadata::{
-    AlterTargetType, CharsetInfo, ClusterInfo, ExportFormat, FieldChangeType, InsertEdgeInfo,
-    InsertVertexInfo, PasswordInfo, SchemaAlterOperation, SchemaChange, SchemaChangeType,
-    SchemaExportConfig, SchemaFieldChange, SchemaImportResult, UpdateInfo, UpdateOp, UpdateTarget,
-    UserAlterInfo, UserInfo,
+// 从拆分后的子模块导出类型
+pub use self::schema_change::{
+    AlterTargetType, FieldChangeType, SchemaAlterOperation, SchemaChange, SchemaChangeType,
+    SchemaFieldChange,
 };
+pub use self::data_modification::{
+    InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
+};
+pub use self::user::{PasswordInfo, UserAlterInfo, UserInfo};
+pub use self::cluster::ClusterInfo;
+pub use self::charset::CharsetInfo;
+pub use self::import_export::{ExportFormat, SchemaExportConfig, SchemaImportResult};
 
 pub use self::expression::{
     ContextualExpression, Expression, ExpressionMeta, SerializableExpression,
