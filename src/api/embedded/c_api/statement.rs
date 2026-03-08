@@ -57,7 +57,7 @@ pub extern "C" fn graphdb_prepare(
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg);
                 *stmt = ptr::null_mut();
@@ -89,7 +89,7 @@ pub extern "C" fn graphdb_bind_null(stmt: *mut graphdb_stmt_t, index: c_int) -> 
         match handle.inner.bind(&param_name, Value::Null(crate::core::value::NullType::Null)) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
@@ -126,7 +126,7 @@ pub extern "C" fn graphdb_bind_bool(
         match handle.inner.bind(&param_name, Value::Bool(value)) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
@@ -163,7 +163,7 @@ pub extern "C" fn graphdb_bind_int(
         match handle.inner.bind(&param_name, Value::Int(value)) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
@@ -200,7 +200,7 @@ pub extern "C" fn graphdb_bind_float(
         match handle.inner.bind(&param_name, Value::Float(value)) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
@@ -249,7 +249,7 @@ pub extern "C" fn graphdb_bind_string(
         match handle.inner.bind(&param_name, Value::String(string_value)) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
@@ -292,7 +292,7 @@ pub extern "C" fn graphdb_bind_blob(
         match handle.inner.bind(&param_name, Value::Blob(blob_data)) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
@@ -337,7 +337,7 @@ pub extern "C" fn graphdb_bind_by_name(
         match handle.inner.bind(param_name, rust_value) {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());

@@ -87,7 +87,7 @@ pub extern "C" fn graphdb_txn_begin(
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg);
                 *txn = ptr::null_mut();
@@ -134,7 +134,7 @@ pub extern "C" fn graphdb_txn_begin_readonly(
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg);
                 *txn = ptr::null_mut();
@@ -207,7 +207,7 @@ pub extern "C" fn graphdb_txn_execute(
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg);
                 *result = ptr::null_mut();
@@ -400,7 +400,7 @@ pub extern "C" fn graphdb_txn_release_savepoint(
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
-                let error_code = error_code_from_core_error(&core_error);
+                let (error_code, _) = error_code_from_core_error(&core_error);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg);
                 error_code
@@ -443,7 +443,7 @@ pub extern "C" fn graphdb_txn_rollback_to_savepoint(
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
-                let error_code = error_code_from_core_error(&core_error);
+                let (error_code, _) = error_code_from_core_error(&core_error);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg);
                 error_code

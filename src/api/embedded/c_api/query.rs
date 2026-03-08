@@ -63,7 +63,7 @@ pub extern "C" fn graphdb_execute(
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 let offset = e.error_offset();
                 let extended_code = Some(extended_error_code_from_core_error(&e));
@@ -139,7 +139,7 @@ pub extern "C" fn graphdb_execute_params(
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 let offset = e.error_offset();
                 let extended_code = Some(extended_error_code_from_core_error(&e));

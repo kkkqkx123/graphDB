@@ -104,19 +104,19 @@ impl QueryResult {
     /// 转换为 JSON 字符串
     pub fn to_json(&self) -> CoreResult<String> {
         serde_json::to_string_pretty(self)
-            .map_err(|e| CoreError::Internal(format!("JSON序列化失败: {}", e)))
+            .map_err(|e| CoreError::Internal(format!("JSON serialization failed: {}", e)))
     }
 
     /// 转换为 JSON 字符串（紧凑格式）
     pub fn to_json_compact(&self) -> CoreResult<String> {
         serde_json::to_string(self)
-            .map_err(|e| CoreError::Internal(format!("JSON序列化失败: {}", e)))
+            .map_err(|e| CoreError::Internal(format!("JSON serialization failed: {}", e)))
     }
 
     /// 转换为 JSON Value
     pub fn to_json_value(&self) -> CoreResult<serde_json::Value> {
         serde_json::to_value(self)
-            .map_err(|e| CoreError::Internal(format!("JSON序列化失败: {}", e)))
+            .map_err(|e| CoreError::Internal(format!("JSON serialization failed: {}", e)))
     }
 }
 
@@ -279,5 +279,38 @@ impl Default for ResultMetadata {
             rows_returned: 0,
             rows_scanned: 0,
         }
+    }
+}
+
+/// 流式查询结果
+///
+/// 用于处理大型数据集，避免一次性加载所有数据到内存
+pub struct StreamingQueryResult {
+    columns: Vec<String>,
+    metadata: ResultMetadata,
+}
+
+impl StreamingQueryResult {
+    /// 创建流式查询结果
+    pub fn new(columns: Vec<String>, metadata: ResultMetadata) -> Self {
+        Self {
+            columns,
+            metadata,
+        }
+    }
+
+    /// 获取列名列表
+    pub fn columns(&self) -> &[String] {
+        &self.columns
+    }
+
+    /// 获取元数据
+    pub fn metadata(&self) -> &ResultMetadata {
+        &self.metadata
+    }
+
+    /// 获取列数
+    pub fn column_count(&self) -> usize {
+        self.columns.len()
     }
 }

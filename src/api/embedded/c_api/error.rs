@@ -25,37 +25,37 @@ pub fn extended_error_code_from_core_error(error: &CoreError) -> graphdb_extende
             extended_error_code_from_internal(*extended_code)
         }
         CoreError::QueryExecutionFailed(msg) => {
-            if msg.contains("syntax") || msg.contains("语法") {
+            if msg.contains("syntax") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_SYNTAX
-            } else if msg.contains("semantic") || msg.contains("语义") {
+            } else if msg.contains("semantic") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_SEMANTIC
-            } else if msg.contains("type mismatch") || msg.contains("类型不匹配") {
+            } else if msg.contains("type mismatch") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_TYPE_MISMATCH
-            } else if msg.contains("constraint") || msg.contains("约束") {
+            } else if msg.contains("constraint") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_CHECK
-            } else if msg.contains("division by zero") || msg.contains("除零") {
+            } else if msg.contains("division by zero") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_DIVISION_BY_ZERO
-            } else if msg.contains("out of range") || msg.contains("超出范围") {
+            } else if msg.contains("out of range") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_OUT_OF_RANGE
-            } else if msg.contains("duplicate") || msg.contains("重复") {
+            } else if msg.contains("duplicate") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_DUPLICATE_KEY
-            } else if msg.contains("not null") || msg.contains("非空") {
+            } else if msg.contains("not null") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_NOT_NULL
-            } else if msg.contains("unique") || msg.contains("唯一") {
+            } else if msg.contains("unique") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_UNIQUE
-            } else if msg.contains("foreign key") || msg.contains("外键") {
+            } else if msg.contains("foreign key") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_FOREIGN_KEY
-            } else if msg.contains("deadlock") || msg.contains("死锁") {
+            } else if msg.contains("deadlock") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_DEADLOCK
-            } else if msg.contains("timeout") || msg.contains("超时") {
+            } else if msg.contains("timeout") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_LOCK_TIMEOUT
-            } else if msg.contains("connection") || msg.contains("连接") {
+            } else if msg.contains("connection") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_CONNECTION_LOST
-            } else if msg.contains("vertex") || msg.contains("顶点") {
+            } else if msg.contains("vertex") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_INVALID_VERTEX
-            } else if msg.contains("edge") || msg.contains("边") {
+            } else if msg.contains("edge") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_INVALID_EDGE
-            } else if msg.contains("path") || msg.contains("路径") {
+            } else if msg.contains("path") {
                 graphdb_extended_error_code_t::GRAPHDB_ERROR_PATH_NOT_FOUND
             } else {
                 graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE
@@ -154,22 +154,100 @@ pub enum graphdb_error_code_t {
     GRAPHDB_NOT_IMPLEMENTED = 22,
 }
 
-/// 从核心错误转换为 C 错误码
-pub fn error_code_from_core_error(error: &CoreError) -> i32 {
+/// 从核心错误转换为 C 错误码和扩展错误码
+pub fn error_code_from_core_error(error: &CoreError) -> (i32, graphdb_extended_error_code_t) {
     match error {
-        CoreError::StorageError(_) => graphdb_error_code_t::GRAPHDB_IOERR as i32,
-        CoreError::QueryExecutionFailed(_) => graphdb_error_code_t::GRAPHDB_ERROR as i32,
-        CoreError::TransactionFailed(_) => graphdb_error_code_t::GRAPHDB_ABORT as i32,
-        CoreError::SchemaOperationFailed(_) => graphdb_error_code_t::GRAPHDB_SCHEMA as i32,
-        CoreError::Internal(_) => graphdb_error_code_t::GRAPHDB_INTERNAL as i32,
-        CoreError::NotFound(_) => graphdb_error_code_t::GRAPHDB_NOTFOUND as i32,
-        CoreError::InvalidParameter(_) => graphdb_error_code_t::GRAPHDB_MISUSE as i32,
-        CoreError::DetailedQueryError { .. } => graphdb_error_code_t::GRAPHDB_ERROR as i32,
+        CoreError::DetailedQueryError { extended_code, .. } => {
+            let basic_code = match extended_code {
+                ExtendedErrorCode::SyntaxError
+                | ExtendedErrorCode::SemanticError
+                | ExtendedErrorCode::UnexpectedToken
+                | ExtendedErrorCode::UnterminatedLiteral => graphdb_error_code_t::GRAPHDB_ERROR as i32,
+                ExtendedErrorCode::TypeMismatch => graphdb_error_code_t::GRAPHDB_MISMATCH as i32,
+                ExtendedErrorCode::DivisionByZero => graphdb_error_code_t::GRAPHDB_RANGE as i32,
+                ExtendedErrorCode::OutOfRange => graphdb_error_code_t::GRAPHDB_RANGE as i32,
+                ExtendedErrorCode::DuplicateKey => graphdb_error_code_t::GRAPHDB_CONSTRAINT as i32,
+                ExtendedErrorCode::ForeignKeyConstraint => graphdb_error_code_t::GRAPHDB_CONSTRAINT as i32,
+                ExtendedErrorCode::NotNullConstraint => graphdb_error_code_t::GRAPHDB_CONSTRAINT as i32,
+                ExtendedErrorCode::UniqueConstraint => graphdb_error_code_t::GRAPHDB_CONSTRAINT as i32,
+                ExtendedErrorCode::CheckConstraint => graphdb_error_code_t::GRAPHDB_CONSTRAINT as i32,
+                ExtendedErrorCode::ConnectionLost => graphdb_error_code_t::GRAPHDB_IOERR as i32,
+                ExtendedErrorCode::Deadlock => graphdb_error_code_t::GRAPHDB_BUSY as i32,
+                ExtendedErrorCode::LockTimeout => graphdb_error_code_t::GRAPHDB_BUSY as i32,
+                ExtendedErrorCode::InvalidVertex | ExtendedErrorCode::InvalidEdge | ExtendedErrorCode::PathNotFound => {
+                    graphdb_error_code_t::GRAPHDB_NOTFOUND as i32
+                }
+                ExtendedErrorCode::None => graphdb_error_code_t::GRAPHDB_OK as i32,
+            };
+            (basic_code, extended_error_code_from_internal(*extended_code))
+        }
+        CoreError::StorageError(_) => (
+            graphdb_error_code_t::GRAPHDB_IOERR as i32,
+            graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        ),
+        CoreError::QueryExecutionFailed(msg) => {
+            let extended_code = if msg.contains("syntax") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_SYNTAX
+            } else if msg.contains("semantic") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_SEMANTIC
+            } else if msg.contains("type mismatch") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_TYPE_MISMATCH
+            } else if msg.contains("constraint") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_CHECK
+            } else if msg.contains("division by zero") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_DIVISION_BY_ZERO
+            } else if msg.contains("out of range") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_OUT_OF_RANGE
+            } else if msg.contains("duplicate") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_DUPLICATE_KEY
+            } else if msg.contains("not null") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_NOT_NULL
+            } else if msg.contains("unique") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_UNIQUE
+            } else if msg.contains("foreign key") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_FOREIGN_KEY
+            } else if msg.contains("deadlock") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_DEADLOCK
+            } else if msg.contains("timeout") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_LOCK_TIMEOUT
+            } else if msg.contains("connection") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_CONNECTION_LOST
+            } else if msg.contains("vertex") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_INVALID_VERTEX
+            } else if msg.contains("edge") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_INVALID_EDGE
+            } else if msg.contains("path") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_PATH_NOT_FOUND
+            } else {
+                graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE
+            };
+            (graphdb_error_code_t::GRAPHDB_ERROR as i32, extended_code)
+        }
+        CoreError::TransactionFailed(_) => (
+            graphdb_error_code_t::GRAPHDB_ABORT as i32,
+            graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        ),
+        CoreError::SchemaOperationFailed(_) => (
+            graphdb_error_code_t::GRAPHDB_SCHEMA as i32,
+            graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        ),
+        CoreError::Internal(_) => (
+            graphdb_error_code_t::GRAPHDB_INTERNAL as i32,
+            graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        ),
+        CoreError::NotFound(_) => (
+            graphdb_error_code_t::GRAPHDB_NOTFOUND as i32,
+            graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        ),
+        CoreError::InvalidParameter(_) => (
+            graphdb_error_code_t::GRAPHDB_MISUSE as i32,
+            graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        ),
     }
 }
 
-/// 获取错误码对应的描述字符串（null 终止）
-pub fn error_code_to_string(code: graphdb_error_code_t) -> &'static [u8] {
+/// 获取错误码对应的描述消息（null 终止）
+pub fn error_code_to_message(code: graphdb_error_code_t) -> &'static [u8] {
     match code {
         graphdb_error_code_t::GRAPHDB_OK => "OK\0".as_bytes(),
         graphdb_error_code_t::GRAPHDB_ERROR => "General error\0".as_bytes(),
@@ -194,6 +272,31 @@ pub fn error_code_to_string(code: graphdb_error_code_t) -> &'static [u8] {
         graphdb_error_code_t::GRAPHDB_MISUSE => "Misuse\0".as_bytes(),
         graphdb_error_code_t::GRAPHDB_RANGE => "Out of range\0".as_bytes(),
         graphdb_error_code_t::GRAPHDB_NOT_IMPLEMENTED => "Not implemented\0".as_bytes(),
+    }
+}
+
+/// 获取扩展错误码对应的描述消息（null 终止）
+pub fn extended_error_code_to_message(code: graphdb_extended_error_code_t) -> &'static [u8] {
+    match code {
+        graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE => "No error\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_SYNTAX => "Syntax error\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_SEMANTIC => "Semantic error\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_UNEXPECTED_TOKEN => "Unexpected token\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_UNTERMINATED_LITERAL => "Unterminated literal\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_TYPE_MISMATCH => "Type mismatch\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_DIVISION_BY_ZERO => "Division by zero\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_OUT_OF_RANGE => "Out of range\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_DUPLICATE_KEY => "Duplicate key\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_FOREIGN_KEY => "Foreign key constraint\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_NOT_NULL => "Not null constraint\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_UNIQUE => "Unique constraint\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_CHECK => "Check constraint\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_CONNECTION_LOST => "Connection lost\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_DEADLOCK => "Deadlock\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_LOCK_TIMEOUT => "Lock timeout\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_INVALID_VERTEX => "Invalid vertex\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_INVALID_EDGE => "Invalid edge\0".as_bytes(),
+        graphdb_extended_error_code_t::GRAPHDB_ERROR_PATH_NOT_FOUND => "Path not found\0".as_bytes(),
     }
 }
 
@@ -270,8 +373,47 @@ pub extern "C" fn graphdb_error_string(code: i32) -> *const std::ffi::c_char {
         _ => graphdb_error_code_t::GRAPHDB_ERROR,
     };
 
-    let desc = error_code_to_string(error_code);
+    let desc = error_code_to_message(error_code);
     // 注意：这里返回的字符串是静态的，不需要释放
+    desc.as_ptr() as *const std::ffi::c_char
+}
+
+/// 获取错误码对应的字符串描述（类似 SQLite 的 sqlite3_errstr）
+///
+/// # 参数
+/// - `code`: 错误码
+///
+/// # 返回
+/// - 错误描述字符串（静态生命周期，不需要释放）
+#[no_mangle]
+pub extern "C" fn graphdb_errstr(code: i32) -> *const std::ffi::c_char {
+    let error_code = match code {
+        0 => graphdb_error_code_t::GRAPHDB_OK,
+        1 => graphdb_error_code_t::GRAPHDB_ERROR,
+        2 => graphdb_error_code_t::GRAPHDB_INTERNAL,
+        3 => graphdb_error_code_t::GRAPHDB_PERM,
+        4 => graphdb_error_code_t::GRAPHDB_ABORT,
+        5 => graphdb_error_code_t::GRAPHDB_BUSY,
+        6 => graphdb_error_code_t::GRAPHDB_LOCKED,
+        7 => graphdb_error_code_t::GRAPHDB_NOMEM,
+        8 => graphdb_error_code_t::GRAPHDB_READONLY,
+        9 => graphdb_error_code_t::GRAPHDB_INTERRUPT,
+        10 => graphdb_error_code_t::GRAPHDB_IOERR,
+        11 => graphdb_error_code_t::GRAPHDB_CORRUPT,
+        12 => graphdb_error_code_t::GRAPHDB_NOTFOUND,
+        13 => graphdb_error_code_t::GRAPHDB_FULL,
+        14 => graphdb_error_code_t::GRAPHDB_CANTOPEN,
+        15 => graphdb_error_code_t::GRAPHDB_PROTOCOL,
+        16 => graphdb_error_code_t::GRAPHDB_SCHEMA,
+        17 => graphdb_error_code_t::GRAPHDB_TOOBIG,
+        18 => graphdb_error_code_t::GRAPHDB_CONSTRAINT,
+        19 => graphdb_error_code_t::GRAPHDB_MISMATCH,
+        20 => graphdb_error_code_t::GRAPHDB_MISUSE,
+        21 => graphdb_error_code_t::GRAPHDB_RANGE,
+        _ => graphdb_error_code_t::GRAPHDB_ERROR,
+    };
+
+    let desc = error_code_to_message(error_code);
     desc.as_ptr() as *const std::ffi::c_char
 }
 

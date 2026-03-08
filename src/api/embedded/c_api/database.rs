@@ -56,7 +56,7 @@ pub extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb_t) -> 
             graphdb_error_code_t::GRAPHDB_OK as c_int
         }
         Err(e) => {
-            let error_code = error_code_from_core_error(&e);
+            let (error_code, _) = error_code_from_core_error(&e);
             let error_msg = format!("{}", e);
             set_last_error_message(error_msg);
             unsafe {
@@ -137,7 +137,7 @@ pub extern "C" fn graphdb_open_v2(
             graphdb_error_code_t::GRAPHDB_OK as c_int
         }
         Err(e) => {
-            let error_code = error_code_from_core_error(&e);
+            let (error_code, _) = error_code_from_core_error(&e);
             let error_msg = format!("{}", e);
             set_last_error_message(error_msg);
             unsafe {
@@ -263,7 +263,7 @@ pub extern "C" fn graphdb_backup(
             Err(e) => {
                 let error_msg = format!("Backup failed: {}", e);
                 let core_error = CoreError::StorageError(error_msg.clone());
-                let error_code = error_code_from_core_error(&core_error);
+                let (error_code, _) = error_code_from_core_error(&core_error);
                 set_last_error_message(error_msg);
                 error_code
             }
@@ -305,7 +305,7 @@ pub extern "C" fn graphdb_restore(
             Err(e) => {
                 let error_msg = format!("Restore failed: {}", e);
                 let core_error = CoreError::StorageError(error_msg.clone());
-                let error_code = error_code_from_core_error(&core_error);
+                let (error_code, _) = error_code_from_core_error(&core_error);
                 set_last_error_message(error_msg);
                 error_code
             }

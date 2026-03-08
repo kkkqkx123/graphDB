@@ -331,6 +331,17 @@ int32_t graphdb_errmsg(char *msg, uintptr_t len);
 const char *graphdb_error_string(int32_t code);
 
 /**
+ * 获取错误码对应的字符串描述（类似 SQLite 的 sqlite3_errstr）
+ *
+ * # 参数
+ * - `code`: 错误码
+ *
+ * # 返回
+ * - 错误描述字符串（静态生命周期，不需要释放）
+ */
+const char *graphdb_errstr(int32_t code);
+
+/**
  * 获取最后的错误消息
  *
  * # 返回

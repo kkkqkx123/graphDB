@@ -144,7 +144,7 @@ pub extern "C" fn graphdb_session_create(
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 set_last_error_message(error_msg);
                 *session = ptr::null_mut();
@@ -209,7 +209,7 @@ pub extern "C" fn graphdb_session_use_space(
                 graphdb_error_code_t::GRAPHDB_OK as c_int
             }
             Err(e) => {
-                let error_code = error_code_from_core_error(&e);
+                let (error_code, _) = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
                 let offset = e.error_offset();
                 let extended_code = Some(extended_error_code_from_core_error(&e));
