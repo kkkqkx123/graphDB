@@ -67,6 +67,8 @@ pub enum ExpressionErrorType {
     AggregateError,
     /// 验证错误
     ValidationError,
+    /// 函数执行错误
+    FunctionExecutionError,
 }
 
 impl std::fmt::Display for ExpressionErrorType {
@@ -95,6 +97,7 @@ impl std::fmt::Display for ExpressionErrorType {
             ExpressionErrorType::RangeError => write!(f, "Range error"),
             ExpressionErrorType::AggregateError => write!(f, "Aggregate error"),
             ExpressionErrorType::ValidationError => write!(f, "Validation error"),
+            ExpressionErrorType::FunctionExecutionError => write!(f, "Function execution error"),
         }
     }
 }

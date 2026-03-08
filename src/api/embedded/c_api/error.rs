@@ -150,6 +150,8 @@ pub enum graphdb_error_code_t {
     GRAPHDB_MISUSE = 20,
     /// 超出范围
     GRAPHDB_RANGE = 21,
+    /// 未实现
+    GRAPHDB_NOT_IMPLEMENTED = 22,
 }
 
 /// 从核心错误转换为 C 错误码
@@ -191,6 +193,7 @@ pub fn error_code_to_string(code: graphdb_error_code_t) -> &'static [u8] {
         graphdb_error_code_t::GRAPHDB_MISMATCH => "类型不匹配\0".as_bytes(),
         graphdb_error_code_t::GRAPHDB_MISUSE => "误用\0".as_bytes(),
         graphdb_error_code_t::GRAPHDB_RANGE => "超出范围\0".as_bytes(),
+        graphdb_error_code_t::GRAPHDB_NOT_IMPLEMENTED => "未实现\0".as_bytes(),
     }
 }
 

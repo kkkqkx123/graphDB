@@ -9,7 +9,7 @@ use crate::api::embedded::c_api::error::{
 };
 use crate::api::embedded::c_api::types::{
     graphdb_commit_hook_callback, graphdb_extended_error_code_t, graphdb_rollback_hook_callback,
-    graphdb_session_t, graphdb_t, graphdb_trace_callback,
+    graphdb_session_t, graphdb_t, graphdb_trace_callback, graphdb_update_hook_callback,
 };
 use crate::api::embedded::Session;
 use crate::storage::RedbStorage;
@@ -38,6 +38,10 @@ pub struct GraphDbSessionHandle {
     pub(crate) rollback_hook: graphdb_rollback_hook_callback,
     /// 回滚钩子用户数据
     pub(crate) rollback_hook_user_data: *mut c_void,
+    /// 更新钩子回调
+    pub(crate) update_hook: graphdb_update_hook_callback,
+    /// 更新钩子用户数据
+    pub(crate) update_hook_user_data: *mut c_void,
 }
 
 // 手动实现 Send 和 Sync，因为 *mut c_void 不是线程安全的
@@ -60,6 +64,25 @@ impl GraphDbSessionHandle {
             commit_hook_user_data: ptr::null_mut(),
             rollback_hook: None,
             rollback_hook_user_data: ptr::null_mut(),
+            update_hook: None,
+            update_hook_user_data: ptr::null_mut(),
+        }
+    }
+
+    /// 调用更新钩子
+    pub(crate) fn invoke_update_hook(&self, operation: i32, space_name: &str, rowid: i64) {
+        if let Some(callback) = self.update_hook {
+            if let Ok(c_space) = CString::new(space_name) {
+                // 对于图数据库，table 参数使用空字符串
+                let empty_table = CString::new("").unwrap();
+                callback(
+                    self.update_hook_user_data,
+                    operation,
+                    c_space.as_ptr(),
+                    empty_table.as_ptr(),
+                    rowid,
+                );
+            }
         }
     }
 
@@ -514,6 +537,42 @@ pub extern "C" fn graphdb_rollback_hook(
         let old_user_data = handle.rollback_hook_user_data;
         handle.rollback_hook = callback;
         handle.rollback_hook_user_data = user_data;
+        old_user_data
+    }
+}
+
+/// 设置更新钩子
+///
+/// 当数据库中的数据发生变更时调用回调函数
+///
+/// # 参数
+/// - `session`: 会话句柄
+/// - `callback`: 更新钩子回调函数，NULL 表示取消钩子
+/// - `user_data`: 用户数据指针，将传递给回调函数
+///
+/// # 返回
+/// - 之前的钩子用户数据指针（如果有）
+///
+/// # 回调参数说明
+/// - `operation`: 操作类型（1=INSERT, 2=UPDATE, 3=DELETE）
+/// - `database`: 数据库/空间名称
+/// - `table`: 表名称（图数据库中为空字符串）
+/// - `rowid`: 受影响的行 ID
+#[no_mangle]
+pub extern "C" fn graphdb_update_hook(
+    session: *mut graphdb_session_t,
+    callback: graphdb_update_hook_callback,
+    user_data: *mut c_void,
+) -> *mut c_void {
+    if session.is_null() {
+        return ptr::null_mut();
+    }
+
+    unsafe {
+        let handle = &mut *(session as *mut GraphDbSessionHandle);
+        let old_user_data = handle.update_hook_user_data;
+        handle.update_hook = callback;
+        handle.update_hook_user_data = user_data;
         old_user_data
     }
 }

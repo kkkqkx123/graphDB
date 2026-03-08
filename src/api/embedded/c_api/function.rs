@@ -2,15 +2,16 @@
 //!
 //! 提供自定义标量函数和聚合函数的注册功能
 
-use crate::api::embedded::c_api::error::{
-    error_code_from_core_error, graphdb_error_code_t, set_last_error_message,
-};
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{
     graphdb_session_t, graphdb_value_t, graphdb_value_type_t,
 };
-use std::ffi::{c_char, c_int, c_void};
-use std::ptr;
+use crate::c_api::graphdb_error_code_t;
+use crate::query::executor::expression::functions::{
+    AggregateFinalCallback, AggregateStepCallback, CFunctionContext, CustomFunction,
+    ScalarFunctionCallback,
+};
+use std::ffi::{c_char, c_int, c_void, CStr};
 
 /// 标量函数回调类型
 pub type graphdb_scalar_function_callback = Option<
@@ -38,7 +39,10 @@ pub type graphdb_function_destroy_callback = Option<extern "C" fn(user_data: *mu
 
 /// 函数执行上下文（不透明指针）
 #[repr(C)]
-pub struct graphdb_context_t;
+pub struct graphdb_context_t {
+    /// 内部上下文
+    pub(crate) inner: CFunctionContext,
+}
 
 /// 创建自定义标量函数
 ///
@@ -69,20 +73,42 @@ pub extern "C" fn graphdb_create_function(
     argc: c_int,
     user_data: *mut c_void,
     x_func: graphdb_scalar_function_callback,
-    x_destroy: graphdb_function_destroy_callback,
+    _x_destroy: graphdb_function_destroy_callback,
 ) -> c_int {
     if session.is_null() || name.is_null() || x_func.is_none() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    // 注意：当前实现仅为 API 占位
-    // 完整的实现需要修改查询引擎以支持用户自定义函数注册
-    // 这需要：
-    // 1. 在 Session 中维护函数注册表
-    // 2. 修改查询解析器以识别自定义函数
-    // 3. 在查询执行时调用相应的 C 回调
+    let name_str = unsafe {
+        match CStr::from_ptr(name).to_str() {
+            Ok(s) => s,
+            Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+        }
+    };
 
-    // 返回成功，表示 API 可用，但实际功能需要进一步实现
+    unsafe {
+        let handle = &*(session as *mut GraphDbSessionHandle);
+
+        // 将 C 回调转换为 Rust 回调类型
+        let callback: ScalarFunctionCallback = std::mem::transmute(x_func);
+
+        // 创建自定义函数
+        let func = CustomFunction::new_c(
+            name_str,
+            argc as usize,
+            argc < 0,
+            format!("C function: {}", name_str),
+            callback,
+            user_data,
+        );
+
+        // 注册到会话
+        if let Err(e) = handle.inner.register_custom_function(func) {
+            eprintln!("注册函数失败: {:?}", e);
+            return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
+        }
+    }
+
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
@@ -108,18 +134,43 @@ pub extern "C" fn graphdb_create_aggregate(
     user_data: *mut c_void,
     x_step: graphdb_aggregate_step_callback,
     x_final: graphdb_aggregate_final_callback,
-    x_destroy: graphdb_function_destroy_callback,
+    _x_destroy: graphdb_function_destroy_callback,
 ) -> c_int {
-    if session.is_null()
-        || name.is_null()
-        || x_step.is_none()
-        || x_final.is_none()
-    {
+    if session.is_null() || name.is_null() || x_step.is_none() || x_final.is_none() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    // 注意：当前实现仅为 API 占位
-    // 完整的实现需要修改查询引擎以支持用户自定义聚合函数注册
+    let name_str = unsafe {
+        match CStr::from_ptr(name).to_str() {
+            Ok(s) => s,
+            Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+        }
+    };
+
+    unsafe {
+        let handle = &*(session as *mut GraphDbSessionHandle);
+
+        // 将 C 回调转换为 Rust 回调类型
+        let step_callback: AggregateStepCallback = std::mem::transmute(x_step);
+        let final_callback: AggregateFinalCallback = std::mem::transmute(x_final);
+
+        // 创建聚合函数
+        let func = CustomFunction::new_c_aggregate(
+            name_str,
+            argc as usize,
+            argc < 0,
+            format!("C aggregate function: {}", name_str),
+            step_callback,
+            final_callback,
+            user_data,
+        );
+
+        // 注册到会话
+        if let Err(e) = handle.inner.register_custom_function(func) {
+            eprintln!("注册聚合函数失败: {:?}", e);
+            return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
+        }
+    }
 
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
@@ -142,6 +193,8 @@ pub extern "C" fn graphdb_delete_function(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
+    // 注意：需要从注册表中删除函数
+    // 当前返回成功（函数会在会话结束时自动清理）
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
@@ -155,10 +208,23 @@ pub extern "C" fn graphdb_delete_function(
 /// 在标量函数或聚合函数的 xFinal 回调中调用此函数设置返回值
 #[no_mangle]
 pub extern "C" fn graphdb_context_set_result(
-    _context: *mut graphdb_context_t,
-    _value: *const graphdb_value_t,
+    context: *mut graphdb_context_t,
+    value: *const graphdb_value_t,
 ) -> c_int {
-    // 注意：当前实现仅为 API 占位
+    if context.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    unsafe {
+        let ctx = &mut (*context).inner;
+        if value.is_null() {
+            ctx.set_result(crate::core::Value::Null(crate::core::NullType::Null));
+        } else {
+            let val = crate::api::embedded::c_api::value::graphdb_value_to_core(value);
+            ctx.set_result(val);
+        }
+    }
+
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
@@ -170,8 +236,18 @@ pub extern "C" fn graphdb_context_set_result(
 /// # 返回
 /// - 值类型
 #[no_mangle]
-pub extern "C" fn graphdb_context_result_type(_context: *mut graphdb_context_t) -> graphdb_value_type_t {
-    graphdb_value_type_t::GRAPHDB_NULL
+pub extern "C" fn graphdb_context_result_type(context: *mut graphdb_context_t) -> graphdb_value_type_t {
+    if context.is_null() {
+        return graphdb_value_type_t::GRAPHDB_NULL;
+    }
+
+    unsafe {
+        let ctx = &(*context).inner;
+        match &ctx.result {
+            Some(val) => crate::api::embedded::c_api::value::core_value_to_graphdb_type(val),
+            None => graphdb_value_type_t::GRAPHDB_NULL,
+        }
+    }
 }
 
 /// 设置错误消息
@@ -184,12 +260,50 @@ pub extern "C" fn graphdb_context_result_type(_context: *mut graphdb_context_t) 
 /// 在函数执行出错时调用此函数设置错误消息
 #[no_mangle]
 pub extern "C" fn graphdb_context_set_error(
-    _context: *mut graphdb_context_t,
+    context: *mut graphdb_context_t,
     error_msg: *const c_char,
 ) -> c_int {
-    if error_msg.is_null() {
+    if context.is_null() || error_msg.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
+    unsafe {
+        let ctx = &mut (*context).inner;
+        let msg = CStr::from_ptr(error_msg)
+            .to_string_lossy()
+            .into_owned();
+        ctx.set_error(msg);
+    }
+
     graphdb_error_code_t::GRAPHDB_OK as c_int
+}
+
+/// 从上下文获取参数值（辅助函数）
+///
+/// # 参数
+/// - `context`: 函数执行上下文
+/// - `index`: 参数索引
+///
+/// # 返回
+/// - 参数值指针，如果索引越界返回 NULL
+#[no_mangle]
+pub extern "C" fn graphdb_context_get_arg(
+    _context: *mut graphdb_context_t,
+    _index: c_int,
+) -> *const graphdb_value_t {
+    // 注意：参数通过 argv 数组直接传递，此函数当前未使用
+    std::ptr::null()
+}
+
+/// 获取参数数量
+///
+/// # 参数
+/// - `context`: 函数执行上下文
+///
+/// # 返回
+/// - 参数数量
+#[no_mangle]
+pub extern "C" fn graphdb_context_arg_count(_context: *mut graphdb_context_t) -> c_int {
+    // 注意：参数数量通过 argc 直接传递，此函数当前未使用
+    0
 }

@@ -9,6 +9,7 @@ use crate::api::embedded::statement::PreparedStatement;
 use crate::api::embedded::statistics::SessionStatistics;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
 use crate::core::Value;
+use crate::query::executor::expression::functions::{CustomFunction, FunctionRegistry};
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
 use crate::transaction::TransactionOptions;
@@ -49,6 +50,8 @@ pub struct Session<S: StorageClient + Clone + 'static> {
     auto_commit: bool,
     /// 会话级变更统计
     statistics: SessionStatistics,
+    /// 会话级函数注册表
+    function_registry: Arc<Mutex<FunctionRegistry>>,
 }
 
 /// 数据库内部结构，用于在 Session 和 GraphDatabase 之间共享
@@ -69,7 +72,20 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
             space_name: None,
             auto_commit: true,
             statistics: SessionStatistics::new(),
+            function_registry: Arc::new(Mutex::new(FunctionRegistry::new())),
         }
+    }
+
+    /// 注册自定义函数
+    pub fn register_custom_function(&self, function: CustomFunction) -> CoreResult<()> {
+        let mut registry = self.function_registry.lock();
+        registry.register_custom_full(function);
+        Ok(())
+    }
+
+    /// 获取函数注册表引用
+    pub fn function_registry(&self) -> Arc<Mutex<FunctionRegistry>> {
+        Arc::clone(&self.function_registry)
     }
 
     /// 获取上次操作影响的行数

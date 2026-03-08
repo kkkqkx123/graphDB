@@ -137,6 +137,11 @@ typedef enum graphdb_value_type_t {
 } graphdb_value_type_t;
 
 /**
+ * C 函数上下文结构（不透明指针）
+ */
+typedef struct CFunctionContext CFunctionContext;
+
+/**
  * 会话句柄（不透明指针）
  */
 typedef struct graphdb_session_t {
@@ -161,6 +166,12 @@ typedef void (*graphdb_trace_callback)(const char *sql, void *user_data);
 typedef int (*graphdb_commit_hook_callback)(void *user_data);
 
 typedef void (*graphdb_rollback_hook_callback)(void *user_data);
+
+typedef void (*graphdb_update_hook_callback)(void *user_data,
+                                             int operation,
+                                             const char *database,
+                                             const char *table,
+                                             int64_t rowid);
 
 /**
  * 结果集句柄（不透明指针）
@@ -266,7 +277,10 @@ typedef struct graphdb_batch_t {
  * 函数执行上下文（不透明指针）
  */
 typedef struct graphdb_context_t {
-
+  /**
+   * 内部上下文
+   */
+  struct CFunctionContext inner;
 } graphdb_context_t;
 
 /**
@@ -650,6 +664,29 @@ void *graphdb_commit_hook(struct graphdb_session_t *session,
 void *graphdb_rollback_hook(struct graphdb_session_t *session,
                             graphdb_rollback_hook_callback callback,
                             void *user_data);
+
+/**
+ * 设置更新钩子
+ *
+ * 当数据库中的数据发生变更时调用回调函数
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `callback`: 更新钩子回调函数，NULL 表示取消钩子
+ * - `user_data`: 用户数据指针，将传递给回调函数
+ *
+ * # 返回
+ * - 之前的钩子用户数据指针（如果有）
+ *
+ * # 回调参数说明
+ * - `operation`: 操作类型（1=INSERT, 2=UPDATE, 3=DELETE）
+ * - `database`: 数据库/空间名称
+ * - `table`: 表名称（图数据库中为空字符串）
+ * - `rowid`: 受影响的行 ID
+ */
+void *graphdb_update_hook(struct graphdb_session_t *session,
+                          graphdb_update_hook_callback callback,
+                          void *user_data);
 
 /**
  * 执行简单查询
@@ -1230,6 +1267,56 @@ const char *graphdb_get_string_by_index(struct graphdb_result_t *result,
                                         int *len);
 
 /**
+ * 获取布尔值（按列索引）
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列索引（从 0 开始）
+ * - `value`: 输出参数，布尔值
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_get_bool_by_index(struct graphdb_result_t *result, int row, int col, bool *value);
+
+/**
+ * 获取浮点值（按列索引）
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列索引（从 0 开始）
+ * - `value`: 输出参数，浮点值
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_get_float_by_index(struct graphdb_result_t *result, int row, int col, double *value);
+
+/**
+ * 获取二进制数据（按列索引）
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列索引（从 0 开始）
+ * - `len`: 输出参数，数据长度（字节）
+ *
+ * # 返回
+ * - 数据指针，错误返回 NULL
+ *
+ * # 注意
+ * 返回的指针生命周期与结果集绑定，调用者不应释放
+ */
+const uint8_t *graphdb_get_blob_by_index(struct graphdb_result_t *result,
+                                         int row,
+                                         int col,
+                                         int *len);
+
+/**
  * 获取列类型
  *
  * # 参数
@@ -1270,7 +1357,7 @@ int graphdb_create_function(struct graphdb_session_t *session,
                             int argc,
                             void *user_data,
                             graphdb_scalar_function_callback x_func,
-                            graphdb_function_destroy_callback x_destroy);
+                            graphdb_function_destroy_callback _x_destroy);
 
 /**
  * 创建自定义聚合函数
@@ -1294,7 +1381,7 @@ int graphdb_create_aggregate(struct graphdb_session_t *session,
                              void *user_data,
                              graphdb_aggregate_step_callback x_step,
                              graphdb_aggregate_final_callback x_final,
-                             graphdb_function_destroy_callback x_destroy);
+                             graphdb_function_destroy_callback _x_destroy);
 
 /**
  * 删除自定义函数
@@ -1319,8 +1406,8 @@ int graphdb_delete_function(struct graphdb_session_t *session, const char *name)
  * # 说明
  * 在标量函数或聚合函数的 xFinal 回调中调用此函数设置返回值
  */
-int graphdb_context_set_result(struct graphdb_context_t *_context,
-                               const struct graphdb_value_t *_value);
+int graphdb_context_set_result(struct graphdb_context_t *context,
+                               const struct graphdb_value_t *value);
 
 /**
  * 获取函数返回值的类型
@@ -1331,7 +1418,7 @@ int graphdb_context_set_result(struct graphdb_context_t *_context,
  * # 返回
  * - 值类型
  */
-enum graphdb_value_type_t graphdb_context_result_type(struct graphdb_context_t *_context);
+enum graphdb_value_type_t graphdb_context_result_type(struct graphdb_context_t *context);
 
 /**
  * 设置错误消息
@@ -1343,4 +1430,28 @@ enum graphdb_value_type_t graphdb_context_result_type(struct graphdb_context_t *
  * # 说明
  * 在函数执行出错时调用此函数设置错误消息
  */
-int graphdb_context_set_error(struct graphdb_context_t *_context, const char *error_msg);
+int graphdb_context_set_error(struct graphdb_context_t *context, const char *error_msg);
+
+/**
+ * 从上下文获取参数值（辅助函数）
+ *
+ * # 参数
+ * - `context`: 函数执行上下文
+ * - `index`: 参数索引
+ *
+ * # 返回
+ * - 参数值指针，如果索引越界返回 NULL
+ */
+const struct graphdb_value_t *graphdb_context_get_arg(struct graphdb_context_t *_context,
+                                                      int _index);
+
+/**
+ * 获取参数数量
+ *
+ * # 参数
+ * - `context`: 函数执行上下文
+ *
+ * # 返回
+ * - 参数数量
+ */
+int graphdb_context_arg_count(struct graphdb_context_t *_context);

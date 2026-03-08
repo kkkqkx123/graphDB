@@ -414,6 +414,174 @@ pub extern "C" fn graphdb_get_string_by_index(
     }
 }
 
+/// 获取布尔值（按列索引）
+///
+/// # 参数
+/// - `result`: 结果集句柄
+/// - `row`: 行索引（从 0 开始）
+/// - `col`: 列索引（从 0 开始）
+/// - `value`: 输出参数，布尔值
+///
+/// # 返回
+/// - 成功: GRAPHDB_OK
+/// - 失败: 错误码
+#[no_mangle]
+pub extern "C" fn graphdb_get_bool_by_index(
+    result: *mut graphdb_result_t,
+    row: c_int,
+    col: c_int,
+    value: *mut bool,
+) -> c_int {
+    if result.is_null() || value.is_null() || col < 0 {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    unsafe {
+        let handle = &*(result as *mut GraphDbResultHandle);
+
+        let columns = handle.inner.columns();
+        let col_name = match columns.get(col as usize) {
+            Some(name) => name.as_str(),
+            None => return graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+        };
+
+        match handle.inner.get(row as usize) {
+            Some(row_data) => {
+                match row_data.get(col_name) {
+                    Some(crate::core::Value::Bool(b)) => {
+                        *value = *b;
+                        graphdb_error_code_t::GRAPHDB_OK as c_int
+                    }
+                    Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
+                    None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+                }
+            }
+            None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+        }
+    }
+}
+
+/// 获取浮点值（按列索引）
+///
+/// # 参数
+/// - `result`: 结果集句柄
+/// - `row`: 行索引（从 0 开始）
+/// - `col`: 列索引（从 0 开始）
+/// - `value`: 输出参数，浮点值
+///
+/// # 返回
+/// - 成功: GRAPHDB_OK
+/// - 失败: 错误码
+#[no_mangle]
+pub extern "C" fn graphdb_get_float_by_index(
+    result: *mut graphdb_result_t,
+    row: c_int,
+    col: c_int,
+    value: *mut f64,
+) -> c_int {
+    if result.is_null() || value.is_null() || col < 0 {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    unsafe {
+        let handle = &*(result as *mut GraphDbResultHandle);
+
+        let columns = handle.inner.columns();
+        let col_name = match columns.get(col as usize) {
+            Some(name) => name.as_str(),
+            None => return graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+        };
+
+        match handle.inner.get(row as usize) {
+            Some(row_data) => {
+                match row_data.get(col_name) {
+                    Some(crate::core::Value::Float(f)) => {
+                        *value = *f;
+                        graphdb_error_code_t::GRAPHDB_OK as c_int
+                    }
+                    Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
+                    None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+                }
+            }
+            None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+        }
+    }
+}
+
+/// 获取二进制数据（按列索引）
+///
+/// # 参数
+/// - `result`: 结果集句柄
+/// - `row`: 行索引（从 0 开始）
+/// - `col`: 列索引（从 0 开始）
+/// - `len`: 输出参数，数据长度（字节）
+///
+/// # 返回
+/// - 数据指针，错误返回 NULL
+///
+/// # 注意
+/// 返回的指针生命周期与结果集绑定，调用者不应释放
+#[no_mangle]
+pub extern "C" fn graphdb_get_blob_by_index(
+    result: *mut graphdb_result_t,
+    row: c_int,
+    col: c_int,
+    len: *mut c_int,
+) -> *const u8 {
+    if result.is_null() || col < 0 {
+        if !len.is_null() {
+            unsafe { *len = -1; }
+        }
+        return ptr::null();
+    }
+
+    unsafe {
+        let handle = &*(result as *mut GraphDbResultHandle);
+
+        let columns = handle.inner.columns();
+        let col_name = match columns.get(col as usize) {
+            Some(name) => name.as_str(),
+            None => {
+                if !len.is_null() {
+                    *len = -1;
+                }
+                return ptr::null();
+            }
+        };
+
+        match handle.inner.get(row as usize) {
+            Some(row_data) => {
+                match row_data.get(col_name) {
+                    Some(crate::core::Value::Blob(blob)) => {
+                        if !len.is_null() {
+                            *len = blob.len() as c_int;
+                        }
+                        blob.as_ptr()
+                    }
+                    Some(_) => {
+                        if !len.is_null() {
+                            *len = -1;
+                        }
+                        ptr::null()
+                    }
+                    None => {
+                        if !len.is_null() {
+                            *len = -1;
+                        }
+                        ptr::null()
+                    }
+                }
+            }
+            None => {
+                if !len.is_null() {
+                    *len = -1;
+                }
+                ptr::null()
+            }
+        }
+    }
+}
+
 /// 获取列类型
 ///
 /// # 参数

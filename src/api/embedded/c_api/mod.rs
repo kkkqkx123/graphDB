@@ -12,6 +12,7 @@ pub mod transaction;
 pub mod batch;
 pub mod result;
 pub mod function;
+pub mod value;
 
 pub use types::*;
 pub use error::*;
@@ -23,3 +24,4 @@ pub use transaction::*;
 pub use batch::*;
 pub use result::*;
 pub use function::*;
+pub use value::*;
