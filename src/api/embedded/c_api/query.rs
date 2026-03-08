@@ -2,7 +2,9 @@
 //!
 //! 提供查询执行功能，包括简单查询和参数化查询
 
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
+use crate::api::embedded::c_api::error::{
+    error_code_from_core_error, extended_error_code_from_core_error, graphdb_error_code_t,
+};
 use crate::api::embedded::c_api::result::GraphDbResultHandle;
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, graphdb_value_t};
@@ -43,6 +45,7 @@ pub extern "C" fn graphdb_execute(
 
         match handle.inner.execute(query_str) {
             Ok(query_result) => {
+                handle.clear_error();
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
                 });
@@ -52,8 +55,9 @@ pub extern "C" fn graphdb_execute(
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+                let offset = e.error_offset();
+                let extended_code = Some(extended_error_code_from_core_error(&e));
+                handle.set_error(error_msg, offset, extended_code);
                 *result = ptr::null_mut();
                 error_code
             }
@@ -110,6 +114,7 @@ pub extern "C" fn graphdb_execute_params(
 
         match handle.inner.execute_with_params(query_str, params_map) {
             Ok(query_result) => {
+                handle.clear_error();
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
                 });
@@ -118,7 +123,10 @@ pub extern "C" fn graphdb_execute_params(
             }
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
-                handle.last_error = Some(CString::new(format!("{}", e)).unwrap_or_default());
+                let error_msg = format!("{}", e);
+                let offset = e.error_offset();
+                let extended_code = Some(extended_error_code_from_core_error(&e));
+                handle.set_error(error_msg, offset, extended_code);
                 *result = ptr::null_mut();
                 error_code
             }

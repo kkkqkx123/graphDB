@@ -202,6 +202,14 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
     pub fn is_memory(&self) -> bool {
         self.config.is_memory()
     }
+
+    /// 获取存储客户端的引用
+    ///
+    /// # 返回
+    /// - 存储客户端的 MutexGuard
+    pub fn storage(&self) -> parking_lot::MutexGuard<'_, S> {
+        self.inner.storage.lock()
+    }
 }
 
 // 为了支持 Send + Sync

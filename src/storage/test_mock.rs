@@ -452,4 +452,16 @@ impl StorageClient for MockStorage {
     fn repair_dangling_edges(&mut self, _space: &str) -> Result<usize, StorageError> {
         Ok(0)
     }
+
+    fn backup(&self, _dest_path: &str) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn restore(&mut self, _src_path: &str) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn get_db_path(&self) -> &str {
+        ""
+    }
 }

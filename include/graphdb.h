@@ -128,18 +128,18 @@ typedef enum graphdb_value_type_t {
 } graphdb_value_type_t;
 
 /**
- * 数据库句柄（不透明指针）
- */
-typedef struct graphdb_t {
-
-} graphdb_t;
-
-/**
  * 会话句柄（不透明指针）
  */
 typedef struct graphdb_session_t {
 
 } graphdb_session_t;
+
+/**
+ * 数据库句柄（不透明指针）
+ */
+typedef struct graphdb_t {
+
+} graphdb_t;
 
 /**
  * 结果集句柄（不透明指针）
@@ -273,6 +273,28 @@ const char *graphdb_error_string(int32_t code);
 const char *graphdb_get_last_error_message(void);
 
 /**
+ * 获取 SQL 错误位置（字符偏移量）
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ *
+ * # 返回
+ * - 错误位置的字符偏移量，如果没有错误或无效会话返回 -1
+ */
+int graphdb_error_offset(struct graphdb_session_t *session);
+
+/**
+ * 获取扩展错误码
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ *
+ * # 返回
+ * - 扩展错误码，如果没有错误或无效会话返回 0 (GRAPHDB_EXTENDED_NONE)
+ */
+int graphdb_extended_errcode(struct graphdb_session_t *session);
+
+/**
  * 打开数据库
  *
  * # 参数
@@ -351,6 +373,32 @@ void graphdb_free_string(char *str);
  * - `ptr`: 内存指针
  */
 void graphdb_free(void *ptr);
+
+/**
+ * 备份数据库
+ *
+ * # 参数
+ * - `db`: 数据库句柄
+ * - `dest_path`: 目标备份文件路径（UTF-8 编码）
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_backup(struct graphdb_t *db, const char *dest_path);
+
+/**
+ * 从备份恢复数据库
+ *
+ * # 参数
+ * - `db`: 数据库句柄
+ * - `src_path`: 源备份文件路径（UTF-8 编码）
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_restore(struct graphdb_t *db, const char *src_path);
 
 /**
  * 创建会话

@@ -2,10 +2,11 @@
 //!
 //! 提供数据库的打开、关闭和基本管理功能
 
+use crate::api::core::CoreError;
 use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::types::{graphdb_t, GRAPHDB_OPEN_READONLY, GRAPHDB_OPEN_READWRITE, GRAPHDB_OPEN_CREATE};
 use crate::api::embedded::{DatabaseConfig, GraphDatabase};
-use crate::storage::RedbStorage;
+use crate::storage::{RedbStorage, StorageClient};
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::ptr;
 use std::sync::Arc;
@@ -222,6 +223,90 @@ pub extern "C" fn graphdb_free(ptr: *mut c_void) {
     if !ptr.is_null() {
         unsafe {
             let _ = Box::from_raw(ptr);
+        }
+    }
+}
+
+/// 备份数据库
+///
+/// # 参数
+/// - `db`: 数据库句柄
+/// - `dest_path`: 目标备份文件路径（UTF-8 编码）
+///
+/// # 返回
+/// - 成功: GRAPHDB_OK
+/// - 失败: 错误码
+#[no_mangle]
+pub extern "C" fn graphdb_backup(
+    db: *mut graphdb_t,
+    dest_path: *const c_char,
+) -> c_int {
+    if db.is_null() || dest_path.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let dest_str = unsafe {
+        match CStr::from_ptr(dest_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+        }
+    };
+
+    unsafe {
+        let handle = &*(db as *mut GraphDbHandle);
+        let storage = handle.inner.storage();
+
+        match StorageClient::backup(&*storage, dest_str) {
+            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+            Err(e) => {
+                let error_msg = format!("Backup failed: {}", e);
+                let core_error = CoreError::StorageError(error_msg.clone());
+                let error_code = error_code_from_core_error(&core_error);
+                set_last_error_message(error_msg);
+                error_code
+            }
+        }
+    }
+}
+
+/// 从备份恢复数据库
+///
+/// # 参数
+/// - `db`: 数据库句柄
+/// - `src_path`: 源备份文件路径（UTF-8 编码）
+///
+/// # 返回
+/// - 成功: GRAPHDB_OK
+/// - 失败: 错误码
+#[no_mangle]
+pub extern "C" fn graphdb_restore(
+    db: *mut graphdb_t,
+    src_path: *const c_char,
+) -> c_int {
+    if db.is_null() || src_path.is_null() {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    let src_str = unsafe {
+        match CStr::from_ptr(src_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+        }
+    };
+
+    unsafe {
+        let handle = &mut *(db as *mut GraphDbHandle);
+        let mut storage = handle.inner.storage();
+
+        match StorageClient::restore(&mut *storage, src_str) {
+            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+            Err(e) => {
+                let error_msg = format!("Restore failed: {}", e);
+                let core_error = CoreError::StorageError(error_msg.clone());
+                let error_code = error_code_from_core_error(&core_error);
+                set_last_error_message(error_msg);
+                error_code
+            }
         }
     }
 }

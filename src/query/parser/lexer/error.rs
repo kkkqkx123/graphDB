@@ -7,11 +7,21 @@ use crate::core::types::Position;
 pub struct LexError {
     pub message: String,
     pub position: Position,
+    pub offset: Option<usize>,
 }
 
 impl LexError {
     pub fn new(message: String, position: Position) -> Self {
-        LexError { message, position }
+        LexError {
+            message,
+            position,
+            offset: None,
+        }
+    }
+
+    pub fn with_offset(mut self, offset: usize) -> Self {
+        self.offset = Some(offset);
+        self
     }
 
     pub fn unterminated_string(position: Position) -> Self {

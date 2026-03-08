@@ -557,6 +557,18 @@ impl StorageClient for DummyStorage {
     fn repair_dangling_edges(&mut self, _space: &str) -> Result<usize, crate::core::StorageError> {
         Ok(0)
     }
+
+    fn backup(&self, _dest_path: &str) -> Result<(), crate::core::StorageError> {
+        Ok(())
+    }
+
+    fn restore(&mut self, _src_path: &str) -> Result<(), crate::core::StorageError> {
+        Ok(())
+    }
+
+    fn get_db_path(&self) -> &str {
+        ""
+    }
 }
 
 #[derive(Debug, Clone)]

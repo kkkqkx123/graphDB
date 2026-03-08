@@ -2,7 +2,8 @@
 //!
 //! 提供错误码转换和错误信息管理功能
 
-use crate::api::core::CoreError;
+use crate::api::core::{CoreError, ExtendedErrorCode};
+use crate::api::embedded::c_api::types::{graphdb_extended_error_code_t, graphdb_session_t};
 use std::cell::RefCell;
 use std::ffi::CString;
 
@@ -15,6 +16,89 @@ pub(crate) fn set_last_error_message(msg: String) {
     LAST_ERROR_MESSAGE.with(|m| {
         *m.borrow_mut() = CString::new(msg).ok();
     });
+}
+
+/// 从 CoreError 推断扩展错误码
+pub fn extended_error_code_from_core_error(error: &CoreError) -> graphdb_extended_error_code_t {
+    match error {
+        CoreError::DetailedQueryError { extended_code, .. } => {
+            extended_error_code_from_internal(*extended_code)
+        }
+        CoreError::QueryExecutionFailed(msg) => {
+            if msg.contains("syntax") || msg.contains("语法") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_SYNTAX
+            } else if msg.contains("semantic") || msg.contains("语义") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_SEMANTIC
+            } else if msg.contains("type mismatch") || msg.contains("类型不匹配") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_TYPE_MISMATCH
+            } else if msg.contains("constraint") || msg.contains("约束") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_CHECK
+            } else if msg.contains("division by zero") || msg.contains("除零") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_DIVISION_BY_ZERO
+            } else if msg.contains("out of range") || msg.contains("超出范围") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_OUT_OF_RANGE
+            } else if msg.contains("duplicate") || msg.contains("重复") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_DUPLICATE_KEY
+            } else if msg.contains("not null") || msg.contains("非空") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_NOT_NULL
+            } else if msg.contains("unique") || msg.contains("唯一") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_UNIQUE
+            } else if msg.contains("foreign key") || msg.contains("外键") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_FOREIGN_KEY
+            } else if msg.contains("deadlock") || msg.contains("死锁") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_DEADLOCK
+            } else if msg.contains("timeout") || msg.contains("超时") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_LOCK_TIMEOUT
+            } else if msg.contains("connection") || msg.contains("连接") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_CONNECTION_LOST
+            } else if msg.contains("vertex") || msg.contains("顶点") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_INVALID_VERTEX
+            } else if msg.contains("edge") || msg.contains("边") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_INVALID_EDGE
+            } else if msg.contains("path") || msg.contains("路径") {
+                graphdb_extended_error_code_t::GRAPHDB_ERROR_PATH_NOT_FOUND
+            } else {
+                graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE
+            }
+        }
+        CoreError::StorageError(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        CoreError::TransactionFailed(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        CoreError::SchemaOperationFailed(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        CoreError::InvalidParameter(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        CoreError::NotFound(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        CoreError::Internal(_) => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+    }
+}
+
+/// 从内部 ExtendedErrorCode 转换为 C API 扩展错误码
+fn extended_error_code_from_internal(code: ExtendedErrorCode) -> graphdb_extended_error_code_t {
+    match code {
+        ExtendedErrorCode::None => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
+        ExtendedErrorCode::SyntaxError => graphdb_extended_error_code_t::GRAPHDB_ERROR_SYNTAX,
+        ExtendedErrorCode::SemanticError => graphdb_extended_error_code_t::GRAPHDB_ERROR_SEMANTIC,
+        ExtendedErrorCode::UnexpectedToken => {
+            graphdb_extended_error_code_t::GRAPHDB_ERROR_UNEXPECTED_TOKEN
+        }
+        ExtendedErrorCode::UnterminatedLiteral => {
+            graphdb_extended_error_code_t::GRAPHDB_ERROR_UNTERMINATED_LITERAL
+        }
+        ExtendedErrorCode::TypeMismatch => graphdb_extended_error_code_t::GRAPHDB_ERROR_TYPE_MISMATCH,
+        ExtendedErrorCode::DivisionByZero => graphdb_extended_error_code_t::GRAPHDB_ERROR_DIVISION_BY_ZERO,
+        ExtendedErrorCode::OutOfRange => graphdb_extended_error_code_t::GRAPHDB_ERROR_OUT_OF_RANGE,
+        ExtendedErrorCode::DuplicateKey => graphdb_extended_error_code_t::GRAPHDB_ERROR_DUPLICATE_KEY,
+        ExtendedErrorCode::ForeignKeyConstraint => {
+            graphdb_extended_error_code_t::GRAPHDB_ERROR_FOREIGN_KEY
+        }
+        ExtendedErrorCode::NotNullConstraint => graphdb_extended_error_code_t::GRAPHDB_ERROR_NOT_NULL,
+        ExtendedErrorCode::UniqueConstraint => graphdb_extended_error_code_t::GRAPHDB_ERROR_UNIQUE,
+        ExtendedErrorCode::CheckConstraint => graphdb_extended_error_code_t::GRAPHDB_ERROR_CHECK,
+        ExtendedErrorCode::ConnectionLost => graphdb_extended_error_code_t::GRAPHDB_ERROR_CONNECTION_LOST,
+        ExtendedErrorCode::Deadlock => graphdb_extended_error_code_t::GRAPHDB_ERROR_DEADLOCK,
+        ExtendedErrorCode::LockTimeout => graphdb_extended_error_code_t::GRAPHDB_ERROR_LOCK_TIMEOUT,
+        ExtendedErrorCode::InvalidVertex => graphdb_extended_error_code_t::GRAPHDB_ERROR_INVALID_VERTEX,
+        ExtendedErrorCode::InvalidEdge => graphdb_extended_error_code_t::GRAPHDB_ERROR_INVALID_EDGE,
+        ExtendedErrorCode::PathNotFound => graphdb_extended_error_code_t::GRAPHDB_ERROR_PATH_NOT_FOUND,
+    }
 }
 
 /// 错误码
@@ -78,6 +162,7 @@ pub fn error_code_from_core_error(error: &CoreError) -> i32 {
         CoreError::Internal(_) => graphdb_error_code_t::GRAPHDB_INTERNAL as i32,
         CoreError::NotFound(_) => graphdb_error_code_t::GRAPHDB_NOTFOUND as i32,
         CoreError::InvalidParameter(_) => graphdb_error_code_t::GRAPHDB_MISUSE as i32,
+        CoreError::DetailedQueryError { .. } => graphdb_error_code_t::GRAPHDB_ERROR as i32,
     }
 }
 
@@ -199,4 +284,47 @@ pub extern "C" fn graphdb_get_last_error_message() -> *const std::ffi::c_char {
             None => std::ptr::null(),
         }
     })
+}
+
+/// 获取 SQL 错误位置（字符偏移量）
+///
+/// # 参数
+/// - `session`: 会话句柄
+///
+/// # 返回
+/// - 错误位置的字符偏移量，如果没有错误或无效会话返回 -1
+#[no_mangle]
+pub extern "C" fn graphdb_error_offset(session: *mut graphdb_session_t) -> std::ffi::c_int {
+    if session.is_null() {
+        return -1;
+    }
+
+    unsafe {
+        let handle = &*(session as *mut crate::api::embedded::c_api::session::GraphDbSessionHandle);
+        handle.last_error_offset.map(|o| o as std::ffi::c_int).unwrap_or(-1)
+    }
+}
+
+/// 获取扩展错误码
+///
+/// # 参数
+/// - `session`: 会话句柄
+///
+/// # 返回
+/// - 扩展错误码，如果没有错误或无效会话返回 0 (GRAPHDB_EXTENDED_NONE)
+#[no_mangle]
+pub extern "C" fn graphdb_extended_errcode(
+    session: *mut graphdb_session_t,
+) -> std::ffi::c_int {
+    if session.is_null() {
+        return graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE as std::ffi::c_int;
+    }
+
+    unsafe {
+        let handle = &*(session as *mut crate::api::embedded::c_api::session::GraphDbSessionHandle);
+        handle
+            .last_extended_error
+            .map(|e| e as std::ffi::c_int)
+            .unwrap_or(graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE as std::ffi::c_int)
+    }
 }

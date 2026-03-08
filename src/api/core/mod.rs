@@ -9,7 +9,7 @@ pub mod schema_api;
 pub mod transaction_api;
 pub mod types;
 
-pub use error::{CoreError, CoreResult};
+pub use error::{CoreError, CoreResult, ExtendedErrorCode};
 pub use query_api::QueryApi;
 pub use schema_api::SchemaApi;
 pub use types::*;

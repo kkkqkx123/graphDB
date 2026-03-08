@@ -169,17 +169,30 @@ impl From<String> for ParseError {
 
 impl From<super::super::lexer::LexError> for ParseError {
     fn from(lex_error: super::super::lexer::LexError) -> Self {
-        ParseError::new(
+        let mut parse_error = ParseError::new(
             ParseErrorKind::LexicalError,
             lex_error.message,
             lex_error.position,
-        )
+        );
+        // 保留 offset 信息
+        if let Some(offset) = lex_error.offset {
+            parse_error = parse_error.with_offset(offset);
+        }
+        parse_error
     }
 }
 
 impl From<ParseError> for QueryError {
     fn from(parse_error: ParseError) -> Self {
-        QueryError::ParseError(parse_error.to_string())
+        // 如果有 offset 信息，保留它
+        if let Some(offset) = parse_error.offset {
+            QueryError::ParseErrorWithOffset {
+                message: parse_error.message,
+                offset,
+            }
+        } else {
+            QueryError::ParseError(parse_error.to_string())
+        }
     }
 }
 

@@ -37,6 +37,10 @@ pub enum QueryError {
     #[error("解析错误: {0}")]
     ParseError(String),
 
+    /// 带位置信息的解析错误
+    #[error("解析错误在偏移量 {offset}: {message}")]
+    ParseErrorWithOffset { message: String, offset: usize },
+
     #[error("规划错误: {0}")]
     PlanningError(String),
 
@@ -54,6 +58,24 @@ pub enum QueryError {
 
     #[error("计划节点访问错误: {0}")]
     PlanNodeVisitError(String),
+}
+
+impl QueryError {
+    /// 获取错误位置偏移量
+    pub fn offset(&self) -> Option<usize> {
+        match self {
+            QueryError::ParseErrorWithOffset { offset, .. } => Some(*offset),
+            _ => None,
+        }
+    }
+
+    /// 创建带位置信息的解析错误
+    pub fn parse_error_with_offset(message: impl Into<String>, offset: usize) -> Self {
+        QueryError::ParseErrorWithOffset {
+            message: message.into(),
+            offset,
+        }
+    }
 }
 
 impl QueryError {
@@ -168,6 +190,7 @@ impl ToPublicError for QueryError {
     fn to_error_code(&self) -> ErrorCode {
         match self {
             QueryError::ParseError(_) => ErrorCode::ParseError,
+            QueryError::ParseErrorWithOffset { .. } => ErrorCode::ParseError,
             QueryError::InvalidQuery(_) => ErrorCode::ValidationError,
             QueryError::PlanningError(_) => ErrorCode::ExecutionError,
             QueryError::OptimizationError(_) => ErrorCode::ExecutionError,

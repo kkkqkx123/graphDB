@@ -3,8 +3,11 @@
 //! 提供会话的创建、销毁和基本管理功能
 
 use crate::api::embedded::c_api::database::GraphDbHandle;
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
-use crate::api::embedded::c_api::types::{graphdb_t, graphdb_session_t};
+use crate::api::embedded::c_api::error::{
+    error_code_from_core_error, extended_error_code_from_core_error, graphdb_error_code_t,
+    set_last_error_message,
+};
+use crate::api::embedded::c_api::types::{graphdb_extended_error_code_t, graphdb_t, graphdb_session_t};
 use crate::api::embedded::Session;
 use crate::storage::RedbStorage;
 use std::ffi::{CStr, CString, c_char, c_int};
@@ -16,6 +19,10 @@ pub struct GraphDbSessionHandle {
     pub(crate) last_error: Option<CString>,
     /// 忙等待超时（毫秒）
     pub(crate) busy_timeout_ms: u32,
+    /// 最后错误位置偏移量
+    pub(crate) last_error_offset: Option<usize>,
+    /// 最后扩展错误码
+    pub(crate) last_extended_error: Option<graphdb_extended_error_code_t>,
 }
 
 impl GraphDbSessionHandle {
@@ -25,7 +32,29 @@ impl GraphDbSessionHandle {
             inner,
             last_error: None,
             busy_timeout_ms: 5000, // 默认 5 秒
+            last_error_offset: None,
+            last_extended_error: None,
         }
+    }
+
+    /// 设置错误信息
+    pub(crate) fn set_error(
+        &mut self,
+        message: String,
+        offset: Option<usize>,
+        extended_code: Option<graphdb_extended_error_code_t>,
+    ) {
+        self.last_error = CString::new(message.clone()).ok();
+        self.last_error_offset = offset;
+        self.last_extended_error = extended_code;
+        set_last_error_message(message);
+    }
+
+    /// 清除错误信息
+    pub(crate) fn clear_error(&mut self) {
+        self.last_error = None;
+        self.last_error_offset = None;
+        self.last_extended_error = None;
     }
 }
 
@@ -117,12 +146,16 @@ pub extern "C" fn graphdb_session_use_space(
         let handle = &mut *(session as *mut GraphDbSessionHandle);
         
         match handle.inner.use_space(name_str) {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+            Ok(_) => {
+                handle.clear_error();
+                graphdb_error_code_t::GRAPHDB_OK as c_int
+            }
             Err(e) => {
                 let error_code = error_code_from_core_error(&e);
                 let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+                let offset = e.error_offset();
+                let extended_code = Some(extended_error_code_from_core_error(&e));
+                handle.set_error(error_msg, offset, extended_code);
                 error_code
             }
         }

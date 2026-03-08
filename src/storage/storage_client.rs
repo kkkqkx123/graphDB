@@ -207,6 +207,29 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     // 悬挂边检测和修复工具
     fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError>;
     fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError>;
+
+    /// 备份数据库到指定路径
+    ///
+    /// # 参数
+    /// - `dest_path`: 目标备份文件路径
+    ///
+    /// # 返回
+    /// - 成功时返回 Ok(())
+    /// - 失败时返回 StorageError
+    fn backup(&self, dest_path: &str) -> Result<(), StorageError>;
+
+    /// 从备份文件恢复数据库
+    ///
+    /// # 参数
+    /// - `src_path`: 源备份文件路径
+    ///
+    /// # 返回
+    /// - 成功时返回 Ok(())
+    /// - 失败时返回 StorageError
+    fn restore(&mut self, src_path: &str) -> Result<(), StorageError>;
+
+    /// 获取数据库文件路径
+    fn get_db_path(&self) -> &str;
 }
 
 /// 存储统计信息
