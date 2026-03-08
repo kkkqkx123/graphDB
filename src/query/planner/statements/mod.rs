@@ -26,12 +26,17 @@ pub mod group_by_planner;
 pub mod insert_planner;
 pub mod lookup_planner;
 pub mod maintain_planner;
+pub mod merge_planner;
 pub mod path_planner;
+pub mod remove_planner;
+pub mod return_planner;
 pub mod set_operation_planner;
 pub mod subgraph_planner;
 pub mod update_planner;
 pub mod use_planner;
 pub mod user_management_planner;
+pub mod with_planner;
+pub mod yield_planner;
 
 // 重新导出语句规划器模块
 pub use match_statement_planner::MatchStatementPlanner;

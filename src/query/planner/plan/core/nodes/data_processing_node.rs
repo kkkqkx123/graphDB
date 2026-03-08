@@ -628,3 +628,104 @@ mod tests {
         assert_eq!(dedup_node.dependencies().len(), 1);
     }
 }
+
+/// Remove节点 - 删除属性或标签
+///
+/// 用于删除顶点或边的属性、标签
+#[derive(Debug, Clone)]
+pub struct RemoveNode {
+    id: i64,
+    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
+    remove_items: Vec<(String, ContextualExpression)>,
+    output_var: Option<String>,
+    col_names: Vec<String>,
+}
+
+impl RemoveNode {
+    pub fn new(
+        input: super::plan_node_enum::PlanNodeEnum,
+        remove_items: Vec<(String, ContextualExpression)>,
+    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+        let col_names = input.col_names().to_vec();
+
+        Ok(Self {
+            id: -1,
+            input: Box::new(input.clone()),
+            deps: vec![Box::new(input)],
+            remove_items,
+            output_var: None,
+            col_names,
+        })
+    }
+
+    pub fn remove_items(&self) -> &[(String, ContextualExpression)] {
+        &self.remove_items
+    }
+
+    pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
+        &self.deps
+    }
+
+    pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(dep.clone());
+        self.deps.clear();
+        self.deps.push(Box::new(dep));
+    }
+
+    pub fn remove_dependency(&mut self, _id: i64) -> bool {
+        false
+    }
+
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
+    }
+}
+
+impl super::plan_node_traits::SingleInputNode for RemoveNode {
+    fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.input
+    }
+
+    fn input_mut(&mut self) -> &mut super::plan_node_enum::PlanNodeEnum {
+        &mut self.input
+    }
+
+    fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
+        self.input = Box::new(input);
+    }
+}
+
+impl super::plan_node_traits::PlanNode for RemoveNode {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "RemoveNode"
+    }
+
+    fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
+    }
+
+    fn set_output_var(&mut self, var: String) {
+        self.output_var = Some(var);
+    }
+
+    fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    fn into_enum(self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Remove(self)
+    }
+}

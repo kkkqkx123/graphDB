@@ -170,6 +170,13 @@ pub extern "C" fn graphdb_txn_execute(
         match query_api.execute(query_str, ctx) {
             Ok(core_result) => {
                 let query_result = crate::api::embedded::result::QueryResult::from_core(core_result);
+                
+                // 检查是否是数据修改操作，并调用更新钩子
+                if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result) {
+                    let space_name = session.inner.current_space().unwrap_or("default");
+                    session.invoke_update_hook(operation, space_name, rowid);
+                }
+                
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
                 });
@@ -473,6 +480,36 @@ pub extern "C" fn graphdb_txn_free(txn: *mut graphdb_txn_t) -> c_int {
     }
 
     graphdb_error_code_t::GRAPHDB_OK as c_int
+}
+
+/// 检测查询是否是数据修改操作
+///
+/// 返回 (操作类型, 行ID) 的元组，如果不是数据修改操作则返回 None
+/// 操作类型：1=INSERT, 2=UPDATE, 3=DELETE
+fn detect_data_modification(query: &str, _result: &crate::api::embedded::result::QueryResult) -> Option<(i32, i64)> {
+    let query_upper = query.trim().to_uppercase();
+    
+    // 检查是否是 INSERT 操作
+    if query_upper.starts_with("INSERT") {
+        return Some((1, 0));
+    }
+    
+    // 检查是否是 UPDATE 操作
+    if query_upper.starts_with("UPDATE") {
+        return Some((2, 0));
+    }
+    
+    // 检查是否是 DELETE 操作
+    if query_upper.starts_with("DELETE") {
+        return Some((3, 0));
+    }
+    
+    // 检查是否是 REMOVE 操作
+    if query_upper.starts_with("REMOVE") {
+        return Some((2, 0));
+    }
+    
+    None
 }
 
 #[cfg(test)]

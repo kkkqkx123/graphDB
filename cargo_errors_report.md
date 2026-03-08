@@ -2,24 +2,24 @@
 
 ## Summary
 
-- **Total Errors**: 2
+- **Total Errors**: 1
 - **Total Warnings**: 0
-- **Total Issues**: 2
+- **Total Issues**: 1
 - **Unique Error Patterns**: 1
 - **Unique Warning Patterns**: 0
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 2
+**Total Errors**: 1
 
 ### Error Type Breakdown
 
-- **error[E0382]**: 2 errors
+- **error[E0308]**: 1 errors
 
 ### Files with Errors (Top 10)
 
-- `src\api\embedded\c_api\database.rs`: 2 errors
+- `src\api\embedded\c_api\query.rs`: 1 errors
 
 ## Warning Statistics
 
@@ -27,13 +27,12 @@
 
 ## Detailed Error Categorization
 
-### error[E0382]: borrow of moved value: `e`: value borrowed here after move
+### error[E0308]: mismatched types: expected `&str`, found `String`
 
-**Total Occurrences**: 2  
+**Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\api\embedded\c_api\database.rs`: 2 occurrences
+#### `src\api\embedded\c_api\query.rs`: 1 occurrences
 
-- Line 262: borrow of moved value: `e`: value borrowed here after move
-- Line 303: borrow of moved value: `e`: value borrowed here after move
+- Line 131: mismatched types: expected `&str`, found `String`
 

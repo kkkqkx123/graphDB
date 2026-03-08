@@ -54,6 +54,7 @@ use crate::query::executor::admin::{
     DropUserExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, ShowEdgeIndexesExecutor,
     ShowEdgesExecutor, ShowSpacesExecutor, ShowTagIndexesExecutor, ShowTagsExecutor,
 };
+use crate::query::executor::data_modification::RemoveExecutor;
 
 /// 从 PlanNode 提取顶点 ID 列表
 /// 用于多源最短路径等算法获取起始和目标顶点
@@ -729,6 +730,36 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     None,
                 );
                 Ok(ExecutorEnum::Dedup(executor))
+            }
+
+            // Remove执行器 - 删除属性或标签
+            PlanNodeEnum::Remove(node) => {
+                use crate::query::executor::data_modification::RemoveItem;
+                use crate::query::executor::data_modification::RemoveItemType;
+
+                let remove_items: Vec<RemoveItem> = node
+                    .remove_items()
+                    .iter()
+                    .map(|(item_type, expr)| {
+                        let remove_item_type = match item_type.as_str() {
+                            "property" => RemoveItemType::Property,
+                            "tag" => RemoveItemType::Tag,
+                            _ => RemoveItemType::Property,
+                        };
+                        RemoveItem {
+                            item_type: remove_item_type,
+                            expression: expr.clone(),
+                        }
+                    })
+                    .collect();
+
+                let executor = RemoveExecutor::new(
+                    node.id(),
+                    storage,
+                    remove_items,
+                    context.expression_context().clone(),
+                );
+                Ok(ExecutorEnum::Remove(executor))
             }
 
             // 数据处理执行器

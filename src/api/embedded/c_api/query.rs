@@ -49,6 +49,13 @@ pub extern "C" fn graphdb_execute(
         match handle.inner.execute(query_str) {
             Ok(query_result) => {
                 handle.clear_error();
+                
+                // 检查是否是数据修改操作，并调用更新钩子
+                if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result) {
+                    let space_name = handle.inner.current_space().unwrap_or("default");
+                    handle.invoke_update_hook(operation, space_name, rowid);
+                }
+                
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
                 });
@@ -118,6 +125,13 @@ pub extern "C" fn graphdb_execute_params(
         match handle.inner.execute_with_params(query_str, params_map) {
             Ok(query_result) => {
                 handle.clear_error();
+                
+                // 检查是否是数据修改操作，并调用更新钩子
+                if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result) {
+                    let space_name = handle.inner.current_space().unwrap_or("default");
+                    handle.invoke_update_hook(operation, space_name, rowid);
+                }
+                
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
                 });
@@ -160,6 +174,36 @@ unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
         }
         _ => Value::Null(crate::core::value::NullType::Null),
     }
+}
+
+/// 检测查询是否是数据修改操作
+///
+/// 返回 (操作类型, 行ID) 的元组，如果不是数据修改操作则返回 None
+/// 操作类型：1=INSERT, 2=UPDATE, 3=DELETE
+fn detect_data_modification(query: &str, _result: &crate::api::embedded::result::QueryResult) -> Option<(i32, i64)> {
+    let query_upper = query.trim().to_uppercase();
+    
+    // 检查是否是 INSERT 操作
+    if query_upper.starts_with("INSERT") {
+        return Some((1, 0));
+    }
+    
+    // 检查是否是 UPDATE 操作
+    if query_upper.starts_with("UPDATE") {
+        return Some((2, 0));
+    }
+    
+    // 检查是否是 DELETE 操作
+    if query_upper.starts_with("DELETE") {
+        return Some((3, 0));
+    }
+    
+    // 检查是否是 REMOVE 操作
+    if query_upper.starts_with("REMOVE") {
+        return Some((2, 0));
+    }
+    
+    None
 }
 
 #[cfg(test)]

@@ -50,6 +50,7 @@ use super::result_processing::{
 use super::search_executors::BFSShortestExecutor;
 use super::search_executors::IndexScanExecutor;
 use super::special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
+use super::data_modification::RemoveExecutor;
 
 pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     Start(StartExecutor<S>),
@@ -87,6 +88,7 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     AppendVertices(AppendVerticesExecutor<S>),
     RollUpApply(RollUpApplyExecutor<S>),
     PatternApply(PatternApplyExecutor<S>),
+    Remove(RemoveExecutor<S>),
     Loop(LoopExecutor<S>),
     ForLoop(ForLoopExecutor<S>),
     WhileLoop(WhileLoopExecutor<S>),
@@ -236,6 +238,9 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             }
             ExecutorEnum::PatternApply(exec) => {
                 f.write_str(&format!("ExecutorEnum::PatternApply({})", exec.name()))
+            }
+            ExecutorEnum::Remove(exec) => {
+                f.write_str(&format!("ExecutorEnum::Remove({})", exec.name()))
             }
             ExecutorEnum::Loop(exec) => {
                 f.write_str(&format!("ExecutorEnum::Loop({})", exec.name()))
@@ -399,6 +404,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AppendVertices(exec) => exec.id(),
             ExecutorEnum::RollUpApply(exec) => exec.id(),
             ExecutorEnum::PatternApply(exec) => exec.id(),
+            ExecutorEnum::Remove(exec) => exec.id(),
             ExecutorEnum::Loop(exec) => exec.id(),
             ExecutorEnum::ForLoop(exec) => exec.id(),
             ExecutorEnum::WhileLoop(exec) => exec.id(),
@@ -479,6 +485,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AppendVertices(exec) => exec.name(),
             ExecutorEnum::RollUpApply(exec) => exec.name(),
             ExecutorEnum::PatternApply(exec) => exec.name(),
+            ExecutorEnum::Remove(exec) => exec.name(),
             ExecutorEnum::Loop(exec) => exec.name(),
             ExecutorEnum::ForLoop(exec) => exec.name(),
             ExecutorEnum::WhileLoop(exec) => exec.name(),
@@ -559,6 +566,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AppendVertices(exec) => exec.stats(),
             ExecutorEnum::RollUpApply(exec) => exec.stats(),
             ExecutorEnum::PatternApply(exec) => exec.stats(),
+            ExecutorEnum::Remove(exec) => exec.stats(),
             ExecutorEnum::Loop(exec) => exec.stats(),
             ExecutorEnum::ForLoop(exec) => exec.stats(),
             ExecutorEnum::WhileLoop(exec) => exec.stats(),
@@ -639,6 +647,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AppendVertices(exec) => exec.stats_mut(),
             ExecutorEnum::RollUpApply(exec) => exec.stats_mut(),
             ExecutorEnum::PatternApply(exec) => exec.stats_mut(),
+            ExecutorEnum::Remove(exec) => exec.stats_mut(),
             ExecutorEnum::Loop(exec) => exec.stats_mut(),
             ExecutorEnum::ForLoop(exec) => exec.stats_mut(),
             ExecutorEnum::WhileLoop(exec) => exec.stats_mut(),
@@ -722,6 +731,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AppendVertices(exec) => exec.execute(),
             ExecutorEnum::RollUpApply(exec) => exec.execute(),
             ExecutorEnum::PatternApply(exec) => exec.execute(),
+            ExecutorEnum::Remove(exec) => exec.execute(),
             ExecutorEnum::Loop(exec) => exec.execute(),
             ExecutorEnum::ForLoop(exec) => exec.execute(),
             ExecutorEnum::WhileLoop(exec) => exec.execute(),
@@ -804,6 +814,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AppendVertices(exec) => exec.open(),
             ExecutorEnum::RollUpApply(exec) => exec.open(),
             ExecutorEnum::PatternApply(exec) => exec.open(),
+            ExecutorEnum::Remove(exec) => exec.open(),
             ExecutorEnum::Loop(exec) => exec.open(),
             ExecutorEnum::ForLoop(exec) => exec.open(),
             ExecutorEnum::WhileLoop(exec) => exec.open(),
@@ -884,6 +895,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AppendVertices(exec) => exec.close(),
             ExecutorEnum::RollUpApply(exec) => exec.close(),
             ExecutorEnum::PatternApply(exec) => exec.close(),
+            ExecutorEnum::Remove(exec) => exec.close(),
             ExecutorEnum::Loop(exec) => exec.close(),
             ExecutorEnum::ForLoop(exec) => exec.close(),
             ExecutorEnum::WhileLoop(exec) => exec.close(),
@@ -964,6 +976,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AppendVertices(exec) => exec.is_open(),
             ExecutorEnum::RollUpApply(exec) => exec.is_open(),
             ExecutorEnum::PatternApply(exec) => exec.is_open(),
+            ExecutorEnum::Remove(exec) => exec.is_open(),
             ExecutorEnum::Loop(exec) => exec.is_open(),
             ExecutorEnum::ForLoop(exec) => exec.is_open(),
             ExecutorEnum::WhileLoop(exec) => exec.is_open(),
@@ -1056,6 +1069,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AppendVertices(exec) => exec.stats(),
             ExecutorEnum::RollUpApply(exec) => exec.stats(),
             ExecutorEnum::PatternApply(exec) => exec.stats(),
+            ExecutorEnum::Remove(exec) => exec.stats(),
             ExecutorEnum::Loop(exec) => exec.stats(),
             ExecutorEnum::ForLoop(exec) => exec.stats(),
             ExecutorEnum::WhileLoop(exec) => exec.stats(),
@@ -1136,6 +1150,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AppendVertices(exec) => exec.stats_mut(),
             ExecutorEnum::RollUpApply(exec) => exec.stats_mut(),
             ExecutorEnum::PatternApply(exec) => exec.stats_mut(),
+            ExecutorEnum::Remove(exec) => exec.stats_mut(),
             ExecutorEnum::Loop(exec) => exec.stats_mut(),
             ExecutorEnum::ForLoop(exec) => exec.stats_mut(),
             ExecutorEnum::WhileLoop(exec) => exec.stats_mut(),
@@ -1202,6 +1217,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::AppendVertices(_) => {}
             ExecutorEnum::PatternApply(_) => {}
             ExecutorEnum::RollUpApply(_) => {}
+            ExecutorEnum::Remove(exec) => exec.set_input(input),
             ExecutorEnum::Loop(_) => {}
             ExecutorEnum::ForLoop(_) => {}
             ExecutorEnum::WhileLoop(_) => {}
@@ -1282,6 +1298,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::AppendVertices(_) => None,
             ExecutorEnum::PatternApply(_) => None,
             ExecutorEnum::RollUpApply(_) => None,
+            ExecutorEnum::Remove(exec) => exec.get_input(),
             ExecutorEnum::Loop(_) => None,
             ExecutorEnum::ForLoop(_) => None,
             ExecutorEnum::WhileLoop(_) => None,
@@ -1399,6 +1416,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::AppendVertices(_) => "append_vertices",
             ExecutorEnum::RollUpApply(_) => "rollup_apply",
             ExecutorEnum::PatternApply(_) => "pattern_apply",
+            ExecutorEnum::Remove(_) => "remove",
             ExecutorEnum::Loop(_) => "loop",
             ExecutorEnum::ForLoop(_) => "for_loop",
             ExecutorEnum::WhileLoop(_) => "while_loop",
@@ -1479,6 +1497,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::AppendVertices(_) => "Append Vertices",
             ExecutorEnum::RollUpApply(_) => "RollUp Apply",
             ExecutorEnum::PatternApply(_) => "Pattern Apply",
+            ExecutorEnum::Remove(_) => "Remove",
             ExecutorEnum::Loop(_) => "Loop",
             ExecutorEnum::ForLoop(_) => "For Loop",
             ExecutorEnum::WhileLoop(_) => "While Loop",
@@ -1559,6 +1578,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::AppendVertices(_) => NodeCategory::Traversal,
             ExecutorEnum::RollUpApply(_) => NodeCategory::DataCollect,
             ExecutorEnum::PatternApply(_) => NodeCategory::DataCollect,
+            ExecutorEnum::Remove(_) => NodeCategory::DataCollect,
             ExecutorEnum::Loop(_) => NodeCategory::Control,
             ExecutorEnum::ForLoop(_) => NodeCategory::Control,
             ExecutorEnum::WhileLoop(_) => NodeCategory::Control,

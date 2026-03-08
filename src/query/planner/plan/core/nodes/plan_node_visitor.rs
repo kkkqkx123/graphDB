@@ -16,8 +16,8 @@ use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropU
 pub use super::aggregate_node::AggregateNode;
 pub use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 pub use super::data_processing_node::{
-    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RollUpApplyNode,
-    UnionNode, UnwindNode,
+    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
+    RollUpApplyNode, UnionNode, UnwindNode,
 };
 pub use super::filter_node::FilterNode;
 pub use super::graph_scan_node::{
@@ -108,6 +108,7 @@ pub trait PlanNodeVisitor {
     impl_visitor_methods!(
         PatternApply, PatternApplyNode, visit_pattern_apply;
         RollUpApply, RollUpApplyNode, visit_roll_up_apply;
+        Remove, RemoveNode, visit_remove;
     );
 
     impl_visitor_methods!(
@@ -216,6 +217,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Dedup(node) => visitor.visit_dedup(node),
             PlanNodeEnum::PatternApply(node) => visitor.visit_pattern_apply(node),
             PlanNodeEnum::RollUpApply(node) => visitor.visit_roll_up_apply(node),
+            PlanNodeEnum::Remove(node) => visitor.visit_remove(node),
             PlanNodeEnum::Union(node) => visitor.visit_union(node),
             PlanNodeEnum::Minus(node) => visitor.visit_minus(node),
             PlanNodeEnum::Intersect(node) => visitor.visit_intersect(node),

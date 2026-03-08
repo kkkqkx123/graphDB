@@ -26,12 +26,17 @@ use crate::query::planner::statements::insert_planner::InsertPlanner;
 use crate::query::planner::statements::lookup_planner::LookupPlanner;
 use crate::query::planner::statements::maintain_planner::MaintainPlanner;
 use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
+use crate::query::planner::statements::merge_planner::MergePlanner;
 use crate::query::planner::statements::path_planner::PathPlanner;
+use crate::query::planner::statements::remove_planner::RemovePlanner;
+use crate::query::planner::statements::return_planner::ReturnPlanner;
 use crate::query::planner::statements::set_operation_planner::SetOperationPlanner;
 use crate::query::planner::statements::subgraph_planner::SubgraphPlanner;
 use crate::query::planner::statements::update_planner::UpdatePlanner;
 use crate::query::planner::statements::use_planner::UsePlanner;
 use crate::query::planner::statements::user_management_planner::UserManagementPlanner;
+use crate::query::planner::statements::with_planner::WithPlanner;
+use crate::query::planner::statements::yield_planner::YieldPlanner;
 
 /// 规划器配置
 #[derive(Debug, Clone)]
@@ -114,9 +119,14 @@ pub enum PlannerEnum {
     Insert(InsertPlanner),
     Delete(DeletePlanner),
     Update(UpdatePlanner),
+    Remove(RemovePlanner),
+    Merge(MergePlanner),
     GroupBy(GroupByPlanner),
     SetOperation(SetOperationPlanner),
     Use(UsePlanner),
+    With(WithPlanner),
+    Return(ReturnPlanner),
+    Yield(YieldPlanner),
 }
 
 impl PlannerEnum {
@@ -140,9 +150,14 @@ impl PlannerEnum {
             Stmt::Insert(_) => Some(PlannerEnum::Insert(InsertPlanner::new())),
             Stmt::Delete(_) => Some(PlannerEnum::Delete(DeletePlanner::new())),
             Stmt::Update(_) => Some(PlannerEnum::Update(UpdatePlanner::new())),
+            Stmt::Remove(_) => Some(PlannerEnum::Remove(RemovePlanner::new())),
+            Stmt::Merge(_) => Some(PlannerEnum::Merge(MergePlanner::new())),
             Stmt::GroupBy(_) => Some(PlannerEnum::GroupBy(GroupByPlanner::new())),
             Stmt::SetOperation(_) => Some(PlannerEnum::SetOperation(SetOperationPlanner::new())),
             Stmt::Use(_) => Some(PlannerEnum::Use(UsePlanner::new())),
+            Stmt::With(_) => Some(PlannerEnum::With(WithPlanner::new())),
+            Stmt::Return(_) => Some(PlannerEnum::Return(ReturnPlanner::new())),
+            Stmt::Yield(_) => Some(PlannerEnum::Yield(YieldPlanner::new())),
             // DDL/DML 操作使用 Maintain 规划器
             Stmt::Create(_)
             | Stmt::Drop(_)
@@ -194,9 +209,14 @@ impl PlannerEnum {
             PlannerEnum::Insert(planner) => planner.transform(validated, qctx),
             PlannerEnum::Delete(planner) => planner.transform(validated, qctx),
             PlannerEnum::Update(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Remove(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Merge(planner) => planner.transform(validated, qctx),
             PlannerEnum::GroupBy(planner) => planner.transform(validated, qctx),
             PlannerEnum::SetOperation(planner) => planner.transform(validated, qctx),
             PlannerEnum::Use(planner) => planner.transform(validated, qctx),
+            PlannerEnum::With(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Return(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Yield(planner) => planner.transform(validated, qctx),
         }
     }
 
@@ -215,9 +235,14 @@ impl PlannerEnum {
             PlannerEnum::Insert(_) => "InsertPlanner",
             PlannerEnum::Delete(_) => "DeletePlanner",
             PlannerEnum::Update(_) => "UpdatePlanner",
+            PlannerEnum::Remove(_) => "RemovePlanner",
+            PlannerEnum::Merge(_) => "MergePlanner",
             PlannerEnum::GroupBy(_) => "GroupByPlanner",
             PlannerEnum::SetOperation(_) => "SetOperationPlanner",
             PlannerEnum::Use(_) => "UsePlanner",
+            PlannerEnum::With(_) => "WithPlanner",
+            PlannerEnum::Return(_) => "ReturnPlanner",
+            PlannerEnum::Yield(_) => "YieldPlanner",
         }
     }
 
@@ -236,9 +261,14 @@ impl PlannerEnum {
             PlannerEnum::Insert(planner) => planner.match_planner(stmt),
             PlannerEnum::Delete(planner) => planner.match_planner(stmt),
             PlannerEnum::Update(planner) => planner.match_planner(stmt),
+            PlannerEnum::Remove(planner) => planner.match_planner(stmt),
+            PlannerEnum::Merge(planner) => planner.match_planner(stmt),
             PlannerEnum::GroupBy(planner) => planner.match_planner(stmt),
             PlannerEnum::SetOperation(planner) => planner.match_planner(stmt),
             PlannerEnum::Use(planner) => planner.match_planner(stmt),
+            PlannerEnum::With(planner) => planner.match_planner(stmt),
+            PlannerEnum::Return(planner) => planner.match_planner(stmt),
+            PlannerEnum::Yield(planner) => planner.match_planner(stmt),
         }
     }
 }

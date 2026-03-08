@@ -151,11 +151,15 @@ pub const GRAPHDB_OPEN_SHAREDCACHE: c_int = 0x00020000;
 pub const GRAPHDB_OPEN_PRIVATECACHE: c_int = 0x00040000;
 
 /// SQL 追踪回调类型
+#[allow(non_camel_case_types)]
 pub type graphdb_trace_callback = Option<extern "C" fn(sql: *const c_char, user_data: *mut c_void)>;
 
 /// 钩子回调类型
+#[allow(non_camel_case_types)]
 pub type graphdb_commit_hook_callback = Option<extern "C" fn(user_data: *mut c_void) -> c_int>;
+#[allow(non_camel_case_types)]
 pub type graphdb_rollback_hook_callback = Option<extern "C" fn(user_data: *mut c_void)>;
+#[allow(non_camel_case_types)]
 pub type graphdb_update_hook_callback = Option<extern "C" fn(
     user_data: *mut c_void,
     operation: c_int,

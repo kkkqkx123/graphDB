@@ -18,8 +18,8 @@ use crate::query::planner::plan::core::explain::PlanNodeDescription;
 pub use super::aggregate_node::AggregateNode;
 pub use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 pub use super::data_processing_node::{
-    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RollUpApplyNode,
-    UnionNode, UnwindNode,
+    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
+    RollUpApplyNode, UnionNode, UnwindNode,
 };
 pub use super::filter_node::FilterNode;
 pub use super::graph_scan_node::{
@@ -107,6 +107,8 @@ pub enum PlanNodeEnum {
     DataCollect(DataCollectNode),
     /// 去重节点
     Dedup(DedupNode),
+    /// 删除节点
+    Remove(RemoveNode),
     /// 模式应用节点
     PatternApply(PatternApplyNode),
     /// 滚动应用节点
@@ -625,6 +627,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Dedup(_) => "Dedup",
             PlanNodeEnum::PatternApply(_) => "PatternApply",
             PlanNodeEnum::RollUpApply(_) => "RollUpApply",
+            PlanNodeEnum::Remove(_) => "Remove",
             PlanNodeEnum::Union(_) => "Union",
             PlanNodeEnum::Minus(_) => "Minus",
             PlanNodeEnum::Intersect(_) => "Intersect",
@@ -704,6 +707,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Dedup(_) => PlanNodeCategory::Operation,
             PlanNodeEnum::PatternApply(_) => PlanNodeCategory::DataProcessing,
             PlanNodeEnum::RollUpApply(_) => PlanNodeCategory::DataProcessing,
+            PlanNodeEnum::Remove(_) => PlanNodeCategory::DataProcessing,
             PlanNodeEnum::Union(_) => PlanNodeCategory::DataProcessing,
             PlanNodeEnum::Minus(_) => PlanNodeCategory::DataProcessing,
             PlanNodeEnum::Intersect(_) => PlanNodeCategory::DataProcessing,
@@ -1509,6 +1513,13 @@ impl PlanNodeEnum {
             }
             PlanNodeEnum::Dedup(node) => {
                 let mut desc = PlanNodeDescription::new("Dedup", node.id());
+                if let Some(var) = node.output_var() {
+                    desc = desc.with_output_var(var.to_string());
+                }
+                desc
+            }
+            PlanNodeEnum::Remove(node) => {
+                let mut desc = PlanNodeDescription::new("Remove", node.id());
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }

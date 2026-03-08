@@ -96,7 +96,6 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     }
 
     /// 执行具体的语句
-    #[allow(dead_code)]
     fn execute_statement(&mut self, statement: Stmt) -> Result<ExecutionResult, DBError> {
         match statement {
             Stmt::Match(clause) => self.execute_match(clause),
@@ -729,21 +728,106 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     #[allow(dead_code)]
     fn execute_query(
         &mut self,
-        _clause: crate::query::parser::ast::stmt::QueryStmt,
+        clause: crate::query::parser::ast::stmt::QueryStmt,
     ) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError(
-            "QUERY语句执行未实现".to_string(),
-        )))
+        let mut results = Vec::new();
+
+        for stmt in clause.statements {
+            let result = self.execute_statement(stmt)?;
+            results.push(result);
+        }
+
+        if results.is_empty() {
+            return Ok(ExecutionResult::Values(Vec::new()));
+        }
+
+        if results.len() == 1 {
+            return Ok(results.into_iter().next().unwrap());
+        }
+
+        Ok(ExecutionResult::Values(
+            results.into_iter().flat_map(|r| {
+                match r {
+                    ExecutionResult::Values(values) => values,
+                    ExecutionResult::Result(data_set) => {
+                        data_set.rows().iter().map(|row| {
+                            crate::core::Value::List(crate::core::value::dataset::List {
+                                values: row.clone()
+                            })
+                        }).collect::<Vec<_>>()
+                    }
+                    ExecutionResult::Success => {
+                        vec![crate::core::Value::Bool(true)]
+                    }
+                    ExecutionResult::Empty => {
+                        vec![crate::core::Value::Null(crate::core::value::types::NullType::Null)]
+                    }
+                    ExecutionResult::Vertices(vertices) => {
+                        vertices.into_iter().map(|v| crate::core::Value::Vertex(Box::new(v))).collect()
+                    }
+                    ExecutionResult::Edges(edges) => {
+                        edges.into_iter().map(|e| crate::core::Value::Edge(e)).collect()
+                    }
+                    ExecutionResult::DataSet(data_set) => {
+                        vec![crate::core::Value::DataSet(data_set)]
+                    }
+                    ExecutionResult::Count(count) => {
+                        vec![crate::core::Value::Int(count as i64)]
+                    }
+                    ExecutionResult::Paths(paths) => {
+                        paths.into_iter().map(|p| crate::core::Value::Path(p)).collect()
+                    }
+                    ExecutionResult::Error(_) => {
+                        vec![]
+                    }
+                }
+            }).collect()
+        ))
     }
 
-    #[allow(dead_code)]
     fn execute_go(
         &mut self,
-        _clause: crate::query::parser::ast::stmt::GoStmt,
+        clause: crate::query::parser::ast::stmt::GoStmt,
     ) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError(
-            "GO语句执行未实现".to_string(),
-        )))
+        use crate::query::planner::statements::go_planner::GoPlanner;
+        use crate::query::parser::ast::Ast;
+
+        let qctx = Arc::new(QueryContext::default());
+
+        let validation_info = ValidationInfo::new();
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        let ast = Arc::new(Ast::new(Stmt::Go(clause), ctx));
+        let validated = ValidatedStatement::new(ast, validation_info);
+
+        let mut planner = GoPlanner::new();
+        let plan = planner
+            .transform(&validated, qctx)
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let root_node = plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
+            .clone();
+
+        let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
+        let mut executor = executor_factory
+            .create_executor(&root_node, self.storage.clone(), &Default::default())
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .open()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let result = executor
+            .execute()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .close()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        Ok(result)
     }
 
     fn execute_fetch(
@@ -1527,14 +1611,49 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         }
     }
 
-    #[allow(dead_code)]
     fn execute_merge(
         &mut self,
-        _clause: crate::query::parser::ast::stmt::MergeStmt,
+        clause: crate::query::parser::ast::stmt::MergeStmt,
     ) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError(
-            "MERGE语句执行未实现".to_string(),
-        )))
+        use crate::query::planner::statements::merge_planner::MergePlanner;
+        use crate::query::parser::ast::Ast;
+
+        let qctx = Arc::new(QueryContext::default());
+
+        let validation_info = ValidationInfo::new();
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        let ast = Arc::new(Ast::new(Stmt::Merge(clause), ctx));
+        let validated = ValidatedStatement::new(ast, validation_info);
+
+        let mut planner = MergePlanner::new();
+        let plan = planner
+            .transform(&validated, qctx)
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let root_node = plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
+            .clone();
+
+        let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
+        let mut executor = executor_factory
+            .create_executor(&root_node, self.storage.clone(), &Default::default())
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .open()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let result = executor
+            .execute()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .close()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        Ok(result)
     }
 
     fn execute_unwind(
@@ -1563,31 +1682,139 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     #[allow(dead_code)]
     fn execute_return(
         &mut self,
-        _clause: crate::query::parser::ast::stmt::ReturnStmt,
+        clause: crate::query::parser::ast::stmt::ReturnStmt,
     ) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError(
-            "RETURN语句执行未实现".to_string(),
-        )))
+        use crate::query::planner::statements::return_planner::ReturnPlanner;
+        use crate::query::parser::ast::Ast;
+
+        let qctx = Arc::new(QueryContext::default());
+
+        let validation_info = ValidationInfo::new();
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        let ast = Arc::new(Ast::new(Stmt::Return(clause), ctx));
+        let validated = ValidatedStatement::new(ast, validation_info);
+
+        let mut planner = ReturnPlanner::new();
+        let plan = planner
+            .transform(&validated, qctx)
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let root_node = plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
+            .clone();
+
+        let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
+        let mut executor = executor_factory
+            .create_executor(&root_node, self.storage.clone(), &Default::default())
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .open()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let result = executor
+            .execute()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .close()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        Ok(result)
     }
 
     #[allow(dead_code)]
     fn execute_with(
         &mut self,
-        _clause: crate::query::parser::ast::stmt::WithStmt,
+        clause: crate::query::parser::ast::stmt::WithStmt,
     ) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError(
-            "WITH语句执行未实现".to_string(),
-        )))
+        use crate::query::planner::statements::with_planner::WithPlanner;
+        use crate::query::parser::ast::Ast;
+
+        let qctx = Arc::new(QueryContext::default());
+
+        let validation_info = ValidationInfo::new();
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        let ast = Arc::new(Ast::new(Stmt::With(clause), ctx));
+        let validated = ValidatedStatement::new(ast, validation_info);
+
+        let mut planner = WithPlanner::new();
+        let plan = planner
+            .transform(&validated, qctx)
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let root_node = plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
+            .clone();
+
+        let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
+        let mut executor = executor_factory
+            .create_executor(&root_node, self.storage.clone(), &Default::default())
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .open()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let result = executor
+            .execute()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .close()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        Ok(result)
     }
 
     #[allow(dead_code)]
     fn execute_yield(
         &mut self,
-        _clause: crate::query::parser::ast::stmt::YieldStmt,
+        clause: crate::query::parser::ast::stmt::YieldStmt,
     ) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError(
-            "YIELD语句执行未实现".to_string(),
-        )))
+        use crate::query::planner::statements::yield_planner::YieldPlanner;
+        use crate::query::parser::ast::Ast;
+
+        let qctx = Arc::new(QueryContext::default());
+
+        let validation_info = ValidationInfo::new();
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        let ast = Arc::new(Ast::new(Stmt::Yield(clause), ctx));
+        let validated = ValidatedStatement::new(ast, validation_info);
+
+        let mut planner = YieldPlanner::new();
+        let plan = planner
+            .transform(&validated, qctx)
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let root_node = plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
+            .clone();
+
+        let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
+        let mut executor = executor_factory
+            .create_executor(&root_node, self.storage.clone(), &Default::default())
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .open()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let result = executor
+            .execute()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .close()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        Ok(result)
     }
 
     fn execute_set(
@@ -1614,24 +1841,102 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         executor.execute()
     }
 
-    #[allow(dead_code)]
     fn execute_remove(
         &mut self,
-        _clause: crate::query::parser::ast::stmt::RemoveStmt,
+        clause: crate::query::parser::ast::stmt::RemoveStmt,
     ) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError(
-            "REMOVE语句执行未实现".to_string(),
-        )))
+        use crate::query::planner::statements::remove_planner::RemovePlanner;
+        use crate::query::parser::ast::Ast;
+
+        let qctx = Arc::new(QueryContext::default());
+
+        let validation_info = ValidationInfo::new();
+        let ctx = Arc::new(ExpressionAnalysisContext::new());
+        let ast = Arc::new(Ast::new(Stmt::Remove(clause), ctx));
+        let validated = ValidatedStatement::new(ast, validation_info);
+
+        let mut planner = RemovePlanner::new();
+        let plan = planner
+            .transform(&validated, qctx)
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let root_node = plan
+            .root()
+            .as_ref()
+            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
+            .clone();
+
+        let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
+        let mut executor = executor_factory
+            .create_executor(&root_node, self.storage.clone(), &Default::default())
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .open()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let result = executor
+            .execute()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor
+            .close()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        Ok(result)
     }
 
     #[allow(dead_code)]
     fn execute_pipe(
         &mut self,
-        _clause: crate::query::parser::ast::stmt::PipeStmt,
+        clause: crate::query::parser::ast::stmt::PipeStmt,
     ) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError(
-            "PIPE语句执行未实现".to_string(),
-        )))
+        let left_result = self.execute_statement(*clause.left)?;
+
+        match left_result {
+            ExecutionResult::Values(values) => {
+                if values.is_empty() {
+                    return Ok(ExecutionResult::Empty);
+                }
+            }
+            ExecutionResult::Result(data_set) => {
+                if data_set.rows().is_empty() {
+                    return Ok(ExecutionResult::Empty);
+                }
+            }
+            ExecutionResult::Empty => {
+                return Ok(ExecutionResult::Empty);
+            }
+            ExecutionResult::Success => {}
+            ExecutionResult::Vertices(vertices) => {
+                if vertices.is_empty() {
+                    return Ok(ExecutionResult::Empty);
+                }
+            }
+            ExecutionResult::Edges(edges) => {
+                if edges.is_empty() {
+                    return Ok(ExecutionResult::Empty);
+                }
+            }
+            ExecutionResult::DataSet(data_set) => {
+                if data_set.rows.is_empty() {
+                    return Ok(ExecutionResult::Empty);
+                }
+            }
+            ExecutionResult::Count(_) => {}
+            ExecutionResult::Paths(paths) => {
+                if paths.is_empty() {
+                    return Ok(ExecutionResult::Empty);
+                }
+            }
+            ExecutionResult::Error(_) => {
+                return Ok(ExecutionResult::Empty);
+            }
+        }
+
+        let right_result = self.execute_statement(*clause.right)?;
+
+        Ok(right_result)
     }
 
     fn execute_drop(&mut self, clause: DropStmt) -> Result<ExecutionResult, DBError> {

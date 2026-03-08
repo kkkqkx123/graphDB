@@ -40,7 +40,6 @@ use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 use std::ffi::c_void;
-use std::sync::Arc;
 
 /// 函数引用枚举，用于表达式中引用函数
 #[derive(Debug, Clone)]

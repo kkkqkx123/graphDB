@@ -14,6 +14,7 @@ use crate::query::executor::expression::functions::{
 use std::ffi::{c_char, c_int, c_void, CStr};
 
 /// 标量函数回调类型
+#[allow(non_camel_case_types)]
 pub type graphdb_scalar_function_callback = Option<
     extern "C" fn(
         context: *mut graphdb_context_t,
@@ -23,6 +24,7 @@ pub type graphdb_scalar_function_callback = Option<
 >;
 
 /// 聚合函数步骤回调类型
+#[allow(non_camel_case_types)]
 pub type graphdb_aggregate_step_callback = Option<
     extern "C" fn(
         context: *mut graphdb_context_t,
@@ -32,9 +34,11 @@ pub type graphdb_aggregate_step_callback = Option<
 >;
 
 /// 聚合函数最终回调类型
+#[allow(non_camel_case_types)]
 pub type graphdb_aggregate_final_callback = Option<extern "C" fn(context: *mut graphdb_context_t)>;
 
 /// 函数析构回调类型
+#[allow(non_camel_case_types)]
 pub type graphdb_function_destroy_callback = Option<extern "C" fn(user_data: *mut c_void)>;
 
 /// 函数执行上下文（不透明指针）
