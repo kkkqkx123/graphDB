@@ -16,6 +16,8 @@ impl Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
             Value::Bool(b) => Value::Bool(*b),
+            Value::Int(i) => Value::Bool(*i != 0),
+            Value::Float(f) => Value::Bool(*f != 0.0),
             Value::String(s) => {
                 let lower = s.to_lowercase();
                 if lower == "true" {

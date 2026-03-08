@@ -13,7 +13,7 @@ All instances of dynamic dispatch must be explicitly documented in the `dynamic.
 
 ## Language
 
-Always use **Simplified Chinese** in code, comments and docs
+Always use **Simplified Chinese** in code, comments and docs. Using English in logging, error info.
 
 ## Project Overview
 
@@ -25,20 +25,6 @@ Key Features:
 - Minimal external dependencies, leveraging the Rust ecosystem
 - Generates a single executable file for straightforward deployment
 - Supports fundamental graph database functionality (nodes, edges, properties)
-
-## nebula-graph Architecture
-
-The nebula-graph codebase is organized into several main components:
-root path: `nebula-3.8.0`
-- `src/clients` - Client libraries for connecting to NebulaGraph
-- `src/common` - Common utilities and shared code
-- `src/graph` - Graph query engine and execution
-- `src/storage` - Storage engine implementation
-- `src/meta` - Metadata management
-- `src/kvstore` - Key-value store layer
-- `src/daemons` - Service daemon implementations
-- `src/parser` - Query parsing and processing
-- `src/webservice` - Web service interfaces
 
 ## Architecture-GraphDB
 
@@ -52,7 +38,6 @@ The new codebase is organized into several main components:
 - `src/api` - API interfaces layer
 - `src/utils` - Utility functions and helpers
 - `src/config` - Configuration management
-
 
 ## Key Directories and Files
 
@@ -97,21 +82,6 @@ analyze_cargo
 analyze_cargo --filter-warnings
 ```
 
-4. **Run commands**:
-   ```bash
-   # Start database service
-   cargo run --release -- serve --config config.toml
-
-   # Execute query directly
-   cargo run --release -- query --query "MATCH (n) RETURN n LIMIT 10"
-   ```
-
-5. **Temporary verify**:
-   create a rs file, then:
-   ```bash
-   rustc <script name>.rs && ./<script name>.exe
-   ```
-
 ## Development Conventions
 
 - **Coding Style**: Employ Rust standard formatting (`cargo fmt`) and adhere to Rust naming conventions
@@ -129,8 +99,6 @@ The project includes a comprehensive test suite utilising Rust's standard testin
    cargo test --lib -- --nocapture # Run lib tests
    cargo test <test_name> # Run specific test(s) matching pattern
    cargo test --test <integration_test_file> # Run specific integration test
-   cargo test --release  # Run tests in release mode
-   cargo test --doc # Run documentation examples as tests
    ```
 It is not recommended to run all tests in one time. 
 
