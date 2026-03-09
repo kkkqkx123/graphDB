@@ -15,6 +15,7 @@ pub mod recursion_detector;
 pub mod result_processing;
 pub mod search_executors;
 pub mod special_executors;
+pub mod statement_executors;
 pub mod tag_filter;
 
 // Re-export from base module (基础类型从 base 模块统一导出)
