@@ -17,7 +17,7 @@ define_plan_node_with_deps! {
 impl AggregateNode {
     /// 创建新的聚合节点
     pub fn new(
-        input: super::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         group_keys: Vec<String>,
         aggregation_functions: Vec<AggregateFunction>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -60,8 +60,8 @@ mod tests {
     #[test]
     fn test_aggregate_node_creation() {
         let start_node =
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
-                crate::query::planner::plan::core::nodes::start_node::StartNode::new(),
+            crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+                crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new(),
             );
 
         let group_keys = vec!["category".to_string()];

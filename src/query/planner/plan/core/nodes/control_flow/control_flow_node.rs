@@ -4,8 +4,8 @@
 
 use std::sync::Arc;
 
-use super::plan_node_enum::PlanNodeEnum;
-use super::plan_node_traits::{PlanNode, PlanNodeClonable};
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::{PlanNode, PlanNodeClonable};
 use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::define_plan_node;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -56,8 +56,8 @@ pub struct SelectNode {
     id: i64,
     condition: ContextualExpression,
     condition_serializable: Option<SerializableExpression>,
-    if_branch: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
-    else_branch: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
+    if_branch: Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+    else_branch: Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<String>,
     col_names: Vec<String>,
 }
@@ -89,27 +89,27 @@ impl SelectNode {
         }
     }
 
-    pub fn set_if_branch(&mut self, branch: super::plan_node_enum::PlanNodeEnum) {
+    pub fn set_if_branch(&mut self, branch: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
         self.if_branch = Some(Box::new(branch));
     }
 
-    pub fn set_else_branch(&mut self, branch: super::plan_node_enum::PlanNodeEnum) {
+    pub fn set_else_branch(&mut self, branch: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
         self.else_branch = Some(Box::new(branch));
     }
 
-    pub fn if_branch(&self) -> &Option<Box<super::plan_node_enum::PlanNodeEnum>> {
+    pub fn if_branch(&self) -> &Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>> {
         &self.if_branch
     }
 
-    pub fn else_branch(&self) -> &Option<Box<super::plan_node_enum::PlanNodeEnum>> {
+    pub fn else_branch(&self) -> &Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>> {
         &self.else_branch
     }
 
-    pub fn if_branch_mut(&mut self) -> &mut Option<Box<super::plan_node_enum::PlanNodeEnum>> {
+    pub fn if_branch_mut(&mut self) -> &mut Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>> {
         &mut self.if_branch
     }
 
-    pub fn else_branch_mut(&mut self) -> &mut Option<Box<super::plan_node_enum::PlanNodeEnum>> {
+    pub fn else_branch_mut(&mut self) -> &mut Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>> {
         &mut self.else_branch
     }
 
@@ -157,14 +157,14 @@ impl SelectNode {
         self.col_names = names;
     }
 
-    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
-        super::plan_node_enum::PlanNodeEnum::Select(self.clone())
+    pub fn clone_plan_node(&self) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Select(self.clone())
     }
 
-    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        super::plan_node_enum::PlanNodeEnum::Select(cloned)
+        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Select(cloned)
     }
 }
 
@@ -214,7 +214,7 @@ pub struct LoopNode {
     id: i64,
     condition: ContextualExpression,
     condition_serializable: Option<SerializableExpression>,
-    body: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
+    body: Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<String>,
     col_names: Vec<String>,
 }
@@ -244,15 +244,15 @@ impl LoopNode {
         }
     }
 
-    pub fn set_body(&mut self, body: super::plan_node_enum::PlanNodeEnum) {
+    pub fn set_body(&mut self, body: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
         self.body = Some(Box::new(body));
     }
 
-    pub fn body(&self) -> &Option<Box<super::plan_node_enum::PlanNodeEnum>> {
+    pub fn body(&self) -> &Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>> {
         &self.body
     }
 
-    pub fn body_mut(&mut self) -> &mut Option<Box<super::plan_node_enum::PlanNodeEnum>> {
+    pub fn body_mut(&mut self) -> &mut Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>> {
         &mut self.body
     }
 
@@ -300,14 +300,14 @@ impl LoopNode {
         self.col_names = names;
     }
 
-    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
-        super::plan_node_enum::PlanNodeEnum::Loop(self.clone())
+    pub fn clone_plan_node(&self) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Loop(self.clone())
     }
 
-    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+    pub fn clone_with_new_id(&self, new_id: i64) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        super::plan_node_enum::PlanNodeEnum::Loop(cloned)
+        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Loop(cloned)
     }
 }
 

@@ -44,7 +44,7 @@ define_plan_node_with_deps! {
 impl SortNode {
     /// 创建新的排序节点
     pub fn new(
-        input: super::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         sort_items: Vec<SortItem>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
@@ -88,7 +88,7 @@ define_plan_node_with_deps! {
 impl LimitNode {
     /// 创建新的限制节点
     pub fn new(
-        input: super::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         offset: i64,
         count: i64,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -128,7 +128,7 @@ define_plan_node_with_deps! {
 impl TopNNode {
     /// 创建新的TopN节点
     pub fn new(
-        input: super::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         sort_items: Vec<SortItem>,
         limit: i64,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -159,8 +159,8 @@ impl TopNNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 
     #[test]
     fn test_sort_node_creation() {

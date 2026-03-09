@@ -1,75 +1,41 @@
-pub mod aggregate_node;
-pub mod control_flow_node;
-pub mod data_processing_node;
-pub mod edge_nodes;
+pub mod access;
+pub mod base;
+pub mod control_flow;
+pub mod data_processing;
 pub mod factory;
-pub mod filter_node;
-pub mod graph_scan_node;
-pub mod index_nodes;
-pub mod insert_nodes;
-pub mod join_node;
-pub mod macros;
-pub mod plan_node_category;
-pub mod plan_node_children;
-pub mod plan_node_enum;
-pub mod plan_node_operations;
-pub mod plan_node_traits;
-pub mod plan_node_traits_impl;
-pub mod plan_node_visitor;
-pub mod project_node;
-pub mod sample_node;
-pub mod set_operations_node;
-pub mod sort_node;
-pub mod space_nodes;
-pub mod start_node;
-pub mod stats_nodes;
-pub mod tag_nodes;
-pub mod traversal_node;
-pub mod user_nodes;
+pub mod insert;
+pub mod join;
+pub mod management;
+pub mod operation;
+pub mod traversal;
 
-pub use aggregate_node::AggregateNode;
-pub use control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
-pub use data_processing_node::{
-    AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
-    RollUpApplyNode, UnionNode, UnwindNode,
-};
-pub use edge_nodes::{
-    AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, EdgeAlterInfo, EdgeManageInfo,
-    ShowEdgesNode,
-};
-pub use factory::PlanNodeFactory;
-pub use filter_node::FilterNode;
-pub use graph_scan_node::{
+pub use access::{
     EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
     ScanVerticesNode,
 };
-pub use index_nodes::{
-    CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
-    DropEdgeIndexNode, DropTagIndexNode, IndexManageInfo, RebuildEdgeIndexNode,
-    RebuildTagIndexNode, ShowEdgeIndexesNode, ShowTagIndexesNode,
+pub use base::{PlanNodeCategory, PlanNodeEnum, PlanNodeVisitor};
+pub use base::plan_node_traits::*;
+pub use control_flow::{ArgumentNode, LoopNode, PassThroughNode, SelectNode, StartNode};
+pub use data_processing::{
+    AggregateNode, AssignNode, DataCollectNode, DedupNode, IntersectNode, MaterializeNode,
+    MinusNode, PatternApplyNode, RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
-pub use insert_nodes::{EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, VertexInsertInfo};
-pub use join_node::{
+pub use factory::PlanNodeFactory;
+pub use insert::{EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, VertexInsertInfo};
+pub use join::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
     LeftJoinNode,
 };
-pub use plan_node_category::PlanNodeCategory;
-pub use plan_node_enum::PlanNodeEnum;
-pub use plan_node_traits::*;
-pub use plan_node_visitor::PlanNodeVisitor;
-pub use project_node::ProjectNode;
-pub use sample_node::SampleNode;
-pub use set_operations_node::{IntersectNode, MinusNode};
-pub use sort_node::{LimitNode, SortItem, SortNode, TopNNode};
-pub use space_nodes::{
-    AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode,
-    ShowSpacesNode, SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode,
+pub use management::{
+    AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode,
+    ClearSpaceNode, CreateEdgeIndexNode, CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode,
+    CreateTagNode, CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode,
+    DescTagIndexNode, DescTagNode, DropEdgeIndexNode, DropEdgeNode, DropSpaceNode,
+    DropTagIndexNode, DropTagNode, DropUserNode, EdgeAlterInfo, EdgeManageInfo, GrantRoleNode,
+    IndexManageInfo, RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode,
+    ShowEdgeIndexesNode, ShowEdgesNode, ShowSpacesNode, ShowStatsNode, ShowStatsType,
+    ShowTagIndexesNode, ShowTagsNode, SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode,
+    TagAlterInfo, TagManageInfo,
 };
-pub use start_node::StartNode;
-pub use stats_nodes::{ShowStatsNode, ShowStatsType};
-pub use tag_nodes::{
-    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode, TagAlterInfo,
-    TagManageInfo,
-};
-pub use traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
-pub use user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode};
+pub use operation::{FilterNode, LimitNode, ProjectNode, SampleNode, SortItem, SortNode, TopNNode};
+pub use traversal::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};

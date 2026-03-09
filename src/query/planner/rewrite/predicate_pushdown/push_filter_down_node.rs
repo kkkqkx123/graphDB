@@ -5,8 +5,8 @@
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::traversal_node::TraverseNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::traversal::traversal_node::TraverseNode;
 use crate::query::planner::plan::core::nodes::AppendVerticesNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::expression_utils::{check_col_name, split_filter};

@@ -2,18 +2,18 @@
 //!
 //! 提供统一的节点创建接口
 
-use super::aggregate_node::AggregateNode;
-use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
-use super::data_processing_node::{
+use crate::query::planner::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
+use crate::query::planner::plan::core::nodes::control_flow::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
+use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::{
     DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
-use super::graph_scan_node::{
+use crate::query::planner::plan::core::nodes::access::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
 
-use super::sort_node::{LimitNode, SortItem, SortNode};
-use super::start_node::StartNode;
-use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
+use crate::query::planner::plan::core::nodes::operation::sort_node::{LimitNode, SortItem, SortNode};
+use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+use crate::query::planner::plan::core::nodes::traversal::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::types::ContextualExpression;
 use crate::core::types::EdgeDirection;
@@ -31,7 +31,7 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         condition: ContextualExpression,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use super::filter_node::FilterNode;
+        use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
         let filter_node = FilterNode::new(input, condition)?;
         Ok(PlanNodeEnum::Filter(filter_node))
     }
@@ -41,7 +41,7 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         columns: Vec<YieldColumn>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use super::project_node::ProjectNode;
+        use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
         let project_node = ProjectNode::new(input, columns)?;
         Ok(PlanNodeEnum::Project(project_node))
     }
@@ -53,7 +53,7 @@ impl PlanNodeFactory {
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use super::join_node::InnerJoinNode;
+        use crate::query::planner::plan::core::nodes::join::join_node::InnerJoinNode;
 
         let inner_join_node = InnerJoinNode::new(left, right, hash_keys, probe_keys)?;
         Ok(PlanNodeEnum::InnerJoin(inner_join_node))
@@ -239,7 +239,7 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         minus_input: PlanNodeEnum,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use super::set_operations_node::MinusNode;
+        use crate::query::planner::plan::core::nodes::data_processing::set_operations_node::MinusNode;
         let minus_node = MinusNode::new(input, minus_input)?;
         Ok(PlanNodeEnum::Minus(minus_node))
     }
@@ -249,7 +249,7 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         intersect_input: PlanNodeEnum,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use super::set_operations_node::IntersectNode;
+        use crate::query::planner::plan::core::nodes::data_processing::set_operations_node::IntersectNode;
         let intersect_node = IntersectNode::new(input, intersect_input)?;
         Ok(PlanNodeEnum::Intersect(intersect_node))
     }
@@ -331,7 +331,7 @@ impl PlanNodeFactory {
         edge_type: &str,
         index_name: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use super::graph_scan_node::EdgeIndexScanNode;
+        use crate::query::planner::plan::core::nodes::access::graph_scan_node::EdgeIndexScanNode;
         let edge_index_scan_node = EdgeIndexScanNode::new(space_id, edge_type, index_name);
         Ok(PlanNodeEnum::EdgeIndexScan(edge_index_scan_node))
     }

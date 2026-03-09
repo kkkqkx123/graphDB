@@ -10,56 +10,56 @@
 //! - 易于扩展：新增节点类型时只需实现对应方法
 //! - 与现有架构兼容：利用已有的 PlanNodeVisitor
 
-use crate::query::planner::plan::core::nodes::plan_node_traits::{
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
     BinaryInputNode, MultipleInputNode, SingleInputNode,
 };
-use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
+use crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::plan_rewriter::PlanRewriter;
 use crate::query::planner::rewrite::result::RewriteResult;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
-use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
-use crate::query::planner::plan::core::nodes::data_processing_node::{
+use crate::query::planner::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
+use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::{
     AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
-use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-use crate::query::planner::plan::core::nodes::graph_scan_node::{
+use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
+use crate::query::planner::plan::core::nodes::access::graph_scan_node::{
     EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
     ScanVerticesNode,
 };
-use crate::query::planner::plan::core::nodes::join_node::{
+use crate::query::planner::plan::core::nodes::join::join_node::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
     LeftJoinNode,
 };
-use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
-use crate::query::planner::plan::core::nodes::sample_node::SampleNode;
-use crate::query::planner::plan::core::nodes::set_operations_node::{IntersectNode, MinusNode};
-use crate::query::planner::plan::core::nodes::sort_node::{LimitNode, SortNode, TopNNode};
-use crate::query::planner::plan::core::nodes::traversal_node::{
+use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
+use crate::query::planner::plan::core::nodes::operation::sample_node::SampleNode;
+use crate::query::planner::plan::core::nodes::data_processing::set_operations_node::{IntersectNode, MinusNode};
+use crate::query::planner::plan::core::nodes::operation::sort_node::{LimitNode, SortNode, TopNNode};
+use crate::query::planner::plan::core::nodes::traversal::traversal_node::{
     AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode,
 };
 
-use crate::query::planner::plan::core::nodes::control_flow_node::{
+use crate::query::planner::plan::core::nodes::control_flow::control_flow_node::{
     ArgumentNode, LoopNode, PassThroughNode, SelectNode,
 };
-use crate::query::planner::plan::core::nodes::edge_nodes::{
+use crate::query::planner::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
-use crate::query::planner::plan::core::nodes::index_nodes::{
+use crate::query::planner::plan::core::nodes::management::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
-use crate::query::planner::plan::core::nodes::space_nodes::{
+use crate::query::planner::plan::core::nodes::management::space_nodes::{
     CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
 };
-use crate::query::planner::plan::core::nodes::start_node::StartNode;
-use crate::query::planner::plan::core::nodes::tag_nodes::{
+use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+use crate::query::planner::plan::core::nodes::management::tag_nodes::{
     AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
 };
-use crate::query::planner::plan::core::nodes::user_nodes::{
+use crate::query::planner::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
 };
 
@@ -446,9 +446,9 @@ mod tests {
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-    use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
+    use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use std::sync::Arc;
     use ExpressionAnalysisContext;
 

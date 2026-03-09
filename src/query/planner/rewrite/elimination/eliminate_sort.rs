@@ -26,7 +26,7 @@
 //! 只要检测到输入有序且与排序要求匹配，就直接消除排序。
 //! 基于代价的 TopN 转换决策保留在 strategy::sort_elimination 模块中。
 
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::{SortItem, SortNode};
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;

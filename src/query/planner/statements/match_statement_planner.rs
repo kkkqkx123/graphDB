@@ -14,8 +14,8 @@ use crate::core::YieldColumn;
 use crate::query::parser::ast::pattern::{PathElement, Pattern, RepetitionType};
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::OrderByItem;
-use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::ExpandAllNode;
 use crate::query::planner::plan::core::nodes::{
     ArgumentNode, LeftJoinNode, LimitNode, LoopNode, ProjectNode, ScanVerticesNode, SortItem,

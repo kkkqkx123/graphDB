@@ -10,7 +10,7 @@ use crate::query::executor::factory::builders::Builders;
 use crate::query::executor::factory::validators::{
     RecursionDetector, SafetyValidator,
 };
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;

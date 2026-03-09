@@ -183,24 +183,24 @@ impl Default for PlanDescription {
 use crate::query::planner::plan::algorithms::{
     AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
 };
-use crate::query::planner::plan::core::nodes::edge_nodes::{
+use crate::query::planner::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
-use crate::query::planner::plan::core::nodes::index_nodes::{
+use crate::query::planner::plan::core::nodes::management::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
-use crate::query::planner::plan::core::nodes::plan_node_enum::*;
-use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
-use crate::query::planner::plan::core::nodes::space_nodes::{
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::*;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
+use crate::query::planner::plan::core::nodes::management::space_nodes::{
     CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
 };
-use crate::query::planner::plan::core::nodes::tag_nodes::{
+use crate::query::planner::plan::core::nodes::management::tag_nodes::{
     AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
 };
-use crate::query::planner::plan::core::nodes::user_nodes::{
+use crate::query::planner::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
 };
 use crate::query::planner::plan::core::nodes::{

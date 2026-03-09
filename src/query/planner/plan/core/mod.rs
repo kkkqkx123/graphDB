@@ -8,9 +8,9 @@ pub use explain::{
     DescribeVisitor, Pair, PlanDescription, PlanNodeBranchInfo, PlanNodeDescription, ProfilingStats,
 };
 pub use node_id_generator::{next_node_id, NodeIdGenerator};
-pub use nodes::plan_node_enum::PlanNodeEnum;
-pub use nodes::plan_node_traits::PlanNode;
-pub use nodes::plan_node_visitor::PlanNodeVisitor;
+pub use nodes::base::plan_node_enum::PlanNodeEnum;
+pub use nodes::base::plan_node_traits::PlanNode;
+pub use nodes::base::plan_node_visitor::PlanNodeVisitor;
 pub use nodes::{
     AggregateNode, AlterSpaceNode, AppendVerticesNode, ArgumentNode, ClearSpaceNode, CrossJoinNode, DataCollectNode, DedupNode,
     ExpandAllNode, ExpandNode, FilterNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode,

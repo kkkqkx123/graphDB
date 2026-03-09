@@ -1,7 +1,7 @@
 //! 合并获取邻居和去重操作的规则
 
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
@@ -121,9 +121,9 @@ impl MergeRule for MergeGetNbrsAndDedupRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
-    use crate::query::planner::plan::core::nodes::graph_scan_node::GetNeighborsNode;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::DedupNode;
+    use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetNeighborsNode;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 
     #[test]
     fn test_rule_name() {

@@ -3,8 +3,8 @@
 //!
 //! 注意：算法选择已在Planner阶段完成，此模块只包含具体算法的计划节点
 
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{BinaryInputNode, PlanNode};
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::{BinaryInputNode, PlanNode};
 
 /// 多源最短路径计划节点
 #[derive(Debug, Clone)]
@@ -93,7 +93,7 @@ impl MultiShortestPath {
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor,
+        V: crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_multi_shortest_path(self)
     }
@@ -235,7 +235,7 @@ impl BFSShortest {
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor,
+        V: crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_bfs_shortest(self)
     }
@@ -402,7 +402,7 @@ impl AllPaths {
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor,
+        V: crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_all_paths(self)
     }
@@ -542,7 +542,7 @@ impl ShortestPath {
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor,
+        V: crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_shortest_path(self)
     }

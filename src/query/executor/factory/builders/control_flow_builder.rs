@@ -36,7 +36,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
         create_executor_fn: &mut dyn FnMut(
-            &crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum,
+            &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
             Arc<Mutex<S>>,
             &ExecutionContext,
         ) -> Result<ExecutorEnum<S>, QueryError>,
@@ -71,7 +71,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
         create_executor_fn: &mut dyn FnMut(
-            &crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum,
+            &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
             Arc<Mutex<S>>,
             &ExecutionContext,
         ) -> Result<ExecutorEnum<S>, QueryError>,

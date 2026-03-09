@@ -13,8 +13,8 @@ define_plan_node_with_deps! {
 
 impl MinusNode {
     pub fn new(
-        input: super::plan_node_enum::PlanNodeEnum,
-        minus_input: super::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        minus_input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
@@ -27,7 +27,7 @@ impl MinusNode {
         })
     }
 
-    pub fn minus_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+    pub fn minus_input(&self) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.deps[1]
     }
 }
@@ -41,8 +41,8 @@ define_plan_node_with_deps! {
 
 impl IntersectNode {
     pub fn new(
-        input: super::plan_node_enum::PlanNodeEnum,
-        intersect_input: super::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        intersect_input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
@@ -55,7 +55,7 @@ impl IntersectNode {
         })
     }
 
-    pub fn intersect_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+    pub fn intersect_input(&self) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.deps[1]
     }
 }

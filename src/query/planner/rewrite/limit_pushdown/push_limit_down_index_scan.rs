@@ -4,7 +4,7 @@
 //! 并将LIMIT值集成到IndexScan操作中。
 
 use crate::query::planner::plan::algorithms::index_scan::IndexScan;
-use crate::query::planner::plan::core::nodes::sort_node::LimitNode;
+use crate::query::planner::plan::core::nodes::operation::sort_node::LimitNode;
 use crate::query::planner::rewrite::macros::define_rewrite_pushdown_rule;
 use crate::query::planner::rewrite::result::TransformResult;
 

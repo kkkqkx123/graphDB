@@ -4,9 +4,9 @@ use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::YieldColumn;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::expression_utils::rewrite_contextual_expression;
 use crate::query::planner::rewrite::pattern::Pattern;
@@ -281,7 +281,7 @@ mod tests {
     use super::*;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::YieldColumn;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use std::sync::Arc;
     use ExpressionAnalysisContext;
 

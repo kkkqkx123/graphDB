@@ -3,11 +3,11 @@
 
 use crate::core::types::expression::ContextualExpression;
 use crate::core::types::graph_schema::OrderDirection;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
     PlanNode, PlanNodeClonable, ZeroInputNode,
 };
-use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
+use crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 
 /// 排序项定义
 #[derive(Debug, Clone, PartialEq)]

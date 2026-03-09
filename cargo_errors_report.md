@@ -2,25 +2,28 @@
 
 ## Summary
 
-- **Total Errors**: 2
+- **Total Errors**: 20
 - **Total Warnings**: 0
-- **Total Issues**: 2
-- **Unique Error Patterns**: 2
+- **Total Issues**: 20
+- **Unique Error Patterns**: 20
 - **Unique Warning Patterns**: 0
-- **Files with Issues**: 1
+- **Files with Issues**: 4
 
 ## Error Statistics
 
-**Total Errors**: 2
+**Total Errors**: 20
 
 ### Error Type Breakdown
 
-- **error[E0412]**: 1 errors
-- **error[E0433]**: 1 errors
+- **error[E0599]**: 16 errors
+- **error[E0432]**: 4 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\validator\validator_enum.rs`: 2 errors
+- `src\query\optimizer\analysis\reference_count.rs`: 17 errors
+- `src\query\planner\statements\create_planner.rs`: 1 errors
+- `src\query\planner\plan\core\nodes\traversal\traversal_node.rs`: 1 errors
+- `src\query\planner\statements\insert_planner.rs`: 1 errors
 
 ## Warning Statistics
 
@@ -28,21 +31,36 @@
 
 ## Detailed Error Categorization
 
-### error[E0412]: cannot find type `ClearSpaceValidator` in this scope
+### error[E0599]: no method named `input` found for reference `&filter_node::FilterNode` in the current scope: private field, not a method
 
-**Total Occurrences**: 1  
+**Total Occurrences**: 16  
 **Unique Files**: 1
 
-#### `src\query\validator\validator_enum.rs`: 1 occurrences
+#### `src\query\optimizer\analysis\reference_count.rs`: 16 occurrences
 
-- Line 187: cannot find type `ClearSpaceValidator` in this scope
+- Line 247: no method named `input` found for reference `&filter_node::FilterNode` in the current scope: private field, not a method
+- Line 251: no method named `input` found for reference `&project_node::ProjectNode` in the current scope: private field, not a method
+- Line 255: no method named `input` found for reference `&sort_node::SortNode` in the current scope: private field, not a method
+- ... 13 more occurrences in this file
 
-### error[E0433]: failed to resolve: use of undeclared type `ClearSpaceValidator`: use of undeclared type `ClearSpaceValidator`
+### error[E0432]: unresolved import `crate::query::planner::plan::core::nodes::plan_node_traits`: could not find `plan_node_traits` in `nodes`
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+**Total Occurrences**: 4  
+**Unique Files**: 4
 
-#### `src\query\validator\validator_enum.rs`: 1 occurrences
+#### `src\query\optimizer\analysis\reference_count.rs`: 1 occurrences
 
-- Line 648: failed to resolve: use of undeclared type `ClearSpaceValidator`: use of undeclared type `ClearSpaceValidator`
+- Line 7: unresolved import `crate::query::planner::plan::core::nodes::plan_node_traits`: could not find `plan_node_traits` in `nodes`
+
+#### `src\query\planner\plan\core\nodes\traversal\traversal_node.rs`: 1 occurrences
+
+- Line 7: unresolved import `super::super::common`: could not find `common` in `super`
+
+#### `src\query\planner\statements\create_planner.rs`: 1 occurrences
+
+- Line 13: unresolved imports `crate::query::planner::plan::core::nodes::control_flow_node`, `crate::query::planner::plan::core::nodes::insert_nodes`: could not find `control_flow_node` in `nodes`, could not find `insert_nodes` in `nodes`
+
+#### `src\query\planner\statements\insert_planner.rs`: 1 occurrences
+
+- Line 13: unresolved import `crate::query::planner::plan::core::nodes::insert_nodes`: could not find `insert_nodes` in `nodes`
 

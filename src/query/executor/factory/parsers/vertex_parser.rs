@@ -3,7 +3,7 @@
 //! 负责解析顶点ID字符串，从计划节点提取顶点ID
 
 use crate::core::Value;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 
 /// 从 PlanNode 提取顶点 ID 列表
 /// 用于多源最短路径等算法获取起始和目标顶点

@@ -7,8 +7,8 @@ use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
@@ -151,9 +151,9 @@ impl PushDownRule for PushFilterDownGetNbrsRule {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-    use crate::query::planner::plan::core::nodes::graph_scan_node::GetNeighborsNode;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
+    use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetNeighborsNode;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 
     #[test]
     fn test_rule_name() {

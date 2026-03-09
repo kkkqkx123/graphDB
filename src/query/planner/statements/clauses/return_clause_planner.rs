@@ -6,9 +6,9 @@ use crate::core::types::expression::common_utils::generate_default_alias_from_co
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
-use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
+use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::DedupNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;

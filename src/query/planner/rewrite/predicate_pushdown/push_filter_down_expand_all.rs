@@ -3,8 +3,8 @@
 //! 该规则识别 Filter -> ExpandAll 模式，
 //! 并将过滤条件下推到 ExpandAll 节点中。
 
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
@@ -117,8 +117,8 @@ impl PushDownRule for PushFilterDownExpandAllRule {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::traversal_node::ExpandAllNode;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::traversal::traversal_node::ExpandAllNode;
 
     #[test]
     fn test_rule_name() {
@@ -147,7 +147,7 @@ mod tests {
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
-        let filter = crate::query::planner::plan::core::nodes::filter_node::FilterNode::new(
+        let filter = crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode::new(
             start_enum.clone(),
             ctx_expr,
         )

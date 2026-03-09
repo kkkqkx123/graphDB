@@ -122,7 +122,7 @@ macro_rules! define_typed_rewrite_rule {
                 node: &$crate::query::planner::plan::PlanNodeEnum,
             ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
                 use $crate::query::planner::plan::PlanNodeEnum;
-                use $crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+                use $crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 
                 let typed_node = match node {
                     PlanNodeEnum::$node_type(n) => n,
@@ -196,7 +196,7 @@ macro_rules! define_rewrite_pushdown_rule {
                 node: &$crate::query::planner::plan::PlanNodeEnum,
             ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
                 use $crate::query::planner::plan::PlanNodeEnum;
-                use $crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+                use $crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 
                 let parent_node = match node {
                     PlanNodeEnum::$parent_type(n) => n,
@@ -393,7 +393,7 @@ macro_rules! define_simple_rewrite_elimination_rule {
                 node: &$crate::query::planner::plan::PlanNodeEnum,
             ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
                 use $crate::query::planner::plan::PlanNodeEnum;
-                use $crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+                use $crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 
                 let typed_node = match node {
                     PlanNodeEnum::$node_type(n) => n,
@@ -499,7 +499,7 @@ macro_rules! define_rewrite_merge_rule {
                 node: &$crate::query::planner::plan::PlanNodeEnum,
             ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
                 use $crate::query::planner::plan::PlanNodeEnum;
-                use $crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+                use $crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 
                 let parent_node = match node {
                     PlanNodeEnum::$parent_type(n) => n,

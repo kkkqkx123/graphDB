@@ -3,8 +3,8 @@
 //! 负责规划 LIMIT 和 SKIP 子句的执行，实现结果分页。
 
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::sort_node::LimitNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::operation::sort_node::LimitNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::match_statement_planner::PaginationInfo;

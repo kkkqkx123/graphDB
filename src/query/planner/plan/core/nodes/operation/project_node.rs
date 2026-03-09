@@ -21,7 +21,7 @@ define_plan_node_with_deps! {
 impl ProjectNode {
     /// 创建新的投影节点
     pub fn new(
-        input: super::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         columns: Vec<YieldColumn>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names: Vec<String> = columns.iter().map(|col| col.alias.clone()).collect();
@@ -86,8 +86,8 @@ mod tests {
     #[test]
     fn test_project_node_creation() {
         let start_node =
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
-                crate::query::planner::plan::core::nodes::start_node::StartNode::new(),
+            crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+                crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new(),
             );
 
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
@@ -113,8 +113,8 @@ mod tests {
     #[test]
     fn test_project_node_columns() {
         let start_node =
-            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
-                crate::query::planner::plan::core::nodes::start_node::StartNode::new(),
+            crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+                crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new(),
             );
 
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());

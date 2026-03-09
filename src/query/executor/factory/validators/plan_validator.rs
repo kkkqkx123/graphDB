@@ -3,7 +3,7 @@
 //! 负责验证计划节点的有效性，检查计划节点的约束条件
 
 use crate::core::error::QueryError;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 
 /// 计划验证器
 pub struct PlanValidator;

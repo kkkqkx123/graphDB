@@ -1,8 +1,8 @@
 //! 合并获取顶点和投影操作的规则
 
 use crate::core::types::ContextualExpression;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
@@ -129,9 +129,9 @@ impl MergeRule for MergeGetVerticesAndProjectRule {
 mod tests {
     use super::*;
     use crate::core::{Expression, YieldColumn};
-    use crate::query::planner::plan::core::nodes::graph_scan_node::GetVerticesNode;
-    use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetVerticesNode;
+    use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 
     #[test]
     fn test_rule_name() {

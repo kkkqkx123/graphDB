@@ -221,35 +221,35 @@ impl MaterializationOptimizer {
                 if !analysis.is_deterministic {
                     return false;
                 }
-                self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
+                self.is_deterministic(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
             }
             PlanNodeEnum::Project(n) => self.is_deterministic(
-                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
             PlanNodeEnum::Aggregate(n) => {
                 // 聚合函数通常是确定性的，除非它们的输入是非确定性的
                 // 我们通过递归检查输入节点来确保确定性
-                self.is_deterministic(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
+                self.is_deterministic(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
             }
             PlanNodeEnum::Sort(n) => self.is_deterministic(
-                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
             PlanNodeEnum::Limit(n) => self.is_deterministic(
-                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
             PlanNodeEnum::TopN(n) => self.is_deterministic(
-                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
             PlanNodeEnum::Union(n) => self.is_deterministic(
-                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
@@ -347,14 +347,14 @@ impl MaterializationOptimizer {
                 let condition = n.condition();
                 let analysis = self.expression_analyzer.analyze(&condition);
                 max_complexity = max_complexity.max(analysis.complexity_score);
-                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)));
+                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
             }
             PlanNodeEnum::Project(n) => {
-                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)));
+                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
             }
             PlanNodeEnum::Aggregate(n) => {
                 // 聚合函数的复杂度由输入决定
-                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)));
+                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
             }
             _ => {}
         }
@@ -377,7 +377,7 @@ impl MaterializationOptimizer {
                 }
             }
             PlanNodeEnum::Filter(n) => (self.estimate_result_rows(
-                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ) as f64
@@ -413,7 +413,7 @@ impl MaterializationOptimizer {
                 (left_rows as f64 * right_rows as f64 * 0.3) as u64
             }
             PlanNodeEnum::Aggregate(n) => {
-                let input_rows = self.estimate_result_rows(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n));
+                let input_rows = self.estimate_result_rows(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n));
                 let group_keys = n.group_keys().len();
                 if group_keys == 0 {
                     1

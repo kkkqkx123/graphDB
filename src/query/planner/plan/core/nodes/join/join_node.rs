@@ -14,8 +14,8 @@ define_join_node! {
 
 impl InnerJoinNode {
     pub fn new(
-        left: super::plan_node_enum::PlanNodeEnum,
-        right: super::plan_node_enum::PlanNodeEnum,
+        left: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        right: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -45,8 +45,8 @@ define_join_node! {
 
 impl LeftJoinNode {
     pub fn new(
-        left: super::plan_node_enum::PlanNodeEnum,
-        right: super::plan_node_enum::PlanNodeEnum,
+        left: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        right: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -77,8 +77,8 @@ define_binary_input_node! {
 
 impl CrossJoinNode {
     pub fn new(
-        left: super::plan_node_enum::PlanNodeEnum,
-        right: super::plan_node_enum::PlanNodeEnum,
+        left: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        right: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
@@ -104,8 +104,8 @@ define_join_node! {
 
 impl HashInnerJoinNode {
     pub fn new(
-        left: super::plan_node_enum::PlanNodeEnum,
-        right: super::plan_node_enum::PlanNodeEnum,
+        left: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        right: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -135,8 +135,8 @@ define_join_node! {
 
 impl HashLeftJoinNode {
     pub fn new(
-        left: super::plan_node_enum::PlanNodeEnum,
-        right: super::plan_node_enum::PlanNodeEnum,
+        left: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        right: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -166,8 +166,8 @@ define_join_node! {
 
 impl FullOuterJoinNode {
     pub fn new(
-        left: super::plan_node_enum::PlanNodeEnum,
-        right: super::plan_node_enum::PlanNodeEnum,
+        left: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        right: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
@@ -192,8 +192,8 @@ impl FullOuterJoinNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 
     fn create_test_start_node(_id: i64) -> PlanNodeEnum {
         PlanNodeEnum::Start(StartNode::new())

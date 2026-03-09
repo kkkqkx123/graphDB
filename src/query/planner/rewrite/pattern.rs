@@ -302,9 +302,9 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-    use crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode;
-    use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
+    use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
+    use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
+    use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
     use std::sync::Arc;
 
     #[test]

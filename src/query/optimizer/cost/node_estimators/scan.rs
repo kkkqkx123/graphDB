@@ -46,7 +46,7 @@ impl<'a> ScanEstimator<'a> {
     /// 估算边索引扫描的选择性
     pub fn estimate_edge_index_scan_selectivity(
         &self,
-        node: &crate::query::planner::plan::core::nodes::graph_scan_node::EdgeIndexScanNode,
+        node: &crate::query::planner::plan::core::nodes::access::graph_scan_node::EdgeIndexScanNode,
     ) -> f64 {
         if node.scan_limits().is_empty() {
             return 0.1;
@@ -165,7 +165,7 @@ mod tests {
     use crate::query::optimizer::cost::config::CostModelConfig;
     use crate::query::optimizer::stats::{EdgeTypeStatistics, TagStatistics};
     use crate::query::planner::plan::algorithms::{IndexLimit, ScanType};
-    use crate::query::planner::plan::core::nodes::graph_scan_node::*;
+    use crate::query::planner::plan::core::nodes::access::graph_scan_node::*;
     use std::sync::Arc;
 
     fn create_test_calculator() -> CostCalculator {
@@ -282,7 +282,7 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::start_node::StartNode::new());
+        let node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new());
         let child_estimates = vec![];
         let result = estimator.estimate(&node, &child_estimates);
 

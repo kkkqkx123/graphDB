@@ -75,7 +75,7 @@ mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
     use crate::query::planner::plan::algorithms::*;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use std::sync::Arc;
 
     fn create_test_calculator() -> CostCalculator {

@@ -152,10 +152,10 @@ mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
     use crate::query::optimizer::stats::{EdgeTypeStatistics, TagStatistics};
-    use crate::query::planner::plan::core::nodes::graph_scan_node::*;
-    use crate::query::planner::plan::core::nodes::plan_node_traits::{MultipleInputNode, SingleInputNode};
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::traversal_node::*;
+    use crate::query::planner::plan::core::nodes::access::graph_scan_node::*;
+    use crate::query::planner::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, SingleInputNode};
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::traversal::traversal_node::*;
     use std::sync::Arc;
 
     fn create_test_calculator() -> CostCalculator {

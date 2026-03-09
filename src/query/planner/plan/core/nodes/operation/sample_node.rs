@@ -14,7 +14,7 @@ define_plan_node_with_deps! {
 
 impl SampleNode {
     pub fn new(
-        input: super::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         count: i64,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
@@ -37,8 +37,8 @@ impl SampleNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 
     #[test]
     fn test_sample_node_creation() {

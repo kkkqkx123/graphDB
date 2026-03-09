@@ -167,7 +167,7 @@ impl MatchedResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode;
+    use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
 
     #[test]
     fn test_transform_result() {

@@ -99,7 +99,7 @@ impl<T: HeuristicRule + Sized> IntoOptRule for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode;
+    use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
 
     #[derive(Debug)]
     struct TestHeuristicRule;

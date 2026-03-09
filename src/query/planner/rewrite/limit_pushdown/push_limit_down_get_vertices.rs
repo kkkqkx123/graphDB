@@ -3,8 +3,8 @@
 //! 该规则识别 Limit -> GetVertices 模式，
 //! 并将LIMIT值集成到GetVertices操作中。
 
-use crate::query::planner::plan::core::nodes::graph_scan_node::GetVerticesNode;
-use crate::query::planner::plan::core::nodes::sort_node::LimitNode;
+use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetVerticesNode;
+use crate::query::planner::plan::core::nodes::operation::sort_node::LimitNode;
 use crate::query::planner::rewrite::macros::define_rewrite_pushdown_rule;
 use crate::query::planner::rewrite::result::TransformResult;
 

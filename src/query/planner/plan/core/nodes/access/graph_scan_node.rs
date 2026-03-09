@@ -2,7 +2,7 @@
 //!
 //! 包含获取顶点、边和邻居节点的计划节点
 
-use super::super::common::{EdgeProp, TagProp};
+use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::define_plan_node;
 use crate::query::planner::plan::algorithms::{IndexLimit, ScanType};

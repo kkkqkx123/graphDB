@@ -25,7 +25,7 @@
 
 use crate::core::types::operators::BinaryOperator;
 use crate::core::{Expression, Value};
-use crate::query::planner::plan::core::nodes::start_node::StartNode;
+use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;

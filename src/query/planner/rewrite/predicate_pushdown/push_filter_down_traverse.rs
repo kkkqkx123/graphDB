@@ -5,8 +5,8 @@
 
 use crate::core::types::expression::{ExpressionVisitor, VariableCollector};
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::expression_utils::split_filter;
 use crate::query::planner::rewrite::pattern::Pattern;

@@ -4,7 +4,7 @@
 //! 并将TopN的限制和排序信息集成到IndexScan操作中。
 
 use crate::query::planner::plan::algorithms::index_scan::{IndexScan, OrderByItem};
-use crate::query::planner::plan::core::nodes::sort_node::TopNNode;
+use crate::query::planner::plan::core::nodes::operation::sort_node::TopNNode;
 use crate::query::planner::rewrite::macros::define_rewrite_pushdown_rule;
 use crate::query::planner::rewrite::result::TransformResult;
 

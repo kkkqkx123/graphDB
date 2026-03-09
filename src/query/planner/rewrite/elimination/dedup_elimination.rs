@@ -21,7 +21,7 @@
 //! - Dedup 节点的子节点为 IndexScan、GetVertices 或 GetEdges
 //! - 这些操作本身就保证结果的唯一性
 
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
@@ -151,7 +151,7 @@ mod tests {
         let rule = DedupEliminationRule::new();
 
         // Start 节点保证唯一性
-        let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
+        let start_node = crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
         assert!(rule.child_guarantees_uniqueness(&PlanNodeEnum::Start(start_node)));
     }
 }

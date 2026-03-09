@@ -214,12 +214,12 @@ impl SubqueryUnnestingOptimizer {
                     }
                 }
                 // 递归检查输入
-                self.is_simple_subquery(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n))
+                self.is_simple_subquery(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
             }
 
             // 简单投影
             PlanNodeEnum::Project(n) => self.is_simple_subquery(
-                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
@@ -276,10 +276,10 @@ impl SubqueryUnnestingOptimizer {
             }
             PlanNodeEnum::Filter(n) => {
                 // 过滤后估算为原始行数的 30%
-                (self.estimate_subquery_rows(crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(n)) as f64 * 0.3) as u64
+                (self.estimate_subquery_rows(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)) as f64 * 0.3) as u64
             }
             PlanNodeEnum::Project(n) => self.estimate_subquery_rows(
-                crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode::input(
+                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),

@@ -61,7 +61,7 @@ impl<'a> DataProcessingEstimator<'a> {
     /// 估算 Unwind 节点的列表大小
     fn estimate_unwind_list_size(
         &self,
-        node: &crate::query::planner::plan::core::nodes::data_processing_node::UnwindNode,
+        node: &crate::query::planner::plan::core::nodes::data_processing::data_processing_node::UnwindNode,
     ) -> f64 {
         let list_expr = node.list_expression();
 
@@ -141,10 +141,10 @@ mod tests {
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::{Expression, Value};
     use crate::query::optimizer::cost::config::CostModelConfig;
-    use crate::query::planner::plan::core::nodes::data_processing_node::*;
-    use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-    use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
-    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::*;
+    use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
+    use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::core::YieldColumn;
     use std::sync::Arc;
@@ -275,7 +275,7 @@ mod tests {
         let config = CostModelConfig::default();
         let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
 
-        let node = PlanNodeEnum::ScanVertices(crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode::new(1));
+        let node = PlanNodeEnum::ScanVertices(crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode::new(1));
         let child_estimates = vec![];
         let result = estimator.estimate(&node, &child_estimates);
 
