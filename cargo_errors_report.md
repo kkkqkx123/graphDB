@@ -3,11 +3,11 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 1
-- **Total Issues**: 1
+- **Total Warnings**: 3
+- **Total Issues**: 3
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 1
+- **Unique Warning Patterns**: 2
+- **Files with Issues**: 2
 
 ## Error Statistics
 
@@ -15,24 +15,30 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 3
 
 ### Warning Type Breakdown
 
-- **warning**: 1 warnings
+- **warning**: 3 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\storage\redb_storage.rs`: 1 warnings
+- `src\query\executor\statement_executors\group_by_executor.rs`: 2 warnings
+- `src\query\executor\statement_executors\set_operation_executor.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `std::collections::HashMap`
+### warning: field `id` is never read
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+**Total Occurrences**: 3  
+**Unique Files**: 2
 
-#### `src\storage\redb_storage.rs`: 1 occurrences
+#### `src\query\executor\statement_executors\group_by_executor.rs`: 2 occurrences
 
-- Line 19: unused import: `std::collections::HashMap`
+- Line 30: field `id` is never read
+- Line 146: associated function `apply_having` is never used
+
+#### `src\query\executor\statement_executors\set_operation_executor.rs`: 1 occurrences
+
+- Line 27: field `id` is never read
 
