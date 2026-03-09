@@ -162,14 +162,14 @@ mod tests {
             SortItem::asc("name".to_string()),
             SortItem::desc("age".to_string()),
         ];
-        let node = SortNode::new(input, sort_items).unwrap();
+        let node = SortNode::new(input, sort_items).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Sort(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -180,14 +180,14 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let node = LimitNode::new(input, 10, 50).unwrap();
+        let node = LimitNode::new(input, 10, 50).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Limit(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 50);
     }
@@ -199,14 +199,14 @@ mod tests {
 
         let input = PlanNodeEnum::Start(StartNode::new());
         let sort_items = vec![SortItem::asc("name".to_string())];
-        let node = TopNNode::new(input, sort_items, 10).unwrap();
+        let node = TopNNode::new(input, sort_items, 10).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::TopN(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 10);
     }
@@ -219,14 +219,14 @@ mod tests {
         let input = PlanNodeEnum::Start(StartNode::new());
         let group_keys = vec!["category".to_string()];
         let agg_funcs = vec![AggregateFunction::Count(None)];
-        let node = AggregateNode::new(input, group_keys, agg_funcs).unwrap();
+        let node = AggregateNode::new(input, group_keys, agg_funcs).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Aggregate(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert!(output_rows >= 1);
         assert!(output_rows <= 100);
@@ -238,14 +238,14 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let node = DedupNode::new(input).unwrap();
+        let node = DedupNode::new(input).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Dedup(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 70);
     }
@@ -256,14 +256,14 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let node = SampleNode::new(input, 50).unwrap();
+        let node = SampleNode::new(input, 50).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Sample(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 50);
     }
@@ -286,14 +286,14 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let node = LimitNode::new(input, 0, 100).unwrap();
+        let node = LimitNode::new(input, 0, 100).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Limit(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 1000)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -304,14 +304,14 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let node = LimitNode::new(input, 500, 100).unwrap();
+        let node = LimitNode::new(input, 500, 100).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Limit(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 1000)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -324,14 +324,14 @@ mod tests {
         let input = PlanNodeEnum::Start(StartNode::new());
         let group_keys = vec![];
         let agg_funcs = vec![AggregateFunction::Count(None)];
-        let node = AggregateNode::new(input, group_keys, agg_funcs).unwrap();
+        let node = AggregateNode::new(input, group_keys, agg_funcs).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Aggregate(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 1);
     }
@@ -344,14 +344,14 @@ mod tests {
         let input = PlanNodeEnum::Start(StartNode::new());
         let group_keys = vec!["category".to_string(), "type".to_string(), "status".to_string()];
         let agg_funcs = vec![AggregateFunction::Count(None)];
-        let node = AggregateNode::new(input, group_keys, agg_funcs).unwrap();
+        let node = AggregateNode::new(input, group_keys, agg_funcs).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Aggregate(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 1000)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert!(output_rows >= 10);
         assert!(output_rows <= 1000);
@@ -363,14 +363,14 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let node = SampleNode::new(input, 1000).unwrap();
+        let node = SampleNode::new(input, 1000).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Sample(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -381,14 +381,14 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let node = SampleNode::new(input, 0).unwrap();
+        let node = SampleNode::new(input, 0).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Sample(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 1);
     }
@@ -404,14 +404,14 @@ mod tests {
             SortItem::desc("age".to_string()),
             SortItem::asc("score".to_string()),
         ];
-        let node = SortNode::new(input, sort_items).unwrap();
+        let node = SortNode::new(input, sort_items).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Sort(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -423,14 +423,14 @@ mod tests {
 
         let input = PlanNodeEnum::Start(StartNode::new());
         let sort_items = vec![SortItem::asc("name".to_string())];
-        let node = TopNNode::new(input, sort_items, 1000).unwrap();
+        let node = TopNNode::new(input, sort_items, 1000).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::TopN(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -441,14 +441,14 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let node = DedupNode::new(input).unwrap();
+        let node = DedupNode::new(input).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Dedup(node);
 
         let child_estimates = vec![NodeCostEstimate::new(0.0, 0.0, 0)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost >= 0.0);
         assert_eq!(output_rows, 1);
     }

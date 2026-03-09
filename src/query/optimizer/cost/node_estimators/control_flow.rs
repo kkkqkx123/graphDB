@@ -154,7 +154,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert!(output_rows >= 1);
     }
@@ -175,7 +175,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -193,7 +193,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -211,7 +211,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert_eq!(cost, 0.0);
         assert_eq!(output_rows, 1);
     }
@@ -243,7 +243,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -263,7 +263,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -283,7 +283,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -303,7 +303,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert!(output_rows >= 1);
     }
@@ -321,7 +321,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost >= 0.0);
         assert_eq!(output_rows, 0);
     }
@@ -339,7 +339,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 1_000_000);
     }
@@ -359,7 +359,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost >= 0.0);
         assert_eq!(output_rows, 0);
     }

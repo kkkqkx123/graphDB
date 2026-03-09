@@ -363,70 +363,80 @@ mod tests {
     #[test]
     fn test_abs_int() {
         let func = MathFunction::Abs;
-        let result = func.execute(&[Value::Int(-5)]).unwrap();
+        let result = func.execute(&[Value::Int(-5)]).expect("Abs 函数执行失败");
         assert_eq!(result, Value::Int(5));
     }
 
     #[test]
     fn test_abs_float() {
         let func = MathFunction::Abs;
-        let result = func.execute(&[Value::Float(-5.5)]).unwrap();
+        let result = func.execute(&[Value::Float(-5.5)]).expect("Abs 函数执行失败");
         assert_eq!(result, Value::Float(5.5));
     }
 
     #[test]
     fn test_sqrt() {
         let func = MathFunction::Sqrt;
-        let result = func.execute(&[Value::Int(16)]).unwrap();
+        let result = func.execute(&[Value::Int(16)]).expect("Sqrt 函数执行失败");
         assert_eq!(result, Value::Float(4.0));
     }
 
     #[test]
     fn test_pow() {
         let func = MathFunction::Pow;
-        let result = func.execute(&[Value::Int(2), Value::Int(3)]).unwrap();
+        let result = func
+            .execute(&[Value::Int(2), Value::Int(3)])
+            .expect("Pow 函数执行失败");
         assert_eq!(result, Value::Float(8.0));
     }
 
     #[test]
     fn test_sin() {
         let func = MathFunction::Sin;
-        let result = func.execute(&[Value::Float(0.0)]).unwrap();
+        let result = func.execute(&[Value::Float(0.0)]).expect("Sin 函数执行失败");
         assert_eq!(result, Value::Float(0.0));
     }
 
     #[test]
     fn test_cos() {
         let func = MathFunction::Cos;
-        let result = func.execute(&[Value::Float(0.0)]).unwrap();
+        let result = func.execute(&[Value::Float(0.0)]).expect("Cos 函数执行失败");
         assert_eq!(result, Value::Float(1.0));
     }
 
     #[test]
     fn test_round() {
         let func = MathFunction::Round;
-        let result = func.execute(&[Value::Float(3.7)]).unwrap();
+        let result = func
+            .execute(&[Value::Float(3.7)])
+            .expect("Round 函数执行失败");
         assert_eq!(result, Value::Float(4.0));
     }
 
     #[test]
     fn test_ceil() {
         let func = MathFunction::Ceil;
-        let result = func.execute(&[Value::Float(3.2)]).unwrap();
+        let result = func
+            .execute(&[Value::Float(3.2)])
+            .expect("Ceil 函数执行失败");
         assert_eq!(result, Value::Float(4.0));
     }
 
     #[test]
     fn test_floor() {
         let func = MathFunction::Floor;
-        let result = func.execute(&[Value::Float(3.9)]).unwrap();
+        let result = func
+            .execute(&[Value::Float(3.9)])
+            .expect("Floor 函数执行失败");
         assert_eq!(result, Value::Float(3.0));
     }
 
     #[test]
     fn test_null_handling() {
         let func = MathFunction::Abs;
-        let result = func.execute(&[Value::Null(NullType::Null)]).unwrap();
+        let result = func
+            .execute(&[Value::Null(NullType::Null)])
+            .expect("Abs 函数空值处理失败");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 }

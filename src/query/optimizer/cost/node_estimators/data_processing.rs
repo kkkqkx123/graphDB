@@ -172,14 +172,14 @@ mod tests {
 
         let input = PlanNodeEnum::Start(StartNode::new());
         let condition = create_test_expression();
-        let node = FilterNode::new(input, condition).unwrap();
+        let node = FilterNode::new(input, condition).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Filter(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert!(output_rows >= 1);
     }
@@ -200,14 +200,14 @@ mod tests {
             alias: "col".to_string(),
             is_matched: false,
         }];
-        let node = ProjectNode::new(input, columns).unwrap();
+        let node = ProjectNode::new(input, columns).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Project(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -220,14 +220,14 @@ mod tests {
 
         let input = PlanNodeEnum::Start(StartNode::new());
         let list_expr = create_test_expression();
-        let node = UnwindNode::new(input, "item", list_expr).unwrap();
+        let node = UnwindNode::new(input, "item", list_expr).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Unwind(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert!(output_rows >= 1);
     }
@@ -239,14 +239,14 @@ mod tests {
         let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let node = DataCollectNode::new(input, "ROW").unwrap();
+        let node = DataCollectNode::new(input, "ROW").expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::DataCollect(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -264,7 +264,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert_eq!(cost, 0.0);
         assert_eq!(output_rows, 0);
     }
@@ -358,14 +358,14 @@ mod tests {
 
         let input = PlanNodeEnum::Start(StartNode::new());
         let condition = create_test_expression();
-        let node = FilterNode::new(input, condition).unwrap();
+        let node = FilterNode::new(input, condition).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Filter(node);
 
         let child_estimates = vec![NodeCostEstimate::new(0.0, 0.0, 0)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost >= 0.0);
         assert_eq!(output_rows, 1);
     }
@@ -407,14 +407,14 @@ mod tests {
                 is_matched: false,
             },
         ];
-        let node = ProjectNode::new(input, columns).unwrap();
+        let node = ProjectNode::new(input, columns).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Project(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -427,14 +427,14 @@ mod tests {
 
         let input = PlanNodeEnum::Start(StartNode::new());
         let list_expr = create_test_expression();
-        let node = UnwindNode::new(input, "item", list_expr).unwrap();
+        let node = UnwindNode::new(input, "item", list_expr).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Unwind(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 1000)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert!(output_rows >= 1);
     }
@@ -446,14 +446,14 @@ mod tests {
         let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let node = DataCollectNode::new(input, "ROW").unwrap();
+        let node = DataCollectNode::new(input, "ROW").expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::DataCollect(node);
 
         let child_estimates = vec![NodeCostEstimate::new(1000.0, 1000.0, 1_000_000)];
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 1_000_000);
     }

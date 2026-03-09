@@ -277,7 +277,13 @@ impl Planner for CreatePlanner {
                 }
 
                 if insert_nodes.len() == 1 {
-                    (insert_nodes.into_iter().next().unwrap(), created_count)
+                    (
+                        insert_nodes
+                            .into_iter()
+                            .next()
+                            .expect("insert_nodes 长度检查后不应为空"),
+                        created_count,
+                    )
                 } else {
                     let combined = self.combine_insert_nodes(insert_nodes)?;
                     (PlanNodeEnum::PassThrough(combined), created_count)

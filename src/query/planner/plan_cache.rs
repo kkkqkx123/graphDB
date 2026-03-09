@@ -174,7 +174,7 @@ impl QueryPlanCache {
     pub fn new(config: PlanCacheConfig) -> Self {
         Self {
             cache: Mutex::new(LruCache::new(
-                NonZeroUsize::new(config.max_entries).unwrap()
+                NonZeroUsize::new(config.max_entries).expect("缓存条目数必须大于0")
             )),
             config,
             stats: Mutex::new(PlanCacheStats::default()),
@@ -402,8 +402,8 @@ impl ParameterizedQueryHandler {
     /// 创建新的参数化查询处理器
     pub fn new() -> Self {
         Self {
-            // 匹配 $1, $2, ... 或 $name 格式的占位符
-            placeholder_pattern: regex::Regex::new(r"\$(\d+|[a-zA-Z_][a-zA-Z0-9_]*)").unwrap(),
+            placeholder_pattern: regex::Regex::new(r"\$(\d+|[a-zA-Z_][a-zA-Z0-9_]*)")
+                .expect("占位符正则表达式编译失败"),
         }
     }
 
@@ -418,7 +418,7 @@ impl ParameterizedQueryHandler {
         let mut positions = Vec::new();
 
         for (idx, cap) in self.placeholder_pattern.captures_iter(query).enumerate() {
-            let mat = cap.get(0).unwrap();
+            let mat = cap.get(0).expect("正则表达式捕获组不应为空");
             let param_str = &cap[1];
 
             // 判断是位置参数还是命名参数

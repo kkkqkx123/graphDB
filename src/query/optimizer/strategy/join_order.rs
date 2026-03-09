@@ -287,10 +287,13 @@ impl JoinOrderOptimizer {
         // 获取最优解
         let full_set = (1 << n) - 1;
         let best_solution = dp.get(&full_set).cloned().unwrap_or_else(|| {
-            // 回退：按原始顺序
             SubproblemSolution {
                 table_set: full_set,
-                last_table: tables.last().unwrap().id.clone(),
+                last_table: tables
+                    .last()
+                    .expect("tables 集合不为空")
+                    .id
+                    .clone(),
                 total_cost: f64::MAX,
                 output_rows: 0,
                 join_tree: "fallback".to_string(),

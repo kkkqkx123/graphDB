@@ -113,7 +113,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = HashInnerJoinNode::new(left, right, vec![], vec![]).unwrap();
+        let node = HashInnerJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::HashInnerJoin(node);
 
         let child_estimates = vec![
@@ -123,7 +123,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert!(output_rows >= 1);
         assert!(output_rows <= 100);
@@ -136,7 +136,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = HashLeftJoinNode::new(left, right, vec![], vec![]).unwrap();
+        let node = HashLeftJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::HashLeftJoin(node);
 
         let child_estimates = vec![
@@ -146,7 +146,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -158,7 +158,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = InnerJoinNode::new(left, right, vec![], vec![]).unwrap();
+        let node = InnerJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::InnerJoin(node);
 
         let child_estimates = vec![
@@ -168,7 +168,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert!(output_rows >= 1);
         assert!(output_rows <= 100);
@@ -181,7 +181,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = LeftJoinNode::new(left, right, vec![], vec![]).unwrap();
+        let node = LeftJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::LeftJoin(node);
 
         let child_estimates = vec![
@@ -191,7 +191,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 100);
     }
@@ -203,7 +203,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = CrossJoinNode::new(left, right).unwrap();
+        let node = CrossJoinNode::new(left, right).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::CrossJoin(node);
 
         let child_estimates = vec![
@@ -213,7 +213,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 20000);
     }
@@ -225,7 +225,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = FullOuterJoinNode::new(left, right, vec![], vec![]).unwrap();
+        let node = FullOuterJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::FullOuterJoin(node);
 
         let child_estimates = vec![
@@ -235,7 +235,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 300);
     }
@@ -260,7 +260,7 @@ mod tests {
         for (left_rows, right_rows) in [(10, 20), (100, 200), (1000, 500)] {
             let left = create_test_start_node();
             let right = create_test_start_node();
-            let node = HashInnerJoinNode::new(left, right, vec![], vec![]).unwrap();
+            let node = HashInnerJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
             let plan_node = PlanNodeEnum::HashInnerJoin(node);
 
             let child_estimates = vec![
@@ -270,7 +270,7 @@ mod tests {
             let result = estimator.estimate(&plan_node, &child_estimates);
 
             assert!(result.is_ok());
-            let (cost, output_rows) = result.unwrap();
+            let (cost, output_rows) = result.expect("Estimation should succeed");
             assert!(cost > 0.0);
             assert!(output_rows >= 1);
         }
@@ -283,7 +283,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = CrossJoinNode::new(left, right).unwrap();
+        let node = CrossJoinNode::new(left, right).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::CrossJoin(node);
 
         let child_estimates = vec![
@@ -293,7 +293,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost > 0.0);
         assert_eq!(output_rows, 1_000_000);
     }
@@ -305,7 +305,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = HashInnerJoinNode::new(left, right, vec![], vec![]).unwrap();
+        let node = HashInnerJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::HashInnerJoin(node);
 
         let child_estimates = vec![
@@ -315,7 +315,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (cost, output_rows) = result.unwrap();
+        let (cost, output_rows) = result.expect("Estimation should succeed");
         assert!(cost >= 0.0);
         assert_eq!(output_rows, 1);
     }
@@ -327,7 +327,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = LeftJoinNode::new(left, right, vec![], vec![]).unwrap();
+        let node = LeftJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::LeftJoin(node);
 
         let child_estimates = vec![
@@ -337,7 +337,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (_, output_rows) = result.unwrap();
+        let (_, output_rows) = result.expect("Estimation should succeed");
         assert_eq!(output_rows, 500);
     }
 
@@ -348,7 +348,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = HashLeftJoinNode::new(left, right, vec![], vec![]).unwrap();
+        let node = HashLeftJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::HashLeftJoin(node);
 
         let child_estimates = vec![
@@ -358,7 +358,7 @@ mod tests {
         let result = estimator.estimate(&plan_node, &child_estimates);
 
         assert!(result.is_ok());
-        let (_, output_rows) = result.unwrap();
+        let (_, output_rows) = result.expect("Estimation should succeed");
         assert_eq!(output_rows, 750);
     }
 }

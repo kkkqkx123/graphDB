@@ -289,6 +289,6 @@ mod tests {
         let key = JoinKey::new(vec![Value::Int(1)]);
         let indices = hash_table.get(&key);
         assert!(indices.is_some());
-        assert_eq!(indices.unwrap(), &vec![0]);
+        assert_eq!(indices.expect("索引应存在"), &vec![0]);
     }
 }

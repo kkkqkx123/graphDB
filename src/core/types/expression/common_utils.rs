@@ -180,7 +180,7 @@ mod tests {
 
         let result = extract_string_from_expr(&ctx_expr);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "test_var");
+        assert_eq!(result.expect("提取变量字符串失败"), "test_var");
     }
 
     #[test]
@@ -193,7 +193,7 @@ mod tests {
 
         let result = extract_string_from_expr(&ctx_expr);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "hello");
+        assert_eq!(result.expect("提取字符串字面量失败"), "hello");
     }
 
     #[test]
@@ -206,7 +206,7 @@ mod tests {
 
         let result = extract_string_from_expr(&ctx_expr);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "42");
+        assert_eq!(result.expect("提取整数字面量失败"), "42");
     }
 
     #[test]

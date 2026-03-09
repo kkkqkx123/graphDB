@@ -171,13 +171,13 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let row1 = iter.next().unwrap().unwrap();
+        let row1 = iter.next().expect("获取第一行失败").expect("第一行不应为空");
         assert_eq!(row1[0], Value::Int(1));
 
-        let row2 = iter.next().unwrap().unwrap();
+        let row2 = iter.next().expect("获取第二行失败").expect("第二行不应为空");
         assert_eq!(row2[0], Value::Int(2));
 
-        assert!(iter.next().unwrap().is_none());
+        assert!(iter.next().expect("获取第三行失败").is_none());
     }
 
     #[test]
@@ -185,7 +185,7 @@ mod tests {
         let mut iter = ResultIteratorEnum::empty();
         assert!(iter.is_empty());
         assert_eq!(iter.size(), 0);
-        assert!(iter.next().unwrap().is_none());
+        assert!(iter.next().expect("获取空迭代器结果失败").is_none());
     }
 
     #[test]
@@ -200,10 +200,10 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let row1 = iter.next().unwrap().unwrap();
+        let row1 = iter.next().expect("获取第一行失败").expect("第一行不应为空");
         assert_eq!(row1[0], Value::Int(1));
 
-        let row2 = iter.next().unwrap().unwrap();
+        let row2 = iter.next().expect("获取第二行失败").expect("第二行不应为空");
         assert_eq!(row2[0], Value::Int(2));
     }
 
@@ -221,10 +221,10 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let prop1 = iter.next().unwrap().unwrap();
+        let prop1 = iter.next().expect("获取第一个属性失败").expect("第一个属性不应为空");
         assert_eq!(prop1[0], Value::String("name".to_string()));
 
-        let prop2 = iter.next().unwrap().unwrap();
+        let prop2 = iter.next().expect("获取第二个属性失败").expect("第二个属性不应为空");
         assert_eq!(prop2[0], Value::String("age".to_string()));
     }
 
@@ -233,11 +233,10 @@ mod tests {
         let rows = vec![vec![Value::Int(1)]];
         let mut iter1 = ResultIteratorEnum::default_iterator(rows);
 
-        iter1.next().unwrap();
+        iter1.next().expect("迭代不应失败");
 
         let mut iter2 = iter1.clone();
-        // 克隆后应该能重新迭代
-        let row = iter2.next().unwrap().unwrap();
+        let row = iter2.next().expect("克隆后迭代不应失败").expect("克隆后第一行不应为空");
         assert_eq!(row[0], Value::Int(1));
     }
 }

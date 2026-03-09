@@ -226,7 +226,7 @@ mod tests {
         let func = GeographyFunction::StPoint;
         let result = func
             .execute(&[Value::Float(116.4074), Value::Float(39.9042)])
-            .unwrap();
+            .expect("执行不应失败");
         assert!(matches!(result, Value::Geography(_)));
     }
 
@@ -237,7 +237,7 @@ mod tests {
             longitude: 116.4074,
             latitude: 39.9042,
         };
-        let result = func.execute(&[Value::Geography(geo)]).unwrap();
+        let result = func.execute(&[Value::Geography(geo)]).expect("执行不应失败");
         assert_eq!(result, Value::Bool(true));
     }
 
@@ -254,14 +254,14 @@ mod tests {
         };
         let result = func
             .execute(&[Value::Geography(geo1), Value::Geography(geo2)])
-            .unwrap();
+            .expect("执行不应失败");
         assert!(matches!(result, Value::Float(_)));
     }
 
     #[test]
     fn test_null_handling() {
         let func = GeographyFunction::StIsValid;
-        let result = func.execute(&[Value::Null(NullType::Null)]).unwrap();
+        let result = func.execute(&[Value::Null(NullType::Null)]).expect("执行不应失败");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 }

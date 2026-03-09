@@ -162,14 +162,14 @@ mod tests {
         let func = UtilityFunction::Coalesce;
         let result = func
             .execute(&[Value::Null(NullType::Null), Value::Int(42), Value::Int(100)])
-            .unwrap();
+            .expect("Execution should succeed");
         assert_eq!(result, Value::Int(42));
     }
 
     #[test]
     fn test_hash() {
         let func = UtilityFunction::Hash;
-        let result = func.execute(&[Value::String("test".to_string())]).unwrap();
+        let result = func.execute(&[Value::String("test".to_string())]).expect("Execution should succeed");
         assert!(matches!(result, Value::Int(_)));
     }
 }

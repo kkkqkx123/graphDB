@@ -560,7 +560,9 @@ mod tests {
         let filter_enum = PlanNodeEnum::Filter(filter);
         let found = rule.find_data_source(&filter_enum);
         assert!(found.is_some());
-        assert!(matches!(found.unwrap(), PlanNodeEnum::ScanVertices(_)));
+        assert!(
+            matches!(found.expect("前面已确认 is_some"), PlanNodeEnum::ScanVertices(_))
+        );
 
         // 非数据源
         let start = PlanNodeEnum::Start(StartNode::new());

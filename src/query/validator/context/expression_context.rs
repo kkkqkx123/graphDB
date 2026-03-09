@@ -430,7 +430,7 @@ mod tests {
         let id = ctx.register_expression(meta);
         let retrieved = ctx.get_expression(&id);
         assert!(retrieved.is_some());
-        assert!(retrieved.unwrap().is_variable());
+        assert!(retrieved.expect("表达式应存在").is_variable());
     }
 
     #[test]

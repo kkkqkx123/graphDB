@@ -504,7 +504,8 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex1_bytes = encode_to_vec(&vertex1, standard()).unwrap();
+        let vertex1_bytes = encode_to_vec(&vertex1, standard())
+            .expect("顶点序列化失败");
 
         let vertex2 = Vertex::new(
             Value::Int(2),
@@ -513,7 +514,8 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex2_bytes = encode_to_vec(&vertex2, standard()).unwrap();
+        let vertex2_bytes = encode_to_vec(&vertex2, standard())
+            .expect("顶点序列化失败");
 
         ctx.add_log(OperationLog::InsertVertex {
             space: "test".to_string(),
@@ -564,7 +566,8 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex_bytes = encode_to_vec(&vertex, standard()).unwrap();
+        let vertex_bytes = encode_to_vec(&vertex, standard())
+            .expect("顶点序列化失败");
 
         let log = OperationLog::DeleteVertex {
             space: "test_space".to_string(),

@@ -481,7 +481,7 @@ mod tests {
 
         let result = visitor.visit_start(&start);
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("访问不应失败") {
             PlanNodeEnum::Start(_) => {}
             _ => panic!("期望 Start 节点"),
         }

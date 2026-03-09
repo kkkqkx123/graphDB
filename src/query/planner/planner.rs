@@ -357,7 +357,7 @@ mod tests {
 
         let planner = PlannerEnum::from_stmt(&Arc::new(match_stmt));
         assert!(planner.is_some());
-        assert_eq!(planner.unwrap().name(), "MatchPlanner");
+        assert_eq!(planner.expect("规划器应存在").name(), "MatchPlanner");
     }
 
     #[test]

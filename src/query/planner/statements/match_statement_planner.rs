@@ -226,7 +226,9 @@ impl MatchStatementPlanner {
                                         node_plan,
                                         alias,
                                         &node.variable,
-                                        self.expr_context.as_ref().unwrap(),
+                                        self.expr_context.as_ref().ok_or_else(|| {
+                                            PlannerError::PlanGenerationFailed("Expression context is unavailable".to_string())
+                                        })?,
                                     )?
                                 } else {
                                     self.cross_join_plans(
@@ -302,7 +304,9 @@ impl MatchStatementPlanner {
                                 space_id,
                                 prev_node_alias.as_deref(),
                                 validation_info,
-                                self.expr_context.as_ref().unwrap(),
+                                self.expr_context.as_ref().ok_or_else(|| {
+                                    PlannerError::PlanGenerationFailed("Expression context is unavailable".to_string())
+                                })?,
                             )?;
                             plan = if let Some(existing_root) = plan.root.take() {
                                 self.cross_join_plans(

@@ -742,7 +742,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         }
 
         if results.len() == 1 {
-            return Ok(results.into_iter().next().unwrap());
+            return Ok(results.into_iter().next().expect("结果列表不应为空"));
         }
 
         Ok(ExecutionResult::Values(

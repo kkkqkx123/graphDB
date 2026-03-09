@@ -100,35 +100,35 @@ mod tests {
     #[test]
     fn test_to_string() {
         let func = ConversionFunction::ToString;
-        let result = func.execute(&[Value::Int(42)]).unwrap();
+        let result = func.execute(&[Value::Int(42)]).expect("执行不应失败");
         assert_eq!(result, Value::String("42".to_string()));
     }
 
     #[test]
     fn test_to_int() {
         let func = ConversionFunction::ToInt;
-        let result = func.execute(&[Value::String("42".to_string())]).unwrap();
+        let result = func.execute(&[Value::String("42".to_string())]).expect("执行不应失败");
         assert_eq!(result, Value::Int(42));
     }
 
     #[test]
     fn test_to_float() {
         let func = ConversionFunction::ToFloat;
-        let result = func.execute(&[Value::Int(42)]).unwrap();
+        let result = func.execute(&[Value::Int(42)]).expect("执行不应失败");
         assert_eq!(result, Value::Float(42.0));
     }
 
     #[test]
     fn test_to_bool() {
         let func = ConversionFunction::ToBool;
-        let result = func.execute(&[Value::Int(1)]).unwrap();
+        let result = func.execute(&[Value::Int(1)]).expect("执行不应失败");
         assert_eq!(result, Value::Bool(true));
     }
 
     #[test]
     fn test_null_handling() {
         let func = ConversionFunction::ToString;
-        let result = func.execute(&[Value::Null(NullType::Null)]).unwrap();
+        let result = func.execute(&[Value::Null(NullType::Null)]).expect("执行不应失败");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 }
