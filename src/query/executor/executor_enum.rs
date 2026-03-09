@@ -4,9 +4,7 @@
 //! 通过为枚举实现 Executor trait，可以统一处理所有执行器类型
 
 use std::fmt;
-
 use std::fmt::{Debug, Formatter};
-use std::time::Instant;
 
 use crate::storage::StorageClient;
 
@@ -20,7 +18,6 @@ use super::admin::{
     ShowEdgeIndexesExecutor, ShowEdgesExecutor, ShowSpacesExecutor, ShowTagIndexesExecutor,
     ShowTagsExecutor,
 };
-
 use super::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, InputExecutor, StartExecutor,
 };
@@ -47,11 +44,13 @@ use super::result_processing::{
     AggregateExecutor, DedupExecutor, FilterExecutor, GroupByExecutor, HavingExecutor,
     LimitExecutor, ProjectExecutor, SampleExecutor, SortExecutor, TopNExecutor,
 };
-use super::search_executors::BFSShortestExecutor;
-use super::search_executors::IndexScanExecutor;
+use super::search_executors::{BFSShortestExecutor, IndexScanExecutor};
 use super::special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 use super::data_modification::RemoveExecutor;
 
+/// 执行器枚举
+///
+/// 包含所有可能的执行器类型，使用静态分发实现多态
 pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     Start(StartExecutor<S>),
     Base(BaseExecutor<S>),
@@ -133,891 +132,125 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
 
 impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            ExecutorEnum::Start(exec) => {
-                f.write_str(&format!("ExecutorEnum::Start({})", exec.name()))
-            }
-            ExecutorEnum::Base(exec) => {
-                f.write_str(&format!("ExecutorEnum::Base({})", exec.name()))
-            }
-            ExecutorEnum::GetVertices(exec) => {
-                f.write_str(&format!("ExecutorEnum::GetVertices({})", exec.name()))
-            }
-            ExecutorEnum::GetNeighbors(exec) => {
-                f.write_str(&format!("ExecutorEnum::GetNeighbors({})", exec.name()))
-            }
-            ExecutorEnum::GetProp(exec) => {
-                f.write_str(&format!("ExecutorEnum::GetProp({})", exec.name()))
-            }
-            ExecutorEnum::AllPaths(exec) => {
-                f.write_str(&format!("ExecutorEnum::AllPaths({})", exec.name()))
-            }
-            ExecutorEnum::Expand(exec) => {
-                f.write_str(&format!("ExecutorEnum::Expand({})", exec.name()))
-            }
-            ExecutorEnum::ExpandAll(exec) => {
-                f.write_str(&format!("ExecutorEnum::ExpandAll({})", exec.name()))
-            }
-            ExecutorEnum::Traverse(exec) => {
-                f.write_str(&format!("ExecutorEnum::Traverse({})", exec.name()))
-            }
-            ExecutorEnum::ShortestPath(exec) => {
-                f.write_str(&format!("ExecutorEnum::ShortestPath({})", exec.name()))
-            }
-            ExecutorEnum::InnerJoin(exec) => {
-                f.write_str(&format!("ExecutorEnum::InnerJoin({})", exec.name()))
-            }
-            ExecutorEnum::HashInnerJoin(exec) => {
-                f.write_str(&format!("ExecutorEnum::HashInnerJoin({})", exec.name()))
-            }
-            ExecutorEnum::LeftJoin(exec) => {
-                f.write_str(&format!("ExecutorEnum::LeftJoin({})", exec.name()))
-            }
-            ExecutorEnum::HashLeftJoin(exec) => {
-                f.write_str(&format!("ExecutorEnum::HashLeftJoin({})", exec.name()))
-            }
-            ExecutorEnum::FullOuterJoin(exec) => {
-                f.write_str(&format!("ExecutorEnum::FullOuterJoin({})", exec.name()))
-            }
-            ExecutorEnum::CrossJoin(exec) => {
-                f.write_str(&format!("ExecutorEnum::CrossJoin({})", exec.name()))
-            }
-            ExecutorEnum::Union(exec) => {
-                f.write_str(&format!("ExecutorEnum::Union({})", exec.name()))
-            }
-            ExecutorEnum::UnionAll(exec) => {
-                f.write_str(&format!("ExecutorEnum::UnionAll({})", exec.name()))
-            }
-            ExecutorEnum::Minus(exec) => {
-                f.write_str(&format!("ExecutorEnum::Minus({})", exec.name()))
-            }
-            ExecutorEnum::Intersect(exec) => {
-                f.write_str(&format!("ExecutorEnum::Intersect({})", exec.name()))
-            }
-            ExecutorEnum::Filter(exec) => {
-                f.write_str(&format!("ExecutorEnum::Filter({})", exec.name()))
-            }
-            ExecutorEnum::Project(exec) => {
-                f.write_str(&format!("ExecutorEnum::Project({})", exec.name()))
-            }
-            ExecutorEnum::Limit(exec) => {
-                f.write_str(&format!("ExecutorEnum::Limit({})", exec.name()))
-            }
-            ExecutorEnum::Sort(exec) => {
-                f.write_str(&format!("ExecutorEnum::Sort({})", exec.name()))
-            }
-            ExecutorEnum::TopN(exec) => {
-                f.write_str(&format!("ExecutorEnum::TopN({})", exec.name()))
-            }
-            ExecutorEnum::Sample(exec) => {
-                f.write_str(&format!("ExecutorEnum::Sample({})", exec.name()))
-            }
-            ExecutorEnum::Aggregate(exec) => {
-                f.write_str(&format!("ExecutorEnum::Aggregate({})", exec.name()))
-            }
-            ExecutorEnum::GroupBy(exec) => {
-                f.write_str(&format!("ExecutorEnum::GroupBy({})", exec.name()))
-            }
-            ExecutorEnum::Having(exec) => {
-                f.write_str(&format!("ExecutorEnum::Having({})", exec.name()))
-            }
-            ExecutorEnum::Dedup(exec) => {
-                f.write_str(&format!("ExecutorEnum::Dedup({})", exec.name()))
-            }
-            ExecutorEnum::Unwind(exec) => {
-                f.write_str(&format!("ExecutorEnum::Unwind({})", exec.name()))
-            }
-            ExecutorEnum::Assign(exec) => {
-                f.write_str(&format!("ExecutorEnum::Assign({})", exec.name()))
-            }
-            ExecutorEnum::AppendVertices(exec) => {
-                f.write_str(&format!("ExecutorEnum::AppendVertices({})", exec.name()))
-            }
-            ExecutorEnum::RollUpApply(exec) => {
-                f.write_str(&format!("ExecutorEnum::RollUpApply({})", exec.name()))
-            }
-            ExecutorEnum::PatternApply(exec) => {
-                f.write_str(&format!("ExecutorEnum::PatternApply({})", exec.name()))
-            }
-            ExecutorEnum::Remove(exec) => {
-                f.write_str(&format!("ExecutorEnum::Remove({})", exec.name()))
-            }
-            ExecutorEnum::Loop(exec) => {
-                f.write_str(&format!("ExecutorEnum::Loop({})", exec.name()))
-            }
-            ExecutorEnum::ForLoop(exec) => {
-                f.write_str(&format!("ExecutorEnum::ForLoop({})", exec.name()))
-            }
-            ExecutorEnum::WhileLoop(exec) => {
-                f.write_str(&format!("ExecutorEnum::WhileLoop({})", exec.name()))
-            }
-            ExecutorEnum::Select(exec) => {
-                f.write_str(&format!("ExecutorEnum::Select({})", exec.name()))
-            }
-            ExecutorEnum::ScanEdges(exec) => {
-                f.write_str(&format!("ExecutorEnum::ScanEdges({})", exec.name()))
-            }
-            ExecutorEnum::ScanVertices(exec) => {
-                f.write_str(&format!("ExecutorEnum::ScanVertices({})", exec.name()))
-            }
-            ExecutorEnum::IndexScan(exec) => {
-                f.write_str(&format!("ExecutorEnum::IndexScan({})", exec.name()))
-            }
-            ExecutorEnum::Argument(exec) => {
-                f.write_str(&format!("ExecutorEnum::Argument({})", exec.name()))
-            }
-            ExecutorEnum::PassThrough(exec) => {
-                f.write_str(&format!("ExecutorEnum::PassThrough({})", exec.name()))
-            }
-            ExecutorEnum::DataCollect(exec) => {
-                f.write_str(&format!("ExecutorEnum::DataCollect({})", exec.name()))
-            }
-            ExecutorEnum::BFSShortest(exec) => {
-                f.write_str(&format!("ExecutorEnum::BFSShortest({})", exec.name()))
-            }
-            ExecutorEnum::ShowSpaces(exec) => {
-                f.write_str(&format!("ExecutorEnum::ShowSpaces({})", exec.name()))
-            }
-            ExecutorEnum::ShowTags(exec) => {
-                f.write_str(&format!("ExecutorEnum::ShowTags({})", exec.name()))
-            }
-            ExecutorEnum::ShowEdges(exec) => {
-                f.write_str(&format!("ExecutorEnum::ShowEdges({})", exec.name()))
-            }
-            ExecutorEnum::CreateTagIndex(exec) => {
-                f.write_str(&format!("ExecutorEnum::CreateTagIndex({})", exec.name()))
-            }
-            ExecutorEnum::DropTagIndex(exec) => {
-                f.write_str(&format!("ExecutorEnum::DropTagIndex({})", exec.name()))
-            }
-            ExecutorEnum::DescTagIndex(exec) => {
-                f.write_str(&format!("ExecutorEnum::DescTagIndex({})", exec.name()))
-            }
-            ExecutorEnum::ShowTagIndexes(exec) => {
-                f.write_str(&format!("ExecutorEnum::ShowTagIndexes({})", exec.name()))
-            }
-            ExecutorEnum::RebuildTagIndex(exec) => {
-                f.write_str(&format!("ExecutorEnum::RebuildTagIndex({})", exec.name()))
-            }
-            ExecutorEnum::CreateEdgeIndex(exec) => {
-                f.write_str(&format!("ExecutorEnum::CreateEdgeIndex({})", exec.name()))
-            }
-            ExecutorEnum::DropEdgeIndex(exec) => {
-                f.write_str(&format!("ExecutorEnum::DropEdgeIndex({})", exec.name()))
-            }
-            ExecutorEnum::DescEdgeIndex(exec) => {
-                f.write_str(&format!("ExecutorEnum::DescEdgeIndex({})", exec.name()))
-            }
-            ExecutorEnum::ShowEdgeIndexes(exec) => {
-                f.write_str(&format!("ExecutorEnum::ShowEdgeIndexes({})", exec.name()))
-            }
-            ExecutorEnum::RebuildEdgeIndex(exec) => {
-                f.write_str(&format!("ExecutorEnum::RebuildEdgeIndex({})", exec.name()))
-            }
-            ExecutorEnum::CreateSpace(exec) => {
-                f.write_str(&format!("ExecutorEnum::CreateSpace({})", exec.name()))
-            }
-            ExecutorEnum::DropSpace(exec) => {
-                f.write_str(&format!("ExecutorEnum::DropSpace({})", exec.name()))
-            }
-            ExecutorEnum::DescSpace(exec) => {
-                f.write_str(&format!("ExecutorEnum::DescSpace({})", exec.name()))
-            }
-            ExecutorEnum::CreateTag(exec) => {
-                f.write_str(&format!("ExecutorEnum::CreateTag({})", exec.name()))
-            }
-            ExecutorEnum::AlterTag(exec) => {
-                f.write_str(&format!("ExecutorEnum::AlterTag({})", exec.name()))
-            }
-            ExecutorEnum::DescTag(exec) => {
-                f.write_str(&format!("ExecutorEnum::DescTag({})", exec.name()))
-            }
-            ExecutorEnum::DropTag(exec) => {
-                f.write_str(&format!("ExecutorEnum::DropTag({})", exec.name()))
-            }
-            ExecutorEnum::CreateEdge(exec) => {
-                f.write_str(&format!("ExecutorEnum::CreateEdge({})", exec.name()))
-            }
-            ExecutorEnum::AlterEdge(exec) => {
-                f.write_str(&format!("ExecutorEnum::AlterEdge({})", exec.name()))
-            }
-            ExecutorEnum::DescEdge(exec) => {
-                f.write_str(&format!("ExecutorEnum::DescEdge({})", exec.name()))
-            }
-            ExecutorEnum::DropEdge(exec) => {
-                f.write_str(&format!("ExecutorEnum::DropEdge({})", exec.name()))
-            }
-            ExecutorEnum::CreateUser(exec) => {
-                f.write_str(&format!("ExecutorEnum::CreateUser({})", exec.name()))
-            }
-            ExecutorEnum::AlterUser(exec) => {
-                f.write_str(&format!("ExecutorEnum::AlterUser({})", exec.name()))
-            }
-            ExecutorEnum::DropUser(exec) => {
-                f.write_str(&format!("ExecutorEnum::DropUser({})", exec.name()))
-            }
-            ExecutorEnum::ChangePassword(exec) => {
-                f.write_str(&format!("ExecutorEnum::ChangePassword({})", exec.name()))
-            }
-            ExecutorEnum::Analyze(exec) => {
-                f.write_str(&format!("ExecutorEnum::Analyze({})", exec.name()))
-            }
-        }
+        let (variant_name, exec_name) = match self {
+            ExecutorEnum::Start(exec) => ("Start", exec.name()),
+            ExecutorEnum::Base(exec) => ("Base", exec.name()),
+            ExecutorEnum::GetVertices(exec) => ("GetVertices", exec.name()),
+            ExecutorEnum::GetNeighbors(exec) => ("GetNeighbors", exec.name()),
+            ExecutorEnum::GetProp(exec) => ("GetProp", exec.name()),
+            ExecutorEnum::AllPaths(exec) => ("AllPaths", exec.name()),
+            ExecutorEnum::Expand(exec) => ("Expand", exec.name()),
+            ExecutorEnum::ExpandAll(exec) => ("ExpandAll", exec.name()),
+            ExecutorEnum::Traverse(exec) => ("Traverse", exec.name()),
+            ExecutorEnum::ShortestPath(exec) => ("ShortestPath", exec.name()),
+            ExecutorEnum::InnerJoin(exec) => ("InnerJoin", exec.name()),
+            ExecutorEnum::HashInnerJoin(exec) => ("HashInnerJoin", exec.name()),
+            ExecutorEnum::LeftJoin(exec) => ("LeftJoin", exec.name()),
+            ExecutorEnum::HashLeftJoin(exec) => ("HashLeftJoin", exec.name()),
+            ExecutorEnum::FullOuterJoin(exec) => ("FullOuterJoin", exec.name()),
+            ExecutorEnum::CrossJoin(exec) => ("CrossJoin", exec.name()),
+            ExecutorEnum::Union(exec) => ("Union", exec.name()),
+            ExecutorEnum::UnionAll(exec) => ("UnionAll", exec.name()),
+            ExecutorEnum::Minus(exec) => ("Minus", exec.name()),
+            ExecutorEnum::Intersect(exec) => ("Intersect", exec.name()),
+            ExecutorEnum::Filter(exec) => ("Filter", exec.name()),
+            ExecutorEnum::Project(exec) => ("Project", exec.name()),
+            ExecutorEnum::Limit(exec) => ("Limit", exec.name()),
+            ExecutorEnum::Sort(exec) => ("Sort", exec.name()),
+            ExecutorEnum::TopN(exec) => ("TopN", exec.name()),
+            ExecutorEnum::Sample(exec) => ("Sample", exec.name()),
+            ExecutorEnum::Aggregate(exec) => ("Aggregate", exec.name()),
+            ExecutorEnum::GroupBy(exec) => ("GroupBy", exec.name()),
+            ExecutorEnum::Having(exec) => ("Having", exec.name()),
+            ExecutorEnum::Dedup(exec) => ("Dedup", exec.name()),
+            ExecutorEnum::Unwind(exec) => ("Unwind", exec.name()),
+            ExecutorEnum::Assign(exec) => ("Assign", exec.name()),
+            ExecutorEnum::AppendVertices(exec) => ("AppendVertices", exec.name()),
+            ExecutorEnum::RollUpApply(exec) => ("RollUpApply", exec.name()),
+            ExecutorEnum::PatternApply(exec) => ("PatternApply", exec.name()),
+            ExecutorEnum::Remove(exec) => ("Remove", exec.name()),
+            ExecutorEnum::Loop(exec) => ("Loop", exec.name()),
+            ExecutorEnum::ForLoop(exec) => ("ForLoop", exec.name()),
+            ExecutorEnum::WhileLoop(exec) => ("WhileLoop", exec.name()),
+            ExecutorEnum::Select(exec) => ("Select", exec.name()),
+            ExecutorEnum::ScanEdges(exec) => ("ScanEdges", exec.name()),
+            ExecutorEnum::ScanVertices(exec) => ("ScanVertices", exec.name()),
+            ExecutorEnum::IndexScan(exec) => ("IndexScan", exec.name()),
+            ExecutorEnum::Argument(exec) => ("Argument", exec.name()),
+            ExecutorEnum::PassThrough(exec) => ("PassThrough", exec.name()),
+            ExecutorEnum::DataCollect(exec) => ("DataCollect", exec.name()),
+            ExecutorEnum::BFSShortest(exec) => ("BFSShortest", exec.name()),
+            ExecutorEnum::ShowSpaces(exec) => ("ShowSpaces", exec.name()),
+            ExecutorEnum::ShowTags(exec) => ("ShowTags", exec.name()),
+            ExecutorEnum::ShowEdges(exec) => ("ShowEdges", exec.name()),
+            ExecutorEnum::CreateTagIndex(exec) => ("CreateTagIndex", exec.name()),
+            ExecutorEnum::DropTagIndex(exec) => ("DropTagIndex", exec.name()),
+            ExecutorEnum::DescTagIndex(exec) => ("DescTagIndex", exec.name()),
+            ExecutorEnum::ShowTagIndexes(exec) => ("ShowTagIndexes", exec.name()),
+            ExecutorEnum::RebuildTagIndex(exec) => ("RebuildTagIndex", exec.name()),
+            ExecutorEnum::CreateEdgeIndex(exec) => ("CreateEdgeIndex", exec.name()),
+            ExecutorEnum::DropEdgeIndex(exec) => ("DropEdgeIndex", exec.name()),
+            ExecutorEnum::DescEdgeIndex(exec) => ("DescEdgeIndex", exec.name()),
+            ExecutorEnum::ShowEdgeIndexes(exec) => ("ShowEdgeIndexes", exec.name()),
+            ExecutorEnum::RebuildEdgeIndex(exec) => ("RebuildEdgeIndex", exec.name()),
+            ExecutorEnum::CreateSpace(exec) => ("CreateSpace", exec.name()),
+            ExecutorEnum::DropSpace(exec) => ("DropSpace", exec.name()),
+            ExecutorEnum::DescSpace(exec) => ("DescSpace", exec.name()),
+            ExecutorEnum::CreateTag(exec) => ("CreateTag", exec.name()),
+            ExecutorEnum::AlterTag(exec) => ("AlterTag", exec.name()),
+            ExecutorEnum::DescTag(exec) => ("DescTag", exec.name()),
+            ExecutorEnum::DropTag(exec) => ("DropTag", exec.name()),
+            ExecutorEnum::CreateEdge(exec) => ("CreateEdge", exec.name()),
+            ExecutorEnum::AlterEdge(exec) => ("AlterEdge", exec.name()),
+            ExecutorEnum::DescEdge(exec) => ("DescEdge", exec.name()),
+            ExecutorEnum::DropEdge(exec) => ("DropEdge", exec.name()),
+            ExecutorEnum::CreateUser(exec) => ("CreateUser", exec.name()),
+            ExecutorEnum::AlterUser(exec) => ("AlterUser", exec.name()),
+            ExecutorEnum::DropUser(exec) => ("DropUser", exec.name()),
+            ExecutorEnum::ChangePassword(exec) => ("ChangePassword", exec.name()),
+            ExecutorEnum::Analyze(exec) => ("Analyze", exec.name()),
+        };
+        f.write_str(&format!("ExecutorEnum::{}({})", variant_name, exec_name))
     }
 }
 
 impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
     pub fn id(&self) -> i64 {
-        match self {
-            ExecutorEnum::Start(exec) => exec.id(),
-            ExecutorEnum::Base(exec) => exec.id(),
-            ExecutorEnum::GetVertices(exec) => exec.id(),
-            ExecutorEnum::GetNeighbors(exec) => exec.id(),
-            ExecutorEnum::GetProp(exec) => exec.id(),
-            ExecutorEnum::AllPaths(exec) => exec.id(),
-            ExecutorEnum::Expand(exec) => exec.id(),
-            ExecutorEnum::ExpandAll(exec) => exec.id(),
-            ExecutorEnum::Traverse(exec) => exec.id(),
-            ExecutorEnum::ShortestPath(exec) => exec.id(),
-            ExecutorEnum::InnerJoin(exec) => exec.id(),
-            ExecutorEnum::HashInnerJoin(exec) => exec.id(),
-            ExecutorEnum::LeftJoin(exec) => exec.id(),
-            ExecutorEnum::HashLeftJoin(exec) => exec.id(),
-            ExecutorEnum::FullOuterJoin(exec) => exec.id(),
-            ExecutorEnum::CrossJoin(exec) => exec.id(),
-            ExecutorEnum::Union(exec) => exec.id(),
-            ExecutorEnum::UnionAll(exec) => exec.id(),
-            ExecutorEnum::Minus(exec) => exec.id(),
-            ExecutorEnum::Intersect(exec) => exec.id(),
-            ExecutorEnum::Filter(exec) => exec.id(),
-            ExecutorEnum::Project(exec) => exec.id(),
-            ExecutorEnum::Limit(exec) => exec.id(),
-            ExecutorEnum::Sort(exec) => exec.id(),
-            ExecutorEnum::TopN(exec) => exec.id(),
-            ExecutorEnum::Sample(exec) => exec.id(),
-            ExecutorEnum::Aggregate(exec) => exec.id(),
-            ExecutorEnum::GroupBy(exec) => exec.id(),
-            ExecutorEnum::Having(exec) => exec.id(),
-            ExecutorEnum::Dedup(exec) => exec.id(),
-            ExecutorEnum::Unwind(exec) => exec.id(),
-            ExecutorEnum::Assign(exec) => exec.id(),
-            ExecutorEnum::AppendVertices(exec) => exec.id(),
-            ExecutorEnum::RollUpApply(exec) => exec.id(),
-            ExecutorEnum::PatternApply(exec) => exec.id(),
-            ExecutorEnum::Remove(exec) => exec.id(),
-            ExecutorEnum::Loop(exec) => exec.id(),
-            ExecutorEnum::ForLoop(exec) => exec.id(),
-            ExecutorEnum::WhileLoop(exec) => exec.id(),
-            ExecutorEnum::Select(exec) => exec.id(),
-            ExecutorEnum::ScanEdges(exec) => exec.id(),
-            ExecutorEnum::ScanVertices(exec) => exec.id(),
-            ExecutorEnum::IndexScan(exec) => exec.id(),
-            ExecutorEnum::Argument(exec) => exec.id(),
-            ExecutorEnum::PassThrough(exec) => exec.id(),
-            ExecutorEnum::DataCollect(exec) => exec.id(),
-            ExecutorEnum::BFSShortest(exec) => exec.id(),
-            ExecutorEnum::ShowSpaces(exec) => exec.id(),
-            ExecutorEnum::ShowTags(exec) => exec.id(),
-            ExecutorEnum::ShowEdges(exec) => exec.id(),
-            ExecutorEnum::CreateTagIndex(exec) => exec.id(),
-            ExecutorEnum::DropTagIndex(exec) => exec.id(),
-            ExecutorEnum::DescTagIndex(exec) => exec.id(),
-            ExecutorEnum::ShowTagIndexes(exec) => exec.id(),
-            ExecutorEnum::RebuildTagIndex(exec) => exec.id(),
-            ExecutorEnum::CreateEdgeIndex(exec) => exec.id(),
-            ExecutorEnum::DropEdgeIndex(exec) => exec.id(),
-            ExecutorEnum::DescEdgeIndex(exec) => exec.id(),
-            ExecutorEnum::ShowEdgeIndexes(exec) => exec.id(),
-            ExecutorEnum::RebuildEdgeIndex(exec) => exec.id(),
-            ExecutorEnum::CreateSpace(exec) => exec.id(),
-            ExecutorEnum::DropSpace(exec) => exec.id(),
-            ExecutorEnum::DescSpace(exec) => exec.id(),
-            ExecutorEnum::CreateTag(exec) => exec.id(),
-            ExecutorEnum::AlterTag(exec) => exec.id(),
-            ExecutorEnum::DescTag(exec) => exec.id(),
-            ExecutorEnum::DropTag(exec) => exec.id(),
-            ExecutorEnum::CreateEdge(exec) => exec.id(),
-            ExecutorEnum::AlterEdge(exec) => exec.id(),
-            ExecutorEnum::DescEdge(exec) => exec.id(),
-            ExecutorEnum::DropEdge(exec) => exec.id(),
-            ExecutorEnum::CreateUser(exec) => exec.id(),
-            ExecutorEnum::AlterUser(exec) => exec.id(),
-            ExecutorEnum::DropUser(exec) => exec.id(),
-            ExecutorEnum::ChangePassword(exec) => exec.id(),
-            ExecutorEnum::Analyze(exec) => exec.id(),
-        }
+        self::delegate_to_executor!(self, id)
     }
 
     pub fn name(&self) -> &str {
-        match self {
-            ExecutorEnum::Start(exec) => exec.name(),
-            ExecutorEnum::Base(exec) => exec.name(),
-            ExecutorEnum::GetVertices(exec) => exec.name(),
-            ExecutorEnum::GetNeighbors(exec) => exec.name(),
-            ExecutorEnum::GetProp(exec) => exec.name(),
-            ExecutorEnum::AllPaths(exec) => exec.name(),
-            ExecutorEnum::Expand(exec) => exec.name(),
-            ExecutorEnum::ExpandAll(exec) => exec.name(),
-            ExecutorEnum::Traverse(exec) => exec.name(),
-            ExecutorEnum::ShortestPath(exec) => exec.name(),
-            ExecutorEnum::InnerJoin(exec) => exec.name(),
-            ExecutorEnum::HashInnerJoin(exec) => exec.name(),
-            ExecutorEnum::LeftJoin(exec) => exec.name(),
-            ExecutorEnum::HashLeftJoin(exec) => exec.name(),
-            ExecutorEnum::FullOuterJoin(exec) => exec.name(),
-            ExecutorEnum::CrossJoin(exec) => exec.name(),
-            ExecutorEnum::Union(exec) => exec.name(),
-            ExecutorEnum::UnionAll(exec) => exec.name(),
-            ExecutorEnum::Minus(exec) => exec.name(),
-            ExecutorEnum::Intersect(exec) => exec.name(),
-            ExecutorEnum::Filter(exec) => exec.name(),
-            ExecutorEnum::Project(exec) => exec.name(),
-            ExecutorEnum::Limit(exec) => exec.name(),
-            ExecutorEnum::Sort(exec) => exec.name(),
-            ExecutorEnum::TopN(exec) => exec.name(),
-            ExecutorEnum::Sample(exec) => exec.name(),
-            ExecutorEnum::Aggregate(exec) => exec.name(),
-            ExecutorEnum::GroupBy(exec) => exec.name(),
-            ExecutorEnum::Having(exec) => exec.name(),
-            ExecutorEnum::Dedup(exec) => exec.name(),
-            ExecutorEnum::Unwind(exec) => exec.name(),
-            ExecutorEnum::Assign(exec) => exec.name(),
-            ExecutorEnum::AppendVertices(exec) => exec.name(),
-            ExecutorEnum::RollUpApply(exec) => exec.name(),
-            ExecutorEnum::PatternApply(exec) => exec.name(),
-            ExecutorEnum::Remove(exec) => exec.name(),
-            ExecutorEnum::Loop(exec) => exec.name(),
-            ExecutorEnum::ForLoop(exec) => exec.name(),
-            ExecutorEnum::WhileLoop(exec) => exec.name(),
-            ExecutorEnum::Select(exec) => exec.name(),
-            ExecutorEnum::ScanEdges(exec) => exec.name(),
-            ExecutorEnum::ScanVertices(exec) => exec.name(),
-            ExecutorEnum::IndexScan(exec) => exec.name(),
-            ExecutorEnum::Argument(exec) => exec.name(),
-            ExecutorEnum::PassThrough(exec) => exec.name(),
-            ExecutorEnum::DataCollect(exec) => exec.name(),
-            ExecutorEnum::BFSShortest(exec) => exec.name(),
-            ExecutorEnum::ShowSpaces(exec) => exec.name(),
-            ExecutorEnum::ShowTags(exec) => exec.name(),
-            ExecutorEnum::ShowEdges(exec) => exec.name(),
-            ExecutorEnum::CreateTagIndex(exec) => exec.name(),
-            ExecutorEnum::DropTagIndex(exec) => exec.name(),
-            ExecutorEnum::DescTagIndex(exec) => exec.name(),
-            ExecutorEnum::ShowTagIndexes(exec) => exec.name(),
-            ExecutorEnum::RebuildTagIndex(exec) => exec.name(),
-            ExecutorEnum::CreateEdgeIndex(exec) => exec.name(),
-            ExecutorEnum::DropEdgeIndex(exec) => exec.name(),
-            ExecutorEnum::DescEdgeIndex(exec) => exec.name(),
-            ExecutorEnum::ShowEdgeIndexes(exec) => exec.name(),
-            ExecutorEnum::RebuildEdgeIndex(exec) => exec.name(),
-            ExecutorEnum::CreateSpace(exec) => exec.name(),
-            ExecutorEnum::DropSpace(exec) => exec.name(),
-            ExecutorEnum::DescSpace(exec) => exec.name(),
-            ExecutorEnum::CreateTag(exec) => exec.name(),
-            ExecutorEnum::AlterTag(exec) => exec.name(),
-            ExecutorEnum::DescTag(exec) => exec.name(),
-            ExecutorEnum::DropTag(exec) => exec.name(),
-            ExecutorEnum::CreateEdge(exec) => exec.name(),
-            ExecutorEnum::AlterEdge(exec) => exec.name(),
-            ExecutorEnum::DescEdge(exec) => exec.name(),
-            ExecutorEnum::DropEdge(exec) => exec.name(),
-            ExecutorEnum::CreateUser(exec) => exec.name(),
-            ExecutorEnum::AlterUser(exec) => exec.name(),
-            ExecutorEnum::DropUser(exec) => exec.name(),
-            ExecutorEnum::ChangePassword(exec) => exec.name(),
-            ExecutorEnum::Analyze(exec) => exec.name(),
-        }
+        self::delegate_to_executor!(self, name)
+    }
+
+    pub fn description(&self) -> &str {
+        self.name()
     }
 
     pub fn stats(&self) -> &ExecutorStats {
-        match self {
-            ExecutorEnum::Start(exec) => exec.stats(),
-            ExecutorEnum::Base(exec) => exec.stats(),
-            ExecutorEnum::GetVertices(exec) => exec.stats(),
-            ExecutorEnum::GetNeighbors(exec) => exec.stats(),
-            ExecutorEnum::GetProp(exec) => exec.stats(),
-            ExecutorEnum::AllPaths(exec) => exec.stats(),
-            ExecutorEnum::Expand(exec) => exec.stats(),
-            ExecutorEnum::ExpandAll(exec) => exec.stats(),
-            ExecutorEnum::Traverse(exec) => exec.stats(),
-            ExecutorEnum::ShortestPath(exec) => exec.stats(),
-            ExecutorEnum::InnerJoin(exec) => exec.stats(),
-            ExecutorEnum::HashInnerJoin(exec) => exec.stats(),
-            ExecutorEnum::LeftJoin(exec) => exec.stats(),
-            ExecutorEnum::HashLeftJoin(exec) => exec.stats(),
-            ExecutorEnum::FullOuterJoin(exec) => exec.stats(),
-            ExecutorEnum::CrossJoin(exec) => exec.stats(),
-            ExecutorEnum::Union(exec) => exec.stats(),
-            ExecutorEnum::UnionAll(exec) => exec.stats(),
-            ExecutorEnum::Minus(exec) => exec.stats(),
-            ExecutorEnum::Intersect(exec) => exec.stats(),
-            ExecutorEnum::Filter(exec) => exec.stats(),
-            ExecutorEnum::Project(exec) => exec.stats(),
-            ExecutorEnum::Limit(exec) => exec.stats(),
-            ExecutorEnum::Sort(exec) => exec.stats(),
-            ExecutorEnum::TopN(exec) => exec.stats(),
-            ExecutorEnum::Sample(exec) => exec.stats(),
-            ExecutorEnum::Aggregate(exec) => exec.stats(),
-            ExecutorEnum::GroupBy(exec) => exec.stats(),
-            ExecutorEnum::Having(exec) => exec.stats(),
-            ExecutorEnum::Dedup(exec) => exec.stats(),
-            ExecutorEnum::Unwind(exec) => exec.stats(),
-            ExecutorEnum::Assign(exec) => exec.stats(),
-            ExecutorEnum::AppendVertices(exec) => exec.stats(),
-            ExecutorEnum::RollUpApply(exec) => exec.stats(),
-            ExecutorEnum::PatternApply(exec) => exec.stats(),
-            ExecutorEnum::Remove(exec) => exec.stats(),
-            ExecutorEnum::Loop(exec) => exec.stats(),
-            ExecutorEnum::ForLoop(exec) => exec.stats(),
-            ExecutorEnum::WhileLoop(exec) => exec.stats(),
-            ExecutorEnum::Select(exec) => exec.stats(),
-            ExecutorEnum::ScanEdges(exec) => exec.stats(),
-            ExecutorEnum::ScanVertices(exec) => exec.stats(),
-            ExecutorEnum::IndexScan(exec) => exec.stats(),
-            ExecutorEnum::Argument(exec) => exec.stats(),
-            ExecutorEnum::PassThrough(exec) => exec.stats(),
-            ExecutorEnum::DataCollect(exec) => exec.stats(),
-            ExecutorEnum::BFSShortest(exec) => exec.stats(),
-            ExecutorEnum::ShowSpaces(exec) => exec.stats(),
-            ExecutorEnum::ShowTags(exec) => exec.stats(),
-            ExecutorEnum::ShowEdges(exec) => exec.stats(),
-            ExecutorEnum::CreateTagIndex(exec) => exec.stats(),
-            ExecutorEnum::DropTagIndex(exec) => exec.stats(),
-            ExecutorEnum::DescTagIndex(exec) => exec.stats(),
-            ExecutorEnum::ShowTagIndexes(exec) => exec.stats(),
-            ExecutorEnum::RebuildTagIndex(exec) => exec.stats(),
-            ExecutorEnum::CreateEdgeIndex(exec) => exec.stats(),
-            ExecutorEnum::DropEdgeIndex(exec) => exec.stats(),
-            ExecutorEnum::DescEdgeIndex(exec) => exec.stats(),
-            ExecutorEnum::ShowEdgeIndexes(exec) => exec.stats(),
-            ExecutorEnum::RebuildEdgeIndex(exec) => exec.stats(),
-            ExecutorEnum::CreateSpace(exec) => exec.stats(),
-            ExecutorEnum::DropSpace(exec) => exec.stats(),
-            ExecutorEnum::DescSpace(exec) => exec.stats(),
-            ExecutorEnum::CreateTag(exec) => exec.stats(),
-            ExecutorEnum::AlterTag(exec) => exec.stats(),
-            ExecutorEnum::DescTag(exec) => exec.stats(),
-            ExecutorEnum::DropTag(exec) => exec.stats(),
-            ExecutorEnum::CreateEdge(exec) => exec.stats(),
-            ExecutorEnum::AlterEdge(exec) => exec.stats(),
-            ExecutorEnum::DescEdge(exec) => exec.stats(),
-            ExecutorEnum::DropEdge(exec) => exec.stats(),
-            ExecutorEnum::CreateUser(exec) => exec.stats(),
-            ExecutorEnum::AlterUser(exec) => exec.stats(),
-            ExecutorEnum::DropUser(exec) => exec.stats(),
-            ExecutorEnum::ChangePassword(exec) => exec.stats(),
-            ExecutorEnum::Analyze(exec) => exec.stats(),
-        }
+        self::delegate_to_executor!(self, stats)
     }
 
     pub fn stats_mut(&mut self) -> &mut ExecutorStats {
-        match self {
-            ExecutorEnum::Start(exec) => exec.stats_mut(),
-            ExecutorEnum::Base(exec) => exec.stats_mut(),
-            ExecutorEnum::GetVertices(exec) => exec.stats_mut(),
-            ExecutorEnum::GetNeighbors(exec) => exec.stats_mut(),
-            ExecutorEnum::GetProp(exec) => exec.stats_mut(),
-            ExecutorEnum::AllPaths(exec) => exec.stats_mut(),
-            ExecutorEnum::Expand(exec) => exec.stats_mut(),
-            ExecutorEnum::ExpandAll(exec) => exec.stats_mut(),
-            ExecutorEnum::Traverse(exec) => exec.stats_mut(),
-            ExecutorEnum::ShortestPath(exec) => exec.stats_mut(),
-            ExecutorEnum::InnerJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::HashInnerJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::LeftJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::HashLeftJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::FullOuterJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::CrossJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::Union(exec) => exec.stats_mut(),
-            ExecutorEnum::UnionAll(exec) => exec.stats_mut(),
-            ExecutorEnum::Minus(exec) => exec.stats_mut(),
-            ExecutorEnum::Intersect(exec) => exec.stats_mut(),
-            ExecutorEnum::Filter(exec) => exec.stats_mut(),
-            ExecutorEnum::Project(exec) => exec.stats_mut(),
-            ExecutorEnum::Limit(exec) => exec.stats_mut(),
-            ExecutorEnum::Sort(exec) => exec.stats_mut(),
-            ExecutorEnum::TopN(exec) => exec.stats_mut(),
-            ExecutorEnum::Sample(exec) => exec.stats_mut(),
-            ExecutorEnum::Aggregate(exec) => exec.stats_mut(),
-            ExecutorEnum::GroupBy(exec) => exec.stats_mut(),
-            ExecutorEnum::Having(exec) => exec.stats_mut(),
-            ExecutorEnum::Dedup(exec) => exec.stats_mut(),
-            ExecutorEnum::Unwind(exec) => exec.stats_mut(),
-            ExecutorEnum::Assign(exec) => exec.stats_mut(),
-            ExecutorEnum::AppendVertices(exec) => exec.stats_mut(),
-            ExecutorEnum::RollUpApply(exec) => exec.stats_mut(),
-            ExecutorEnum::PatternApply(exec) => exec.stats_mut(),
-            ExecutorEnum::Remove(exec) => exec.stats_mut(),
-            ExecutorEnum::Loop(exec) => exec.stats_mut(),
-            ExecutorEnum::ForLoop(exec) => exec.stats_mut(),
-            ExecutorEnum::WhileLoop(exec) => exec.stats_mut(),
-            ExecutorEnum::Select(exec) => exec.stats_mut(),
-            ExecutorEnum::ScanEdges(exec) => exec.stats_mut(),
-            ExecutorEnum::ScanVertices(exec) => exec.stats_mut(),
-            ExecutorEnum::IndexScan(exec) => exec.stats_mut(),
-            ExecutorEnum::Argument(exec) => exec.stats_mut(),
-            ExecutorEnum::PassThrough(exec) => exec.stats_mut(),
-            ExecutorEnum::DataCollect(exec) => exec.stats_mut(),
-            ExecutorEnum::BFSShortest(exec) => exec.stats_mut(),
-            ExecutorEnum::ShowSpaces(exec) => exec.stats_mut(),
-            ExecutorEnum::ShowTags(exec) => exec.stats_mut(),
-            ExecutorEnum::ShowEdges(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateTagIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::DropTagIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::DescTagIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::ShowTagIndexes(exec) => exec.stats_mut(),
-            ExecutorEnum::RebuildTagIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateEdgeIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::DropEdgeIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::DescEdgeIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::ShowEdgeIndexes(exec) => exec.stats_mut(),
-            ExecutorEnum::RebuildEdgeIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateSpace(exec) => exec.stats_mut(),
-            ExecutorEnum::DropSpace(exec) => exec.stats_mut(),
-            ExecutorEnum::DescSpace(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateTag(exec) => exec.stats_mut(),
-            ExecutorEnum::AlterTag(exec) => exec.stats_mut(),
-            ExecutorEnum::DescTag(exec) => exec.stats_mut(),
-            ExecutorEnum::DropTag(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::AlterEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::DescEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::DropEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateUser(exec) => exec.stats_mut(),
-            ExecutorEnum::AlterUser(exec) => exec.stats_mut(),
-            ExecutorEnum::DropUser(exec) => exec.stats_mut(),
-            ExecutorEnum::ChangePassword(exec) => exec.stats_mut(),
-            ExecutorEnum::Analyze(exec) => exec.stats_mut(),
-        }
+        self::delegate_to_executor_mut!(self, stats_mut)
     }
 }
 
-impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnum<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for ExecutorEnum<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let start = Instant::now();
-        let result = match self {
-            ExecutorEnum::Start(exec) => exec.execute(),
-            ExecutorEnum::Base(exec) => exec.execute(),
-            ExecutorEnum::GetVertices(exec) => exec.execute(),
-            ExecutorEnum::GetNeighbors(exec) => exec.execute(),
-            ExecutorEnum::GetProp(exec) => exec.execute(),
-            ExecutorEnum::AllPaths(exec) => exec.execute(),
-            ExecutorEnum::Expand(exec) => exec.execute(),
-            ExecutorEnum::ExpandAll(exec) => exec.execute(),
-            ExecutorEnum::Traverse(exec) => exec.execute(),
-            ExecutorEnum::ShortestPath(exec) => exec.execute(),
-            ExecutorEnum::InnerJoin(exec) => exec.execute(),
-            ExecutorEnum::HashInnerJoin(exec) => exec.execute(),
-            ExecutorEnum::LeftJoin(exec) => exec.execute(),
-            ExecutorEnum::HashLeftJoin(exec) => exec.execute(),
-            ExecutorEnum::FullOuterJoin(exec) => exec.execute(),
-            ExecutorEnum::CrossJoin(exec) => exec.execute(),
-            ExecutorEnum::Union(exec) => exec.execute(),
-            ExecutorEnum::UnionAll(exec) => exec.execute(),
-            ExecutorEnum::Minus(exec) => exec.execute(),
-            ExecutorEnum::Intersect(exec) => exec.execute(),
-            ExecutorEnum::Filter(exec) => exec.execute(),
-            ExecutorEnum::Project(exec) => exec.execute(),
-            ExecutorEnum::Limit(exec) => exec.execute(),
-            ExecutorEnum::Sort(exec) => exec.execute(),
-            ExecutorEnum::TopN(exec) => exec.execute(),
-            ExecutorEnum::Sample(exec) => exec.execute(),
-            ExecutorEnum::Aggregate(exec) => exec.execute(),
-            ExecutorEnum::GroupBy(exec) => exec.execute(),
-            ExecutorEnum::Having(exec) => exec.execute(),
-            ExecutorEnum::Dedup(exec) => exec.execute(),
-            ExecutorEnum::Unwind(exec) => exec.execute(),
-            ExecutorEnum::Assign(exec) => exec.execute(),
-            ExecutorEnum::AppendVertices(exec) => exec.execute(),
-            ExecutorEnum::RollUpApply(exec) => exec.execute(),
-            ExecutorEnum::PatternApply(exec) => exec.execute(),
-            ExecutorEnum::Remove(exec) => exec.execute(),
-            ExecutorEnum::Loop(exec) => exec.execute(),
-            ExecutorEnum::ForLoop(exec) => exec.execute(),
-            ExecutorEnum::WhileLoop(exec) => exec.execute(),
-            ExecutorEnum::Select(exec) => exec.execute(),
-            ExecutorEnum::ScanEdges(exec) => exec.execute(),
-            ExecutorEnum::ScanVertices(exec) => exec.execute(),
-            ExecutorEnum::IndexScan(exec) => exec.execute(),
-            ExecutorEnum::Argument(exec) => exec.execute(),
-            ExecutorEnum::PassThrough(exec) => exec.execute(),
-            ExecutorEnum::DataCollect(exec) => exec.execute(),
-            ExecutorEnum::BFSShortest(exec) => exec.execute(),
-            ExecutorEnum::ShowSpaces(exec) => exec.execute(),
-            ExecutorEnum::ShowTags(exec) => exec.execute(),
-            ExecutorEnum::ShowEdges(exec) => exec.execute(),
-            ExecutorEnum::CreateTagIndex(exec) => exec.execute(),
-            ExecutorEnum::DropTagIndex(exec) => exec.execute(),
-            ExecutorEnum::DescTagIndex(exec) => exec.execute(),
-            ExecutorEnum::ShowTagIndexes(exec) => exec.execute(),
-            ExecutorEnum::RebuildTagIndex(exec) => exec.execute(),
-            ExecutorEnum::CreateEdgeIndex(exec) => exec.execute(),
-            ExecutorEnum::DropEdgeIndex(exec) => exec.execute(),
-            ExecutorEnum::DescEdgeIndex(exec) => exec.execute(),
-            ExecutorEnum::ShowEdgeIndexes(exec) => exec.execute(),
-            ExecutorEnum::RebuildEdgeIndex(exec) => exec.execute(),
-            ExecutorEnum::CreateSpace(exec) => exec.execute(),
-            ExecutorEnum::DropSpace(exec) => exec.execute(),
-            ExecutorEnum::DescSpace(exec) => exec.execute(),
-            ExecutorEnum::CreateTag(exec) => exec.execute(),
-            ExecutorEnum::AlterTag(exec) => exec.execute(),
-            ExecutorEnum::DescTag(exec) => exec.execute(),
-            ExecutorEnum::DropTag(exec) => exec.execute(),
-            ExecutorEnum::CreateEdge(exec) => exec.execute(),
-            ExecutorEnum::AlterEdge(exec) => exec.execute(),
-            ExecutorEnum::DescEdge(exec) => exec.execute(),
-            ExecutorEnum::DropEdge(exec) => exec.execute(),
-            ExecutorEnum::CreateUser(exec) => exec.execute(),
-            ExecutorEnum::AlterUser(exec) => exec.execute(),
-            ExecutorEnum::DropUser(exec) => exec.execute(),
-            ExecutorEnum::ChangePassword(exec) => exec.execute(),
-            ExecutorEnum::Analyze(exec) => exec.execute(),
-        };
-        self.stats_mut().add_total_time(start.elapsed());
-        result
+        self::delegate_to_executor_mut!(self, execute)
     }
 
     fn open(&mut self) -> DBResult<()> {
-        match self {
-            ExecutorEnum::Start(exec) => exec.open(),
-            ExecutorEnum::Base(exec) => exec.open(),
-            ExecutorEnum::GetVertices(exec) => exec.open(),
-            ExecutorEnum::GetNeighbors(exec) => exec.open(),
-            ExecutorEnum::GetProp(exec) => exec.open(),
-            ExecutorEnum::AllPaths(exec) => exec.open(),
-            ExecutorEnum::Expand(exec) => exec.open(),
-            ExecutorEnum::ExpandAll(exec) => exec.open(),
-            ExecutorEnum::Traverse(exec) => exec.open(),
-            ExecutorEnum::ShortestPath(exec) => exec.open(),
-            ExecutorEnum::InnerJoin(exec) => exec.open(),
-            ExecutorEnum::HashInnerJoin(exec) => exec.open(),
-            ExecutorEnum::LeftJoin(exec) => exec.open(),
-            ExecutorEnum::HashLeftJoin(exec) => exec.open(),
-            ExecutorEnum::FullOuterJoin(exec) => exec.open(),
-            ExecutorEnum::CrossJoin(exec) => exec.open(),
-            ExecutorEnum::Union(exec) => exec.open(),
-            ExecutorEnum::UnionAll(exec) => exec.open(),
-            ExecutorEnum::Minus(exec) => exec.open(),
-            ExecutorEnum::Intersect(exec) => exec.open(),
-            ExecutorEnum::Filter(exec) => exec.open(),
-            ExecutorEnum::Project(exec) => exec.open(),
-            ExecutorEnum::Limit(exec) => exec.open(),
-            ExecutorEnum::Sort(exec) => exec.open(),
-            ExecutorEnum::TopN(exec) => exec.open(),
-            ExecutorEnum::Sample(exec) => exec.open(),
-            ExecutorEnum::Aggregate(exec) => exec.open(),
-            ExecutorEnum::GroupBy(exec) => exec.open(),
-            ExecutorEnum::Having(exec) => exec.open(),
-            ExecutorEnum::Dedup(exec) => exec.open(),
-            ExecutorEnum::Unwind(exec) => exec.open(),
-            ExecutorEnum::Assign(exec) => exec.open(),
-            ExecutorEnum::AppendVertices(exec) => exec.open(),
-            ExecutorEnum::RollUpApply(exec) => exec.open(),
-            ExecutorEnum::PatternApply(exec) => exec.open(),
-            ExecutorEnum::Remove(exec) => exec.open(),
-            ExecutorEnum::Loop(exec) => exec.open(),
-            ExecutorEnum::ForLoop(exec) => exec.open(),
-            ExecutorEnum::WhileLoop(exec) => exec.open(),
-            ExecutorEnum::Select(exec) => exec.open(),
-            ExecutorEnum::ScanEdges(exec) => exec.open(),
-            ExecutorEnum::ScanVertices(exec) => exec.open(),
-            ExecutorEnum::IndexScan(exec) => exec.open(),
-            ExecutorEnum::Argument(exec) => exec.open(),
-            ExecutorEnum::PassThrough(exec) => exec.open(),
-            ExecutorEnum::DataCollect(exec) => exec.open(),
-            ExecutorEnum::BFSShortest(exec) => exec.open(),
-            ExecutorEnum::ShowSpaces(exec) => exec.open(),
-            ExecutorEnum::ShowTags(exec) => exec.open(),
-            ExecutorEnum::ShowEdges(exec) => exec.open(),
-            ExecutorEnum::CreateTagIndex(exec) => exec.open(),
-            ExecutorEnum::DropTagIndex(exec) => exec.open(),
-            ExecutorEnum::DescTagIndex(exec) => exec.open(),
-            ExecutorEnum::ShowTagIndexes(exec) => exec.open(),
-            ExecutorEnum::RebuildTagIndex(exec) => exec.open(),
-            ExecutorEnum::CreateEdgeIndex(exec) => exec.open(),
-            ExecutorEnum::DropEdgeIndex(exec) => exec.open(),
-            ExecutorEnum::DescEdgeIndex(exec) => exec.open(),
-            ExecutorEnum::ShowEdgeIndexes(exec) => exec.open(),
-            ExecutorEnum::RebuildEdgeIndex(exec) => exec.open(),
-            ExecutorEnum::CreateSpace(exec) => exec.open(),
-            ExecutorEnum::DropSpace(exec) => exec.open(),
-            ExecutorEnum::DescSpace(exec) => exec.open(),
-            ExecutorEnum::CreateTag(exec) => exec.open(),
-            ExecutorEnum::AlterTag(exec) => exec.open(),
-            ExecutorEnum::DescTag(exec) => exec.open(),
-            ExecutorEnum::DropTag(exec) => exec.open(),
-            ExecutorEnum::CreateEdge(exec) => exec.open(),
-            ExecutorEnum::AlterEdge(exec) => exec.open(),
-            ExecutorEnum::DescEdge(exec) => exec.open(),
-            ExecutorEnum::DropEdge(exec) => exec.open(),
-            ExecutorEnum::CreateUser(exec) => exec.open(),
-            ExecutorEnum::AlterUser(exec) => exec.open(),
-            ExecutorEnum::DropUser(exec) => exec.open(),
-            ExecutorEnum::ChangePassword(exec) => exec.open(),
-            ExecutorEnum::Analyze(exec) => exec.open(),
-        }
+        self::delegate_to_executor_mut!(self, open)
     }
 
     fn close(&mut self) -> DBResult<()> {
-        match self {
-            ExecutorEnum::Start(exec) => exec.close(),
-            ExecutorEnum::Base(exec) => exec.close(),
-            ExecutorEnum::GetVertices(exec) => exec.close(),
-            ExecutorEnum::GetNeighbors(exec) => exec.close(),
-            ExecutorEnum::GetProp(exec) => exec.close(),
-            ExecutorEnum::AllPaths(exec) => exec.close(),
-            ExecutorEnum::Expand(exec) => exec.close(),
-            ExecutorEnum::ExpandAll(exec) => exec.close(),
-            ExecutorEnum::Traverse(exec) => exec.close(),
-            ExecutorEnum::ShortestPath(exec) => exec.close(),
-            ExecutorEnum::InnerJoin(exec) => exec.close(),
-            ExecutorEnum::HashInnerJoin(exec) => exec.close(),
-            ExecutorEnum::LeftJoin(exec) => exec.close(),
-            ExecutorEnum::HashLeftJoin(exec) => exec.close(),
-            ExecutorEnum::FullOuterJoin(exec) => exec.close(),
-            ExecutorEnum::CrossJoin(exec) => exec.close(),
-            ExecutorEnum::Union(exec) => exec.close(),
-            ExecutorEnum::UnionAll(exec) => exec.close(),
-            ExecutorEnum::Minus(exec) => exec.close(),
-            ExecutorEnum::Intersect(exec) => exec.close(),
-            ExecutorEnum::Filter(exec) => exec.close(),
-            ExecutorEnum::Project(exec) => exec.close(),
-            ExecutorEnum::Limit(exec) => exec.close(),
-            ExecutorEnum::Sort(exec) => exec.close(),
-            ExecutorEnum::TopN(exec) => exec.close(),
-            ExecutorEnum::Sample(exec) => exec.close(),
-            ExecutorEnum::Aggregate(exec) => exec.close(),
-            ExecutorEnum::GroupBy(exec) => exec.close(),
-            ExecutorEnum::Having(exec) => exec.close(),
-            ExecutorEnum::Dedup(exec) => exec.close(),
-            ExecutorEnum::Unwind(exec) => exec.close(),
-            ExecutorEnum::Assign(exec) => exec.close(),
-            ExecutorEnum::AppendVertices(exec) => exec.close(),
-            ExecutorEnum::RollUpApply(exec) => exec.close(),
-            ExecutorEnum::PatternApply(exec) => exec.close(),
-            ExecutorEnum::Remove(exec) => exec.close(),
-            ExecutorEnum::Loop(exec) => exec.close(),
-            ExecutorEnum::ForLoop(exec) => exec.close(),
-            ExecutorEnum::WhileLoop(exec) => exec.close(),
-            ExecutorEnum::Select(exec) => exec.close(),
-            ExecutorEnum::ScanEdges(exec) => exec.close(),
-            ExecutorEnum::ScanVertices(exec) => exec.close(),
-            ExecutorEnum::IndexScan(exec) => exec.close(),
-            ExecutorEnum::Argument(exec) => exec.close(),
-            ExecutorEnum::PassThrough(exec) => exec.close(),
-            ExecutorEnum::DataCollect(exec) => exec.close(),
-            ExecutorEnum::BFSShortest(exec) => exec.close(),
-            ExecutorEnum::ShowSpaces(exec) => exec.close(),
-            ExecutorEnum::ShowTags(exec) => exec.close(),
-            ExecutorEnum::ShowEdges(exec) => exec.close(),
-            ExecutorEnum::CreateTagIndex(exec) => exec.close(),
-            ExecutorEnum::DropTagIndex(exec) => exec.close(),
-            ExecutorEnum::DescTagIndex(exec) => exec.close(),
-            ExecutorEnum::ShowTagIndexes(exec) => exec.close(),
-            ExecutorEnum::RebuildTagIndex(exec) => exec.close(),
-            ExecutorEnum::CreateEdgeIndex(exec) => exec.close(),
-            ExecutorEnum::DropEdgeIndex(exec) => exec.close(),
-            ExecutorEnum::DescEdgeIndex(exec) => exec.close(),
-            ExecutorEnum::ShowEdgeIndexes(exec) => exec.close(),
-            ExecutorEnum::RebuildEdgeIndex(exec) => exec.close(),
-            ExecutorEnum::CreateSpace(exec) => exec.close(),
-            ExecutorEnum::DropSpace(exec) => exec.close(),
-            ExecutorEnum::DescSpace(exec) => exec.close(),
-            ExecutorEnum::CreateTag(exec) => exec.close(),
-            ExecutorEnum::AlterTag(exec) => exec.close(),
-            ExecutorEnum::DescTag(exec) => exec.close(),
-            ExecutorEnum::DropTag(exec) => exec.close(),
-            ExecutorEnum::CreateEdge(exec) => exec.close(),
-            ExecutorEnum::AlterEdge(exec) => exec.close(),
-            ExecutorEnum::DescEdge(exec) => exec.close(),
-            ExecutorEnum::DropEdge(exec) => exec.close(),
-            ExecutorEnum::CreateUser(exec) => exec.close(),
-            ExecutorEnum::AlterUser(exec) => exec.close(),
-            ExecutorEnum::DropUser(exec) => exec.close(),
-            ExecutorEnum::ChangePassword(exec) => exec.close(),
-            ExecutorEnum::Analyze(exec) => exec.close(),
-        }
+        self::delegate_to_executor_mut!(self, close)
     }
 
     fn is_open(&self) -> bool {
-        match self {
-            ExecutorEnum::Start(exec) => exec.is_open(),
-            ExecutorEnum::Base(exec) => exec.is_open(),
-            ExecutorEnum::GetVertices(exec) => exec.is_open(),
-            ExecutorEnum::GetNeighbors(exec) => exec.is_open(),
-            ExecutorEnum::GetProp(exec) => exec.is_open(),
-            ExecutorEnum::AllPaths(exec) => exec.is_open(),
-            ExecutorEnum::Expand(exec) => exec.is_open(),
-            ExecutorEnum::ExpandAll(exec) => exec.is_open(),
-            ExecutorEnum::Traverse(exec) => exec.is_open(),
-            ExecutorEnum::ShortestPath(exec) => exec.is_open(),
-            ExecutorEnum::InnerJoin(exec) => exec.is_open(),
-            ExecutorEnum::HashInnerJoin(exec) => exec.is_open(),
-            ExecutorEnum::LeftJoin(exec) => exec.is_open(),
-            ExecutorEnum::HashLeftJoin(exec) => exec.is_open(),
-            ExecutorEnum::FullOuterJoin(exec) => exec.is_open(),
-            ExecutorEnum::CrossJoin(exec) => exec.is_open(),
-            ExecutorEnum::Union(exec) => exec.is_open(),
-            ExecutorEnum::UnionAll(exec) => exec.is_open(),
-            ExecutorEnum::Minus(exec) => exec.is_open(),
-            ExecutorEnum::Intersect(exec) => exec.is_open(),
-            ExecutorEnum::Filter(exec) => exec.is_open(),
-            ExecutorEnum::Project(exec) => exec.is_open(),
-            ExecutorEnum::Limit(exec) => exec.is_open(),
-            ExecutorEnum::Sort(exec) => exec.is_open(),
-            ExecutorEnum::TopN(exec) => exec.is_open(),
-            ExecutorEnum::Sample(exec) => exec.is_open(),
-            ExecutorEnum::Aggregate(exec) => exec.is_open(),
-            ExecutorEnum::GroupBy(exec) => exec.is_open(),
-            ExecutorEnum::Having(exec) => exec.is_open(),
-            ExecutorEnum::Dedup(exec) => exec.is_open(),
-            ExecutorEnum::Unwind(exec) => exec.is_open(),
-            ExecutorEnum::Assign(exec) => exec.is_open(),
-            ExecutorEnum::AppendVertices(exec) => exec.is_open(),
-            ExecutorEnum::RollUpApply(exec) => exec.is_open(),
-            ExecutorEnum::PatternApply(exec) => exec.is_open(),
-            ExecutorEnum::Remove(exec) => exec.is_open(),
-            ExecutorEnum::Loop(exec) => exec.is_open(),
-            ExecutorEnum::ForLoop(exec) => exec.is_open(),
-            ExecutorEnum::WhileLoop(exec) => exec.is_open(),
-            ExecutorEnum::Select(exec) => exec.is_open(),
-            ExecutorEnum::ScanEdges(exec) => exec.is_open(),
-            ExecutorEnum::ScanVertices(exec) => exec.is_open(),
-            ExecutorEnum::IndexScan(exec) => exec.is_open(),
-            ExecutorEnum::Argument(exec) => exec.is_open(),
-            ExecutorEnum::PassThrough(exec) => exec.is_open(),
-            ExecutorEnum::DataCollect(exec) => exec.is_open(),
-            ExecutorEnum::BFSShortest(exec) => exec.is_open(),
-            ExecutorEnum::ShowSpaces(exec) => exec.is_open(),
-            ExecutorEnum::ShowTags(exec) => exec.is_open(),
-            ExecutorEnum::ShowEdges(exec) => exec.is_open(),
-            ExecutorEnum::CreateTagIndex(exec) => exec.is_open(),
-            ExecutorEnum::DropTagIndex(exec) => exec.is_open(),
-            ExecutorEnum::DescTagIndex(exec) => exec.is_open(),
-            ExecutorEnum::ShowTagIndexes(exec) => exec.is_open(),
-            ExecutorEnum::RebuildTagIndex(exec) => exec.is_open(),
-            ExecutorEnum::CreateEdgeIndex(exec) => exec.is_open(),
-            ExecutorEnum::DropEdgeIndex(exec) => exec.is_open(),
-            ExecutorEnum::DescEdgeIndex(exec) => exec.is_open(),
-            ExecutorEnum::ShowEdgeIndexes(exec) => exec.is_open(),
-            ExecutorEnum::RebuildEdgeIndex(exec) => exec.is_open(),
-            ExecutorEnum::CreateSpace(exec) => exec.is_open(),
-            ExecutorEnum::DropSpace(exec) => exec.is_open(),
-            ExecutorEnum::DescSpace(exec) => exec.is_open(),
-            ExecutorEnum::CreateTag(exec) => exec.is_open(),
-            ExecutorEnum::AlterTag(exec) => exec.is_open(),
-            ExecutorEnum::DescTag(exec) => exec.is_open(),
-            ExecutorEnum::DropTag(exec) => exec.is_open(),
-            ExecutorEnum::CreateEdge(exec) => exec.is_open(),
-            ExecutorEnum::AlterEdge(exec) => exec.is_open(),
-            ExecutorEnum::DescEdge(exec) => exec.is_open(),
-            ExecutorEnum::DropEdge(exec) => exec.is_open(),
-            ExecutorEnum::CreateUser(exec) => exec.is_open(),
-            ExecutorEnum::AlterUser(exec) => exec.is_open(),
-            ExecutorEnum::DropUser(exec) => exec.is_open(),
-            ExecutorEnum::ChangePassword(exec) => exec.is_open(),
-            ExecutorEnum::Analyze(exec) => exec.is_open(),
-        }
+        self::delegate_to_executor!(self, is_open)
     }
 
     fn id(&self) -> i64 {
@@ -1033,165 +266,11 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
     }
 
     fn stats(&self) -> &ExecutorStats {
-        match self {
-            ExecutorEnum::Start(exec) => exec.stats(),
-            ExecutorEnum::Base(exec) => exec.stats(),
-            ExecutorEnum::GetVertices(exec) => exec.stats(),
-            ExecutorEnum::GetNeighbors(exec) => exec.stats(),
-            ExecutorEnum::GetProp(exec) => exec.stats(),
-            ExecutorEnum::AllPaths(exec) => exec.stats(),
-            ExecutorEnum::Expand(exec) => exec.stats(),
-            ExecutorEnum::ExpandAll(exec) => exec.stats(),
-            ExecutorEnum::Traverse(exec) => exec.stats(),
-            ExecutorEnum::ShortestPath(exec) => exec.stats(),
-            ExecutorEnum::InnerJoin(exec) => exec.stats(),
-            ExecutorEnum::HashInnerJoin(exec) => exec.stats(),
-            ExecutorEnum::LeftJoin(exec) => exec.stats(),
-            ExecutorEnum::HashLeftJoin(exec) => exec.stats(),
-            ExecutorEnum::FullOuterJoin(exec) => exec.stats(),
-            ExecutorEnum::CrossJoin(exec) => exec.stats(),
-            ExecutorEnum::Union(exec) => exec.stats(),
-            ExecutorEnum::UnionAll(exec) => exec.stats(),
-            ExecutorEnum::Minus(exec) => exec.stats(),
-            ExecutorEnum::Intersect(exec) => exec.stats(),
-            ExecutorEnum::Filter(exec) => exec.stats(),
-            ExecutorEnum::Project(exec) => exec.stats(),
-            ExecutorEnum::Limit(exec) => exec.stats(),
-            ExecutorEnum::Sort(exec) => exec.stats(),
-            ExecutorEnum::TopN(exec) => exec.stats(),
-            ExecutorEnum::Sample(exec) => exec.stats(),
-            ExecutorEnum::Aggregate(exec) => exec.stats(),
-            ExecutorEnum::GroupBy(exec) => exec.stats(),
-            ExecutorEnum::Having(exec) => exec.stats(),
-            ExecutorEnum::Dedup(exec) => exec.stats(),
-            ExecutorEnum::Unwind(exec) => exec.stats(),
-            ExecutorEnum::Assign(exec) => exec.stats(),
-            ExecutorEnum::AppendVertices(exec) => exec.stats(),
-            ExecutorEnum::RollUpApply(exec) => exec.stats(),
-            ExecutorEnum::PatternApply(exec) => exec.stats(),
-            ExecutorEnum::Remove(exec) => exec.stats(),
-            ExecutorEnum::Loop(exec) => exec.stats(),
-            ExecutorEnum::ForLoop(exec) => exec.stats(),
-            ExecutorEnum::WhileLoop(exec) => exec.stats(),
-            ExecutorEnum::Select(exec) => exec.stats(),
-            ExecutorEnum::ScanEdges(exec) => exec.stats(),
-            ExecutorEnum::ScanVertices(exec) => exec.stats(),
-            ExecutorEnum::IndexScan(exec) => exec.stats(),
-            ExecutorEnum::Argument(exec) => exec.stats(),
-            ExecutorEnum::PassThrough(exec) => exec.stats(),
-            ExecutorEnum::DataCollect(exec) => exec.stats(),
-            ExecutorEnum::BFSShortest(exec) => exec.stats(),
-            ExecutorEnum::ShowSpaces(exec) => exec.stats(),
-            ExecutorEnum::ShowTags(exec) => exec.stats(),
-            ExecutorEnum::ShowEdges(exec) => exec.stats(),
-            ExecutorEnum::CreateTagIndex(exec) => exec.stats(),
-            ExecutorEnum::DropTagIndex(exec) => exec.stats(),
-            ExecutorEnum::DescTagIndex(exec) => exec.stats(),
-            ExecutorEnum::ShowTagIndexes(exec) => exec.stats(),
-            ExecutorEnum::RebuildTagIndex(exec) => exec.stats(),
-            ExecutorEnum::CreateEdgeIndex(exec) => exec.stats(),
-            ExecutorEnum::DropEdgeIndex(exec) => exec.stats(),
-            ExecutorEnum::DescEdgeIndex(exec) => exec.stats(),
-            ExecutorEnum::ShowEdgeIndexes(exec) => exec.stats(),
-            ExecutorEnum::RebuildEdgeIndex(exec) => exec.stats(),
-            ExecutorEnum::CreateSpace(exec) => exec.stats(),
-            ExecutorEnum::DropSpace(exec) => exec.stats(),
-            ExecutorEnum::DescSpace(exec) => exec.stats(),
-            ExecutorEnum::CreateTag(exec) => exec.stats(),
-            ExecutorEnum::AlterTag(exec) => exec.stats(),
-            ExecutorEnum::DescTag(exec) => exec.stats(),
-            ExecutorEnum::DropTag(exec) => exec.stats(),
-            ExecutorEnum::CreateEdge(exec) => exec.stats(),
-            ExecutorEnum::AlterEdge(exec) => exec.stats(),
-            ExecutorEnum::DescEdge(exec) => exec.stats(),
-            ExecutorEnum::DropEdge(exec) => exec.stats(),
-            ExecutorEnum::CreateUser(exec) => exec.stats(),
-            ExecutorEnum::AlterUser(exec) => exec.stats(),
-            ExecutorEnum::DropUser(exec) => exec.stats(),
-            ExecutorEnum::ChangePassword(exec) => exec.stats(),
-            ExecutorEnum::Analyze(exec) => exec.stats(),
-        }
+        self.stats()
     }
 
     fn stats_mut(&mut self) -> &mut ExecutorStats {
-        match self {
-            ExecutorEnum::Start(exec) => exec.stats_mut(),
-            ExecutorEnum::Base(exec) => exec.stats_mut(),
-            ExecutorEnum::GetVertices(exec) => exec.stats_mut(),
-            ExecutorEnum::GetNeighbors(exec) => exec.stats_mut(),
-            ExecutorEnum::GetProp(exec) => exec.stats_mut(),
-            ExecutorEnum::AllPaths(exec) => exec.stats_mut(),
-            ExecutorEnum::Expand(exec) => exec.stats_mut(),
-            ExecutorEnum::ExpandAll(exec) => exec.stats_mut(),
-            ExecutorEnum::Traverse(exec) => exec.stats_mut(),
-            ExecutorEnum::ShortestPath(exec) => exec.stats_mut(),
-            ExecutorEnum::InnerJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::HashInnerJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::LeftJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::HashLeftJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::FullOuterJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::CrossJoin(exec) => exec.stats_mut(),
-            ExecutorEnum::Union(exec) => exec.stats_mut(),
-            ExecutorEnum::UnionAll(exec) => exec.stats_mut(),
-            ExecutorEnum::Minus(exec) => exec.stats_mut(),
-            ExecutorEnum::Intersect(exec) => exec.stats_mut(),
-            ExecutorEnum::Filter(exec) => exec.stats_mut(),
-            ExecutorEnum::Project(exec) => exec.stats_mut(),
-            ExecutorEnum::Limit(exec) => exec.stats_mut(),
-            ExecutorEnum::Sort(exec) => exec.stats_mut(),
-            ExecutorEnum::TopN(exec) => exec.stats_mut(),
-            ExecutorEnum::Sample(exec) => exec.stats_mut(),
-            ExecutorEnum::Aggregate(exec) => exec.stats_mut(),
-            ExecutorEnum::GroupBy(exec) => exec.stats_mut(),
-            ExecutorEnum::Having(exec) => exec.stats_mut(),
-            ExecutorEnum::Dedup(exec) => exec.stats_mut(),
-            ExecutorEnum::Unwind(exec) => exec.stats_mut(),
-            ExecutorEnum::Assign(exec) => exec.stats_mut(),
-            ExecutorEnum::AppendVertices(exec) => exec.stats_mut(),
-            ExecutorEnum::RollUpApply(exec) => exec.stats_mut(),
-            ExecutorEnum::PatternApply(exec) => exec.stats_mut(),
-            ExecutorEnum::Remove(exec) => exec.stats_mut(),
-            ExecutorEnum::Loop(exec) => exec.stats_mut(),
-            ExecutorEnum::ForLoop(exec) => exec.stats_mut(),
-            ExecutorEnum::WhileLoop(exec) => exec.stats_mut(),
-            ExecutorEnum::Select(exec) => exec.stats_mut(),
-            ExecutorEnum::ScanEdges(exec) => exec.stats_mut(),
-            ExecutorEnum::ScanVertices(exec) => exec.stats_mut(),
-            ExecutorEnum::IndexScan(exec) => exec.stats_mut(),
-            ExecutorEnum::Argument(exec) => exec.stats_mut(),
-            ExecutorEnum::PassThrough(exec) => exec.stats_mut(),
-            ExecutorEnum::DataCollect(exec) => exec.stats_mut(),
-            ExecutorEnum::BFSShortest(exec) => exec.stats_mut(),
-            ExecutorEnum::ShowSpaces(exec) => exec.stats_mut(),
-            ExecutorEnum::ShowTags(exec) => exec.stats_mut(),
-            ExecutorEnum::ShowEdges(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateTagIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::DropTagIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::DescTagIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::ShowTagIndexes(exec) => exec.stats_mut(),
-            ExecutorEnum::RebuildTagIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateEdgeIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::DropEdgeIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::DescEdgeIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::ShowEdgeIndexes(exec) => exec.stats_mut(),
-            ExecutorEnum::RebuildEdgeIndex(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateSpace(exec) => exec.stats_mut(),
-            ExecutorEnum::DropSpace(exec) => exec.stats_mut(),
-            ExecutorEnum::DescSpace(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateTag(exec) => exec.stats_mut(),
-            ExecutorEnum::AlterTag(exec) => exec.stats_mut(),
-            ExecutorEnum::DescTag(exec) => exec.stats_mut(),
-            ExecutorEnum::DropTag(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::AlterEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::DescEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::DropEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::CreateUser(exec) => exec.stats_mut(),
-            ExecutorEnum::AlterUser(exec) => exec.stats_mut(),
-            ExecutorEnum::DropUser(exec) => exec.stats_mut(),
-            ExecutorEnum::ChangePassword(exec) => exec.stats_mut(),
-            ExecutorEnum::Analyze(exec) => exec.stats_mut(),
-        }
+        self.stats_mut()
     }
 }
 
@@ -1212,68 +291,8 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::Aggregate(exec) => exec.set_input(input),
             ExecutorEnum::GroupBy(exec) => exec.set_input(input),
             ExecutorEnum::Having(exec) => exec.set_input(input),
-            ExecutorEnum::Unwind(_) => {}
-            ExecutorEnum::Assign(_) => {}
-            ExecutorEnum::AppendVertices(_) => {}
-            ExecutorEnum::PatternApply(_) => {}
-            ExecutorEnum::RollUpApply(_) => {}
             ExecutorEnum::Remove(exec) => exec.set_input(input),
-            ExecutorEnum::Loop(_) => {}
-            ExecutorEnum::ForLoop(_) => {}
-            ExecutorEnum::WhileLoop(_) => {}
-            ExecutorEnum::Select(_) => {}
-            ExecutorEnum::ScanEdges(_) => {}
-            ExecutorEnum::ScanVertices(_) => {}
-            ExecutorEnum::IndexScan(_) => {}
-            ExecutorEnum::Argument(_) => {}
-            ExecutorEnum::PassThrough(_) => {}
-            ExecutorEnum::DataCollect(_) => {}
-            ExecutorEnum::BFSShortest(_) => {}
-            ExecutorEnum::ShowSpaces(_) => {}
-            ExecutorEnum::ShowTags(_) => {}
-            ExecutorEnum::ShowEdges(_) => {}
-            ExecutorEnum::CreateTagIndex(_) => {}
-            ExecutorEnum::DropTagIndex(_) => {}
-            ExecutorEnum::DescTagIndex(_) => {}
-            ExecutorEnum::ShowTagIndexes(_) => {}
-            ExecutorEnum::RebuildTagIndex(_) => {}
-            ExecutorEnum::CreateEdgeIndex(_) => {}
-            ExecutorEnum::DropEdgeIndex(_) => {}
-            ExecutorEnum::DescEdgeIndex(_) => {}
-            ExecutorEnum::ShowEdgeIndexes(_) => {}
-            ExecutorEnum::RebuildEdgeIndex(_) => {}
-            ExecutorEnum::InnerJoin(_) => {}
-            ExecutorEnum::HashInnerJoin(_) => {}
-            ExecutorEnum::LeftJoin(_) => {}
-            ExecutorEnum::HashLeftJoin(_) => {}
-            ExecutorEnum::FullOuterJoin(_) => {}
-            ExecutorEnum::CrossJoin(_) => {}
-            ExecutorEnum::Start(_) => {}
-            ExecutorEnum::Base(_) => {}
-            ExecutorEnum::GetVertices(_) => {}
-            ExecutorEnum::GetNeighbors(_) => {}
-            ExecutorEnum::GetProp(_) => {}
-            ExecutorEnum::AllPaths(_) => {}
-            ExecutorEnum::Union(_) => {}
-            ExecutorEnum::UnionAll(_) => {}
-            ExecutorEnum::Minus(_) => {}
-            ExecutorEnum::Intersect(_) => {}
-            ExecutorEnum::CreateSpace(_) => {}
-            ExecutorEnum::DropSpace(_) => {}
-            ExecutorEnum::DescSpace(_) => {}
-            ExecutorEnum::CreateTag(_) => {}
-            ExecutorEnum::AlterTag(_) => {}
-            ExecutorEnum::DescTag(_) => {}
-            ExecutorEnum::DropTag(_) => {}
-            ExecutorEnum::CreateEdge(_) => {}
-            ExecutorEnum::AlterEdge(_) => {}
-            ExecutorEnum::DescEdge(_) => {}
-            ExecutorEnum::DropEdge(_) => {}
-            ExecutorEnum::CreateUser(_) => {}
-            ExecutorEnum::AlterUser(_) => {}
-            ExecutorEnum::DropUser(_) => {}
-            ExecutorEnum::ChangePassword(_) => {}
-            ExecutorEnum::Analyze(_) => {}
+            _ => {}
         }
     }
 
@@ -1293,68 +312,8 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::Aggregate(exec) => exec.get_input(),
             ExecutorEnum::GroupBy(exec) => exec.get_input(),
             ExecutorEnum::Having(exec) => exec.get_input(),
-            ExecutorEnum::Unwind(_) => None,
-            ExecutorEnum::Assign(_) => None,
-            ExecutorEnum::AppendVertices(_) => None,
-            ExecutorEnum::PatternApply(_) => None,
-            ExecutorEnum::RollUpApply(_) => None,
             ExecutorEnum::Remove(exec) => exec.get_input(),
-            ExecutorEnum::Loop(_) => None,
-            ExecutorEnum::ForLoop(_) => None,
-            ExecutorEnum::WhileLoop(_) => None,
-            ExecutorEnum::Select(_) => None,
-            ExecutorEnum::ScanEdges(_) => None,
-            ExecutorEnum::ScanVertices(_) => None,
-            ExecutorEnum::IndexScan(_) => None,
-            ExecutorEnum::Argument(_) => None,
-            ExecutorEnum::PassThrough(_) => None,
-            ExecutorEnum::DataCollect(_) => None,
-            ExecutorEnum::BFSShortest(_) => None,
-            ExecutorEnum::ShowSpaces(_) => None,
-            ExecutorEnum::ShowTags(_) => None,
-            ExecutorEnum::ShowEdges(_) => None,
-            ExecutorEnum::CreateTagIndex(_) => None,
-            ExecutorEnum::DropTagIndex(_) => None,
-            ExecutorEnum::DescTagIndex(_) => None,
-            ExecutorEnum::ShowTagIndexes(_) => None,
-            ExecutorEnum::RebuildTagIndex(_) => None,
-            ExecutorEnum::CreateEdgeIndex(_) => None,
-            ExecutorEnum::DropEdgeIndex(_) => None,
-            ExecutorEnum::DescEdgeIndex(_) => None,
-            ExecutorEnum::ShowEdgeIndexes(_) => None,
-            ExecutorEnum::RebuildEdgeIndex(_) => None,
-            ExecutorEnum::InnerJoin(_) => None,
-            ExecutorEnum::HashInnerJoin(_) => None,
-            ExecutorEnum::LeftJoin(_) => None,
-            ExecutorEnum::HashLeftJoin(_) => None,
-            ExecutorEnum::FullOuterJoin(_) => None,
-            ExecutorEnum::CrossJoin(_) => None,
-            ExecutorEnum::Start(_) => None,
-            ExecutorEnum::Base(_) => None,
-            ExecutorEnum::GetVertices(_) => None,
-            ExecutorEnum::GetNeighbors(_) => None,
-            ExecutorEnum::GetProp(_) => None,
-            ExecutorEnum::AllPaths(_) => None,
-            ExecutorEnum::Union(_) => None,
-            ExecutorEnum::UnionAll(_) => None,
-            ExecutorEnum::Minus(_) => None,
-            ExecutorEnum::Intersect(_) => None,
-            ExecutorEnum::CreateSpace(_) => None,
-            ExecutorEnum::DropSpace(_) => None,
-            ExecutorEnum::DescSpace(_) => None,
-            ExecutorEnum::CreateTag(_) => None,
-            ExecutorEnum::AlterTag(_) => None,
-            ExecutorEnum::DescTag(_) => None,
-            ExecutorEnum::DropTag(_) => None,
-            ExecutorEnum::CreateEdge(_) => None,
-            ExecutorEnum::AlterEdge(_) => None,
-            ExecutorEnum::DescEdge(_) => None,
-            ExecutorEnum::DropEdge(_) => None,
-            ExecutorEnum::CreateUser(_) => None,
-            ExecutorEnum::AlterUser(_) => None,
-            ExecutorEnum::DropUser(_) => None,
-            ExecutorEnum::ChangePassword(_) => None,
-            ExecutorEnum::Analyze(_) => None,
+            _ => None,
         }
     }
 }
@@ -1375,9 +334,6 @@ impl<S: StorageClient + Send + 'static> ChainableExecutor<S> for ExecutorEnum<S>
 
 use crate::query::core::{NodeCategory, NodeType};
 
-/// ExecutorEnum 的 NodeType trait 实现
-///
-/// 为每个执行器变体提供统一的类型标识和分类
 impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
     fn node_type_id(&self) -> &'static str {
         match self {
@@ -1466,7 +422,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::Base(_) => "Base",
             ExecutorEnum::GetVertices(_) => "Get Vertices",
             ExecutorEnum::GetNeighbors(_) => "Get Neighbors",
-            ExecutorEnum::GetProp(_) => "Get Prop",
+            ExecutorEnum::GetProp(_) => "Get Properties",
             ExecutorEnum::AllPaths(_) => "All Paths",
             ExecutorEnum::Expand(_) => "Expand",
             ExecutorEnum::ExpandAll(_) => "Expand All",
@@ -1486,7 +442,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::Project(_) => "Project",
             ExecutorEnum::Limit(_) => "Limit",
             ExecutorEnum::Sort(_) => "Sort",
-            ExecutorEnum::TopN(_) => "TopN",
+            ExecutorEnum::TopN(_) => "Top N",
             ExecutorEnum::Sample(_) => "Sample",
             ExecutorEnum::Aggregate(_) => "Aggregate",
             ExecutorEnum::GroupBy(_) => "Group By",
@@ -1514,24 +470,24 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::ShowEdges(_) => "Show Edges",
             ExecutorEnum::CreateTagIndex(_) => "Create Tag Index",
             ExecutorEnum::DropTagIndex(_) => "Drop Tag Index",
-            ExecutorEnum::DescTagIndex(_) => "Describe Tag Index",
+            ExecutorEnum::DescTagIndex(_) => "Desc Tag Index",
             ExecutorEnum::ShowTagIndexes(_) => "Show Tag Indexes",
             ExecutorEnum::RebuildTagIndex(_) => "Rebuild Tag Index",
             ExecutorEnum::CreateEdgeIndex(_) => "Create Edge Index",
             ExecutorEnum::DropEdgeIndex(_) => "Drop Edge Index",
-            ExecutorEnum::DescEdgeIndex(_) => "Describe Edge Index",
+            ExecutorEnum::DescEdgeIndex(_) => "Desc Edge Index",
             ExecutorEnum::ShowEdgeIndexes(_) => "Show Edge Indexes",
             ExecutorEnum::RebuildEdgeIndex(_) => "Rebuild Edge Index",
             ExecutorEnum::CreateSpace(_) => "Create Space",
             ExecutorEnum::DropSpace(_) => "Drop Space",
-            ExecutorEnum::DescSpace(_) => "Describe Space",
+            ExecutorEnum::DescSpace(_) => "Desc Space",
             ExecutorEnum::CreateTag(_) => "Create Tag",
             ExecutorEnum::AlterTag(_) => "Alter Tag",
-            ExecutorEnum::DescTag(_) => "Describe Tag",
+            ExecutorEnum::DescTag(_) => "Desc Tag",
             ExecutorEnum::DropTag(_) => "Drop Tag",
             ExecutorEnum::CreateEdge(_) => "Create Edge",
             ExecutorEnum::AlterEdge(_) => "Alter Edge",
-            ExecutorEnum::DescEdge(_) => "Describe Edge",
+            ExecutorEnum::DescEdge(_) => "Desc Edge",
             ExecutorEnum::DropEdge(_) => "Drop Edge",
             ExecutorEnum::CreateUser(_) => "Create User",
             ExecutorEnum::AlterUser(_) => "Alter User",
@@ -1543,8 +499,8 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
 
     fn category(&self) -> NodeCategory {
         match self {
-            ExecutorEnum::Start(_) => NodeCategory::Scan,
-            ExecutorEnum::Base(_) => NodeCategory::Scan,
+            ExecutorEnum::Start(_) => NodeCategory::Other,
+            ExecutorEnum::Base(_) => NodeCategory::Other,
             ExecutorEnum::GetVertices(_) => NodeCategory::Scan,
             ExecutorEnum::GetNeighbors(_) => NodeCategory::Scan,
             ExecutorEnum::GetProp(_) => NodeCategory::Scan,
@@ -1565,20 +521,20 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::Intersect(_) => NodeCategory::SetOp,
             ExecutorEnum::Filter(_) => NodeCategory::Filter,
             ExecutorEnum::Project(_) => NodeCategory::Project,
-            ExecutorEnum::Limit(_) => NodeCategory::Sort,
+            ExecutorEnum::Limit(_) => NodeCategory::Other,
             ExecutorEnum::Sort(_) => NodeCategory::Sort,
-            ExecutorEnum::TopN(_) => NodeCategory::Sort,
+            ExecutorEnum::TopN(_) => NodeCategory::Other,
             ExecutorEnum::Sample(_) => NodeCategory::Other,
             ExecutorEnum::Aggregate(_) => NodeCategory::Aggregate,
             ExecutorEnum::GroupBy(_) => NodeCategory::Aggregate,
             ExecutorEnum::Having(_) => NodeCategory::Filter,
-            ExecutorEnum::Dedup(_) => NodeCategory::Aggregate,
-            ExecutorEnum::Unwind(_) => NodeCategory::DataCollect,
-            ExecutorEnum::Assign(_) => NodeCategory::DataCollect,
+            ExecutorEnum::Dedup(_) => NodeCategory::Other,
+            ExecutorEnum::Unwind(_) => NodeCategory::Other,
+            ExecutorEnum::Assign(_) => NodeCategory::Other,
             ExecutorEnum::AppendVertices(_) => NodeCategory::Traversal,
-            ExecutorEnum::RollUpApply(_) => NodeCategory::DataCollect,
-            ExecutorEnum::PatternApply(_) => NodeCategory::DataCollect,
-            ExecutorEnum::Remove(_) => NodeCategory::DataCollect,
+            ExecutorEnum::RollUpApply(_) => NodeCategory::Other,
+            ExecutorEnum::PatternApply(_) => NodeCategory::Other,
+            ExecutorEnum::Remove(_) => NodeCategory::Other,
             ExecutorEnum::Loop(_) => NodeCategory::Control,
             ExecutorEnum::ForLoop(_) => NodeCategory::Control,
             ExecutorEnum::WhileLoop(_) => NodeCategory::Control,
@@ -1586,8 +542,8 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::ScanEdges(_) => NodeCategory::Scan,
             ExecutorEnum::ScanVertices(_) => NodeCategory::Scan,
             ExecutorEnum::IndexScan(_) => NodeCategory::Scan,
-            ExecutorEnum::Argument(_) => NodeCategory::Control,
-            ExecutorEnum::PassThrough(_) => NodeCategory::Control,
+            ExecutorEnum::Argument(_) => NodeCategory::Other,
+            ExecutorEnum::PassThrough(_) => NodeCategory::Other,
             ExecutorEnum::DataCollect(_) => NodeCategory::DataCollect,
             ExecutorEnum::BFSShortest(_) => NodeCategory::Path,
             ExecutorEnum::ShowSpaces(_) => NodeCategory::Admin,
@@ -1622,3 +578,179 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
         }
     }
 }
+
+/// 内部宏模块 - 用于简化 ExecutorEnum 的方法委托
+mod macros {
+    /// 委托给内部执行器的不可变方法
+    macro_rules! delegate_to_executor {
+        ($self:expr, $method:ident) => {
+            match $self {
+                ExecutorEnum::Start(exec) => exec.$method(),
+                ExecutorEnum::Base(exec) => exec.$method(),
+                ExecutorEnum::GetVertices(exec) => exec.$method(),
+                ExecutorEnum::GetNeighbors(exec) => exec.$method(),
+                ExecutorEnum::GetProp(exec) => exec.$method(),
+                ExecutorEnum::AllPaths(exec) => exec.$method(),
+                ExecutorEnum::Expand(exec) => exec.$method(),
+                ExecutorEnum::ExpandAll(exec) => exec.$method(),
+                ExecutorEnum::Traverse(exec) => exec.$method(),
+                ExecutorEnum::ShortestPath(exec) => exec.$method(),
+                ExecutorEnum::InnerJoin(exec) => exec.$method(),
+                ExecutorEnum::HashInnerJoin(exec) => exec.$method(),
+                ExecutorEnum::LeftJoin(exec) => exec.$method(),
+                ExecutorEnum::HashLeftJoin(exec) => exec.$method(),
+                ExecutorEnum::FullOuterJoin(exec) => exec.$method(),
+                ExecutorEnum::CrossJoin(exec) => exec.$method(),
+                ExecutorEnum::Union(exec) => exec.$method(),
+                ExecutorEnum::UnionAll(exec) => exec.$method(),
+                ExecutorEnum::Minus(exec) => exec.$method(),
+                ExecutorEnum::Intersect(exec) => exec.$method(),
+                ExecutorEnum::Filter(exec) => exec.$method(),
+                ExecutorEnum::Project(exec) => exec.$method(),
+                ExecutorEnum::Limit(exec) => exec.$method(),
+                ExecutorEnum::Sort(exec) => exec.$method(),
+                ExecutorEnum::TopN(exec) => exec.$method(),
+                ExecutorEnum::Sample(exec) => exec.$method(),
+                ExecutorEnum::Aggregate(exec) => exec.$method(),
+                ExecutorEnum::GroupBy(exec) => exec.$method(),
+                ExecutorEnum::Having(exec) => exec.$method(),
+                ExecutorEnum::Dedup(exec) => exec.$method(),
+                ExecutorEnum::Unwind(exec) => exec.$method(),
+                ExecutorEnum::Assign(exec) => exec.$method(),
+                ExecutorEnum::AppendVertices(exec) => exec.$method(),
+                ExecutorEnum::RollUpApply(exec) => exec.$method(),
+                ExecutorEnum::PatternApply(exec) => exec.$method(),
+                ExecutorEnum::Remove(exec) => exec.$method(),
+                ExecutorEnum::Loop(exec) => exec.$method(),
+                ExecutorEnum::ForLoop(exec) => exec.$method(),
+                ExecutorEnum::WhileLoop(exec) => exec.$method(),
+                ExecutorEnum::Select(exec) => exec.$method(),
+                ExecutorEnum::ScanEdges(exec) => exec.$method(),
+                ExecutorEnum::ScanVertices(exec) => exec.$method(),
+                ExecutorEnum::IndexScan(exec) => exec.$method(),
+                ExecutorEnum::Argument(exec) => exec.$method(),
+                ExecutorEnum::PassThrough(exec) => exec.$method(),
+                ExecutorEnum::DataCollect(exec) => exec.$method(),
+                ExecutorEnum::BFSShortest(exec) => exec.$method(),
+                ExecutorEnum::ShowSpaces(exec) => exec.$method(),
+                ExecutorEnum::ShowTags(exec) => exec.$method(),
+                ExecutorEnum::ShowEdges(exec) => exec.$method(),
+                ExecutorEnum::CreateTagIndex(exec) => exec.$method(),
+                ExecutorEnum::DropTagIndex(exec) => exec.$method(),
+                ExecutorEnum::DescTagIndex(exec) => exec.$method(),
+                ExecutorEnum::ShowTagIndexes(exec) => exec.$method(),
+                ExecutorEnum::RebuildTagIndex(exec) => exec.$method(),
+                ExecutorEnum::CreateEdgeIndex(exec) => exec.$method(),
+                ExecutorEnum::DropEdgeIndex(exec) => exec.$method(),
+                ExecutorEnum::DescEdgeIndex(exec) => exec.$method(),
+                ExecutorEnum::ShowEdgeIndexes(exec) => exec.$method(),
+                ExecutorEnum::RebuildEdgeIndex(exec) => exec.$method(),
+                ExecutorEnum::CreateSpace(exec) => exec.$method(),
+                ExecutorEnum::DropSpace(exec) => exec.$method(),
+                ExecutorEnum::DescSpace(exec) => exec.$method(),
+                ExecutorEnum::CreateTag(exec) => exec.$method(),
+                ExecutorEnum::AlterTag(exec) => exec.$method(),
+                ExecutorEnum::DescTag(exec) => exec.$method(),
+                ExecutorEnum::DropTag(exec) => exec.$method(),
+                ExecutorEnum::CreateEdge(exec) => exec.$method(),
+                ExecutorEnum::AlterEdge(exec) => exec.$method(),
+                ExecutorEnum::DescEdge(exec) => exec.$method(),
+                ExecutorEnum::DropEdge(exec) => exec.$method(),
+                ExecutorEnum::CreateUser(exec) => exec.$method(),
+                ExecutorEnum::AlterUser(exec) => exec.$method(),
+                ExecutorEnum::DropUser(exec) => exec.$method(),
+                ExecutorEnum::ChangePassword(exec) => exec.$method(),
+                ExecutorEnum::Analyze(exec) => exec.$method(),
+            }
+        };
+    }
+
+    /// 委托给内部执行器的可变方法
+    macro_rules! delegate_to_executor_mut {
+        ($self:expr, $method:ident) => {
+            match $self {
+                ExecutorEnum::Start(exec) => exec.$method(),
+                ExecutorEnum::Base(exec) => exec.$method(),
+                ExecutorEnum::GetVertices(exec) => exec.$method(),
+                ExecutorEnum::GetNeighbors(exec) => exec.$method(),
+                ExecutorEnum::GetProp(exec) => exec.$method(),
+                ExecutorEnum::AllPaths(exec) => exec.$method(),
+                ExecutorEnum::Expand(exec) => exec.$method(),
+                ExecutorEnum::ExpandAll(exec) => exec.$method(),
+                ExecutorEnum::Traverse(exec) => exec.$method(),
+                ExecutorEnum::ShortestPath(exec) => exec.$method(),
+                ExecutorEnum::InnerJoin(exec) => exec.$method(),
+                ExecutorEnum::HashInnerJoin(exec) => exec.$method(),
+                ExecutorEnum::LeftJoin(exec) => exec.$method(),
+                ExecutorEnum::HashLeftJoin(exec) => exec.$method(),
+                ExecutorEnum::FullOuterJoin(exec) => exec.$method(),
+                ExecutorEnum::CrossJoin(exec) => exec.$method(),
+                ExecutorEnum::Union(exec) => exec.$method(),
+                ExecutorEnum::UnionAll(exec) => exec.$method(),
+                ExecutorEnum::Minus(exec) => exec.$method(),
+                ExecutorEnum::Intersect(exec) => exec.$method(),
+                ExecutorEnum::Filter(exec) => exec.$method(),
+                ExecutorEnum::Project(exec) => exec.$method(),
+                ExecutorEnum::Limit(exec) => exec.$method(),
+                ExecutorEnum::Sort(exec) => exec.$method(),
+                ExecutorEnum::TopN(exec) => exec.$method(),
+                ExecutorEnum::Sample(exec) => exec.$method(),
+                ExecutorEnum::Aggregate(exec) => exec.$method(),
+                ExecutorEnum::GroupBy(exec) => exec.$method(),
+                ExecutorEnum::Having(exec) => exec.$method(),
+                ExecutorEnum::Dedup(exec) => exec.$method(),
+                ExecutorEnum::Unwind(exec) => exec.$method(),
+                ExecutorEnum::Assign(exec) => exec.$method(),
+                ExecutorEnum::AppendVertices(exec) => exec.$method(),
+                ExecutorEnum::RollUpApply(exec) => exec.$method(),
+                ExecutorEnum::PatternApply(exec) => exec.$method(),
+                ExecutorEnum::Remove(exec) => exec.$method(),
+                ExecutorEnum::Loop(exec) => exec.$method(),
+                ExecutorEnum::ForLoop(exec) => exec.$method(),
+                ExecutorEnum::WhileLoop(exec) => exec.$method(),
+                ExecutorEnum::Select(exec) => exec.$method(),
+                ExecutorEnum::ScanEdges(exec) => exec.$method(),
+                ExecutorEnum::ScanVertices(exec) => exec.$method(),
+                ExecutorEnum::IndexScan(exec) => exec.$method(),
+                ExecutorEnum::Argument(exec) => exec.$method(),
+                ExecutorEnum::PassThrough(exec) => exec.$method(),
+                ExecutorEnum::DataCollect(exec) => exec.$method(),
+                ExecutorEnum::BFSShortest(exec) => exec.$method(),
+                ExecutorEnum::ShowSpaces(exec) => exec.$method(),
+                ExecutorEnum::ShowTags(exec) => exec.$method(),
+                ExecutorEnum::ShowEdges(exec) => exec.$method(),
+                ExecutorEnum::CreateTagIndex(exec) => exec.$method(),
+                ExecutorEnum::DropTagIndex(exec) => exec.$method(),
+                ExecutorEnum::DescTagIndex(exec) => exec.$method(),
+                ExecutorEnum::ShowTagIndexes(exec) => exec.$method(),
+                ExecutorEnum::RebuildTagIndex(exec) => exec.$method(),
+                ExecutorEnum::CreateEdgeIndex(exec) => exec.$method(),
+                ExecutorEnum::DropEdgeIndex(exec) => exec.$method(),
+                ExecutorEnum::DescEdgeIndex(exec) => exec.$method(),
+                ExecutorEnum::ShowEdgeIndexes(exec) => exec.$method(),
+                ExecutorEnum::RebuildEdgeIndex(exec) => exec.$method(),
+                ExecutorEnum::CreateSpace(exec) => exec.$method(),
+                ExecutorEnum::DropSpace(exec) => exec.$method(),
+                ExecutorEnum::DescSpace(exec) => exec.$method(),
+                ExecutorEnum::CreateTag(exec) => exec.$method(),
+                ExecutorEnum::AlterTag(exec) => exec.$method(),
+                ExecutorEnum::DescTag(exec) => exec.$method(),
+                ExecutorEnum::DropTag(exec) => exec.$method(),
+                ExecutorEnum::CreateEdge(exec) => exec.$method(),
+                ExecutorEnum::AlterEdge(exec) => exec.$method(),
+                ExecutorEnum::DescEdge(exec) => exec.$method(),
+                ExecutorEnum::DropEdge(exec) => exec.$method(),
+                ExecutorEnum::CreateUser(exec) => exec.$method(),
+                ExecutorEnum::AlterUser(exec) => exec.$method(),
+                ExecutorEnum::DropUser(exec) => exec.$method(),
+                ExecutorEnum::ChangePassword(exec) => exec.$method(),
+                ExecutorEnum::Analyze(exec) => exec.$method(),
+            }
+        };
+    }
+
+    pub(crate) use delegate_to_executor;
+    pub(crate) use delegate_to_executor_mut;
+}
+
+use macros::{delegate_to_executor, delegate_to_executor_mut};

@@ -9,6 +9,7 @@ pub mod expression;
 pub mod factory;
 pub mod graph_query_executor;
 pub mod logic;
+pub mod macros;
 pub mod object_pool;
 pub mod recursion_detector;
 pub mod result_processing;
