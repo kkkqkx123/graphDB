@@ -1,3 +1,4 @@
+pub mod edge_storage;
 pub mod index;
 pub mod iterator;
 pub mod metadata;
@@ -9,10 +10,13 @@ pub mod runtime_context;
 pub mod schema;
 pub mod storage_client;
 pub mod types;
+pub mod user_storage;
+pub mod vertex_storage;
 
 #[cfg(test)]
 pub mod test_mock;
 
+pub use edge_storage::EdgeStorage;
 pub use index::*;
 pub use iterator::*;
 pub use metadata::*;
@@ -20,6 +24,8 @@ pub use operations::*;
 pub use redb_storage::DefaultStorage;
 pub use redb_storage::*;
 pub use storage_client::*;
+pub use user_storage::UserStorage;
+pub use vertex_storage::VertexStorage;
 
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;

@@ -397,6 +397,7 @@ mod tests {
             let result = estimator.estimate(&plan_node, &child_estimates);
 
             assert!(result.is_ok());
+            let (cost, output_rows) = result.unwrap();
             assert!(cost > 0.0);
             assert!(output_rows >= 1);
         }
