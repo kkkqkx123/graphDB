@@ -72,6 +72,23 @@ impl Planner for UserManagementPlanner {
                 );
                 PlanNodeEnum::ChangePassword(node)
             }
+            Stmt::Grant(grant_stmt) => {
+                let node = crate::query::planner::plan::core::nodes::GrantRoleNode::new(
+                    5,
+                    grant_stmt.username.clone(),
+                    grant_stmt.space_name.clone(),
+                    format!("{:?}", grant_stmt.role).to_lowercase(),
+                );
+                PlanNodeEnum::GrantRole(node)
+            }
+            Stmt::Revoke(revoke_stmt) => {
+                let node = crate::query::planner::plan::core::nodes::RevokeRoleNode::new(
+                    6,
+                    revoke_stmt.username.clone(),
+                    revoke_stmt.space_name.clone(),
+                );
+                PlanNodeEnum::RevokeRole(node)
+            }
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(format!(
                     "Unsupported user management operation: {:?}",
@@ -88,7 +105,7 @@ impl Planner for UserManagementPlanner {
     fn match_planner(&self, stmt: &Stmt) -> bool {
         matches!(
             stmt,
-            Stmt::CreateUser(_) | Stmt::AlterUser(_) | Stmt::DropUser(_) | Stmt::ChangePassword(_)
+            Stmt::CreateUser(_) | Stmt::AlterUser(_) | Stmt::DropUser(_) | Stmt::ChangePassword(_) | Stmt::Grant(_) | Stmt::Revoke(_)
         )
     }
 }

@@ -9,9 +9,10 @@ use super::index_nodes::{
 };
 use super::insert_nodes::{InsertEdgesNode, InsertVerticesNode};
 use super::plan_node_category::PlanNodeCategory;
-use super::space_nodes::{CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode};
+use super::space_nodes::{AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode, SwitchSpaceNode};
+use super::stats_nodes::ShowStatsNode;
 use super::tag_nodes::{AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode};
-use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode};
+use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode};
 use crate::query::planner::plan::core::explain::PlanNodeDescription;
 
 // 导入并重新导出所有具体的节点类型
@@ -191,10 +192,22 @@ pub enum PlanNodeEnum {
     DropUser(DropUserNode),
     /// 修改密码
     ChangePassword(ChangePasswordNode),
+    /// 授予角色
+    GrantRole(GrantRoleNode),
+    /// 撤销角色
+    RevokeRole(RevokeRoleNode),
     /// 插入顶点
     InsertVertices(InsertVerticesNode),
     /// 插入边
     InsertEdges(InsertEdgesNode),
+    /// 切换空间
+    SwitchSpace(SwitchSpaceNode),
+    /// 修改空间
+    AlterSpace(AlterSpaceNode),
+    /// 清空空间
+    ClearSpace(ClearSpaceNode),
+    /// 显示统计
+    ShowStats(ShowStatsNode),
 }
 
 impl Default for PlanNodeEnum {
@@ -425,12 +438,36 @@ impl PlanNodeEnum {
         matches!(self, PlanNodeEnum::ChangePassword(_))
     }
 
+    pub fn is_grant_role(&self) -> bool {
+        matches!(self, PlanNodeEnum::GrantRole(_))
+    }
+
+    pub fn is_revoke_role(&self) -> bool {
+        matches!(self, PlanNodeEnum::RevokeRole(_))
+    }
+
     pub fn is_insert_vertices(&self) -> bool {
         matches!(self, PlanNodeEnum::InsertVertices(_))
     }
 
     pub fn is_insert_edges(&self) -> bool {
         matches!(self, PlanNodeEnum::InsertEdges(_))
+    }
+
+    pub fn is_switch_space(&self) -> bool {
+        matches!(self, PlanNodeEnum::SwitchSpace(_))
+    }
+
+    pub fn is_alter_space(&self) -> bool {
+        matches!(self, PlanNodeEnum::AlterSpace(_))
+    }
+
+    pub fn is_clear_space(&self) -> bool {
+        matches!(self, PlanNodeEnum::ClearSpace(_))
+    }
+
+    pub fn is_show_stats(&self) -> bool {
+        matches!(self, PlanNodeEnum::ShowStats(_))
     }
 
     pub fn is_create_tag_index(&self) -> bool {
@@ -666,8 +703,14 @@ impl PlanNodeEnum {
             PlanNodeEnum::AlterUser(_) => "AlterUser",
             PlanNodeEnum::DropUser(_) => "DropUser",
             PlanNodeEnum::ChangePassword(_) => "ChangePassword",
+            PlanNodeEnum::GrantRole(_) => "GrantRole",
+            PlanNodeEnum::RevokeRole(_) => "RevokeRole",
             PlanNodeEnum::InsertVertices(_) => "InsertVertices",
             PlanNodeEnum::InsertEdges(_) => "InsertEdges",
+            PlanNodeEnum::SwitchSpace(_) => "SwitchSpace",
+            PlanNodeEnum::AlterSpace(_) => "AlterSpace",
+            PlanNodeEnum::ClearSpace(_) => "ClearSpace",
+            PlanNodeEnum::ShowStats(_) => "ShowStats",
         }
     }
 
@@ -746,8 +789,14 @@ impl PlanNodeEnum {
             PlanNodeEnum::AlterUser(_) => PlanNodeCategory::Management,
             PlanNodeEnum::DropUser(_) => PlanNodeCategory::Management,
             PlanNodeEnum::ChangePassword(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::GrantRole(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::RevokeRole(_) => PlanNodeCategory::Management,
             PlanNodeEnum::InsertVertices(_) => PlanNodeCategory::Management,
             PlanNodeEnum::InsertEdges(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::SwitchSpace(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::AlterSpace(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::ClearSpace(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::ShowStats(_) => PlanNodeCategory::Management,
         }
     }
 
@@ -1880,6 +1929,38 @@ impl PlanNodeEnum {
                 desc.add_description("edges", format!("[{} edges]", info.edges.len()));
                 desc
             }
+
+            // 新增管理节点
+            PlanNodeEnum::GrantRole(node) => {
+                let mut desc = PlanNodeDescription::new("GrantRole", node.id());
+                desc.add_description("username", node.username().to_string());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("role", node.role().to_string());
+                desc
+            }
+            PlanNodeEnum::RevokeRole(node) => {
+                let mut desc = PlanNodeDescription::new("RevokeRole", node.id());
+                desc.add_description("username", node.username().to_string());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc
+            }
+            PlanNodeEnum::SwitchSpace(node) => {
+                let mut desc = PlanNodeDescription::new("SwitchSpace", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc
+            }
+            PlanNodeEnum::AlterSpace(node) => {
+                let mut desc = PlanNodeDescription::new("AlterSpace", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("options", format!("[{} options]", node.options().len()));
+                desc
+            }
+            PlanNodeEnum::ClearSpace(node) => {
+                let mut desc = PlanNodeDescription::new("ClearSpace", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc
+            }
+            PlanNodeEnum::ShowStats(_) => PlanNodeDescription::new("ShowStats", self.id()),
         }
     }
 }

@@ -2,44 +2,47 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 4
-- **Total Issues**: 4
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 4
-- **Files with Issues**: 2
+- **Total Errors**: 2
+- **Total Warnings**: 0
+- **Total Issues**: 2
+- **Unique Error Patterns**: 2
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 2
+
+### Error Type Breakdown
+
+- **error[E0412]**: 1 errors
+- **error[E0433]**: 1 errors
+
+### Files with Errors (Top 10)
+
+- `src\query\validator\validator_enum.rs`: 2 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 4
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 4 warnings
+### error[E0412]: cannot find type `ClearSpaceValidator` in this scope
 
-### Files with Warnings (Top 10)
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
-- `src\query\executor\factory\executor_factory.rs`: 2 warnings
-- `src\query\executor\data_processing\materialize.rs`: 2 warnings
+#### `src\query\validator\validator_enum.rs`: 1 occurrences
 
-## Detailed Warning Categorization
+- Line 187: cannot find type `ClearSpaceValidator` in this scope
 
-### warning: unreachable pattern: no value can reach this
+### error[E0433]: failed to resolve: use of undeclared type `ClearSpaceValidator`: use of undeclared type `ClearSpaceValidator`
 
-**Total Occurrences**: 4  
-**Unique Files**: 2
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
-#### `src\query\executor\factory\executor_factory.rs`: 2 occurrences
+#### `src\query\validator\validator_enum.rs`: 1 occurrences
 
-- Line 389: unreachable pattern: no value can reach this
-- Line 28: field `safety_validator` is never read
-
-#### `src\query\executor\data_processing\materialize.rs`: 2 occurrences
-
-- Line 235: unused import: `super::*`
-- Line 236: unused import: `crate::storage::StorageClient`
+- Line 648: failed to resolve: use of undeclared type `ClearSpaceValidator`: use of undeclared type `ClearSpaceValidator`
 

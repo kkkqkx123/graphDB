@@ -386,6 +386,28 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             PlanNodeEnum::ChangePassword(node) => {
                 self.builders.admin().build_change_password(node, storage, context)
             }
+            PlanNodeEnum::GrantRole(node) => {
+                self.builders.admin().build_grant_role(node, storage, context)
+            }
+            PlanNodeEnum::RevokeRole(node) => {
+                self.builders.admin().build_revoke_role(node, storage, context)
+            }
+
+            // 管理执行器 - 空间管理（补充）
+            PlanNodeEnum::SwitchSpace(node) => {
+                self.builders.admin().build_switch_space(node, storage, context)
+            }
+            PlanNodeEnum::AlterSpace(node) => {
+                self.builders.admin().build_alter_space(node, storage, context)
+            }
+            PlanNodeEnum::ClearSpace(node) => {
+                self.builders.admin().build_clear_space(node, storage, context)
+            }
+
+            // 管理执行器 - 查询管理
+            PlanNodeEnum::ShowStats(node) => {
+                self.builders.admin().build_show_stats(node, storage, context)
+            }
         }
     }
 

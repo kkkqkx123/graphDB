@@ -22,6 +22,7 @@ pub mod set_operations_node;
 pub mod sort_node;
 pub mod space_nodes;
 pub mod start_node;
+pub mod stats_nodes;
 pub mod tag_nodes;
 pub mod traversal_node;
 pub mod user_nodes;
@@ -61,12 +62,14 @@ pub use sample_node::SampleNode;
 pub use set_operations_node::{IntersectNode, MinusNode};
 pub use sort_node::{LimitNode, SortItem, SortNode, TopNNode};
 pub use space_nodes::{
-    CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode, SpaceManageInfo,
+    AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode,
+    ShowSpacesNode, SpaceAlterOption, SpaceManageInfo, SwitchSpaceNode,
 };
 pub use start_node::StartNode;
+pub use stats_nodes::{ShowStatsNode, ShowStatsType};
 pub use tag_nodes::{
     AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode, TagAlterInfo,
     TagManageInfo,
 };
 pub use traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
-pub use user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode};
+pub use user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode};

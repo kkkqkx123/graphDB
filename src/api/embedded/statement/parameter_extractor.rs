@@ -110,7 +110,7 @@ fn extract_params_from_stmt(stmt: &Stmt, params: &mut HashMap<String, DataType>)
         | Stmt::DescribeUser(_) | Stmt::ShowUsers(_) | Stmt::ShowRoles(_)
         | Stmt::ShowCreate(_) | Stmt::ShowSessions(_) | Stmt::ShowQueries(_)
         | Stmt::KillQuery(_) | Stmt::ShowConfigs(_) | Stmt::UpdateConfigs(_)
-        | Stmt::Assignment(_) | Stmt::SetOperation(_) => {}
+        | Stmt::Assignment(_) | Stmt::SetOperation(_) | Stmt::ClearSpace(_) => {}
     }
 }
 

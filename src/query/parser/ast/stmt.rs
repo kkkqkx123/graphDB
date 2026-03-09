@@ -92,6 +92,7 @@ pub enum Stmt {
     UpdateConfigs(UpdateConfigsStmt),
     Assignment(AssignmentStmt),
     SetOperation(SetOperationStmt),
+    ClearSpace(ClearSpaceStmt),
 }
 
 impl Stmt {
@@ -142,6 +143,7 @@ impl Stmt {
             Stmt::UpdateConfigs(s) => s.span,
             Stmt::Assignment(s) => s.span,
             Stmt::SetOperation(s) => s.span,
+            Stmt::ClearSpace(s) => s.span,
         }
     }
 
@@ -192,6 +194,7 @@ impl Stmt {
             Stmt::UpdateConfigs(_) => "UPDATE CONFIGS",
             Stmt::Assignment(_) => "ASSIGNMENT",
             Stmt::SetOperation(_) => "SET OPERATION",
+            Stmt::ClearSpace(_) => "CLEAR SPACE",
         }
     }
 
@@ -783,6 +786,7 @@ pub enum ShowTarget {
     Index(String),
     Users,
     Roles,
+    Stats,
 }
 
 /// EXPLAIN 格式类型
@@ -1403,6 +1407,13 @@ pub enum ShowCreateTarget {
     Tag(String),
     Edge(String),
     Index(String),
+}
+
+/// CLEAR SPACE 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClearSpaceStmt {
+    pub span: Span,
+    pub space_name: String,
 }
 
 #[cfg(test)]

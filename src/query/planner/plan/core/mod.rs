@@ -12,9 +12,9 @@ pub use nodes::plan_node_enum::PlanNodeEnum;
 pub use nodes::plan_node_traits::PlanNode;
 pub use nodes::plan_node_visitor::PlanNodeVisitor;
 pub use nodes::{
-    AggregateNode, AppendVerticesNode, ArgumentNode, CrossJoinNode, DataCollectNode, DedupNode,
+    AggregateNode, AlterSpaceNode, AppendVerticesNode, ArgumentNode, ClearSpaceNode, CrossJoinNode, DataCollectNode, DedupNode,
     ExpandAllNode, ExpandNode, FilterNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode,
     HashInnerJoinNode, InnerJoinNode, LeftJoinNode, LimitNode, LoopNode, PassThroughNode,
     PatternApplyNode, PlanNodeFactory, ProjectNode, RollUpApplyNode, ScanEdgesNode,
-    ScanVerticesNode, SelectNode, SortNode, StartNode, TraverseNode, UnionNode, UnwindNode,
+    ScanVerticesNode, SelectNode, ShowStatsNode, ShowStatsType, SortNode, StartNode, TraverseNode, UnionNode, UnwindNode,
 };

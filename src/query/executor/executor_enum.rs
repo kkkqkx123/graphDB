@@ -9,14 +9,14 @@ use std::fmt::{Debug, Formatter};
 use crate::storage::StorageClient;
 
 use super::admin::{
-    AlterEdgeExecutor, AlterTagExecutor, AlterUserExecutor, AnalyzeExecutor,
-    ChangePasswordExecutor, CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateSpaceExecutor,
+    AlterEdgeExecutor, AlterSpaceExecutor, AlterTagExecutor, AlterUserExecutor, AnalyzeExecutor,
+    ChangePasswordExecutor, ClearSpaceExecutor, CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateSpaceExecutor,
     CreateTagExecutor, CreateTagIndexExecutor, CreateUserExecutor, DescEdgeExecutor,
     DescEdgeIndexExecutor, DescSpaceExecutor, DescTagExecutor, DescTagIndexExecutor,
     DropEdgeExecutor, DropEdgeIndexExecutor, DropSpaceExecutor, DropTagExecutor,
-    DropTagIndexExecutor, DropUserExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor,
-    ShowEdgeIndexesExecutor, ShowEdgesExecutor, ShowSpacesExecutor, ShowTagIndexesExecutor,
-    ShowTagsExecutor,
+    DropTagIndexExecutor, DropUserExecutor, GrantRoleExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, RevokeRoleExecutor,
+    ShowEdgeIndexesExecutor, ShowEdgesExecutor, ShowSpacesExecutor, ShowStatsExecutor, ShowTagIndexesExecutor,
+    ShowTagsExecutor, SwitchSpaceExecutor,
 };
 use super::base::{
     BaseExecutor, DBResult, ExecutionResult, Executor, ExecutorStats, InputExecutor, StartExecutor,
@@ -134,6 +134,12 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     AlterUser(AlterUserExecutor<S>),
     DropUser(DropUserExecutor<S>),
     ChangePassword(ChangePasswordExecutor<S>),
+    GrantRole(GrantRoleExecutor<S>),
+    RevokeRole(RevokeRoleExecutor<S>),
+    SwitchSpace(SwitchSpaceExecutor<S>),
+    AlterSpace(AlterSpaceExecutor<S>),
+    ClearSpace(ClearSpaceExecutor<S>),
+    ShowStats(ShowStatsExecutor<S>),
     Analyze(AnalyzeExecutor<S>),
 }
 
@@ -220,6 +226,12 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::AlterUser(exec) => ("AlterUser", exec.name()),
             ExecutorEnum::DropUser(exec) => ("DropUser", exec.name()),
             ExecutorEnum::ChangePassword(exec) => ("ChangePassword", exec.name()),
+            ExecutorEnum::GrantRole(exec) => ("GrantRole", exec.name()),
+            ExecutorEnum::RevokeRole(exec) => ("RevokeRole", exec.name()),
+            ExecutorEnum::SwitchSpace(exec) => ("SwitchSpace", exec.name()),
+            ExecutorEnum::AlterSpace(exec) => ("AlterSpace", exec.name()),
+            ExecutorEnum::ClearSpace(exec) => ("ClearSpace", exec.name()),
+            ExecutorEnum::ShowStats(exec) => ("ShowStats", exec.name()),
             ExecutorEnum::Analyze(exec) => ("Analyze", exec.name()),
         };
         f.write_str(&format!("ExecutorEnum::{}({})", variant_name, exec_name))
@@ -432,6 +444,12 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::AlterUser(_) => "alter_user",
             ExecutorEnum::DropUser(_) => "drop_user",
             ExecutorEnum::ChangePassword(_) => "change_password",
+            ExecutorEnum::GrantRole(_) => "grant_role",
+            ExecutorEnum::RevokeRole(_) => "revoke_role",
+            ExecutorEnum::SwitchSpace(_) => "switch_space",
+            ExecutorEnum::AlterSpace(_) => "alter_space",
+            ExecutorEnum::ClearSpace(_) => "clear_space",
+            ExecutorEnum::ShowStats(_) => "show_stats",
             ExecutorEnum::Analyze(_) => "analyze",
         }
     }
@@ -518,6 +536,12 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::AlterUser(_) => "Alter User",
             ExecutorEnum::DropUser(_) => "Drop User",
             ExecutorEnum::ChangePassword(_) => "Change Password",
+            ExecutorEnum::GrantRole(_) => "Grant Role",
+            ExecutorEnum::RevokeRole(_) => "Revoke Role",
+            ExecutorEnum::SwitchSpace(_) => "Switch Space",
+            ExecutorEnum::AlterSpace(_) => "Alter Space",
+            ExecutorEnum::ClearSpace(_) => "Clear Space",
+            ExecutorEnum::ShowStats(_) => "Show Stats",
             ExecutorEnum::Analyze(_) => "Analyze",
         }
     }
@@ -604,6 +628,12 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::AlterUser(_) => NodeCategory::Admin,
             ExecutorEnum::DropUser(_) => NodeCategory::Admin,
             ExecutorEnum::ChangePassword(_) => NodeCategory::Admin,
+            ExecutorEnum::GrantRole(_) => NodeCategory::Admin,
+            ExecutorEnum::RevokeRole(_) => NodeCategory::Admin,
+            ExecutorEnum::SwitchSpace(_) => NodeCategory::Admin,
+            ExecutorEnum::AlterSpace(_) => NodeCategory::Admin,
+            ExecutorEnum::ClearSpace(_) => NodeCategory::Admin,
+            ExecutorEnum::ShowStats(_) => NodeCategory::Admin,
             ExecutorEnum::Analyze(_) => NodeCategory::Admin,
         }
     }
@@ -695,6 +725,12 @@ mod macros {
                 ExecutorEnum::AlterUser(exec) => exec.$method(),
                 ExecutorEnum::DropUser(exec) => exec.$method(),
                 ExecutorEnum::ChangePassword(exec) => exec.$method(),
+                ExecutorEnum::GrantRole(exec) => exec.$method(),
+                ExecutorEnum::RevokeRole(exec) => exec.$method(),
+                ExecutorEnum::SwitchSpace(exec) => exec.$method(),
+                ExecutorEnum::AlterSpace(exec) => exec.$method(),
+                ExecutorEnum::ClearSpace(exec) => exec.$method(),
+                ExecutorEnum::ShowStats(exec) => exec.$method(),
                 ExecutorEnum::Analyze(exec) => exec.$method(),
             }
         };
@@ -784,6 +820,12 @@ mod macros {
                 ExecutorEnum::AlterUser(exec) => exec.$method(),
                 ExecutorEnum::DropUser(exec) => exec.$method(),
                 ExecutorEnum::ChangePassword(exec) => exec.$method(),
+                ExecutorEnum::GrantRole(exec) => exec.$method(),
+                ExecutorEnum::RevokeRole(exec) => exec.$method(),
+                ExecutorEnum::SwitchSpace(exec) => exec.$method(),
+                ExecutorEnum::AlterSpace(exec) => exec.$method(),
+                ExecutorEnum::ClearSpace(exec) => exec.$method(),
+                ExecutorEnum::ShowStats(exec) => exec.$method(),
                 ExecutorEnum::Analyze(exec) => exec.$method(),
             }
         };

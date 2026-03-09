@@ -135,3 +135,67 @@ impl ChangePasswordNode {
         &self.password_info
     }
 }
+
+define_plan_node! {
+    pub struct GrantRoleNode {
+        username: String,
+        space_name: String,
+        role: String,
+    }
+    enum: GrantRole
+    input: ZeroInputNode
+}
+
+impl GrantRoleNode {
+    pub fn new(id: i64, username: String, space_name: String, role: String) -> Self {
+        Self {
+            id,
+            username,
+            space_name,
+            role,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+
+    pub fn role(&self) -> &str {
+        &self.role
+    }
+}
+
+define_plan_node! {
+    pub struct RevokeRoleNode {
+        username: String,
+        space_name: String,
+    }
+    enum: RevokeRole
+    input: ZeroInputNode
+}
+
+impl RevokeRoleNode {
+    pub fn new(id: i64, username: String, space_name: String) -> Self {
+        Self {
+            id,
+            username,
+            space_name,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn username(&self) -> &str {
+        &self.username
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+}

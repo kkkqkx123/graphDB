@@ -218,6 +218,7 @@ pub enum StatementType {
     With,
     Remove,
     UpdateConfigs,
+    ClearSpace,
 }
 
 impl StatementType {
@@ -303,6 +304,7 @@ impl StatementType {
             StatementType::With => "WITH",
             StatementType::Remove => "REMOVE",
             StatementType::UpdateConfigs => "UPDATE_CONFIGS",
+            StatementType::ClearSpace => "CLEAR_SPACE",
         }
     }
 

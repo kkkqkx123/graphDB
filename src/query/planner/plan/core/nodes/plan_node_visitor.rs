@@ -8,10 +8,14 @@ use super::index_nodes::{
 };
 use super::plan_node_enum::PlanNodeEnum;
 use super::space_nodes::{
-    CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode, SpaceManageInfo,
+    AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
+    SpaceManageInfo, SwitchSpaceNode,
 };
+use super::stats_nodes::ShowStatsNode;
 use super::tag_nodes::{AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode};
-use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode};
+use super::user_nodes::{
+    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
+};
 
 pub use super::aggregate_node::AggregateNode;
 pub use super::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
@@ -176,6 +180,16 @@ pub trait PlanNodeVisitor {
         DropUser, DropUserNode, visit_drop_user;
         ChangePassword, ChangePasswordNode, visit_change_password;
     );
+
+    // 新增管理节点 visitor 方法
+    impl_visitor_methods!(
+        GrantRole, GrantRoleNode, visit_grant_role;
+        RevokeRole, RevokeRoleNode, visit_revoke_role;
+        SwitchSpace, SwitchSpaceNode, visit_switch_space;
+        AlterSpace, AlterSpaceNode, visit_alter_space;
+        ClearSpace, ClearSpaceNode, visit_clear_space;
+        ShowStats, ShowStatsNode, visit_show_stats;
+    );
 }
 
 impl PlanNodeEnum {
@@ -258,6 +272,13 @@ impl PlanNodeEnum {
             PlanNodeEnum::AlterUser(node) => visitor.visit_alter_user(node),
             PlanNodeEnum::DropUser(node) => visitor.visit_drop_user(node),
             PlanNodeEnum::ChangePassword(node) => visitor.visit_change_password(node),
+            // 新增管理节点
+            PlanNodeEnum::GrantRole(node) => visitor.visit_grant_role(node),
+            PlanNodeEnum::RevokeRole(node) => visitor.visit_revoke_role(node),
+            PlanNodeEnum::SwitchSpace(node) => visitor.visit_switch_space(node),
+            PlanNodeEnum::AlterSpace(node) => visitor.visit_alter_space(node),
+            PlanNodeEnum::ClearSpace(node) => visitor.visit_clear_space(node),
+            PlanNodeEnum::ShowStats(node) => visitor.visit_show_stats(node),
             PlanNodeEnum::InsertVertices(_node) => visitor.visit_create_space(
                 &CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string())),
             ),

@@ -151,6 +151,17 @@ impl<S: StorageClient> SystemExecutor<S> {
             ShowTarget::Roles => Err(DBError::Query(QueryError::ExecutionError(
                 "SHOW ROLES 未实现".to_string(),
             ))),
+            ShowTarget::Stats => {
+                use crate::query::executor::admin::query_management::show_stats::{ShowStatsExecutor, ShowStatsType};
+                let mut executor = ShowStatsExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    ShowStatsType::Storage,
+                    Arc::new(ExpressionAnalysisContext::new()),
+                );
+                Executor::open(&mut executor)?;
+                Executor::execute(&mut executor)
+            }
         }
     }
 

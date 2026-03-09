@@ -41,6 +41,7 @@ pub enum ShowTargetType {
     Sessions,
     Queries,
     Configs,
+    Stats,
 }
 
 /// SHOW 语句验证器
@@ -86,6 +87,7 @@ impl ShowValidator {
             }
             ShowTarget::Users => ShowTargetType::Users,
             ShowTarget::Roles => ShowTargetType::Roles,
+            ShowTarget::Stats => ShowTargetType::Stats,
         };
 
         self.setup_outputs();
@@ -946,6 +948,92 @@ impl StatementValidator for KillQueryValidator {
 }
 
 impl Default for KillQueryValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// CLEAR SPACE 语句验证器
+#[derive(Debug)]
+pub struct ClearSpaceValidator {
+    space_name: String,
+    inputs: Vec<ColumnDef>,
+    outputs: Vec<ColumnDef>,
+    expr_props: ExpressionProps,
+    user_defined_vars: Vec<String>,
+}
+
+impl ClearSpaceValidator {
+    pub fn new() -> Self {
+        Self {
+            space_name: String::new(),
+            inputs: Vec::new(),
+            outputs: vec![ColumnDef {
+                name: "Result".to_string(),
+                type_: ValueType::String,
+            }],
+            expr_props: ExpressionProps::default(),
+            user_defined_vars: Vec::new(),
+        }
+    }
+
+    fn validate_impl(&mut self, stmt: &crate::query::parser::ast::stmt::ClearSpaceStmt) -> Result<(), ValidationError> {
+        self.space_name = stmt.space_name.clone();
+        Ok(())
+    }
+}
+
+/// 实现 StatementValidator trait
+impl StatementValidator for ClearSpaceValidator {
+    fn validate(
+        &mut self,
+        ast: Arc<Ast>,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let clear_space_stmt = match &ast.stmt {
+            crate::query::parser::ast::Stmt::ClearSpace(clear_space_stmt) => clear_space_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected CLEAR SPACE statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+
+        self.validate_impl(clear_space_stmt)?;
+
+        let mut info = ValidationInfo::new();
+        info.semantic_info.query_type = Some("ClearSpace".to_string());
+
+        Ok(ValidationResult::success_with_info(info))
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::ClearSpace
+    }
+
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    fn is_global_statement(&self) -> bool {
+        true
+    }
+
+    fn expression_props(&self) -> &ExpressionProps {
+        &self.expr_props
+    }
+
+    fn user_defined_vars(&self) -> &[String] {
+        &self.user_defined_vars
+    }
+}
+
+impl Default for ClearSpaceValidator {
     fn default() -> Self {
         Self::new()
     }

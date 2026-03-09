@@ -31,8 +31,8 @@ use crate::query::validator::clauses::sequential_validator::SequentialValidator;
 use crate::query::validator::clauses::with_validator::WithValidator;
 use crate::query::validator::clauses::yield_validator::YieldValidator;
 use crate::query::validator::ddl::admin_validator::{
-    DescValidator, KillQueryValidator, ShowConfigsValidator, ShowCreateValidator,
-    ShowQueriesValidator, ShowSessionsValidator, ShowValidator,
+    ClearSpaceValidator, DescValidator, KillQueryValidator, ShowConfigsValidator,
+    ShowCreateValidator, ShowQueriesValidator, ShowSessionsValidator, ShowValidator,
 };
 use crate::query::validator::ddl::alter_validator::AlterValidator;
 use crate::query::validator::ddl::drop_validator::DropValidator;
@@ -183,6 +183,8 @@ pub enum Validator {
     Profile(ProfileValidator),
     /// UPDATE CONFIG 语句验证器
     UpdateConfig(UpdateConfigsValidator),
+    /// CLEAR SPACE 语句验证器
+    ClearSpace(ClearSpaceValidator),
 }
 
 impl Validator {
@@ -238,6 +240,7 @@ impl Validator {
             Validator::Explain(v) => v.statement_type(),
             Validator::Profile(v) => v.statement_type(),
             Validator::UpdateConfig(v) => v.statement_type(),
+            Validator::ClearSpace(v) => v.statement_type(),
         }
     }
 
@@ -391,6 +394,9 @@ impl Validator {
             Validator::UpdateConfig(v) => v
                 .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::ClearSpace(v) => v
+                .validate(ast, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
         }
     }
 
@@ -446,6 +452,7 @@ impl Validator {
             Validator::Explain(v) => v.inputs().to_vec(),
             Validator::Profile(v) => v.inputs().to_vec(),
             Validator::UpdateConfig(v) => v.inputs().to_vec(),
+            Validator::ClearSpace(v) => v.inputs().to_vec(),
         }
     }
 
@@ -501,6 +508,7 @@ impl Validator {
             Validator::Explain(v) => v.outputs().to_vec(),
             Validator::Profile(v) => v.outputs().to_vec(),
             Validator::UpdateConfig(v) => v.outputs().to_vec(),
+            Validator::ClearSpace(v) => v.outputs().to_vec(),
         }
     }
 }
@@ -574,6 +582,7 @@ impl Validator {
             Stmt::Assignment(_) => StatementType::Assignment,
             Stmt::SetOperation(_) => StatementType::SetOperation,
             Stmt::UpdateConfigs(_) => StatementType::UpdateConfigs,
+            Stmt::ClearSpace(_) => StatementType::ClearSpace,
         }
     }
 
@@ -636,6 +645,7 @@ impl Validator {
             StatementType::Explain => Validator::Explain(ExplainValidator::new()),
             StatementType::Profile => Validator::Profile(ProfileValidator::new()),
             StatementType::UpdateConfigs => Validator::UpdateConfig(UpdateConfigsValidator::new()),
+            StatementType::ClearSpace => Validator::ClearSpace(ClearSpaceValidator::new()),
             StatementType::DropSpace
             | StatementType::DropTag
             | StatementType::DropEdge
@@ -702,6 +712,7 @@ impl Validator {
             Validator::Explain(v) => v.user_defined_vars(),
             Validator::Profile(v) => v.user_defined_vars(),
             Validator::UpdateConfig(v) => v.user_defined_vars(),
+            Validator::ClearSpace(v) => v.user_defined_vars(),
         }
     }
 
@@ -762,6 +773,7 @@ impl Validator {
             Validator::Explain(v) => v.expression_props(),
             Validator::Profile(v) => v.expression_props(),
             Validator::UpdateConfig(v) => v.expression_props(),
+            Validator::ClearSpace(v) => v.expression_props(),
         }
     }
 }

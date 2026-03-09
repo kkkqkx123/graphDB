@@ -1,8 +1,11 @@
 //! 维护操作规划器
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
-use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum, ProjectNode};
+use crate::query::parser::ast::{AlterTarget, ShowTarget, Stmt};
+use crate::query::planner::plan::core::{
+    node_id_generator::next_node_id, AlterSpaceNode, ArgumentNode, ClearSpaceNode, PlanNodeEnum,
+    ProjectNode, ShowStatsNode, ShowStatsType,
+};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -45,17 +48,57 @@ impl Planner for MaintainPlanner {
 
         // 3. 不同类型的操作可能需要不同处理
         let final_node = if stmt_type == "SHOW" {
-            // SHOW 语句使用 PassThrough 节点，避免变量未定义的问题
-            PlanNodeEnum::PassThrough(crate::query::planner::plan::core::PassThroughNode::new(1))
+            // 处理 SHOW STATS 语句
+            if let Stmt::Show(show_stmt) = validated.stmt() {
+                if show_stmt.target == ShowTarget::Stats {
+                    let stats_node = ShowStatsNode::new(
+                        next_node_id(),
+                        ShowStatsType::Storage,
+                    );
+                    PlanNodeEnum::ShowStats(stats_node)
+                } else {
+                    // 其他 SHOW 语句使用 PassThrough 节点
+                    PlanNodeEnum::PassThrough(crate::query::planner::plan::core::PassThroughNode::new(1))
+                }
+            } else {
+                PlanNodeEnum::PassThrough(crate::query::planner::plan::core::PassThroughNode::new(1))
+            }
         } else if stmt_type == "SUBMIT JOB" {
             // 提交作业类型的维护操作
             PlanNodeEnum::Project(project_node)
         } else if stmt_type.starts_with("CREATE") {
             // 创建类型的操作
             PlanNodeEnum::Project(project_node)
-        } else if stmt_type.starts_with("DROP") {
-            // 删除类型的操作
-            PlanNodeEnum::Project(project_node)
+        } else if stmt_type.starts_with("ALTER") {
+            // 处理 ALTER SPACE 语句
+            if let Stmt::Alter(alter_stmt) = validated.stmt() {
+                if let AlterTarget::Space { space_name, comment } = &alter_stmt.target {
+                    let options = comment.as_ref().map(|c| {
+                        vec![crate::query::planner::plan::core::nodes::SpaceAlterOption::Comment(c.clone())]
+                    }).unwrap_or_default();
+                    let alter_space_node = AlterSpaceNode::new(
+                        next_node_id(),
+                        space_name.clone(),
+                        options,
+                    );
+                    PlanNodeEnum::AlterSpace(alter_space_node)
+                } else {
+                    PlanNodeEnum::Project(project_node)
+                }
+            } else {
+                PlanNodeEnum::Project(project_node)
+            }
+        } else if stmt_type == "CLEAR SPACE" {
+            // 处理 CLEAR SPACE 语句
+            if let Stmt::ClearSpace(clear_stmt) = validated.stmt() {
+                let clear_space_node = ClearSpaceNode::new(
+                    next_node_id(),
+                    clear_stmt.space_name.clone(),
+                );
+                PlanNodeEnum::ClearSpace(clear_space_node)
+            } else {
+                PlanNodeEnum::Project(project_node)
+            }
         } else {
             // 其他类型的维护操作
             PlanNodeEnum::Project(project_node)
@@ -76,6 +119,7 @@ impl Planner for MaintainPlanner {
             || stmt_type == "DESC"
             || stmt_type.starts_with("ALTER")
             || stmt_type.starts_with("DESCRIBE")
+            || stmt_type == "CLEAR SPACE"
     }
 }
 

@@ -83,10 +83,10 @@ pub use clauses::{
 
 // 导出 DDL 验证器
 pub use ddl::{
-    AlterTargetType, AlterValidator, DescTargetType, DescValidator, DropTargetType, DropValidator,
-    KillQueryValidator, ShowConfigsValidator, ShowCreateValidator, ShowQueriesValidator,
-    ShowSessionsValidator, ShowTargetType, ShowValidator, ValidatedAlter, ValidatedDesc,
-    ValidatedDrop, ValidatedShow,
+    AlterTargetType, AlterValidator, ClearSpaceValidator, DescTargetType, DescValidator,
+    DropTargetType, DropValidator, KillQueryValidator, ShowConfigsValidator, ShowCreateValidator,
+    ShowQueriesValidator, ShowSessionsValidator, ShowTargetType, ShowValidator, ValidatedAlter,
+    ValidatedDesc, ValidatedDrop, ValidatedShow,
 };
 
 // 导出 DML 验证器

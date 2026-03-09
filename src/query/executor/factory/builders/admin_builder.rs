@@ -3,24 +3,28 @@
 //! 负责创建管理类型的执行器（空间管理、标签管理、边管理、索引管理、用户管理）
 
 use crate::core::error::QueryError;
+use crate::core::RoleType;
 use crate::query::executor::admin::{
-    AlterEdgeExecutor, AlterTagExecutor, AlterUserExecutor, ChangePasswordExecutor,
-    CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateSpaceExecutor, CreateTagExecutor,
+    AlterEdgeExecutor, AlterSpaceExecutor, AlterTagExecutor, AlterUserExecutor, ChangePasswordExecutor,
+    ClearSpaceExecutor, CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateSpaceExecutor, CreateTagExecutor,
     CreateTagIndexExecutor, CreateUserExecutor, DescEdgeExecutor, DescEdgeIndexExecutor,
     DescSpaceExecutor, DescTagExecutor, DescTagIndexExecutor, DropEdgeExecutor,
     DropEdgeIndexExecutor, DropSpaceExecutor, DropTagExecutor, DropTagIndexExecutor,
-    DropUserExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, ShowEdgeIndexesExecutor,
-    ShowEdgesExecutor, ShowSpacesExecutor, ShowTagIndexesExecutor, ShowTagsExecutor,
+    DropUserExecutor, GrantRoleExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, RevokeRoleExecutor,
+    ShowEdgeIndexesExecutor, ShowEdgesExecutor, ShowSpacesExecutor, ShowStatsExecutor, ShowTagIndexesExecutor, ShowTagsExecutor,
+    SwitchSpaceExecutor,
 };
+use crate::query::executor::admin::query_management::show_stats::ShowStatsType as ExecutorShowStatsType;
+use crate::query::executor::admin::space::alter_space::SpaceAlterOption as ExecutorSpaceAlterOption;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::planner::plan::core::nodes::{
-    AlterEdgeNode, AlterTagNode, AlterUserNode, ChangePasswordNode, CreateEdgeIndexNode,
+    AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode, ClearSpaceNode, CreateEdgeIndexNode,
     CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode, CreateTagNode, CreateUserNode,
     DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
-    DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode,
-    RebuildEdgeIndexNode, RebuildTagIndexNode, ShowEdgeIndexesNode, ShowEdgesNode, ShowSpacesNode,
-    ShowTagIndexesNode, ShowTagsNode,
+    DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode, GrantRoleNode,
+    RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode, ShowEdgeIndexesNode, ShowEdgesNode, ShowSpacesNode, ShowStatsNode,
+    ShowTagIndexesNode, ShowTagsNode, SwitchSpaceNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -590,6 +594,130 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ChangePassword(executor))
+    }
+
+    /// 构建 GrantRole 执行器
+    pub fn build_grant_role(
+        &self,
+        node: &GrantRoleNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let role = match node.role() {
+            "admin" => RoleType::Admin,
+            "dba" => RoleType::Dba,
+            "user" => RoleType::User,
+            "guest" => RoleType::Guest,
+            _ => RoleType::User,
+        };
+        let executor = GrantRoleExecutor::new(
+            node.id(),
+            storage,
+            node.username().to_string(),
+            node.space_name().to_string(),
+            role,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::GrantRole(executor))
+    }
+
+    /// 构建 RevokeRole 执行器
+    pub fn build_revoke_role(
+        &self,
+        node: &RevokeRoleNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = RevokeRoleExecutor::new(
+            node.id(),
+            storage,
+            node.username().to_string(),
+            node.space_name().to_string(),
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::RevokeRole(executor))
+    }
+
+    /// 构建 SwitchSpace 执行器
+    pub fn build_switch_space(
+        &self,
+        node: &SwitchSpaceNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = SwitchSpaceExecutor::new(
+            node.id(),
+            storage,
+            node.space_name().to_string(),
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::SwitchSpace(executor))
+    }
+
+    /// 构建 AlterSpace 执行器
+    pub fn build_alter_space(
+        &self,
+        node: &AlterSpaceNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let options: Vec<ExecutorSpaceAlterOption> = node
+            .options()
+            .iter()
+            .map(|opt| match opt {
+                crate::query::planner::plan::core::nodes::SpaceAlterOption::Comment(c) => {
+                    ExecutorSpaceAlterOption::Comment(c.clone())
+                }
+            })
+            .collect();
+        let executor = AlterSpaceExecutor::new(
+            node.id(),
+            storage,
+            node.space_name().to_string(),
+            options,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::AlterSpace(executor))
+    }
+
+    /// 构建 ClearSpace 执行器
+    pub fn build_clear_space(
+        &self,
+        node: &ClearSpaceNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = ClearSpaceExecutor::new(
+            node.id(),
+            storage,
+            node.space_name().to_string(),
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::ClearSpace(executor))
+    }
+
+    /// 构建 ShowStats 执行器
+    pub fn build_show_stats(
+        &self,
+        node: &ShowStatsNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let stats_type = match node.stats_type() {
+            crate::query::planner::plan::core::nodes::ShowStatsType::Storage => {
+                ExecutorShowStatsType::Storage
+            }
+            crate::query::planner::plan::core::nodes::ShowStatsType::Space => {
+                ExecutorShowStatsType::Space
+            }
+        };
+        let executor = ShowStatsExecutor::new(
+            node.id(),
+            storage,
+            stats_type,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::ShowStats(executor))
     }
 }
 

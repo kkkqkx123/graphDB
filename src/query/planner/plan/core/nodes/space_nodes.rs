@@ -90,6 +90,87 @@ impl ShowSpacesNode {
     }
 }
 
+define_plan_node! {
+    pub struct SwitchSpaceNode {
+        space_name: String,
+    }
+    enum: SwitchSpace
+    input: ZeroInputNode
+}
+
+impl SwitchSpaceNode {
+    pub fn new(id: i64, space_name: String) -> Self {
+        Self {
+            id,
+            space_name,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+}
+
+define_plan_node! {
+    pub struct AlterSpaceNode {
+        space_name: String,
+        options: Vec<SpaceAlterOption>,
+    }
+    enum: AlterSpace
+    input: ZeroInputNode
+}
+
+impl AlterSpaceNode {
+    pub fn new(id: i64, space_name: String, options: Vec<SpaceAlterOption>) -> Self {
+        Self {
+            id,
+            space_name,
+            options,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+
+    pub fn options(&self) -> &[SpaceAlterOption] {
+        &self.options
+    }
+}
+
+define_plan_node! {
+    pub struct ClearSpaceNode {
+        space_name: String,
+    }
+    enum: ClearSpace
+    input: ZeroInputNode
+}
+
+impl ClearSpaceNode {
+    pub fn new(id: i64, space_name: String) -> Self {
+        Self {
+            id,
+            space_name,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+
+    pub fn space_name(&self) -> &str {
+        &self.space_name
+    }
+}
+
+/// 空间修改选项
+#[derive(Debug, Clone)]
+pub enum SpaceAlterOption {
+    Comment(String),
+}
+
 /// 空间管理信息
 #[derive(Debug, Clone)]
 pub struct SpaceManageInfo {

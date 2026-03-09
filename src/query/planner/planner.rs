@@ -178,7 +178,8 @@ impl PlannerEnum {
             | Stmt::ShowQueries(_)
             | Stmt::KillQuery(_)
             | Stmt::ShowConfigs(_)
-            | Stmt::UpdateConfigs(_) => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
+            | Stmt::UpdateConfigs(_)
+            | Stmt::ClearSpace(_) => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
             // 以下语句类型暂不支持直接规划
             _ => None,
         }
