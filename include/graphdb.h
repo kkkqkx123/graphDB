@@ -87,6 +87,17 @@
 #define OR_CORRELATION 0.9
 
 /**
+ * 索引键类型标记
+ */
+#define KEY_TYPE_VERTEX_REVERSE 1
+
+#define KEY_TYPE_EDGE_REVERSE 2
+
+#define KEY_TYPE_VERTEX_FORWARD 3
+
+#define KEY_TYPE_EDGE_FORWARD 4
+
+/**
  * 值类型
  */
 typedef enum graphdb_value_type_t {

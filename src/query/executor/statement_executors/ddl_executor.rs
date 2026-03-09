@@ -14,7 +14,7 @@ use crate::query::planner::statements::create_planner::CreatePlanner;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::ValidationInfo;
 use crate::query::QueryContext;
-use crate::query::parser::ast::stmt::{CreateTarget, DropTarget, AlterTarget, DescTarget, PropertyChange};
+use crate::query::parser::ast::stmt::{CreateTarget, DropTarget, AlterTarget, DescTarget};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;

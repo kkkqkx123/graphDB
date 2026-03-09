@@ -144,7 +144,6 @@ impl UserStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::PasswordInfo;
     use crate::core::RoleType;
 
     #[test]

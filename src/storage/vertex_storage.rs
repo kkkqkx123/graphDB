@@ -1,4 +1,4 @@
-use crate::core::types::{InsertVertexInfo, PropertyDef, TagInfo, UpdateInfo, UpdateOp};
+use crate::core::types::{InsertVertexInfo, TagInfo, UpdateInfo, UpdateOp};
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
 use crate::storage::metadata::{

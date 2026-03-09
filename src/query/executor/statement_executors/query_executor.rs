@@ -327,10 +327,23 @@ impl<S: StorageClient> QueryExecutor<S> {
     where
         S: Send + Sync + 'static,
     {
-        // 注意：这个方法需要能够递归调用 execute_statement
-        // 由于设计限制，这里返回错误提示
-        Err(DBError::Query(QueryError::ExecutionError(
-            "复合查询需要在主执行器中执行".to_string(),
-        )))
+        let mut result = ExecutionResult::Success;
+
+        for stmt in clause.statements {
+            result = match stmt {
+                crate::query::parser::ast::Stmt::Match(match_stmt) => self.execute_match(match_stmt)?,
+                crate::query::parser::ast::Stmt::Go(go_stmt) => self.execute_go(go_stmt)?,
+                crate::query::parser::ast::Stmt::Fetch(fetch_stmt) => self.execute_fetch(fetch_stmt)?,
+                crate::query::parser::ast::Stmt::Lookup(lookup_stmt) => self.execute_lookup(lookup_stmt)?,
+                crate::query::parser::ast::Stmt::FindPath(find_path_stmt) => self.execute_find_path(find_path_stmt)?,
+                _ => {
+                    return Err(DBError::Query(QueryError::ExecutionError(
+                        format!("不支持的语句类型: {:?}", stmt.kind()),
+                    )))
+                }
+            };
+        }
+
+        Ok(result)
     }
 }

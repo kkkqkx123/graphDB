@@ -7,7 +7,6 @@ pub mod data_processing;
 pub mod executor_enum;
 pub mod expression;
 pub mod factory;
-pub mod graph_query_executor;
 pub mod logic;
 pub mod macros;
 pub mod object_pool;
@@ -50,9 +49,6 @@ pub use logic::{ForLoopExecutor, LoopExecutor, WhileLoopExecutor};
 
 // Re-export core execution states
 pub use crate::query::core::{ExecutorState, LoopExecutionState, QueryExecutionState, RowStatus};
-
-// Re-export graph query executor
-pub use graph_query_executor::GraphQueryExecutor;
 
 // Re-export admin executors (管理执行器)
 pub use admin::{

@@ -7,8 +7,7 @@ use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::storage::edge_storage::EdgeStorage;
 use crate::storage::index::{IndexDataManager, RedbIndexDataManager};
 use crate::storage::metadata::{
-    ExtendedSchemaManager, IndexMetadataManager, RedbExtendedSchemaManager,
-    RedbIndexMetadataManager, RedbSchemaManager, SchemaManager,
+    IndexMetadataManager, RedbIndexMetadataManager, RedbSchemaManager, SchemaManager,
 };
 use crate::storage::operations::{RedbReader, RedbWriter};
 use crate::storage::user_storage::UserStorage;
@@ -17,7 +16,6 @@ use crate::storage::Schema;
 use crate::transaction::TransactionContext;
 use parking_lot::Mutex;
 use redb::Database;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -31,8 +29,6 @@ pub struct RedbStorage {
     index_data_manager: RedbIndexDataManager,
     pub schema_manager: Arc<RedbSchemaManager>,
     pub index_metadata_manager: Arc<RedbIndexMetadataManager>,
-    pub extended_schema_manager: Arc<RedbExtendedSchemaManager>,
-    users: Arc<Mutex<HashMap<String, UserInfo>>>,
     db: Arc<Database>,
     db_path: PathBuf,
     current_txn_context: Arc<Mutex<Option<Arc<TransactionContext>>>>,
@@ -85,15 +81,12 @@ impl RedbStorage {
 
         let schema_manager = Arc::new(RedbSchemaManager::new(db.clone()));
         let index_metadata_manager = Arc::new(RedbIndexMetadataManager::new(db.clone()));
-        let extended_schema_manager = Arc::new(RedbExtendedSchemaManager::new(db.clone()));
 
         let reader = RedbReader::new(db.clone())?;
         let reader = Arc::new(Mutex::new(reader));
         let writer = Arc::new(Mutex::new(RedbWriter::new(db.clone())?));
 
         let index_data_manager = RedbIndexDataManager::new(db.clone());
-
-        let users = Arc::new(Mutex::new(HashMap::new()));
 
         // 创建子模块
         let vertex_storage = VertexStorage::new(
@@ -120,8 +113,6 @@ impl RedbStorage {
             index_data_manager,
             schema_manager,
             index_metadata_manager,
-            extended_schema_manager,
-            users,
             db,
             db_path: path,
             current_txn_context: Arc::new(Mutex::new(None)),

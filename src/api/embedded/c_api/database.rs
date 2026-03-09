@@ -2,13 +2,12 @@
 //!
 //! 提供数据库的打开、关闭和基本管理功能
 
-use crate::api::core::CoreError;
 use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::types::{
     graphdb_t, GRAPHDB_OPEN_CREATE, GRAPHDB_OPEN_READONLY, GRAPHDB_OPEN_READWRITE,
 };
 use crate::api::embedded::{DatabaseConfig, GraphDatabase};
-use crate::storage::{RedbStorage, StorageClient};
+use crate::storage::RedbStorage;
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::ptr;
 use std::sync::Arc;
