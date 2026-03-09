@@ -23,7 +23,7 @@ use super::base::{
 };
 use super::data_access::{
     AllPathsExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
-    ScanEdgesExecutor, ScanVerticesExecutor,
+    IndexScanExecutor, ScanEdgesExecutor, ScanVerticesExecutor,
 };
 use super::data_processing::graph_traversal::{
     ExpandAllExecutor, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
@@ -46,7 +46,6 @@ use super::result_processing::{
 };
 use super::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
 use super::pipeline_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
-use super::search_executors::IndexScanExecutor;
 use super::data_modification::RemoveExecutor;
 
 /// 执行器枚举

@@ -44,7 +44,7 @@ use crate::query::executor::data_processing::graph_traversal::algorithms::BFSSho
 use crate::query::executor::pipeline_executors::{
     ArgumentExecutor, DataCollectExecutor, PassThroughExecutor,
 };
-use crate::query::executor::search_executors::IndexScanExecutor;
+use crate::query::executor::data_access::IndexScanExecutor;
 
 use crate::query::executor::admin::{
     AlterEdgeExecutor, AlterTagExecutor, AlterUserExecutor, ChangePasswordExecutor,

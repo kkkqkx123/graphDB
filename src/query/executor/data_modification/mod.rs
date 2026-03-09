@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use super::base::{BaseExecutor, ExecutorStats};
+use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::core::error::DBError;
 use crate::core::types::expression::ContextualExpression;
 use crate::core::{Edge, Expression, Value, Vertex};

@@ -14,7 +14,6 @@ pub mod object_pool;
 pub mod recursion_detector;
 pub mod result_processing;
 pub mod pipeline_executors;
-pub mod search_executors;
 pub mod statement_executors;
 pub mod tag_filter;
 
@@ -30,7 +29,7 @@ pub use executor_enum::ExecutorEnum;
 // Re-export data access executors
 pub use data_access::{
     AllPathsExecutor, GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
-    LookupIndexExecutor, ScanVerticesExecutor,
+    IndexScanExecutor, LookupIndexExecutor, ScanVerticesExecutor,
 };
 
 // Re-export result processing executors
@@ -71,9 +70,6 @@ pub use pipeline_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughE
 
 // Re-export graph traversal executors (图遍历执行器)
 pub use data_processing::graph_traversal::algorithms::BFSShortestExecutor;
-
-// Re-export search executors (搜索执行器)
-pub use search_executors::IndexScanExecutor;
 
 // 编译期枚举一致性检查
 // 这些检查确保 PlanNodeEnum 和 ExecutorEnum 的变体数量一致

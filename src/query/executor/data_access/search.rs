@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
+use super::super::base::BaseExecutor;
 use crate::core::error::DBError;
 use crate::core::{NullType, Value};
-use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -557,8 +557,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
     }
 }
 
-impl<S: StorageClient + Send + 'static> HasStorage<S> for IndexScanExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for IndexScanExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("Storage not set")
+        self.base.get_storage()
     }
 }

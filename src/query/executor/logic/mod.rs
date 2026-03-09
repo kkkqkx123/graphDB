@@ -5,8 +5,6 @@
 //! - WhileLoopExecutor（条件循环）
 //! - ForLoopExecutor（计数循环）
 //!
-//! 对应 NebulaGraph 实现：
-//! nebula-3.8.0/src/graph/executor/logic/LoopExecutor.cpp
 
 pub mod loops;
 
