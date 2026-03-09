@@ -10,9 +10,7 @@ use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
-        insert_nodes::{
-            EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, TagInsertSpec, VertexInsertInfo,
-        },
+        EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, TagInsertSpec, VertexInsertInfo,
         ArgumentNode, ProjectNode,
     },
 };

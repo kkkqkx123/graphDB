@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use crate::query::planner::plan::core::nodes::{plan_node_traits::SingleInputNode, PlanNodeEnum};
+use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 use super::fingerprint::FingerprintCalculator;
 
@@ -242,46 +242,86 @@ impl ReferenceCountAnalyzer {
 
         // 递归分析子节点并计算节点数量
         let child_count = match node {
-            // 单输入节点
+            // 单输入节点 - 使用 dependencies() 访问子节点
             PlanNodeEnum::Filter(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Project(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Sort(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Limit(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::TopN(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Sample(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Aggregate(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Dedup(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Unwind(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::DataCollect(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Traverse(n) => {
                 // TraverseNode 使用 SingleInputNode trait，input() 方法在 input 为 None 时会 panic
@@ -324,27 +364,44 @@ impl ReferenceCountAnalyzer {
             PlanNodeEnum::Argument(_) => 1,
             PlanNodeEnum::PassThrough(_) => 1,
             PlanNodeEnum::PatternApply(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::RollUpApply(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Assign(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Minus(n) => {
-                let left_count = self.analyze_recursive(n.input(), context, Some(node_id));
-                let right_count = self.analyze_recursive(n.minus_input(), context, Some(node_id));
-                1 + left_count + right_count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
             PlanNodeEnum::Intersect(n) => {
-                let left_count = self.analyze_recursive(n.input(), context, Some(node_id));
-                let right_count =
-                    self.analyze_recursive(n.intersect_input(), context, Some(node_id));
-                1 + left_count + right_count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
 
             // 双输入节点
@@ -379,8 +436,12 @@ impl ReferenceCountAnalyzer {
                 1 + left_count + right_count
             }
             PlanNodeEnum::Union(n) => {
-                let count = self.analyze_recursive(n.input(), context, Some(node_id));
-                1 + count
+                let mut total = 1;
+                for dep in n.dependencies() {
+                    let count = self.analyze_recursive(dep, context, Some(node_id));
+                    total += count;
+                }
+                total
             }
 
             // 多输入节点

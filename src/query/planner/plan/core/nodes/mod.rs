@@ -21,7 +21,7 @@ pub use data_processing::{
     MinusNode, PatternApplyNode, RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
 pub use factory::PlanNodeFactory;
-pub use insert::{EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, VertexInsertInfo};
+pub use insert::{EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, TagInsertSpec, VertexInsertInfo};
 pub use join::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
     LeftJoinNode,
