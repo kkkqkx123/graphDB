@@ -33,17 +33,19 @@ impl<S: StorageClient + 'static> SetOperationBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // UnionNode 使用 output_var 获取输入变量名
-        let input_var = node
+        // UnionExecutor 需要 left_input_var 和 right_input_var
+        // 使用 output_var 或生成默认值
+        let left_var = node
             .output_var()
             .map(|v| v.to_string())
-            .unwrap_or_else(|| format!("input_{}", node.id()));
+            .unwrap_or_else(|| format!("left_{}", node.id()));
+        let right_var = format!("right_{}", node.id());
 
         let executor = UnionExecutor::new(
             node.id(),
             storage,
-            input_var,
-            node.col_names().to_vec(),
+            left_var,
+            right_var,
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Union(executor))
@@ -56,17 +58,18 @@ impl<S: StorageClient + 'static> SetOperationBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // MinusNode 使用 output_var 获取输入变量名
-        let input_var = node
+        // MinusExecutor 需要 left_input_var 和 right_input_var
+        let left_var = node
             .output_var()
             .map(|v| v.to_string())
-            .unwrap_or_else(|| format!("input_{}", node.id()));
+            .unwrap_or_else(|| format!("left_{}", node.id()));
+        let right_var = format!("right_{}", node.id());
 
         let executor = MinusExecutor::new(
             node.id(),
             storage,
-            input_var,
-            node.col_names().to_vec(),
+            left_var,
+            right_var,
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Minus(executor))
@@ -79,17 +82,18 @@ impl<S: StorageClient + 'static> SetOperationBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // IntersectNode 使用 output_var 获取输入变量名
-        let input_var = node
+        // IntersectExecutor 需要 left_input_var 和 right_input_var
+        let left_var = node
             .output_var()
             .map(|v| v.to_string())
-            .unwrap_or_else(|| format!("input_{}", node.id()));
+            .unwrap_or_else(|| format!("left_{}", node.id()));
+        let right_var = format!("right_{}", node.id());
 
         let executor = IntersectExecutor::new(
             node.id(),
             storage,
-            input_var,
-            node.col_names().to_vec(),
+            left_var,
+            right_var,
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Intersect(executor))

@@ -482,7 +482,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_context: Arc<QueryContext>,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> DBResult<ExecutionResult> {
-        self.executor_factory
+        use crate::query::executor::factory::executors::plan_executor::PlanExecutor;
+        let mut plan_executor = PlanExecutor::new(self.executor_factory.clone());
+        plan_executor
             .execute_plan(query_context, plan)
             .map_err(|e| DBError::from(QueryError::pipeline_execution_error(e)))
     }

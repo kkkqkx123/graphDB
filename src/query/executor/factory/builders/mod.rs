@@ -90,6 +90,12 @@ impl<S: StorageClient + 'static> Builders<S> {
     }
 }
 
+impl<S: StorageClient + 'static> Clone for Builders<S> {
+    fn clone(&self) -> Self {
+        Self::new()
+    }
+}
+
 impl<S: StorageClient + 'static> Default for Builders<S> {
     fn default() -> Self {
         Self::new()

@@ -95,12 +95,12 @@ impl<S: StorageClient + 'static> AdminBuilder<S> {
     /// 构建 ShowSpaces 执行器
     pub fn build_show_spaces(
         &self,
-        node: &ShowSpacesNode,
+        _node: &ShowSpacesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ShowSpacesExecutor::new(
-            node.id(),
+            _node.id(),
             storage,
             context.expression_context().clone(),
         );
@@ -117,12 +117,11 @@ impl<S: StorageClient + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::tag::create_tag::ExecutorTagInfo;
-        let tag_info = ExecutorTagInfo {
-            space_name: node.info().space_name.clone(),
-            tag_name: node.info().tag_name.clone(),
-            properties: node.info().properties.clone(),
-            comment: None,
-        };
+        let tag_info = ExecutorTagInfo::new(
+            node.info().space_name.clone(),
+            node.info().tag_name.clone(),
+        )
+        .with_properties(node.info().properties.clone());
         let executor = CreateTagExecutor::new(
             node.id(),
             storage,
@@ -196,12 +195,12 @@ impl<S: StorageClient + 'static> AdminBuilder<S> {
     /// 构建 ShowTags 执行器
     pub fn build_show_tags(
         &self,
-        node: &ShowTagsNode,
+        _node: &ShowTagsNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ShowTagsExecutor::new(
-            node.id(),
+            _node.id(),
             storage,
             "".to_string(),
             context.expression_context().clone(),
@@ -300,12 +299,12 @@ impl<S: StorageClient + 'static> AdminBuilder<S> {
     /// 构建 ShowEdges 执行器
     pub fn build_show_edges(
         &self,
-        node: &ShowEdgesNode,
+        _node: &ShowEdgesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = ShowEdgesExecutor::new(
-            node.id(),
+            _node.id(),
             storage,
             "".to_string(),
             context.expression_context().clone(),
@@ -379,14 +378,15 @@ impl<S: StorageClient + 'static> AdminBuilder<S> {
     /// 构建 ShowTagIndexes 执行器
     pub fn build_show_tag_indexes(
         &self,
-        node: &ShowTagIndexesNode,
+        _node: &ShowTagIndexesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        // ShowTagIndexesNode 没有 space_name 方法，使用空字符串
         let executor = ShowTagIndexesExecutor::new(
-            node.id(),
+            _node.id(),
             storage,
-            node.space_name().to_string(),
+            "".to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ShowTagIndexes(executor))
@@ -475,14 +475,15 @@ impl<S: StorageClient + 'static> AdminBuilder<S> {
     /// 构建 ShowEdgeIndexes 执行器
     pub fn build_show_edge_indexes(
         &self,
-        node: &ShowEdgeIndexesNode,
+        _node: &ShowEdgeIndexesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        // ShowEdgeIndexesNode 没有 space_name 方法，使用空字符串
         let executor = ShowEdgeIndexesExecutor::new(
-            node.id(),
+            _node.id(),
             storage,
-            node.space_name().to_string(),
+            "".to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ShowEdgeIndexes(executor))
@@ -514,11 +515,17 @@ impl<S: StorageClient + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::core::types::UserInfo;
+        // CreateUserNode 使用 username() 和 password() 方法
+        // UserInfo::new 需要 username 和 password 两个参数
+        let user_info = UserInfo::new(
+            node.username().to_string(),
+            node.password().to_string(),
+        ).map_err(|e| QueryError::ExecutionError(format!("创建用户信息失败: {}", e)))?;
         let executor = CreateUserExecutor::new(
             node.id(),
             storage,
-            node.user_name().to_string(),
-            node.password().to_string(),
+            user_info,
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::CreateUser(executor))
@@ -531,11 +538,14 @@ impl<S: StorageClient + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        use crate::core::types::UserAlterInfo;
+        // AlterUserNode 使用 username() 方法
+        // AlterUserExecutor::new 需要 UserAlterInfo 对象
+        let alter_info = UserAlterInfo::new(node.username().to_string());
         let executor = AlterUserExecutor::new(
             node.id(),
             storage,
-            node.user_name().to_string(),
-            node.options().clone(),
+            alter_info,
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::AlterUser(executor))
@@ -548,10 +558,11 @@ impl<S: StorageClient + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        // DropUserNode 使用 username() 方法
         let executor = DropUserExecutor::new(
             node.id(),
             storage,
-            node.user_name().to_string(),
+            node.username().to_string(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::DropUser(executor))
@@ -564,12 +575,18 @@ impl<S: StorageClient + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        // ChangePasswordNode 使用 password_info() 方法获取 PasswordInfo
+        let password_info = node.password_info();
+        let username = password_info
+            .username
+            .clone()
+            .unwrap_or_default();
         let executor = ChangePasswordExecutor::new(
             node.id(),
             storage,
-            node.user_name().to_string(),
-            node.old_password().to_string(),
-            node.new_password().to_string(),
+            Some(username),
+            password_info.old_password.clone(),
+            password_info.new_password.clone(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ChangePassword(executor))

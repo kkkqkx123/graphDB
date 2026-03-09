@@ -6,7 +6,7 @@ use crate::core::error::DBError;
 use std::collections::HashSet;
 
 /// 递归检测器
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RecursionDetector {
     /// 访问栈，用于检测循环
     visit_stack: Vec<(i64, &'static str)>,

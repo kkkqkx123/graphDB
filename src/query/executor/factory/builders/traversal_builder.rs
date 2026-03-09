@@ -3,6 +3,7 @@
 //! 负责创建图遍历类型的执行器（Expand, ExpandAll, Traverse）
 
 use crate::core::error::QueryError;
+use crate::core::types::EdgeDirection;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::data_processing::graph_traversal::{
     ExpandAllExecutor, ExpandExecutor, TraverseExecutor,
@@ -35,20 +36,14 @@ impl<S: StorageClient + 'static> TraversalBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // ExpandNode 没有 input_var 方法，使用 output_var 或生成默认值
-        let input_var = node
-            .output_var()
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| format!("input_{}", node.id()));
-
+        // ExpandExecutor::new 参数: id, storage, edge_direction, edge_types, max_depth, expr_context
+        // direction() 返回 EdgeDirection 值，直接传递即可
         let executor = ExpandExecutor::new(
             node.id(),
             storage,
-            input_var,
-            node.edge_types().to_vec(),
-            node.direction().into(),
+            node.direction(),
+            Some(node.edge_types().to_vec()),
             node.step_limit().map(|s| s as usize),
-            node.col_names().to_vec(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Expand(executor))
@@ -61,20 +56,16 @@ impl<S: StorageClient + 'static> TraversalBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // ExpandAllNode 没有 input_var 方法，使用 output_var 或生成默认值
-        let input_var = node
-            .output_var()
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| format!("input_{}", node.id()));
-
+        // ExpandAllExecutor::new 参数: id, storage, edge_direction, edge_types, any_edge_type, max_depth, expr_context
+        // ExpandAllNode 的 direction() 返回 &str，需要转换为 EdgeDirection
+        let edge_direction = EdgeDirection::from(node.direction());
         let executor = ExpandAllExecutor::new(
             node.id(),
             storage,
-            input_var,
-            node.edge_types().to_vec(),
-            node.direction().into(),
+            edge_direction,
+            Some(node.edge_types().to_vec()),
+            false, // any_edge_type
             node.step_limit().map(|s| s as usize),
-            node.col_names().to_vec(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ExpandAll(executor))
@@ -87,20 +78,14 @@ impl<S: StorageClient + 'static> TraversalBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // TraverseNode 没有 input_var 方法，使用 output_var 或生成默认值
-        let input_var = node
-            .output_var()
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| format!("input_{}", node.id()));
-
+        // TraverseExecutor::new 参数: id, storage, edge_direction, edge_types, max_depth, conditions, expr_context
         let executor = TraverseExecutor::new(
             node.id(),
             storage,
-            input_var,
-            node.edge_types().to_vec(),
-            node.direction().into(),
-            node.max_steps() as usize,
-            node.col_names().to_vec(),
+            node.direction(),
+            Some(node.edge_types().to_vec()),
+            Some(node.max_steps() as usize),
+            None, // conditions
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Traverse(executor))

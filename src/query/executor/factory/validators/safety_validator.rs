@@ -31,6 +31,7 @@ impl Default for ExecutorSafetyConfig {
 }
 
 /// 安全验证器
+#[derive(Clone)]
 pub struct SafetyValidator<S: StorageClient + 'static> {
     config: ExecutorSafetyConfig,
     _phantom: std::marker::PhantomData<S>,

@@ -11,11 +11,11 @@ use crate::storage::StorageClient;
 use std::sync::Arc;
 
 /// 计划执行器
-pub struct PlanExecutor<S: StorageClient + 'static> {
+pub struct PlanExecutor<S: StorageClient + Send + 'static> {
     factory: ExecutorFactory<S>,
 }
 
-impl<S: StorageClient + 'static> PlanExecutor<S> {
+impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
     /// 创建新的计划执行器
     pub fn new(factory: ExecutorFactory<S>) -> Self {
         Self { factory }
@@ -53,7 +53,7 @@ impl<S: StorageClient + 'static> PlanExecutor<S> {
 
         // 递归构建执行器树并执行
         let mut executor =
-            self.factory.build_and_create_executor(root_node, storage, &execution_context)?;
+            self.factory.create_executor(root_node, storage, &execution_context)?;
 
         // 执行根执行器
         let result = executor

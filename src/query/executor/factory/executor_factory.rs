@@ -4,7 +4,7 @@
 //! 负责根据执行计划创建对应的执行器实例
 
 use crate::core::error::QueryError;
-use crate::query::executor::base::{ExecutionContext, Executor};
+use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::factory::builders::Builders;
 use crate::query::executor::factory::validators::{
@@ -21,7 +21,6 @@ use crate::query::executor::factory::validators::safety_validator::ExecutorSafet
 /// 执行器工厂
 ///
 /// 负责协调各个子模块创建执行器
-/// 采用直接匹配模式，简单高效，易于维护
 pub struct ExecutorFactory<S: StorageClient + 'static> {
     pub(crate) storage: Option<Arc<Mutex<S>>>,
     pub(crate) config: ExecutorSafetyConfig,
@@ -80,125 +79,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         // 验证计划节点的安全性
         self.validate_plan_node(node)?;
 
-        // 根据节点类型处理依赖关系
-        match node {
-            // 单输入节点
-            PlanNodeEnum::Filter(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-            PlanNodeEnum::Project(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-            PlanNodeEnum::Limit(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-            PlanNodeEnum::Sort(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-            PlanNodeEnum::TopN(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-            PlanNodeEnum::Sample(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-            PlanNodeEnum::Aggregate(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-            PlanNodeEnum::Dedup(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-            PlanNodeEnum::Expand(n) => {
-                if let Some(input) = n.inputs().first() {
-                    self.analyze_plan_node(input, loop_layers)?;
-                }
-            }
-            PlanNodeEnum::AppendVertices(n) => {
-                if let Some(input) = n.inputs().first() {
-                    self.analyze_plan_node(input, loop_layers)?;
-                }
-            }
-            PlanNodeEnum::Unwind(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-            PlanNodeEnum::Assign(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-
-            // 双输入节点（连接操作）
-            PlanNodeEnum::InnerJoin(n) => {
-                self.analyze_plan_node(n.left_input(), loop_layers)?;
-                self.analyze_plan_node(n.right_input(), loop_layers)?;
-            }
-            PlanNodeEnum::HashInnerJoin(n) => {
-                self.analyze_plan_node(n.left_input(), loop_layers)?;
-                self.analyze_plan_node(n.right_input(), loop_layers)?;
-            }
-            PlanNodeEnum::LeftJoin(n) => {
-                self.analyze_plan_node(n.left_input(), loop_layers)?;
-                self.analyze_plan_node(n.right_input(), loop_layers)?;
-            }
-            PlanNodeEnum::HashLeftJoin(n) => {
-                self.analyze_plan_node(n.left_input(), loop_layers)?;
-                self.analyze_plan_node(n.right_input(), loop_layers)?;
-            }
-            PlanNodeEnum::FullOuterJoin(n) => {
-                self.analyze_plan_node(n.left_input(), loop_layers)?;
-                self.analyze_plan_node(n.right_input(), loop_layers)?;
-            }
-            PlanNodeEnum::CrossJoin(n) => {
-                self.analyze_plan_node(n.left_input(), loop_layers)?;
-                self.analyze_plan_node(n.right_input(), loop_layers)?;
-            }
-
-            // 并集节点
-            PlanNodeEnum::Union(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-
-            // 差集节点
-            PlanNodeEnum::Minus(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-
-            // 交集节点
-            PlanNodeEnum::Intersect(n) => {
-                self.analyze_plan_node(n.input(), loop_layers)?;
-            }
-
-            // 循环节点 - 递增循环层级
-            PlanNodeEnum::Loop(n) => {
-                if let Some(body) = n.body() {
-                    self.analyze_plan_node(body, loop_layers)?;
-                }
-            }
-
-            // 特殊节点
-            PlanNodeEnum::Argument(_) => {}
-            PlanNodeEnum::PassThrough(_) => {}
-            PlanNodeEnum::DataCollect(_) => {}
-
-            // 搜索节点
-            PlanNodeEnum::BFSShortest(n) => {
-                for dep in n.deps.iter() {
-                    self.analyze_plan_node(dep, loop_layers)?;
-                }
-            }
-
-            // 无输入节点
-            PlanNodeEnum::Start(_) => {}
-
-            // 数据访问节点
-            PlanNodeEnum::ScanVertices(_) | PlanNodeEnum::GetVertices(_) => {}
-
-            // 暂不支持的节点
-            PlanNodeEnum::ScanEdges(_) => {}
-            PlanNodeEnum::GetEdges(_) => {}
-            PlanNodeEnum::IndexScan(_) => {}
-            PlanNodeEnum::Select(_) => {}
-
-            _ => {
-                log::warn!("未处理的计划节点类型: {:?}", node.type_name());
-            }
+        // 使用 dependencies() 方法获取所有依赖，统一处理
+        for dep in node.dependencies() {
+            self.analyze_plan_node(&dep, loop_layers)?;
         }
 
         // 离开当前节点
@@ -268,9 +151,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
             PlanNodeEnum::GetNeighbors(node) => {
                 self.builders.data_access().build_get_neighbors(node, storage, context)
-            }
-            PlanNodeEnum::IndexScan(node) => {
-                self.builders.data_access().build_index_scan(node, storage, context)
             }
             PlanNodeEnum::EdgeIndexScan(node) => {
                 self.builders.data_access().build_edge_index_scan(node, storage, context)
@@ -343,15 +223,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::Traverse(node) => {
                 self.builders.traversal().build_traverse(node, storage, context)
             }
-            PlanNodeEnum::AllPaths(node) => {
-                self.builders.traversal().build_all_paths(node, storage, context)
-            }
-            PlanNodeEnum::ShortestPath(node) => {
-                self.builders.traversal().build_shortest_path(node, storage, context)
-            }
-            PlanNodeEnum::BFSShortest(node) => {
-                self.builders.traversal().build_bfs_shortest(node, storage, context)
-            }
 
             // 数据转换执行器
             PlanNodeEnum::Unwind(node) => {
@@ -372,20 +243,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 控制流执行器
             PlanNodeEnum::Loop(node) => {
-                self.builders.control_flow().build_loop(
-                    node,
-                    storage,
-                    context,
-                    &mut |n, s, c| self.create_executor(n, s, c),
-                )
+                self.build_loop_executor(node, storage, context)
             }
             PlanNodeEnum::Select(node) => {
-                self.builders.control_flow().build_select(
-                    node,
-                    storage,
-                    context,
-                    &mut |n, s, c| self.create_executor(n, s, c),
-                )
+                self.build_select_executor(node, storage, context)
             }
             PlanNodeEnum::Argument(node) => {
                 self.builders.control_flow().build_argument(node, storage, context)
@@ -483,11 +344,11 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::CreateUser(node) => {
                 self.builders.admin().build_create_user(node, storage, context)
             }
-            PlanNodeEnum::AlterUser(node) => {
-                self.builders.admin().build_alter_user(node, storage, context)
-            }
             PlanNodeEnum::DropUser(node) => {
                 self.builders.admin().build_drop_user(node, storage, context)
+            }
+            PlanNodeEnum::AlterUser(node) => {
+                self.builders.admin().build_alter_user(node, storage, context)
             }
             PlanNodeEnum::ChangePassword(node) => {
                 self.builders.admin().build_change_password(node, storage, context)
@@ -499,187 +360,99 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             ))),
         }
     }
+}
 
-    /// 递归构建执行器树
-    pub fn build_and_create_executor(
+impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
+    fn clone(&self) -> Self {
+        Self {
+            storage: self.storage.clone(),
+            config: self.config.clone(),
+            recursion_detector: RecursionDetector::new(self.config.max_recursion_depth),
+            safety_validator: SafetyValidator::new(self.config.clone()),
+            builders: Builders::new(),
+        }
+    }
+
+    /// 构建 Loop 执行器（辅助方法，解决借用检查问题）
+    fn build_loop_executor(
         &mut self,
-        plan_node: &PlanNodeEnum,
+        node: &crate::query::planner::plan::core::nodes::LoopNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // 创建当前节点的执行器
-        let mut executor = self.create_executor(plan_node, storage.clone(), context)?;
-
-        // 根据节点类型递归构建子执行器
-        match plan_node {
-            // 单输入节点
-            PlanNodeEnum::Filter(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::Project(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::Limit(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::Sort(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::TopN(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::Sample(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::Aggregate(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::Dedup(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::Expand(n) => {
-                if let Some(input) = n.inputs().first() {
-                    let child = self.build_and_create_executor(input, storage, context)?;
-                    executor.add_child(child);
-                }
-            }
-            PlanNodeEnum::AppendVertices(n) => {
-                if let Some(input) = n.inputs().first() {
-                    let child = self.build_and_create_executor(input, storage, context)?;
-                    executor.add_child(child);
-                }
-            }
-            PlanNodeEnum::Unwind(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::Assign(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-
-            // 双输入节点（连接操作）
-            PlanNodeEnum::InnerJoin(n) => {
-                let left = self.build_and_create_executor(n.left_input(), storage.clone(), context)?;
-                let right = self.build_and_create_executor(n.right_input(), storage, context)?;
-                executor.add_child(left);
-                executor.add_child(right);
-            }
-            PlanNodeEnum::HashInnerJoin(n) => {
-                let left = self.build_and_create_executor(n.left_input(), storage.clone(), context)?;
-                let right = self.build_and_create_executor(n.right_input(), storage, context)?;
-                executor.add_child(left);
-                executor.add_child(right);
-            }
-            PlanNodeEnum::LeftJoin(n) => {
-                let left = self.build_and_create_executor(n.left_input(), storage.clone(), context)?;
-                let right = self.build_and_create_executor(n.right_input(), storage, context)?;
-                executor.add_child(left);
-                executor.add_child(right);
-            }
-            PlanNodeEnum::HashLeftJoin(n) => {
-                let left = self.build_and_create_executor(n.left_input(), storage.clone(), context)?;
-                let right = self.build_and_create_executor(n.right_input(), storage, context)?;
-                executor.add_child(left);
-                executor.add_child(right);
-            }
-            PlanNodeEnum::FullOuterJoin(n) => {
-                let left = self.build_and_create_executor(n.left_input(), storage.clone(), context)?;
-                let right = self.build_and_create_executor(n.right_input(), storage, context)?;
-                executor.add_child(left);
-                executor.add_child(right);
-            }
-            PlanNodeEnum::CrossJoin(n) => {
-                let left = self.build_and_create_executor(n.left_input(), storage.clone(), context)?;
-                let right = self.build_and_create_executor(n.right_input(), storage, context)?;
-                executor.add_child(left);
-                executor.add_child(right);
-            }
-
-            // 集合操作节点
-            PlanNodeEnum::Union(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::Minus(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-            PlanNodeEnum::Intersect(n) => {
-                let child = self.build_and_create_executor(n.input(), storage, context)?;
-                executor.add_child(child);
-            }
-
-            // 循环节点
-            PlanNodeEnum::Loop(_) => {
-                // Loop执行器的body已经在创建时处理
-            }
-
-            // 选择节点
-            PlanNodeEnum::Select(_) => {
-                // Select执行器的分支已经在创建时处理
-            }
-
-            // 无子节点的执行器
-            PlanNodeEnum::Start(_)
-            | PlanNodeEnum::ScanVertices(_)
-            | PlanNodeEnum::ScanEdges(_)
-            | PlanNodeEnum::GetVertices(_)
-            | PlanNodeEnum::GetNeighbors(_)
-            | PlanNodeEnum::IndexScan(_)
-            | PlanNodeEnum::EdgeIndexScan(_)
-            | PlanNodeEnum::Argument(_)
-            | PlanNodeEnum::PassThrough(_)
-            | PlanNodeEnum::DataCollect(_)
-            | PlanNodeEnum::BFSShortest(_) => {}
-
-            // 管理执行器（无子节点）
-            PlanNodeEnum::CreateSpace(_)
-            | PlanNodeEnum::DropSpace(_)
-            | PlanNodeEnum::DescSpace(_)
-            | PlanNodeEnum::ShowSpaces(_)
-            | PlanNodeEnum::CreateTag(_)
-            | PlanNodeEnum::AlterTag(_)
-            | PlanNodeEnum::DescTag(_)
-            | PlanNodeEnum::DropTag(_)
-            | PlanNodeEnum::ShowTags(_)
-            | PlanNodeEnum::CreateEdge(_)
-            | PlanNodeEnum::AlterEdge(_)
-            | PlanNodeEnum::DescEdge(_)
-            | PlanNodeEnum::DropEdge(_)
-            | PlanNodeEnum::ShowEdges(_)
-            | PlanNodeEnum::CreateTagIndex(_)
-            | PlanNodeEnum::DropTagIndex(_)
-            | PlanNodeEnum::DescTagIndex(_)
-            | PlanNodeEnum::ShowTagIndexes(_)
-            | PlanNodeEnum::RebuildTagIndex(_)
-            | PlanNodeEnum::CreateEdgeIndex(_)
-            | PlanNodeEnum::DropEdgeIndex(_)
-            | PlanNodeEnum::DescEdgeIndex(_)
-            | PlanNodeEnum::ShowEdgeIndexes(_)
-            | PlanNodeEnum::RebuildEdgeIndex(_)
-            | PlanNodeEnum::CreateUser(_)
-            | PlanNodeEnum::AlterUser(_)
-            | PlanNodeEnum::DropUser(_)
-            | PlanNodeEnum::ChangePassword(_) => {}
-
-            _ => {
-                log::warn!(
-                    "build_and_create_executor: 未处理的计划节点类型: {:?}",
-                    plan_node.type_name()
-                );
-            }
+        // 先验证和检查递归
+        if self.config.enable_recursion_detection {
+            self.recursion_detector
+                .validate_executor(node.id(), node.name())
+                .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
         }
 
-        Ok(executor)
+        let body = node
+            .body()
+            .as_ref()
+            .ok_or_else(|| QueryError::ExecutionError("Loop节点缺少body".to_string()))?;
+
+        // 临时释放 self 的借用，构建 body_executor
+        let body_executor = {
+            // 重新获取可变引用
+            let config = self.config.clone();
+            let safety_validator = SafetyValidator::new(config.clone());
+            let mut temp_factory = ExecutorFactory {
+                storage: self.storage.clone(),
+                config,
+                recursion_detector: RecursionDetector::new(config.max_recursion_depth),
+                safety_validator,
+                builders: Builders::new(),
+            };
+
+            temp_factory.create_executor(body, storage.clone(), context)?
+        };
+
+        let condition = node
+            .condition()
+            .expression()
+            .map(|meta| meta.inner().clone());
+
+        use crate::query::executor::logic::LoopExecutor;
+        let executor = LoopExecutor::new(
+            node.id(),
+            storage,
+            condition,
+            body_executor,
+            None,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::Loop(executor))
+    }
+
+    /// 构建 Select 执行器（辅助方法，解决借用检查问题）
+    fn build_select_executor(
+        &mut self,
+        node: &crate::query::planner::plan::core::nodes::SelectNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        // 先验证和检查递归
+        if self.config.enable_recursion_detection {
+            self.recursion_detector
+                .validate_executor(node.id(), node.name())
+                .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
+        }
+
+        let condition = node
+            .condition()
+            .expression()
+            .map(|meta| meta.inner().clone());
+
+        use crate::query::executor::logic::SelectExecutor;
+        let executor = SelectExecutor::new(
+            node.id(),
+            storage,
+            condition,
+            None,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::Select(executor))
     }
 }
 
