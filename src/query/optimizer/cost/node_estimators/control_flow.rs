@@ -13,6 +13,7 @@ use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::expression_parser::ExpressionParser;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::control_flow::control_flow_node::{LoopNode, SelectNode};
 
 /// 控制流节点估算器
 pub struct ControlFlowEstimator<'a> {
@@ -35,7 +36,7 @@ impl<'a> ControlFlowEstimator<'a> {
     /// 估算 Loop 节点的迭代次数
     fn estimate_loop_iterations(
         &self,
-        node: &crate::query::planner::plan::core::nodes::control_flow::control_flow_node::LoopNode,
+        node: &LoopNode,
     ) -> u32 {
         let condition = node.condition().to_expression_string();
 
@@ -51,7 +52,7 @@ impl<'a> ControlFlowEstimator<'a> {
     /// 估算 Select 节点的分支数
     fn estimate_select_branch_count(
         &self,
-        node: &crate::query::planner::plan::core::nodes::control_flow::control_flow_node::SelectNode,
+        node: &SelectNode,
     ) -> usize {
         let mut count = 0;
         if node.if_branch().is_some() {

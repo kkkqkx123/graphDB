@@ -17,6 +17,7 @@ use crate::query::optimizer::cost::expression_parser::ExpressionParser;
 use crate::query::optimizer::cost::selectivity::SelectivityEstimator;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::data_processing::UnwindNode;
 
 /// 数据处理节点估算器
 pub struct DataProcessingEstimator<'a> {
@@ -61,7 +62,7 @@ impl<'a> DataProcessingEstimator<'a> {
     /// 估算 Unwind 节点的列表大小
     fn estimate_unwind_list_size(
         &self,
-        node: &crate::query::planner::plan::core::nodes::data_processing::data_processing_node::UnwindNode,
+        node: &UnwindNode,
     ) -> f64 {
         let list_expr = node.list_expression();
 

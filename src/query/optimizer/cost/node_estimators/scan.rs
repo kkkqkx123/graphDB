@@ -12,6 +12,7 @@ use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::access::EdgeIndexScanNode;
 
 /// 扫描操作估算器
 pub struct ScanEstimator<'a> {
@@ -46,7 +47,7 @@ impl<'a> ScanEstimator<'a> {
     /// 估算边索引扫描的选择性
     pub fn estimate_edge_index_scan_selectivity(
         &self,
-        node: &crate::query::planner::plan::core::nodes::access::graph_scan_node::EdgeIndexScanNode,
+        node: &EdgeIndexScanNode,
     ) -> f64 {
         if node.scan_limits().is_empty() {
             return 0.1;
