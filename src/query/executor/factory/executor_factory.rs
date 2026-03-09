@@ -21,15 +21,16 @@ use crate::query::executor::factory::validators::safety_validator::ExecutorSafet
 /// 执行器工厂
 ///
 /// 负责协调各个子模块创建执行器
-pub struct ExecutorFactory<S: StorageClient + 'static> {
+pub struct ExecutorFactory<S: StorageClient + Send + 'static> {
     pub(crate) storage: Option<Arc<Mutex<S>>>,
     pub(crate) config: ExecutorSafetyConfig,
     pub(crate) recursion_detector: RecursionDetector,
+    #[allow(dead_code)]
     pub(crate) safety_validator: SafetyValidator<S>,
     pub(crate) builders: Builders<S>,
 }
 
-impl<S: StorageClient + 'static> ExecutorFactory<S> {
+impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     /// 创建新的执行器工厂
     pub fn new() -> Self {
         let config = ExecutorSafetyConfig::default();
@@ -155,6 +156,23 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::EdgeIndexScan(node) => {
                 self.builders.data_access().build_edge_index_scan(node, storage, context)
             }
+            PlanNodeEnum::GetEdges(node) => {
+                self.builders.data_access().build_get_edges(node, storage, context)
+            }
+            PlanNodeEnum::IndexScan(node) => {
+                self.builders.data_access().build_index_scan(node, storage, context)
+            }
+
+            // 数据修改执行器
+            PlanNodeEnum::InsertVertices(node) => {
+                self.builders.data_modification().build_insert_vertices(node, storage, context)
+            }
+            PlanNodeEnum::InsertEdges(node) => {
+                self.builders.data_modification().build_insert_edges(node, storage, context)
+            }
+            PlanNodeEnum::Remove(node) => {
+                self.builders.data_modification().build_remove(node, storage, context)
+            }
 
             // 数据处理执行器
             PlanNodeEnum::Filter(node) => {
@@ -223,6 +241,18 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::Traverse(node) => {
                 self.builders.traversal().build_traverse(node, storage, context)
             }
+            PlanNodeEnum::AllPaths(node) => {
+                self.builders.traversal().build_all_paths(node, storage, context)
+            }
+            PlanNodeEnum::ShortestPath(node) => {
+                self.builders.traversal().build_shortest_path(node, storage, context)
+            }
+            PlanNodeEnum::BFSShortest(node) => {
+                self.builders.traversal().build_bfs_shortest(node, storage, context)
+            }
+            PlanNodeEnum::MultiShortestPath(node) => {
+                self.builders.traversal().build_multi_shortest_path(node, storage, context)
+            }
 
             // 数据转换执行器
             PlanNodeEnum::Unwind(node) => {
@@ -230,6 +260,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
             PlanNodeEnum::Assign(node) => {
                 self.builders.transformation().build_assign(node, storage, context)
+            }
+            PlanNodeEnum::Materialize(node) => {
+                self.builders.transformation().build_materialize(node, storage, context)
             }
             PlanNodeEnum::AppendVertices(node) => {
                 self.builders.transformation().build_append_vertices(node, storage, context)
@@ -353,23 +386,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::ChangePassword(node) => {
                 self.builders.admin().build_change_password(node, storage, context)
             }
-
-            _ => Err(QueryError::ExecutionError(format!(
-                "不支持的计划节点类型: {:?}",
-                plan_node.type_name()
-            ))),
-        }
-    }
-}
-
-impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
-    fn clone(&self) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            config: self.config.clone(),
-            recursion_detector: RecursionDetector::new(self.config.max_recursion_depth),
-            safety_validator: SafetyValidator::new(self.config.clone()),
-            builders: Builders::new(),
         }
     }
 
@@ -383,7 +399,7 @@ impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
         // 先验证和检查递归
         if self.config.enable_recursion_detection {
             self.recursion_detector
-                .validate_executor(node.id(), node.name())
+                .validate_executor(node.id(), "LoopExecutor")
                 .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
         }
 
@@ -396,11 +412,12 @@ impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
         let body_executor = {
             // 重新获取可变引用
             let config = self.config.clone();
+            let max_recursion_depth = config.max_recursion_depth;
             let safety_validator = SafetyValidator::new(config.clone());
             let mut temp_factory = ExecutorFactory {
                 storage: self.storage.clone(),
                 config,
-                recursion_detector: RecursionDetector::new(config.max_recursion_depth),
+                recursion_detector: RecursionDetector::new(max_recursion_depth),
                 safety_validator,
                 builders: Builders::new(),
             };
@@ -435,24 +452,79 @@ impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
         // 先验证和检查递归
         if self.config.enable_recursion_detection {
             self.recursion_detector
-                .validate_executor(node.id(), node.name())
+                .validate_executor(node.id(), "SelectExecutor")
                 .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
         }
 
         let condition = node
             .condition()
             .expression()
-            .map(|meta| meta.inner().clone());
+            .map(|meta| meta.inner().clone())
+            .unwrap_or_else(|| {
+                crate::core::Expression::Literal(crate::core::Value::Bool(true))
+            });
+
+        // 构建 if_branch
+        let if_branch = {
+            let if_node = node.if_branch().as_ref()
+                .ok_or_else(|| QueryError::ExecutionError("Select节点缺少if_branch".to_string()))?;
+
+            let config = self.config.clone();
+            let max_recursion_depth = config.max_recursion_depth;
+            let safety_validator = SafetyValidator::new(config.clone());
+            let mut temp_factory = ExecutorFactory {
+                storage: self.storage.clone(),
+                config,
+                recursion_detector: RecursionDetector::new(max_recursion_depth),
+                safety_validator,
+                builders: Builders::new(),
+            };
+
+            temp_factory.create_executor(if_node, storage.clone(), context)?
+        };
+
+        // 构建 else_branch
+        let else_branch = {
+            if let Some(else_node) = node.else_branch().as_ref() {
+                let config = self.config.clone();
+                let max_recursion_depth = config.max_recursion_depth;
+                let safety_validator = SafetyValidator::new(config.clone());
+                let mut temp_factory = ExecutorFactory {
+                    storage: self.storage.clone(),
+                    config,
+                    recursion_detector: RecursionDetector::new(max_recursion_depth),
+                    safety_validator,
+                    builders: Builders::new(),
+                };
+
+                Some(temp_factory.create_executor(else_node, storage.clone(), context)?)
+            } else {
+                None
+            }
+        };
 
         use crate::query::executor::logic::SelectExecutor;
         let executor = SelectExecutor::new(
             node.id(),
             storage,
             condition,
-            None,
+            if_branch,
+            else_branch,
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Select(executor))
+    }
+}
+
+impl<S: StorageClient + 'static> Clone for ExecutorFactory<S> {
+    fn clone(&self) -> Self {
+        Self {
+            storage: self.storage.clone(),
+            config: self.config.clone(),
+            recursion_detector: RecursionDetector::new(self.config.max_recursion_depth),
+            safety_validator: SafetyValidator::new(self.config.clone()),
+            builders: Builders::new(),
+        }
     }
 }
 

@@ -4,7 +4,6 @@
 
 use crate::core::error::QueryError;
 use crate::storage::StorageClient;
-use std::sync::Arc;
 
 /// 执行器安全配置
 #[derive(Debug, Clone)]
@@ -32,7 +31,7 @@ impl Default for ExecutorSafetyConfig {
 
 /// 安全验证器
 #[derive(Clone)]
-pub struct SafetyValidator<S: StorageClient + 'static> {
+pub struct SafetyValidator<S: StorageClient + Send + 'static> {
     config: ExecutorSafetyConfig,
     _phantom: std::marker::PhantomData<S>,
 }

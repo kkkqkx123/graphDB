@@ -6,6 +6,7 @@
 //! - `graph_traversal` - 图遍历相关（Expand、Traverse、ShortestPath 等）
 //! - `set_operations` - 集合运算（Union、Intersect、Minus）
 //! - `join` - 连接操作（InnerJoin、LeftJoin、FullOuterJoin）
+//! - `materialize` - 物化操作（Materialize）
 //!
 //! 注意：RightJoin 已被移除，可用 LeftJoin 交换表顺序实现
 
@@ -28,3 +29,7 @@ pub use join::{
     CrossJoinExecutor, FullOuterJoinExecutor, InnerJoinExecutor, JoinConfig, JoinType,
     LeftJoinExecutor,
 };
+
+// 物化执行器
+pub mod materialize;
+pub use materialize::{MaterializeExecutor, MaterializeState};

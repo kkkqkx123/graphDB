@@ -3,6 +3,7 @@
 //! 负责创建各种类型的执行器
 
 pub mod data_access_builder;
+pub mod data_modification_builder;
 pub mod data_processing_builder;
 pub mod join_builder;
 pub mod set_operation_builder;
@@ -12,6 +13,7 @@ pub mod control_flow_builder;
 pub mod admin_builder;
 
 pub use data_access_builder::DataAccessBuilder;
+pub use data_modification_builder::DataModificationBuilder;
 pub use data_processing_builder::DataProcessingBuilder;
 pub use join_builder::JoinBuilder;
 pub use set_operation_builder::SetOperationBuilder;
@@ -25,6 +27,7 @@ use crate::storage::StorageClient;
 /// 构建器集合
 pub struct Builders<S: StorageClient + 'static> {
     data_access: DataAccessBuilder<S>,
+    data_modification: DataModificationBuilder<S>,
     data_processing: DataProcessingBuilder<S>,
     join: JoinBuilder<S>,
     set_operation: SetOperationBuilder<S>,
@@ -39,6 +42,7 @@ impl<S: StorageClient + 'static> Builders<S> {
     pub fn new() -> Self {
         Self {
             data_access: DataAccessBuilder::new(),
+            data_modification: DataModificationBuilder::new(),
             data_processing: DataProcessingBuilder::new(),
             join: JoinBuilder::new(),
             set_operation: SetOperationBuilder::new(),
@@ -52,6 +56,11 @@ impl<S: StorageClient + 'static> Builders<S> {
     /// 获取数据访问构建器
     pub fn data_access(&self) -> &DataAccessBuilder<S> {
         &self.data_access
+    }
+
+    /// 获取数据修改构建器
+    pub fn data_modification(&self) -> &DataModificationBuilder<S> {
+        &self.data_modification
     }
 
     /// 获取数据处理构建器

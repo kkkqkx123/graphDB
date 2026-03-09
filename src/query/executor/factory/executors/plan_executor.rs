@@ -3,7 +3,7 @@
 //! 负责执行执行计划，管理执行器树的生命周期
 
 use crate::core::error::QueryError;
-use crate::query::executor::base::{ExecutionContext, ExecutionResult};
+use crate::query::executor::base::{ExecutionContext, ExecutionResult, Executor};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::QueryContext;

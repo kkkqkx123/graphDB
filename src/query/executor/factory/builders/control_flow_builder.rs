@@ -17,11 +17,11 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 /// 控制流执行器构建器
-pub struct ControlFlowBuilder<S: StorageClient + 'static> {
+pub struct ControlFlowBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient + 'static> ControlFlowBuilder<S> {
+impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
     /// 创建新的控制流构建器
     pub fn new() -> Self {
         Self {

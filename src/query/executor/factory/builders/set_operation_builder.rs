@@ -14,11 +14,11 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 /// 集合操作执行器构建器
-pub struct SetOperationBuilder<S: StorageClient + 'static> {
+pub struct SetOperationBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient + 'static> SetOperationBuilder<S> {
+impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
     /// 创建新的集合操作构建器
     pub fn new() -> Self {
         Self {

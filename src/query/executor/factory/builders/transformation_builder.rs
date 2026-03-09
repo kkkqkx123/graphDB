@@ -1,27 +1,28 @@
 //! 数据转换执行器构建器
 //!
-//! 负责创建数据转换类型的执行器（Unwind, Assign, AppendVertices, RollUpApply, PatternApply）
+//! 负责创建数据转换类型的执行器（Unwind, Assign, Materialize, AppendVertices, RollUpApply, PatternApply）
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
+use crate::query::executor::data_processing::MaterializeExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::result_processing::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
     UnwindExecutor,
 };
 use crate::query::planner::plan::core::nodes::{
-    AppendVerticesNode, AssignNode, PatternApplyNode, RollUpApplyNode, UnwindNode,
+    AppendVerticesNode, AssignNode, MaterializeNode, PatternApplyNode, RollUpApplyNode, UnwindNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
 /// 数据转换执行器构建器
-pub struct TransformationBuilder<S: StorageClient + 'static> {
+pub struct TransformationBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient + 'static> TransformationBuilder<S> {
+impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
     /// 创建新的数据转换构建器
     pub fn new() -> Self {
         Self {
@@ -81,6 +82,23 @@ impl<S: StorageClient + 'static> TransformationBuilder<S> {
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Assign(executor))
+    }
+
+    /// 构建 Materialize 执行器
+    pub fn build_materialize(
+        &self,
+        node: &MaterializeNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        // 创建物化执行器，使用默认内存限制（100MB）
+        let executor = MaterializeExecutor::new(
+            node.id(),
+            storage,
+            None, // 使用默认内存限制
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::Materialize(executor))
     }
 
     /// 构建 AppendVertices 执行器

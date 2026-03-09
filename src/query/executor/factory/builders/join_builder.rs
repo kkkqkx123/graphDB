@@ -18,11 +18,11 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 /// 连接执行器构建器
-pub struct JoinBuilder<S: StorageClient + 'static> {
+pub struct JoinBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient + 'static> JoinBuilder<S> {
+impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
     /// 创建新的连接构建器
     pub fn new() -> Self {
         Self {

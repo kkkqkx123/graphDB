@@ -27,11 +27,11 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 /// 管理执行器构建器
-pub struct AdminBuilder<S: StorageClient + 'static> {
+pub struct AdminBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient + 'static> AdminBuilder<S> {
+impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     /// 创建新的管理执行器构建器
     pub fn new() -> Self {
         Self {

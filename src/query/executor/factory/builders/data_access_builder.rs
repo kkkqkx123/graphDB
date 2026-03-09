@@ -1,28 +1,30 @@
 //! 数据访问执行器构建器
 //!
-//! 负责创建数据访问类型的执行器，处理顶点和边相关的执行器
+//! 负责创建数据访问类型的执行器（ScanVertices, ScanEdges, GetVertices, GetNeighbors, IndexScan, GetEdges）
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::data_access::{
-    GetNeighborsExecutor, GetVerticesExecutor, ScanEdgesExecutor, IndexScanExecutor,
+    GetEdgesExecutor, GetNeighborsExecutor, GetVerticesExecutor, IndexScanExecutor,
+    ScanEdgesExecutor,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::factory::parsers::{parse_vertex_ids, parse_edge_direction};
+use crate::query::executor::factory::parsers::{parse_edge_direction, parse_vertex_ids};
+use crate::query::planner::plan::algorithms::IndexScan as IndexScanNode;
 use crate::query::planner::plan::core::nodes::{
-    ScanVerticesNode, ScanEdgesNode, GetVerticesNode, GetNeighborsNode,
-    EdgeIndexScanNode,
+    EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
+    ScanVerticesNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
 /// 数据访问执行器构建器
-pub struct DataAccessBuilder<S: StorageClient + 'static> {
+pub struct DataAccessBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient + 'static> DataAccessBuilder<S> {
+impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
     /// 创建新的数据访问构建器
     pub fn new() -> Self {
         Self {
@@ -139,6 +141,52 @@ impl<S: StorageClient + 'static> DataAccessBuilder<S> {
             node.return_columns().to_vec(),
             node.limit().map(|l| l as usize),
             true,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::IndexScan(executor))
+    }
+
+    /// 构建 GetEdges 执行器
+    pub fn build_get_edges(
+        &self,
+        node: &GetEdgesNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let edge_type = if node.edge_type().is_empty() {
+            None
+        } else {
+            Some(node.edge_type().to_string())
+        };
+
+        let executor = GetEdgesExecutor::new(
+            node.id(),
+            storage,
+            edge_type,
+            context.expression_context().clone(),
+        );
+        Ok(ExecutorEnum::GetEdges(executor))
+    }
+
+    /// 构建 IndexScan 执行器（用于标签索引扫描）
+    pub fn build_index_scan(
+        &self,
+        node: &IndexScanNode,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<ExecutorEnum<S>, QueryError> {
+        let executor = IndexScanExecutor::new(
+            node.id(),
+            storage,
+            node.space_id,
+            node.tag_id,
+            node.index_id,
+            node.scan_type.as_str(),
+            node.scan_limits.clone(),
+            node.filter.as_ref().and_then(|f| f.get_expression()),
+            node.return_columns.clone(),
+            node.limit.map(|l| l as usize),
+            false, // is_edge = false，这是标签索引扫描
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::IndexScan(executor))

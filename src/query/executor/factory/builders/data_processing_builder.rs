@@ -6,8 +6,9 @@ use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::result_processing::{
-    AggregateExecutor, DedupExecutor, FilterExecutor, LimitExecutor, ProjectExecutor,
-    SampleExecutor, SampleMethod, SortExecutor, TopNExecutor,
+    AggregateExecutor, AggregateFunctionSpec, DedupExecutor, FilterExecutor, LimitExecutor,
+    ProjectionColumn, ProjectExecutor, SampleExecutor, SampleMethod, SortExecutor, SortKey,
+    TopNExecutor,
 };
 use crate::query::planner::plan::core::nodes::{
     AggregateNode, DedupNode, FilterNode, LimitNode, ProjectNode, SampleNode, SortNode, TopNNode,
@@ -17,11 +18,11 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 /// 数据处理执行器构建器
-pub struct DataProcessingBuilder<S: StorageClient + 'static> {
+pub struct DataProcessingBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
-impl<S: StorageClient + 'static> DataProcessingBuilder<S> {
+impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
     /// 创建新的数据处理构建器
     pub fn new() -> Self {
         Self {
@@ -34,22 +35,12 @@ impl<S: StorageClient + 'static> DataProcessingBuilder<S> {
         &self,
         node: &FilterNode,
         storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
+        _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let condition = node
-            .condition()
-            .expression()
-            .map(|meta| meta.inner().clone())
-            .ok_or_else(|| {
-                QueryError::ExecutionError("Filter节点缺少条件表达式".to_string())
-            })?;
+        // FilterExecutor::new 需要 ContextualExpression
+        let condition = node.condition().clone();
 
-        let executor = FilterExecutor::new(
-            node.id(),
-            storage,
-            condition,
-            context.expression_context().clone(),
-        );
+        let executor = FilterExecutor::new(node.id(), storage, condition);
         Ok(ExecutorEnum::Filter(executor))
     }
 
@@ -60,15 +51,12 @@ impl<S: StorageClient + 'static> DataProcessingBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // YieldColumn 包含 expression (ContextualExpression) 和 alias (String)
-        let columns: Vec<(String, crate::core::Expression)> = node
+        // 将 YieldColumn 转换为 ProjectionColumn
+        // YieldColumn 的 expression 字段是 ContextualExpression
+        let columns: Vec<ProjectionColumn> = node
             .columns()
             .iter()
-            .filter_map(|col| {
-                col.expression
-                    .expression()
-                    .map(|meta| (col.alias.clone(), meta.inner().clone()))
-            })
+            .map(|col| ProjectionColumn::new(col.alias.clone(), col.expression.clone()))
             .collect();
 
         let executor = ProjectExecutor::new(
@@ -85,14 +73,15 @@ impl<S: StorageClient + 'static> DataProcessingBuilder<S> {
         &self,
         node: &LimitNode,
         storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
+        _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
+        // LimitExecutor::new 参数: id, storage, limit, offset
+        // 注意：LimitNode 的 offset() 和 count() 返回 i64，需要转换
         let executor = LimitExecutor::new(
             node.id(),
             storage,
+            Some(node.count() as usize),
             node.offset() as usize,
-            node.count() as usize,
-            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Limit(executor))
     }
@@ -102,25 +91,35 @@ impl<S: StorageClient + 'static> DataProcessingBuilder<S> {
         &self,
         node: &SortNode,
         storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
+        _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // SortItem 包含 column (String) 和 direction (OrderDirection)
-        let sort_keys: Vec<(crate::core::Expression, bool)> = node
+        let sort_keys: Vec<SortKey> = node
             .sort_items()
             .iter()
             .map(|item| {
                 let expr = crate::core::Expression::Variable(item.column.clone());
-                let is_desc = item.direction == crate::core::types::graph_schema::OrderDirection::Desc;
-                (expr, is_desc)
+                let order = if item.direction
+                    == crate::core::types::graph_schema::OrderDirection::Desc
+                {
+                    crate::query::executor::result_processing::SortOrder::Desc
+                } else {
+                    crate::query::executor::result_processing::SortOrder::Asc
+                };
+                SortKey::new(expr, order)
             })
             .collect();
 
+        use crate::query::executor::result_processing::SortConfig;
         let executor = SortExecutor::new(
             node.id(),
             storage,
             sort_keys,
-            context.expression_context().clone(),
-        );
+            None, // limit
+            SortConfig::default(),
+        )
+        .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
+
         Ok(ExecutorEnum::Sort(executor))
     }
 
@@ -129,25 +128,28 @@ impl<S: StorageClient + 'static> DataProcessingBuilder<S> {
         &self,
         node: &TopNNode,
         storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
+        _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // SortItem 包含 column (String) 和 direction (OrderDirection)
-        let sort_keys: Vec<(crate::core::Expression, bool)> = node
+        // TopNExecutor::new 参数: id, storage, n, sort_columns, ascending
+        // sort_columns 是 Vec<String>，不是 Vec<SortKey>
+        let sort_columns: Vec<String> = node
             .sort_items()
             .iter()
-            .map(|item| {
-                let expr = crate::core::Expression::Variable(item.column.clone());
-                let is_desc = item.direction == crate::core::types::graph_schema::OrderDirection::Desc;
-                (expr, is_desc)
-            })
+            .map(|item| item.column.clone())
             .collect();
+        // 假设所有排序方向一致，使用第一个排序项的方向
+        let ascending = node
+            .sort_items()
+            .first()
+            .map(|item| item.direction != crate::core::types::graph_schema::OrderDirection::Desc)
+            .unwrap_or(true);
 
         let executor = TopNExecutor::new(
             node.id(),
             storage,
             node.limit() as usize,
-            sort_keys,
-            context.expression_context().clone(),
+            sort_columns,
+            ascending,
         );
         Ok(ExecutorEnum::TopN(executor))
     }
@@ -157,15 +159,15 @@ impl<S: StorageClient + 'static> DataProcessingBuilder<S> {
         &self,
         node: &SampleNode,
         storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
+        _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // SampleNode 只有 count 字段，使用默认的 Random 采样方法
+        // SampleExecutor::new 参数: id, storage, method, count, seed
         let executor = SampleExecutor::new(
             node.id(),
             storage,
-            node.count() as usize,
             SampleMethod::Random,
-            context.expression_context().clone(),
+            node.count() as usize,
+            None, // seed
         );
         Ok(ExecutorEnum::Sample(executor))
     }
@@ -175,7 +177,7 @@ impl<S: StorageClient + 'static> DataProcessingBuilder<S> {
         &self,
         node: &AggregateNode,
         storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
+        _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // group_keys 是 Vec<String>，直接转换为 Expression::Variable
         let group_keys: Vec<crate::core::Expression> = node
@@ -184,27 +186,24 @@ impl<S: StorageClient + 'static> DataProcessingBuilder<S> {
             .map(|key| crate::core::Expression::Variable(key.clone()))
             .collect();
 
-        // AggregateFunction 需要转换为 (String, String, Expression) 格式
-        let aggregates: Vec<(String, String, crate::core::Expression)> = node
+        // AggregateFunction 需要转换为 Vec<AggregateFunctionSpec>
+        let aggregate_functions: Vec<AggregateFunctionSpec> = node
             .aggregation_functions()
             .iter()
             .map(|agg_func| {
                 // AggregateFunction 的 name() 返回函数名
                 let func_name = agg_func.name().to_string();
-                // 使用函数名作为别名
-                let alias = func_name.clone();
-                // 聚合函数的参数表达式
-                let expr = crate::core::Expression::Null(crate::core::NullType::Unknown);
-                (alias, func_name, expr)
+                AggregateFunctionSpec::new(crate::query::executor::result_processing::AggregateFunction::Count(None))
+                    .with_field(func_name)
             })
             .collect();
 
+        // AggregateExecutor::new 只需要4个参数: id, storage, aggregate_functions, group_keys
         let executor = AggregateExecutor::new(
             node.id(),
             storage,
+            aggregate_functions,
             group_keys,
-            aggregates,
-            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Aggregate(executor))
     }
@@ -214,16 +213,17 @@ impl<S: StorageClient + 'static> DataProcessingBuilder<S> {
         &self,
         node: &DedupNode,
         storage: Arc<Mutex<S>>,
-        context: &ExecutionContext,
+        _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // DedupNode 没有 keys 字段，使用空列表
-        let keys: Vec<crate::core::Expression> = Vec::new();
+        use crate::query::executor::result_processing::dedup::DedupStrategy;
+        // DedupNode 没有 keys 字段，使用完全去重策略
+        let strategy = DedupStrategy::Full;
 
         let executor = DedupExecutor::new(
             node.id(),
             storage,
-            keys,
-            context.expression_context().clone(),
+            strategy,
+            None, // 使用默认内存限制
         );
         Ok(ExecutorEnum::Dedup(executor))
     }
