@@ -674,7 +674,7 @@ use crate::core::vertex_edge_path::{Path, Step};
 use super::base::EdgeDirection;
 
 #[derive(Debug)]
-pub struct IndexScanExecutor<S: StorageClient> {
+pub struct LookupIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     index_name: String,
     index_condition: Option<(String, Value)>,
@@ -682,7 +682,7 @@ pub struct IndexScanExecutor<S: StorageClient> {
     limit: Option<usize>,
 }
 
-impl<S: StorageClient> IndexScanExecutor<S> {
+impl<S: StorageClient> LookupIndexExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -693,7 +693,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "IndexScanExecutor".to_string(), storage, expr_context),
+            base: BaseExecutor::new(id, "LookupIndexExecutor".to_string(), storage, expr_context),
             index_name,
             index_condition,
             scan_forward,
@@ -702,7 +702,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     }
 }
 
-impl<S: StorageClient> Executor<S> for IndexScanExecutor<S> {
+impl<S: StorageClient> Executor<S> for LookupIndexExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = self.do_execute();
@@ -731,11 +731,11 @@ impl<S: StorageClient> Executor<S> for IndexScanExecutor<S> {
     }
 
     fn name(&self) -> &str {
-        "IndexScanExecutor"
+        "LookupIndexExecutor"
     }
 
     fn description(&self) -> &str {
-        "Index scan executor - retrieves vertices using index"
+        "Lookup index executor - retrieves vertices using index for LOOKUP statement"
     }
 
     fn stats(&self) -> &ExecutorStats {
@@ -747,13 +747,13 @@ impl<S: StorageClient> Executor<S> for IndexScanExecutor<S> {
     }
 }
 
-impl<S: StorageClient> HasStorage<S> for IndexScanExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for LookupIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageClient> IndexScanExecutor<S> {
+impl<S: StorageClient> LookupIndexExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<Value>> {
         let storage = self.get_storage().lock();
 

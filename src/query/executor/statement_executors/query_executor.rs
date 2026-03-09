@@ -188,12 +188,12 @@ impl<S: StorageClient> QueryExecutor<S> {
     where
         S: Send + Sync + 'static,
     {
-        use crate::query::executor::data_access::IndexScanExecutor;
+        use crate::query::executor::data_access::LookupIndexExecutor;
         use crate::query::parser::ast::stmt::LookupTarget;
 
         match clause.target {
             LookupTarget::Tag(tag_name) => {
-                let mut executor = IndexScanExecutor::new(
+                let mut executor = LookupIndexExecutor::new(
                     self.id,
                     self.storage.clone(),
                     format!("idx_{}", tag_name),

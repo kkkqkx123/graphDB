@@ -40,10 +40,11 @@ use crate::query::executor::result_processing::{
     LimitExecutor, PatternApplyExecutor, ProjectExecutor, RollUpApplyExecutor, SampleExecutor,
     SampleMethod, SortExecutor, TopNExecutor, UnwindExecutor,
 };
-use crate::query::executor::search_executors::{BFSShortestExecutor, IndexScanExecutor};
-use crate::query::executor::special_executors::{
+use crate::query::executor::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
+use crate::query::executor::pipeline_executors::{
     ArgumentExecutor, DataCollectExecutor, PassThroughExecutor,
 };
+use crate::query::executor::search_executors::IndexScanExecutor;
 
 use crate::query::executor::admin::{
     AlterEdgeExecutor, AlterTagExecutor, AlterUserExecutor, ChangePasswordExecutor,

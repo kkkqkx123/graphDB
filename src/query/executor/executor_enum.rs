@@ -44,8 +44,9 @@ use super::result_processing::{
     AggregateExecutor, DedupExecutor, FilterExecutor, GroupByExecutor, HavingExecutor,
     LimitExecutor, ProjectExecutor, SampleExecutor, SortExecutor, TopNExecutor,
 };
-use super::search_executors::{BFSShortestExecutor, IndexScanExecutor};
-use super::special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
+use super::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
+use super::pipeline_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
+use super::search_executors::IndexScanExecutor;
 use super::data_modification::RemoveExecutor;
 
 /// 执行器枚举
