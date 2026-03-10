@@ -4,7 +4,7 @@
 
 use crate::core::types::CharsetInfo;
 use crate::core::types::SpaceInfo;
-use crate::query::execution::{QueryExecutionState, QueryResourceContext, QuerySpaceContext};
+use crate::query::context::{QueryExecutionManager, QueryResourceContext, QuerySpaceContext};
 use crate::query::query_request_context::QueryRequestContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ use std::sync::Arc;
 /// ```
 pub struct QueryContextBuilder {
     rctx: Option<Arc<QueryRequestContext>>,
-    execution_state: Option<QueryExecutionState>,
+    execution_manager: Option<QueryExecutionManager>,
     resource_context: Option<QueryResourceContext>,
     space_context: Option<QuerySpaceContext>,
 }
@@ -37,15 +37,15 @@ impl QueryContextBuilder {
     pub fn new(rctx: Arc<QueryRequestContext>) -> Self {
         Self {
             rctx: Some(rctx),
-            execution_state: None,
+            execution_manager: None,
             resource_context: None,
             space_context: None,
         }
     }
 
-    /// 设置执行状态
-    pub fn with_execution_state(mut self, execution_state: QueryExecutionState) -> Self {
-        self.execution_state = Some(execution_state);
+    /// 设置执行管理器
+    pub fn with_execution_manager(mut self, execution_manager: QueryExecutionManager) -> Self {
+        self.execution_manager = Some(execution_manager);
         self
     }
 
@@ -86,11 +86,11 @@ impl QueryContextBuilder {
     /// 构建 QueryContext
     pub fn build(self) -> QueryContext {
         let rctx = self.rctx.expect("QueryRequestContext is required");
-        let execution_state = self.execution_state.unwrap_or_default();
+        let execution_manager = self.execution_manager.unwrap_or_default();
         let resource_context = self.resource_context.unwrap_or_default();
         let space_context = self.space_context.unwrap_or_default();
 
-        QueryContext::from_components(rctx, execution_state, resource_context, space_context)
+        QueryContext::from_components(rctx, execution_manager, resource_context, space_context)
     }
 }
 
@@ -98,7 +98,7 @@ impl Default for QueryContextBuilder {
     fn default() -> Self {
         Self {
             rctx: None,
-            execution_state: None,
+            execution_manager: None,
             resource_context: None,
             space_context: None,
         }

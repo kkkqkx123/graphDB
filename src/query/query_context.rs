@@ -11,13 +11,13 @@
 //!
 //! QueryContext 现在由多个专门的上下文组成：
 //! - QueryRequestContext: 查询请求上下文（会话信息、请求参数）
-//! - QueryExecutionState: 查询执行状态（执行计划、终止标志）
+//! - QueryExecutionManager: 查询执行管理器（执行计划、终止标志）
 //! - QueryResourceContext: 查询资源上下文（对象池、ID 生成器、符号表）
 //! - QuerySpaceContext: 查询空间上下文（空间信息、字符集）
 
 use std::sync::Arc;
 
-use crate::query::execution::{QueryExecutionState, QueryResourceContext, QuerySpaceContext};
+use crate::query::context::{QueryExecutionManager, QueryResourceContext, QuerySpaceContext};
 use crate::query::query_request_context::QueryRequestContext;
 
 /// 查询上下文
@@ -28,7 +28,7 @@ use crate::query::query_request_context::QueryRequestContext;
 /// # 职责
 ///
 /// - 持有查询请求上下文（会话信息、请求参数）
-/// - 持有查询执行状态（执行计划、终止标志）
+/// - 持有查询执行管理器（执行计划、终止标志）
 /// - 持有查询资源上下文（对象池、ID 生成器、符号表）
 /// - 持有查询空间上下文（空间信息、字符集）
 ///
@@ -42,8 +42,8 @@ pub struct QueryContext {
     /// 查询请求上下文
     rctx: Arc<QueryRequestContext>,
 
-    /// 查询执行状态
-    execution_state: QueryExecutionState,
+    /// 查询执行管理器
+    execution_manager: QueryExecutionManager,
 
     /// 查询资源上下文
     resource_context: QueryResourceContext,
@@ -57,7 +57,7 @@ impl QueryContext {
     pub fn new(rctx: Arc<QueryRequestContext>) -> Self {
         Self {
             rctx,
-            execution_state: QueryExecutionState::new(),
+            execution_manager: QueryExecutionManager::new(),
             resource_context: QueryResourceContext::new(),
             space_context: QuerySpaceContext::new(),
         }
@@ -104,13 +104,13 @@ impl QueryContext {
     /// 从各个组件创建查询上下文（供 Builder 使用）
     pub(crate) fn from_components(
         rctx: Arc<QueryRequestContext>,
-        execution_state: QueryExecutionState,
+        execution_manager: QueryExecutionManager,
         resource_context: QueryResourceContext,
         space_context: QuerySpaceContext,
     ) -> Self {
         Self {
             rctx,
-            execution_state,
+            execution_manager,
             resource_context,
             space_context,
         }
@@ -140,17 +140,17 @@ impl QueryContext {
 
     /// 获取执行计划
     pub fn plan(&self) -> Option<crate::query::planner::plan::ExecutionPlan> {
-        self.execution_state.plan()
+        self.execution_manager.plan()
     }
 
     /// 设置执行计划
     pub fn set_plan(&mut self, plan: crate::query::planner::plan::ExecutionPlan) {
-        self.execution_state.set_plan(plan);
+        self.execution_manager.set_plan(plan);
     }
 
     /// 获取执行计划 ID
     pub fn plan_id(&self) -> Option<i64> {
-        self.execution_state.plan_id()
+        self.execution_manager.plan_id()
     }
 
     /// 获取字符集信息
@@ -195,12 +195,12 @@ impl QueryContext {
 
     /// 标记为已终止
     pub fn mark_killed(&self) {
-        self.execution_state.mark_killed();
+        self.execution_manager.mark_killed();
     }
 
     /// 检查是否被终止
     pub fn is_killed(&self) -> bool {
-        self.execution_state.is_killed()
+        self.execution_manager.is_killed()
     }
 
     /// 检查参数是否存在
@@ -220,20 +220,20 @@ impl QueryContext {
 
     /// 重置查询上下文
     pub fn reset(&mut self) {
-        self.execution_state.reset();
+        self.execution_manager.reset();
         self.resource_context.reset();
         self.space_context.reset();
         log::info!("查询上下文已重置");
     }
 
-    /// 获取查询执行状态的引用
-    pub fn execution_state(&self) -> &QueryExecutionState {
-        &self.execution_state
+    /// 获取查询执行管理器的引用
+    pub fn execution_manager(&self) -> &QueryExecutionManager {
+        &self.execution_manager
     }
 
-    /// 获取查询执行状态的可变引用
-    pub fn execution_state_mut(&mut self) -> &mut QueryExecutionState {
-        &mut self.execution_state
+    /// 获取查询执行管理器的可变引用
+    pub fn execution_manager_mut(&mut self) -> &mut QueryExecutionManager {
+        &mut self.execution_manager
     }
 
     /// 获取查询资源上下文的引用
