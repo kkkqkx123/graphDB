@@ -122,7 +122,7 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
 
     match graph_service.execute(session_id, query_str) {
         Ok(result) => {
-            println!("Query executed successfully: {}", result);
+            println!("Query executed successfully: {:?}", result);
         }
         Err(e) => {
             eprintln!("Query execution error: {}", e);

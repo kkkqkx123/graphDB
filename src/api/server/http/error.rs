@@ -45,6 +45,28 @@ impl IntoResponse for HttpError {
     }
 }
 
+impl HttpError {
+    /// 创建 BadRequest 错误
+    pub fn bad_request<T: Into<String>>(msg: T) -> Self {
+        HttpError::BadRequest(msg.into())
+    }
+
+    /// 创建 NotFound 错误
+    pub fn not_found<T: Into<String>>(msg: T) -> Self {
+        HttpError::NotFound(msg.into())
+    }
+
+    /// 创建 Unauthorized 错误
+    pub fn unauthorized<T: Into<String>>(msg: T) -> Self {
+        HttpError::Unauthorized(msg.into())
+    }
+
+    /// 创建 InternalError 错误
+    pub fn internal<T: Into<String>>(msg: T) -> Self {
+        HttpError::InternalError(msg.into())
+    }
+}
+
 impl From<crate::api::core::CoreError> for HttpError {
     fn from(err: crate::api::core::CoreError) -> Self {
         use crate::api::core::CoreError;

@@ -9,6 +9,7 @@ use crate::api::server::graph_service::GraphService;
 use crate::api::server::session::GraphSessionManager;
 use crate::api::server::statement::StatementManager;
 use crate::config::Config;
+use crate::query::executor::expression::functions::FunctionRegistry;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
 use parking_lot::Mutex;
@@ -26,6 +27,9 @@ pub struct HttpServer<S: StorageClient + Clone + 'static> {
     auth_service: PasswordAuthenticator,
     batch_manager: Arc<BatchManager<S>>,
     statement_manager: Arc<StatementManager<S>>,
+    storage: Arc<Mutex<S>>,
+    config: Config,
+    function_registry: Arc<Mutex<FunctionRegistry>>,
 }
 
 impl<S: StorageClient + Clone + 'static> HttpServer<S> {
@@ -43,8 +47,11 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
             txn_manager,
             schema_api: SchemaApi::new(storage.clone()),
             auth_service: PasswordAuthenticator::new_default(config.auth.clone()),
-            batch_manager: Arc::new(BatchManager::new(storage_arc.clone())),
+            batch_manager: Arc::new(BatchManager::new(storage.clone())),
             statement_manager: Arc::new(StatementManager::new(storage_arc)),
+            storage: storage.clone(),
+            config: config.clone(),
+            function_registry: Arc::new(Mutex::new(FunctionRegistry::new())),
         }
     }
 
@@ -86,5 +93,30 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     /// 获取预编译语句管理器
     pub fn get_statement_manager(&self) -> Arc<StatementManager<S>> {
         self.statement_manager.clone()
+    }
+
+    /// 获取统计管理器（通过 GraphService）
+    pub fn get_stats_manager(&self) -> &Arc<crate::core::StatsManager> {
+        self.graph_service.get_stats_manager()
+    }
+
+    /// 获取存储客户端
+    pub fn get_storage(&self) -> Arc<Mutex<S>> {
+        self.storage.clone()
+    }
+
+    /// 获取配置
+    pub fn get_config(&self) -> &Config {
+        &self.config
+    }
+
+    /// 获取配置的可变引用
+    pub fn get_config_mut(&mut self) -> &mut Config {
+        &mut self.config
+    }
+
+    /// 获取函数注册表
+    pub fn get_function_registry(&self) -> Arc<Mutex<FunctionRegistry>> {
+        self.function_registry.clone()
     }
 }

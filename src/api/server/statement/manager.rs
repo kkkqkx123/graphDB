@@ -4,7 +4,6 @@ use crate::api::core::{CoreError, CoreResult};
 use crate::api::server::statement::types::*;
 use crate::storage::StorageClient;
 use dashmap::DashMap;
-use parking_lot::RwLock;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -12,8 +11,8 @@ use uuid::Uuid;
 pub struct StatementManager<S: StorageClient + Clone + 'static> {
     /// 存储所有预编译语句
     statements: Arc<DashMap<StatementId, StatementInfo>>,
-    /// 存储客户端
-    storage: Arc<S>,
+    /// 存储客户端（预留，用于后续执行语句时使用）
+    _storage: Arc<S>,
 }
 
 impl<S: StorageClient + Clone + 'static> StatementManager<S> {
@@ -21,7 +20,7 @@ impl<S: StorageClient + Clone + 'static> StatementManager<S> {
     pub fn new(storage: Arc<S>) -> Self {
         Self {
             statements: Arc::new(DashMap::new()),
-            storage,
+            _storage: storage,
         }
     }
 

@@ -82,21 +82,6 @@ impl QueryResponse {
             },
         }
     }
-
-    /// 从字符串结果创建响应（向后兼容）
-    pub fn from_string(result: String) -> Self {
-        Self {
-            success: true,
-            data: None,
-            error: None,
-            metadata: QueryMetadata {
-                execution_time_ms: 0,
-                rows_scanned: 0,
-                rows_returned: 0,
-                space_id: None,
-            },
-        }
-    }
 }
 
 impl QueryData {

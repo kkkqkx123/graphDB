@@ -137,6 +137,12 @@ impl Default for DateValue {
     }
 }
 
+impl std::fmt::Display for DateValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:04}-{:02}-{:02}", self.year, self.month, self.day)
+    }
+}
+
 /// 简单时间表示
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct TimeValue {
@@ -201,6 +207,12 @@ impl Default for TimeValue {
             sec: 0,
             microsec: 0,
         }
+    }
+}
+
+impl std::fmt::Display for TimeValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:02}:{:02}:{:02}", self.hour, self.minute, self.sec)
     }
 }
 
@@ -289,6 +301,16 @@ impl Default for DateTimeValue {
     }
 }
 
+impl std::fmt::Display for DateTimeValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+            self.year, self.month, self.day, self.hour, self.minute, self.sec
+        )
+    }
+}
+
 /// 简单持续时间表示
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DurationValue {
@@ -311,5 +333,29 @@ impl Default for DurationValue {
             microseconds: 0,
             months: 0,
         }
+    }
+}
+
+impl std::fmt::Display for DurationValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let total_seconds = self.seconds;
+        let days = total_seconds / 86400;
+        let hours = (total_seconds % 86400) / 3600;
+        let minutes = (total_seconds % 3600) / 60;
+        let seconds = total_seconds % 60;
+
+        if self.months != 0 {
+            write!(f, "{}M", self.months)?;
+        }
+        if days != 0 {
+            write!(f, "{}d", days)?;
+        }
+        if hours != 0 || minutes != 0 || seconds != 0 || self.microseconds != 0 {
+            write!(f, "{:02}:{:02}:{:02}", hours, minutes, seconds)?;
+            if self.microseconds != 0 {
+                write!(f, ".{:06}", self.microseconds.abs())?;
+            }
+        }
+        Ok(())
     }
 }

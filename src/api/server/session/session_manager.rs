@@ -309,6 +309,16 @@ impl GraphSessionManager {
         self.active_sessions.len() >= self.max_connections
     }
 
+    /// 获取活跃会话数量
+    pub async fn active_session_count(&self) -> usize {
+        self.active_sessions.len()
+    }
+
+    /// 获取最大连接数限制
+    pub fn max_connections(&self) -> usize {
+        self.max_connections
+    }
+
     /// Generate a new unique session ID
     ///
     /// 使用组合策略生成唯一会话ID：

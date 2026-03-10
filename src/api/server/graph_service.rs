@@ -6,6 +6,7 @@ use crate::api::server::session::{
 use crate::config::Config;
 use crate::core::error::{SessionError, SessionResult};
 use crate::core::{MetricType, Permission, StatsManager};
+use crate::query::executor::ExecutionResult;
 use crate::query::{OptimizerEngine, QueryPipelineManager};
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
@@ -126,7 +127,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
     }
 
-    pub fn execute(&self, session_id: i64, stmt: &str) -> Result<String, String> {
+    pub fn execute(&self, session_id: i64, stmt: &str) -> Result<ExecutionResult, String> {
         let session = self
             .session_manager
             .find_session(session_id)
@@ -206,7 +207,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         session_id: i64,
         stmt: &str,
         space_id: i64,
-    ) -> Result<String, String> {
+    ) -> Result<ExecutionResult, String> {
         let session = self
             .session_manager
             .find_session(session_id)
@@ -249,7 +250,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let result = pipeline_manager.execute_query_with_request(stmt, rctx, space_info);
 
         match result {
-            Ok(exec_result) => Ok(format!("{:?}", exec_result)),
+            Ok(exec_result) => Ok(exec_result),
             Err(e) => Err(e.to_string()),
         }
     }
@@ -339,7 +340,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     // ==================== 事务控制方法 ====================
 
     /// 处理 BEGIN TRANSACTION 语句
-    fn handle_begin_transaction(&self, session: &Arc<ClientSession>) -> Result<String, String> {
+    fn handle_begin_transaction(&self, session: &Arc<ClientSession>) -> Result<ExecutionResult, String> {
         if session.has_active_transaction() {
             return Err("会话已有活跃事务".to_string());
         }
@@ -355,14 +356,14 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 session.bind_transaction(txn_id);
                 session.set_auto_commit(false);
                 info!("会话 {} 开始事务 {}", session.id(), txn_id);
-                Ok(format!("事务 {} 已开始", txn_id))
+                Ok(ExecutionResult::Success)
             }
             Err(e) => Err(format!("开始事务失败: {}", e)),
         }
     }
 
     /// 处理 COMMIT 语句
-    fn handle_commit_transaction(&self, session: &Arc<ClientSession>) -> Result<String, String> {
+    fn handle_commit_transaction(&self, session: &Arc<ClientSession>) -> Result<ExecutionResult, String> {
         let txn_id = session.current_transaction().ok_or("没有活跃事务可提交")?;
 
         let txn_manager = self
@@ -375,7 +376,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 session.unbind_transaction();
                 session.set_auto_commit(true);
                 info!("会话 {} 提交事务 {}", session.id(), txn_id);
-                Ok(format!("事务 {} 已提交", txn_id))
+                Ok(ExecutionResult::Success)
             }
             Err(e) => Err(format!("提交事务失败: {}", e)),
         }
@@ -386,7 +387,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         &self,
         session: &Arc<ClientSession>,
         stmt: &str,
-    ) -> Result<String, String> {
+    ) -> Result<ExecutionResult, String> {
         let trimmed = stmt.trim().to_uppercase();
 
         // 检查是否是 ROLLBACK TO SAVEPOINT（不支持）
@@ -406,7 +407,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 session.unbind_transaction();
                 session.set_auto_commit(true);
                 info!("会话 {} 回滚事务 {}", session.id(), txn_id);
-                Ok(format!("事务 {} 已回滚", txn_id))
+                Ok(ExecutionResult::Success)
             }
             Err(e) => Err(format!("回滚事务失败: {}", e)),
         }

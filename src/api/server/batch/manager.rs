@@ -5,6 +5,7 @@ use crate::api::core::{CoreError, CoreResult};
 use crate::core::{Edge, Value, Vertex};
 use crate::storage::StorageClient;
 use dashmap::DashMap;
+use parking_lot::Mutex;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -13,12 +14,12 @@ pub struct BatchManager<S: StorageClient + Clone + 'static> {
     /// 存储所有批量任务
     tasks: Arc<DashMap<BatchId, BatchTask>>,
     /// 存储客户端
-    storage: Arc<S>,
+    storage: Arc<Mutex<S>>,
 }
 
 impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     /// 创建新的批量任务管理器
-    pub fn new(storage: Arc<S>) -> Self {
+    pub fn new(storage: Arc<Mutex<S>>) -> Self {
         Self {
             tasks: Arc::new(DashMap::new()),
             storage,
@@ -259,27 +260,31 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     /// 插入顶点
     async fn insert_vertices(
         &self,
-        _space_name: &str,
-        _vertices: Vec<Vertex>,
+        space_name: &str,
+        vertices: Vec<Vertex>,
     ) -> CoreResult<usize> {
-        let count = _vertices.len();
-        
-        // TODO: 实现实际的存储层批量插入
-        // 目前返回成功计数，实际实现需要调用 storage.batch_insert_vertices
-        Ok(count)
+        let count = vertices.len();
+
+        let mut storage = self.storage.lock();
+        match storage.batch_insert_vertices(space_name, vertices) {
+            Ok(_) => Ok(count),
+            Err(e) => Err(CoreError::StorageError(e.to_string())),
+        }
     }
 
     /// 插入边
     async fn insert_edges(
         &self,
-        _space_name: &str,
-        _edges: Vec<Edge>,
+        space_name: &str,
+        edges: Vec<Edge>,
     ) -> CoreResult<usize> {
-        let count = _edges.len();
-        
-        // TODO: 实现实际的存储层批量插入
-        // 目前返回成功计数，实际实现需要调用 storage.batch_insert_edges
-        Ok(count)
+        let count = edges.len();
+
+        let mut storage = self.storage.lock();
+        match storage.batch_insert_edges(space_name, edges) {
+            Ok(_) => Ok(count),
+            Err(e) => Err(CoreError::StorageError(e.to_string())),
+        }
     }
 }
 

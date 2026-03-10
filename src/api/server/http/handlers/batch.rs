@@ -7,8 +7,8 @@ use axum::{
 use serde_json;
 
 use crate::api::server::batch::{
-    AddBatchItemsRequest, AddBatchItemsResponse, BatchManager, BatchProgress, BatchStatus,
-    BatchStatusResponse, CreateBatchRequest, CreateBatchResponse, ExecuteBatchResponse,
+    AddBatchItemsRequest, AddBatchItemsResponse, BatchStatusResponse, CreateBatchRequest,
+    CreateBatchResponse, ExecuteBatchResponse,
 };
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
@@ -85,8 +85,16 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
         .get_task(&batch_id)
         .ok_or_else(|| HttpError::NotFound(format!("批量任务不存在: {}", batch_id)))?;
 
-    // 获取 space_name（这里简化处理，实际应该从 space_id 查询）
-    let space_name = format!("space_{}", task.space_id);
+    // 通过 space_id 查询 space_name
+    let space_name = {
+        let storage = state.server.get_storage();
+        let storage = storage.lock();
+        match storage.get_space_by_id(task.space_id) {
+            Ok(Some(space_info)) => space_info.space_name,
+            Ok(None) => return Err(HttpError::NotFound(format!("图空间不存在: {}", task.space_id))),
+            Err(e) => return Err(HttpError::InternalError(format!("查询图空间失败: {}", e))),
+        }
+    };
 
     match batch_manager.execute_task(&batch_id, &space_name).await {
         Ok(result) => {

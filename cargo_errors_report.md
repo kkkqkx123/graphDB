@@ -2,37 +2,43 @@
 
 ## Summary
 
-- **Total Errors**: 1
-- **Total Warnings**: 0
-- **Total Issues**: 1
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 0
-- **Files with Issues**: 1
+- **Total Errors**: 0
+- **Total Warnings**: 3
+- **Total Issues**: 3
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 3
+- **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 1
-
-### Error Type Breakdown
-
-- **error[E0277]**: 1 errors
-
-### Files with Errors (Top 10)
-
-- `src\query\cache\mod.rs`: 1 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 3
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0277]: `plan_cache::QueryPlanCache` doesn't implement `std::fmt::Debug`: `plan_cache::QueryPlanCache` cannot be formatted using `{:?}`
+- **warning**: 3 warnings
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+### Files with Warnings (Top 10)
 
-#### `src\query\cache\mod.rs`: 1 occurrences
+- `src\api\server\http\handlers\function.rs`: 2 warnings
+- `src\api\server\http\handlers\config.rs`: 1 warnings
 
-- Line 39: `plan_cache::QueryPlanCache` doesn't implement `std::fmt::Debug`: `plan_cache::QueryPlanCache` cannot be formatted using `{:?}`
+## Detailed Warning Categorization
+
+### warning: variable does not need to be mutable
+
+**Total Occurrences**: 3  
+**Unique Files**: 2
+
+#### `src\api\server\http\handlers\function.rs`: 2 occurrences
+
+- Line 20: variable does not need to be mutable
+- Line 155: field `registered_at` is never read
+
+#### `src\api\server\http\handlers\config.rs`: 1 occurrences
+
+- Line 80: unused variable: `value`: help: if this is intentional, prefix it with an underscore: `_value`
 
