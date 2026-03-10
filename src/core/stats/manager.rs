@@ -26,6 +26,16 @@ pub enum MetricType {
     QueryTotalTimeUs,
     QueryPlanNodeCount,
     QueryResultRowCount,
+    // 查询类型统计
+    NumMatchQueries,
+    NumCreateQueries,
+    NumUpdateQueries,
+    NumDeleteQueries,
+    NumInsertQueries,
+    NumGoQueries,
+    NumFetchQueries,
+    NumLookupQueries,
+    NumShowQueries,
 }
 
 /// 指标值

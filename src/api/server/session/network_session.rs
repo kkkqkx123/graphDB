@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::api::embedded::statistics::SessionStatistics;
 use crate::core::error::{QueryError, QueryResult};
 use crate::core::RoleType;
 use crate::transaction::{SavepointId, TransactionId, TransactionOptions};
@@ -38,6 +39,9 @@ pub struct ClientSession {
     savepoint_stack: Arc<RwLock<Vec<SavepointId>>>,
     transaction_options: Arc<RwLock<TransactionOptions>>,
     auto_commit: Arc<RwLock<bool>>,
+
+    // 会话统计
+    statistics: Arc<SessionStatistics>,
 }
 
 impl ClientSession {
@@ -53,6 +57,8 @@ impl ClientSession {
             savepoint_stack: Arc::new(RwLock::new(Vec::new())),
             transaction_options: Arc::new(RwLock::new(TransactionOptions::default())),
             auto_commit: Arc::new(RwLock::new(true)), // 默认开启自动提交
+            // 初始化会话统计
+            statistics: Arc::new(SessionStatistics::new()),
         })
     }
 
@@ -299,6 +305,13 @@ impl ClientSession {
     /// 获取保存点数量
     pub fn savepoint_count(&self) -> usize {
         self.savepoint_stack.read().len()
+    }
+
+    // ==================== 统计信息方法 ====================
+
+    /// 获取会话统计信息
+    pub fn statistics(&self) -> Arc<SessionStatistics> {
+        Arc::clone(&self.statistics)
     }
 }
 
