@@ -3,7 +3,7 @@
 //! 该规则识别 TopN -> IndexScan 模式，
 //! 并将TopN的限制和排序信息集成到IndexScan操作中。
 
-use crate::query::planner::plan::algorithms::index_scan::{IndexScan, OrderByItem};
+use crate::query::planner::plan::core::nodes::access::{IndexScanNode, OrderByItem};
 use crate::query::planner::plan::core::nodes::operation::sort_node::TopNNode;
 use crate::query::planner::rewrite::macros::define_rewrite_pushdown_rule;
 use crate::query::planner::rewrite::result::TransformResult;
@@ -37,12 +37,12 @@ define_rewrite_pushdown_rule! {
     name: PushTopNDownIndexScanRule,
     parent_node: TopN,
     child_node: IndexScan,
-    apply: |_ctx, topn_node: &TopNNode, index_scan_node: &IndexScan| {
+    apply: |_ctx, topn_node: &TopNNode, index_scan_node: &IndexScanNode| {
         // 计算需要获取的总行数（TopN没有offset，只有limit）
         let limit_rows = topn_node.limit();
 
         // 检查IndexScan是否已有更严格的limit
-        if let Some(existing_limit) = index_scan_node.limit {
+        if let Some(existing_limit) = index_scan_node.limit() {
             if limit_rows >= existing_limit {
                 // 现有limit更严格，无需转换
                 return Ok(None::<TransformResult>);
@@ -50,7 +50,7 @@ define_rewrite_pushdown_rule! {
         }
 
         // 检查IndexScan是否已有排序条件
-        if !index_scan_node.order_by.is_empty() {
+        if !index_scan_node.order_by().is_empty() {
             // 已有排序条件，避免重复下推
             return Ok(None::<TransformResult>);
         }

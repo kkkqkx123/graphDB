@@ -10,7 +10,7 @@ use crate::query::executor::data_access::{
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::factory::parsers::{parse_edge_direction, parse_vertex_ids};
-use crate::query::planner::plan::algorithms::IndexScan as IndexScanNode;
+use crate::query::planner::plan::core::nodes::access::IndexScanNode;
 use crate::query::planner::plan::core::nodes::{
     EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
     ScanVerticesNode,
@@ -178,14 +178,14 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         let executor = IndexScanExecutor::new(
             node.id(),
             storage,
-            node.space_id,
-            node.tag_id,
-            node.index_id,
-            node.scan_type.as_str(),
-            node.scan_limits.clone(),
-            node.filter.as_ref().and_then(|f| f.get_expression()),
-            node.return_columns.clone(),
-            node.limit.map(|l| l as usize),
+            node.space_id(),
+            node.tag_id(),
+            node.index_id(),
+            node.scan_type().as_str(),
+            node.scan_limits().to_vec(),
+            node.filter().and_then(|f| f.get_expression()),
+            node.return_columns().to_vec(),
+            node.limit().map(|l| l as usize),
             false, // is_edge = false，这是标签索引扫描
             context.expression_context().clone(),
         );

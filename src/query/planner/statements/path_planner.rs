@@ -9,7 +9,7 @@
 //! - 完善路径过滤逻辑
 
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::algorithms::{AllPaths, ShortestPath};
+use crate::query::planner::plan::core::nodes::traversal::{AllPathsNode, ShortestPathNode};
 use crate::query::planner::plan::core::PlanNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
@@ -91,7 +91,7 @@ impl PathPlanner {
 
         // 创建ShortestPath计划节点
         let shortest_path_node =
-            ShortestPath::new(2, left_input, right_node_enum, edge_types, max_steps);
+            ShortestPathNode::new(left_input, right_node_enum, edge_types, max_steps);
 
         Ok(shortest_path_node.into_enum())
     }
@@ -108,8 +108,7 @@ impl PathPlanner {
         let right_node_enum = PlanNodeEnum::Start(right_node);
 
         // 创建AllPaths计划节点
-        let all_paths_node = AllPaths::new(
-            2,
+        let all_paths_node = AllPathsNode::new(
             left_input,
             right_node_enum,
             max_steps,

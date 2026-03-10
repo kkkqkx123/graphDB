@@ -3,7 +3,7 @@
 //! 该规则识别 Limit -> IndexScan 模式，
 //! 并将LIMIT值集成到IndexScan操作中。
 
-use crate::query::planner::plan::algorithms::index_scan::IndexScan;
+use crate::query::planner::plan::core::nodes::access::IndexScanNode;
 use crate::query::planner::plan::core::nodes::operation::sort_node::LimitNode;
 use crate::query::planner::rewrite::macros::define_rewrite_pushdown_rule;
 use crate::query::planner::rewrite::result::TransformResult;
@@ -36,12 +36,12 @@ define_rewrite_pushdown_rule! {
     name: PushLimitDownIndexScanRule,
     parent_node: Limit,
     child_node: IndexScan,
-    apply: |_ctx, limit_node: &LimitNode, index_scan_node: &IndexScan| {
+    apply: |_ctx, limit_node: &LimitNode, index_scan_node: &IndexScanNode| {
         // 计算需要获取的总行数（offset + count）
         let limit_rows = limit_node.offset() + limit_node.count();
 
         // 检查IndexScan是否已有更严格的limit
-        if let Some(existing_limit) = index_scan_node.limit {
+        if let Some(existing_limit) = index_scan_node.limit() {
             if limit_rows >= existing_limit {
                 // 现有limit更严格，无需转换
                 return Ok(None::<TransformResult>);

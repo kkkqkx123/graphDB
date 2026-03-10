@@ -5,7 +5,7 @@
 use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::define_plan_node;
-use crate::query::planner::plan::algorithms::{IndexLimit, ScanType};
+use crate::query::planner::plan::core::nodes::access::index_scan::{IndexLimit, ScanType};
 use crate::query::planner::plan::core::node_id_generator::next_node_id;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;

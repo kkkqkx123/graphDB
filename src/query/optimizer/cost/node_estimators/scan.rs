@@ -10,7 +10,7 @@ use super::NodeEstimator;
 use crate::core::error::optimize::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
+use crate::query::planner::plan::core::nodes::access::{IndexScanNode, ScanType};
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::access::EdgeIndexScanNode;
 
@@ -26,13 +26,13 @@ impl<'a> ScanEstimator<'a> {
     }
 
     /// 估算索引扫描的选择性
-    pub fn estimate_index_scan_selectivity(&self, node: &IndexScan) -> f64 {
-        if node.scan_limits.is_empty() {
+    pub fn estimate_index_scan_selectivity(&self, node: &IndexScanNode) -> f64 {
+        if node.scan_limits().is_empty() {
             return 0.1;
         }
 
         let mut total_selectivity: f64 = 1.0;
-        for limit in &node.scan_limits {
+        for limit in node.scan_limits() {
             let sel = match limit.scan_type {
                 ScanType::Unique => 0.01,
                 ScanType::Prefix => 0.05,
@@ -67,18 +67,18 @@ impl<'a> ScanEstimator<'a> {
     }
 
     /// 从 IndexScan 节点获取标签名称
-    fn get_tag_name_from_index_scan(&self, node: &IndexScan) -> String {
+    fn get_tag_name_from_index_scan(&self, node: &IndexScanNode) -> String {
         // 尝试通过 tag_id 获取标签名称
         if let Some(tag_name) = self
             .cost_calculator
             .statistics_manager()
-            .get_tag_name_by_id(node.tag_id)
+            .get_tag_name_by_id(node.tag_id())
         {
             return tag_name;
         }
 
         // 回退：尝试从 scan_limits 中的列名推断标签名称
-        if let Some(limit) = node.scan_limits.first() {
+        if let Some(limit) = node.scan_limits().first() {
             let column = &limit.column;
             if let Some(dot_pos) = column.find('.') {
                 return column[..dot_pos].to_string();
@@ -89,8 +89,8 @@ impl<'a> ScanEstimator<'a> {
     }
 
     /// 从 IndexScan 节点获取属性名称
-    fn get_property_name_from_index_scan(&self, node: &IndexScan) -> String {
-        if let Some(limit) = node.scan_limits.first() {
+    fn get_property_name_from_index_scan(&self, node: &IndexScanNode) -> String {
+        if let Some(limit) = node.scan_limits().first() {
             limit.column.clone()
         } else {
             "default".to_string()
@@ -165,7 +165,7 @@ mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
     use crate::query::optimizer::stats::{EdgeTypeStatistics, TagStatistics};
-    use crate::query::planner::plan::algorithms::{IndexLimit, ScanType};
+    use crate::query::planner::plan::core::nodes::access::{IndexLimit, ScanType};
     use crate::query::planner::plan::core::nodes::access::graph_scan_node::*;
     use std::sync::Arc;
 
@@ -241,8 +241,7 @@ mod tests {
         let calculator = create_test_calculator_with_stats();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
-            1,
+        let mut node = IndexScanNode::new(
             1,
             1,
             1,
@@ -295,8 +294,7 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let node = crate::query::planner::plan::algorithms::IndexScan::new(
-            1,
+        let node = IndexScanNode::new(
             1,
             1,
             1,
@@ -311,14 +309,13 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
-            1,
+        let mut node = IndexScanNode::new(
             1,
             1,
             1,
             ScanType::Unique,
         );
-        node.scan_limits = vec![IndexLimit::equal("Person.name", "Alice")];
+        node.set_scan_limits(vec![IndexLimit::equal("Person.name", "Alice")]);
         let selectivity = estimator.estimate_index_scan_selectivity(&node);
         assert_eq!(selectivity, 0.01);
     }
@@ -328,14 +325,13 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
-            1,
+        let mut node = IndexScanNode::new(
             1,
             1,
             1,
             ScanType::Prefix,
         );
-        node.scan_limits = vec![IndexLimit::prefix("Person.name", "A")];
+        node.set_scan_limits(vec![IndexLimit::prefix("Person.name", "A")]);
         let selectivity = estimator.estimate_index_scan_selectivity(&node);
         assert_eq!(selectivity, 0.05);
     }
@@ -345,14 +341,13 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
-            1,
+        let mut node = IndexScanNode::new(
             1,
             1,
             1,
             ScanType::Range,
         );
-        node.scan_limits = vec![IndexLimit::range("Person.age", Some("20"), Some("30"), true, true)];
+        node.set_scan_limits(vec![IndexLimit::range("Person.age", Some("20"), Some("30"), true, true)]);
         let selectivity = estimator.estimate_index_scan_selectivity(&node);
         assert_eq!(selectivity, 0.1);
     }
@@ -362,17 +357,16 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
-            1,
+        let mut node = IndexScanNode::new(
             1,
             1,
             1,
             ScanType::Unique,
         );
-        node.scan_limits = vec![
+        node.set_scan_limits(vec![
             IndexLimit::equal("Person.name", "Alice"),
             IndexLimit::equal("Person.age", "25"),
-        ];
+        ]);
         let selectivity = estimator.estimate_index_scan_selectivity(&node);
         assert_eq!(selectivity, 0.0001);
     }

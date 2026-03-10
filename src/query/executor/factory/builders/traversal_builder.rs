@@ -10,7 +10,9 @@ use crate::query::executor::data_processing::graph_traversal::{
 };
 use crate::query::executor::data_processing::graph_traversal::algorithms::MultiShortestPathExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::planner::plan::algorithms::{AllPaths, BFSShortest, MultiShortestPath, ShortestPath};
+use crate::query::planner::plan::core::nodes::traversal::{
+    AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
+};
 use crate::query::planner::plan::core::nodes::{
     ExpandAllNode, ExpandNode, TraverseNode,
 };
@@ -96,7 +98,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// 构建 AllPaths 执行器
     pub fn build_all_paths(
         &self,
-        node: &AllPaths,
+        node: &AllPathsNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -107,8 +109,8 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             Vec::new(), // left_start_ids - 需要从输入获取
             Vec::new(), // right_start_ids - 需要从输入获取
             EdgeDirection::Out,
-            Some(node.edge_types.clone()),
-            node.max_hop,
+            Some(node.edge_types().to_vec()),
+            node.max_hop(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::AllPaths(executor))
@@ -117,7 +119,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// 构建 ShortestPath 执行器
     pub fn build_shortest_path(
         &self,
-        node: &ShortestPath,
+        node: &ShortestPathNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -133,8 +135,8 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             start_vertex_ids,
             end_vertex_ids,
             EdgeDirection::Out, // 默认向外扩展
-            Some(node.edge_types.clone()),
-            Some(node.max_step),
+            Some(node.edge_types().to_vec()),
+            Some(node.max_step()),
             ShortestPathAlgorithmType::BFS,
             context.expression_context().clone(),
         );
@@ -144,7 +146,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// 构建 BFSShortest 执行器
     pub fn build_bfs_shortest(
         &self,
-        node: &BFSShortest,
+        node: &BFSShortestNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -155,10 +157,10 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         let executor = BFSShortestExecutor::new(
             node.id(),
             storage,
-            node.steps,
-            node.edge_types.clone(),
-            node.with_cycle,
-            Some(node.steps),
+            node.steps(),
+            node.edge_types().to_vec(),
+            node.with_cycle(),
+            Some(node.steps()),
             false, // single_shortest
             usize::MAX, // limit
             Value::Null(crate::core::NullType::Null), // start_vertex - 需要从输入获取
@@ -171,7 +173,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     /// 构建 MultiShortestPath 执行器
     pub fn build_multi_shortest_path(
         &self,
-        node: &MultiShortestPath,
+        node: &MultiShortestPathNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -186,7 +188,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             end_vids,
             EdgeDirection::Out,
             None, // edge_types
-            node.steps,
+            node.steps(),
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::MultiShortestPath(executor))

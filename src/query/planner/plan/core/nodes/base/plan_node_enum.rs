@@ -37,9 +37,10 @@ pub use crate::query::planner::plan::core::nodes::data_processing::set_operation
 pub use crate::query::planner::plan::core::nodes::operation::sort_node::{LimitNode, SortNode, TopNNode};
 pub use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 pub use crate::query::planner::plan::core::nodes::traversal::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
-pub use crate::query::planner::plan::algorithms::{
-    AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
+pub use crate::query::planner::plan::core::nodes::traversal::path_algorithms::{
+    AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
+pub use crate::query::planner::plan::core::nodes::access::index_scan::{IndexScanNode, IndexLimit, OrderByItem, ScanType};
 
 /// PlanNode 枚举，包含所有可能的节点类型
 ///
@@ -54,7 +55,7 @@ pub enum PlanNodeEnum {
     ScanVertices(ScanVerticesNode),
     ScanEdges(ScanEdgesNode),
     EdgeIndexScan(EdgeIndexScanNode),
-    IndexScan(IndexScan),
+    IndexScan(IndexScanNode),
 
     // ========== 操作节点 ==========
     Project(ProjectNode),
@@ -99,10 +100,10 @@ pub enum PlanNodeEnum {
     Assign(AssignNode),
 
     // ========== 算法节点 ==========
-    MultiShortestPath(MultiShortestPath),
-    BFSShortest(BFSShortest),
-    AllPaths(AllPaths),
-    ShortestPath(ShortestPath),
+    MultiShortestPath(MultiShortestPathNode),
+    BFSShortest(BFSShortestNode),
+    AllPaths(AllPathsNode),
+    ShortestPath(ShortestPathNode),
 
     // ========== 管理节点 - 空间 ==========
     CreateSpace(CreateSpaceNode),
@@ -271,7 +272,7 @@ crate::define_enum_as_methods! {
     (ScanVertices, as_scan_vertices, ScanVerticesNode),
     (ScanEdges, as_scan_edges, ScanEdgesNode),
     (EdgeIndexScan, as_edge_index_scan, EdgeIndexScanNode),
-    (IndexScan, as_index_scan, IndexScan),
+    (IndexScan, as_index_scan, IndexScanNode),
     // 操作节点
     (Project, as_project, ProjectNode),
     (Filter, as_filter, FilterNode),
@@ -310,10 +311,10 @@ crate::define_enum_as_methods! {
     (Materialize, as_materialize, MaterializeNode),
     (Assign, as_assign, AssignNode),
     // 算法节点
-    (MultiShortestPath, as_multi_shortest_path, MultiShortestPath),
-    (BFSShortest, as_bfs_shortest, BFSShortest),
-    (AllPaths, as_all_paths, AllPaths),
-    (ShortestPath, as_shortest_path, ShortestPath),
+    (MultiShortestPath, as_multi_shortest_path, MultiShortestPathNode),
+    (BFSShortest, as_bfs_shortest, BFSShortestNode),
+    (AllPaths, as_all_paths, AllPathsNode),
+    (ShortestPath, as_shortest_path, ShortestPathNode),
     // 管理节点 - 空间
     (CreateSpace, as_create_space, CreateSpaceNode),
     (DropSpace, as_drop_space, DropSpaceNode),
@@ -370,7 +371,7 @@ crate::define_enum_as_mut_methods! {
     (ScanVertices, as_scan_vertices_mut, ScanVerticesNode),
     (ScanEdges, as_scan_edges_mut, ScanEdgesNode),
     (EdgeIndexScan, as_edge_index_scan_mut, EdgeIndexScanNode),
-    (IndexScan, as_index_scan_mut, IndexScan),
+    (IndexScan, as_index_scan_mut, IndexScanNode),
     // 操作节点
     (Project, as_project_mut, ProjectNode),
     (Filter, as_filter_mut, FilterNode),
@@ -409,10 +410,10 @@ crate::define_enum_as_mut_methods! {
     (Materialize, as_materialize_mut, MaterializeNode),
     (Assign, as_assign_mut, AssignNode),
     // 算法节点
-    (MultiShortestPath, as_multi_shortest_path_mut, MultiShortestPath),
-    (BFSShortest, as_bfs_shortest_mut, BFSShortest),
-    (AllPaths, as_all_paths_mut, AllPaths),
-    (ShortestPath, as_shortest_path_mut, ShortestPath),
+    (MultiShortestPath, as_multi_shortest_path_mut, MultiShortestPathNode),
+    (BFSShortest, as_bfs_shortest_mut, BFSShortestNode),
+    (AllPaths, as_all_paths_mut, AllPathsNode),
+    (ShortestPath, as_shortest_path_mut, ShortestPathNode),
     // 管理节点 - 空间
     (CreateSpace, as_create_space_mut, CreateSpaceNode),
     (DropSpace, as_drop_space_mut, DropSpaceNode),

@@ -12,7 +12,7 @@ use crate::core::value::types::NullType;
 use crate::core::Expression;
 use crate::core::types::Index;
 use crate::query::parser::ast::{LookupStmt, Stmt};
-use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
+use crate::query::planner::plan::core::nodes::access::{IndexScanNode, ScanType};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -69,7 +69,7 @@ impl Planner for LookupPlanner {
 
         // 2. 检查索引提示
         let mut selected_index: Option<Index> = None;
-        let mut scan_limits: Vec<crate::query::planner::plan::algorithms::IndexLimit> = Vec::new();
+        let mut scan_limits: Vec<crate::query::planner::plan::core::nodes::access::IndexLimit> = Vec::new();
         let mut scan_type = ScanType::Full;
 
         if !validation_info.index_hints.is_empty() {
@@ -106,7 +106,7 @@ impl Planner for LookupPlanner {
 
             // 将列名转换为 IndexLimit
             for column in &hint.columns {
-                scan_limits.push(crate::query::planner::plan::algorithms::IndexLimit::equal(
+                scan_limits.push(crate::query::planner::plan::core::nodes::access::IndexLimit::equal(
                     column.clone(),
                     "",
                 ));
@@ -128,10 +128,10 @@ impl Planner for LookupPlanner {
         let index_id = selected_index.as_ref().map(|idx| idx.id).unwrap_or(0);
 
         // 4. 创建 IndexScan 节点
-        let mut index_scan_node = IndexScan::new(-1, space_id, 0, index_id, scan_type);
+        let mut index_scan_node = IndexScanNode::new(space_id, 0, index_id, scan_type);
 
         // 5. 设置扫描限制和返回列
-        index_scan_node.scan_limits = scan_limits;
+        index_scan_node.set_scan_limits(scan_limits);
 
         let mut current_node: PlanNodeEnum = PlanNodeEnum::IndexScan(index_scan_node);
 

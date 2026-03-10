@@ -1,12 +1,11 @@
-//! 搜索算法相关的计划节点
+//! 索引扫描相关的计划节点
 //! 包含索引扫描等搜索相关操作
 
-use crate::core::types::expression::ContextualExpression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::graph_schema::OrderDirection;
+use crate::define_plan_node;
+use crate::query::planner::plan::core::node_id_generator::next_node_id;
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
-    PlanNode, PlanNodeClonable, ZeroInputNode,
-};
 use crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 
 /// 排序项定义
@@ -129,31 +128,27 @@ impl IndexLimit {
     }
 }
 
-// 索引扫描的计划节点
-#[derive(Debug, Clone)]
-pub struct IndexScan {
-    pub id: i64,
-    pub deps: Vec<Box<PlanNodeEnum>>,
-    pub output_var: Option<String>,
-    pub col_names: Vec<String>,
-    pub space_id: u64,
-    pub tag_id: i32,
-    pub index_id: i32,
-    pub scan_type: ScanType,          // 使用枚举类型代替字符串
-    pub scan_limits: Vec<IndexLimit>, // 索引扫描限制
-    pub filter: Option<ContextualExpression>,
-    pub return_columns: Vec<String>,
-    pub limit: Option<i64>,         // 限制返回的记录数量
-    pub order_by: Vec<OrderByItem>, // 排序条件（用于TopN下推）
+/// 索引扫描计划节点
+define_plan_node! {
+    pub struct IndexScanNode {
+        space_id: u64,
+        tag_id: i32,
+        index_id: i32,
+        scan_type: ScanType,
+        scan_limits: Vec<IndexLimit>,
+        filter: Option<ContextualExpression>,
+        return_columns: Vec<String>,
+        limit: Option<i64>,
+        order_by: Vec<OrderByItem>,
+    }
+    enum: IndexScan
+    input: ZeroInputNode
 }
 
-impl IndexScan {
-    pub fn new(id: i64, space_id: u64, tag_id: i32, index_id: i32, scan_type: ScanType) -> Self {
+impl IndexScanNode {
+    pub fn new(space_id: u64, tag_id: i32, index_id: i32, scan_type: ScanType) -> Self {
         Self {
-            id,
-            deps: Vec::new(),
-            output_var: None,
-            col_names: Vec::new(),
+            id: next_node_id(),
             space_id,
             tag_id,
             index_id,
@@ -163,19 +158,19 @@ impl IndexScan {
             return_columns: Vec::new(),
             limit: None,
             order_by: Vec::new(),
+            output_var: None,
+            col_names: Vec::new(),
         }
     }
 
-    /// 从字符串创建新的 IndexScan
+    /// 从字符串创建新的 IndexScanNode
     pub fn new_with_str(
-        id: i64,
         space_id: u64,
         tag_id: i32,
         index_id: i32,
         scan_type: &str,
     ) -> Self {
         Self::new(
-            id,
             space_id,
             tag_id,
             index_id,
@@ -207,80 +202,58 @@ impl IndexScan {
         format!("index_{}", self.index_id)
     }
 
-    /// 获取节点的唯一ID
-    pub fn id(&self) -> i64 {
-        self.id
+    pub fn space_id(&self) -> u64 {
+        self.space_id
     }
 
-    /// 获取类型名称
-    pub fn type_name(&self) -> &'static str {
-        "IndexScan"
+    pub fn tag_id(&self) -> i32 {
+        self.tag_id
     }
 
-    /// 获取节点的输出变量
-    pub fn output_var(&self) -> Option<&str> {
-        self.output_var.as_deref()
+    pub fn index_id(&self) -> i32 {
+        self.index_id
     }
 
-    /// 获取列名列表
-    pub fn col_names(&self) -> &[String] {
-        &self.col_names
+    pub fn scan_type(&self) -> ScanType {
+        self.scan_type
     }
 
-    /// 设置节点的输出变量
-    pub fn set_output_var(&mut self, var: String) {
-        self.output_var = Some(var);
+    pub fn scan_limits(&self) -> &[IndexLimit] {
+        &self.scan_limits
     }
 
-    /// 使用访问者模式访问节点
+    pub fn set_scan_limits(&mut self, limits: Vec<IndexLimit>) {
+        self.scan_limits = limits;
+    }
+
+    pub fn filter(&self) -> Option<&ContextualExpression> {
+        self.filter.as_ref()
+    }
+
+    pub fn set_filter(&mut self, filter: ContextualExpression) {
+        self.filter = Some(filter);
+    }
+
+    pub fn return_columns(&self) -> &[String] {
+        &self.return_columns
+    }
+
+    pub fn set_return_columns(&mut self, columns: Vec<String>) {
+        self.return_columns = columns;
+    }
+
+    pub fn limit(&self) -> Option<i64> {
+        self.limit
+    }
+
+    pub fn order_by(&self) -> &[OrderByItem] {
+        &self.order_by
+    }
+
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
         V: PlanNodeVisitor,
     {
         visitor.visit_index_scan(self)
-    }
-}
-
-impl ZeroInputNode for IndexScan {}
-
-impl PlanNodeClonable for IndexScan {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        PlanNodeEnum::IndexScan(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        PlanNodeEnum::IndexScan(cloned)
-    }
-}
-
-impl PlanNode for IndexScan {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn name(&self) -> &'static str {
-        "IndexScan"
-    }
-
-    fn output_var(&self) -> Option<&str> {
-        self.output_var.as_deref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn set_output_var(&mut self, var: String) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn into_enum(self) -> PlanNodeEnum {
-        PlanNodeEnum::IndexScan(self)
     }
 }

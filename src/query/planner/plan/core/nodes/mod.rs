@@ -38,4 +38,8 @@ pub use management::{
     TagAlterInfo, TagManageInfo,
 };
 pub use operation::{FilterNode, LimitNode, ProjectNode, SampleNode, SortItem, SortNode, TopNNode};
-pub use traversal::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
+pub use traversal::{
+    AllPathsNode, AppendVerticesNode, BFSShortestNode, ExpandAllNode, ExpandNode,
+    MultiShortestPathNode, ShortestPathNode, TraverseNode,
+};
+pub use access::{IndexLimit, IndexScanNode, OrderByItem, ScanType};

@@ -38,9 +38,10 @@ pub use crate::query::planner::plan::core::nodes::data_processing::set_operation
 pub use crate::query::planner::plan::core::nodes::operation::sort_node::{LimitNode, SortNode, TopNNode};
 pub use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 pub use crate::query::planner::plan::core::nodes::traversal::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
-pub use crate::query::planner::plan::algorithms::{
-    AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
+pub use crate::query::planner::plan::core::nodes::traversal::path_algorithms::{
+    AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
+pub use crate::query::planner::plan::core::nodes::access::index_scan::IndexScanNode;
 
 /// 生成 PlanNode 访问者默认方法的宏
 macro_rules! impl_visitor_methods {
@@ -125,11 +126,11 @@ pub trait PlanNodeVisitor {
     );
 
     impl_visitor_methods!(
-        IndexScan, IndexScan, visit_index_scan;
-        MultiShortestPath, MultiShortestPath, visit_multi_shortest_path;
-        BFSShortest, BFSShortest, visit_bfs_shortest;
-        AllPaths, AllPaths, visit_all_paths;
-        ShortestPath, ShortestPath, visit_shortest_path;
+        IndexScan, IndexScanNode, visit_index_scan;
+        MultiShortestPath, MultiShortestPathNode, visit_multi_shortest_path;
+        BFSShortest, BFSShortestNode, visit_bfs_shortest;
+        AllPaths, AllPathsNode, visit_all_paths;
+        ShortestPath, ShortestPathNode, visit_shortest_path;
     );
 
     impl_visitor_methods!(

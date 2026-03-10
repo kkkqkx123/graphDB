@@ -74,7 +74,9 @@ impl<'a> NodeEstimator for GraphAlgorithmEstimator<'a> {
 mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
-    use crate::query::planner::plan::algorithms::*;
+    use crate::query::planner::plan::core::nodes::traversal::{
+        AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
+    };
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use std::sync::Arc;
 
@@ -95,8 +97,8 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = PlanNodeEnum::ShortestPath(ShortestPath::new(
-            1, left, right, vec!["friend".to_string()], 5,
+        let node = PlanNodeEnum::ShortestPath(ShortestPathNode::new(
+            left, right, vec!["friend".to_string()], 5,
         ));
 
         let child_estimates = vec![];
@@ -115,8 +117,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = PlanNodeEnum::AllPaths(AllPaths::new(
-            1,
+        let node = PlanNodeEnum::AllPaths(AllPathsNode::new(
             left,
             right,
             3,
@@ -142,7 +143,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = PlanNodeEnum::MultiShortestPath(MultiShortestPath::new(1, left, right, 4));
+        let node = PlanNodeEnum::MultiShortestPath(MultiShortestPathNode::new(left, right, 4));
 
         let child_estimates = vec![];
         let result = estimator.estimate(&node, &child_estimates);
@@ -160,8 +161,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = PlanNodeEnum::BFSShortest(BFSShortest::new(
-            1,
+        let node = PlanNodeEnum::BFSShortest(BFSShortestNode::new(
             left,
             right,
             3,
@@ -198,8 +198,7 @@ mod tests {
         for max_step in [1, 3, 5, 10] {
             let left = create_test_start_node();
             let right = create_test_start_node();
-            let node = PlanNodeEnum::ShortestPath(ShortestPath::new(
-                1,
+            let node = PlanNodeEnum::ShortestPath(ShortestPathNode::new(
                 left,
                 right,
                 vec!["friend".to_string()],
@@ -222,8 +221,7 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = PlanNodeEnum::AllPaths(AllPaths::new(
-            1,
+        let node = PlanNodeEnum::AllPaths(AllPathsNode::new(
             left,
             right,
             15,

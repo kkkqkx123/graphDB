@@ -63,8 +63,9 @@ use crate::query::planner::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
 };
 
-use crate::query::planner::plan::algorithms::{
-    AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
+use crate::query::planner::plan::core::nodes::access::IndexScanNode;
+use crate::query::planner::plan::core::nodes::traversal::{
+    AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
 
 /// 子节点重写访问者
@@ -264,16 +265,16 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         FullOuterJoinNode,
         FullOuterJoin,
         visit_multi_shortest_path,
-        MultiShortestPath,
+        MultiShortestPathNode,
         MultiShortestPath,
         visit_bfs_shortest,
-        BFSShortest,
+        BFSShortestNode,
         BFSShortest,
         visit_all_paths,
-        AllPaths,
+        AllPathsNode,
         AllPaths,
         visit_shortest_path,
-        ShortestPath,
+        ShortestPathNode,
         ShortestPath
     );
 
@@ -384,7 +385,7 @@ impl<'a> PlanNodeVisitor for ChildRewriteVisitor<'a> {
         ChangePasswordNode,
         ChangePassword,
         visit_index_scan,
-        IndexScan,
+        IndexScanNode,
         IndexScan
     );
 

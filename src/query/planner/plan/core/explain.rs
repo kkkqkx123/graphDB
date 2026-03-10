@@ -180,8 +180,9 @@ impl Default for PlanDescription {
     }
 }
 
-use crate::query::planner::plan::algorithms::{
-    AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
+use crate::query::planner::plan::core::nodes::access::IndexScanNode;
+use crate::query::planner::plan::core::nodes::traversal::{
+    AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
 use crate::query::planner::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
@@ -393,23 +394,23 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.create_description("Assign", node);
     }
 
-    fn visit_index_scan(&mut self, node: &IndexScan) {
+    fn visit_index_scan(&mut self, node: &IndexScanNode) {
         self.create_description("IndexScan", node);
     }
 
-    fn visit_multi_shortest_path(&mut self, node: &MultiShortestPath) {
+    fn visit_multi_shortest_path(&mut self, node: &MultiShortestPathNode) {
         self.create_description("MultiShortestPath", node);
     }
 
-    fn visit_bfs_shortest(&mut self, node: &BFSShortest) {
+    fn visit_bfs_shortest(&mut self, node: &BFSShortestNode) {
         self.create_description("BFSShortest", node);
     }
 
-    fn visit_all_paths(&mut self, node: &AllPaths) {
+    fn visit_all_paths(&mut self, node: &AllPathsNode) {
         self.create_description("AllPaths", node);
     }
 
-    fn visit_shortest_path(&mut self, node: &ShortestPath) {
+    fn visit_shortest_path(&mut self, node: &ShortestPathNode) {
         self.create_description("ShortestPath", node);
     }
 
