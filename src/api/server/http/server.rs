@@ -4,8 +4,10 @@
 
 use crate::api::core::{QueryApi, SchemaApi};
 use crate::api::server::auth::PasswordAuthenticator;
+use crate::api::server::batch::BatchManager;
 use crate::api::server::graph_service::GraphService;
 use crate::api::server::session::GraphSessionManager;
+use crate::api::server::statement::StatementManager;
 use crate::config::Config;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
@@ -22,6 +24,8 @@ pub struct HttpServer<S: StorageClient + Clone + 'static> {
     txn_manager: Arc<TransactionManager>,
     schema_api: SchemaApi<S>,
     auth_service: PasswordAuthenticator,
+    batch_manager: Arc<BatchManager<S>>,
+    statement_manager: Arc<StatementManager<S>>,
 }
 
 impl<S: StorageClient + Clone + 'static> HttpServer<S> {
@@ -32,12 +36,15 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
         txn_manager: Arc<TransactionManager>,
         config: &Config,
     ) -> Self {
+        let storage_arc = Arc::new(storage.lock().clone());
         Self {
             graph_service: graph_service.clone(),
             query_api: QueryApi::new(storage.clone()),
             txn_manager,
             schema_api: SchemaApi::new(storage.clone()),
             auth_service: PasswordAuthenticator::new_default(config.auth.clone()),
+            batch_manager: Arc::new(BatchManager::new(storage_arc.clone())),
+            statement_manager: Arc::new(StatementManager::new(storage_arc)),
         }
     }
 
@@ -69,5 +76,15 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     /// 获取认证服务
     pub fn get_auth_service(&self) -> &PasswordAuthenticator {
         &self.auth_service
+    }
+
+    /// 获取批量任务管理器
+    pub fn get_batch_manager(&self) -> Arc<BatchManager<S>> {
+        self.batch_manager.clone()
+    }
+
+    /// 获取预编译语句管理器
+    pub fn get_statement_manager(&self) -> Arc<StatementManager<S>> {
+        self.statement_manager.clone()
     }
 }

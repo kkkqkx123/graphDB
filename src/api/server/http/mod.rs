@@ -10,6 +10,6 @@ pub mod server;
 pub mod state;
 
 pub use error::HttpError;
-pub use handlers::query::{QueryRequest, QueryResponse};
+pub use handlers::query_types::{QueryRequest, QueryResponse};
 pub use server::HttpServer;
 pub use state::AppState;

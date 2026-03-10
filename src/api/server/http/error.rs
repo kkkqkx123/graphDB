@@ -4,6 +4,7 @@ use axum::{
     Json,
 };
 use serde_json::json;
+use std::fmt;
 
 #[derive(Debug)]
 pub enum HttpError {
@@ -12,6 +13,19 @@ pub enum HttpError {
     NotFound(String),
     InternalError(String),
 }
+
+impl fmt::Display for HttpError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            HttpError::BadRequest(msg) => write!(f, "Bad Request: {}", msg),
+            HttpError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
+            HttpError::NotFound(msg) => write!(f, "Not Found: {}", msg),
+            HttpError::InternalError(msg) => write!(f, "Internal Error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for HttpError {}
 
 impl IntoResponse for HttpError {
     fn into_response(self) -> Response {

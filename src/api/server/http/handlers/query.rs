@@ -2,25 +2,11 @@ use axum::{
     extract::{Json, State},
     response::Json as JsonResponse,
 };
-use serde::{Deserialize, Serialize};
 use tokio::task;
 
 use crate::api::server::http::{error::HttpError, state::AppState};
+use crate::api::server::http::handlers::query_types::*;
 use crate::storage::StorageClient;
-
-#[derive(Debug, Deserialize)]
-pub struct QueryRequest {
-    pub query: String,
-    pub session_id: i64,
-    #[serde(default)]
-    pub parameters: std::collections::HashMap<String, String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct QueryResponse {
-    pub result: String,
-    pub execution_time_ms: u64,
-}
 
 pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
@@ -31,23 +17,24 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
 
         // 通过 GraphService 执行查询
         match graph_service.execute(request.session_id, &request.query) {
-            Ok(result) => Ok::<_, HttpError>(QueryResponse {
-                result,
-                execution_time_ms: 0, // GraphService 返回的结果中不包含执行时间，后续可以改进
-            }),
-            Err(e) => Err(HttpError::InternalError(format!("Query execution failed: {}", e))),
+            Ok(result_str) => {
+                // TODO: 解析字符串结果为结构化数据
+                // 目前先使用字符串结果，后续需要改进 GraphService 返回结构化结果
+                Ok::<_, HttpError>(QueryResponse::from_string(result_str))
+            }
+            Err(e) => {
+                Ok::<_, HttpError>(QueryResponse::error(
+                    "QUERY_ERROR".to_string(),
+                    e.to_string(),
+                    None,
+                ))
+            }
         }
     })
     .await
     .map_err(|e| HttpError::InternalError(format!("Task execution failed: {}", e)))?;
 
     Ok(JsonResponse(result?))
-}
-
-#[derive(Debug, Serialize)]
-pub struct ValidateResponse {
-    pub valid: bool,
-    pub message: String,
 }
 
 pub async fn validate(
