@@ -9,11 +9,13 @@
 //! - `aggregate_strategy` - 聚合策略选择器
 //! - `join_order` - 连接顺序优化器
 //! - `traversal_direction` - 图遍历方向优化器
+//! - `bidirectional_traversal` - 双向遍历优化器
 //! - `topn_optimization` - TopN 优化器（Sort + Limit 到 TopN 的转换）
 //! - `subquery_unnesting` - 子查询去关联化优化器
 //! - `materialization` - CTE 物化优化器
 
 pub mod aggregate_strategy;
+pub mod bidirectional_traversal;
 pub mod index;
 pub mod join_order;
 pub mod materialization;
@@ -35,6 +37,10 @@ pub use aggregate_strategy::{
 
 pub use join_order::{
     JoinCondition, JoinOrderOptimizer, JoinOrderResult, OptimizationMethod, TableInfo,
+};
+
+pub use bidirectional_traversal::{
+    BidirectionalDecision, BidirectionalTraversalOptimizer, DepthAllocationContext,
 };
 
 pub use traversal_direction::{

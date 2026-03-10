@@ -3,11 +3,11 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 2
-- **Total Issues**: 2
+- **Total Warnings**: 1
+- **Total Issues**: 1
 - **Unique Error Patterns**: 0
 - **Unique Warning Patterns**: 1
-- **Files with Issues**: 2
+- **Files with Issues**: 1
 
 ## Error Statistics
 
@@ -15,29 +15,24 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 2
+**Total Warnings**: 1
 
 ### Warning Type Breakdown
 
-- **warning**: 2 warnings
+- **warning**: 1 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\planner\plan\core\nodes\traversal\path_algorithms.rs`: 1 warnings
-- `src\query\planner\plan\core\nodes\access\index_scan.rs`: 1 warnings
+- `src\query\optimizer\cost\expression_parser.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused doc comment: rustdoc does not generate documentation for macro invocations
+### warning: method `parse_collect_function` is never used
 
-**Total Occurrences**: 2  
-**Unique Files**: 2
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
-#### `src\query\planner\plan\core\nodes\traversal\path_algorithms.rs`: 1 occurrences
+#### `src\query\optimizer\cost\expression_parser.rs`: 1 occurrences
 
-- Line 256: unused doc comment: rustdoc does not generate documentation for macro invocations
-
-#### `src\query\planner\plan\core\nodes\access\index_scan.rs`: 1 occurrences
-
-- Line 130: unused doc comment: rustdoc does not generate documentation for macro invocations
+- Line 82: method `parse_collect_function` is never used
 

@@ -164,9 +164,16 @@ impl IndexSelector {
         for predicate in &covered_predicates {
             let selectivity = match predicate.operator {
                 PredicateOperator::Equal => {
+                    // 尝试从表达式中提取值
+                    let value = if let Expression::Literal(v) = &predicate.value {
+                        Some(v.clone())
+                    } else {
+                        None
+                    };
                     self.selectivity_estimator.estimate_equality_selectivity(
                         Some(&index.schema_name),
                         &predicate.property_name,
+                        value.as_ref(),
                     )
                 }
                 PredicateOperator::LessThan | PredicateOperator::LessThanOrEqual => self

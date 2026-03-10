@@ -4,7 +4,10 @@
 //! - 估算 Unwind 节点的列表大小
 //! - 估算 Loop 节点的迭代次数
 //! - 解析各种表达式模式
+//! - 表达式常量折叠优化
 
+use crate::core::types::{BinaryOperator, Expression, UnaryOperator};
+use crate::core::value::Value;
 use crate::query::optimizer::cost::config::CostModelConfig;
 
 /// 表达式解析器
@@ -73,6 +76,270 @@ impl ExpressionParser {
         }
 
         None
+    }
+
+    // ==================== 常量折叠优化 ====================
+
+    /// 尝试折叠表达式中的常量
+    ///
+    /// 对表达式进行递归遍历，将所有可以计算的常量表达式替换为字面量
+    /// 例如：1 + 2 -> 3, "hello" + "world" -> "helloworld"
+    ///
+    /// # 参数
+    /// - `expr`: 输入表达式
+    ///
+    /// # 返回值
+    /// 折叠后的表达式
+    pub fn fold_constants(&self, expr: &Expression) -> Expression {
+        match expr {
+            Expression::Binary { left, op, right } => {
+                let folded_left = self.fold_constants(left);
+                let folded_right = self.fold_constants(right);
+
+                // 如果两边都是常量，直接计算结果
+                if let (Expression::Literal(l), Expression::Literal(r)) = (&folded_left, &folded_right)
+                {
+                    if let Some(result) = self.evaluate_binary_op(op, l, r) {
+                        return Expression::Literal(result);
+                    }
+                }
+
+                Expression::Binary {
+                    left: Box::new(folded_left),
+                    op: op.clone(),
+                    right: Box::new(folded_right),
+                }
+            }
+            Expression::Unary { op, operand } => {
+                let folded_operand = self.fold_constants(operand);
+
+                // 如果操作数是常量，直接计算结果
+                if let Expression::Literal(v) = &folded_operand {
+                    if let Some(result) = self.evaluate_unary_op(op, v) {
+                        return Expression::Literal(result);
+                    }
+                }
+
+                Expression::Unary {
+                    op: op.clone(),
+                    operand: Box::new(folded_operand),
+                }
+            }
+            Expression::Function { name, args } => {
+                let folded_args: Vec<Expression> =
+                    args.iter().map(|arg| self.fold_constants(arg)).collect();
+
+                // 如果所有参数都是常量，尝试计算函数
+                if folded_args.iter().all(|arg| matches!(arg, Expression::Literal(_))) {
+                    let arg_values: Vec<&Value> = folded_args
+                        .iter()
+                        .filter_map(|arg| match arg {
+                            Expression::Literal(v) => Some(v),
+                            _ => None,
+                        })
+                        .collect();
+
+                    if let Some(result) = self.evaluate_function(name, &arg_values) {
+                        return Expression::Literal(result);
+                    }
+                }
+
+                Expression::Function {
+                    name: name.clone(),
+                    args: folded_args,
+                }
+            }
+            Expression::List(items) => {
+                let folded_items: Vec<Expression> =
+                    items.iter().map(|item| self.fold_constants(item)).collect();
+                Expression::List(folded_items)
+            }
+            Expression::Map(entries) => {
+                let folded_entries: Vec<(String, Expression)> = entries
+                    .iter()
+                    .map(|(k, v)| (k.clone(), self.fold_constants(v)))
+                    .collect();
+                Expression::Map(folded_entries)
+            }
+            // 其他表达式类型保持不变
+            _ => expr.clone(),
+        }
+    }
+
+    /// 评估二元操作
+    fn evaluate_binary_op(&self, op: &BinaryOperator, left: &Value, right: &Value) -> Option<Value> {
+        match op {
+            BinaryOperator::Add => self.add_values(left, right),
+            BinaryOperator::Subtract => self.subtract_values(left, right),
+            BinaryOperator::Multiply => self.multiply_values(left, right),
+            BinaryOperator::Divide => self.divide_values(left, right),
+            BinaryOperator::Modulo => self.modulo_values(left, right),
+            BinaryOperator::Equal => Some(Value::Bool(self.compare_values(left, right) == Some(std::cmp::Ordering::Equal))),
+            BinaryOperator::NotEqual => Some(Value::Bool(self.compare_values(left, right) != Some(std::cmp::Ordering::Equal))),
+            BinaryOperator::LessThan => Some(Value::Bool(self.compare_values(left, right) == Some(std::cmp::Ordering::Less))),
+            BinaryOperator::GreaterThan => Some(Value::Bool(self.compare_values(left, right) == Some(std::cmp::Ordering::Greater))),
+            BinaryOperator::LessThanOrEqual => {
+                let cmp = self.compare_values(left, right);
+                Some(Value::Bool(cmp == Some(std::cmp::Ordering::Less) || cmp == Some(std::cmp::Ordering::Equal)))
+            }
+            BinaryOperator::GreaterThanOrEqual => {
+                let cmp = self.compare_values(left, right);
+                Some(Value::Bool(cmp == Some(std::cmp::Ordering::Greater) || cmp == Some(std::cmp::Ordering::Equal)))
+            }
+            BinaryOperator::And => self.logical_and(left, right),
+            BinaryOperator::Or => self.logical_or(left, right),
+            BinaryOperator::StringConcat => self.concat_values(left, right),
+            _ => None,
+        }
+    }
+
+    /// 评估一元操作
+    fn evaluate_unary_op(&self, op: &UnaryOperator, operand: &Value) -> Option<Value> {
+        match op {
+            UnaryOperator::Not => match operand {
+                Value::Bool(b) => Some(Value::Bool(!b)),
+                _ => None,
+            },
+            UnaryOperator::Minus => match operand {
+                Value::Int(i) => Some(Value::Int(-i)),
+                Value::Float(f) => Some(Value::Float(-f)),
+                _ => None,
+            },
+            UnaryOperator::IsNull => Some(Value::Bool(operand.is_null())),
+            UnaryOperator::IsNotNull => Some(Value::Bool(!operand.is_null())),
+            _ => None,
+        }
+    }
+
+    /// 评估函数
+    fn evaluate_function(&self, name: &str, args: &[&Value]) -> Option<Value> {
+        let name_lower = name.to_lowercase();
+
+        match name_lower.as_str() {
+            "abs" if args.len() == 1 => match args[0] {
+                Value::Int(i) => Some(Value::Int(i.abs())),
+                Value::Float(f) => Some(Value::Float(f.abs())),
+                _ => None,
+            },
+            "length" | "size" if args.len() == 1 => match args[0] {
+                Value::String(s) => Some(Value::Int(s.len() as i64)),
+                Value::List(list) => Some(Value::Int(list.len() as i64)),
+                _ => None,
+            },
+            "upper" | "toupper" if args.len() == 1 => match args[0] {
+                Value::String(s) => Some(Value::String(s.to_uppercase())),
+                _ => None,
+            },
+            "lower" | "tolower" if args.len() == 1 => match args[0] {
+                Value::String(s) => Some(Value::String(s.to_lowercase())),
+                _ => None,
+            },
+            "substring" | "substr" if args.len() >= 2 => {
+                match (args[0], args.get(1).copied()) {
+                    (Value::String(s), Some(Value::Int(start))) => {
+                        let start_idx = if *start >= 0 { *start as usize } else { 0 };
+                        let end_idx = if args.len() >= 3 {
+                            match args[2] {
+                                Value::Int(len) => start_idx + (*len as usize),
+                                _ => s.len(),
+                            }
+                        } else {
+                            s.len()
+                        };
+                        Some(Value::String(s.chars().skip(start_idx).take(end_idx - start_idx).collect()))
+                    }
+                    _ => None,
+                }
+            }
+            "trim" if args.len() == 1 => match args[0] {
+                Value::String(s) => Some(Value::String(s.trim().to_string())),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    // ==================== 值操作辅助方法 ====================
+
+    fn add_values(&self, left: &Value, right: &Value) -> Option<Value> {
+        match (left, right) {
+            (Value::Int(l), Value::Int(r)) => Some(Value::Int(l + r)),
+            (Value::Float(l), Value::Float(r)) => Some(Value::Float(l + r)),
+            (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 + r)),
+            (Value::Float(l), Value::Int(r)) => Some(Value::Float(l + *r as f64)),
+            (Value::String(l), Value::String(r)) => Some(Value::String(format!("{}{}", l, r))),
+            _ => None,
+        }
+    }
+
+    fn subtract_values(&self, left: &Value, right: &Value) -> Option<Value> {
+        match (left, right) {
+            (Value::Int(l), Value::Int(r)) => Some(Value::Int(l - r)),
+            (Value::Float(l), Value::Float(r)) => Some(Value::Float(l - r)),
+            (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 - r)),
+            (Value::Float(l), Value::Int(r)) => Some(Value::Float(l - *r as f64)),
+            _ => None,
+        }
+    }
+
+    fn multiply_values(&self, left: &Value, right: &Value) -> Option<Value> {
+        match (left, right) {
+            (Value::Int(l), Value::Int(r)) => Some(Value::Int(l * r)),
+            (Value::Float(l), Value::Float(r)) => Some(Value::Float(l * r)),
+            (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 * r)),
+            (Value::Float(l), Value::Int(r)) => Some(Value::Float(l * *r as f64)),
+            _ => None,
+        }
+    }
+
+    fn divide_values(&self, left: &Value, right: &Value) -> Option<Value> {
+        match (left, right) {
+            (Value::Int(l), Value::Int(r)) if *r != 0 => Some(Value::Int(l / r)),
+            (Value::Float(l), Value::Float(r)) if *r != 0.0 => Some(Value::Float(l / r)),
+            (Value::Int(l), Value::Float(r)) if *r != 0.0 => Some(Value::Float(*l as f64 / r)),
+            (Value::Float(l), Value::Int(r)) if *r != 0 => Some(Value::Float(l / *r as f64)),
+            _ => None,
+        }
+    }
+
+    fn modulo_values(&self, left: &Value, right: &Value) -> Option<Value> {
+        match (left, right) {
+            (Value::Int(l), Value::Int(r)) if *r != 0 => Some(Value::Int(l % r)),
+            _ => None,
+        }
+    }
+
+    fn compare_values(&self, left: &Value, right: &Value) -> Option<std::cmp::Ordering> {
+        match (left, right) {
+            (Value::Int(l), Value::Int(r)) => Some(l.cmp(r)),
+            (Value::Float(l), Value::Float(r)) => l.partial_cmp(r),
+            (Value::Int(l), Value::Float(r)) => (*l as f64).partial_cmp(r),
+            (Value::Float(l), Value::Int(r)) => l.partial_cmp(&(*r as f64)),
+            (Value::String(l), Value::String(r)) => Some(l.cmp(r)),
+            (Value::Bool(l), Value::Bool(r)) => Some(l.cmp(r)),
+            _ => None,
+        }
+    }
+
+    fn logical_and(&self, left: &Value, right: &Value) -> Option<Value> {
+        match (left, right) {
+            (Value::Bool(l), Value::Bool(r)) => Some(Value::Bool(*l && *r)),
+            _ => None,
+        }
+    }
+
+    fn logical_or(&self, left: &Value, right: &Value) -> Option<Value> {
+        match (left, right) {
+            (Value::Bool(l), Value::Bool(r)) => Some(Value::Bool(*l || *r)),
+            _ => None,
+        }
+    }
+
+    fn concat_values(&self, left: &Value, right: &Value) -> Option<Value> {
+        match (left, right) {
+            (Value::String(l), Value::String(r)) => Some(Value::String(format!("{}{}", l, r))),
+            _ => None,
+        }
     }
 
     /// 估算 Loop 节点的迭代次数

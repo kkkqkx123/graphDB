@@ -14,6 +14,7 @@ use crate::core::error::optimize::CostError;
 use crate::core::types::EdgeDirection;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
+use crate::query::optimizer::stats::{EdgeTypeStatistics, SkewnessLevel};
 use crate::query::planner::plan::PlanNodeEnum;
 
 /// 图遍历操作估算器
@@ -50,6 +51,79 @@ impl<'a> GraphTraversalEstimator<'a> {
             .map(|s| (s.avg_out_degree + s.avg_in_degree) / 2.0)
             .unwrap_or(2.0)
     }
+
+    /// 获取边类型统计信息
+    fn get_edge_stats(&self, edge_type: Option<&str>) -> Option<EdgeTypeStatistics> {
+        edge_type.and_then(|et| self.cost_calculator.statistics_manager().get_edge_stats(et))
+    }
+
+    /// 计算倾斜感知的扩展代价
+    fn calculate_skew_aware_expand_cost(
+        &self,
+        start_rows: u64,
+        edge_type: Option<&str>,
+        direction: EdgeDirection,
+    ) -> f64 {
+        let stats = self.get_edge_stats(edge_type);
+        
+        match stats {
+            Some(s) if s.is_heavily_skewed() => {
+                // 根据倾斜度和方向计算代价
+                let penalty = match s.skewness_level() {
+                    SkewnessLevel::Severe => 2.0,
+                    SkewnessLevel::Moderate => 1.5,
+                    SkewnessLevel::Mild => 1.2,
+                    SkewnessLevel::None => 1.0,
+                };
+
+                // 根据方向选择对应的倾斜度
+                let direction_penalty = match direction {
+                    EdgeDirection::Out if s.max_out_degree as f64 > s.avg_out_degree * 5.0 => {
+                        penalty * 1.5
+                    }
+                    EdgeDirection::In if s.max_in_degree as f64 > s.avg_in_degree * 5.0 => {
+                        penalty * 1.5
+                    }
+                    _ => penalty,
+                };
+
+                let base_cost = self.cost_calculator.calculate_expand_cost(start_rows, edge_type);
+                base_cost * direction_penalty
+            }
+            _ => self.cost_calculator.calculate_expand_cost(start_rows, edge_type),
+        }
+    }
+
+    /// 计算倾斜感知的输出行数估计
+    fn estimate_skew_aware_output_rows(
+        &self,
+        start_rows: u64,
+        edge_type: Option<&str>,
+        direction: EdgeDirection,
+    ) -> u64 {
+        let stats = self.get_edge_stats(edge_type);
+        let avg_degree = match direction {
+            EdgeDirection::Out => self.get_avg_out_degree(edge_type),
+            EdgeDirection::In => self.get_avg_in_degree(edge_type),
+            EdgeDirection::Both => self.get_avg_degree(edge_type),
+        };
+
+        match stats {
+            Some(s) if s.is_heavily_skewed() => {
+                // 对于倾斜数据，使用更保守的估计
+                // 考虑最坏情况：所有起始节点都是热点
+                let conservative_factor = match s.skewness_level() {
+                    SkewnessLevel::Severe => 1.5,
+                    SkewnessLevel::Moderate => 1.3,
+                    SkewnessLevel::Mild => 1.1,
+                    SkewnessLevel::None => 1.0,
+                };
+
+                (start_rows as f64 * avg_degree * conservative_factor) as u64
+            }
+            _ => (start_rows as f64 * avg_degree) as u64,
+        }
+    }
 }
 
 impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
@@ -62,16 +136,14 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
             PlanNodeEnum::Expand(n) => {
                 let start_rows = get_input_rows(child_estimates, 0);
                 let edge_type = n.edge_types().first().map(|s| s.as_str());
-                // 根据遍历方向选择对应的度数
-                let avg_degree = match n.direction() {
-                    EdgeDirection::Out => self.get_avg_out_degree(edge_type),
-                    EdgeDirection::In => self.get_avg_in_degree(edge_type),
-                    EdgeDirection::Both => self.get_avg_degree(edge_type),
-                };
-                let output_rows = (start_rows as f64 * avg_degree) as u64;
-                let cost = self
-                    .cost_calculator
-                    .calculate_expand_cost(start_rows, edge_type);
+                let direction = n.direction();
+
+                // 使用倾斜感知估计
+                let output_rows =
+                    self.estimate_skew_aware_output_rows(start_rows, edge_type, direction);
+                let cost =
+                    self.calculate_skew_aware_expand_cost(start_rows, edge_type, direction);
+
                 Ok((cost, output_rows.max(1)))
             }
             PlanNodeEnum::ExpandAll(n) => {
@@ -183,6 +255,10 @@ mod tests {
             max_out_degree: 10,
             max_in_degree: 8,
             unique_src_vertices: 1000,
+            out_degree_std_dev: 2.0,
+            in_degree_std_dev: 1.5,
+            degree_gini_coefficient: 0.3,
+            hot_vertices: Vec::new(),
         };
         stats_manager.update_edge_stats(edge_stats);
 

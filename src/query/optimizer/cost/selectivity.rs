@@ -6,7 +6,8 @@ use std::sync::Arc;
 
 use crate::core::types::BinaryOperator;
 use crate::core::types::Expression;
-use crate::query::optimizer::stats::StatisticsManager;
+use crate::core::value::Value;
+use crate::query::optimizer::stats::{RangeCondition, StatisticsManager};
 
 /// 选择性估计器
 ///
@@ -48,28 +49,82 @@ impl SelectivityEstimator {
 
     /// 估计等值条件选择性
     ///
-    /// 如果有统计信息，使用 1/不同值数量；
+    /// 如果有直方图统计信息，使用直方图进行精确估计；
+    /// 否则如果有基本统计信息，使用 1/不同值数量；
     /// 否则使用默认值 0.1
     pub fn estimate_equality_selectivity(
         &self,
         tag_name: Option<&str>,
         property_name: &str,
+        value: Option<&Value>,
     ) -> f64 {
         let stats = self
             .stats_manager
             .get_property_stats(tag_name, property_name);
 
         match stats {
-            Some(s) if s.distinct_values > 0 => (1.0 / s.distinct_values as f64).min(1.0),
+            Some(s) => {
+                // 优先使用直方图进行精确估计
+                if s.should_use_histogram() {
+                    if let Some(ref histogram) = s.histogram {
+                        if let Some(v) = value {
+                            return histogram.estimate_equality_selectivity(v);
+                        }
+                    }
+                }
+
+                // 回退到基本统计信息
+                if s.distinct_values > 0 {
+                    (1.0 / s.distinct_values as f64).min(1.0)
+                } else {
+                    defaults::EQUALITY
+                }
+            }
             _ => defaults::EQUALITY,
         }
     }
 
+    /// 估计等值条件选择性（简化版本，不带值）
+    pub fn estimate_equality_selectivity_simple(
+        &self,
+        tag_name: Option<&str>,
+        property_name: &str,
+    ) -> f64 {
+        self.estimate_equality_selectivity(tag_name, property_name, None)
+    }
+
     /// 估计范围条件选择性
     ///
-    /// 如果有统计信息，基于直方图计算；
+    /// 如果有直方图统计信息，基于直方图计算；
     /// 否则使用默认值 1/3
-    pub fn estimate_range_selectivity(&self) -> f64 {
+    pub fn estimate_range_selectivity(
+        &self,
+        tag_name: Option<&str>,
+        property_name: &str,
+        range: &RangeCondition,
+    ) -> f64 {
+        let stats = self
+            .stats_manager
+            .get_property_stats(tag_name, property_name);
+
+        match stats {
+            Some(s) => {
+                // 优先使用直方图进行精确估计
+                if s.should_use_histogram() {
+                    if let Some(ref histogram) = s.histogram {
+                        return histogram.estimate_range_selectivity(range);
+                    }
+                }
+
+                // 回退到默认值
+                defaults::RANGE
+            }
+            _ => defaults::RANGE,
+        }
+    }
+
+    /// 估计范围条件选择性（简化版本）
+    pub fn estimate_range_selectivity_simple(&self) -> f64 {
         defaults::RANGE
     }
 
@@ -211,8 +266,11 @@ impl SelectivityEstimator {
                     .extract_property_name(left)
                     .or_else(|| self.extract_property_name(right));
 
+                // 尝试提取值
+                let value = self.extract_value(right).or_else(|| self.extract_value(left));
+
                 if let Some(prop) = property_name {
-                    self.estimate_equality_selectivity(tag_name, &prop)
+                    self.estimate_equality_selectivity(tag_name, &prop, value.as_ref())
                 } else {
                     defaults::EQUALITY
                 }
@@ -326,6 +384,14 @@ impl SelectivityEstimator {
                 crate::core::value::Value::Float(f) => Some(*f),
                 _ => None,
             },
+            _ => None,
+        }
+    }
+
+    /// 从表达式中提取值
+    fn extract_value(&self, expr: &Expression) -> Option<Value> {
+        match expr {
+            Expression::Literal(value) => Some(value.clone()),
             _ => None,
         }
     }

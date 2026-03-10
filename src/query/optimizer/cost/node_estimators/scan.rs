@@ -194,6 +194,10 @@ mod tests {
             max_out_degree: 10,
             max_in_degree: 8,
             unique_src_vertices: 1000,
+            out_degree_std_dev: 2.0,
+            in_degree_std_dev: 1.5,
+            degree_gini_coefficient: 0.3,
+            hot_vertices: Vec::new(),
         };
         stats_manager.update_edge_stats(edge_stats);
 

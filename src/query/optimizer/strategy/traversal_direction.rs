@@ -405,22 +405,6 @@ impl TraversalDirectionOptimizer {
         }
     }
 
-    /// 检查是否需要双向遍历
-    pub fn should_use_bidirectional(&self, edge_type: &str) -> bool {
-        let stats = self
-            .cost_calculator
-            .statistics_manager()
-            .get_edge_stats(edge_type);
-
-        match stats {
-            Some(s) => {
-                // 如果两个方向的度数都很低，可以使用双向遍历
-                s.avg_out_degree < 10.0 && s.avg_in_degree < 10.0
-            }
-            None => false,
-        }
-    }
-
     /// 获取边的度数信息
     pub fn get_degree_info(&self, edge_type: &str) -> Option<DegreeInfo> {
         self.cost_calculator
