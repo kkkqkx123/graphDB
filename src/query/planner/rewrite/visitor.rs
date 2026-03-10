@@ -11,7 +11,7 @@
 //! - 与现有架构兼容：利用已有的 PlanNodeVisitor
 
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
-    BinaryInputNode, MultipleInputNode, SingleInputNode,
+    MultipleInputNode, SingleInputNode,
 };
 use crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::PlanNodeEnum;

@@ -3,7 +3,7 @@
 //! 实现 PlanNodeEnum 的各种操作方法
 
 use super::plan_node_enum::PlanNodeEnum;
-use super::plan_node_traits::{MultipleInputNode, PlanNode, SingleInputNode};
+use super::plan_node_traits::{MultipleInputNode, SingleInputNode};
 
 /// 为 PlanNodeEnum 生成 match 分支的宏（带默认值）
 ///

@@ -6,8 +6,8 @@
 - **Total Warnings**: 2
 - **Total Issues**: 2
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 2
-- **Files with Issues**: 1
+- **Unique Warning Patterns**: 1
+- **Files with Issues**: 2
 
 ## Error Statistics
 
@@ -23,17 +23,21 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\query\planner\plan\core\nodes\base\plan_node_enum.rs`: 2 warnings
+- `src\query\planner\plan\core\nodes\traversal\path_algorithms.rs`: 1 warnings
+- `src\query\planner\plan\core\nodes\access\index_scan.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `super::plan_node_category::PlanNodeCategory`
+### warning: unused doc comment: rustdoc does not generate documentation for macro invocations
 
 **Total Occurrences**: 2  
-**Unique Files**: 1
+**Unique Files**: 2
 
-#### `src\query\planner\plan\core\nodes\base\plan_node_enum.rs`: 2 occurrences
+#### `src\query\planner\plan\core\nodes\traversal\path_algorithms.rs`: 1 occurrences
 
-- Line 13: unused import: `super::plan_node_category::PlanNodeCategory`
-- Line 18: unused import: `crate::query::planner::plan::core::explain::PlanNodeDescription`
+- Line 256: unused doc comment: rustdoc does not generate documentation for macro invocations
+
+#### `src\query\planner\plan\core\nodes\access\index_scan.rs`: 1 occurrences
+
+- Line 130: unused doc comment: rustdoc does not generate documentation for macro invocations
 

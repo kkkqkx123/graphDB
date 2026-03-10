@@ -5,7 +5,6 @@ use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::graph_schema::OrderDirection;
 use crate::define_plan_node;
 use crate::query::planner::plan::core::node_id_generator::next_node_id;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 
 /// 排序项定义
@@ -128,8 +127,8 @@ impl IndexLimit {
     }
 }
 
-/// 索引扫描计划节点
 define_plan_node! {
+    /// 索引扫描计划节点
     pub struct IndexScanNode {
         space_id: u64,
         tag_id: i32,

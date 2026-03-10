@@ -8,8 +8,8 @@ use crate::define_binary_input_node;
 use crate::query::planner::plan::core::node_id_generator::next_node_id;
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 
-/// 多源最短路径计划节点
 define_binary_input_node! {
+    /// 多源最短路径计划节点
     pub struct MultiShortestPathNode {
         steps: usize,
         left_vid_var: String,
@@ -76,11 +76,11 @@ impl MultiShortestPathNode {
     }
 }
 
-/// BFS最短路径计划节点
-///
-/// 使用双向BFS算法查找最短路径
-/// 注意：算法选择已在Planner阶段完成，此节点专门用于双向BFS
 define_binary_input_node! {
+    /// BFS最短路径计划节点
+    ///
+    /// 使用双向BFS算法查找最短路径
+    /// 注意：算法选择已在Planner阶段完成，此节点专门用于双向BFS
     pub struct BFSShortestNode {
         steps: usize,
         edge_types: Vec<String>,
@@ -153,8 +153,8 @@ impl BFSShortestNode {
     }
 }
 
-/// 所有路径计划节点
 define_binary_input_node! {
+    /// 所有路径计划节点
     pub struct AllPathsNode {
         steps: usize,
         edge_types: Vec<String>,
@@ -253,8 +253,8 @@ impl AllPathsNode {
     }
 }
 
-/// 最短路径计划节点
 define_binary_input_node! {
+    /// 最短路径计划节点
     pub struct ShortestPathNode {
         edge_types: Vec<String>,
         max_step: usize,

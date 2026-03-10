@@ -247,7 +247,7 @@ mod tests {
             1,
             ScanType::Unique,
         );
-        node.scan_limits = vec![IndexLimit::equal("Person.name", "Alice")];
+        node.set_scan_limits(vec![IndexLimit::equal("Person.name", "Alice")]);
         let plan_node = PlanNodeEnum::IndexScan(node);
 
         let child_estimates = vec![];
@@ -431,8 +431,7 @@ mod tests {
         let calculator = create_test_calculator_with_stats();
         let estimator = ScanEstimator::new(&calculator);
 
-        let node = crate::query::planner::plan::algorithms::IndexScan::new(
-            1,
+        let node = IndexScanNode::new(
             1,
             1,
             1,
@@ -447,14 +446,13 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let mut node = crate::query::planner::plan::algorithms::IndexScan::new(
-            1,
+        let mut node = IndexScanNode::new(
             1,
             1,
             1,
             ScanType::Unique,
         );
-        node.scan_limits = vec![IndexLimit::equal("Person.name", "Alice")];
+        node.set_scan_limits(vec![IndexLimit::equal("Person.name", "Alice")]);
         let property_name = estimator.get_property_name_from_index_scan(&node);
         assert_eq!(property_name, "Person.name");
     }
@@ -464,8 +462,7 @@ mod tests {
         let calculator = create_test_calculator();
         let estimator = ScanEstimator::new(&calculator);
 
-        let node = crate::query::planner::plan::algorithms::IndexScan::new(
-            1,
+        let node = IndexScanNode::new(
             1,
             1,
             1,
