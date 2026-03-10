@@ -34,7 +34,9 @@ pub mod strategy;
 pub use engine::OptimizerEngine;
 
 pub use stats::{
-    EdgeTypeStatistics, PropertyStatistics, StatisticsManager, TagStatistics,
+    EdgeTypeStatistics, ExecutionFeedbackCollector, FeedbackDrivenSelectivity,
+    OperatorFeedback, PropertyStatistics, QueryExecutionFeedback, QueryFeedbackHistory,
+    SelectivityFeedbackManager, StatisticsManager, TagStatistics,
 };
 
 pub use crate::core::error::optimize::CostError;
@@ -48,14 +50,16 @@ pub use analysis::{
 
 pub use strategy::{
     AggregateContext, AggregateSelectionReason, AggregateStrategy, AggregateStrategyDecision,
-    AggregateStrategySelector, CandidateStart, DegreeInfo, DirectionContext,
-    DirectionSelectionReason, IndexSelection, IndexSelector, JoinCondition, JoinOrderOptimizer,
-    JoinOrderResult, KeepReason, MaterializationDecision, MaterializationOptimizer,
-    MaterializeReason, NoMaterializeReason, OptimizationMethod, PredicateOperator,
-    PropertyPredicate, SortContext, SortEliminationDecision, SortEliminationOptimizer,
-    SortKeepReason, SubqueryUnnestingOptimizer, TableInfo, TopNConversionReason,
-    TraversalDirection, TraversalDirectionDecision, TraversalDirectionOptimizer,
-    TraversalSelectionReason, TraversalStartSelector, UnnestDecision, UnnestReason,
+    AggregateStrategySelector, CandidateStart, CteCacheConfig, CteCacheDecision,
+    CteCacheDecisionMaker, CteCacheEntry, CteCacheManager, CteCacheStats, DegreeInfo,
+    DirectionContext, DirectionSelectionReason, IndexSelection, IndexSelector, JoinCondition,
+    JoinOrderOptimizer, JoinOrderResult, KeepReason, MaterializationDecision,
+    MaterializationOptimizer, MaterializeReason, NoMaterializeReason, OptimizationMethod,
+    PredicateOperator, PropertyPredicate, SortContext, SortEliminationDecision,
+    SortEliminationOptimizer, SortKeepReason, SubqueryUnnestingOptimizer, TableInfo,
+    TopNConversionReason, TraversalDirection, TraversalDirectionDecision,
+    TraversalDirectionOptimizer, TraversalSelectionReason, TraversalStartSelector,
+    UnnestDecision, UnnestReason,
 };
 
 pub use decision::{

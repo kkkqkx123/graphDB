@@ -169,6 +169,16 @@ pub struct QueryPlanCache {
     stats: Mutex<PlanCacheStats>,
 }
 
+impl std::fmt::Debug for QueryPlanCache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let stats = self.stats.lock();
+        f.debug_struct("QueryPlanCache")
+            .field("config", &self.config)
+            .field("stats", &*stats)
+            .finish()
+    }
+}
+
 impl QueryPlanCache {
     /// 创建新的查询计划缓存
     pub fn new(config: PlanCacheConfig) -> Self {

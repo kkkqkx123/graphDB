@@ -36,9 +36,10 @@
 use std::sync::Arc;
 
 use crate::query::optimizer::{
-    AggregateStrategySelector, CostCalculator, CostModelConfig, ExpressionAnalyzer,
-    MaterializationOptimizer, ReferenceCountAnalyzer, SelectivityEstimator,
-    SortEliminationOptimizer, StatisticsManager, SubqueryUnnestingOptimizer,
+    AggregateStrategySelector, CostCalculator, CostModelConfig, CteCacheManager,
+    ExpressionAnalyzer, MaterializationOptimizer, ReferenceCountAnalyzer, SelectivityEstimator,
+    SelectivityFeedbackManager, SortEliminationOptimizer, StatisticsManager,
+    SubqueryUnnestingOptimizer,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
 
@@ -52,6 +53,10 @@ pub struct OptimizerEngine {
     expression_context: Arc<ExpressionAnalysisContext>,
     /// 统计信息管理器
     stats_manager: Arc<StatisticsManager>,
+    /// 选择性反馈管理器
+    selectivity_feedback_manager: Arc<SelectivityFeedbackManager>,
+    /// CTE缓存管理器
+    cte_cache_manager: Arc<CteCacheManager>,
     /// 代价计算器
     cost_calculator: Arc<CostCalculator>,
     /// 选择性估计器
@@ -93,6 +98,12 @@ impl OptimizerEngine {
         // 创建统计信息管理器
         let stats_manager = Arc::new(StatisticsManager::new());
 
+        // 创建选择性反馈管理器
+        let selectivity_feedback_manager = Arc::new(SelectivityFeedbackManager::new());
+
+        // 创建CTE缓存管理器
+        let cte_cache_manager = Arc::new(CteCacheManager::new());
+
         // 创建代价计算器和选择性估计器
         let cost_calculator = Arc::new(CostCalculator::with_config(
             stats_manager.clone(),
@@ -129,6 +140,8 @@ impl OptimizerEngine {
         Self {
             expression_context,
             stats_manager,
+            selectivity_feedback_manager,
+            cte_cache_manager,
             cost_calculator,
             selectivity_estimator,
             sort_elimination_optimizer,
@@ -209,6 +222,16 @@ impl OptimizerEngine {
     /// 获取 CTE 物化优化器
     pub fn materialization_optimizer(&self) -> &MaterializationOptimizer {
         &self.materialization_optimizer
+    }
+
+    /// 获取选择性反馈管理器
+    pub fn selectivity_feedback_manager(&self) -> &SelectivityFeedbackManager {
+        &self.selectivity_feedback_manager
+    }
+
+    /// 获取CTE缓存管理器
+    pub fn cte_cache_manager(&self) -> &CteCacheManager {
+        &self.cte_cache_manager
     }
 
     /// 更新代价模型配置

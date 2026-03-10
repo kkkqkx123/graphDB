@@ -13,6 +13,8 @@
 //! - `topn_optimization` - TopN 优化器（Sort + Limit 到 TopN 的转换）
 //! - `subquery_unnesting` - 子查询去关联化优化器
 //! - `materialization` - CTE 物化优化器
+//!
+//! 注意：CTE结果缓存管理器已移至 `crate::query::cache` 模块
 
 pub mod aggregate_strategy;
 pub mod bidirectional_traversal;
@@ -59,4 +61,10 @@ pub use subquery_unnesting::{
 
 pub use materialization::{
     MaterializationDecision, MaterializationOptimizer, MaterializeReason, NoMaterializeReason,
+};
+
+// 从cache模块重新导出CTE缓存类型（向后兼容）
+pub use crate::query::cache::{
+    CteCacheConfig, CteCacheDecision, CteCacheDecisionMaker, CteCacheEntry, CteCacheManager,
+    CteCacheStats,
 };
