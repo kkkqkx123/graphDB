@@ -11,6 +11,14 @@ pub enum ValueType {
     Null,
     Bool,
     Int,
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+    UInt8,
+    UInt16,
+    UInt32,
+    UInt64,
     Float,
     Decimal128,
     String,
@@ -36,6 +44,14 @@ impl ValueType {
             Value::Null(_) => ValueType::Null,
             Value::Bool(_) => ValueType::Bool,
             Value::Int(_) => ValueType::Int,
+            Value::Int8(_) => ValueType::Int8,
+            Value::Int16(_) => ValueType::Int16,
+            Value::Int32(_) => ValueType::Int32,
+            Value::Int64(_) => ValueType::Int64,
+            Value::UInt8(_) => ValueType::UInt8,
+            Value::UInt16(_) => ValueType::UInt16,
+            Value::UInt32(_) => ValueType::UInt32,
+            Value::UInt64(_) => ValueType::UInt64,
             Value::Float(_) => ValueType::Float,
             Value::Decimal128(_) => ValueType::Decimal128,
             Value::String(_) => ValueType::String,
@@ -57,7 +73,20 @@ impl ValueType {
     }
 
     pub fn is_numeric(&self) -> bool {
-        matches!(self, ValueType::Int | ValueType::Float | ValueType::Decimal128)
+        matches!(
+            self,
+            ValueType::Int
+                | ValueType::Int8
+                | ValueType::Int16
+                | ValueType::Int32
+                | ValueType::Int64
+                | ValueType::UInt8
+                | ValueType::UInt16
+                | ValueType::UInt32
+                | ValueType::UInt64
+                | ValueType::Float
+                | ValueType::Decimal128
+        )
     }
 
     pub fn is_string(&self) -> bool {
@@ -79,6 +108,14 @@ impl fmt::Display for ValueType {
             ValueType::Null => write!(f, "NULL"),
             ValueType::Bool => write!(f, "BOOL"),
             ValueType::Int => write!(f, "INT"),
+            ValueType::Int8 => write!(f, "INT8"),
+            ValueType::Int16 => write!(f, "INT16"),
+            ValueType::Int32 => write!(f, "INT32"),
+            ValueType::Int64 => write!(f, "INT64"),
+            ValueType::UInt8 => write!(f, "UINT8"),
+            ValueType::UInt16 => write!(f, "UINT16"),
+            ValueType::UInt32 => write!(f, "UINT32"),
+            ValueType::UInt64 => write!(f, "UINT64"),
             ValueType::Float => write!(f, "FLOAT"),
             ValueType::Decimal128 => write!(f, "DECIMAL128"),
             ValueType::String => write!(f, "STRING"),

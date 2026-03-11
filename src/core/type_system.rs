@@ -45,6 +45,10 @@ impl TypeUtils {
             DataType::Int16 => 22,
             DataType::Int32 => 23,
             DataType::Int64 => 24,
+            DataType::UInt8 => 25,
+            DataType::UInt16 => 26,
+            DataType::UInt32 => 27,
+            DataType::UInt64 => 28,
             DataType::Float => 30,
             DataType::Double => 31,
             DataType::Decimal128 => 32,
@@ -148,6 +152,34 @@ impl TypeUtils {
             (DataType::Int, DataType::Float) => true,
             (DataType::Int, DataType::String) => true,
 
+            // Int8/16/32/64 可以转换为 Int, Float, String
+            (DataType::Int8, DataType::Int) => true,
+            (DataType::Int8, DataType::Float) => true,
+            (DataType::Int8, DataType::String) => true,
+            (DataType::Int16, DataType::Int) => true,
+            (DataType::Int16, DataType::Float) => true,
+            (DataType::Int16, DataType::String) => true,
+            (DataType::Int32, DataType::Int) => true,
+            (DataType::Int32, DataType::Float) => true,
+            (DataType::Int32, DataType::String) => true,
+            (DataType::Int64, DataType::Int) => true,
+            (DataType::Int64, DataType::Float) => true,
+            (DataType::Int64, DataType::String) => true,
+
+            // UInt8/16/32/64 可以转换为 Int, Float, String
+            (DataType::UInt8, DataType::Int) => true,
+            (DataType::UInt8, DataType::Float) => true,
+            (DataType::UInt8, DataType::String) => true,
+            (DataType::UInt16, DataType::Int) => true,
+            (DataType::UInt16, DataType::Float) => true,
+            (DataType::UInt16, DataType::String) => true,
+            (DataType::UInt32, DataType::Int) => true,
+            (DataType::UInt32, DataType::Float) => true,
+            (DataType::UInt32, DataType::String) => true,
+            (DataType::UInt64, DataType::Int) => true,
+            (DataType::UInt64, DataType::Float) => true,
+            (DataType::UInt64, DataType::String) => true,
+
             // Float 可以转换为 Float, Int, String
             (DataType::Float, DataType::Int) => true,
             (DataType::Float, DataType::String) => true,
@@ -184,6 +216,14 @@ impl TypeUtils {
     pub fn get_cast_targets(from: &DataType) -> Vec<DataType> {
         match from {
             DataType::Int => vec![DataType::Int, DataType::Float, DataType::String],
+            DataType::Int8 => vec![DataType::Int8, DataType::Int, DataType::Float, DataType::String],
+            DataType::Int16 => vec![DataType::Int16, DataType::Int, DataType::Float, DataType::String],
+            DataType::Int32 => vec![DataType::Int32, DataType::Int, DataType::Float, DataType::String],
+            DataType::Int64 => vec![DataType::Int64, DataType::Int, DataType::Float, DataType::String],
+            DataType::UInt8 => vec![DataType::UInt8, DataType::Int, DataType::Float, DataType::String],
+            DataType::UInt16 => vec![DataType::UInt16, DataType::Int, DataType::Float, DataType::String],
+            DataType::UInt32 => vec![DataType::UInt32, DataType::Int, DataType::Float, DataType::String],
+            DataType::UInt64 => vec![DataType::UInt64, DataType::Int, DataType::Float, DataType::String],
             DataType::Float => vec![DataType::Float, DataType::Int, DataType::String],
             DataType::String => vec![
                 DataType::String,
@@ -233,7 +273,11 @@ impl TypeUtils {
             | DataType::Int8
             | DataType::Int16
             | DataType::Int32
-            | DataType::Int64 => "int".to_string(),
+            | DataType::Int64
+            | DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64 => "int".to_string(),
             DataType::Float | DataType::Double => "float".to_string(),
             DataType::Decimal128 => "decimal128".to_string(),
             DataType::String => "string".to_string(),
@@ -265,6 +309,10 @@ impl TypeUtils {
             DataType::Int16 => true,
             DataType::Int32 => true,
             DataType::Int64 => true,
+            DataType::UInt8 => true,
+            DataType::UInt16 => true,
+            DataType::UInt32 => true,
+            DataType::UInt64 => true,
             DataType::Float => true,
             DataType::Double => true,
             DataType::String => true,
@@ -285,6 +333,14 @@ impl TypeUtils {
         match type_def {
             DataType::Bool => Some(Value::Bool(false)),
             DataType::Int => Some(Value::Int(0)),
+            DataType::Int8 => Some(Value::Int8(0)),
+            DataType::Int16 => Some(Value::Int16(0)),
+            DataType::Int32 => Some(Value::Int32(0)),
+            DataType::Int64 => Some(Value::Int64(0)),
+            DataType::UInt8 => Some(Value::UInt8(0)),
+            DataType::UInt16 => Some(Value::UInt16(0)),
+            DataType::UInt32 => Some(Value::UInt32(0)),
+            DataType::UInt64 => Some(Value::UInt64(0)),
             DataType::Float => Some(Value::Float(0.0)),
             DataType::String => Some(Value::String(String::new())),
             DataType::List => Some(Value::List(List::from(Vec::new()))),

@@ -2,37 +2,37 @@
 
 ## Summary
 
-- **Total Errors**: 1
-- **Total Warnings**: 0
+- **Total Errors**: 0
+- **Total Warnings**: 1
 - **Total Issues**: 1
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 0
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 1
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 1
-
-### Error Type Breakdown
-
-- **error[E0599]**: 1 errors
-
-### Files with Errors (Top 10)
-
-- `src\api\server\http\handlers\statistics.rs`: 1 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 1
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0599]: no variant or associated item named `internal_error` found for enum `HttpError` in the current scope: variant or associated item not found in `HttpError`
+- **warning**: 1 warnings
+
+### Files with Warnings (Top 10)
+
+- `src\core\value\decimal128.rs`: 1 warnings
+
+## Detailed Warning Categorization
+
+### warning: unused imports: `BorrowDecode` and `Decode`
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\api\server\http\handlers\statistics.rs`: 1 occurrences
+#### `src\core\value\decimal128.rs`: 1 occurrences
 
-- Line 129: no variant or associated item named `internal_error` found for enum `HttpError` in the current scope: variant or associated item not found in `HttpError`
+- Line 29: unused imports: `BorrowDecode` and `Decode`
 

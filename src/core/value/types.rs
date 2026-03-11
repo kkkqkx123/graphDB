@@ -114,6 +114,14 @@ pub enum Value {
     Null(NullType),
     Bool(bool),
     Int(i64),
+    Int8(i8),
+    Int16(i16),
+    Int32(i32),
+    Int64(i64),
+    UInt8(u8),
+    UInt16(u16),
+    UInt32(u32),
+    UInt64(u64),
     Float(f64),
     Decimal128(super::decimal128::Decimal128Value),
     String(String),
@@ -141,6 +149,14 @@ impl Value {
             Value::Null(_) => DataType::Null,
             Value::Bool(_) => DataType::Bool,
             Value::Int(_) => DataType::Int,
+            Value::Int8(_) => DataType::Int8,
+            Value::Int16(_) => DataType::Int16,
+            Value::Int32(_) => DataType::Int32,
+            Value::Int64(_) => DataType::Int64,
+            Value::UInt8(_) => DataType::UInt8,
+            Value::UInt16(_) => DataType::UInt16,
+            Value::UInt32(_) => DataType::UInt32,
+            Value::UInt64(_) => DataType::UInt64,
             Value::Float(_) => DataType::Float,
             Value::Decimal128(_) => DataType::Decimal128,
             Value::String(_) => DataType::String,
@@ -167,7 +183,20 @@ impl Value {
 
     /// 检查值是否为数值类型（Int、Float 或 Decimal128）
     pub fn is_numeric(&self) -> bool {
-        matches!(self, Value::Int(_) | Value::Float(_) | Value::Decimal128(_))
+        matches!(
+            self,
+            Value::Int(_)
+                | Value::Int8(_)
+                | Value::Int16(_)
+                | Value::Int32(_)
+                | Value::Int64(_)
+                | Value::UInt8(_)
+                | Value::UInt16(_)
+                | Value::UInt32(_)
+                | Value::UInt64(_)
+                | Value::Float(_)
+                | Value::Decimal128(_)
+        )
     }
 
     /// 检查值是否为BadNull（BadData 或 BadType）
@@ -204,6 +233,10 @@ impl Value {
     pub fn negate(&self) -> Result<Value, String> {
         match self {
             Value::Int(i) => Ok(Value::Int(-i)),
+            Value::Int8(i) => Ok(Value::Int8(-i)),
+            Value::Int16(i) => Ok(Value::Int16(-i)),
+            Value::Int32(i) => Ok(Value::Int32(-i)),
+            Value::Int64(i) => Ok(Value::Int64(-i)),
             Value::Float(f) => Ok(Value::Float(-f)),
             Value::Decimal128(d) => Ok(Value::Decimal128(d.neg())),
             _ => Err(format!("无法对 {:?} 进行取反操作", self.get_type())),
@@ -214,6 +247,10 @@ impl Value {
     pub fn abs(&self) -> Result<Value, String> {
         match self {
             Value::Int(i) => Ok(Value::Int(i.abs())),
+            Value::Int8(i) => Ok(Value::Int8(i.abs())),
+            Value::Int16(i) => Ok(Value::Int16(i.abs())),
+            Value::Int32(i) => Ok(Value::Int32(i.abs())),
+            Value::Int64(i) => Ok(Value::Int64(i.abs())),
             Value::Float(f) => Ok(Value::Float(f.abs())),
             Value::Decimal128(d) => Ok(Value::Decimal128(d.abs())),
             _ => Err(format!("无法计算 {:?} 的绝对值", self.get_type())),
@@ -241,6 +278,14 @@ impl Value {
             Value::Null(_) => base_size,
             Value::Bool(_) => base_size,
             Value::Int(_) => base_size,
+            Value::Int8(_) => base_size,
+            Value::Int16(_) => base_size,
+            Value::Int32(_) => base_size,
+            Value::Int64(_) => base_size,
+            Value::UInt8(_) => base_size,
+            Value::UInt16(_) => base_size,
+            Value::UInt32(_) => base_size,
+            Value::UInt64(_) => base_size,
             Value::Float(_) => base_size,
             Value::Decimal128(_) => base_size + std::mem::size_of::<super::decimal128::Decimal128Value>(),
             Value::String(s) => base_size + std::mem::size_of::<String>() + s.capacity(),
@@ -304,6 +349,14 @@ impl std::fmt::Display for Value {
             Value::Null(n) => write!(f, "NULL({:?})", n),
             Value::Bool(b) => write!(f, "{}", b),
             Value::Int(i) => write!(f, "{}", i),
+            Value::Int8(i) => write!(f, "{}", i),
+            Value::Int16(i) => write!(f, "{}", i),
+            Value::Int32(i) => write!(f, "{}", i),
+            Value::Int64(i) => write!(f, "{}", i),
+            Value::UInt8(i) => write!(f, "{}", i),
+            Value::UInt16(i) => write!(f, "{}", i),
+            Value::UInt32(i) => write!(f, "{}", i),
+            Value::UInt64(i) => write!(f, "{}", i),
             Value::Float(fl) => write!(f, "{}", fl),
             Value::Decimal128(d) => write!(f, "{}", d),
             Value::String(s) => write!(f, "\"{}\"", s),

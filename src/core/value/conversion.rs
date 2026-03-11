@@ -17,6 +17,14 @@ impl Value {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
             Value::Bool(b) => Value::Bool(*b),
             Value::Int(i) => Value::Bool(*i != 0),
+            Value::Int8(i) => Value::Bool(*i != 0),
+            Value::Int16(i) => Value::Bool(*i != 0),
+            Value::Int32(i) => Value::Bool(*i != 0),
+            Value::Int64(i) => Value::Bool(*i != 0),
+            Value::UInt8(i) => Value::Bool(*i != 0),
+            Value::UInt16(i) => Value::Bool(*i != 0),
+            Value::UInt32(i) => Value::Bool(*i != 0),
+            Value::UInt64(i) => Value::Bool(*i != 0),
             Value::Float(f) => Value::Bool(*f != 0.0),
             Value::String(s) => {
                 let lower = s.to_lowercase();
@@ -44,6 +52,20 @@ impl Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
             Value::Int(i) => Value::Int(*i),
+            Value::Int8(i) => Value::Int(*i as i64),
+            Value::Int16(i) => Value::Int(*i as i64),
+            Value::Int32(i) => Value::Int(*i as i64),
+            Value::Int64(i) => Value::Int(*i),
+            Value::UInt8(i) => Value::Int(*i as i64),
+            Value::UInt16(i) => Value::Int(*i as i64),
+            Value::UInt32(i) => Value::Int(*i as i64),
+            Value::UInt64(i) => {
+                if *i <= i64::MAX as u64 {
+                    Value::Int(*i as i64)
+                } else {
+                    Value::Null(NullType::ErrOverflow)
+                }
+            }
             Value::Float(f) => {
                 if f.is_nan() || f.is_infinite() {
                     Value::Null(NullType::Null)
@@ -76,6 +98,14 @@ impl Value {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
             Value::Float(f) => Value::Float(*f),
             Value::Int(i) => Value::Float(*i as f64),
+            Value::Int8(i) => Value::Float(*i as f64),
+            Value::Int16(i) => Value::Float(*i as f64),
+            Value::Int32(i) => Value::Float(*i as f64),
+            Value::Int64(i) => Value::Float(*i as f64),
+            Value::UInt8(i) => Value::Float(*i as f64),
+            Value::UInt16(i) => Value::Float(*i as f64),
+            Value::UInt32(i) => Value::Float(*i as f64),
+            Value::UInt64(i) => Value::Float(*i as f64),
             Value::String(s) => match s.parse::<f64>() {
                 Ok(f) => Value::Float(f),
                 Err(_) => Value::Null(NullType::Null),
@@ -90,6 +120,14 @@ impl Value {
         match self {
             Value::String(s) => Ok(s.clone()),
             Value::Int(i) => Ok(i.to_string()),
+            Value::Int8(i) => Ok(i.to_string()),
+            Value::Int16(i) => Ok(i.to_string()),
+            Value::Int32(i) => Ok(i.to_string()),
+            Value::Int64(i) => Ok(i.to_string()),
+            Value::UInt8(i) => Ok(i.to_string()),
+            Value::UInt16(i) => Ok(i.to_string()),
+            Value::UInt32(i) => Ok(i.to_string()),
+            Value::UInt64(i) => Ok(i.to_string()),
             Value::Float(f) => {
                 if f.is_nan() {
                     Ok("NaN".to_string())
@@ -458,15 +496,51 @@ impl From<bool> for Value {
     }
 }
 
-impl From<i64> for Value {
-    fn from(value: i64) -> Self {
-        Value::Int(value)
+impl From<i8> for Value {
+    fn from(value: i8) -> Self {
+        Value::Int8(value)
+    }
+}
+
+impl From<i16> for Value {
+    fn from(value: i16) -> Self {
+        Value::Int16(value)
     }
 }
 
 impl From<i32> for Value {
     fn from(value: i32) -> Self {
-        Value::Int(value as i64)
+        Value::Int32(value)
+    }
+}
+
+impl From<i64> for Value {
+    fn from(value: i64) -> Self {
+        Value::Int64(value)
+    }
+}
+
+impl From<u8> for Value {
+    fn from(value: u8) -> Self {
+        Value::UInt8(value)
+    }
+}
+
+impl From<u16> for Value {
+    fn from(value: u16) -> Self {
+        Value::UInt16(value)
+    }
+}
+
+impl From<u32> for Value {
+    fn from(value: u32) -> Self {
+        Value::UInt32(value)
+    }
+}
+
+impl From<u64> for Value {
+    fn from(value: u64) -> Self {
+        Value::UInt64(value)
     }
 }
 

@@ -26,8 +26,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
-use bincode::{Encode, de::{Decode, BorrowDecode}};
-
 /// Decimal128 值包装器
 ///
 /// 包装 `dec::Decimal128` 类型，提供与 GraphDB 类型系统的集成。

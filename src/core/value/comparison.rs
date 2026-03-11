@@ -15,6 +15,14 @@ impl PartialEq for Value {
             (Value::Null(a), Value::Null(b)) => a == b,
             (Value::Bool(a), Value::Bool(b)) => a == b,
             (Value::Int(a), Value::Int(b)) => a == b,
+            (Value::Int8(a), Value::Int8(b)) => a == b,
+            (Value::Int16(a), Value::Int16(b)) => a == b,
+            (Value::Int32(a), Value::Int32(b)) => a == b,
+            (Value::Int64(a), Value::Int64(b)) => a == b,
+            (Value::UInt8(a), Value::UInt8(b)) => a == b,
+            (Value::UInt16(a), Value::UInt16(b)) => a == b,
+            (Value::UInt32(a), Value::UInt32(b)) => a == b,
+            (Value::UInt64(a), Value::UInt64(b)) => a == b,
             (Value::Float(a), Value::Float(b)) => (a == b) || (a.is_nan() && b.is_nan()), // 正确处理NaN
             (Value::Decimal128(a), Value::Decimal128(b)) => a == b,
             (Value::String(a), Value::String(b)) => a == b,
@@ -52,6 +60,14 @@ impl Ord for Value {
             (Value::Null(a), Value::Null(b)) => Self::cmp_null(a, b),
             (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
             (Value::Int(a), Value::Int(b)) => a.cmp(b),
+            (Value::Int8(a), Value::Int8(b)) => a.cmp(b),
+            (Value::Int16(a), Value::Int16(b)) => a.cmp(b),
+            (Value::Int32(a), Value::Int32(b)) => a.cmp(b),
+            (Value::Int64(a), Value::Int64(b)) => a.cmp(b),
+            (Value::UInt8(a), Value::UInt8(b)) => a.cmp(b),
+            (Value::UInt16(a), Value::UInt16(b)) => a.cmp(b),
+            (Value::UInt32(a), Value::UInt32(b)) => a.cmp(b),
+            (Value::UInt64(a), Value::UInt64(b)) => a.cmp(b),
             (Value::Float(a), Value::Float(b)) => Self::cmp_f64(*a, *b),
             (Value::Decimal128(a), Value::Decimal128(b)) => a.cmp(b),
             (Value::String(a), Value::String(b)) => a.cmp(b),
@@ -91,8 +107,40 @@ impl Hash for Value {
                 3u8.hash(state);
                 i.hash(state);
             }
-            Value::Float(f) => {
+            Value::Int8(i) => {
                 4u8.hash(state);
+                i.hash(state);
+            }
+            Value::Int16(i) => {
+                5u8.hash(state);
+                i.hash(state);
+            }
+            Value::Int32(i) => {
+                6u8.hash(state);
+                i.hash(state);
+            }
+            Value::Int64(i) => {
+                7u8.hash(state);
+                i.hash(state);
+            }
+            Value::UInt8(i) => {
+                8u8.hash(state);
+                i.hash(state);
+            }
+            Value::UInt16(i) => {
+                9u8.hash(state);
+                i.hash(state);
+            }
+            Value::UInt32(i) => {
+                10u8.hash(state);
+                i.hash(state);
+            }
+            Value::UInt64(i) => {
+                11u8.hash(state);
+                i.hash(state);
+            }
+            Value::Float(f) => {
+                12u8.hash(state);
                 // 从浮点数的位表示创建哈希
                 if f.is_nan() {
                     // 所有NaN值应该哈希到相同的值
@@ -109,31 +157,31 @@ impl Hash for Value {
                 d.hash(state);
             }
             Value::String(s) => {
-                5u8.hash(state);
+                13u8.hash(state);
                 s.hash(state);
             }
             Value::Blob(b) => {
-                6u8.hash(state);
+                14u8.hash(state);
                 b.hash(state);
             }
             Value::Date(d) => {
-                7u8.hash(state);
+                15u8.hash(state);
                 d.hash(state);
             }
             Value::Time(t) => {
-                8u8.hash(state);
+                16u8.hash(state);
                 t.hash(state);
             }
             Value::DateTime(dt) => {
-                9u8.hash(state);
+                17u8.hash(state);
                 dt.hash(state);
             }
             Value::Vertex(v) => {
-                10u8.hash(state);
+                18u8.hash(state);
                 v.hash(state);
             }
             Value::Edge(e) => {
-                11u8.hash(state);
+                19u8.hash(state);
                 e.hash(state);
             }
             Value::Path(p) => {
@@ -402,7 +450,11 @@ impl Value {
             | DataType::Int8
             | DataType::Int16
             | DataType::Int32
-            | DataType::Int64 => 3,
+            | DataType::Int64
+            | DataType::UInt8
+            | DataType::UInt16
+            | DataType::UInt32
+            | DataType::UInt64 => 3,
             DataType::Float | DataType::Double => 4,
             DataType::Decimal128 => 5,
             DataType::String => 6,
