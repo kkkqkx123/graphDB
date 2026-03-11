@@ -13,7 +13,7 @@ use crate::query::executor::ExecutionResult;
 use crate::storage::StorageClient;
 
 /// 流式查询请求
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct StreamQueryRequest {
     pub query: String,
     pub session_id: i64,
@@ -53,10 +53,14 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
     tokio::spawn(async move {
         let start_time = std::time::Instant::now();
         let graph_service = server.get_graph_service();
+        let request = request.clone();
 
         // 执行查询
-        let exec_result = match tokio::task::spawn_blocking(move || {
-            graph_service.execute(request.session_id, &request.query)
+        let exec_result = match tokio::task::spawn_blocking({
+            let graph_service = graph_service.clone();
+            move || {
+                graph_service.execute(request.session_id, &request.query)
+            }
         }).await {
             Ok(Ok(result)) => result,
             Ok(Err(e)) => {
@@ -210,6 +214,7 @@ fn value_to_json(value: crate::core::Value) -> serde_json::Value {
         crate::core::Value::Float(f) => serde_json::Value::Number(
             serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0)),
         ),
+        crate::core::Value::Decimal128(d) => serde_json::Value::String(d.to_string()),
         crate::core::Value::String(s) => serde_json::Value::String(s),
         crate::core::Value::Blob(blob) => serde_json::Value::String(format!("{:?}", blob)),
         crate::core::Value::Date(d) => serde_json::Value::String(d.to_string()),

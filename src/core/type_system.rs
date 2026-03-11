@@ -47,6 +47,7 @@ impl TypeUtils {
             DataType::Int64 => 24,
             DataType::Float => 30,
             DataType::Double => 31,
+            DataType::Decimal128 => 32,
             DataType::String => 40,
             DataType::FixedString(_) => 41,
             DataType::Date => 50,
@@ -234,6 +235,7 @@ impl TypeUtils {
             | DataType::Int32
             | DataType::Int64 => "int".to_string(),
             DataType::Float | DataType::Double => "float".to_string(),
+            DataType::Decimal128 => "decimal128".to_string(),
             DataType::String => "string".to_string(),
             DataType::FixedString(len) => format!("fixed_string({})", len),
             DataType::Date => "date".to_string(),

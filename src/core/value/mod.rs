@@ -13,6 +13,7 @@ pub mod comparison;
 pub mod conversion;
 pub mod dataset;
 pub mod date_time;
+pub mod decimal128;
 pub mod geography;
 pub mod operations;
 pub mod types;
@@ -20,5 +21,6 @@ pub mod types;
 // 重新导出所有公共类型和功能，保持API兼容性
 pub use dataset::*;
 pub use date_time::*;
+pub use decimal128::Decimal128Value;
 pub use geography::*;
 pub use types::*;

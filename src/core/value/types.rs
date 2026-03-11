@@ -115,6 +115,7 @@ pub enum Value {
     Bool(bool),
     Int(i64),
     Float(f64),
+    Decimal128(super::decimal128::Decimal128Value),
     String(String),
     /// 二进制数据
     Blob(Vec<u8>),
@@ -141,6 +142,7 @@ impl Value {
             Value::Bool(_) => DataType::Bool,
             Value::Int(_) => DataType::Int,
             Value::Float(_) => DataType::Float,
+            Value::Decimal128(_) => DataType::Decimal128,
             Value::String(_) => DataType::String,
             Value::Blob(_) => DataType::Blob,
             Value::Date(_) => DataType::Date,
@@ -163,9 +165,9 @@ impl Value {
         matches!(self, Value::Null(_))
     }
 
-    /// 检查值是否为数值类型（Int 或 Float）
+    /// 检查值是否为数值类型（Int、Float 或 Decimal128）
     pub fn is_numeric(&self) -> bool {
-        matches!(self, Value::Int(_) | Value::Float(_))
+        matches!(self, Value::Int(_) | Value::Float(_) | Value::Decimal128(_))
     }
 
     /// 检查值是否为BadNull（BadData 或 BadType）
@@ -203,6 +205,7 @@ impl Value {
         match self {
             Value::Int(i) => Ok(Value::Int(-i)),
             Value::Float(f) => Ok(Value::Float(-f)),
+            Value::Decimal128(d) => Ok(Value::Decimal128(d.neg())),
             _ => Err(format!("无法对 {:?} 进行取反操作", self.get_type())),
         }
     }
@@ -212,6 +215,7 @@ impl Value {
         match self {
             Value::Int(i) => Ok(Value::Int(i.abs())),
             Value::Float(f) => Ok(Value::Float(f.abs())),
+            Value::Decimal128(d) => Ok(Value::Decimal128(d.abs())),
             _ => Err(format!("无法计算 {:?} 的绝对值", self.get_type())),
         }
     }
@@ -238,6 +242,7 @@ impl Value {
             Value::Bool(_) => base_size,
             Value::Int(_) => base_size,
             Value::Float(_) => base_size,
+            Value::Decimal128(_) => base_size + std::mem::size_of::<super::decimal128::Decimal128Value>(),
             Value::String(s) => base_size + std::mem::size_of::<String>() + s.capacity(),
             Value::Blob(b) => base_size + std::mem::size_of::<Vec<u8>>() + b.capacity(),
             Value::Date(d) => base_size + d.estimated_size(),
@@ -300,6 +305,7 @@ impl std::fmt::Display for Value {
             Value::Bool(b) => write!(f, "{}", b),
             Value::Int(i) => write!(f, "{}", i),
             Value::Float(fl) => write!(f, "{}", fl),
+            Value::Decimal128(d) => write!(f, "{}", d),
             Value::String(s) => write!(f, "\"{}\"", s),
             Value::Blob(b) => write!(f, "Blob({} bytes)", b.len()),
             Value::Date(d) => write!(f, "{:04}-{:02}-{:02}", d.year, d.month, d.day),

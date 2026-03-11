@@ -206,6 +206,7 @@ fn value_to_json(value: crate::core::Value) -> serde_json::Value {
         crate::core::Value::Float(f) => serde_json::Value::Number(
             serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0)),
         ),
+        crate::core::Value::Decimal128(d) => serde_json::Value::String(d.to_string()),
         crate::core::Value::String(s) => serde_json::Value::String(s),
         crate::core::Value::Blob(blob) => serde_json::Value::String(format!("{:?}", blob)),
         crate::core::Value::Date(d) => serde_json::Value::String(d.to_string()),

@@ -56,8 +56,8 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     }
 
     /// 获取 GraphService
-    pub fn get_graph_service(&self) -> &GraphService<S> {
-        &self.graph_service
+    pub fn get_graph_service(&self) -> Arc<GraphService<S>> {
+        self.graph_service.clone()
     }
 
     /// 获取会话管理器（通过 GraphService）

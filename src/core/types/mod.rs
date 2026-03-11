@@ -33,6 +33,7 @@ pub enum DataType {
     Int64,
     Float,
     Double,
+    Decimal128,
     String,
     Date,
     Time,

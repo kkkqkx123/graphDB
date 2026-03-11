@@ -12,6 +12,7 @@ pub enum ValueType {
     Bool,
     Int,
     Float,
+    Decimal128,
     String,
     Blob,
     Date,
@@ -36,6 +37,7 @@ impl ValueType {
             Value::Bool(_) => ValueType::Bool,
             Value::Int(_) => ValueType::Int,
             Value::Float(_) => ValueType::Float,
+            Value::Decimal128(_) => ValueType::Decimal128,
             Value::String(_) => ValueType::String,
             Value::Blob(_) => ValueType::Blob,
             Value::Date(_) => ValueType::Date,
@@ -55,7 +57,7 @@ impl ValueType {
     }
 
     pub fn is_numeric(&self) -> bool {
-        matches!(self, ValueType::Int | ValueType::Float)
+        matches!(self, ValueType::Int | ValueType::Float | ValueType::Decimal128)
     }
 
     pub fn is_string(&self) -> bool {
@@ -78,6 +80,7 @@ impl fmt::Display for ValueType {
             ValueType::Bool => write!(f, "BOOL"),
             ValueType::Int => write!(f, "INT"),
             ValueType::Float => write!(f, "FLOAT"),
+            ValueType::Decimal128 => write!(f, "DECIMAL128"),
             ValueType::String => write!(f, "STRING"),
             ValueType::Blob => write!(f, "BLOB"),
             ValueType::Date => write!(f, "DATE"),

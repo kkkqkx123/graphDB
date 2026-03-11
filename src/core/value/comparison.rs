@@ -16,6 +16,7 @@ impl PartialEq for Value {
             (Value::Bool(a), Value::Bool(b)) => a == b,
             (Value::Int(a), Value::Int(b)) => a == b,
             (Value::Float(a), Value::Float(b)) => (a == b) || (a.is_nan() && b.is_nan()), // 正确处理NaN
+            (Value::Decimal128(a), Value::Decimal128(b)) => a == b,
             (Value::String(a), Value::String(b)) => a == b,
             (Value::Date(a), Value::Date(b)) => a == b,
             (Value::Time(a), Value::Time(b)) => a == b,
@@ -52,6 +53,7 @@ impl Ord for Value {
             (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
             (Value::Int(a), Value::Int(b)) => a.cmp(b),
             (Value::Float(a), Value::Float(b)) => Self::cmp_f64(*a, *b),
+            (Value::Decimal128(a), Value::Decimal128(b)) => a.cmp(b),
             (Value::String(a), Value::String(b)) => a.cmp(b),
             (Value::Date(a), Value::Date(b)) => Self::cmp_date(a, b),
             (Value::Time(a), Value::Time(b)) => Self::cmp_time(a, b),
@@ -101,6 +103,10 @@ impl Hash for Value {
                 } else {
                     f.to_bits().hash(state);
                 }
+            }
+            Value::Decimal128(d) => {
+                19u8.hash(state);
+                d.hash(state);
             }
             Value::String(s) => {
                 5u8.hash(state);
@@ -398,23 +404,24 @@ impl Value {
             | DataType::Int32
             | DataType::Int64 => 3,
             DataType::Float | DataType::Double => 4,
-            DataType::String => 5,
-            DataType::FixedString(_) => 5,
-            DataType::Date => 6,
-            DataType::Time => 7,
-            DataType::Timestamp => 7,
-            DataType::DateTime => 8,
-            DataType::VID => 9,
-            DataType::Duration => 10,
-            DataType::Vertex => 11,
-            DataType::Edge => 12,
-            DataType::Path => 13,
-            DataType::List => 14,
-            DataType::Map => 15,
-            DataType::Set => 16,
-            DataType::Blob => 17,
-            DataType::Geography => 18,
-            DataType::DataSet => 19,
+            DataType::Decimal128 => 5,
+            DataType::String => 6,
+            DataType::FixedString(_) => 6,
+            DataType::Date => 7,
+            DataType::Time => 8,
+            DataType::Timestamp => 8,
+            DataType::DateTime => 9,
+            DataType::VID => 10,
+            DataType::Duration => 11,
+            DataType::Vertex => 12,
+            DataType::Edge => 13,
+            DataType::Path => 14,
+            DataType::List => 15,
+            DataType::Map => 16,
+            DataType::Set => 17,
+            DataType::Blob => 18,
+            DataType::Geography => 19,
+            DataType::DataSet => 20,
         }
     }
 
