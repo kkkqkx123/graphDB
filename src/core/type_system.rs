@@ -191,6 +191,14 @@ impl TypeUtils {
             (DataType::String, DataType::Date) => true,
             (DataType::String, DataType::DateTime) => true,
 
+            // FixedString 可以转换为 String, Int, Float, Bool, Date, DateTime
+            (DataType::FixedString(_), DataType::String) => true,
+            (DataType::FixedString(_), DataType::Int) => true,
+            (DataType::FixedString(_), DataType::Float) => true,
+            (DataType::FixedString(_), DataType::Bool) => true,
+            (DataType::FixedString(_), DataType::Date) => true,
+            (DataType::FixedString(_), DataType::DateTime) => true,
+
             // Bool 可以转换为 Bool, Int, Float, String
             (DataType::Bool, DataType::Int) => true,
             (DataType::Bool, DataType::Float) => true,
@@ -226,6 +234,14 @@ impl TypeUtils {
             DataType::UInt64 => vec![DataType::UInt64, DataType::Int, DataType::Float, DataType::String],
             DataType::Float => vec![DataType::Float, DataType::Int, DataType::String],
             DataType::String => vec![
+                DataType::String,
+                DataType::Int,
+                DataType::Float,
+                DataType::Bool,
+                DataType::Date,
+                DataType::DateTime,
+            ],
+            DataType::FixedString(_) => vec![
                 DataType::String,
                 DataType::Int,
                 DataType::Float,

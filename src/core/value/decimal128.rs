@@ -23,8 +23,12 @@
 
 use dec::Decimal128;
 use serde::{Deserialize, Serialize};
+use bincode::Encode;
 use std::fmt;
 use std::str::FromStr;
+
+#[allow(unused_imports)]
+use bincode::de::Decode;
 
 /// Decimal128 值包装器
 ///

@@ -21,6 +21,9 @@ impl Value {
             (Int(a), Float(b)) => Ok(Float(*a as f64 + b)),
             (Float(a), Int(b)) => Ok(Float(a + *b as f64)),
             (String(a), String(b)) => Ok(String(format!("{}{}", a, b))),
+            (String(a), FixedString { data: b, .. }) => Ok(String(format!("{}{}", a, b))),
+            (FixedString { data: a, .. }, String(b)) => Ok(String(format!("{}{}", a, b))),
+            (FixedString { data: a, .. }, FixedString { data: b, .. }) => Ok(String(format!("{}{}", a, b))),
             _ => Err("无法对这些类型的值进行加法运算".to_string()),
         }
     }

@@ -830,9 +830,37 @@ impl DdlParser {
                 ctx.next_token();
                 Ok(DataType::Float)
             }
-            TokenKind::String | TokenKind::FixedString => {
+            TokenKind::String => {
                 ctx.next_token();
                 Ok(DataType::String)
+            }
+            TokenKind::FixedString => {
+                ctx.next_token();
+                if ctx.current_token().kind == TokenKind::LParen {
+                    ctx.next_token();
+                    if let TokenKind::IntegerLiteral(len) = ctx.current_token().kind {
+                        let length = len as usize;
+                        ctx.next_token();
+                        if ctx.current_token().kind == TokenKind::RParen {
+                            ctx.next_token();
+                            Ok(DataType::FixedString(length))
+                        } else {
+                            Err(ParseError::new(
+                                ParseErrorKind::SyntaxError,
+                                "FIXED_STRING 需要右括号".to_string(),
+                                ctx.current_position(),
+                            ))
+                        }
+                    } else {
+                        Err(ParseError::new(
+                            ParseErrorKind::SyntaxError,
+                            "FIXED_STRING 需要长度参数".to_string(),
+                            ctx.current_position(),
+                        ))
+                    }
+                } else {
+                    Ok(DataType::FixedString(32))
+                }
             }
             TokenKind::Bool => {
                 ctx.next_token();
@@ -858,6 +886,33 @@ impl DdlParser {
                     "INT" | "INTEGER" | "INT8" | "INT16" | "INT32" | "INT64" => Ok(DataType::Int),
                     "FLOAT" | "DOUBLE" => Ok(DataType::Float),
                     "STRING" | "VARCHAR" | "TEXT" => Ok(DataType::String),
+                    "FIXED_STRING" | "FIXEDSTRING" => {
+                        if ctx.current_token().kind == TokenKind::LParen {
+                            ctx.next_token();
+                            if let TokenKind::IntegerLiteral(len) = ctx.current_token().kind {
+                                let length = len as usize;
+                                ctx.next_token();
+                                if ctx.current_token().kind == TokenKind::RParen {
+                                    ctx.next_token();
+                                    Ok(DataType::FixedString(length))
+                                } else {
+                                    Err(ParseError::new(
+                                        ParseErrorKind::SyntaxError,
+                                        "FIXED_STRING 需要右括号".to_string(),
+                                        ctx.current_position(),
+                                    ))
+                                }
+                            } else {
+                                Err(ParseError::new(
+                                    ParseErrorKind::SyntaxError,
+                                    "FIXED_STRING 需要长度参数".to_string(),
+                                    ctx.current_position(),
+                                ))
+                            }
+                        } else {
+                            Ok(DataType::FixedString(32))
+                        }
+                    }
                     "BOOL" | "BOOLEAN" => Ok(DataType::Bool),
                     "DATE" => Ok(DataType::Date),
                     "TIMESTAMP" => Ok(DataType::Timestamp),

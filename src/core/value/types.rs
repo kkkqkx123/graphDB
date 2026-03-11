@@ -294,7 +294,7 @@ impl Value {
     pub fn length(&self) -> Result<Value, String> {
         match self {
             Value::String(s) => Ok(Value::Int(s.len() as i64)),
-            Value::FixedString { len, data } => Ok(Value::Int(data.len() as i64)),
+            Value::FixedString { data, .. } => Ok(Value::Int(data.len() as i64)),
             Value::Blob(b) => Ok(Value::Int(b.len() as i64)),
             Value::List(list) => Ok(Value::Int(list.values.len() as i64)),
             Value::Map(map) => Ok(Value::Int(map.len() as i64)),
@@ -323,7 +323,7 @@ impl Value {
             Value::Float(_) => base_size,
             Value::Decimal128(_) => base_size + std::mem::size_of::<super::decimal128::Decimal128Value>(),
             Value::String(s) => base_size + std::mem::size_of::<String>() + s.capacity(),
-            Value::FixedString { len, data } => base_size + std::mem::size_of::<String>() + data.capacity(),
+            Value::FixedString { data, .. } => base_size + std::mem::size_of::<String>() + data.capacity(),
             Value::Blob(b) => base_size + std::mem::size_of::<Vec<u8>>() + b.capacity(),
             Value::Date(d) => base_size + d.estimated_size(),
             Value::Time(t) => base_size + t.estimated_size(),

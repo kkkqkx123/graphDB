@@ -162,6 +162,10 @@ impl Hash for Value {
                 13u8.hash(state);
                 s.hash(state);
             }
+            Value::FixedString { data, .. } => {
+                20u8.hash(state);
+                data.hash(state);
+            }
             Value::Blob(b) => {
                 14u8.hash(state);
                 b.hash(state);

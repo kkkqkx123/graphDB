@@ -224,6 +224,7 @@ fn value_to_json(value: crate::core::Value) -> serde_json::Value {
         ),
         crate::core::Value::Decimal128(d) => serde_json::Value::String(d.to_string()),
         crate::core::Value::String(s) => serde_json::Value::String(s),
+        crate::core::Value::FixedString { data, .. } => serde_json::Value::String(data),
         crate::core::Value::Blob(blob) => serde_json::Value::String(format!("{:?}", blob)),
         crate::core::Value::Date(d) => serde_json::Value::String(d.to_string()),
         crate::core::Value::Time(t) => serde_json::Value::String(t.to_string()),
