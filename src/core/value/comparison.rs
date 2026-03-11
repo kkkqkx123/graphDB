@@ -26,6 +26,7 @@ impl PartialEq for Value {
             (Value::Float(a), Value::Float(b)) => (a == b) || (a.is_nan() && b.is_nan()), // 正确处理NaN
             (Value::Decimal128(a), Value::Decimal128(b)) => a == b,
             (Value::String(a), Value::String(b)) => a == b,
+            (Value::FixedString { data: a, .. }, Value::FixedString { data: b, .. }) => a == b,
             (Value::Date(a), Value::Date(b)) => a == b,
             (Value::Time(a), Value::Time(b)) => a == b,
             (Value::DateTime(a), Value::DateTime(b)) => a == b,
@@ -71,6 +72,7 @@ impl Ord for Value {
             (Value::Float(a), Value::Float(b)) => Self::cmp_f64(*a, *b),
             (Value::Decimal128(a), Value::Decimal128(b)) => a.cmp(b),
             (Value::String(a), Value::String(b)) => a.cmp(b),
+            (Value::FixedString { data: a, .. }, Value::FixedString { data: b, .. }) => a.cmp(b),
             (Value::Date(a), Value::Date(b)) => Self::cmp_date(a, b),
             (Value::Time(a), Value::Time(b)) => Self::cmp_time(a, b),
             (Value::DateTime(a), Value::DateTime(b)) => Self::cmp_datetime(a, b),

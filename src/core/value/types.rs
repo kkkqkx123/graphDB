@@ -125,6 +125,8 @@ pub enum Value {
     Float(f64),
     Decimal128(super::decimal128::Decimal128Value),
     String(String),
+    /// 定长字符串，用于优化短字符串存储
+    FixedString { len: usize, data: String },
     /// 二进制数据
     Blob(Vec<u8>),
     Date(super::date_time::DateValue),
@@ -160,6 +162,7 @@ impl Value {
             Value::Float(_) => DataType::Float,
             Value::Decimal128(_) => DataType::Decimal128,
             Value::String(_) => DataType::String,
+            Value::FixedString { len, .. } => DataType::FixedString(*len),
             Value::Blob(_) => DataType::Blob,
             Value::Date(_) => DataType::Date,
             Value::Time(_) => DataType::Time,
@@ -220,6 +223,36 @@ impl Value {
         }
     }
 
+    /// 获取字符串值
+    pub fn string_value(&self) -> Option<&str> {
+        match self {
+            Value::String(s) => Some(s),
+            Value::FixedString { data, .. } => Some(data),
+            _ => None,
+        }
+    }
+
+    /// 创建定长字符串值
+    pub fn fixed_string(len: usize, data: String) -> Self {
+        let padded_data = if data.len() > len {
+            data.chars().take(len).collect()
+        } else {
+            format!("{:<width$}", data, width = len)
+        };
+        Value::FixedString {
+            len,
+            data: padded_data,
+        }
+    }
+
+    /// 获取定长字符串的长度
+    pub fn fixed_string_len(&self) -> Option<usize> {
+        match self {
+            Value::FixedString { len, .. } => Some(*len),
+            _ => None,
+        }
+    }
+
     /// 计算值的哈希值
     pub fn hash_value(&self) -> u64 {
         use std::collections::hash_map::DefaultHasher;
@@ -261,6 +294,7 @@ impl Value {
     pub fn length(&self) -> Result<Value, String> {
         match self {
             Value::String(s) => Ok(Value::Int(s.len() as i64)),
+            Value::FixedString { len, data } => Ok(Value::Int(data.len() as i64)),
             Value::Blob(b) => Ok(Value::Int(b.len() as i64)),
             Value::List(list) => Ok(Value::Int(list.values.len() as i64)),
             Value::Map(map) => Ok(Value::Int(map.len() as i64)),
@@ -289,6 +323,7 @@ impl Value {
             Value::Float(_) => base_size,
             Value::Decimal128(_) => base_size + std::mem::size_of::<super::decimal128::Decimal128Value>(),
             Value::String(s) => base_size + std::mem::size_of::<String>() + s.capacity(),
+            Value::FixedString { len, data } => base_size + std::mem::size_of::<String>() + data.capacity(),
             Value::Blob(b) => base_size + std::mem::size_of::<Vec<u8>>() + b.capacity(),
             Value::Date(d) => base_size + d.estimated_size(),
             Value::Time(t) => base_size + t.estimated_size(),
@@ -360,6 +395,7 @@ impl std::fmt::Display for Value {
             Value::Float(fl) => write!(f, "{}", fl),
             Value::Decimal128(d) => write!(f, "{}", d),
             Value::String(s) => write!(f, "\"{}\"", s),
+            Value::FixedString { len, data } => write!(f, "\"{}\"[fixed:{}]", data, len),
             Value::Blob(b) => write!(f, "Blob({} bytes)", b.len()),
             Value::Date(d) => write!(f, "{:04}-{:02}-{:02}", d.year, d.month, d.day),
             Value::Time(t) => write!(
