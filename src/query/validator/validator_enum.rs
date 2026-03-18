@@ -36,6 +36,7 @@ use crate::query::validator::ddl::admin_validator::{
 };
 use crate::query::validator::ddl::alter_validator::AlterValidator;
 use crate::query::validator::ddl::drop_validator::DropValidator;
+use crate::query::validator::ddl::index_validator::CreateIndexValidator;
 use crate::query::validator::dml::pipe_validator::PipeValidator;
 use crate::query::validator::dml::query_validator::QueryValidator;
 use crate::query::validator::dml::set_operation_validator::SetOperationValidator;
@@ -113,6 +114,10 @@ pub enum Validator {
     Alter(AlterValidator),
     /// DROP 语句验证器
     Drop(DropValidator),
+    /// CREATE TAG INDEX 语句验证器
+    CreateTagIndex(CreateIndexValidator),
+    /// CREATE EDGE INDEX 语句验证器
+    CreateEdgeIndex(CreateIndexValidator),
     /// CREATE 语句验证器
     Create(CreateValidator),
 
@@ -209,6 +214,8 @@ impl Validator {
             Validator::ShowRoles(v) => v.statement_type(),
             Validator::Alter(v) => v.statement_type(),
             Validator::Drop(v) => v.statement_type(),
+            Validator::CreateTagIndex(v) => v.statement_type(),
+            Validator::CreateEdgeIndex(v) => v.statement_type(),
             Validator::Create(v) => v.statement_type(),
             Validator::Use(v) => v.statement_type(),
             Validator::Set(v) => v.statement_type(),
@@ -299,6 +306,12 @@ impl Validator {
                 .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Drop(v) => v
+                .validate(ast, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::CreateTagIndex(v) => v
+                .validate(ast, qctx)
+                .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
+            Validator::CreateEdgeIndex(v) => v
                 .validate(ast, qctx)
                 .unwrap_or_else(|e| ValidationResult::failure(vec![e])),
             Validator::Create(v) => v
@@ -421,6 +434,8 @@ impl Validator {
             Validator::ShowRoles(v) => v.inputs().to_vec(),
             Validator::Alter(v) => v.inputs().to_vec(),
             Validator::Drop(v) => v.inputs().to_vec(),
+            Validator::CreateTagIndex(v) => v.inputs().to_vec(),
+            Validator::CreateEdgeIndex(v) => v.inputs().to_vec(),
             Validator::Create(v) => v.inputs().to_vec(),
             Validator::Use(v) => v.inputs().to_vec(),
             Validator::Set(v) => v.inputs().to_vec(),
@@ -477,6 +492,8 @@ impl Validator {
             Validator::ShowRoles(v) => v.outputs().to_vec(),
             Validator::Alter(v) => v.outputs().to_vec(),
             Validator::Drop(v) => v.outputs().to_vec(),
+            Validator::CreateTagIndex(v) => v.outputs().to_vec(),
+            Validator::CreateEdgeIndex(v) => v.outputs().to_vec(),
             Validator::Create(v) => v.outputs().to_vec(),
             Validator::Use(v) => v.outputs().to_vec(),
             Validator::Set(v) => v.outputs().to_vec(),
@@ -576,7 +593,11 @@ impl Validator {
             Stmt::Create(c) => match &c.target {
                 CreateTarget::Space { .. } => StatementType::CreateSpace,
                 CreateTarget::Tag { .. } => StatementType::CreateTag,
-                CreateTarget::Edge { .. } => StatementType::CreateEdge,
+                CreateTarget::EdgeType { .. } => StatementType::CreateEdge,
+                CreateTarget::Index { index_type, .. } => match index_type {
+                    crate::query::parser::ast::stmt::IndexType::Tag => StatementType::CreateTagIndex,
+                    crate::query::parser::ast::stmt::IndexType::Edge => StatementType::CreateEdgeIndex,
+                },
                 _ => StatementType::Create,
             },
             Stmt::Assignment(_) => StatementType::Assignment,
@@ -609,6 +630,9 @@ impl Validator {
             StatementType::ShowRoles => Validator::ShowRoles(ShowRolesValidator::new()),
             StatementType::Alter => Validator::Alter(AlterValidator::new()),
             StatementType::Drop => Validator::Drop(DropValidator::new()),
+            StatementType::DropTagIndex | StatementType::DropEdgeIndex => Validator::Drop(DropValidator::new()),
+            StatementType::CreateTagIndex => Validator::CreateTagIndex(CreateIndexValidator::new()),
+            StatementType::CreateEdgeIndex => Validator::CreateEdgeIndex(CreateIndexValidator::new()),
             StatementType::Create
             | StatementType::CreateSpace
             | StatementType::CreateTag
@@ -681,6 +705,8 @@ impl Validator {
             Validator::ShowRoles(v) => v.user_defined_vars(),
             Validator::Alter(v) => v.user_defined_vars(),
             Validator::Drop(v) => v.user_defined_vars(),
+            Validator::CreateTagIndex(v) => v.user_defined_vars(),
+            Validator::CreateEdgeIndex(v) => v.user_defined_vars(),
             Validator::Create(v) => v.user_defined_vars(),
             Validator::Use(v) => v.user_defined_vars(),
             Validator::Set(v) => v.user_defined_vars(),
@@ -742,6 +768,8 @@ impl Validator {
             Validator::ShowRoles(v) => v.expression_props(),
             Validator::Alter(v) => v.expression_props(),
             Validator::Drop(v) => v.expression_props(),
+            Validator::CreateTagIndex(v) => v.expression_props(),
+            Validator::CreateEdgeIndex(v) => v.expression_props(),
             Validator::Create(v) => v.expression_props(),
             Validator::Use(v) => v.expression_props(),
             Validator::Set(v) => v.expression_props(),

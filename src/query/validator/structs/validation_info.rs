@@ -314,6 +314,10 @@ pub struct SemanticInfo {
     pub query_type: Option<String>,
     /// 查询复杂度
     pub query_complexity: Option<usize>,
+    /// 空间名称
+    pub space_name: Option<String>,
+    /// 引用的 Schema（标签或边类型）
+    pub referenced_schemas: Vec<String>,
 }
 
 /// 聚合函数调用信息

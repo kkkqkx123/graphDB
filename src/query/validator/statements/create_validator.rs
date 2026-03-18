@@ -651,11 +651,15 @@ impl CreateValidator {
 
                 Ok(())
             }
-            // CREATE TAG/EDGE/INDEX: 需要空间，但当前验证器不支持
+            // CREATE TAG/EDGE: 需要空间，但当前验证器不支持
             CreateTarget::Tag { .. }
-            | CreateTarget::EdgeType { .. }
-            | CreateTarget::Index { .. } => Err(ValidationError::new(
-                "CreateValidator 不支持 CREATE TAG/EDGE/INDEX，请使用 DDL 验证器".to_string(),
+            | CreateTarget::EdgeType { .. } => Err(ValidationError::new(
+                "CreateValidator 不支持 CREATE TAG/EDGE，请使用 DDL 验证器".to_string(),
+                ValidationErrorType::SemanticError,
+            )),
+            // CREATE INDEX 现在由专门的 CreateIndexValidator 处理
+            CreateTarget::Index { .. } => Err(ValidationError::new(
+                "CreateIndexValidator 不支持此类 CREATE 语句".to_string(),
                 ValidationErrorType::SemanticError,
             )),
             // CREATE Node/Edge/Path: 需要空间，执行 DML 验证

@@ -241,7 +241,7 @@ impl DdlParser {
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Index) {
-            // 解析 CREATE INDEX
+            // 解析 CREATE INDEX (向后兼容旧语法)
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Not)?;
@@ -263,6 +263,69 @@ impl DdlParser {
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
                 target: CreateTarget::Index {
+                    index_type: crate::query::parser::ast::stmt::IndexType::Tag,
+                    name,
+                    on,
+                    properties,
+                },
+                if_not_exists,
+            }))
+        } else if ctx.match_token(TokenKind::Tag) {
+            // 解析 CREATE TAG INDEX
+            ctx.expect_token(TokenKind::Index)?;
+            let mut if_not_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Not)?;
+                ctx.expect_token(TokenKind::Exists)?;
+                if_not_exists = true;
+            }
+            let name = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::On)?;
+            let on = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::LParen)?;
+            let mut properties = vec![];
+            loop {
+                properties.push(ctx.expect_identifier()?);
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
+            ctx.expect_token(TokenKind::RParen)?;
+            Ok(Stmt::Create(CreateStmt {
+                span: start_span,
+                target: CreateTarget::Index {
+                    index_type: crate::query::parser::ast::stmt::IndexType::Tag,
+                    name,
+                    on,
+                    properties,
+                },
+                if_not_exists,
+            }))
+        } else if ctx.match_token(TokenKind::Edge) {
+            // 解析 CREATE EDGE INDEX
+            ctx.expect_token(TokenKind::Index)?;
+            let mut if_not_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Not)?;
+                ctx.expect_token(TokenKind::Exists)?;
+                if_not_exists = true;
+            }
+            let name = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::On)?;
+            let on = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::LParen)?;
+            let mut properties = vec![];
+            loop {
+                properties.push(ctx.expect_identifier()?);
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
+            ctx.expect_token(TokenKind::RParen)?;
+            Ok(Stmt::Create(CreateStmt {
+                span: start_span,
+                target: CreateTarget::Index {
+                    index_type: crate::query::parser::ast::stmt::IndexType::Edge,
                     name,
                     on,
                     properties,

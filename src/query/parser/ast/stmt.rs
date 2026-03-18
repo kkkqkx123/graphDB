@@ -525,10 +525,17 @@ pub enum CreateTarget {
         comment: Option<String>,
     },
     Index {
+        index_type: IndexType,
         name: String,
         on: String,
         properties: Vec<String>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum IndexType {
+    Tag,
+    Edge,
 }
 
 /// MATCH 语句

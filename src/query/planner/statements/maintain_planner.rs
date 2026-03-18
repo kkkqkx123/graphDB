@@ -1,11 +1,12 @@
 //! 维护操作规划器
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
-use crate::query::parser::ast::{AlterTarget, ShowTarget, Stmt};
+use crate::query::parser::ast::{AlterTarget, CreateTarget, IndexType, ShowTarget, Stmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ArgumentNode, ClearSpaceNode, PlanNodeEnum,
     ProjectNode, ShowStatsNode, ShowStatsType,
 };
+use crate::query::planner::plan::core::nodes::management::index_nodes::IndexManageInfo;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -68,6 +69,46 @@ impl Planner for MaintainPlanner {
             PlanNodeEnum::Project(project_node)
         } else if stmt_type.starts_with("CREATE") {
             // 创建类型的操作
+            if let Stmt::Create(create_stmt) = validated.stmt() {
+                if let CreateTarget::Index { index_type, name, on, properties } = &create_stmt.target {
+                    let space_name = validated
+                        .validation_info
+                        .semantic_info
+                        .space_name
+                        .clone()
+                        .unwrap_or_default();
+
+                    let mut index_info = IndexManageInfo::new(
+                        space_name.clone(),
+                        name.clone(),
+                        match index_type {
+                            IndexType::Tag => "tag".to_string(),
+                            IndexType::Edge => "edge".to_string(),
+                        },
+                    )
+                    .with_target_name(on.clone())
+                    .with_properties(properties.clone());
+
+                    let plan_node = match index_type {
+                        IndexType::Tag => {
+                            let create_tag_index_node = crate::query::planner::plan::core::nodes::CreateTagIndexNode::new(
+                                next_node_id(),
+                                index_info,
+                            );
+                            PlanNodeEnum::CreateTagIndex(create_tag_index_node)
+                        }
+                        IndexType::Edge => {
+                            let create_edge_index_node = crate::query::planner::plan::core::nodes::CreateEdgeIndexNode::new(
+                                next_node_id(),
+                                index_info,
+                            );
+                            PlanNodeEnum::CreateEdgeIndex(create_edge_index_node)
+                        }
+                    };
+                    return Ok(SubPlan::new(Some(plan_node), Some(PlanNodeEnum::Argument(arg_node))));
+                }
+            }
+            // 其他创建操作使用默认处理
             PlanNodeEnum::Project(project_node)
         } else if stmt_type.starts_with("ALTER") {
             // 处理 ALTER SPACE 语句
