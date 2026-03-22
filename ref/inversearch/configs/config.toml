@@ -1,0 +1,28 @@
+[server]
+host = "0.0.0.0"
+port = 50051
+workers = 4
+
+[index]
+resolution = 9
+tokenize = "strict"
+depth = 0
+bidirectional = true
+fastupdate = false
+
+[cache]
+enabled = false
+size = 1000
+ttl = 3600
+
+[storage]
+enabled = false
+backend = "memory"
+
+[storage.redis]
+url = "redis://127.0.0.1:6379"
+pool_size = 10
+
+[logging]
+level = "info"
+format = "json"

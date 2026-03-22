@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package bm25;
+
+service BM25Service {
+  rpc IndexDocument(IndexDocumentRequest) returns (IndexDocumentResponse);
+  rpc BatchIndexDocuments(BatchIndexDocumentsRequest) returns (BatchIndexDocumentsResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+}
+
+message IndexDocumentRequest {
+  string index_name = 1;
+  string document_id = 2;
+  map<string, string> fields = 3;
+}
+
+message IndexDocumentResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message BatchIndexDocumentsRequest {
+  string index_name = 1;
+  repeated Document documents = 2;
+}
+
+message Document {
+  string document_id = 1;
+  map<string, string> fields = 2;
+}
+
+message BatchIndexDocumentsResponse {
+  bool success = 1;
+  string message = 2;
+  int32 indexed_count = 3;
+}
+
+message SearchRequest {
+  string index_name = 1;
+  string query = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+  map<string, float> field_weights = 5;
+  bool highlight = 6;
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+  int32 total = 2;
+  float max_score = 3;
+}
+
+message SearchResult {
+  string document_id = 1;
+  float score = 2;
+  map<string, string> fields = 3;
+  map<string, string> highlights = 4;
+}
+
+message DeleteDocumentRequest {
+  string index_name = 1;
+  string document_id = 2;
+}
+
+message DeleteDocumentResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetStatsRequest {
+  string index_name = 1;
+}
+
+message GetStatsResponse {
+  int64 total_documents = 1;
+  int64 total_terms = 2;
+  double avg_document_length = 3;
+}

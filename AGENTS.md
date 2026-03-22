@@ -55,7 +55,7 @@ The graphDB project utilises Cargo as its build system. To build the project:
 - cargo: 1.88.0
 
 2. **Build commands**:
-   ```bash
+   ```shell
    cd graphDB
    cargo build                 # Debug build (development)
    cargo build --release       # Release build (optimized for performance)
@@ -68,13 +68,13 @@ default output file is `cargo_errors_report.md` in pwd.
 Use it instead of `cargo test --lib` or `cargo check`. 
 
 **Usage**
-```bash
+```shell
 analyze_cargo
 ```
 
 **Examples**
 
-```bash
+```shell
 # Default usage
 analyze_cargo
 
@@ -94,7 +94,7 @@ analyze_cargo --filter-warnings
 The project includes a comprehensive test suite utilising Rust's standard testing framework:
 
 1. **Running tests**:
-   ```bash
+   ```shell
    cargo test # Run all tests
    cargo test --lib -- --nocapture # Run lib tests
    cargo test <test_name> # Run specific test(s) matching pattern

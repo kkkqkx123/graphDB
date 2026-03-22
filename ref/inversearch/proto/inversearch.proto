@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package inversearch;
+
+service InversearchService {
+  rpc AddDocument(AddDocumentRequest) returns (AddDocumentResponse);
+  rpc UpdateDocument(UpdateDocumentRequest) returns (UpdateDocumentResponse);
+  rpc RemoveDocument(RemoveDocumentRequest) returns (RemoveDocumentResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc ClearIndex(ClearIndexRequest) returns (ClearIndexResponse);
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+}
+
+message AddDocumentRequest {
+  uint64 id = 1;
+  string content = 2;
+  map<string, string> metadata = 3;
+}
+
+message AddDocumentResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message UpdateDocumentRequest {
+  uint64 id = 1;
+  string content = 2;
+  map<string, string> metadata = 3;
+}
+
+message UpdateDocumentResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message RemoveDocumentRequest {
+  uint64 id = 1;
+}
+
+message RemoveDocumentResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message SearchRequest {
+  string query = 1;
+  uint32 limit = 2;
+  uint32 offset = 3;
+  bool context = 4;
+  bool suggest = 5;
+  bool resolve = 6;
+  bool enrich = 7;
+  bool cache = 8;
+}
+
+message SearchResponse {
+  repeated uint64 results = 1;
+  uint32 total = 2;
+  string error = 3;
+}
+
+message ClearIndexRequest {}
+
+message ClearIndexResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  uint64 document_count = 1;
+  uint64 index_size = 2;
+  uint64 cache_size = 3;
+  string error = 4;
+}
