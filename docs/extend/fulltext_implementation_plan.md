@@ -1,237 +1,365 @@
-# 全文检索实现计划
+# 全文检索服务集成实现计划
 
-## 项目概述
+## 概述
 
-基于 `fulltext_search_design.md` 设计方案，制定详细的实现计划和任务分解。
+基于 gRPC 服务架构，集成 ref/bm25 或 ref/inversearch 服务到 GraphDB。
 
----
+## 阶段一：基础框架搭建（第 1-2 天）
 
-## 阶段一：基础框架搭建（第 1-3 天）
-
-### 任务 1.1：添加依赖配置
+### 任务 1.1：添加 gRPC 依赖
+**时间**: 0.5 天
+**优先级**: 高
 
 ```toml
-# Cargo.toml 修改
+# Cargo.toml
 [dependencies]
-tantivy = { version = "0.24", optional = true }
+tonic = { version = "0.12", optional = true }
+prost = { version = "0.14", optional = true }
 
 [features]
-default = ["redb", "embedded", "server", "c-api", "fulltext-tantivy"]
-fulltext-tantivy = ["dep:tantivy"]
-fulltext-builtin = []
+default = ["redb", "embedded", "server", "c-api"]
+fulltext = ["dep:tonic", "dep:prost"]
+
+[build-dependencies]
+tonic-build = { version = "0.12", optional = true }
 ```
 
 **验收标准**:
-- [ ] `cargo check` 通过
+- [ ] `cargo check --features fulltext` 通过
 - [ ] 特性开关工作正常
 
 ---
 
 ### 任务 1.2：创建模块结构
+**时间**: 0.5 天
+**优先级**: 高
 
-**目录结构**:
 ```
 src/storage/fulltext/
 ├── mod.rs              # 模块入口
 ├── types.rs            # 类型定义
-├── provider.rs         # Provider trait
-├── error.rs            # 错误类型
-├── tantivy_impl/       # Tantivy 实现
-│   ├── mod.rs
-│   ├── index_manager.rs
-│   ├── searcher.rs
-│   └── schema.rs
-└── builtin_impl/       # 内置实现（占位）
-    └── mod.rs
+├── client.rs           # gRPC 客户端
+├── sync.rs             # 数据同步管理器
+├── config.rs           # 配置
+└── error.rs            # 错误类型
 ```
 
 **验收标准**:
 - [ ] 目录结构创建完成
-- [ ] 所有文件包含基础框架代码
-- [ ] 模块能正常编译
+- [ ] 基础代码框架编译通过
 
 ---
 
 ### 任务 1.3：定义核心类型
+**时间**: 1 天
+**优先级**: 高
 
 **文件**: `src/storage/fulltext/types.rs`
 
-**需要定义的类型**:
-1. `FulltextIndexConfig` - 全文索引配置
-2. `FulltextProviderType` - 提供者类型枚举
-3. `TokenizerType` - 分词器类型
-4. `FulltextOptions` - 索引选项
-5. `SearchOptions` - 搜索选项
-6. `SearchResults` - 搜索结果
-7. `SearchResult` - 单个结果
-8. `IndexStats` - 索引统计
-
-**验收标准**:
-- [ ] 所有类型定义完成
-- [ ] 实现 `Serialize`/`Deserialize`
-- [ ] 实现 `Debug`/`Clone`
-- [ ] 单元测试通过
-
----
-
-### 任务 1.4：扩展索引类型枚举
-
-**文件**: `src/core/types/index.rs`
-
-**修改内容**:
 ```rust
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
-pub enum IndexType {
-    #[serde(rename = "tag")]
-    TagIndex,
-    #[serde(rename = "edge")]
-    EdgeIndex,
-    #[serde(rename = "fulltext")]      // 新增
-    FulltextIndex,
+/// 全文检索配置
+#[derive(Debug, Clone, Deserialize)]
+pub struct FulltextConfig {
+    pub enabled: bool,
+    pub endpoint: String,
+    pub timeout_ms: u64,
+    pub retry_count: u32,
+    pub sync: SyncConfig,
+}
+
+/// 同步配置
+#[derive(Debug, Clone, Deserialize)]
+pub struct SyncConfig {
+    pub mode: SyncMode,
+    pub queue_size: usize,
+    pub batch_size: usize,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub enum SyncMode {
+    Sync,
+    Async,
+    Off,
+}
+
+/// 全文搜索结果
+#[derive(Debug, Clone)]
+pub struct FulltextResult {
+    pub doc_id: Value,
+    pub score: f32,
+    pub highlights: Option<Vec<String>>,
+}
+
+/// 索引映射信息
+#[derive(Debug, Clone)]
+pub struct IndexMapping {
+    pub space_id: u64,
+    pub tag_name: String,
+    pub field_name: String,
+    pub index_name: String,
+    pub provider: String,
 }
 ```
 
 **验收标准**:
-- [ ] 枚举扩展完成
-- [ ] 序列化/反序列化测试通过
-- [ ] 不影响现有功能
+- [ ] 所有类型定义完成
+- [ ] 实现 Serialize/Deserialize
+- [ ] 单元测试通过
 
 ---
 
-## 阶段二：Tantivy 实现（第 4-10 天）
+## 阶段二：gRPC 客户端实现（第 3-5 天）
 
-### 任务 2.1：实现 IndexManager
+### 任务 2.1：引入 proto 文件
+**时间**: 0.5 天
+**优先级**: 高
 
-**文件**: `src/storage/fulltext/tantivy_impl/index_manager.rs`
+**操作**:
+1. 复制 `ref/bm25/proto/bm25.proto` 到 `proto/bm25.proto`
+2. 创建 `build.rs` 编译 proto
 
-**功能列表**:
-- [ ] `new(base_path: PathBuf)` - 构造函数
-- [ ] `create_index(name: &str)` - 创建索引
-- [ ] `open_index(name: &str)` - 打开索引
-- [ ] `delete_index(name: &str)` - 删除索引
-- [ ] `get_writer(name: &str)` - 获取写入器
-- [ ] `get_reader(name: &str)` - 获取读取器
-- [ ] `commit(name: &str)` - 提交变更
+```rust
+// build.rs
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(feature = "fulltext")]
+    {
+        tonic_build::compile_protos("proto/bm25.proto")?;
+    }
+    Ok(())
+}
+```
 
 **验收标准**:
-- [ ] 所有功能实现
+- [ ] proto 文件编译成功
+- [ ] 生成的代码能正常引用
+
+---
+
+### 任务 2.2：实现 FulltextClient
+**时间**: 2 天
+**优先级**: 高
+
+**文件**: `src/storage/fulltext/client.rs`
+
+```rust
+pub struct FulltextClient {
+    client: Bm25ServiceClient<Channel>,
+    config: FulltextConfig,
+}
+
+impl FulltextClient {
+    pub async fn connect(config: FulltextConfig) -> Result<Self>;
+    
+    /// 创建索引
+    pub async fn create_index(&mut self, index_name: &str) -> Result<()>;
+    
+    /// 删除索引
+    pub async fn drop_index(&mut self, index_name: &str) -> Result<()>;
+    
+    /// 索引文档
+    pub async fn index_document(
+        &mut self,
+        index_name: &str,
+        doc_id: &str,
+        fields: HashMap<String, String>,
+    ) -> Result<()>;
+    
+    /// 批量索引
+    pub async fn batch_index_documents(
+        &mut self,
+        index_name: &str,
+        documents: Vec<(String, HashMap<String, String>)>,
+    ) -> Result<usize>;
+    
+    /// 删除文档
+    pub async fn delete_document(
+        &mut self,
+        index_name: &str,
+        doc_id: &str,
+    ) -> Result<()>;
+    
+    /// 搜索
+    pub async fn search(
+        &mut self,
+        index_name: &str,
+        query: &str,
+        limit: i32,
+        offset: i32,
+    ) -> Result<Vec<FulltextResult>>;
+    
+    /// 获取统计
+    pub async fn get_stats(&mut self, index_name: &str) -> Result<IndexStats>;
+}
+```
+
+**验收标准**:
+- [ ] 所有方法实现完成
 - [ ] 错误处理完善
 - [ ] 单元测试覆盖率 > 80%
 
 ---
 
-### 任务 2.2：实现 Schema 定义
+### 任务 2.3：连接池管理
+**时间**: 0.5 天
+**优先级**: 中
 
-**文件**: `src/storage/fulltext/tantivy_impl/schema.rs`
+**功能**:
+- 连接复用
+- 自动重连
+- 健康检查
 
-**功能列表**:
-- [ ] 定义文档 Schema
-- [ ] 支持动态字段
-- [ ] 字段类型映射
+**验收标准**:
+- [ ] 连接池正常工作
+- [ ] 断线自动重连
+- [ ] 并发安全
 
-**Schema 结构**:
+---
+
+## 阶段三：数据同步实现（第 6-8 天）
+
+### 任务 3.1：实现 FulltextSyncManager
+**时间**: 2 天
+**优先级**: 高
+
+**文件**: `src/storage/fulltext/sync.rs`
+
 ```rust
-pub struct FulltextSchema {
-    pub doc_id_field: Field,
-    pub content_field: Field,
-    pub schema: Schema,
+pub struct FulltextSyncManager {
+    client: FulltextClient,
+    index_mappings: Arc<RwLock<HashMap<IndexKey, String>>>,
+    config: SyncConfig,
+    // 异步队列
+    async_queue: Option<mpsc::Sender<SyncTask>>,
+}
+
+#[derive(Debug)]
+pub enum SyncTask {
+    IndexDocument {
+        index_name: String,
+        doc_id: String,
+        fields: HashMap<String, String>,
+    },
+    DeleteDocument {
+        index_name: String,
+        doc_id: String,
+    },
+}
+
+impl FulltextSyncManager {
+    /// 顶点插入时同步
+    pub async fn on_vertex_inserted(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        vertex_id: &Value,
+        properties: &HashMap<String, Value>,
+    ) -> Result<()>;
+    
+    /// 顶点更新时同步
+    pub async fn on_vertex_updated(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        vertex_id: &Value,
+        properties: &HashMap<String, Value>,
+    ) -> Result<()>;
+    
+    /// 顶点删除时同步
+    pub async fn on_vertex_deleted(
+        &self,
+        space_id: u64,
+        tag_name: &str,
+        vertex_id: &Value,
+    ) -> Result<()>;
+    
+    /// 批量同步
+    pub async fn batch_sync(&self, tasks: Vec<SyncTask>) -> Result<()>;
 }
 ```
 
 **验收标准**:
-- [ ] Schema 定义正确
-- [ ] 字段类型映射正确
-- [ ] 单元测试通过
-
----
-
-### 任务 2.3：实现 Searcher
-
-**文件**: `src/storage/fulltext/tantivy_impl/searcher.rs`
-
-**功能列表**:
-- [ ] `search()` - 基本搜索
-- [ ] `build_query()` - 查询构建
-- [ ] `extract_results()` - 结果提取
-- [ ] `calculate_score()` - 评分计算
-
-**支持的查询类型**:
-- 词项查询
-- 短语查询
-- 布尔查询
-- 前缀查询
-
-**验收标准**:
-- [ ] 所有查询类型支持
-- [ ] 搜索结果正确
-- [ ] 性能测试通过
-
----
-
-### 任务 2.4：实现 FulltextProvider Trait
-**负责人**: 开发团队
-**时间**: 2 天
-**优先级**: 高
-
-**文件**: `src/storage/fulltext/tantivy_impl/mod.rs`
-
-**功能列表**:
-- [ ] `create_index()` - 创建索引
-- [ ] `drop_index()` - 删除索引
-- [ ] `index_document()` - 索引文档
-- [ ] `batch_index_documents()` - 批量索引
-- [ ] `delete_document()` - 删除文档
-- [ ] `search()` - 搜索
-- [ ] `get_stats()` - 获取统计
-
-**验收标准**:
-- [ ] Trait 完整实现
-- [ ] 异步接口正确
+- [ ] 同步逻辑正确
+- [ ] 支持同步/异步模式
 - [ ] 错误处理完善
 
 ---
 
-### 任务 2.5：集成到 StorageClient
+### 任务 3.2：集成到存储层
+**时间**: 1.5 天
+**优先级**: 高
 
-**文件**: `src/storage/storage_client.rs`
+**修改文件**:
+- `src/storage/redb_storage.rs` - 添加同步钩子
+- `src/storage/vertex_storage.rs` - 插入/更新/删除时触发同步
 
-**修改内容**:
 ```rust
-pub trait StorageClient: Send + Sync {
-    // 现有接口...
-    
-    // 新增全文检索接口
-    async fn create_fulltext_index(
-        &self,
-        config: FulltextIndexConfig,
-    ) -> Result<()>;
-    
-    async fn fulltext_search(
-        &self,
-        index_name: &str,
-        query: &str,
-        options: &SearchOptions,
-    ) -> Result<SearchResults>;
+// 在 VertexStorage::insert_vertex 中添加
+if let Some(ref sync_manager) = self.fulltext_sync {
+    sync_manager.on_vertex_inserted(
+        space_id, tag_name, vertex_id, &properties
+    ).await?;
 }
 ```
 
 **验收标准**:
-- [ ] 接口添加完成
-- [ ] 实现类更新
+- [ ] 数据变更自动同步
+- [ ] 不影响原有存储性能
 - [ ] 集成测试通过
 
 ---
 
-## 阶段三：查询层集成（第 11-14 天）
+### 任务 3.3：异步队列实现
+**时间**: 0.5 天
+**优先级**: 中
 
-### 任务 3.1：实现 FulltextScanExecutor
+**功能**:
+- 批量处理
+- 失败重试
+- 队列满处理策略
+
+**验收标准**:
+- [ ] 异步队列工作正常
+- [ ] 批量处理提升性能
+- [ ] 内存使用可控
+
+---
+
+## 阶段四：查询层集成（第 9-11 天）
+
+### 任务 4.1：实现 FulltextScanExecutor
+**时间**: 2 天
+**优先级**: 高
 
 **文件**: `src/query/executor/data_access/fulltext_scan.rs`
 
-**功能列表**:
-- [ ] 执行器结构定义
-- [ ] `execute()` 方法实现
-- [ ] 结果转换逻辑
+```rust
+pub struct FulltextScanExecutor<S: StorageClient> {
+    base: BaseExecutor<S>,
+    index_name: String,
+    query: String,
+    limit: Option<usize>,
+}
+
+#[async_trait::async_trait]
+impl<S: StorageClient + Send + 'static> Executor for FulltextScanExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        // 1. 调用全文搜索
+        let results = self.storage
+            .fulltext_search(&self.index_name, &self.query, self.limit.unwrap_or(100))
+            .await?;
+        
+        // 2. 根据 doc_ids 查询完整数据
+        let mut rows = Vec::new();
+        for result in results {
+            if let Some(vertex) = self.storage.get_vertex(&result.doc_id).await? {
+                rows.push(self.build_row(vertex, result.score));
+            }
+        }
+        
+        Ok(ExecutionResult::new(rows))
+    }
+}
+```
 
 **验收标准**:
 - [ ] 执行器能正确执行
@@ -240,88 +368,154 @@ pub trait StorageClient: Send + Sync {
 
 ---
 
-### 任务 3.2：扩展查询解析器
+### 任务 4.2：扩展查询解析器
+**时间**: 1.5 天
+**优先级**: 中
 
 **支持的语法**:
 ```sql
--- CONTAINS 表达式
-WHERE field CONTAINS "text"
-
 -- MATCH 表达式
-WHERE field MATCH "text"
+WHERE field MATCH "query"
+
+-- CONTAINS 表达式
+WHERE field CONTAINS "query"
 
 -- 评分函数
 score(vertex) as relevance
 ```
 
-**文件修改**:
-- `src/query/parser/ast/expr.rs` - 添加表达式类型
-- `src/query/parser/parser/expr_parser.rs` - 添加解析逻辑
+**修改文件**:
+- `src/query/parser/ast/expr.rs`
+- `src/query/parser/parser/expr_parser.rs`
 
 **验收标准**:
 - [ ] 新语法能正确解析
 - [ ] 解析器测试通过
-- [ ] 错误提示友好
 
 ---
 
-### 任务 3.3：实现查询计划生成
+### 任务 4.3：查询计划生成
+**时间**: 0.5 天
+**优先级**: 中
 
-**文件**: `src/query/planner/`
-
-**功能列表**:
-- [ ] 识别全文检索条件
-- [ ] 生成 FulltextScan 计划节点
-- [ ] 成本估算
+**功能**:
+- 识别全文检索条件
+- 生成 FulltextScan 计划节点
+- 成本估算
 
 **验收标准**:
 - [ ] 计划生成正确
-- [ ] 成本估算合理
 - [ ] 集成测试通过
 
 ---
 
-## 阶段四：测试与优化（第 15-19 天）
+## 阶段五：SQL 语法实现（第 12-13 天）
 
-### 任务 4.1：单元测试
+### 任务 5.1：CREATE FULLTEXT INDEX
+**时间**: 1 天
+**优先级**: 高
+
+**语法**:
+```sql
+CREATE FULLTEXT INDEX index_name ON tag_name(field_name)
+[USING 'bm25' | 'inversearch']
+[WITH TOKENIZER = 'standard' | 'cjk']
+```
+
+**实现**:
+- 解析器扩展
+- 执行器实现
+- 元数据存储
+
+**验收标准**:
+- [ ] SQL 语法正确执行
+- [ ] 索引元数据持久化
+- [ ] 服务通知成功
+
+---
+
+### 任务 5.2：DROP FULLTEXT INDEX
+**时间**: 0.5 天
+**优先级**: 高
+
+**语法**:
+```sql
+DROP FULLTEXT INDEX index_name
+```
+
+**验收标准**:
+- [ ] 索引删除成功
+- [ ] 服务通知成功
+- [ ] 元数据清理
+
+---
+
+### 任务 5.3：REBUILD FULLTEXT INDEX
+**时间**: 0.5 天
+**优先级**: 低
+
+**语法**:
+```sql
+REBUILD FULLTEXT INDEX index_name
+```
+
+**功能**:
+- 全量重新索引
+- 用于数据修复
+
+**验收标准**:
+- [ ] 重建功能正常
+- [ ] 进度反馈
+
+---
+
+## 阶段六：测试与优化（第 14-17 天）
+
+### 任务 6.1：单元测试
+**时间**: 2 天
+**优先级**: 高
 
 **测试范围**:
-- [ ] 类型定义测试
-- [ ] IndexManager 测试
-- [ ] Searcher 测试
-- [ ] Provider 测试
-- [ ] Executor 测试
+- [ ] FulltextClient 测试
+- [ ] FulltextSyncManager 测试
+- [ ] 执行器测试
+- [ ] 解析器测试
 
 **验收标准**:
 - [ ] 测试覆盖率 > 80%
 - [ ] 所有测试通过
-- [ ] 边界条件覆盖
 
 ---
 
-### 任务 4.2：集成测试
+### 任务 6.2：集成测试
+**时间**: 2 天
+**优先级**: 高
 
 **测试场景**:
-- [ ] 创建全文索引
-- [ ] 索引文档
-- [ ] 执行搜索
-- [ ] 删除文档
-- [ ] 删除索引
-- [ ] 并发访问
+1. 启动 BM25 服务
+2. 创建全文索引
+3. 插入顶点数据
+4. 执行全文搜索
+5. 验证结果正确性
+6. 删除顶点数据
+7. 验证索引更新
 
 **验收标准**:
-- [ ] 所有场景测试通过
+- [ ] 完整流程测试通过
 - [ ] 性能指标达标
-- [ ] 无内存泄漏
 
 ---
 
-### 任务 4.3：性能测试
+### 任务 6.3：性能测试
+**时间**: 1 天
+**优先级**: 中
 
 **测试指标**:
-- [ ] 索引速度: > 1000 文档/秒
-- [ ] 查询延迟: < 100ms (P95)
-- [ ] 并发查询: 支持 100+ QPS
+| 指标 | 目标值 |
+|------|--------|
+| 单次搜索延迟 | < 20ms |
+| 批量索引速度 | > 3000 doc/s |
+| 并发查询 | 支持 100+ QPS |
 
 **验收标准**:
 - [ ] 性能指标达标
@@ -329,61 +523,39 @@ score(vertex) as relevance
 
 ---
 
-### 任务 4.4：文档编写
+## 阶段七：文档与部署（第 18-19 天）
+
+### 任务 7.1：使用文档
+**时间**: 1 天
+**优先级**: 中
 
 **文档内容**:
-- [ ] API 文档
-- [ ] 使用指南
-- [ ] 性能调优指南
-- [ ] 故障排查指南
-
-**验收标准**:
-- [ ] 文档完整
-- [ ] 示例代码可运行
+- [ ] 快速开始指南
+- [ ] SQL 语法参考
+- [ ] 配置说明
+- [ ] 故障排查
 
 ---
 
-## 阶段五：内置实现（可选，第 20-26 天）
+### 任务 7.2：部署脚本
+**时间**: 0.5 天
+**优先级**: 中
 
-### 任务 5.1：实现倒排索引
-**负责人**: 开发团队
-**时间**: 3 天
-**优先级**: 低
-
-**文件**: `src/storage/fulltext/builtin_impl/inverted_index.rs`
-
-**功能列表**:
-- [ ] 倒排索引结构
-- [ ] 文档添加/删除
-- [ ] BM25 评分计算
-- [ ] 持久化存储
+**脚本**:
+- `scripts/start-fulltext.ps1` - 启动全文服务
+- `scripts/stop-fulltext.ps1` - 停止全文服务
+- `scripts/start-all.ps1` - 一键启动所有服务
 
 ---
 
-### 任务 5.2：实现分词器
-**负责人**: 开发团队
-**时间**: 2 天
+### 任务 7.3：示例代码
+**时间**: 0.5 天
 **优先级**: 低
 
-**文件**: `src/storage/fulltext/builtin_impl/tokenizer.rs`
-
-**功能列表**:
-- [ ] 标准分词器
-- [ ] CJK 分词器
-- [ ] 空格分词器
-
----
-
-### 任务 5.3：实现 BuiltinProvider
-**负责人**: 开发团队
-**时间**: 2 天
-**优先级**: 低
-
-**文件**: `src/storage/fulltext/builtin_impl/mod.rs`
-
-**功能列表**:
-- [ ] 实现 FulltextProvider trait
-- [ ] 集成到存储层
+**示例**:
+- 基本搜索示例
+- 批量索引示例
+- 配置示例
 
 ---
 
@@ -391,46 +563,34 @@ score(vertex) as relevance
 
 | 里程碑 | 日期 | 交付物 |
 |--------|------|--------|
-| M1: 基础框架完成 | 第 3 天 | 模块结构、类型定义 |
-| M2: Tantivy 实现完成 | 第 10 天 | 完整全文检索功能 |
-| M3: 查询层集成完成 | 第 14 天 | 支持 SQL 语法 |
-| M4: 测试完成 | 第 19 天 | 测试报告、性能报告 |
-| M5: 内置实现完成 | 第 26 天 | 备选实现（可选） |
+| M1 | 第 2 天 | 基础框架完成 |
+| M2 | 第 5 天 | gRPC 客户端完成 |
+| M3 | 第 8 天 | 数据同步完成 |
+| M4 | 第 11 天 | 查询层集成完成 |
+| M5 | 第 13 天 | SQL 语法完成 |
+| M6 | 第 17 天 | 测试完成 |
+| M7 | 第 19 天 | 文档与部署完成 |
 
 ---
 
-## 资源需求
+## 依赖项
 
-### 人力资源
-- 核心开发: 1-2 人
-- 代码审查: 1 人
-- 测试: 1 人
+### 外部服务
+- ref/bm25 服务已编译可用
+- ref/inversearch 服务已编译可用（可选）
 
-### 技术资源
-- 开发环境: Rust 1.88+
-- 测试数据: 100万+ 文档数据集
-- 测试环境: 8核16G 服务器
+### 内部依赖
+- gRPC 客户端库
+- 异步运行时 (tokio)
+- 序列化库 (prost)
 
 ---
 
-## 风险与缓解
+## 风险评估
 
 | 风险 | 可能性 | 影响 | 缓解措施 |
 |------|--------|------|----------|
-| Tantivy API 变更 | 低 | 高 | 锁定版本，及时更新 |
-| 性能不达标 | 中 | 高 | 提前进行原型验证 |
-| 内存泄漏 | 中 | 高 | 使用 valgrind/miri 检测 |
-| 并发问题 | 中 | 高 | 充分的压力测试 |
-
----
-
-## 附录
-
-### A. 参考文档
-- [Tantivy 文档](https://docs.rs/tantivy/)
-- [BM25 算法论文](https://www.emerald.com/insight/content/doi/10.1108/eb026526/full/html)
-
-### B. 相关文件
-- `docs/extend/fulltext_search_design.md` - 设计方案
-- `ref/bm25/` - BM25 参考实现
-- `ref/inversearch/` - Inversearch 参考实现
+| 服务连接不稳定 | 中 | 高 | 实现重试和熔断机制 |
+| 数据同步延迟 | 中 | 中 | 提供同步模式选项 |
+| 性能不达标 | 低 | 高 | 提前进行原型验证 |
+| proto 版本不兼容 | 低 | 高 | 锁定 proto 版本 |

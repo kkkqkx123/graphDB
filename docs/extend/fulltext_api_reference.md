@@ -2,11 +2,13 @@
 
 ## 概述
 
-本文档描述 GraphDB 全文检索功能的 API 接口和使用方法。
+本文档描述 GraphDB 全文检索功能的 SQL 语法和 Rust API 接口。
+
+全文检索通过 gRPC 与外部服务（ref/bm25 或 ref/inversearch）通信实现。
 
 ---
 
-## SQL 语法扩展
+## SQL 语法
 
 ### 1. 创建全文索引
 
@@ -14,15 +16,26 @@
 -- 基本语法
 CREATE FULLTEXT INDEX <index_name> ON <tag_name>(<field_name>)
 
--- 示例
-CREATE FULLTEXT INDEX idx_post_content ON Post(content)
-CREATE FULLTEXT INDEX idx_article_title ON Article(title)
+-- 指定服务提供者 (bm25 或 inversearch)
+CREATE FULLTEXT INDEX idx_post_content ON Post(content) USING 'bm25'
+
+-- 指定分词器 (仅 inversearch 支持)
+CREATE FULLTEXT INDEX idx_post_content ON Post(content) 
+USING 'inversearch' WITH TOKENIZER = 'cjk'
 ```
 
 **参数说明**:
 - `index_name`: 索引名称（唯一）
 - `tag_name`: 标签名称
 - `field_name`: 字段名称
+- `USING`: 服务提供者，可选 'bm25' 或 'inversearch'
+- `TOKENIZER`: 分词器类型，可选 'standard', 'cjk', 'whitespace'
+
+**示例**:
+```sql
+CREATE FULLTEXT INDEX idx_article_title ON Article(title)
+CREATE FULLTEXT INDEX idx_product_desc ON Product(description) USING 'bm25'
+```
 
 ---
 
@@ -38,33 +51,38 @@ DROP FULLTEXT INDEX idx_post_content
 
 ---
 
-### 3. 全文搜索
+### 3. 重建全文索引
 
-#### 3.1 CONTAINS 表达式
+```sql
+-- 基本语法
+REBUILD FULLTEXT INDEX <index_name>
+
+-- 示例
+REBUILD FULLTEXT INDEX idx_post_content
+```
+
+**说明**: 重建索引会清空现有索引并重新索引所有数据，用于数据修复。
+
+---
+
+### 4. 全文搜索
+
+#### 4.1 MATCH 表达式
 
 ```sql
 -- 基本搜索
 MATCH (v:Post)
-WHERE v.content CONTAINS "关键词"
+WHERE v.content MATCH "关键词"
 RETURN v
 
 -- 多词搜索（OR 关系）
 MATCH (v:Post)
-WHERE v.content CONTAINS "数据库 图数据库"
+WHERE v.content MATCH "数据库 图数据库"
 RETURN v
 
--- 短语搜索
+-- 短语搜索（精确匹配）
 MATCH (v:Post)
-WHERE v.content CONTAINS ""图数据库""
-RETURN v
-```
-
-#### 3.2 MATCH 表达式
-
-```sql
--- 基本搜索
-MATCH (v:Article)
-WHERE v.title MATCH "BM25 算法"
+WHERE v.content MATCH ""图数据库""
 RETURN v
 
 -- 带评分排序
@@ -73,31 +91,6 @@ WHERE v.content MATCH "全文检索"
 RETURN v, score(v) as relevance
 ORDER BY relevance DESC
 LIMIT 10
-```
-
-#### 3.3 LOOKUP 语法
-
-```sql
--- 使用索引直接搜索
-LOOKUP ON idx_post_content WHERE QUERY("搜索文本")
-RETURN *
-
--- 带限制
-LOOKUP ON idx_post_content WHERE QUERY("搜索文本")
-RETURN *
-LIMIT 20
-```
-
----
-
-### 4. 评分函数
-
-```sql
--- 获取相关性评分
-MATCH (v:Post)
-WHERE v.content MATCH "关键词"
-RETURN v, score(v) as score
-ORDER BY score DESC
 
 -- 设置评分阈值
 MATCH (v:Post)
@@ -105,145 +98,285 @@ WHERE v.content MATCH "关键词" AND score(v) > 0.5
 RETURN v
 ```
 
+#### 4.2 CONTAINS 表达式
+
+```sql
+-- 基本搜索（与 MATCH 类似）
+MATCH (v:Post)
+WHERE v.content CONTAINS "关键词"
+RETURN v
+
+-- 多字段搜索
+MATCH (p:Product)
+WHERE p.name CONTAINS "手机" OR p.description CONTAINS "5G"
+RETURN p
+```
+
+#### 4.3 LOOKUP 语法
+
+```sql
+-- 使用索引直接搜索（不查询图数据）
+LOOKUP ON idx_post_content WHERE QUERY("搜索文本")
+RETURN *
+
+-- 带限制
+LOOKUP ON idx_post_content WHERE QUERY("搜索文本")
+RETURN *
+LIMIT 20
+
+-- 返回评分
+LOOKUP ON idx_post_content WHERE QUERY("搜索文本")
+RETURN doc_id, score
+ORDER BY score DESC
+```
+
+---
+
+### 5. 查看索引信息
+
+```sql
+-- 查看所有全文索引
+SHOW FULLTEXT INDEXES
+
+-- 查看指定索引状态
+SHOW FULLTEXT INDEX STATUS idx_post_content
+
+-- 查看索引统计
+SHOW FULLTEXT INDEX STATS idx_post_content
+```
+
 ---
 
 ## Rust API 接口
 
-### 1. 全文索引管理
+### 1. 配置
 
 ```rust
-use graphdb::storage::fulltext::{FulltextIndexConfig, FulltextOptions};
+use graphdb::storage::fulltext::{FulltextConfig, SyncMode};
+
+let config = FulltextConfig {
+    enabled: true,
+    endpoint: "http://127.0.0.1:50051".to_string(),
+    timeout_ms: 5000,
+    retry_count: 3,
+    sync: SyncConfig {
+        mode: SyncMode::Async,
+        queue_size: 10000,
+        batch_size: 100,
+    },
+};
+```
+
+### 2. 创建索引
+
+```rust
 use graphdb::storage::StorageClient;
 
 // 创建全文索引
-let config = FulltextIndexConfig {
-    index_name: "idx_post_content".to_string(),
-    space_id: 1,
-    schema_name: "Post".to_string(),
-    field_name: "content".to_string(),
-    provider: FulltextProviderType::Tantivy,
-    tokenizer: TokenizerType::Cjk,
-    options: FulltextOptions::default(),
-};
-
-storage.create_fulltext_index(config).await?;
+storage.create_fulltext_index(
+    space_id,           // 空间 ID
+    "Post",            // 标签名
+    "content",         // 字段名
+    Some("bm25"),      // 服务提供者
+).await?;
 ```
 
-### 2. 文档索引
+### 3. 搜索
 
 ```rust
-use graphdb::core::Value;
+use graphdb::storage::fulltext::FulltextResult;
 
-// 索引单个文档
-let doc_id = Value::String("post_001".to_string());
-let content = "这是一篇关于图数据库的文章...";
-
-storage.index_document("idx_post_content", &doc_id, content).await?;
-
-// 批量索引
-let documents = vec![
-    (Value::String("post_001".to_string()), "内容1...".to_string()),
-    (Value::String("post_002".to_string()), "内容2...".to_string()),
-];
-
-storage.batch_index_documents("idx_post_content", documents).await?;
-```
-
-### 3. 全文搜索
-
-```rust
-use graphdb::storage::fulltext::{SearchOptions, SearchResults};
-
-// 基本搜索
-let options = SearchOptions {
-    limit: 10,
-    offset: 0,
-    highlight: true,
-    field_weights: None,
-};
-
-let results: SearchResults = storage
-    .fulltext_search("idx_post_content", "图数据库", &options)
+// 执行全文搜索
+let results: Vec<FulltextResult> = storage
+    .fulltext_search("idx_post_content", "图数据库", 10)
     .await?;
 
-// 处理结果
-for result in results.results {
-    println!("Doc ID: {:?}, Score: {}", result.doc_id, result.score);
+for result in results {
+    println!("Doc ID: {:?}", result.doc_id);
+    println!("Score: {}", result.score);
+    
     if let Some(highlights) = result.highlights {
-        for highlight in highlights {
-            println!("Highlight: {}", highlight);
+        for h in highlights {
+            println!("Highlight: {}", h);
         }
     }
 }
 ```
 
-### 4. 索引统计
+### 4. 手动同步
 
 ```rust
-// 获取索引统计信息
-let stats = storage.get_fulltext_stats("idx_post_content").await?;
+use graphdb::storage::fulltext::FulltextSyncManager;
 
-println!("文档数: {}", stats.doc_count);
-println!("词项数: {}", stats.term_count);
-println!("平均文档长度: {}", stats.avg_doc_length);
+// 获取同步管理器
+let sync_manager = storage.fulltext_sync_manager();
+
+// 手动触发同步
+sync_manager.sync_vertex(
+    space_id,
+    "Post",
+    &vertex_id,
+    &properties,
+).await?;
+
+// 批量同步
+let tasks = vec![
+    SyncTask::IndexDocument { ... },
+    SyncTask::IndexDocument { ... },
+];
+sync_manager.batch_sync(tasks).await?;
 ```
 
 ---
 
 ## 配置选项
 
-### 1. 索引配置
+### GraphDB 配置 (config.toml)
+
+```toml
+[fulltext]
+# 是否启用全文检索
+enabled = true
+
+# gRPC 服务端点
+endpoint = "http://127.0.0.1:50051"
+
+# 请求超时（毫秒）
+timeout_ms = 5000
+
+# 重试次数
+retry_count = 3
+
+# 同步配置
+[fulltext.sync]
+# 同步模式: sync(同步) / async(异步) / off(关闭)
+mode = "async"
+
+# 异步队列大小
+queue_size = 10000
+
+# 批量处理大小
+batch_size = 100
+
+# 失败重试间隔（毫秒）
+retry_interval_ms = 100
+```
+
+---
+
+## 完整示例
+
+### 示例 1：博客系统搜索
 
 ```rust
-FulltextOptions {
-    store_doc: true,            // 是否存储文档内容
-    store_positions: true,      // 是否存储词位置（用于高亮）
-    bm25_k1: 1.2,              // BM25 k1 参数（控制词频饱和度）
-    bm25_b: 0.75,              // BM25 b 参数（控制文档长度归一化）
+use graphdb::storage::fulltext::*;
+use graphdb::storage::StorageClient;
+
+async fn blog_search_example(storage: &impl StorageClient) -> Result<(), Box<dyn std::error::Error>> {
+    // 1. 创建全文索引
+    storage.create_fulltext_index(
+        1,                      // space_id
+        "BlogPost",            // tag_name
+        "content",             // field_name
+        Some("bm25"),          // provider
+    ).await?;
+    
+    println!("全文索引创建成功");
+    
+    // 2. 插入数据（自动同步到全文索引）
+    let query = r#"
+        INSERT VERTEX BlogPost(title, content) VALUES 
+        ("post_001", "图数据库入门指南", "图数据库是一种专门用于存储和查询图结构数据的数据库系统..."),
+        ("post_002", "Rust 编程语言", "Rust 是一种系统级编程语言，具有内存安全和并发安全特性...")
+    "#;
+    
+    storage.execute(query).await?;
+    println!("数据插入成功，已自动同步到全文索引");
+    
+    // 3. 执行全文搜索
+    let results = storage
+        .fulltext_search("idx_blogpost_content", "图数据库", 10)
+        .await?;
+    
+    println!("找到 {} 个结果", results.len());
+    
+    for result in results {
+        println!("文档: {:?}, 评分: {:.4}", result.doc_id, result.score);
+    }
+    
+    Ok(())
 }
 ```
 
-**参数说明**:
-- `bm25_k1`: 通常取值 1.2-2.0，值越大词频影响越大
-- `bm25_b`: 通常取值 0.0-1.0，0.0 表示不考虑文档长度
+### 示例 2：产品搜索（带过滤）
 
-### 2. 分词器选择
+```sql
+-- 创建产品描述索引
+CREATE FULLTEXT INDEX idx_product_desc ON Product(description) USING 'bm25';
 
-| 分词器 | 适用场景 | 示例 |
-|--------|----------|------|
-| `Standard` | 英文文本 | "Hello world" → ["hello", "world"] |
-| `Cjk` | 中日韩文本 | "图数据库" → ["图", "数", "据", "库"] |
-| `Whitespace` | 简单分词 | "a b c" → ["a", "b", "c"] |
-| `Raw` | 不分词 | "keyword" → ["keyword"] |
+-- 搜索产品（带价格过滤）
+MATCH (p:Product)
+WHERE p.description MATCH "无线耳机" 
+  AND p.price < 1000
+  AND score(p) > 0.3
+RETURN p.name, p.price, score(p) as relevance
+ORDER BY relevance DESC
+LIMIT 20;
+
+-- 搜索结果高亮
+MATCH (p:Product)
+WHERE p.description MATCH "降噪耳机"
+RETURN p.name, 
+       highlight(p.description) as highlighted_desc,
+       score(p) as relevance
+ORDER BY relevance DESC;
+```
+
+### 示例 3：多字段搜索
+
+```sql
+-- 创建多个索引
+CREATE FULLTEXT INDEX idx_article_title ON Article(title) USING 'bm25';
+CREATE FULLTEXT INDEX idx_article_content ON Article(content) USING 'bm25';
+
+-- 多字段搜索（标题权重更高）
+MATCH (a:Article)
+WHERE a.title MATCH "Rust" OR a.content MATCH "Rust"
+RETURN a, 
+       score(a.title) * 2.0 + score(a.content) as weighted_score
+ORDER BY weighted_score DESC;
+```
 
 ---
 
 ## 错误处理
 
-### 常见错误码
+### 常见错误
 
 | 错误码 | 描述 | 解决方案 |
 |--------|------|----------|
-| `IndexNotFound` | 索引不存在 | 检查索引名称是否正确 |
+| `FulltextServiceUnavailable` | 全文检索服务不可用 | 检查服务是否启动 |
+| `IndexNotFound` | 索引不存在 | 检查索引名称或创建索引 |
 | `IndexAlreadyExists` | 索引已存在 | 删除旧索引或使用新名称 |
-| `DocumentNotFound` | 文档不存在 | 检查文档 ID 是否正确 |
-| `InvalidQuery` | 查询语法错误 | 检查查询字符串格式 |
-| `IndexCorrupted` | 索引损坏 | 重建索引 |
+| `InvalidQuery` | 查询语法错误 | 检查查询字符串 |
+| `SyncTimeout` | 同步超时 | 增加超时时间或检查服务状态 |
 
-### 错误示例
+### 错误处理示例
 
 ```rust
 use graphdb::storage::fulltext::FulltextError;
 
-match storage.fulltext_search("idx_name", "query", &options).await {
+match storage.fulltext_search("idx_name", "query", 10).await {
     Ok(results) => {
         // 处理结果
     }
+    Err(FulltextError::ServiceUnavailable(msg)) => {
+        eprintln!("全文检索服务不可用: {}", msg);
+        eprintln!("请确保服务已启动: ./ref/bm25/target/release/bm25-service");
+    }
     Err(FulltextError::IndexNotFound(name)) => {
         eprintln!("索引不存在: {}", name);
-    }
-    Err(FulltextError::InvalidQuery(msg)) => {
-        eprintln!("查询语法错误: {}", msg);
+        eprintln!("请先创建索引: CREATE FULLTEXT INDEX {} ON ...", name);
     }
     Err(e) => {
         eprintln!("搜索失败: {:?}", e);
@@ -255,20 +388,30 @@ match storage.fulltext_search("idx_name", "query", &options).await {
 
 ## 性能优化建议
 
-### 1. 索引优化
+### 1. 批量操作
 
 ```rust
 // 批量索引（推荐）
-let batch_size = 1000;
-for chunk in documents.chunks(batch_size) {
-    storage.batch_index_documents("idx_name", chunk.to_vec()).await?;
-}
+let documents = vec![
+    ("doc_1".to_string(), fields_1),
+    ("doc_2".to_string(), fields_2),
+    // ...
+];
 
-// 定期提交
-storage.commit_fulltext_index("idx_name").await?;
+storage.batch_index_documents("idx_name", documents).await?;
 ```
 
-### 2. 查询优化
+### 2. 异步同步
+
+```toml
+# config.toml
+[fulltext.sync]
+mode = "async"      # 使用异步模式提高写入性能
+queue_size = 10000  # 增大队列缓冲区
+batch_size = 100    # 批量处理大小
+```
+
+### 3. 查询优化
 
 ```sql
 -- 使用 LIMIT 限制结果数
@@ -277,107 +420,17 @@ WHERE v.content MATCH "关键词"
 RETURN v
 LIMIT 100
 
--- 使用评分阈值过滤
+-- 使用评分阈值过滤低质量结果
 MATCH (v:Post)
 WHERE v.content MATCH "关键词" AND score(v) > 0.3
 RETURN v
-```
-
-### 3. 硬件建议
-
-- **内存**: 至少 4GB 可用内存
-- **磁盘**: SSD 推荐，索引文件可能较大
-- **CPU**: 多核有助于并发查询
-
----
-
-## 完整示例
-
-### 示例 1：博客文章搜索
-
-```rust
-use graphdb::storage::fulltext::*;
-use graphdb::storage::StorageClient;
-use graphdb::core::Value;
-
-async fn blog_search_example(storage: &impl StorageClient) -> Result<(), Box<dyn std::error::Error>> {
-    // 1. 创建全文索引
-    let config = FulltextIndexConfig {
-        index_name: "idx_blog_content".to_string(),
-        space_id: 1,
-        schema_name: "BlogPost".to_string(),
-        field_name: "content".to_string(),
-        provider: FulltextProviderType::Tantivy,
-        tokenizer: TokenizerType::Cjk,
-        options: FulltextOptions {
-            store_doc: true,
-            store_positions: true,
-            bm25_k1: 1.5,
-            bm25_b: 0.75,
-        },
-    };
-    
-    storage.create_fulltext_index(config).await?;
-    
-    // 2. 索引文章
-    let articles = vec![
-        (Value::String("post_001".to_string()), 
-         "图数据库是一种专门用于存储和查询图结构数据的数据库系统...".to_string()),
-        (Value::String("post_002".to_string()), 
-         "Rust 是一种系统级编程语言，具有内存安全和并发安全特性...".to_string()),
-    ];
-    
-    storage.batch_index_documents("idx_blog_content", articles).await?;
-    
-    // 3. 搜索文章
-    let options = SearchOptions {
-        limit: 10,
-        offset: 0,
-        highlight: true,
-        field_weights: None,
-    };
-    
-    let results = storage
-        .fulltext_search("idx_blog_content", "图数据库 Rust", &options)
-        .await?;
-    
-    println!("找到 {} 个结果", results.total);
-    
-    for result in results.results {
-        println!("文档: {:?}, 评分: {:.4}", result.doc_id, result.score);
-    }
-    
-    Ok(())
-}
-```
-
-### 示例 2：产品搜索
-
-```sql
--- 创建产品描述索引
-CREATE FULLTEXT INDEX idx_product_desc ON Product(description);
-
--- 搜索产品
-MATCH (p:Product)
-WHERE p.description MATCH "无线耳机 降噪"
-RETURN p.name, p.price, score(p) as relevance
-ORDER BY relevance DESC
-LIMIT 20;
-
--- 带价格过滤的搜索
-MATCH (p:Product)
-WHERE p.description MATCH "无线耳机" 
-  AND p.price < 1000
-  AND score(p) > 0.5
-RETURN p.name, p.price
-ORDER BY score(p) DESC;
 ```
 
 ---
 
 ## 注意事项
 
-1. **索引更新延迟**: 全文索引更新可能有短暂延迟，不适用于实时性要求极高的场景
-2. **存储空间**: 全文索引可能占用较多磁盘空间，建议定期监控
-3. **并发写入**: 高并发写入时建议批量处理，避免频繁提交
-4. **查询复杂度**: 复杂查询可能影响性能，建议使用简单的关键词查询
+1. **服务依赖**: 使用全文检索前需确保外部服务已启动
+2. **最终一致性**: 异步模式下数据同步有短暂延迟
+3. **存储空间**: 全文索引占用额外磁盘空间，需定期监控
+4. **网络通信**: 虽然 localhost 开销小，但仍需处理超时和重试
