@@ -1,6 +1,5 @@
 //! 合并获取顶点和投影操作的规则
 
-use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;

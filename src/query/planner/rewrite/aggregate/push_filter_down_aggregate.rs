@@ -28,8 +28,6 @@
 //! - Filter 条件不涉及聚合函数（只涉及聚合的输入列）
 
 
-use std::sync::Arc;
-
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::visitor_checkers::AggregateFunctionChecker;
 use crate::core::types::operators::AggregateFunction;

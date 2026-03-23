@@ -52,10 +52,7 @@ impl ContainerFunction {
 
     /// 是否为可变参数函数
     pub fn is_variadic(&self) -> bool {
-        match self {
-            Self::Range => true,
-            _ => false,
-        }
+        matches!(self, Self::Range)
     }
 
     /// 获取函数描述

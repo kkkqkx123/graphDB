@@ -70,6 +70,7 @@ impl RemoveValidator {
     }
 
     /// 验证属性访问移除
+    #[allow(dead_code)]
     fn validate_property_access(
         &self,
         object: &ContextualExpression,

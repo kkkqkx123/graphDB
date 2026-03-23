@@ -163,13 +163,12 @@ impl TransactionContext {
         let current = self.state.load();
 
         // 验证状态转换是否合法
-        let valid_transition = match (current, new_state) {
-            (TransactionState::Active, TransactionState::Committing) => true,
-            (TransactionState::Active, TransactionState::Aborting) => true,
-            (TransactionState::Committing, TransactionState::Committed) => true,
-            (TransactionState::Aborting, TransactionState::Aborted) => true,
-            _ => false,
-        };
+        let valid_transition = matches!(
+            (current, new_state),
+            (TransactionState::Active, TransactionState::Committing | TransactionState::Aborting)
+                | (TransactionState::Committing, TransactionState::Committed)
+                | (TransactionState::Aborting, TransactionState::Aborted)
+        );
 
         if !valid_transition {
             return Err(TransactionError::InvalidStateTransition {

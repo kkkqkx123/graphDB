@@ -225,7 +225,7 @@ pub unsafe extern "C" fn graphdb_free_string(str: *mut c_char) {
 pub unsafe extern "C" fn graphdb_free(ptr: *mut c_void) {
     if !ptr.is_null() {
         unsafe {
-            let _ = Box::from_raw(ptr);
+            let _ = Box::from_raw(ptr as *mut u8);
         }
     }
 }

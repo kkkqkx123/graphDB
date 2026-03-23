@@ -12,7 +12,6 @@
 //! - 两个 Project 节点连续出现
 //! - 上层 Project 不依赖下层 Project 的别名解析
 
-use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;

@@ -5,7 +5,7 @@
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::utils::ExprFactory;
-use crate::query::parser::ast::{Ast, InsertStmt, InsertTarget, Stmt, VertexRow};
+use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
     nodes::{

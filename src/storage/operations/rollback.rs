@@ -3,10 +3,9 @@
 //! 提供基于操作日志的回滚功能，支持事务保存点回滚
 
 use crate::core::{StorageError, Value};
-use crate::core::vertex_edge_path::{Edge, Vertex};
 use crate::storage::operations::{EdgeWriter, VertexWriter};
 use crate::transaction::types::OperationLog;
-use bincode::{config::standard, decode_from_slice, encode_to_vec};
+use bincode::{config::standard, decode_from_slice};
 
 /// 操作日志上下文 trait
 ///

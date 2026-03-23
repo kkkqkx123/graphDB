@@ -267,12 +267,7 @@ impl PermissionChecker {
             .or_else(|| self.permission_manager.get_role(username, GOD_SPACE_ID));
 
         // 检查操作者是否有权限管理角色（Admin、Dba 或 God）
-        let can_manage = match operator_role {
-            Some(RoleType::God) => true,
-            Some(RoleType::Admin) => true,
-            Some(RoleType::Dba) => true,
-            _ => false,
-        };
+        let can_manage = matches!(operator_role, Some(RoleType::God) | Some(RoleType::Admin) | Some(RoleType::Dba));
 
         if !can_manage {
             return Err(PermissionError::OnlyAdminOrGodCanManageRoles);

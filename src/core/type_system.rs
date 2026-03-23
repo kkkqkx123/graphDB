@@ -358,30 +358,30 @@ impl TypeUtils {
 
     /// 检查类型是否可以用于索引
     pub fn is_indexable_type(type_def: &DataType) -> bool {
-        match type_def {
-            DataType::Bool => true,
-            DataType::Int => true,
-            DataType::Int8 => true,
-            DataType::Int16 => true,
-            DataType::Int32 => true,
-            DataType::Int64 => true,
-            DataType::UInt8 => true,
-            DataType::UInt16 => true,
-            DataType::UInt32 => true,
-            DataType::UInt64 => true,
-            DataType::Float => true,
-            DataType::Double => true,
-            DataType::String => true,
-            DataType::FixedString(_) => true,
-            DataType::DateTime => true,
-            DataType::Date => true,
-            DataType::Time => true,
-            DataType::Timestamp => true,
-            DataType::VID => true,
-            DataType::Blob => true,
-            DataType::Geography => true,
-            _ => false,
-        }
+        matches!(
+            type_def,
+            DataType::Bool
+                | DataType::Int
+                | DataType::Int8
+                | DataType::Int16
+                | DataType::Int32
+                | DataType::Int64
+                | DataType::UInt8
+                | DataType::UInt16
+                | DataType::UInt32
+                | DataType::UInt64
+                | DataType::Float
+                | DataType::Double
+                | DataType::String
+                | DataType::FixedString(_)
+                | DataType::DateTime
+                | DataType::Date
+                | DataType::Time
+                | DataType::Timestamp
+                | DataType::VID
+                | DataType::Blob
+                | DataType::Geography
+        )
     }
 
     /// 获取类型的默认值

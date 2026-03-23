@@ -751,10 +751,7 @@ impl StatementValidator for CreateValidator {
         };
 
         // 步骤 1: 检查是否需要空间
-        let is_global = match &create_stmt.target {
-            CreateTarget::Space { .. } => true,
-            _ => false,
-        };
+        let is_global = matches!(&create_stmt.target, CreateTarget::Space { .. });
 
         if !is_global && qctx.space_id().is_none() {
             return Err(ValidationError::new(

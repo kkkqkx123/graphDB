@@ -1,8 +1,6 @@
 //! 合并多个过滤操作的规则
 
 
-use std::sync::Arc;
-
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;

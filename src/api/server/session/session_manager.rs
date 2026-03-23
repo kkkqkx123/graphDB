@@ -324,7 +324,7 @@ impl GraphSessionManager {
     /// 使用组合策略生成唯一会话ID：
     /// - 高48位：当前时间戳（毫秒）
     /// - 低16位：自增计数器
-    /// 确保在同一毫秒内生成的ID也是唯一的
+    ///   确保在同一毫秒内生成的ID也是唯一的
     fn generate_session_id(&self) -> i64 {
         let timestamp_millis = SystemTime::now()
             .duration_since(UNIX_EPOCH)

@@ -636,16 +636,15 @@ fn extract_params_from_expression(expr: &Expression, params: &mut HashMap<String
 /// 支持类型兼容性：Int 可以自动转换为 Float
 pub fn type_matches(value: &crate::core::Value, expected_type: &DataType) -> bool {
     use crate::core::Value;
-    match (value, expected_type) {
-        (Value::Int(_), DataType::Int) => true,
-        (Value::Int(_), DataType::Float) => true,
-        (Value::Float(_), DataType::Float) => true,
-        (Value::String(_), DataType::String) => true,
-        (Value::Bool(_), DataType::Bool) => true,
-        (Value::Date(_), DataType::Date) => true,
-        (Value::DateTime(_), DataType::DateTime) => true,
-        (Value::Time(_), DataType::Time) => true,
-        (Value::Null(_), _) => true,
-        _ => false,
-    }
+    matches!(
+        (value, expected_type),
+        (Value::Int(_), DataType::Int | DataType::Float)
+            | (Value::Float(_), DataType::Float)
+            | (Value::String(_), DataType::String)
+            | (Value::Bool(_), DataType::Bool)
+            | (Value::Date(_), DataType::Date)
+            | (Value::DateTime(_), DataType::DateTime)
+            | (Value::Time(_), DataType::Time)
+            | (Value::Null(_), _)
+    )
 }
