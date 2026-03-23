@@ -236,7 +236,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                         }
                     }
                 }
-                nodes.into_iter().map(|v| v).collect()
+                nodes.into_iter().collect()
             }
             ExecutionResult::Values(values) => {
                 // 从值中提取节点

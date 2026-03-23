@@ -147,7 +147,7 @@ impl PermissionChecker {
     fn check_read_space(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or_else(|| PermissionError::SpaceIdRequired)?;
+        let space_id = target_space.ok_or(PermissionError::SpaceIdRequired)?;
 
         // 使用 PermissionManager 的基础检查
         self.permission_manager
@@ -158,7 +158,7 @@ impl PermissionChecker {
     fn check_read_schema(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or_else(|| PermissionError::SchemaSpaceIdRequired)?;
+        let space_id = target_space.ok_or(PermissionError::SchemaSpaceIdRequired)?;
 
         self.permission_manager
             .check_permission(username, space_id, Permission::Read)
@@ -173,7 +173,7 @@ impl PermissionChecker {
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or_else(|| PermissionError::SchemaWriteSpaceIdRequired)?;
+        let space_id = target_space.ok_or(PermissionError::SchemaWriteSpaceIdRequired)?;
 
         // 检查是否是管理员
         if !self.permission_manager.is_admin(username) {
@@ -192,7 +192,7 @@ impl PermissionChecker {
     fn check_read_data(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or_else(|| PermissionError::DataReadSpaceIdRequired)?;
+        let space_id = target_space.ok_or(PermissionError::DataReadSpaceIdRequired)?;
 
         self.permission_manager
             .check_permission(username, space_id, Permission::Read)
@@ -208,7 +208,7 @@ impl PermissionChecker {
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or_else(|| PermissionError::DataWriteSpaceIdRequired)?;
+        let space_id = target_space.ok_or(PermissionError::DataWriteSpaceIdRequired)?;
 
         // Guest角色不能写入数据
         if let Some(role) = session.role_with_space(space_id) {
@@ -257,8 +257,8 @@ impl PermissionChecker {
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let space_id = target_space.ok_or_else(|| PermissionError::RoleOperationSpaceIdRequired)?;
-        let role = target_role.ok_or_else(|| PermissionError::RoleOperationTargetRoleRequired)?;
+        let space_id = target_space.ok_or(PermissionError::RoleOperationSpaceIdRequired)?;
+        let role = target_role.ok_or(PermissionError::RoleOperationTargetRoleRequired)?;
 
         // 获取操作者在该空间的角色
         let operator_role = self
@@ -310,7 +310,7 @@ impl PermissionChecker {
         use crate::core::error::PermissionError;
 
         let target =
-            target_user.ok_or_else(|| PermissionError::ChangePasswordTargetUserRequired)?;
+            target_user.ok_or(PermissionError::ChangePasswordTargetUserRequired)?;
 
         // 用户可以修改自己的密码
         if username == target {

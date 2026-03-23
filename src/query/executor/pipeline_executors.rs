@@ -113,7 +113,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ArgumentExecutor<S>
     }
 
     fn get_input(&self) -> Option<&ExecutorEnum<S>> {
-        self.input_executor.as_ref().map(|v| &**v)
+        self.input_executor.as_deref()
     }
 }
 
@@ -195,7 +195,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for PassThroughExecutor
     }
 
     fn get_input(&self) -> Option<&ExecutorEnum<S>> {
-        self.input_executor.as_ref().map(|v| &**v)
+        self.input_executor.as_deref()
     }
 }
 

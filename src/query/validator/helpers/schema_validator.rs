@@ -547,7 +547,7 @@ impl SchemaValidator {
             tag_id: 0, // 由存储层分配
             tag_name: tag_name.to_string(),
             properties: prop_defs,
-            comment: Some(format!("Auto-created for Cypher CREATE")),
+            comment: Some("Auto-created for Cypher CREATE".to_string()),
             ttl_duration: None,
             ttl_col: None,
         };
@@ -602,7 +602,7 @@ impl SchemaValidator {
             edge_type_id: 0, // 由存储层分配
             edge_type_name: edge_type_name.to_string(),
             properties: prop_defs,
-            comment: Some(format!("Auto-created for Cypher CREATE")),
+            comment: Some("Auto-created for Cypher CREATE".to_string()),
             ttl_duration: None,
             ttl_col: None,
         };

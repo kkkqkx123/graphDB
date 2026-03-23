@@ -240,9 +240,9 @@ fn requires_runtime_context(expression: &Expression) -> bool {
             requires_runtime_context(left) || requires_runtime_context(right)
         }
         Expression::Unary { operand, .. } => requires_runtime_context(operand),
-        Expression::Function { args, .. } => args.iter().any(|arg| requires_runtime_context(arg)),
+        Expression::Function { args, .. } => args.iter().any(requires_runtime_context),
         Expression::Aggregate { arg, .. } => requires_runtime_context(arg),
-        Expression::List(items) => items.iter().any(|arg| requires_runtime_context(arg)),
+        Expression::List(items) => items.iter().any(requires_runtime_context),
         Expression::Map(pairs) => pairs.iter().any(|(_, val)| requires_runtime_context(val)),
         Expression::Case {
             test_expr,
@@ -251,13 +251,13 @@ fn requires_runtime_context(expression: &Expression) -> bool {
         } => {
             test_expr
                 .as_ref()
-                .map_or(false, |expr| requires_runtime_context(expr))
+                .is_some_and(|expr| requires_runtime_context(expr))
                 || conditions.iter().any(|(cond, val)| {
                     requires_runtime_context(cond) || requires_runtime_context(val)
                 })
                 || default
                     .as_ref()
-                    .map_or(false, |d| requires_runtime_context(d))
+                    .is_some_and(|d| requires_runtime_context(d))
         }
         Expression::TypeCast { expression, .. } => requires_runtime_context(expression),
         Expression::Subscript { collection, index } => {
@@ -271,10 +271,10 @@ fn requires_runtime_context(expression: &Expression) -> bool {
             requires_runtime_context(collection)
                 || start
                     .as_ref()
-                    .map_or(false, |s| requires_runtime_context(s))
-                || end.as_ref().map_or(false, |e| requires_runtime_context(e))
+                    .is_some_and(|s| requires_runtime_context(s))
+                || end.as_ref().is_some_and(|e| requires_runtime_context(e))
         }
-        Expression::Path(items) => items.iter().any(|item| requires_runtime_context(item)),
+        Expression::Path(items) => items.iter().any(requires_runtime_context),
         Expression::Label(_) => false,
         Expression::ListComprehension {
             source,
@@ -285,13 +285,13 @@ fn requires_runtime_context(expression: &Expression) -> bool {
             requires_runtime_context(source)
                 || filter
                     .as_ref()
-                    .map_or(false, |f| requires_runtime_context(f))
-                || map.as_ref().map_or(false, |m| requires_runtime_context(m))
+                    .is_some_and(|f| requires_runtime_context(f))
+                || map.as_ref().is_some_and(|m| requires_runtime_context(m))
         }
         Expression::LabelTagProperty { tag, .. } => requires_runtime_context(tag),
         Expression::TagProperty { .. } => false,
         Expression::EdgeProperty { .. } => false,
-        Expression::Predicate { args, .. } => args.iter().any(|arg| requires_runtime_context(arg)),
+        Expression::Predicate { args, .. } => args.iter().any(requires_runtime_context),
         Expression::Reduce {
             initial,
             source,
@@ -302,7 +302,7 @@ fn requires_runtime_context(expression: &Expression) -> bool {
                 || requires_runtime_context(source)
                 || requires_runtime_context(mapping)
         }
-        Expression::PathBuild(exprs) => exprs.iter().any(|expr| requires_runtime_context(expr)),
+        Expression::PathBuild(exprs) => exprs.iter().any(requires_runtime_context),
         Expression::Parameter(_) => true,
     }
 }
@@ -478,8 +478,8 @@ pub fn has_aggregate_function(expression: &Expression) -> bool {
             has_aggregate_function(left) || has_aggregate_function(right)
         }
         Expression::Unary { operand, .. } => has_aggregate_function(operand),
-        Expression::Function { args, .. } => args.iter().any(|arg| has_aggregate_function(arg)),
-        Expression::List(items) => items.iter().any(|item| has_aggregate_function(item)),
+        Expression::Function { args, .. } => args.iter().any(has_aggregate_function),
+        Expression::List(items) => items.iter().any(has_aggregate_function),
         Expression::Map(pairs) => pairs.iter().any(|(_, expr)| has_aggregate_function(expr)),
         Expression::Case {
             test_expr,
@@ -488,13 +488,13 @@ pub fn has_aggregate_function(expression: &Expression) -> bool {
         } => {
             test_expr
                 .as_ref()
-                .map_or(false, |e| has_aggregate_function(e))
+                .is_some_and(|e| has_aggregate_function(e))
                 || conditions.iter().any(|(cond, expr)| {
                     has_aggregate_function(cond) || has_aggregate_function(expr)
                 })
                 || default
                     .as_ref()
-                    .map_or(false, |e| has_aggregate_function(e))
+                    .is_some_and(|e| has_aggregate_function(e))
         }
         Expression::TypeCast { expression, .. } => has_aggregate_function(expression),
         Expression::Subscript { collection, index } => {
@@ -506,10 +506,10 @@ pub fn has_aggregate_function(expression: &Expression) -> bool {
             end,
         } => {
             has_aggregate_function(collection)
-                || start.as_ref().map_or(false, |e| has_aggregate_function(e))
-                || end.as_ref().map_or(false, |e| has_aggregate_function(e))
+                || start.as_ref().is_some_and(|e| has_aggregate_function(e))
+                || end.as_ref().is_some_and(|e| has_aggregate_function(e))
         }
-        Expression::Path(items) => items.iter().any(|item| has_aggregate_function(item)),
+        Expression::Path(items) => items.iter().any(has_aggregate_function),
         Expression::ListComprehension {
             source,
             filter,
@@ -517,8 +517,8 @@ pub fn has_aggregate_function(expression: &Expression) -> bool {
             ..
         } => {
             has_aggregate_function(source)
-                || filter.as_ref().map_or(false, |e| has_aggregate_function(e))
-                || map.as_ref().map_or(false, |e| has_aggregate_function(e))
+                || filter.as_ref().is_some_and(|e| has_aggregate_function(e))
+                || map.as_ref().is_some_and(|e| has_aggregate_function(e))
         }
         Expression::Property { object, .. } => has_aggregate_function(object),
         _ => false,

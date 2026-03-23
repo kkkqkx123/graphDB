@@ -65,11 +65,10 @@ impl EdgeSeek {
     /// 评估边是否匹配模式
     fn edge_matches_pattern(&self, edge: &crate::core::Edge) -> bool {
         // 检查边类型
-        if !self.edge_pattern.edge_types.is_empty() {
-            if !self.edge_pattern.edge_types.contains(&edge.edge_type) {
+        if !self.edge_pattern.edge_types.is_empty()
+            && !self.edge_pattern.edge_types.contains(&edge.edge_type) {
                 return false;
             }
-        }
 
         // 检查源顶点ID
         if let Some(ref src_vid) = self.edge_pattern.src_vid {

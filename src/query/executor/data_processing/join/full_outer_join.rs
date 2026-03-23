@@ -138,7 +138,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         for (key, indices) in left_hash_table_indices {
             left_hash_table
                 .entry(key)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .extend(indices.into_iter().map(|idx| (idx, false)));
         }
 
@@ -156,7 +156,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         for (key, indices) in right_hash_table_indices {
             right_hash_table
                 .entry(key)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .extend(indices.into_iter().map(|idx| (idx, false)));
         }
 
@@ -167,7 +167,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         };
 
         // 处理左表的每一行
-        for (_idx, row) in left_dataset.rows.iter().enumerate() {
+        for row in left_dataset.rows.iter() {
             let key_parts = extract_key_values(
                 row,
                 &left_dataset.col_names,
@@ -211,7 +211,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
 
                         // 检查是否有左表行匹配当前右表行的键
                         let has_left_match =
-                            left_hash_table.get(key).map_or(false, |left_entries| {
+                            left_hash_table.get(key).is_some_and(|left_entries| {
                                 left_entries.iter().any(|(_left_idx, matched)| !matched)
                             });
 

@@ -273,7 +273,7 @@ pub extern "C" fn graphdb_batch_add_vertex(
         // 如果达到批次大小，自动刷新
         if handle.buffer.len() >= handle.batch_size {
             if let Err(e) = handle.flush_vertices() {
-                let error_msg = format!("{}", e);
+                let error_msg = e.to_string();
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
@@ -353,7 +353,7 @@ pub extern "C" fn graphdb_batch_add_edge(
         // 如果达到批次大小，自动刷新
         if handle.buffer.len() >= handle.batch_size {
             if let Err(e) = handle.flush_edges() {
-                let error_msg = format!("{}", e);
+                let error_msg = e.to_string();
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
@@ -389,7 +389,7 @@ pub extern "C" fn graphdb_batch_flush(batch: *mut graphdb_batch_t) -> c_int {
         match handle.execute() {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
-                let error_msg = format!("{}", e);
+                let error_msg = e.to_string();
                 set_last_error_message(error_msg.clone());
                 handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
                 graphdb_error_code_t::GRAPHDB_ERROR as c_int

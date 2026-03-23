@@ -231,6 +231,12 @@ pub struct OrConditionCollector {
     can_convert: bool,
 }
 
+impl Default for OrConditionCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OrConditionCollector {
     pub fn new() -> Self {
         Self {

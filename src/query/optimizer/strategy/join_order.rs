@@ -271,7 +271,7 @@ impl JoinOrderOptimizer {
 
                         if best_solution
                             .as_ref()
-                            .map_or(true, |best| solution.total_cost < best.total_cost)
+                            .is_none_or(|best| solution.total_cost < best.total_cost)
                         {
                             best_solution = Some(solution);
                         }
@@ -348,7 +348,7 @@ impl JoinOrderOptimizer {
 
                     if best_next
                         .as_ref()
-                        .map_or(true, |(_, best_cost, _)| cost < *best_cost)
+                        .is_none_or(|(_, best_cost, _)| cost < *best_cost)
                     {
                         best_next = Some((table_id.clone(), cost, output_rows));
                     }

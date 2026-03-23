@@ -19,6 +19,7 @@ use crate::query::optimizer::analysis::ExpressionAnalysis;
 
 /// 表达式优化状态标记
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub struct OptimizationFlags {
     /// 是否已经过类型推导
     pub typed: bool,
@@ -28,15 +29,6 @@ pub struct OptimizationFlags {
     pub cse_eliminated: bool,
 }
 
-impl Default for OptimizationFlags {
-    fn default() -> Self {
-        Self {
-            typed: false,
-            constant_folded: false,
-            cse_eliminated: false,
-        }
-    }
-}
 
 /// 表达式分析上下文
 ///

@@ -316,7 +316,7 @@ impl VertexReader for RedbReader {
             .into_iter()
             .filter(|vertex| {
                 vertex.tags.iter().any(|vertex_tag| vertex_tag.name == tag)
-                    && vertex.properties.get(prop).map_or(false, |p| p == value)
+                    && (vertex.properties.get(prop) == Some(value))
             })
             .collect();
 

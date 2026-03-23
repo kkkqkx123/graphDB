@@ -8,6 +8,7 @@ use super::error_stats::{ErrorInfo, ErrorType, QueryPhase};
 
 /// 查询执行阶段统计（毫秒级）
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct StageMetrics {
     pub parse_ms: u64,
     pub validate_ms: u64,
@@ -16,17 +17,6 @@ pub struct StageMetrics {
     pub execute_ms: u64,
 }
 
-impl Default for StageMetrics {
-    fn default() -> Self {
-        Self {
-            parse_ms: 0,
-            validate_ms: 0,
-            plan_ms: 0,
-            optimize_ms: 0,
-            execute_ms: 0,
-        }
-    }
-}
 
 /// 执行器统计
 #[derive(Debug, Clone)]

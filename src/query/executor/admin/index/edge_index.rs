@@ -311,7 +311,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeIndexExec
                     Value::String(desc.index_name),
                     Value::String(desc.edge_name),
                     Value::String(desc.fields.join(", ")),
-                    Value::String(desc.comment.unwrap_or_else(|| "".to_string())),
+                    Value::String(desc.comment.unwrap_or_default()),
                 ]];
 
                 let dataset = DataSet {

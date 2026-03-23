@@ -10,6 +10,12 @@ use crate::query::validator::structs::{MatchStepRange, OrderByClauseContext, Pag
 /// 分页验证策略
 pub struct PaginationValidationStrategy;
 
+impl Default for PaginationValidationStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PaginationValidationStrategy {
     pub fn new() -> Self {
         Self

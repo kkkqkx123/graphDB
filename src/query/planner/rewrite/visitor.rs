@@ -18,7 +18,6 @@ use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::plan_rewriter::PlanRewriter;
 use crate::query::planner::rewrite::result::RewriteResult;
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 use crate::query::planner::plan::core::nodes::access::graph_scan_node::{
     EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,

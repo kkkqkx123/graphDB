@@ -100,7 +100,7 @@ impl Histogram {
         }
 
         // 按值排序
-        sorted_samples.sort_by(|a, b| compare_values(a, b));
+        sorted_samples.sort_by(compare_values);
 
         // 计算不同值数量
         let distinct_values = calculate_distinct_values(&sorted_samples);

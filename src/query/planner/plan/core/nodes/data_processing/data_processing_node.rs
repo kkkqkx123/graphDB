@@ -182,9 +182,10 @@ impl RollUpApplyNode {
         collect_col: Option<String>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = left_input.col_names().to_vec();
-        let mut deps = Vec::new();
-        deps.push(Box::new(left_input.clone()));
-        deps.push(Box::new(right_input.clone()));
+        let deps = vec![
+            Box::new(left_input.clone()),
+            Box::new(right_input.clone()),
+        ];
 
         Ok(Self {
             id: -1,
@@ -254,7 +255,7 @@ impl RollUpApplyNode {
         &mut self,
         dep: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
-        self.left_input = Box::new(dep.clone());
+        *self.left_input = dep.clone();
         self.deps.clear();
         self.deps.push(Box::new(dep));
     }
@@ -385,7 +386,7 @@ impl crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInp
         &mut self,
         input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
-        self.left_input = Box::new(input.clone());
+        *self.left_input = input.clone();
         self.deps.clear();
         self.deps.push(Box::new(input));
     }
@@ -417,9 +418,10 @@ impl PatternApplyNode {
         is_anti_predicate: bool,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = left_input.col_names().to_vec();
-        let mut deps = Vec::new();
-        deps.push(Box::new(left_input.clone()));
-        deps.push(Box::new(right_input.clone()));
+        let deps = vec![
+            Box::new(left_input.clone()),
+            Box::new(right_input.clone()),
+        ];
 
         Ok(Self {
             id: -1,
@@ -489,7 +491,7 @@ impl PatternApplyNode {
         &mut self,
         dep: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
-        self.left_input = Box::new(dep.clone());
+        *self.left_input = dep.clone();
         self.deps.clear();
         self.deps.push(Box::new(dep));
     }
@@ -620,7 +622,7 @@ impl crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInp
         &mut self,
         input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
-        self.left_input = Box::new(input.clone());
+        *self.left_input = input.clone();
         self.deps.clear();
         self.deps.push(Box::new(input));
     }
@@ -753,7 +755,7 @@ impl RemoveNode {
         &mut self,
         dep: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
-        self.input = Box::new(dep.clone());
+        *self.input = dep.clone();
         self.deps.clear();
         self.deps.push(Box::new(dep));
     }
@@ -790,7 +792,7 @@ impl crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInp
         &mut self,
         input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
-        self.input = Box::new(input);
+        *self.input = input;
     }
 }
 

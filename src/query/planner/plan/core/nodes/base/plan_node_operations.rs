@@ -221,15 +221,15 @@ impl PlanNodeEnum {
             ],
 
             // 多输入节点
-            PlanNodeEnum::Expand(node) => node.inputs().iter().map(|input| input.clone()).collect(),
+            PlanNodeEnum::Expand(node) => node.inputs().to_vec(),
             PlanNodeEnum::ExpandAll(node) => {
-                node.inputs().iter().map(|input| input.clone()).collect()
+                node.inputs().to_vec()
             }
             PlanNodeEnum::Traverse(node) => {
                 vec![Box::new(node.input().clone())]
             }
             PlanNodeEnum::AppendVertices(node) => {
-                node.inputs().iter().map(|input| input.clone()).collect()
+                node.inputs().to_vec()
             }
 
             // 其他节点

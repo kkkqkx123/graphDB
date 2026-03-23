@@ -546,7 +546,7 @@ impl CostCalculator {
         match edge_stats {
             Some(stats) if stats.edge_count > 0 => {
                 // 基于边数量的估算
-                (1.0 / (stats.edge_count as f64).sqrt()).min(1.0).max(0.001)
+                (1.0 / (stats.edge_count as f64).sqrt()).clamp(0.001, 1.0)
             }
             _ => 0.1,
         }

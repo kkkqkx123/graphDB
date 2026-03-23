@@ -128,13 +128,13 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
         match result {
             ExecutionResult::Empty => 0,
             ExecutionResult::Values(values) => {
-                values.iter().map(|v| std::mem::size_of_val(v)).sum()
+                values.iter().map(std::mem::size_of_val).sum()
             }
             ExecutionResult::Vertices(vertices) => {
-                vertices.iter().map(|v| std::mem::size_of_val(v)).sum()
+                vertices.iter().map(std::mem::size_of_val).sum()
             }
-            ExecutionResult::Edges(edges) => edges.iter().map(|e| std::mem::size_of_val(e)).sum(),
-            ExecutionResult::Paths(paths) => paths.iter().map(|p| std::mem::size_of_val(p)).sum(),
+            ExecutionResult::Edges(edges) => edges.iter().map(std::mem::size_of_val).sum(),
+            ExecutionResult::Paths(paths) => paths.iter().map(std::mem::size_of_val).sum(),
             ExecutionResult::DataSet(_dataset) => {
                 // 估算数据集大小
                 1024 // 简化估算

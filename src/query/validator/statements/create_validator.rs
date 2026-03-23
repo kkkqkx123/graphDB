@@ -386,7 +386,7 @@ impl CreateValidator {
             src: Value::Null(crate::core::NullType::Null),
             dst: Value::Null(crate::core::NullType::Null),
             properties: props,
-            direction: edge.direction.clone(),
+            direction: edge.direction,
         })
     }
 
@@ -522,7 +522,7 @@ impl CreateValidator {
             src: Value::Null(crate::core::NullType::Null),
             dst: Value::Null(crate::core::NullType::Null),
             properties: props,
-            direction: direction.clone(),
+            direction: *direction,
         }))
     }
 
@@ -767,7 +767,7 @@ impl StatementValidator for CreateValidator {
         let space_name = qctx.space_name().unwrap_or_default();
 
         // 步骤 3: 执行具体验证逻辑
-        if let Err(e) = self.validate_impl(&create_stmt, &space_name) {
+        if let Err(e) = self.validate_impl(create_stmt, &space_name) {
             self.add_error(e);
         }
 

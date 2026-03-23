@@ -10,7 +10,6 @@ use crate::query::planner::plan::core::nodes::operation::sort_node::{SortItem, S
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -20,6 +19,12 @@ use std::sync::Arc;
 /// 负责规划 ORDER BY 子句的执行，对结果进行排序。
 #[derive(Debug)]
 pub struct OrderByClausePlanner {}
+
+impl Default for OrderByClausePlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl OrderByClausePlanner {
     pub fn new() -> Self {

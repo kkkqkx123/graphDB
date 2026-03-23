@@ -125,9 +125,7 @@ impl MatchValidator {
 
         // 3. 第二遍：验证模式结构和变量引用
         for (idx, pattern) in match_stmt.patterns.iter().enumerate() {
-            if let Err(e) = self.validate_pattern(pattern, idx) {
-                return Err(e);
-            }
+            self.validate_pattern(pattern, idx)?
         }
 
         // 4. 验证 RETURN 子句存在性
@@ -140,23 +138,17 @@ impl MatchValidator {
 
         // 5. 验证 WHERE 子句（如果存在）
         if let Some(ref where_clause) = match_stmt.where_clause {
-            if let Err(e) = self.validate_where_clause(where_clause) {
-                return Err(e);
-            }
+            self.validate_where_clause(where_clause)?
         }
 
         // 6. 验证 RETURN 子句
         if let Some(ref return_clause) = match_stmt.return_clause {
-            if let Err(e) = self.validate_return_clause(return_clause) {
-                return Err(e);
-            }
+            self.validate_return_clause(return_clause)?
         }
 
         // 7. 验证 ORDER BY 子句（如果存在）
         if let Some(ref order_by) = match_stmt.order_by {
-            if let Err(e) = self.validate_order_by(order_by) {
-                return Err(e);
-            }
+            self.validate_order_by(order_by)?
         }
 
         // 8. 验证分页参数
@@ -293,9 +285,7 @@ impl MatchValidator {
             match item {
                 ReturnItem::Expression { expression, alias } => {
                     // 验证表达式
-                    if let Err(e) = self.validate_return_expression(expression, idx) {
-                        return Err(e);
-                    }
+                    self.validate_return_expression(expression, idx)?;
 
                     // 验证别名（如果存在）
                     if let Some(ref alias_name) = alias {
@@ -554,7 +544,7 @@ impl MatchValidator {
         columns: &mut Vec<YieldColumn>,
     ) -> Result<(), ValidationError> {
         for part in query_parts {
-            for (alias, _alias_type) in &part.aliases_generated {
+            for alias in part.aliases_generated.keys() {
                 let ctx = ContextualExpression::new(
                     crate::core::types::expression::ExpressionId::new(0),
                     std::sync::Arc::new(ExpressionAnalysisContext::new()),
@@ -697,15 +687,13 @@ impl StatementValidator for MatchValidator {
         };
 
         // 3. 验证 MATCH 语句
-        if let Err(e) = self.validate_match_statement(&match_stmt) {
-            return Err(e);
-        }
+        self.validate_match_statement(match_stmt)?;
 
         // 4. 获取 space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
         // 5. 生成输出列
-        self.generate_output_columns(&match_stmt);
+        self.generate_output_columns(match_stmt);
 
         // 6. 构建详细的 ValidationInfo
         let mut info = ValidationInfo::new();

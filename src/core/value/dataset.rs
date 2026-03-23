@@ -245,6 +245,12 @@ pub struct DataSet {
     pub rows: Vec<Vec<super::types::Value>>,
 }
 
+impl Default for DataSet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DataSet {
     pub fn new() -> Self {
         Self {
@@ -288,16 +294,10 @@ impl DataSet {
 
     /// 获取指定列的所有值
     pub fn get_column(&self, col_name: &str) -> Option<Vec<super::types::Value>> {
-        if let Some(index) = self.get_col_index(col_name) {
-            Some(
-                self.rows
+        self.get_col_index(col_name).map(|index| self.rows
                     .iter()
                     .filter_map(|row| row.get(index).cloned())
-                    .collect(),
-            )
-        } else {
-            None
-        }
+                    .collect())
     }
 
     /// 过滤数据集
@@ -323,7 +323,7 @@ impl DataSet {
     {
         DataSet {
             col_names: self.col_names.clone(),
-            rows: self.rows.iter().map(|row| mapper(row)).collect(),
+            rows: self.rows.iter().map(mapper).collect(),
         }
     }
 
@@ -385,7 +385,7 @@ impl DataSet {
 
         for row in &self.rows {
             let key = key_fn(row);
-            groups.entry(key).or_insert_with(Vec::new).push(row.clone());
+            groups.entry(key).or_default().push(row.clone());
         }
 
         groups

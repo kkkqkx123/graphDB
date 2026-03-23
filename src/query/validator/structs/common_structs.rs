@@ -17,6 +17,12 @@ pub struct ValidationContextImpl {
     pub variables: std::collections::HashMap<String, Vec<ColumnDef>>,
 }
 
+impl Default for ValidationContextImpl {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ValidationContextImpl {
     pub fn new() -> Self {
         Self {

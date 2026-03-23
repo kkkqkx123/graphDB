@@ -3,12 +3,17 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionMeta;
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 
 /// 别名验证策略
 pub struct AliasValidationStrategy;
+
+impl Default for AliasValidationStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AliasValidationStrategy {
     pub fn new() -> Self {
@@ -41,7 +46,7 @@ impl AliasValidationStrategy {
         let expr = expr_meta.inner();
 
         // 首先检查表达式本身是否引用了一个别名
-        if let Some(alias_name) = self.extract_alias_name_internal(&expr) {
+        if let Some(alias_name) = self.extract_alias_name_internal(expr) {
             if !aliases.contains_key(&alias_name) {
                 return Err(ValidationError::new(
                     format!("未定义的变量别名: {}", alias_name),
@@ -51,17 +56,14 @@ impl AliasValidationStrategy {
         }
 
         // 递归验证子表达式
-        self.validate_subexpressions_aliases_internal(&expr, aliases)?;
+        self.validate_subexpressions_aliases_internal(expr, aliases)?;
 
         Ok(())
     }
 
     /// 从表达式中提取别名名称
     pub fn extract_alias_name(&self, expression: &ContextualExpression) -> Option<String> {
-        let expr_meta = match expression.expression() {
-            Some(e) => e,
-            None => return None,
-        };
+        let expr_meta = expression.expression()?;
         self.extract_alias_name_internal(expr_meta.inner())
     }
 
@@ -292,8 +294,8 @@ impl AliasValidationStrategy {
         last_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         for (name, alias_type) in last_aliases {
-            if !cur_aliases.contains_key(name) {
-                if cur_aliases
+            if !cur_aliases.contains_key(name)
+                && cur_aliases
                     .insert(name.clone(), alias_type.clone())
                     .is_some()
                 {
@@ -302,7 +304,6 @@ impl AliasValidationStrategy {
                         ValidationErrorType::AliasError,
                     ));
                 }
-            }
         }
         Ok(())
     }

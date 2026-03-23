@@ -10,7 +10,6 @@ use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -20,6 +19,12 @@ use std::sync::Arc;
 /// 负责规划 WHERE 子句的执行，过滤输入数据。
 #[derive(Debug)]
 pub struct WhereClausePlanner;
+
+impl Default for WhereClausePlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl WhereClausePlanner {
     pub fn new() -> Self {

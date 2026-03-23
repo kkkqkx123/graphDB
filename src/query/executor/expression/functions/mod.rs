@@ -275,6 +275,12 @@ pub struct CFunctionContext {
     pub user_data: usize,
 }
 
+impl Default for CFunctionContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CFunctionContext {
     pub fn new() -> Self {
         Self {

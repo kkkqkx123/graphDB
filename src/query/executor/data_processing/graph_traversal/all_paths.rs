@@ -446,11 +446,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         let right_steps: Vec<(Arc<Edge>, Arc<Vertex>)> = right_path
             .iter()
             .filter_map(|node| {
-                if let Some(ref edge) = node.edge() {
-                    Some(((*edge).clone(), node.vertex().clone()))
-                } else {
-                    None
-                }
+                node.edge().map(|edge| (edge.clone(), node.vertex().clone()))
             })
             .collect();
 

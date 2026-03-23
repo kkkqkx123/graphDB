@@ -86,71 +86,66 @@ impl VertexIndexManager {
             let mut forward_keys_to_delete: Vec<ByteKey> = Vec::new();
             let mut reverse_keys_to_delete: Vec<ByteKey> = Vec::new();
 
-            for entry in table
+            for (key, value) in table
                 .iter()
-                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?.flatten()
             {
-                if let Ok((key, value)) = entry {
-                    let key_bytes: Vec<u8> = key.value().0.clone();
+                let key_bytes: Vec<u8> = key.value().0.clone();
 
-                    if key_bytes.starts_with(&reverse_prefix.0) {
-                        if let Ok((index_name, key_vid_bytes)) =
-                            IndexKeyCodec::parse_vertex_reverse_key(&key_bytes)
-                        {
-                            if key_vid_bytes == vertex_bytes {
-                                reverse_keys_to_delete.push(ByteKey(key_bytes.clone()));
+                if key_bytes.starts_with(&reverse_prefix.0) {
+                    if let Ok((index_name, key_vid_bytes)) =
+                        IndexKeyCodec::parse_vertex_reverse_key(&key_bytes)
+                    {
+                        if key_vid_bytes == vertex_bytes {
+                            reverse_keys_to_delete.push(ByteKey(key_bytes.clone()));
 
-                                let value_bytes: Vec<u8> = value.value().0.clone();
-                                let value_str = String::from_utf8_lossy(&value_bytes);
-                                let value_parts: Vec<&str> = value_str.split(':').collect();
+                            let value_bytes: Vec<u8> = value.value().0.clone();
+                            let value_str = String::from_utf8_lossy(&value_bytes);
+                            let value_parts: Vec<&str> = value_str.split(':').collect();
 
-                                if value_parts.len() >= 2 {
-                                    let _prop_name = value_parts[0];
-                                    if let Ok(prop_value_len) = value_parts[1].parse::<usize>() {
-                                        let forward_key_start =
-                                            IndexKeyCodec::build_vertex_index_prefix(
-                                                space_id,
-                                                &index_name,
-                                            );
-                                        let forward_key_end =
-                                            IndexKeyCodec::build_range_end(&forward_key_start);
+                            if value_parts.len() >= 2 {
+                                let _prop_name = value_parts[0];
+                                if let Ok(prop_value_len) = value_parts[1].parse::<usize>() {
+                                    let forward_key_start =
+                                        IndexKeyCodec::build_vertex_index_prefix(
+                                            space_id,
+                                            &index_name,
+                                        );
+                                    let forward_key_end =
+                                        IndexKeyCodec::build_range_end(&forward_key_start);
 
-                                        for fwd_entry in table
-                                            .range::<ByteKey>(&forward_key_start..&forward_key_end)
-                                            .map_err(|e| {
-                                                StorageError::DbError(format!(
-                                                    "范围查询失败: {}",
-                                                    e
-                                                ))
-                                            })?
+                                    for (fwd_key, _) in table
+                                        .range::<ByteKey>(&forward_key_start..&forward_key_end)
+                                        .map_err(|e| {
+                                            StorageError::DbError(format!(
+                                                "范围查询失败: {}",
+                                                e
+                                            ))
+                                        })?.flatten()
+                                    {
+                                        let fwd_key_bytes: Vec<u8> =
+                                            fwd_key.value().0.clone();
+                                        if let Ok(vid) =
+                                            IndexKeyCodec::parse_vertex_id_from_key(
+                                                &fwd_key_bytes,
+                                            )
                                         {
-                                            if let Ok((fwd_key, _)) = fwd_entry {
-                                                let fwd_key_bytes: Vec<u8> =
-                                                    fwd_key.value().0.clone();
-                                                if let Ok(vid) =
-                                                    IndexKeyCodec::parse_vertex_id_from_key(
-                                                        &fwd_key_bytes,
-                                                    )
+                                            if vid == *vertex_id
+                                                && fwd_key_bytes.len()
+                                                    >= forward_key_start.0.len()
+                                                        + 4
+                                                        + prop_value_len
+                                                        + 4
                                                 {
-                                                    if vid == *vertex_id {
-                                                        if fwd_key_bytes.len()
-                                                            >= forward_key_start.0.len()
-                                                                + 4
-                                                                + prop_value_len
-                                                                + 4
-                                                        {
-                                                            let vid_start = fwd_key_bytes.len()
-                                                                - vertex_bytes.len();
-                                                            if &fwd_key_bytes[vid_start..]
-                                                                == vertex_bytes
-                                                            {
-                                                                forward_keys_to_delete
-                                                                    .push(ByteKey(fwd_key_bytes));
-                                                            }
-                                                        }
+                                                    let vid_start = fwd_key_bytes.len()
+                                                        - vertex_bytes.len();
+                                                    if fwd_key_bytes[vid_start..]
+                                                        == vertex_bytes
+                                                    {
+                                                        forward_keys_to_delete
+                                                            .push(ByteKey(fwd_key_bytes));
                                                     }
                                                 }
-                                            }
                                         }
                                     }
                                 }
@@ -201,20 +196,18 @@ impl VertexIndexManager {
 
             let mut keys_to_delete: Vec<ByteKey> = Vec::new();
 
-            for entry in table
+            for (key, _) in table
                 .iter()
-                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?.flatten()
             {
-                if let Ok((key, _)) = entry {
-                    let key_bytes: Vec<u8> = key.value().0.clone();
+                let key_bytes: Vec<u8> = key.value().0.clone();
 
-                    if key_bytes.starts_with(&reverse_prefix.0) {
-                        if let Ok((index_name, key_vid_bytes)) =
-                            IndexKeyCodec::parse_vertex_reverse_key(&key_bytes)
-                        {
-                            if key_vid_bytes == vertex_bytes && index_name.starts_with(tag_name) {
-                                keys_to_delete.push(ByteKey(key_bytes));
-                            }
+                if key_bytes.starts_with(&reverse_prefix.0) {
+                    if let Ok((index_name, key_vid_bytes)) =
+                        IndexKeyCodec::parse_vertex_reverse_key(&key_bytes)
+                    {
+                        if key_vid_bytes == vertex_bytes && index_name.starts_with(tag_name) {
+                            keys_to_delete.push(ByteKey(key_bytes));
                         }
                     }
                 }
@@ -255,30 +248,28 @@ impl VertexIndexManager {
         let mut results = Vec::new();
         let value_bytes = IndexKeyCodec::serialize_value(value)?;
 
-        for entry in table
+        for (key, _) in table
             .range::<ByteKey>(&prefix..&end)
-            .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?
+            .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?.flatten()
         {
-            if let Ok((key, _)) = entry {
-                let key_bytes: Vec<u8> = key.value().0.clone();
+            let key_bytes: Vec<u8> = key.value().0.clone();
 
-                if let Ok(vertex_id) = IndexKeyCodec::parse_vertex_id_from_key(&key_bytes) {
-                    if key_bytes.len() > prefix.0.len() + 4 {
-                        let prop_len_start = prefix.0.len();
-                        let prop_value_len = u32::from_le_bytes(
-                            key_bytes[prop_len_start..prop_len_start + 4]
-                                .try_into()
-                                .unwrap_or([0; 4]),
-                        ) as usize;
+            if let Ok(vertex_id) = IndexKeyCodec::parse_vertex_id_from_key(&key_bytes) {
+                if key_bytes.len() > prefix.0.len() + 4 {
+                    let prop_len_start = prefix.0.len();
+                    let prop_value_len = u32::from_le_bytes(
+                        key_bytes[prop_len_start..prop_len_start + 4]
+                            .try_into()
+                            .unwrap_or([0; 4]),
+                    ) as usize;
 
-                        if prop_value_len == value_bytes.len() {
-                            let prop_value_start = prop_len_start + 4;
-                            let stored_prop_value =
-                                &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+                    if prop_value_len == value_bytes.len() {
+                        let prop_value_start = prop_len_start + 4;
+                        let stored_prop_value =
+                            &key_bytes[prop_value_start..prop_value_start + prop_value_len];
 
-                            if stored_prop_value == value_bytes.as_slice() {
-                                results.push(vertex_id);
-                            }
+                        if stored_prop_value == value_bytes.as_slice() {
+                            results.push(vertex_id);
                         }
                     }
                 }

@@ -46,6 +46,7 @@ pub struct BatchInserter<'sess, S: StorageClient + Clone + 'static> {
 
 /// 批量操作结果
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct BatchResult {
     /// 插入的顶点数量
     pub vertices_inserted: usize,
@@ -261,15 +262,6 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
     }
 }
 
-impl Default for BatchResult {
-    fn default() -> Self {
-        Self {
-            vertices_inserted: 0,
-            edges_inserted: 0,
-            errors: Vec::new(),
-        }
-    }
-}
 
 impl BatchResult {
     /// 获取总插入数量

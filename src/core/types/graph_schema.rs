@@ -222,6 +222,12 @@ pub struct PathInfo {
 /// 图结构类型推导器
 pub struct GraphTypeInference;
 
+impl Default for GraphTypeInference {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GraphTypeInference {
     pub fn new() -> Self {
         Self

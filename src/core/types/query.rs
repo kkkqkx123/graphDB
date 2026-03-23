@@ -2,15 +2,12 @@
 
 /// 查询类型枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum QueryType {
+    #[default]
     ReadQuery,
     WriteQuery,
     AdminQuery,
     SchemaQuery,
 }
 
-impl Default for QueryType {
-    fn default() -> Self {
-        QueryType::ReadQuery
-    }
-}

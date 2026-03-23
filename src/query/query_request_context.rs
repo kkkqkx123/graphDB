@@ -13,6 +13,7 @@ use std::collections::HashMap;
 /// - 查询字符串
 /// - 查询参数
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct QueryRequestContext {
     /// 会话ID
     pub session_id: Option<i64>,
@@ -73,17 +74,6 @@ impl QueryRequestContext {
     }
 }
 
-impl Default for QueryRequestContext {
-    fn default() -> Self {
-        Self {
-            session_id: None,
-            user_name: None,
-            space_name: None,
-            query: String::new(),
-            parameters: HashMap::new(),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

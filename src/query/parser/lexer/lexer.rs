@@ -123,7 +123,7 @@ impl<'a> Lexer<'a> {
                 // 检查 . 后面是否跟着数字（使用 peek 不消耗字符）
                 let mut temp_chars = self.chars.clone();
                 temp_chars.next(); // 跳过 .
-                if temp_chars.peek().map_or(false, |c| c.is_ascii_digit()) {
+                if temp_chars.peek().is_some_and(|c| c.is_ascii_digit()) {
                     has_decimal = true;
                     self.read_char();
                 } else {

@@ -3,9 +3,7 @@
 //! 提供计划节点的模式匹配功能，用于重写规则识别特定计划结构。
 //! 这是从 optimizer 层独立出来的简化版本，专注于启发式重写规则的需求。
 
-use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 生成节点匹配方法的宏
 ///
@@ -26,6 +24,7 @@ macro_rules! define_matcher {
 /// 用于匹配计划树的特定结构。
 /// 包含当前节点的匹配条件和子节点的模式。
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct Pattern {
     /// 当前节点的匹配条件
     pub node: Option<MatchNode>,
@@ -143,14 +142,6 @@ impl Pattern {
     }
 }
 
-impl Default for Pattern {
-    fn default() -> Self {
-        Self {
-            node: None,
-            dependencies: Vec::new(),
-        }
-    }
-}
 
 /// 节点匹配枚举
 ///

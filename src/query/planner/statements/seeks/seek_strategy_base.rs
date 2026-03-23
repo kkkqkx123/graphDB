@@ -200,7 +200,7 @@ impl SeekStrategySelector {
             SeekStrategyType::PropIndexSeek
         } else if context.node_pattern.labels.is_empty() {
             SeekStrategyType::ScanSeek
-        } else if let Some(_) = context.get_index_for_labels(&context.node_pattern.labels) {
+        } else if context.get_index_for_labels(&context.node_pattern.labels).is_some() {
             if context.estimated_rows < self.scan_threshold {
                 SeekStrategyType::IndexSeek
             } else {

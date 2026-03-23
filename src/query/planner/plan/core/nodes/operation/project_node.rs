@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::{ContextualExpression, SerializableExpression};
+use crate::core::types::SerializableExpression;
 use crate::core::YieldColumn;
 use crate::define_plan_node_with_deps;
 use crate::query::validator::context::ExpressionAnalysisContext;

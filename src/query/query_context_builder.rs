@@ -25,6 +25,7 @@ use std::sync::Arc;
 ///     .with_charset_info(charset_info)
 ///     .build();
 /// ```
+#[derive(Default)]
 pub struct QueryContextBuilder {
     rctx: Option<Arc<QueryRequestContext>>,
     execution_manager: Option<QueryExecutionManager>,
@@ -94,16 +95,6 @@ impl QueryContextBuilder {
     }
 }
 
-impl Default for QueryContextBuilder {
-    fn default() -> Self {
-        Self {
-            rctx: None,
-            execution_manager: None,
-            resource_context: None,
-            space_context: None,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

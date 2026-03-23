@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use std::ffi::CString;
 
 thread_local! {
-    static LAST_ERROR_MESSAGE: RefCell<Option<CString>> = RefCell::new(None);
+    static LAST_ERROR_MESSAGE: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
 
 /// 设置最后的错误消息

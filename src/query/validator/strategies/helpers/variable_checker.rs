@@ -8,6 +8,12 @@ use std::collections::HashMap;
 
 pub struct VariableChecker;
 
+impl Default for VariableChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VariableChecker {
     pub fn new() -> Self {
         Self

@@ -110,7 +110,7 @@ fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
                     row.into_iter()
                         .enumerate()
                         .map(|(i, v)| {
-                            let col_name = columns.get(i).map(|c| c.clone()).unwrap_or_default();
+                            let col_name = columns.get(i).cloned().unwrap_or_default();
                             (col_name, value_to_json(v))
                         })
                         .collect()

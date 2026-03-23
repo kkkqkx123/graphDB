@@ -226,7 +226,7 @@ impl ClientSession {
 
     /// 获取当前绑定的事务ID
     pub fn current_transaction(&self) -> Option<TransactionId> {
-        self.current_transaction.read().clone()
+        *self.current_transaction.read()
     }
 
     /// 绑定事务到会话

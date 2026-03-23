@@ -232,13 +232,9 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             };
 
             if !self.track_prev_path {
-                let mut row = Vec::new();
-                row.push(Value::Vertex(Box::new(vertex)));
-                dataset.rows.push(row);
+                dataset.rows.push(vec![Value::Vertex(Box::new(vertex))]);
             } else {
-                let mut row = Vec::new();
-                row.push(Value::Vertex(Box::new(vertex)));
-                dataset.rows.push(row);
+                dataset.rows.push(vec![Value::Vertex(Box::new(vertex))]);
             }
         }
 
@@ -258,7 +254,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
 
             let vertex = storage
                 .get_vertex("default", &vid)
-                .map_err(|e| DBError::from(e))?;
+                .map_err(DBError::from)?;
 
             if let Some(vertex) = vertex {
                 vertices.push(vertex);
@@ -312,13 +308,9 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             }
 
             if !self.track_prev_path {
-                let mut row = Vec::new();
-                row.push(vertex_value);
-                dataset.rows.push(row);
+                dataset.rows.push(vec![vertex_value]);
             } else {
-                let mut row = Vec::new();
-                row.push(vertex_value);
-                dataset.rows.push(row);
+                dataset.rows.push(vec![vertex_value]);
             }
         }
 

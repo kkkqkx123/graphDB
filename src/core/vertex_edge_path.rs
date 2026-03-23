@@ -718,7 +718,7 @@ impl Path {
 
         // 更新源顶点为最后一个步骤的目标顶点
         if let Some(last_step) = self.steps.first() {
-            self.src = Box::new(Vertex::new((*last_step.edge.src).clone(), vec![]));
+            *self.src = Vertex::new((*last_step.edge.src).clone(), vec![]);
         }
     }
 

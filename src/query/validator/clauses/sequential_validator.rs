@@ -212,7 +212,7 @@ impl SequentialValidator {
     }
 
     fn validate_variables(&self) -> Result<(), ValidationError> {
-        for (name, _) in &self.variables {
+        for name in self.variables.keys() {
             if name.is_empty() {
                 return Err(ValidationError::new(
                     "Variable name cannot be empty".to_string(),

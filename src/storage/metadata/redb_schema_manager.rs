@@ -278,11 +278,11 @@ impl super::SchemaManager for RedbSchemaManager {
 
         let mut spaces = Vec::new();
 
-        let mut iter = spaces_table
+        let iter = spaces_table
             .iter()
             .map_err(|e| StorageError::DbError(format!("遍历空间失败: {}", e)))?;
 
-        while let Some(result) = iter.next() {
+        for result in iter {
             let (_key, value) =
                 result.map_err(|e| StorageError::DbError(format!("迭代空间失败: {}", e)))?;
             let space: SpaceInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -379,15 +379,15 @@ impl super::SchemaManager for RedbSchemaManager {
                 .open_table(TAGS_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
 
-            let mut iter = tags_table
+            let iter = tags_table
                 .iter()
                 .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
 
-            while let Some(result) = iter.next() {
+            for result in iter {
                 let (key, value) =
                     result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
                 let key_bytes = &key.value().0;
-                if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
+                if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                     let tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
                     if tag.tag_name == tag_name {
                         let id_bytes = &key_bytes[8..12];
@@ -445,15 +445,15 @@ impl super::SchemaManager for RedbSchemaManager {
             .open_table(TAGS_TABLE)
             .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
 
-        let mut iter = tags_table
+        let iter = tags_table
             .iter()
             .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
 
-        while let Some(result) = iter.next() {
+        for result in iter {
             let (key, value) =
                 result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
             let key_bytes = &key.value().0;
-            if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
+            if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
                 if tag.tag_name == tag_name {
                     return Ok(Some(tag));
@@ -480,15 +480,15 @@ impl super::SchemaManager for RedbSchemaManager {
 
         let mut tags = Vec::new();
 
-        let mut iter = tags_table
+        let iter = tags_table
             .iter()
             .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
 
-        while let Some(result) = iter.next() {
+        for result in iter {
             let (key, value) =
                 result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
             let key_bytes = &key.value().0;
-            if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
+            if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
                 tags.push(tag);
             }
@@ -591,15 +591,15 @@ impl super::SchemaManager for RedbSchemaManager {
                 .open_table(EDGE_TYPES_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
 
-            let mut iter = edge_types_table
+            let iter = edge_types_table
                 .iter()
                 .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
 
-            while let Some(result) = iter.next() {
+            for result in iter {
                 let (key, value) =
                     result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
                 let key_bytes = &key.value().0;
-                if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
+                if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                     let edge_type: EdgeTypeInfo =
                         decode_from_slice(&value.value().0, standard())?.0;
                     if edge_type.edge_type_name == edge_type_name {
@@ -662,15 +662,15 @@ impl super::SchemaManager for RedbSchemaManager {
             .open_table(EDGE_TYPES_TABLE)
             .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
 
-        let mut iter = edge_types_table
+        let iter = edge_types_table
             .iter()
             .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
 
-        while let Some(result) = iter.next() {
+        for result in iter {
             let (key, value) =
                 result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
             let key_bytes = &key.value().0;
-            if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
+            if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let edge_type: EdgeTypeInfo = decode_from_slice(&value.value().0, standard())?.0;
                 if edge_type.edge_type_name == edge_type_name {
                     return Ok(Some(edge_type));
@@ -697,15 +697,15 @@ impl super::SchemaManager for RedbSchemaManager {
 
         let mut edge_types = Vec::new();
 
-        let mut iter = edge_types_table
+        let iter = edge_types_table
             .iter()
             .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
 
-        while let Some(result) = iter.next() {
+        for result in iter {
             let (key, value) =
                 result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
             let key_bytes = &key.value().0;
-            if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
+            if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
                 let edge_type: EdgeTypeInfo = decode_from_slice(&value.value().0, standard())?.0;
                 edge_types.push(edge_type);
             }

@@ -4,7 +4,6 @@
 
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::define_plan_node;
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 标签插入规范
 #[derive(Debug, Clone)]

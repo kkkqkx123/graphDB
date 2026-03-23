@@ -17,6 +17,12 @@ use std::sync::Arc;
 /// 子句验证策略
 pub struct ClauseValidationStrategy;
 
+impl Default for ClauseValidationStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClauseValidationStrategy {
     pub fn new() -> Self {
         Self
@@ -112,7 +118,7 @@ impl ClauseValidationStrategy {
                         ));
 
                         // 添加之前可用的别名
-                        for (alias, _) in &prev_query_part.aliases_available {
+                        for alias in prev_query_part.aliases_available.keys() {
                             columns.push(YieldColumn::new(
                                 self.create_contextual_expression(Expression::Label(alias.clone())),
                                 alias.clone(),
@@ -120,7 +126,7 @@ impl ClauseValidationStrategy {
                         }
 
                         // 添加之前生成的别名
-                        for (alias, _) in &prev_query_part.aliases_generated {
+                        for alias in prev_query_part.aliases_generated.keys() {
                             columns.push(YieldColumn::new(
                                 self.create_contextual_expression(Expression::Label(alias.clone())),
                                 alias.clone(),

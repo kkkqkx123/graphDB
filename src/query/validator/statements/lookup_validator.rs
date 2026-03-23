@@ -234,7 +234,7 @@ impl LookupValidator {
 
             self.validate_filter_type(expr)?;
 
-            if self.has_aggregate_expression(&expr) {
+            if self.has_aggregate_expression(expr) {
                 return Err(ValidationError::new(
                     "LOOKUP filter cannot contain aggregate expressions".to_string(),
                     ValidationErrorType::SemanticError,
@@ -443,7 +443,7 @@ impl StatementValidator for LookupValidator {
                     applicable_conditions: parsed_info
                         .filter_expression
                         .clone()
-                        .map_or_else(|| vec![], |f| vec![f]),
+                        .map_or_else(std::vec::Vec::new, |f| vec![f]),
                     estimated_selectivity: 0.1,
                 });
             }
@@ -455,7 +455,7 @@ impl StatementValidator for LookupValidator {
                     applicable_conditions: parsed_info
                         .filter_expression
                         .clone()
-                        .map_or_else(|| vec![], |f| vec![f]),
+                        .map_or_else(std::vec::Vec::new, |f| vec![f]),
                     estimated_selectivity: 0.05,
                 });
             }

@@ -38,7 +38,7 @@ pub trait ResultIterator<'a, T: 'a>: Send + Sync + std::fmt::Debug {
     fn for_each<F>(&mut self, mut f: F) -> DBResult<()>
     where
         Self: Sized,
-        F: FnMut(Self::Row) -> (),
+        F: FnMut(Self::Row),
     {
         while let Some(row) = self.next()? {
             f(row);

@@ -150,7 +150,7 @@ impl StatementValidator for FindPathValidator {
         };
 
         // 3. 执行基础验证
-        self.validate_find_path(&find_path_stmt)?;
+        self.validate_find_path(find_path_stmt)?;
 
         // 4. 验证 YIELD 子句
         self.validate_yield_clause(&find_path_stmt.yield_clause)?;

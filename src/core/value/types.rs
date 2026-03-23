@@ -54,7 +54,9 @@ use std::hash::Hash;
 /// let div_zero = NullType::DivByZero;
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
+#[derive(Default)]
 pub enum NullType {
+    #[default]
     Null,        // 标准null值
     NaN,         // 非数字结果
     BadData,     // 坏数据（解析失败）
@@ -94,11 +96,6 @@ impl NullType {
     }
 }
 
-impl Default for NullType {
-    fn default() -> Self {
-        NullType::Null
-    }
-}
 
 impl std::fmt::Display for NullType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -117,7 +117,7 @@ impl RewriteRule for PushFilterDownTraverseRule {
         // 设置或合并 eFilter
         if let Some(existing_ctx) = traverse.e_filter() {
             // 使用 ExpressionContext 的 and 方法组合表达式
-            if let Some(combined_ctx_expr) = ctx.and(&picked, &existing_ctx) {
+            if let Some(combined_ctx_expr) = ctx.and(&picked, existing_ctx) {
                 new_traverse.set_e_filter(combined_ctx_expr);
             }
         } else {

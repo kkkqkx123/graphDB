@@ -300,11 +300,8 @@ impl ExpressionVisitor for AnalysisVisitor<'_> {
     ) {
         if self.options.check_complexity {
             self.analysis.complexity_score += 2;
-            match op {
-                crate::core::types::BinaryOperator::Like => {
-                    self.analysis.complexity_score += 5;
-                }
-                _ => {}
+            if op == crate::core::types::BinaryOperator::Like {
+                self.analysis.complexity_score += 5;
             }
         }
         self.analysis.node_count += 1;
@@ -321,11 +318,10 @@ impl ExpressionVisitor for AnalysisVisitor<'_> {
     }
 
     fn visit_function(&mut self, name: &str, args: &[Expression]) {
-        if self.options.check_deterministic {
-            if NondeterministicChecker::is_nondeterministic(name) {
+        if self.options.check_deterministic
+            && NondeterministicChecker::is_nondeterministic(name) {
                 self.analysis.is_deterministic = false;
             }
-        }
         if self.options.check_complexity {
             self.analysis.complexity_score += 10 + args.len() as u32 * 2;
         }

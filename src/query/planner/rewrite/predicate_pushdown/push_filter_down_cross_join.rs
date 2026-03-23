@@ -3,7 +3,6 @@
 //! 该规则识别 Filter -> CrossJoin 模式，
 //! 并将过滤条件下推到连接的两侧。
 
-use std::sync::Arc;
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
@@ -15,7 +14,6 @@ use crate::query::planner::rewrite::expression_utils::{check_col_name, split_fil
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 将过滤条件下推到交叉连接操作的规则
 ///

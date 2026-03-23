@@ -53,7 +53,7 @@ impl AutoFeedbackConfig {
     ) -> Self {
         Self {
             min_samples_for_update: min_samples,
-            error_threshold: error_threshold.max(0.1).min(1.0),
+            error_threshold: error_threshold.clamp(0.1, 1.0),
             update_cooldown_ms: cooldown_ms,
             max_feedback_history: max_history,
             enabled: true,

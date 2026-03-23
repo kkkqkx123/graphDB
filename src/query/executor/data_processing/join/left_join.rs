@@ -367,7 +367,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> 
     }
 
     fn description(&self) -> &str {
-        &self.inner.description()
+        self.inner.description()
     }
 
     fn stats(&self) -> &crate::query::executor::base::ExecutorStats {

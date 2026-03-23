@@ -213,11 +213,7 @@ impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>>
     }
 
     fn peek(&self) -> crate::core::DBResult<Option<&Self::Row>> {
-        if self.vertex_index < self.vertices.len() {
-            Ok(None)
-        } else {
-            Ok(None)
-        }
+        Ok(None)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

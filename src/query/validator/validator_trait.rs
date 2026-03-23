@@ -317,7 +317,7 @@ impl StatementType {
     }
 
     pub fn is_global_statement(&self) -> bool {
-        is_global_statement_type(self.clone())
+        is_global_statement_type(*self)
     }
 
     pub fn is_ddl(&self) -> bool {

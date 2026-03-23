@@ -197,7 +197,7 @@ impl TraversalStartSelector {
                 };
 
                 // 基于边统计估计代价
-                let estimated_cost = stats.estimate_expand_cost(1) as f64;
+                let estimated_cost = stats.estimate_expand_cost(1);
 
                 candidates.push(CandidateStart {
                     node_pattern: virtual_node,
@@ -363,11 +363,10 @@ impl TraversalStartSelector {
             // 检查二元运算中是否包含VID条件
             Expression::Binary { left, right, op } => {
                 // 检查是否为等值比较且包含VID
-                if matches!(op, BinaryOperator::Equal | BinaryOperator::NotEqual) {
-                    if self.is_vid_expression(left) || self.is_vid_expression(right) {
+                if matches!(op, BinaryOperator::Equal | BinaryOperator::NotEqual)
+                    && (self.is_vid_expression(left) || self.is_vid_expression(right)) {
                         return true;
                     }
-                }
                 // 递归检查
                 self.has_vid_condition(left) || self.has_vid_condition(right)
             }

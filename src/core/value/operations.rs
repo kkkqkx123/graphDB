@@ -274,7 +274,7 @@ impl Value {
             }
             (UInt8(a), UInt8(b)) => Ok(UInt8(a.pow(*b as u32))),
             (UInt16(a), UInt16(b)) => Ok(UInt16(a.pow(*b as u32))),
-            (UInt32(a), UInt32(b)) => Ok(UInt32(a.pow(*b as u32))),
+            (UInt32(a), UInt32(b)) => Ok(UInt32(a.pow(*b))),
             (UInt64(a), UInt64(b)) => Ok(UInt64(a.pow(*b as u32))),
             (Float(a), Float(b)) => Ok(Float(a.powf(*b))),
             (Int(a), Float(b)) => Ok(Float((*a as f64).powf(*b))),
@@ -442,7 +442,7 @@ impl Value {
                 if *b >= 32 {
                     Err("左移位数超出范围".to_string())
                 } else {
-                    Ok(UInt32(a << *b as u32))
+                    Ok(UInt32(a << *b))
                 }
             }
             (UInt64(a), UInt64(b)) => {
@@ -523,7 +523,7 @@ impl Value {
                 if *b >= 32 {
                     Err("右移位数超出范围".to_string())
                 } else {
-                    Ok(UInt32(a >> *b as u32))
+                    Ok(UInt32(a >> *b))
                 }
             }
             (UInt64(a), UInt64(b)) => {

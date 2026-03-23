@@ -80,7 +80,7 @@ impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPat
     }
 
     fn get_edge_direction(&self) -> crate::query::executor::base::EdgeDirection {
-        self.edge_direction.clone()
+        self.edge_direction
     }
 
     fn get_edge_types(&self) -> Option<Vec<String>> {

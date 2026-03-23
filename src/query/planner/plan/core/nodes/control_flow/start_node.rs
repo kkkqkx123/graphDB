@@ -11,6 +11,12 @@ define_plan_node! {
     input: ZeroInputNode
 }
 
+impl Default for StartNode {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StartNode {
     pub fn new() -> Self {
         Self {

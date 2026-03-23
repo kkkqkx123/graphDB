@@ -95,7 +95,7 @@ impl WithClausePlanner {
 
         ProjectNode::new(input_node.clone(), columns.to_vec())
             .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建投影节点失败: {}", e)))
-            .map(|node| PlanNodeEnum::Project(node))
+            .map(PlanNodeEnum::Project)
     }
 
     /// 创建过滤节点
@@ -111,7 +111,7 @@ impl WithClausePlanner {
 
         FilterNode::new(input_node.clone(), condition.clone())
             .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建过滤节点失败: {}", e)))
-            .map(|node| PlanNodeEnum::Filter(node))
+            .map(PlanNodeEnum::Filter)
     }
 
     /// 应用 ORDER BY 排序
@@ -141,7 +141,7 @@ impl WithClausePlanner {
                     .get(*idx)
                     .cloned()
                     .unwrap_or_else(|| format!("col_{}", idx));
-                crate::query::planner::plan::core::nodes::SortItem::new(column.clone(), dir.clone())
+                crate::query::planner::plan::core::nodes::SortItem::new(column.clone(), *dir)
             })
             .collect();
 
@@ -291,7 +291,7 @@ impl WithClausePlanner {
                     .items
                     .iter()
                     .enumerate()
-                    .map(|(idx, item)| (idx, item.direction.clone()))
+                    .map(|(idx, item)| (idx, item.direction))
                     .collect(),
             });
 

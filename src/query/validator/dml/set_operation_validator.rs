@@ -233,7 +233,7 @@ impl StatementValidator for SetOperationValidator {
         let left_stmt = *set_op_stmt.left.clone();
         let right_stmt = *set_op_stmt.right.clone();
 
-        self.validate_impl(&set_op_stmt)?;
+        self.validate_impl(set_op_stmt)?;
 
         // 验证左右子查询
         let left_outputs = if let Some(ref mut left) = self.left_validator {

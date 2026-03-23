@@ -203,6 +203,7 @@ impl Default for MonitoringConfig {
 
 /// 全局配置
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Default)]
 pub struct Config {
     /// 数据库配置
     pub database: DatabaseConfig,
@@ -222,19 +223,6 @@ pub struct Config {
     pub monitoring: MonitoringConfig,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            database: DatabaseConfig::default(),
-            transaction: TransactionConfig::default(),
-            log: LogConfig::default(),
-            auth: AuthConfig::default(),
-            bootstrap: BootstrapConfig::default(),
-            optimizer: OptimizerConfig::default(),
-            monitoring: MonitoringConfig::default(),
-        }
-    }
-}
 
 impl Config {
     /// 从文件加载配置
@@ -260,9 +248,8 @@ impl Config {
             return Ok(storage_path.to_string());
         }
 
-        if storage_path.starts_with('~') {
+        if let Some(relative_path) = storage_path.strip_prefix('~') {
             if let Some(home_dir) = env::home_dir() {
-                let relative_path = &storage_path[1..];
                 let absolute_path =
                     if relative_path.starts_with('/') || relative_path.starts_with('\\') {
                         home_dir.join(&relative_path[1..])

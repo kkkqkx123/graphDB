@@ -62,7 +62,7 @@ impl PermissionManager {
     ) -> PermissionResult<()> {
         self.user_roles
             .entry(username.to_string())
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(space_id, role);
         Ok(())
     }
@@ -222,11 +222,11 @@ impl PermissionManager {
         let mut space_map = self
             .space_permissions
             .entry(space_id)
-            .or_insert_with(HashMap::new);
+            .or_default();
 
         let user_permissions = space_map
             .entry(username.to_string())
-            .or_insert_with(Vec::new);
+            .or_default();
 
         if !user_permissions.contains(&permission) {
             user_permissions.push(permission);

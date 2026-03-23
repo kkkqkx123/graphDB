@@ -5,7 +5,6 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::DataType;
 use crate::core::Expression;
 use crate::core::TypeUtils;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::ValueType;
 use std::collections::HashMap;
@@ -16,6 +15,12 @@ pub trait ExpressionValidationContext {
 }
 
 pub struct TypeDeduceValidator;
+
+impl Default for TypeDeduceValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TypeDeduceValidator {
     pub fn new() -> Self {
@@ -36,6 +41,12 @@ impl TypeDeduceValidator {
 
 pub struct TypeValidator;
 
+impl Default for TypeValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeValidator {
     pub fn new() -> Self {
         Self
@@ -46,7 +57,7 @@ impl TypeValidator {
     }
 
     pub fn get_default_value(&self, type_def: &DataType) -> Option<Expression> {
-        TypeUtils::get_default_value(type_def).map(|v| Expression::Literal(v))
+        TypeUtils::get_default_value(type_def).map(Expression::Literal)
     }
 
     pub fn can_cast(&self, from: &DataType, to: &DataType) -> bool {
@@ -555,14 +566,14 @@ impl TypeValidator {
             } => {
                 test_expr
                     .as_ref()
-                    .map_or(false, |expr| self.has_aggregate_expression_internal(expr))
+                    .is_some_and(|expr| self.has_aggregate_expression_internal(expr))
                     || conditions.iter().any(|(cond, val)| {
                         self.has_aggregate_expression_internal(cond)
                             || self.has_aggregate_expression_internal(val)
                     })
                     || default
                         .as_ref()
-                        .map_or(false, |d| self.has_aggregate_expression_internal(d))
+                        .is_some_and(|d| self.has_aggregate_expression_internal(d))
             }
             _ => false,
         }

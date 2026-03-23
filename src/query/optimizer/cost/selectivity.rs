@@ -141,7 +141,7 @@ impl SelectivityEstimator {
             return defaults::RANGE;
         }
         let total_range = max_val - min_val;
-        let selectivity = (range_size / total_range).min(1.0).max(0.001);
+        let selectivity = (range_size / total_range).clamp(0.001, 1.0);
         // 范围查询通常不会选择太多数据，添加一个上限
         selectivity.min(0.8)
     }
@@ -223,7 +223,7 @@ impl SelectivityEstimator {
     ///
     /// NOT 条件的选择性 = 1 - 原条件选择性
     pub fn estimate_not_selectivity(&self, inner_selectivity: f64) -> f64 {
-        (1.0 - inner_selectivity).min(0.99).max(0.01)
+        (1.0 - inner_selectivity).clamp(0.01, 0.99)
     }
 
     /// 从表达式估计选择性
@@ -287,9 +287,7 @@ impl SelectivityEstimator {
             }
             BinaryOperator::LessThanOrEqual => {
                 let value = self.extract_numeric_value(right);
-                self.estimate_less_than_selectivity(value)
-                    .min(0.9)
-                    .max(0.01)
+                self.estimate_less_than_selectivity(value).clamp(0.01, 0.9)
             }
             BinaryOperator::GreaterThan => {
                 let value = self.extract_numeric_value(right);
@@ -297,9 +295,7 @@ impl SelectivityEstimator {
             }
             BinaryOperator::GreaterThanOrEqual => {
                 let value = self.extract_numeric_value(right);
-                self.estimate_greater_than_selectivity(value)
-                    .min(0.9)
-                    .max(0.01)
+                self.estimate_greater_than_selectivity(value).clamp(0.01, 0.9)
             }
             BinaryOperator::And => {
                 let left_sel = self.estimate_from_expression(left, tag_name);
@@ -313,7 +309,7 @@ impl SelectivityEstimator {
                 // OR 的选择性：P(A or B) = P(A) + P(B) - P(A and B)
                 let combined =
                     left_sel + right_sel - left_sel * right_sel * defaults::OR_CORRELATION;
-                combined.min(0.99).max(0.01)
+                combined.clamp(0.01, 0.99)
             }
             BinaryOperator::In => {
                 // 估计 IN 列表的大小

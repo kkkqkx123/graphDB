@@ -101,7 +101,7 @@ impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
         let pool = self
             .pools
             .entry(executor_type.to_string())
-            .or_insert_with(Vec::new);
+            .or_default();
 
         if pool.len() < self.config.max_pool_size {
             pool.push(executor);

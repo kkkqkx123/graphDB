@@ -14,6 +14,12 @@ pub type PlannerError = StorageError;
 #[derive(Debug)]
 pub struct MatchPathPlanner;
 
+impl Default for MatchPathPlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MatchPathPlanner {
     pub fn new() -> Self {
         Self
@@ -145,7 +151,7 @@ impl MatchPathPlanner {
 
     fn extract_direction(&self, edge: &EdgePattern) -> Result<EdgeDirection, PlannerError> {
         Ok(match edge.direction {
-            Some(ref dir) => dir.clone(),
+            Some(ref dir) => *dir,
             None => EdgeDirection::Both,
         })
     }

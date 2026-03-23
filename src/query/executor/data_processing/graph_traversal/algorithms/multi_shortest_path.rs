@@ -452,9 +452,9 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             let history_entry = self
                 .history_left_paths
                 .entry(dst.clone())
-                .or_insert_with(HashMap::new);
+                .or_default();
             for (src, paths) in src_map {
-                let src_entry = history_entry.entry(src.clone()).or_insert_with(Vec::new);
+                let src_entry = history_entry.entry(src.clone()).or_default();
                 src_entry.extend(paths.clone());
             }
         }
@@ -464,9 +464,9 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             let history_entry = self
                 .history_right_paths
                 .entry(dst.clone())
-                .or_insert_with(HashMap::new);
+                .or_default();
             for (src, paths) in src_map {
-                let src_entry = history_entry.entry(src.clone()).or_insert_with(Vec::new);
+                let src_entry = history_entry.entry(src.clone()).or_default();
                 src_entry.extend(paths.clone());
             }
         }

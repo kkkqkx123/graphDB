@@ -90,7 +90,7 @@ impl HashTable {
 
     /// 插入条目
     pub fn insert(&mut self, key: JoinKey, entry: HashTableEntry) -> DBResult<()> {
-        self.table.entry(key).or_insert_with(Vec::new).push(entry);
+        self.table.entry(key).or_default().push(entry);
         Ok(())
     }
 

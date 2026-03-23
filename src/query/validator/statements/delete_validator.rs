@@ -446,7 +446,7 @@ impl DeleteValidator {
         };
 
         match inner_expr {
-            Expression::Literal(Value::Int(i)) => Ok(i.clone()),
+            Expression::Literal(Value::Int(i)) => Ok(i),
             Expression::Variable(_) => Ok(0),
             _ => Err(ValidationError::new(
                 "Rank must be an integer".to_string(),
@@ -512,7 +512,7 @@ impl StatementValidator for DeleteValidator {
         };
 
         // 3. 执行基础验证
-        self.validate_delete(&delete_stmt)?;
+        self.validate_delete(delete_stmt)?;
 
         // 4. 获取 space_id
         let space_id = qctx.space_id().unwrap_or(0);

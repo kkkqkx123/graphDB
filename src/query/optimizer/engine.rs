@@ -128,13 +128,13 @@ impl OptimizerEngine {
 
         // 创建子查询去关联化优化器
         let subquery_unnesting_optimizer =
-            SubqueryUnnestingOptimizer::new(&expression_analyzer, &*stats_manager);
+            SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager);
 
         // 创建 CTE 物化优化器
         let materialization_optimizer = MaterializationOptimizer::new(
             &reference_count_analyzer,
             &expression_analyzer,
-            &*stats_manager,
+            &stats_manager,
         );
 
         Self {
@@ -256,12 +256,12 @@ impl OptimizerEngine {
         );
         // 重新创建子查询去关联化优化器
         self.subquery_unnesting_optimizer =
-            SubqueryUnnestingOptimizer::new(&self.expression_analyzer, &*self.stats_manager);
+            SubqueryUnnestingOptimizer::new(&self.expression_analyzer, &self.stats_manager);
         // 重新创建 CTE 物化优化器
         self.materialization_optimizer = MaterializationOptimizer::new(
             &self.reference_count_analyzer,
             &self.expression_analyzer,
-            &*self.stats_manager,
+            &self.stats_manager,
         );
         log::info!("优化器代价模型配置已更新: {:?}", self.cost_config);
     }

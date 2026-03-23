@@ -102,7 +102,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         if self.is_edge {
             let edge_types = storage
                 .list_edge_types(&space_name)
-                .map_err(|e| DBError::Storage(e))?;
+                .map_err(DBError::Storage)?;
             if let Some(edge_type_info) = edge_types.iter().find(|e| e.edge_type_id == self.tag_id)
             {
                 Ok(edge_type_info.edge_type_name.clone())
@@ -112,7 +112,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         } else {
             let tags = storage
                 .list_tags(&space_name)
-                .map_err(|e| DBError::Storage(e))?;
+                .map_err(DBError::Storage)?;
             if let Some(tag_info) = tags.iter().find(|t| t.tag_id == self.tag_id) {
                 Ok(tag_info.tag_name.clone())
             } else {
@@ -139,7 +139,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         .unwrap_or(Value::Null(NullType::Null));
                     storage
                         .lookup_index(&space_name, &index_name, &value)
-                        .map_err(|e| DBError::Storage(e))
+                        .map_err(DBError::Storage)
                 } else {
                     Ok(Vec::new())
                 }
@@ -154,7 +154,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         .unwrap_or(Value::Null(NullType::Null));
                     storage
                         .lookup_index(&space_name, &index_name, &prefix)
-                        .map_err(|e| DBError::Storage(e))
+                        .map_err(DBError::Storage)
                 } else {
                     Ok(Vec::new())
                 }
@@ -185,7 +185,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                     // 使用起始值进行前缀查找获取候选结果
                     let candidates = storage
                         .lookup_index(&space_name, &index_name, &start_val)
-                        .map_err(|e| DBError::Storage(e))?;
+                        .map_err(DBError::Storage)?;
 
                     // 如果有结束值，进行范围过滤
                     if let Some(end_val) = end_value {
@@ -329,7 +329,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         let dst = Value::String(parts[1].to_string());
                         if let Some(edge) = storage
                             .get_edge(&space_name, &src, &dst, &schema_name)
-                            .map_err(|e| DBError::Storage(e))?
+                            .map_err(DBError::Storage)?
                         {
                             results.push(Value::Edge(edge));
                         }
@@ -339,7 +339,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 // 顶点类型
                 if let Some(vertex) = storage
                     .get_vertex(&space_name, &id)
-                    .map_err(|e| DBError::Storage(e))?
+                    .map_err(DBError::Storage)?
                 {
                     results.push(Value::Vertex(Box::new(vertex)));
                 }

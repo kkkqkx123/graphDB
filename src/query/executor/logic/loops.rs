@@ -437,7 +437,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for WhileLoopExecutor
     }
 
     fn description(&self) -> &str {
-        &self.inner.description()
+        self.inner.description()
     }
 
     fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
@@ -545,7 +545,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
     }
 
     fn description(&self) -> &str {
-        &self.inner.description()
+        self.inner.description()
     }
 
     fn stats(&self) -> &crate::query::executor::base::ExecutorStats {

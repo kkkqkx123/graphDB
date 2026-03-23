@@ -33,6 +33,7 @@ pub trait GraphTraversalExecutor<S: StorageClient> {
 
 /// 图遍历统计信息
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct TraversalStats {
     pub nodes_visited: usize,
     pub edges_traversed: usize,
@@ -40,13 +41,3 @@ pub struct TraversalStats {
     pub max_depth_reached: usize,
 }
 
-impl Default for TraversalStats {
-    fn default() -> Self {
-        Self {
-            nodes_visited: 0,
-            edges_traversed: 0,
-            execution_time_ms: 0,
-            max_depth_reached: 0,
-        }
-    }
-}

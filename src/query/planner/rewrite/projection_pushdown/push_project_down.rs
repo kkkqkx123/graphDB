@@ -308,12 +308,11 @@ impl RewriteRule for PushProjectDownRule {
         }
 
         // 如果子节点是中间节点，尝试继续向下查找数据源
-        if Self::is_intermediate_node(input) {
-            if self.contains_data_source(input) {
+        if Self::is_intermediate_node(input)
+            && self.contains_data_source(input) {
                 // 找到了数据源，通过中间节点链下推投影
                 return self.push_down_through_intermediate_nodes(project_node, input);
             }
-        }
 
         Ok(None)
     }

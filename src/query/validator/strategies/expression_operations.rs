@@ -12,6 +12,12 @@ use std::collections::HashSet;
 /// 表达式操作验证器
 pub struct ExpressionOperationsValidator;
 
+impl Default for ExpressionOperationsValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExpressionOperationsValidator {
     pub fn new() -> Self {
         Self
@@ -101,7 +107,7 @@ impl ExpressionOperationsValidator {
                 default: else_clause,
             } => {
                 // 验证条件表达式
-                self.validate_case_expression(&test_expr, when_clauses, else_clause, depth)?;
+                self.validate_case_expression(test_expr, when_clauses, else_clause, depth)?;
             }
             _ => {
                 // 其他表达式类型无需特殊验证

@@ -10,6 +10,12 @@ use crate::storage::StorageClient;
 #[derive(Debug, Clone)]
 pub struct VertexSeek;
 
+impl Default for VertexSeek {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VertexSeek {
     pub fn new() -> Self {
         Self

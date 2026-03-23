@@ -98,14 +98,14 @@ impl ParameterizingTransformer {
                 let new_right = self.transform_with_params(right, result);
                 Expression::Binary {
                     left: Box::new(new_left),
-                    op: op.clone(),
+                    op: *op,
                     right: Box::new(new_right),
                 }
             }
             Expression::Unary { op, operand } => {
                 let new_operand = self.transform_with_params(operand, result);
                 Expression::Unary {
-                    op: op.clone(),
+                    op: *op,
                     operand: Box::new(new_operand),
                 }
             }
@@ -1061,7 +1061,7 @@ impl TemplateExtractor {
             ));
         }
 
-        format!("{}", parts.join(" "))
+        parts.join(" ").to_string()
     }
 
     /// 将 FROM 子句转换为模板字符串

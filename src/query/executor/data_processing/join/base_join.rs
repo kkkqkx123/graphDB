@@ -280,7 +280,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
                 let key = row[key_idx].clone();
                 hash_table
                     .entry(key)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(row.clone());
             }
         }
@@ -312,7 +312,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             let join_key = JoinKey::new(key_values);
             hash_table
                 .entry(join_key)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(row.clone());
         }
         Ok(())

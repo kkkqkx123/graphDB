@@ -55,9 +55,9 @@ impl DedupEliminationRule {
             // 索引扫描相关节点
             PlanNodeEnum::ScanVertices(node) => {
                 // 如果扫描有唯一性约束（如主键扫描）
-                node.limit().map_or(false, |l| l == 1)
+                node.limit() == Some(1)
             }
-            PlanNodeEnum::ScanEdges(node) => node.limit().map_or(false, |l| l == 1),
+            PlanNodeEnum::ScanEdges(node) => node.limit() == Some(1),
             // 其他保证唯一性的节点
             PlanNodeEnum::Start(_) => true,
             _ => false,

@@ -1,6 +1,5 @@
 //! 合并多个过滤操作的规则
 
-use std::sync::Arc;
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
@@ -11,7 +10,6 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 合并多个过滤操作的规则
 ///

@@ -86,7 +86,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
     }
 
     fn build_path(&self, values: &[Value]) -> DBResult<Path> {
-        let first_value = values.get(0).ok_or_else(|| {
+        let first_value = values.first().ok_or_else(|| {
             DBError::Query(crate::core::error::QueryError::ExecutionError(
                 "Path must have at least one vertex".to_string(),
             ))

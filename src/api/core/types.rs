@@ -39,6 +39,12 @@ pub struct Row {
     pub values: HashMap<String, Value>,
 }
 
+impl Default for Row {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Row {
     pub fn new() -> Self {
         Self {
@@ -63,6 +69,7 @@ impl Row {
 
 /// 执行元数据
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct ExecutionMetadata {
     pub execution_time_ms: u64,
     pub rows_scanned: u64,
@@ -70,16 +77,6 @@ pub struct ExecutionMetadata {
     pub cache_hit: bool,
 }
 
-impl Default for ExecutionMetadata {
-    fn default() -> Self {
-        Self {
-            execution_time_ms: 0,
-            rows_scanned: 0,
-            rows_returned: 0,
-            cache_hit: false,
-        }
-    }
-}
 
 /// 事务句柄
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

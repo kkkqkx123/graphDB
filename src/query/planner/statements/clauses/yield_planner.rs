@@ -9,7 +9,6 @@ use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEn
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -72,7 +71,7 @@ impl YieldClausePlanner {
 
         ProjectNode::new(input_node.clone(), columns.to_vec())
             .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建投影节点失败: {}", e)))
-            .map(|node| PlanNodeEnum::Project(node))
+            .map(PlanNodeEnum::Project)
     }
 
     /// 创建过滤节点
@@ -88,7 +87,7 @@ impl YieldClausePlanner {
 
         FilterNode::new(input_node.clone(), condition)
             .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建过滤节点失败: {}", e)))
-            .map(|node| PlanNodeEnum::Filter(node))
+            .map(PlanNodeEnum::Filter)
     }
 
     /// 应用分页
@@ -165,8 +164,8 @@ impl YieldClausePlanner {
                 // 从 GO 语句中提取 YIELD 子句
                 if let Some(ref yield_clause) = go_stmt.yield_clause {
                     let yield_columns = Self::convert_yield_items(&yield_clause.items)?;
-                    let skip = yield_clause.skip.as_ref().map(|s| s.count as usize);
-                    let limit = yield_clause.limit.as_ref().map(|l| l.count as usize);
+                    let skip = yield_clause.skip.as_ref().map(|s| s.count);
+                    let limit = yield_clause.limit.as_ref().map(|l| l.count);
                     Ok((
                         yield_columns,
                         yield_clause.where_clause.clone(),

@@ -107,7 +107,7 @@ impl ExpressionParser {
 
                 Expression::Binary {
                     left: Box::new(folded_left),
-                    op: op.clone(),
+                    op: *op,
                     right: Box::new(folded_right),
                 }
             }
@@ -122,7 +122,7 @@ impl ExpressionParser {
                 }
 
                 Expression::Unary {
-                    op: op.clone(),
+                    op: *op,
                     operand: Box::new(folded_operand),
                 }
             }
@@ -422,9 +422,9 @@ impl ExpressionParser {
     fn count_top_level_commas(&self, s: &str) -> usize {
         let mut count = 0;
         let mut depth = 0;
-        let mut chars = s.chars().peekable();
+        let chars = s.chars().peekable();
 
-        while let Some(c) = chars.next() {
+        for c in chars {
             match c {
                 '[' | '(' | '{' => depth += 1,
                 ']' | ')' | '}' => depth -= 1,

@@ -59,7 +59,7 @@ define_rewrite_pushdown_rule! {
         let order_by_items: Vec<OrderByItem> = topn_node
             .sort_items()
             .iter()
-            .map(|item| OrderByItem::new(item.column.clone(), item.direction.clone()))
+            .map(|item| OrderByItem::new(item.column.clone(), item.direction))
             .collect();
 
         // 创建新的IndexScan节点，设置limit和order_by

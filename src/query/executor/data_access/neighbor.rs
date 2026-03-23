@@ -104,7 +104,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
             let edges = storage.get_node_edges("default", vertex_id, direction)?;
 
             for edge in edges {
-                if let Some(ref filter_types) = edge_types_filter {
+                if let Some(filter_types) = edge_types_filter {
                     if !filter_types.contains(&edge.edge_type) {
                         continue;
                     }

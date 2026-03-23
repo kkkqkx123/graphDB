@@ -206,6 +206,12 @@ pub struct AggregateState {
     pub group_concat_values: Vec<Value>,
 }
 
+impl Default for AggregateState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AggregateState {
     pub fn new() -> Self {
         Self {
@@ -274,28 +280,22 @@ impl AggregateState {
             }
             AggregateFunction::BitAnd(_) => {
                 // BIT_AND函数特殊处理
-                match value {
-                    Value::Int(v) => {
-                        if let Some(current) = self.bit_and_value {
-                            self.bit_and_value = Some(current & v);
-                        } else {
-                            self.bit_and_value = Some(*v);
-                        }
+                if let Value::Int(v) = value {
+                    if let Some(current) = self.bit_and_value {
+                        self.bit_and_value = Some(current & v);
+                    } else {
+                        self.bit_and_value = Some(*v);
                     }
-                    _ => {}
                 }
             }
             AggregateFunction::BitOr(_) => {
                 // BIT_OR函数特殊处理
-                match value {
-                    Value::Int(v) => {
-                        if let Some(current) = self.bit_or_value {
-                            self.bit_or_value = Some(current | v);
-                        } else {
-                            self.bit_or_value = Some(*v);
-                        }
+                if let Value::Int(v) = value {
+                    if let Some(current) = self.bit_or_value {
+                        self.bit_or_value = Some(current | v);
+                    } else {
+                        self.bit_or_value = Some(*v);
                     }
-                    _ => {}
                 }
             }
             AggregateFunction::GroupConcat(_, _) => {
@@ -305,12 +305,12 @@ impl AggregateState {
             _ => {
                 // 其他聚合函数的通用处理
                 // 更新最小值
-                if self.min.as_ref().map_or(true, |min_val| value < min_val) {
+                if self.min.as_ref().is_none_or(|min_val| value < min_val) {
                     self.min = Some(value.clone());
                 }
 
                 // 更新最大值
-                if self.max.as_ref().map_or(true, |max_val| value > max_val) {
+                if self.max.as_ref().is_none_or(|max_val| value > max_val) {
                     self.max = Some(value.clone());
                 }
 
@@ -340,7 +340,7 @@ impl AggregateState {
             return Ok(Value::Null(crate::core::value::NullType::Null));
         }
 
-        if percentile < 0.0 || percentile > 100.0 {
+        if !(0.0..=100.0).contains(&percentile) {
             return Err(ExpressionError::function_error(
                 "Percentile must be between 0 and 100".to_string(),
             ));

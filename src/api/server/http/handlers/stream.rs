@@ -48,7 +48,7 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
     Sse<impl tokio_stream::Stream<Item = Result<Event, HttpError>> + Send + 'static>,
     HttpError,
 > {
-    let batch_size = request.batch_size.max(1).min(1000);
+    let batch_size = request.batch_size.clamp(1, 1000);
     let server = state.server.clone();
 
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, HttpError>>(batch_size);

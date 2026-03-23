@@ -3,13 +3,16 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionMeta;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 pub struct VariableChecker;
+
+impl Default for VariableChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl VariableChecker {
     pub fn new() -> Self {

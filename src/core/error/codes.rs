@@ -18,8 +18,10 @@ use serde::{Deserialize, Serialize};
 /// 2. 精简性：只暴露必要的错误信息，不包含内部实现细节
 /// 3. 标准化：遵循 HTTP/GraphQL 等常见错误码设计规范
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum ErrorCode {
     // ==================== 成功 (00xx) ====================
+    #[default]
     Success = 0,
 
     // ==================== 语法错误 (01xx) ====================
@@ -188,11 +190,6 @@ impl ErrorCode {
     }
 }
 
-impl Default for ErrorCode {
-    fn default() -> Self {
-        ErrorCode::Success
-    }
-}
 
 impl std::fmt::Display for ErrorCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

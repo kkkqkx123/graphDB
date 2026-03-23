@@ -103,7 +103,7 @@ impl PushFilterDownNodeRule {
         // 设置 firstStepFilter
         if let Some(existing) = traverse.first_step_filter() {
             // 使用 ExpressionContext 的 and 方法组合表达式
-            if let Some(combined_ctx_expr) = ctx.and(&picked, &existing) {
+            if let Some(combined_ctx_expr) = ctx.and(&picked, existing) {
                 new_traverse.set_first_step_filter(combined_ctx_expr);
             }
         } else {
@@ -169,7 +169,7 @@ impl PushFilterDownNodeRule {
         // 设置 filter
         if let Some(existing) = append.filter() {
             // 使用 ExpressionContext 的 and 方法组合表达式
-            if let Some(combined_ctx_expr) = ctx.and(&picked, &existing) {
+            if let Some(combined_ctx_expr) = ctx.and(&picked, existing) {
                 new_append.set_filter(combined_ctx_expr);
             }
         } else {

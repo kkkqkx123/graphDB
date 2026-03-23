@@ -430,7 +430,7 @@ impl SetValidator {
 
         // SET 语句的输出是设置的变量
         self.outputs.clear();
-        for (name, _) in &self.variables {
+        for name in self.variables.keys() {
             self.outputs.push(ColumnDef {
                 name: name.clone(),
                 type_: ValueType::Unknown,

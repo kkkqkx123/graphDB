@@ -210,7 +210,7 @@ impl StatementValidator for GetSubgraphValidator {
         };
 
         // 3. 执行基础验证
-        self.validate_get_subgraph(&get_subgraph_stmt)?;
+        self.validate_get_subgraph(get_subgraph_stmt)?;
 
         // 4. 验证 YIELD 子句
         self.validate_yield_clause(&get_subgraph_stmt.yield_clause)?;

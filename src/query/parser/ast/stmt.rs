@@ -798,16 +798,13 @@ pub enum ShowTarget {
 
 /// EXPLAIN 格式类型
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum ExplainFormat {
+    #[default]
     Table,
     Dot,
 }
 
-impl Default for ExplainFormat {
-    fn default() -> Self {
-        ExplainFormat::Table
-    }
-}
 
 /// EXPLAIN 语句
 #[derive(Debug, Clone, PartialEq)]

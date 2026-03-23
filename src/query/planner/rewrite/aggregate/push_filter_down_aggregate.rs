@@ -27,7 +27,6 @@
 //! - Filter 节点的子节点是 Aggregate 节点
 //! - Filter 条件不涉及聚合函数（只涉及聚合的输入列）
 
-use std::sync::Arc;
 
 use crate::core::types::expression::visitor_checkers::AggregateFunctionChecker;
 use crate::core::types::operators::AggregateFunction;
@@ -41,7 +40,6 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 将过滤下推到聚合之前的规则
 #[derive(Debug)]

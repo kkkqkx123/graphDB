@@ -89,7 +89,7 @@ impl ExpressionEvaluator {
                 if let Some(func_ref) = func_ref {
                     // 转换为拥有所有权的函数引用以避免借用问题
                     let owned_func: crate::query::executor::expression::functions::OwnedFunctionRef =
-                        func_ref.clone().into();
+                        func_ref.clone();
 
                     // 显式释放 func_ref 的借用
                     drop(func_ref);
@@ -246,7 +246,7 @@ impl ExpressionEvaluator {
             Expression::PathBuild(_) => Err(ExpressionError::type_error(
                 "路径构建表达式需要运行时上下文",
             )),
-            Expression::Parameter(name) => Err(ExpressionError::type_error(&format!(
+            Expression::Parameter(name) => Err(ExpressionError::type_error(format!(
                 "查询参数 '{}' 需要运行时上下文提供值",
                 name
             ))),

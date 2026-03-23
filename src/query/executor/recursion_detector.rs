@@ -131,7 +131,7 @@ impl ParallelConfig {
         if total_size == 0 {
             return 0;
         }
-        let batch_size_tmp = (total_size + self.max_job_size - 1) / self.max_job_size;
+        let batch_size_tmp = total_size.div_ceil(self.max_job_size);
         batch_size_tmp.max(self.min_batch_size)
     }
 

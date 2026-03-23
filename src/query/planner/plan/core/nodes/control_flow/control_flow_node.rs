@@ -72,8 +72,8 @@ impl Clone for SelectNode {
             id: self.id,
             condition: self.condition.clone(),
             condition_serializable: self.condition_serializable.clone(),
-            if_branch: self.if_branch.as_ref().map(|node| node.clone()),
-            else_branch: self.else_branch.as_ref().map(|node| node.clone()),
+            if_branch: self.if_branch.clone(),
+            else_branch: self.else_branch.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
         }
@@ -256,7 +256,7 @@ impl Clone for LoopNode {
             id: self.id,
             condition: self.condition.clone(),
             condition_serializable: self.condition_serializable.clone(),
-            body: self.body.as_ref().map(|node| node.clone()),
+            body: self.body.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
         }

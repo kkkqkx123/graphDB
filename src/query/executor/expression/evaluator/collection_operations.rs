@@ -76,7 +76,7 @@ impl CollectionOperationEvaluator {
             return Ok(Value::Null(crate::core::value::NullType::Null));
         }
 
-        if start.map_or(false, |v| v.is_null()) || end.map_or(false, |v| v.is_null()) {
+        if start.is_some_and(|v| v.is_null()) || end.is_some_and(|v| v.is_null()) {
             return Ok(Value::Null(crate::core::value::NullType::Null));
         }
 

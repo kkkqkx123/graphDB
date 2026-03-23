@@ -15,6 +15,12 @@ pub type PlannerError = StorageError;
 #[derive(Debug)]
 pub struct ShortestPathPlanner;
 
+impl Default for ShortestPathPlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ShortestPathPlanner {
     pub fn new() -> Self {
         Self
@@ -63,7 +69,7 @@ impl ShortestPathPlanner {
 
     fn extract_direction(&self, edge: &EdgePattern) -> Result<EdgeDirection, PlannerError> {
         Ok(match edge.direction {
-            Some(ref dir) => dir.clone(),
+            Some(ref dir) => *dir,
             None => EdgeDirection::Both,
         })
     }
@@ -753,7 +759,7 @@ impl ShortestPathPlanner {
                 continue;
             }
 
-            let edges = storage.get_node_edges("default", &current, config.direction.clone())?;
+            let edges = storage.get_node_edges("default", &current, config.direction)?;
 
             for edge in edges {
                 let neighbor = if *edge.src == current {

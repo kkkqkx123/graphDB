@@ -14,6 +14,12 @@ use super::helpers::VariableChecker;
 /// 表达式验证策略
 pub struct ExpressionValidationStrategy;
 
+impl Default for ExpressionValidationStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExpressionValidationStrategy {
     pub fn new() -> Self {
         Self
@@ -197,14 +203,13 @@ impl ExpressionValidationStrategy {
             let _column_type = type_validator.deduce_expression_type_full(expr, context);
 
             // 验证聚合函数的使用
-            if type_validator.has_aggregate_expression_internal(expr) {
-                if !context.has_agg && context.group_keys.is_empty() {
+            if type_validator.has_aggregate_expression_internal(expr)
+                && !context.has_agg && context.group_keys.is_empty() {
                     return Err(ValidationError::new(
                         "在GROUP BY子句中使用聚合函数时，必须指定GROUP BY键".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
-            }
 
             // 验证表达式中的变量引用
             var_validator

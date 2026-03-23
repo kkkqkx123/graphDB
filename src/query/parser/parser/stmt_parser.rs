@@ -351,7 +351,7 @@ impl StmtParser {
         } else if ctx.check_token(TokenKind::Create) {
             // SHOW CREATE 语句：委托给 UtilStmtParser 的统一处理方法
             // 支持 SHOW CREATE { SPACE | TAG | EDGE | INDEX } <name>
-            return UtilStmtParser::new().parse_show_create_internal(ctx, start_span);
+            UtilStmtParser::new().parse_show_create_internal(ctx, start_span)
         } else {
             Err(ParseError::new(
                 ParseErrorKind::SyntaxError,

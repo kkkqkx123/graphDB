@@ -5,9 +5,14 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::DataType;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 pub struct ExpressionChecker;
+
+impl Default for ExpressionChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ExpressionChecker {
     pub fn new() -> Self {
@@ -82,7 +87,7 @@ impl ExpressionChecker {
                 conditions: when_clauses,
                 default: else_clause,
             } => {
-                self.validate_case_expression(&test_expr, when_clauses, else_clause, depth)?;
+                self.validate_case_expression(test_expr, when_clauses, else_clause, depth)?;
             }
             _ => {}
         }

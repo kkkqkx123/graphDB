@@ -311,7 +311,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
         };
 
         // 创建新的 Project 列
-        let mut new_columns: Vec<YieldColumn> = columns.iter().cloned().collect();
+        let mut new_columns: Vec<YieldColumn> = columns.to_vec();
         let none_direct_dst_expr = self.create_none_direct_dst_expr(tv_edge_alias, _tv_node_alias);
         new_columns[prj_idx] = YieldColumn {
             expression: none_direct_dst_expr,
@@ -333,7 +333,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
                 HashInnerJoinNode::new(
                     left_input.clone(),
                     PlanNodeEnum::Project(new_project),
-                    hash_keys.iter().cloned().collect(),
+                    hash_keys.to_vec(),
                     new_probe_keys,
                 )
                 .map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?,
@@ -342,7 +342,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
                 HashLeftJoinNode::new(
                     left_input.clone(),
                     PlanNodeEnum::Project(new_project),
-                    hash_keys.iter().cloned().collect(),
+                    hash_keys.to_vec(),
                     new_probe_keys,
                 )
                 .map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?,

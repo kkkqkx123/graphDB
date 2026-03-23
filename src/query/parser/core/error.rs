@@ -223,7 +223,7 @@ impl ParseErrors {
     }
 
     pub fn extend(&mut self, errors: &mut ParseErrors) {
-        self.errors.extend(errors.errors.drain(..));
+        self.errors.append(&mut errors.errors);
     }
 
     pub fn take(&mut self) -> Vec<ParseError> {

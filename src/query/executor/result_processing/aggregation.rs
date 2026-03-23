@@ -168,10 +168,7 @@ impl GroupAggregateState {
             if target.cnt().is_null() || target.cnt().is_empty() {
                 target.set_cnt(source.cnt().clone());
             } else {
-                match target.cnt().add(source.cnt()) {
-                    Ok(new_cnt) => target.set_cnt(new_cnt),
-                    Err(_) => {}
-                }
+                if let Ok(new_cnt) = target.cnt().add(source.cnt()) { target.set_cnt(new_cnt) }
             }
         }
 
@@ -180,10 +177,7 @@ impl GroupAggregateState {
             if target.sum().is_null() || target.sum().is_empty() {
                 target.set_sum(source.sum().clone());
             } else {
-                match target.sum().add(source.sum()) {
-                    Ok(new_sum) => target.set_sum(new_sum),
-                    Err(_) => {}
-                }
+                if let Ok(new_sum) = target.sum().add(source.sum()) { target.set_sum(new_sum) }
             }
         }
 

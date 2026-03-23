@@ -215,7 +215,7 @@ impl MaterializationOptimizer {
         match node {
             PlanNodeEnum::Filter(n) => {
                 let condition = n.condition();
-                let analysis = self.expression_analyzer.analyze(&condition);
+                let analysis = self.expression_analyzer.analyze(condition);
                 if !analysis.is_deterministic {
                     return false;
                 }
@@ -343,7 +343,7 @@ impl MaterializationOptimizer {
         match node {
             PlanNodeEnum::Filter(n) => {
                 let condition = n.condition();
-                let analysis = self.expression_analyzer.analyze(&condition);
+                let analysis = self.expression_analyzer.analyze(condition);
                 max_complexity = max_complexity.max(analysis.complexity_score);
                 max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
             }

@@ -35,7 +35,7 @@ impl FunctionEvaluator {
                 for arg in args {
                     sum = sum
                         .add(arg)
-                        .map_err(|e| ExpressionError::runtime_error(e))?;
+                        .map_err(ExpressionError::runtime_error)?;
                 }
                 Ok(sum)
             }
@@ -48,7 +48,7 @@ impl FunctionEvaluator {
                 let count =
                     Self::eval_aggregate_function(&AggregateFunction::Count(None), args, distinct)?;
                 sum.div(&count)
-                    .map_err(|e| ExpressionError::runtime_error(e))
+                    .map_err(ExpressionError::runtime_error)
             }
             AggregateFunction::Min(_) => {
                 let mut min = args[0].clone();
@@ -98,7 +98,7 @@ impl FunctionEvaluator {
                     _ => return Err(ExpressionError::type_error("Percentile must be a number")),
                 };
 
-                if percentile < 0.0 || percentile > 100.0 {
+                if !(0.0..=100.0).contains(&percentile) {
                     return Err(ExpressionError::new(
                         ExpressionErrorType::InvalidOperation,
                         "Percentile must be between 0 and 100",

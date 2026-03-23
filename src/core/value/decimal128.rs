@@ -83,7 +83,7 @@ impl<C> bincode::de::Decode<C> for Decimal128Value {
         decoder: &mut D,
     ) -> Result<Self, bincode::error::DecodeError> {
         let s: String = bincode::de::Decode::decode(decoder)?;
-        Self::from_str(&s).map_err(|e| bincode::error::DecodeError::OtherString(e))
+        Self::from_str(&s).map_err(bincode::error::DecodeError::OtherString)
     }
 }
 
@@ -92,7 +92,7 @@ impl<'de, C> bincode::de::BorrowDecode<'de, C> for Decimal128Value {
         decoder: &mut D,
     ) -> Result<Self, bincode::error::DecodeError> {
         let s: String = bincode::de::BorrowDecode::borrow_decode(decoder)?;
-        Self::from_str(&s).map_err(|e| bincode::error::DecodeError::OtherString(e))
+        Self::from_str(&s).map_err(bincode::error::DecodeError::OtherString)
     }
 }
 

@@ -254,7 +254,7 @@ impl<S: StorageClient> ProjectExecutor<S> {
                 "edge_type".to_string(),
                 Value::String(edge.edge_type.clone()),
             );
-            context.set_variable("ranking".to_string(), Value::Int(edge.ranking as i64));
+            context.set_variable("ranking".to_string(), Value::Int(edge.ranking));
 
             let mut projected_row = Vec::new();
             for column in &self.columns {

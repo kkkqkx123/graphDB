@@ -324,10 +324,10 @@ impl UpdateValidator {
             UpdateTarget::Tag(_tag_name) => {
                 // Tag update requires a vertex ID from the context
                 // For now, we return an error as we need the VID from elsewhere
-                return Err(CoreValidationError::new(
+                Err(CoreValidationError::new(
                     "Tag update requires vertex ID context".to_string(),
                     ValidationErrorType::SemanticError,
-                ));
+                ))
             }
             UpdateTarget::TagOnVertex { vid, tag_name } => {
                 let vid_val =
@@ -745,7 +745,7 @@ impl StatementValidator for UpdateValidator {
         };
 
         // 3. 验证 UPDATE 语句
-        if let Err(e) = self.validate_update_stmt(&update_stmt) {
+        if let Err(e) = self.validate_update_stmt(update_stmt) {
             return Err(ValidationError::new(
                 format!("UPDATE 验证失败: {}", e),
                 ValidationErrorType::SemanticError,

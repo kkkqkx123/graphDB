@@ -211,9 +211,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 let list_values = self.extract_list(&unwind_value);
 
                 for list_item in list_values {
-                    let mut row = Vec::new();
-                    row.push(list_item);
-                    dataset.rows.push(row);
+                    dataset.rows.push(vec![list_item]);
                 }
             }
             ExecutionResult::Empty => {}

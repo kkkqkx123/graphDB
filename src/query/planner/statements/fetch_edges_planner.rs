@@ -67,7 +67,7 @@ impl Planner for FetchEdgesPlanner {
         let dst_str = extract_string_from_expr(dst)?;
         let rank_str = rank
             .as_ref()
-            .map(|r| extract_string_from_expr(r))
+            .map(extract_string_from_expr)
             .transpose()?
             .unwrap_or_else(|| "0".to_string());
 

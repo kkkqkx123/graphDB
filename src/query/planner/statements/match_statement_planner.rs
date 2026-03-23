@@ -204,7 +204,7 @@ impl MatchStatementPlanner {
                 let mut plan = SubPlan::new(None, None);
                 let mut prev_node_alias: Option<String> = None;
 
-                for (_idx, element) in path.elements.iter().enumerate() {
+                for element in path.elements.iter() {
                     match element {
                         PathElement::Node(node) => {
                             // 规划节点扫描

@@ -32,8 +32,7 @@ impl TraversalParser {
 
         ctx.expect_token(TokenKind::Match)?;
 
-        let mut patterns = Vec::new();
-        patterns.push(self.parse_pattern(ctx)?);
+        let patterns = vec![self.parse_pattern(ctx)?];
 
         let where_clause = if ctx.match_token(TokenKind::Where) {
             Some(self.parse_expression(ctx)?)
@@ -122,11 +121,7 @@ impl TraversalParser {
         // 解析路径类型: SHORTEST, ALL
         let shortest = if ctx.match_token(TokenKind::Shortest) {
             true
-        } else if ctx.match_token(TokenKind::All) {
-            false
-        } else {
-            true
-        };
+        } else { !ctx.match_token(TokenKind::All) };
 
         ctx.expect_token(TokenKind::Path)?;
 

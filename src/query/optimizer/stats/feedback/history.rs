@@ -48,7 +48,7 @@ impl QueryFeedbackHistory {
         let mut feedbacks = self.feedbacks.write();
         let entry = feedbacks
             .entry(feedback.query_fingerprint.clone())
-            .or_insert_with(Vec::new);
+            .or_default();
 
         entry.push(feedback);
 

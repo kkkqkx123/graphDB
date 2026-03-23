@@ -129,7 +129,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
             hash_table
                 .entry(key)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(row.clone());
         }
 
@@ -234,7 +234,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
 
             hash_table
                 .entry(key_values)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(row.clone());
         }
 
@@ -404,7 +404,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for HashInnerJoinExecutor<S>
     }
 
     fn description(&self) -> &str {
-        &self.inner.description()
+        self.inner.description()
     }
 
     fn stats(&self) -> &crate::query::executor::base::ExecutorStats {

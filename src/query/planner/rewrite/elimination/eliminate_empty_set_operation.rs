@@ -56,10 +56,10 @@ impl EliminateEmptySetOperationRule {
             // Start 节点表示空集
             PlanNodeEnum::Start(_) => true,
             // Limit 为 0 的扫描操作
-            PlanNodeEnum::ScanVertices(n) => n.limit().map_or(false, |l| l == 0),
-            PlanNodeEnum::ScanEdges(n) => n.limit().map_or(false, |l| l == 0),
-            PlanNodeEnum::GetVertices(n) => n.limit().map_or(false, |l| l == 0),
-            PlanNodeEnum::GetEdges(n) => n.limit().map_or(false, |l| l == 0),
+            PlanNodeEnum::ScanVertices(n) => n.limit() == Some(0),
+            PlanNodeEnum::ScanEdges(n) => n.limit() == Some(0),
+            PlanNodeEnum::GetVertices(n) => n.limit() == Some(0),
+            PlanNodeEnum::GetEdges(n) => n.limit() == Some(0),
             PlanNodeEnum::Limit(n) => n.count() == 0,
             // 递归检查单输入节点
             PlanNodeEnum::Filter(n) => self.is_empty_node(n.input()),

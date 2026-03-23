@@ -18,6 +18,7 @@ pub enum ExportFormat {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+#[derive(Default)]
 pub struct SchemaImportResult {
     pub success: bool,
     pub space_name: String,
@@ -28,19 +29,6 @@ pub struct SchemaImportResult {
     pub errors: Vec<String>,
 }
 
-impl Default for SchemaImportResult {
-    fn default() -> Self {
-        Self {
-            success: false,
-            space_name: String::new(),
-            imported_items: 0,
-            imported_tags: Vec::new(),
-            imported_edge_types: Vec::new(),
-            skipped_items: Vec::new(),
-            errors: Vec::new(),
-        }
-    }
-}
 
 impl SchemaImportResult {
     pub fn new() -> Self {

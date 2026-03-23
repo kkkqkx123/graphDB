@@ -45,10 +45,12 @@ pub struct DatabaseConfig {
 
 /// 同步模式
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum SyncMode {
     /// 完全同步，每次写入都同步到磁盘（最安全，最慢）
     Full,
     /// 正常同步，定期同步（平衡）
+    #[default]
     Normal,
     /// 异步模式，由操作系统决定何时同步（最快，有风险）
     Off,
@@ -144,11 +146,6 @@ impl Default for DatabaseConfig {
     }
 }
 
-impl Default for SyncMode {
-    fn default() -> Self {
-        SyncMode::Normal
-    }
-}
 
 #[cfg(test)]
 mod tests {

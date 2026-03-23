@@ -9,8 +9,10 @@ use std::fmt;
 ///
 /// 表示整个查询执行的生命周期状态，用于查询流程管理。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum QueryExecutionState {
     /// 查询已创建，等待执行
+    #[default]
     Pending,
     /// 查询正在执行中
     Running,
@@ -63,18 +65,15 @@ impl fmt::Display for QueryExecutionState {
     }
 }
 
-impl Default for QueryExecutionState {
-    fn default() -> Self {
-        QueryExecutionState::Pending
-    }
-}
 
 /// 执行器状态 - 单个执行器的运行状态
 ///
 /// 表示单个执行器实例的执行状态，用于执行器生命周期管理。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum ExecutorState {
     /// 执行器已创建，未开始执行
+    #[default]
     Initialized,
     /// 执行器正在执行
     Executing,
@@ -132,18 +131,15 @@ impl fmt::Display for ExecutorState {
     }
 }
 
-impl Default for ExecutorState {
-    fn default() -> Self {
-        ExecutorState::Initialized
-    }
-}
 
 /// 循环执行状态 - 循环控制专用状态
 ///
 /// 专门用于循环执行器（LoopExecutor）的状态管理。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum LoopExecutionState {
     /// 循环未开始
+    #[default]
     NotStarted,
     /// 循环执行中
     Running { iteration: usize },
@@ -196,18 +192,15 @@ impl fmt::Display for LoopExecutionState {
     }
 }
 
-impl Default for LoopExecutionState {
-    fn default() -> Self {
-        LoopExecutionState::NotStarted
-    }
-}
 
 /// 结果行状态 - 单行数据处理状态
 ///
 /// 表示单条数据记录的处理结果状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum RowStatus {
     /// 正常数据
+    #[default]
     Valid,
     /// 数据被过滤掉
     Filtered,
@@ -245,18 +238,15 @@ impl fmt::Display for RowStatus {
     }
 }
 
-impl Default for RowStatus {
-    fn default() -> Self {
-        RowStatus::Valid
-    }
-}
 
 /// 优化阶段状态 - 查询优化过程状态
 ///
 /// 表示查询优化器的工作阶段。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum OptimizationState {
     /// 未开始优化
+    #[default]
     NotStarted,
     /// 重写阶段
     Rewriting,
@@ -300,16 +290,12 @@ impl fmt::Display for OptimizationState {
     }
 }
 
-impl Default for OptimizationState {
-    fn default() -> Self {
-        OptimizationState::NotStarted
-    }
-}
 
 /// 优化阶段 - 用于优化规则分类
 ///
 /// 表示优化规则所属的阶段，用于控制规则的执行顺序。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum OptimizationPhase {
     /// 重写阶段 - 逻辑重写规则
     Rewrite,
@@ -318,6 +304,7 @@ pub enum OptimizationPhase {
     /// 物理优化阶段 - 物理计划优化
     Physical,
     /// 未知阶段
+    #[default]
     Unknown,
 }
 
@@ -352,11 +339,6 @@ impl fmt::Display for OptimizationPhase {
     }
 }
 
-impl Default for OptimizationPhase {
-    fn default() -> Self {
-        OptimizationPhase::Unknown
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -13,7 +13,6 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 将过滤条件下推到GetNeighbors操作的规则
 ///

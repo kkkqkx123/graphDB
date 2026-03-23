@@ -343,7 +343,7 @@ impl StatementValidator for FetchEdgesValidator {
         };
 
         // 3. 执行基础验证
-        self.validate_fetch_edges(&fetch_stmt)?;
+        self.validate_fetch_edges(fetch_stmt)?;
 
         // 4. 获取 space_id
         let space_id = qctx.space_id().unwrap_or(0);

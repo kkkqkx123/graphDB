@@ -277,7 +277,7 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
 
     /// 检查所有必需参数是否已绑定
     fn check_all_parameters_bound(&self) -> CoreResult<()> {
-        for (name, _) in &self.parameter_types {
+        for name in self.parameter_types.keys() {
             if !self.bound_params.contains_key(name) {
                 return Err(CoreError::InvalidParameter(format!("参数未绑定: {}", name)));
             }

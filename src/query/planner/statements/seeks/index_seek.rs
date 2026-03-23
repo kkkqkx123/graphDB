@@ -10,6 +10,12 @@ use crate::storage::StorageClient;
 #[derive(Debug, Clone)]
 pub struct IndexSeek;
 
+impl Default for IndexSeek {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IndexSeek {
     pub fn new() -> Self {
         Self

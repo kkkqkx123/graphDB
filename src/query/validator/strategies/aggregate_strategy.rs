@@ -8,6 +8,12 @@ use crate::core::types::operators::AggregateFunction;
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;
 
+impl Default for AggregateValidationStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AggregateValidationStrategy {
     pub fn new() -> Self {
         Self
@@ -52,14 +58,14 @@ impl AggregateValidationStrategy {
             } => {
                 test_expr
                     .as_ref()
-                    .map_or(false, |expr| self.has_aggregate_expression_internal(expr))
+                    .is_some_and(|expr| self.has_aggregate_expression_internal(expr))
                     || conditions.iter().any(|(cond, val)| {
                         self.has_aggregate_expression_internal(cond)
                             || self.has_aggregate_expression_internal(val)
                     })
                     || default
                         .as_ref()
-                        .map_or(false, |d| self.has_aggregate_expression_internal(d))
+                        .is_some_and(|d| self.has_aggregate_expression_internal(d))
             }
             _ => false,
         }

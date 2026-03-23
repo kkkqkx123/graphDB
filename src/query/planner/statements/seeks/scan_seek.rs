@@ -12,6 +12,12 @@ pub struct ScanSeek {
     any_label: bool,
 }
 
+impl Default for ScanSeek {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScanSeek {
     pub fn new() -> Self {
         Self { any_label: false }
@@ -106,11 +112,10 @@ impl ScanSeek {
             if !has_all_labels {
                 return false;
             }
-        } else if !any_label {
-            if vertex.tags.is_empty() {
+        } else if !any_label
+            && vertex.tags.is_empty() {
                 return false;
             }
-        }
 
         for (prop_name, prop_value) in &pattern.properties {
             let found = vertex

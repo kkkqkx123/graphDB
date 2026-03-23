@@ -145,6 +145,7 @@ impl std::fmt::Display for DateValue {
 
 /// 简单时间表示
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
+#[derive(Default)]
 pub struct TimeValue {
     pub hour: u32,
     pub minute: u32,
@@ -199,16 +200,6 @@ impl TimeValue {
     }
 }
 
-impl Default for TimeValue {
-    fn default() -> Self {
-        TimeValue {
-            hour: 0,
-            minute: 0,
-            sec: 0,
-            microsec: 0,
-        }
-    }
-}
 
 impl std::fmt::Display for TimeValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -313,6 +304,7 @@ impl std::fmt::Display for DateTimeValue {
 
 /// 简单持续时间表示
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
+#[derive(Default)]
 pub struct DurationValue {
     pub seconds: i64,
     pub microseconds: i32,
@@ -326,15 +318,6 @@ impl DurationValue {
     }
 }
 
-impl Default for DurationValue {
-    fn default() -> Self {
-        DurationValue {
-            seconds: 0,
-            microseconds: 0,
-            months: 0,
-        }
-    }
-}
 
 impl std::fmt::Display for DurationValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
