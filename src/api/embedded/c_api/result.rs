@@ -15,12 +15,17 @@ pub struct GraphDbResultHandle {
 
 /// 释放结果集
 ///
-/// # 参数
-/// - `result`: 结果集句柄
+/// # Arguments
+/// - `result`: Result set handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - After calling this function, the result handle becomes invalid and must not be used
+/// - Any string pointers obtained from this result set become invalid after this call
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_result_free(result: *mut graphdb_result_t) -> c_int {
     if result.is_null() {
@@ -34,11 +39,14 @@ pub unsafe extern "C" fn graphdb_result_free(result: *mut graphdb_result_t) -> c
 
 /// 获取结果集列数
 ///
-/// # 参数
-/// - `result`: 结果集句柄
+/// # Arguments
+/// - `result`: Result set handle
 ///
-/// # 返回
-/// - 列数，错误返回 -1
+/// # Returns
+/// - Number of columns, returns -1 on error
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_column_count(result: *mut graphdb_result_t) -> c_int {
     if result.is_null() {
@@ -51,11 +59,14 @@ pub unsafe extern "C" fn graphdb_column_count(result: *mut graphdb_result_t) -> 
 
 /// 获取结果集行数
 ///
-/// # 参数
-/// - `result`: 结果集句柄
+/// # Arguments
+/// - `result`: Result set handle
 ///
-/// # 返回
-/// - 行数，错误返回 -1
+/// # Returns
+/// - Number of rows, returns -1 on error
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_row_count(result: *mut graphdb_result_t) -> c_int {
     if result.is_null() {
@@ -68,16 +79,21 @@ pub unsafe extern "C" fn graphdb_row_count(result: *mut graphdb_result_t) -> c_i
 
 /// 获取列名
 ///
-/// # 参数
-/// - `result`: 结果集句柄
-/// - `index`: 列索引（从 0 开始）
+/// # Arguments
+/// - `result`: Result set handle
+/// - `index`: Column index (starting from 0)
 ///
-/// # 返回
-/// - 列名（UTF-8 编码），错误返回 NULL
+/// # Returns
+/// - Column name (UTF-8 encoded), returns NULL on error
 ///
-/// # 内存管理
-/// 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
-/// 以避免内存泄漏。
+/// # Memory Management
+/// The returned string is dynamically allocated and must be freed by the caller using `graphdb_free_string`
+/// to avoid memory leaks.
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - `index` must be a valid column index (0 <= index < column count)
+/// - The returned pointer must be freed by the caller to avoid memory leaks
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_column_name(result: *mut graphdb_result_t, index: c_int) -> *mut c_char {
     if result.is_null() {
@@ -97,15 +113,21 @@ pub unsafe extern "C" fn graphdb_column_name(result: *mut graphdb_result_t, inde
 
 /// 获取整数值
 ///
-/// # 参数
-/// - `result`: 结果集句柄
-/// - `row`: 行索引（从 0 开始）
-/// - `col`: 列名（UTF-8 编码）
-/// - `value`: 输出参数，整数值
+/// # Arguments
+/// - `result`: Result set handle
+/// - `row`: Row index (starting from 0)
+/// - `col`: Column name (UTF-8 encoded)
+/// - `value`: Output parameter, integer value
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - `col` must be a valid pointer to a null-terminated UTF-8 string
+/// - `value` must be a valid pointer to store the result
+/// - `row` must be a valid row index (0 <= row < row count)
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_get_int(
     result: *mut graphdb_result_t,
@@ -139,18 +161,25 @@ pub unsafe extern "C" fn graphdb_get_int(
 
 /// 获取字符串值
 ///
-/// # 参数
-/// - `result`: 结果集句柄
-/// - `row`: 行索引（从 0 开始）
-/// - `col`: 列名（UTF-8 编码）
-/// - `len`: 输出参数，字符串长度
+/// # Arguments
+/// - `result`: Result set handle
+/// - `row`: Row index (starting from 0)
+/// - `col`: Column name (UTF-8 encoded)
+/// - `len`: Output parameter, string length
 ///
-/// # 返回
-/// - 字符串值（UTF-8 编码），错误返回 NULL
+/// # Returns
+/// - String value (UTF-8 encoded), returns NULL on error
 ///
-/// # 内存管理
-/// 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
-/// 以避免内存泄漏。
+/// # Memory Management
+/// The returned string is dynamically allocated and must be freed by the caller using `graphdb_free_string`
+/// to avoid memory leaks.
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - `col` must be a valid pointer to a null-terminated UTF-8 string
+/// - `len` must be a valid pointer to store the string length, or NULL if not needed
+/// - `row` must be a valid row index (0 <= row < row count)
+/// - The returned pointer must be freed by the caller to avoid memory leaks
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_get_string(
     result: *mut graphdb_result_t,
@@ -202,17 +231,24 @@ pub unsafe extern "C" fn graphdb_get_string(
 
 /// 获取二进制数据
 ///
-/// # 参数
-/// - `result`: 结果集句柄
-/// - `row`: 行索引（从 0 开始）
-/// - `col`: 列名（UTF-8 编码）
-/// - `len`: 输出参数，数据长度（字节）
+/// # Arguments
+/// - `result`: Result set handle
+/// - `row`: Row index (starting from 0)
+/// - `col`: Column name (UTF-8 encoded)
+/// - `len`: Output parameter, data length (in bytes)
 ///
-/// # 返回
-/// - 数据指针，错误返回 NULL
+/// # Returns
+/// - Data pointer, returns NULL on error
 ///
-/// # 注意
-/// 返回的指针生命周期与结果集绑定，调用者不应释放
+/// # Note
+/// The returned pointer's lifetime is bound to the result set; the caller should not free it
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - `col` must be a valid pointer to a null-terminated UTF-8 string
+/// - `len` must be a valid pointer to store the data length, or NULL if not needed
+/// - `row` must be a valid row index (0 <= row < row count)
+/// - The returned pointer is only valid as long as the result set is not freed
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_get_blob(
     result: *mut graphdb_result_t,
@@ -271,15 +307,21 @@ pub unsafe extern "C" fn graphdb_get_blob(
 
 /// 获取整数值（按列索引）
 ///
-/// # 参数
-/// - `result`: 结果集句柄
-/// - `row`: 行索引（从 0 开始）
-/// - `col`: 列索引（从 0 开始）
-/// - `value`: 输出参数，整数值
+/// # Arguments
+/// - `result`: Result set handle
+/// - `row`: Row index (starting from 0)
+/// - `col`: Column index (starting from 0)
+/// - `value`: Output parameter, integer value
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - `value` must be a valid pointer to store the result
+/// - `row` must be a valid row index (0 <= row < row count)
+/// - `col` must be a valid column index (0 <= col < column count)
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_get_int_by_index(
     result: *mut graphdb_result_t,
@@ -315,18 +357,25 @@ pub unsafe extern "C" fn graphdb_get_int_by_index(
 
 /// 获取字符串值（按列索引）
 ///
-/// # 参数
-/// - `result`: 结果集句柄
-/// - `row`: 行索引（从 0 开始）
-/// - `col`: 列索引（从 0 开始）
-/// - `len`: 输出参数，字符串长度
+/// # Arguments
+/// - `result`: Result set handle
+/// - `row`: Row index (starting from 0)
+/// - `col`: Column index (starting from 0)
+/// - `len`: Output parameter, string length
 ///
-/// # 返回
-/// - 字符串值（UTF-8 编码），错误返回 NULL
+/// # Returns
+/// - String value (UTF-8 encoded), returns NULL on error
 ///
-/// # 内存管理
-/// 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
-/// 以避免内存泄漏。
+/// # Memory Management
+/// The returned string is dynamically allocated and must be freed by the caller using `graphdb_free_string`
+/// to avoid memory leaks.
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - `len` must be a valid pointer to store the string length, or NULL if not needed
+/// - `row` must be a valid row index (0 <= row < row count)
+/// - `col` must be a valid column index (0 <= col < column count)
+/// - The returned pointer must be freed by the caller to avoid memory leaks
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_get_string_by_index(
     result: *mut graphdb_result_t,
@@ -389,15 +438,21 @@ pub unsafe extern "C" fn graphdb_get_string_by_index(
 
 /// 获取布尔值（按列索引）
 ///
-/// # 参数
-/// - `result`: 结果集句柄
-/// - `row`: 行索引（从 0 开始）
-/// - `col`: 列索引（从 0 开始）
-/// - `value`: 输出参数，布尔值
+/// # Arguments
+/// - `result`: Result set handle
+/// - `row`: Row index (starting from 0)
+/// - `col`: Column index (starting from 0)
+/// - `value`: Output parameter, boolean value
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - `value` must be a valid pointer to store the result
+/// - `row` must be a valid row index (0 <= row < row count)
+/// - `col` must be a valid column index (0 <= col < column count)
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_get_bool_by_index(
     result: *mut graphdb_result_t,
@@ -432,15 +487,21 @@ pub unsafe extern "C" fn graphdb_get_bool_by_index(
 
 /// 获取浮点值（按列索引）
 ///
-/// # 参数
-/// - `result`: 结果集句柄
-/// - `row`: 行索引（从 0 开始）
-/// - `col`: 列索引（从 0 开始）
-/// - `value`: 输出参数，浮点值
+/// # Arguments
+/// - `result`: Result set handle
+/// - `row`: Row index (starting from 0)
+/// - `col`: Column index (starting from 0)
+/// - `value`: Output parameter, float value
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - `value` must be a valid pointer to store the result
+/// - `row` must be a valid row index (0 <= row < row count)
+/// - `col` must be a valid column index (0 <= col < column count)
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_get_float_by_index(
     result: *mut graphdb_result_t,
@@ -475,17 +536,24 @@ pub unsafe extern "C" fn graphdb_get_float_by_index(
 
 /// 获取二进制数据（按列索引）
 ///
-/// # 参数
-/// - `result`: 结果集句柄
-/// - `row`: 行索引（从 0 开始）
-/// - `col`: 列索引（从 0 开始）
-/// - `len`: 输出参数，数据长度（字节）
+/// # Arguments
+/// - `result`: Result set handle
+/// - `row`: Row index (starting from 0)
+/// - `col`: Column index (starting from 0)
+/// - `len`: Output parameter, data length (in bytes)
 ///
-/// # 返回
-/// - 数据指针，错误返回 NULL
+/// # Returns
+/// - Data pointer, returns NULL on error
 ///
-/// # 注意
-/// 返回的指针生命周期与结果集绑定，调用者不应释放
+/// # Note
+/// The returned pointer's lifetime is bound to the result set; the caller should not free it
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - `len` must be a valid pointer to store the data length, or NULL if not needed
+/// - `row` must be a valid row index (0 <= row < row count)
+/// - `col` must be a valid column index (0 <= col < column count)
+/// - The returned pointer is only valid as long as the result set is not freed
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_get_blob_by_index(
     result: *mut graphdb_result_t,
@@ -545,12 +613,16 @@ pub unsafe extern "C" fn graphdb_get_blob_by_index(
 
 /// 获取列类型
 ///
-/// # 参数
-/// - `result`: 结果集句柄
-/// - `col`: 列索引（从 0 开始）
+/// # Arguments
+/// - `result`: Result set handle
+/// - `col`: Column index (starting from 0)
 ///
-/// # 返回
-/// - 列类型，错误返回 GRAPHDB_NULL
+/// # Returns
+/// - Column type, returns GRAPHDB_NULL on error
+///
+/// # Safety
+/// - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+/// - `col` must be a valid column index (0 <= col < column count)
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_column_type(
     result: *mut graphdb_result_t,

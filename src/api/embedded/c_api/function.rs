@@ -40,26 +40,32 @@ pub struct graphdb_context_t {
 
 /// 创建自定义标量函数
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `name`: 函数名称
-/// - `argc`: 参数数量，-1 表示可变参数
-/// - `user_data`: 用户数据指针
-/// - `x_func`: 标量函数回调
-/// - `x_destroy`: 析构回调，可为 NULL
+/// # Arguments
+/// - `session`: Session handle
+/// - `name`: Function name
+/// - `argc`: Number of arguments, -1 for variable arguments
+/// - `user_data`: User data pointer
+/// - `x_func`: Scalar function callback
+/// - `x_destroy`: Destructor callback, can be NULL
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
-/// # 示例
+/// # Example
 /// ```c
 /// extern void my_function(graphdb_context_t* ctx, int argc, graphdb_value_t* argv) {
-///     // 实现函数逻辑
+///     // Implement function logic
 /// }
 ///
 /// graphdb_create_function(session, "my_func", 2, NULL, my_function, NULL);
 /// ```
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `name` must be a valid pointer to a null-terminated UTF-8 string
+/// - `x_func` must be a valid function pointer
+/// - `user_data` is passed to the callback and must remain valid for the lifetime of the function
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_create_function(
     session: *mut graphdb_session_t,
@@ -108,18 +114,24 @@ pub unsafe extern "C" fn graphdb_create_function(
 
 /// 创建自定义聚合函数
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `name`: 函数名称
-/// - `argc`: 参数数量，-1 表示可变参数
-/// - `user_data`: 用户数据指针
-/// - `x_step`: 聚合步骤回调
-/// - `x_final`: 聚合最终回调
-/// - `x_destroy`: 析构回调，可为 NULL
+/// # Arguments
+/// - `session`: Session handle
+/// - `name`: Function name
+/// - `argc`: Number of arguments, -1 for variable arguments
+/// - `user_data`: User data pointer
+/// - `x_step`: Aggregate step callback
+/// - `x_final`: Aggregate final callback
+/// - `x_destroy`: Destructor callback, can be NULL
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `name` must be a valid pointer to a null-terminated UTF-8 string
+/// - `x_step` and `x_final` must be valid function pointers
+/// - `user_data` is passed to the callbacks and must remain valid for the lifetime of the function
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_create_aggregate(
     session: *mut graphdb_session_t,
@@ -171,13 +183,17 @@ pub unsafe extern "C" fn graphdb_create_aggregate(
 
 /// 删除自定义函数
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `name`: 函数名称
+/// # Arguments
+/// - `session`: Session handle
+/// - `name`: Function name
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `name` must be a valid pointer to a null-terminated UTF-8 string
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_delete_function(
     session: *mut graphdb_session_t,
@@ -194,12 +210,17 @@ pub unsafe extern "C" fn graphdb_delete_function(
 
 /// 设置函数返回值
 ///
-/// # 参数
-/// - `context`: 函数执行上下文
-/// - `value`: 返回值
+/// # Arguments
+/// - `context`: Function execution context
+/// - `value`: Return value
 ///
-/// # 说明
-/// 在标量函数或聚合函数的 xFinal 回调中调用此函数设置返回值
+/// # Description
+/// Call this function in the scalar function or aggregate function's xFinal callback to set the return value
+///
+/// # Safety
+/// - `context` must be a valid function context pointer passed to the callback
+/// - `value` must be a valid pointer to a value structure, or NULL to set a null result
+/// - This function should only be called from within a registered function callback
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_context_set_result(
     context: *mut graphdb_context_t,
@@ -224,11 +245,15 @@ pub unsafe extern "C" fn graphdb_context_set_result(
 
 /// 获取函数返回值的类型
 ///
-/// # 参数
-/// - `context`: 函数执行上下文
+/// # Arguments
+/// - `context`: Function execution context
 ///
-/// # 返回
-/// - 值类型
+/// # Returns
+/// - Value type
+///
+/// # Safety
+/// - `context` must be a valid function context pointer passed to the callback
+/// - This function should only be called from within a registered function callback
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_context_result_type(
     context: *mut graphdb_context_t,
@@ -248,12 +273,17 @@ pub unsafe extern "C" fn graphdb_context_result_type(
 
 /// 设置错误消息
 ///
-/// # 参数
-/// - `context`: 函数执行上下文
-/// - `error_msg`: 错误消息
+/// # Arguments
+/// - `context`: Function execution context
+/// - `error_msg`: Error message
 ///
-/// # 说明
-/// 在函数执行出错时调用此函数设置错误消息
+/// # Description
+/// Call this function to set an error message when the function execution fails
+///
+/// # Safety
+/// - `context` must be a valid function context pointer passed to the callback
+/// - `error_msg` must be a valid pointer to a null-terminated UTF-8 string
+/// - This function should only be called from within a registered function callback
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_context_set_error(
     context: *mut graphdb_context_t,
@@ -274,12 +304,18 @@ pub unsafe extern "C" fn graphdb_context_set_error(
 
 /// 从上下文获取参数值（辅助函数）
 ///
-/// # 参数
-/// - `context`: 函数执行上下文
-/// - `index`: 参数索引
+/// # Arguments
+/// - `context`: Function execution context
+/// - `index`: Argument index
 ///
-/// # 返回
-/// - 参数值指针，如果索引越界返回 NULL
+/// # Returns
+/// - Argument value pointer, returns NULL if index is out of bounds
+///
+/// # Safety
+/// - `context` must be a valid function context pointer passed to the callback
+/// - `index` must be a valid argument index (0 <= index < argc)
+/// - The returned pointer is only valid for the duration of the callback
+/// - This function should only be called from within a registered function callback
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_context_get_arg(
     _context: *mut graphdb_context_t,
@@ -291,11 +327,15 @@ pub unsafe extern "C" fn graphdb_context_get_arg(
 
 /// 获取参数数量
 ///
-/// # 参数
-/// - `context`: 函数执行上下文
+/// # Arguments
+/// - `context`: Function execution context
 ///
-/// # 返回
-/// - 参数数量
+/// # Returns
+/// - Number of arguments
+///
+/// # Safety
+/// - `context` must be a valid function context pointer passed to the callback
+/// - This function should only be called from within a registered function callback
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_context_arg_count(_context: *mut graphdb_context_t) -> c_int {
     // 注意：参数数量通过 argc 直接传递，此函数当前未使用

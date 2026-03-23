@@ -22,13 +22,19 @@ pub struct GraphDbHandle {
 
 /// 打开数据库
 ///
-/// # 参数
-/// - `path`: 数据库文件路径（UTF-8 编码）
-/// - `db`: 输出参数，数据库句柄
+/// # Arguments
+/// - `path`: Database file path (UTF-8 encoded)
+/// - `db`: Output parameter, database handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `path` must be a valid pointer to a null-terminated UTF-8 string
+/// - `db` must be a valid pointer to store the database handle
+/// - The caller is responsible for closing the database using `graphdb_close` when done
+/// - The database handle must not be used after closing
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb_t) -> c_int {
     // 参数验证
@@ -70,20 +76,26 @@ pub unsafe extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb
 
 /// 使用标志打开数据库
 ///
-/// # 参数
-/// - `path`: 数据库文件路径（UTF-8 编码）
-/// - `db`: 输出参数，数据库句柄
-/// - `flags`: 打开标志
-/// - `vfs`: VFS 名称（保留参数，当前未使用，可为 NULL）
+/// # Arguments
+/// - `path`: Database file path (UTF-8 encoded)
+/// - `db`: Output parameter, database handle
+/// - `flags`: Open flags
+/// - `vfs`: VFS name (reserved parameter, currently unused, can be NULL)
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
-/// # 标志说明
-/// - GRAPHDB_OPEN_READONLY: 只读模式
-/// - GRAPHDB_OPEN_READWRITE: 读写模式
-/// - GRAPHDB_OPEN_CREATE: 如果数据库不存在则创建
+/// # Flags
+/// - GRAPHDB_OPEN_READONLY: Read-only mode
+/// - GRAPHDB_OPEN_READWRITE: Read-write mode
+/// - GRAPHDB_OPEN_CREATE: Create database if it doesn't exist
+///
+/// # Safety
+/// - `path` must be a valid pointer to a null-terminated UTF-8 string
+/// - `db` must be a valid pointer to store the database handle
+/// - The caller is responsible for closing the database using `graphdb_close` when done
+/// - The database handle must not be used after closing
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_open_v2(
     path: *const c_char,
@@ -151,12 +163,17 @@ pub unsafe extern "C" fn graphdb_open_v2(
 
 /// 关闭数据库
 ///
-/// # 参数
-/// - `db`: 数据库句柄
+/// # Arguments
+/// - `db`: Database handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `db` must be a valid database handle created by `graphdb_open` or `graphdb_open_v2`
+/// - After calling this function, the database handle becomes invalid and must not be used
+/// - All sessions associated with this database must be closed before calling this function
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_close(db: *mut graphdb_t) -> c_int {
     if db.is_null() {
@@ -173,11 +190,14 @@ pub unsafe extern "C" fn graphdb_close(db: *mut graphdb_t) -> c_int {
 
 /// 获取错误码
 ///
-/// # 参数
-/// - `db`: 数据库句柄
+/// # Arguments
+/// - `db`: Database handle
 ///
-/// # 返回
-/// - 错误码，如果没有错误返回 GRAPHDB_OK
+/// # Returns
+/// - Error code, returns GRAPHDB_OK if no error
+///
+/// # Safety
+/// - `db` must be a valid database handle created by `graphdb_open` or `graphdb_open_v2`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_errcode(db: *mut graphdb_t) -> c_int {
     if db.is_null() {
@@ -206,8 +226,13 @@ pub extern "C" fn graphdb_libversion() -> *const c_char {
 
 /// 释放字符串（由 GraphDB 分配的字符串）
 ///
-/// # 参数
-/// - `str`: 字符串指针
+/// # Arguments
+/// - `str`: String pointer
+///
+/// # Safety
+/// - `str` must be a valid pointer to a string allocated by GraphDB
+/// - After calling this function, the pointer becomes invalid and must not be used
+/// - This function should only be called on strings that were allocated by GraphDB C API functions
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_free_string(str: *mut c_char) {
     if !str.is_null() {
@@ -219,8 +244,13 @@ pub unsafe extern "C" fn graphdb_free_string(str: *mut c_char) {
 
 /// 释放内存（由 GraphDB 分配的内存）
 ///
-/// # 参数
-/// - `ptr`: 内存指针
+/// # Arguments
+/// - `ptr`: Memory pointer
+///
+/// # Safety
+/// - `ptr` must be a valid pointer to memory allocated by GraphDB
+/// - After calling this function, the pointer becomes invalid and must not be used
+/// - This function should only be called on memory that was allocated by GraphDB C API functions
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_free(ptr: *mut c_void) {
     if !ptr.is_null() {

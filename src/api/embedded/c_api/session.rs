@@ -118,13 +118,19 @@ impl GraphDbSessionHandle {
 
 /// 创建会话
 ///
-/// # 参数
-/// - `db`: 数据库句柄
-/// - `session`: 输出参数，会话句柄
+/// # Arguments
+/// - `db`: Database handle
+/// - `session`: Output parameter, session handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `db` must be a valid database handle created by `graphdb_open` or `graphdb_open_v2`
+/// - `session` must be a valid pointer to store the session handle
+/// - The caller is responsible for closing the session using `graphdb_session_close` when done
+/// - The session handle must not be used after closing
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_session_create(
     db: *mut graphdb_t,
@@ -154,12 +160,17 @@ pub unsafe extern "C" fn graphdb_session_create(
 
 /// 关闭会话
 ///
-/// # 参数
-/// - `session`: 会话句柄
+/// # Arguments
+/// - `session`: Session handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - After calling this function, the session handle becomes invalid and must not be used
+/// - All pending transactions will be rolled back
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_session_close(session: *mut graphdb_session_t) -> c_int {
     if session.is_null() {
@@ -173,13 +184,17 @@ pub unsafe extern "C" fn graphdb_session_close(session: *mut graphdb_session_t) 
 
 /// 切换图空间
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `space_name`: 图空间名称（UTF-8 编码）
+/// # Arguments
+/// - `session`: Session handle
+/// - `space_name`: Graph space name (UTF-8 encoded)
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `space_name` must be a valid pointer to a null-terminated UTF-8 string
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_session_use_space(
     session: *mut graphdb_session_t,
@@ -214,24 +229,28 @@ pub unsafe extern "C" fn graphdb_session_use_space(
 
 /// 获取当前图空间
 ///
-/// # 参数
-/// - `session`: 会话句柄
+/// # Arguments
+/// - `session`: Session handle
 ///
-/// # 返回
-/// - 当前图空间名称（UTF-8 编码），如果没有则返回 NULL
+/// # Returns
+/// - Current graph space name (UTF-8 encoded), returns NULL if none
 ///
-/// # 内存管理
-/// 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
-/// 以避免内存泄漏。
+/// # Memory Management
+/// The returned string is dynamically allocated and must be freed by the caller using `graphdb_free_string`
+/// to avoid memory leaks.
 ///
-/// # 示例
+/// # Example
 /// ```c
 /// char* space = graphdb_session_current_space(session);
 /// if (space) {
 ///     printf("Current space: %s\n", space);
-///     graphdb_free_string(space);  // 必须释放
+///     graphdb_free_string(space);  // Must free
 /// }
 /// ```
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - The returned pointer must be freed by the caller to avoid memory leaks
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_session_current_space(session: *mut graphdb_session_t) -> *mut c_char {
     if session.is_null() {
@@ -257,13 +276,16 @@ pub unsafe extern "C" fn graphdb_session_current_space(session: *mut graphdb_ses
 
 /// 设置自动提交模式
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `autocommit`: 是否自动提交
+/// # Arguments
+/// - `session`: Session handle
+/// - `autocommit`: Whether to enable autocommit
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_session_set_autocommit(
     session: *mut graphdb_session_t,
@@ -280,11 +302,14 @@ pub unsafe extern "C" fn graphdb_session_set_autocommit(
 
 /// 获取自动提交模式
 ///
-/// # 参数
-/// - `session`: 会话句柄
+/// # Arguments
+/// - `session`: Session handle
 ///
-/// # 返回
-/// - 是否自动提交
+/// # Returns
+/// - Whether autocommit is enabled
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_session_get_autocommit(session: *mut graphdb_session_t) -> bool {
     if session.is_null() {
@@ -297,11 +322,14 @@ pub unsafe extern "C" fn graphdb_session_get_autocommit(session: *mut graphdb_se
 
 /// 获取上次操作影响的行数
 ///
-/// # 参数
-/// - `session`: 会话句柄
+/// # Arguments
+/// - `session`: Session handle
 ///
-/// # 返回
-/// - 影响的行数，如果会话无效则返回 0
+/// # Returns
+/// - Number of rows affected by last operation, returns 0 if session is invalid
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_changes(session: *mut graphdb_session_t) -> c_int {
     if session.is_null() {
@@ -312,13 +340,16 @@ pub unsafe extern "C" fn graphdb_changes(session: *mut graphdb_session_t) -> c_i
     handle.inner.changes() as c_int
 }
 
-/// 获取总会话变更数
+/// 获取自数据库打开以来的总变更数量
 ///
-/// # 参数
-/// - `session`: 会话句柄
+/// # Arguments
+/// - `session`: Session handle
 ///
-/// # 返回
-/// - 总会话变更数，如果会话无效则返回 0
+/// # Returns
+/// - Total number of changes
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_total_changes(session: *mut graphdb_session_t) -> i64 {
     if session.is_null() {
@@ -331,11 +362,14 @@ pub unsafe extern "C" fn graphdb_total_changes(session: *mut graphdb_session_t) 
 
 /// 获取最后插入的顶点 ID
 ///
-/// # 参数
-/// - `session`: 会话句柄
+/// # Arguments
+/// - `session`: Session handle
 ///
-/// # 返回
-/// - 最后插入的顶点 ID，如果没有则返回 -1
+/// # Returns
+/// - Last inserted vertex ID, returns 0 if none
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_last_insert_vertex_id(session: *mut graphdb_session_t) -> i64 {
     if session.is_null() {
@@ -348,11 +382,14 @@ pub unsafe extern "C" fn graphdb_last_insert_vertex_id(session: *mut graphdb_ses
 
 /// 获取最后插入的边 ID
 ///
-/// # 参数
-/// - `session`: 会话句柄
+/// # Arguments
+/// - `session`: Session handle
 ///
-/// # 返回
-/// - 最后插入的边 ID，如果没有则返回 -1
+/// # Returns
+/// - Last inserted edge ID, returns 0 if none
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_last_insert_edge_id(session: *mut graphdb_session_t) -> i64 {
     if session.is_null() {
@@ -365,13 +402,16 @@ pub unsafe extern "C" fn graphdb_last_insert_edge_id(session: *mut graphdb_sessi
 
 /// 设置忙等待超时
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `timeout_ms`: 超时时间（毫秒），0 表示不等待
+/// # Arguments
+/// - `session`: Session handle
+/// - `timeout_ms`: Timeout in milliseconds
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_busy_timeout(
     session: *mut graphdb_session_t,
@@ -389,11 +429,14 @@ pub unsafe extern "C" fn graphdb_busy_timeout(
 
 /// 获取忙等待超时
 ///
-/// # 参数
-/// - `session`: 会话句柄
+/// # Arguments
+/// - `session`: Session handle
 ///
-/// # 返回
-/// - 超时时间（毫秒），如果会话无效则返回 0
+/// # Returns
+/// - Timeout in milliseconds, returns -1 on error
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_busy_timeout_get(session: *mut graphdb_session_t) -> c_int {
     if session.is_null() {
@@ -406,16 +449,16 @@ pub unsafe extern "C" fn graphdb_busy_timeout_get(session: *mut graphdb_session_
 
 /// 设置 SQL 追踪回调
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `callback`: 追踪回调函数，NULL 表示取消追踪
-/// - `user_data`: 用户数据指针，将传递给回调函数
+/// # Arguments
+/// - `session`: Session handle
+/// - `callback`: Trace callback function, NULL to disable tracing
+/// - `user_data`: User data pointer, will be passed to the callback
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
 ///
-/// # 示例
+/// # Example
 /// ```c
 /// extern void my_trace_callback(const char* sql, void* data) {
 ///     printf("Executing: %s\n", sql);
@@ -423,6 +466,11 @@ pub unsafe extern "C" fn graphdb_busy_timeout_get(session: *mut graphdb_session_
 ///
 /// graphdb_trace(session, my_trace_callback, NULL);
 /// ```
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `callback` must be a valid function pointer, or NULL to disable tracing
+/// - `user_data` is passed to the callback and must remain valid for the lifetime of the callback
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_trace(
     session: *mut graphdb_session_t,
@@ -441,16 +489,22 @@ pub unsafe extern "C" fn graphdb_trace(
 
 /// 设置提交钩子
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `callback`: 提交钩子回调函数，NULL 表示取消钩子
-/// - `user_data`: 用户数据指针，将传递给回调函数
+/// # Arguments
+/// - `session`: Session handle
+/// - `callback`: Commit hook callback function, NULL to disable the hook
+/// - `user_data`: User data pointer, will be passed to the callback
 ///
-/// # 返回
-/// - 之前的钩子用户数据指针（如果有）
+/// # Returns
+/// - Previous hook user data pointer (if any)
 ///
-/// # 说明
-/// 提交钩子在事务提交前被调用。如果回调返回非零值，事务将回滚。
+/// # Description
+/// The commit hook is called before a transaction is committed. If the callback returns a non-zero value,
+/// the transaction will be rolled back.
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `callback` must be a valid function pointer, or NULL to disable the hook
+/// - `user_data` is passed to the callback and must remain valid for the lifetime of the callback
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_commit_hook(
     session: *mut graphdb_session_t,
@@ -470,13 +524,18 @@ pub unsafe extern "C" fn graphdb_commit_hook(
 
 /// 设置回滚钩子
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `callback`: 回滚钩子回调函数，NULL 表示取消钩子
-/// - `user_data`: 用户数据指针，将传递给回调函数
+/// # Arguments
+/// - `session`: Session handle
+/// - `callback`: Rollback hook callback function, NULL to disable the hook
+/// - `user_data`: User data pointer, will be passed to the callback
 ///
-/// # 返回
-/// - 之前的钩子用户数据指针（如果有）
+/// # Returns
+/// - Previous hook user data pointer (if any)
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `callback` must be a valid function pointer, or NULL to disable the hook
+/// - `user_data` is passed to the callback and must remain valid for the lifetime of the callback
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_rollback_hook(
     session: *mut graphdb_session_t,
@@ -496,21 +555,26 @@ pub unsafe extern "C" fn graphdb_rollback_hook(
 
 /// 设置更新钩子
 ///
-/// 当数据库中的数据发生变更时调用回调函数
+/// When data in the database changes, the callback function is called
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `callback`: 更新钩子回调函数，NULL 表示取消钩子
-/// - `user_data`: 用户数据指针，将传递给回调函数
+/// # Arguments
+/// - `session`: Session handle
+/// - `callback`: Update hook callback function, NULL to disable the hook
+/// - `user_data`: User data pointer, will be passed to the callback
 ///
-/// # 返回
-/// - 之前的钩子用户数据指针（如果有）
+/// # Returns
+/// - Previous hook user data pointer (if any)
 ///
-/// # 回调参数说明
-/// - `operation`: 操作类型（1=INSERT, 2=UPDATE, 3=DELETE）
-/// - `database`: 数据库/空间名称
-/// - `table`: 表名称（图数据库中为空字符串）
-/// - `rowid`: 受影响的行 ID
+/// # Callback Parameters
+/// - `operation`: Operation type (1=INSERT, 2=UPDATE, 3=DELETE)
+/// - `database`: Database/space name
+/// - `table`: Table name (empty string for graph database)
+/// - `rowid`: Affected row ID
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `callback` must be a valid function pointer, or NULL to disable the hook
+/// - `user_data` is passed to the callback and must remain valid for the lifetime of the callback
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_update_hook(
     session: *mut graphdb_session_t,

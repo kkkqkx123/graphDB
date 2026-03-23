@@ -21,14 +21,20 @@ pub struct GraphDbStmtHandle {
 
 /// 准备语句
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `query`: 查询语句（UTF-8 编码）
-/// - `stmt`: 输出参数，语句句柄
+/// # Arguments
+/// - `session`: Session handle
+/// - `query`: Query statement (UTF-8 encoded)
+/// - `stmt`: Output parameter, statement handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `query` must be a valid pointer to a null-terminated UTF-8 string
+/// - `stmt` must be a valid pointer to store the statement handle
+/// - The caller is responsible for finalizing the statement using `graphdb_finalize` when done
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_prepare(
     session: *mut graphdb_session_t,
@@ -65,15 +71,19 @@ pub unsafe extern "C" fn graphdb_prepare(
     }
 }
 
-/// 绑定 NULL 值（按索引）
+/// 绑定 NULL 值
 ///
-/// # 参数
-/// - `stmt`: 语句句柄
-/// - `index`: 参数索引（从 1 开始）
+/// # Arguments
+/// - `stmt`: Statement handle
+/// - `index`: Parameter index (starting from 1)
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - `index` must be a valid parameter index (1 <= index <= parameter count)
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_bind_null(stmt: *mut graphdb_stmt_t, index: c_int) -> c_int {
     if stmt.is_null() || index < 1 {
@@ -108,6 +118,11 @@ pub unsafe extern "C" fn graphdb_bind_null(stmt: *mut graphdb_stmt_t, index: c_i
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - `index` must be a valid parameter index (1 <= index <= parameter count)
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_bind_bool(stmt: *mut graphdb_stmt_t, index: c_int, value: bool) -> c_int {
     if stmt.is_null() || index < 1 {
@@ -139,6 +154,11 @@ pub unsafe extern "C" fn graphdb_bind_bool(stmt: *mut graphdb_stmt_t, index: c_i
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - `index` must be a valid parameter index (1 <= index <= parameter count)
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_bind_int(stmt: *mut graphdb_stmt_t, index: c_int, value: i64) -> c_int {
     if stmt.is_null() || index < 1 {
@@ -170,6 +190,11 @@ pub unsafe extern "C" fn graphdb_bind_int(stmt: *mut graphdb_stmt_t, index: c_in
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - `index` must be a valid parameter index (1 <= index <= parameter count)
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_bind_float(stmt: *mut graphdb_stmt_t, index: c_int, value: f64) -> c_int {
     if stmt.is_null() || index < 1 {
@@ -202,6 +227,14 @@ pub unsafe extern "C" fn graphdb_bind_float(stmt: *mut graphdb_stmt_t, index: c_
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - `index` must be a valid parameter index (1 <= index <= parameter count)
+/// - `value` must be a valid pointer to a null-terminated UTF-8 string if `len` is -1
+/// - If `len` >= 0, `value` must point to a valid memory region of at least `len` bytes
+/// - The string must be valid UTF-8
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_bind_string(
     stmt: *mut graphdb_stmt_t,
@@ -249,6 +282,12 @@ pub unsafe extern "C" fn graphdb_bind_string(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - `index` must be a valid parameter index (1 <= index <= parameter count)
+/// - `data` must be a valid pointer to a memory region of at least `len` bytes
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_bind_blob(
     stmt: *mut graphdb_stmt_t,
@@ -287,6 +326,13 @@ pub unsafe extern "C" fn graphdb_bind_blob(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - `name` must be a valid pointer to a null-terminated UTF-8 string
+/// - `value` must be a valid graphdb_value_t structure
+/// - If `value` contains string or blob data, those pointers must be valid
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_bind_by_name(
     stmt: *mut graphdb_stmt_t,
@@ -328,6 +374,10 @@ pub unsafe extern "C" fn graphdb_bind_by_name(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_reset(stmt: *mut graphdb_stmt_t) -> c_int {
     if stmt.is_null() {
@@ -349,6 +399,10 @@ pub unsafe extern "C" fn graphdb_reset(stmt: *mut graphdb_stmt_t) -> c_int {
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_clear_bindings(stmt: *mut graphdb_stmt_t) -> c_int {
     if stmt.is_null() {
@@ -368,6 +422,12 @@ pub unsafe extern "C" fn graphdb_clear_bindings(stmt: *mut graphdb_stmt_t) -> c_
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - After calling this function, the statement handle becomes invalid and must not be used
+/// - If `stmt` is NULL, this function returns GRAPHDB_MISUSE
+/// - It is safe to call this function multiple times on the same handle (idempotent)
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_finalize(stmt: *mut graphdb_stmt_t) -> c_int {
     if stmt.is_null() {
@@ -387,6 +447,11 @@ pub unsafe extern "C" fn graphdb_finalize(stmt: *mut graphdb_stmt_t) -> c_int {
 ///
 /// # 返回
 /// - 参数索引（从 1 开始），未找到返回 0
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - `name` must be a valid pointer to a null-terminated UTF-8 string
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_bind_parameter_index(
     stmt: *mut graphdb_stmt_t,
@@ -420,6 +485,13 @@ pub unsafe extern "C" fn graphdb_bind_parameter_index(
 ///
 /// # 返回
 /// - 参数名称（UTF-8 编码），未找到返回 NULL
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - `index` must be a valid parameter index (1 <= index <= parameter count)
+/// - The returned pointer is valid until the statement is finalized or the next call to this function
+/// - The caller must not free the returned pointer
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_bind_parameter_name(
     stmt: *mut graphdb_stmt_t,
@@ -449,6 +521,10 @@ pub unsafe extern "C" fn graphdb_bind_parameter_name(
 ///
 /// # 返回
 /// - 参数数量
+///
+/// # Safety
+/// - `stmt` must be a valid statement handle created by `graphdb_prepare`
+/// - The statement must not have been finalized
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_bind_parameter_count(stmt: *mut graphdb_stmt_t) -> c_int {
     if stmt.is_null() {

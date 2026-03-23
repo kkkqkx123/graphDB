@@ -7,5 +7,5 @@
 
 pub mod id;
 
-// 重新导出常用的类型和函数，方便其他模块使用
+// Re-export commonly used types and functions for easy use by other modules
 pub use id::*;

@@ -343,12 +343,17 @@ pub fn extended_error_code_to_message(code: graphdb_extended_error_code_t) -> &'
 
 /// 获取最后一个错误消息（线程安全）
 ///
-/// # 参数
-/// - `msg`: 输出缓冲区
-/// - `len`: 缓冲区长度
+/// # Arguments
+/// - `msg`: Output buffer
+/// - `len`: Buffer length
 ///
-/// # 返回
-/// - 实际写入的字符数（不包括 null 终止符）
+/// # Returns
+/// - Number of characters actually written (excluding null terminator)
+///
+/// # Safety
+/// - `msg` must be a valid pointer to a buffer with at least `len` bytes
+/// - The buffer must be large enough to hold the error message including null terminator
+/// - If the message is longer than `len - 1`, it will be truncated
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_errmsg(msg: *mut std::ffi::c_char, len: usize) -> i32 {
     if msg.is_null() || len == 0 {

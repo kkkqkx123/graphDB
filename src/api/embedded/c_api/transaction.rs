@@ -62,6 +62,12 @@ impl Drop for GraphDbTxnHandle {
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `txn` must be a valid pointer to store the transaction handle
+/// - The session must not have been closed
+/// - The caller is responsible for freeing the transaction using `graphdb_txn_free` when done
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_txn_begin(
     session: *mut graphdb_session_t,
@@ -106,6 +112,12 @@ pub unsafe extern "C" fn graphdb_txn_begin(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `txn` must be a valid pointer to store the transaction handle
+/// - The session must not have been closed
+/// - The caller is responsible for freeing the transaction using `graphdb_txn_free` when done
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_txn_begin_readonly(
     session: *mut graphdb_session_t,
@@ -152,6 +164,13 @@ pub unsafe extern "C" fn graphdb_txn_begin_readonly(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+/// - `query` must be a valid pointer to a null-terminated UTF-8 string
+/// - `result` must be a valid pointer to store the result handle
+/// - The transaction must not have been committed or rolled back
+/// - The caller is responsible for freeing the result using `graphdb_result_free` when done
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_txn_execute(
     txn: *mut graphdb_txn_t,
@@ -220,6 +239,12 @@ pub unsafe extern "C" fn graphdb_txn_execute(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+/// - The transaction must not have been committed or rolled back already
+/// - The associated session must still be valid
+/// - After calling this function, the transaction handle should be freed using `graphdb_txn_free`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
     if txn.is_null() {
@@ -272,6 +297,12 @@ pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+/// - The transaction must not have been committed or rolled back already
+/// - The associated session must still be valid
+/// - After calling this function, the transaction handle should be freed using `graphdb_txn_free`
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int {
     if txn.is_null() {
@@ -322,6 +353,11 @@ pub unsafe extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int 
 /// # 返回
 /// - 成功: 保存点 ID
 /// - 失败: -1
+///
+/// # Safety
+/// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+/// - `name` must be a valid pointer to a null-terminated UTF-8 string
+/// - The transaction must not have been committed or rolled back
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_txn_savepoint(txn: *mut graphdb_txn_t, name: *const c_char) -> i64 {
     if txn.is_null() || name.is_null() {
@@ -362,6 +398,11 @@ pub unsafe extern "C" fn graphdb_txn_savepoint(txn: *mut graphdb_txn_t, name: *c
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+/// - `savepoint_id` must be a valid savepoint ID returned by `graphdb_txn_savepoint`
+/// - The transaction must not have been committed or rolled back
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_txn_release_savepoint(
     txn: *mut graphdb_txn_t,
@@ -406,6 +447,11 @@ pub unsafe extern "C" fn graphdb_txn_release_savepoint(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+/// - `savepoint_id` must be a valid savepoint ID returned by `graphdb_txn_savepoint`
+/// - The transaction must not have been committed or rolled back
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_txn_rollback_to_savepoint(
     txn: *mut graphdb_txn_t,
@@ -449,6 +495,12 @@ pub unsafe extern "C" fn graphdb_txn_rollback_to_savepoint(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+/// - After calling this function, the transaction handle becomes invalid and must not be used
+/// - If the transaction has not been committed or rolled back, it will be automatically rolled back
+/// - It is safe to call this function multiple times on the same handle (idempotent)
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_txn_free(txn: *mut graphdb_txn_t) -> c_int {
     if txn.is_null() {

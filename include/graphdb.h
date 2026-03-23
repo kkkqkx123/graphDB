@@ -330,9 +330,13 @@ typedef struct graphdb_txn_t {
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
  *
- * # 安全说明
- * 创建的批量操作句柄持有会话指针，但不拥有会话的所有权。
- * 调用者必须确保在批量操作句柄被释放之前不关闭会话。
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `batch_size` must be a positive integer (if <= 0, defaults to 100)
+ * - `batch` must be a valid pointer to store the batch handle
+ * - The created batch handle holds a session pointer but does not own the session
+ * - The caller must ensure the session is not closed before the batch handle is freed
+ * - The caller is responsible for freeing the batch handle using `graphdb_batch_inserter_free` when done
  */
 int graphdb_batch_inserter_create(struct graphdb_session_t *session,
                                   int batch_size,
@@ -351,6 +355,12 @@ int graphdb_batch_inserter_create(struct graphdb_session_t *session,
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
+ * - `tag_name` 必须是指向以 null 结尾的 UTF-8 字符串的有效指针
+ * - 如果 `properties` 不为 null,则必须指向至少 `prop_count` 个有效的 `graphdb_value_t` 元素
+ * - 调用者必须确保在调用此函数时,关联的会话仍然有效
  */
 int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
                              int64_t vid,
@@ -373,6 +383,12 @@ int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
+ * - `edge_type` 必须是指向以 null 结尾的 UTF-8 字符串的有效指针
+ * - 如果 `properties` 不为 null,则必须指向至少 `prop_count` 个有效的 `graphdb_value_t` 元素
+ * - 调用者必须确保在调用此函数时,关联的会话仍然有效
  */
 int graphdb_batch_add_edge(struct graphdb_batch_t *batch,
                            int64_t src_vid,
@@ -391,6 +407,11 @@ int graphdb_batch_add_edge(struct graphdb_batch_t *batch,
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
+ * - 调用者必须确保在调用此函数时,关联的会话仍然有效
+ * - 此函数会触发实际的数据库写入操作,可能涉及 I/O 操作
  */
 int graphdb_batch_flush(struct graphdb_batch_t *batch);
 
@@ -402,85 +423,118 @@ int graphdb_batch_flush(struct graphdb_batch_t *batch);
  *
  * # 返回
  * - 缓冲的顶点数量
+ *
+ * # Safety
+ * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
+ * - 调用者必须确保在调用此函数时,关联的会话仍然有效
  */
 int graphdb_batch_buffered_vertices(struct graphdb_batch_t *batch);
 
 /**
  * 获取缓冲的边数量
  *
- * # 参数
- * - `batch`: 批量操作句柄
+ * # Arguments
+ * - `batch`: Batch operation handle
  *
- * # 返回
- * - 缓冲的边数量
+ * # Returns
+ * - Number of buffered edges
+ *
+ * # Safety
+ * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
+ * - Caller must ensure the associated session is still valid when calling this function
  */
 int graphdb_batch_buffered_edges(struct graphdb_batch_t *batch);
 
 /**
  * 释放批量操作句柄
  *
- * # 参数
- * - `batch`: 批量操作句柄
+ * # Arguments
+ * - `batch`: Batch operation handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
+ * - After calling this function, the batch handle becomes invalid and must not be used
+ * - This function does not close the associated session; the caller must close the session separately
  */
 int graphdb_batch_free(struct graphdb_batch_t *batch);
 
 /**
  * 打开数据库
  *
- * # 参数
- * - `path`: 数据库文件路径（UTF-8 编码）
- * - `db`: 输出参数，数据库句柄
+ * # Arguments
+ * - `path`: Database file path (UTF-8 encoded)
+ * - `db`: Output parameter, database handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `path` must be a valid pointer to a null-terminated UTF-8 string
+ * - `db` must be a valid pointer to store the database handle
+ * - The caller is responsible for closing the database using `graphdb_close` when done
+ * - The database handle must not be used after closing
  */
 int graphdb_open(const char *path, struct graphdb_t **db);
 
 /**
  * 使用标志打开数据库
  *
- * # 参数
- * - `path`: 数据库文件路径（UTF-8 编码）
- * - `db`: 输出参数，数据库句柄
- * - `flags`: 打开标志
- * - `vfs`: VFS 名称（保留参数，当前未使用，可为 NULL）
+ * # Arguments
+ * - `path`: Database file path (UTF-8 encoded)
+ * - `db`: Output parameter, database handle
+ * - `flags`: Open flags
+ * - `vfs`: VFS name (reserved parameter, currently unused, can be NULL)
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
- * # 标志说明
- * - GRAPHDB_OPEN_READONLY: 只读模式
- * - GRAPHDB_OPEN_READWRITE: 读写模式
- * - GRAPHDB_OPEN_CREATE: 如果数据库不存在则创建
+ * # Flags
+ * - GRAPHDB_OPEN_READONLY: Read-only mode
+ * - GRAPHDB_OPEN_READWRITE: Read-write mode
+ * - GRAPHDB_OPEN_CREATE: Create database if it doesn't exist
+ *
+ * # Safety
+ * - `path` must be a valid pointer to a null-terminated UTF-8 string
+ * - `db` must be a valid pointer to store the database handle
+ * - The caller is responsible for closing the database using `graphdb_close` when done
+ * - The database handle must not be used after closing
  */
 int graphdb_open_v2(const char *path, struct graphdb_t **db, int flags, const char *_vfs);
 
 /**
  * 关闭数据库
  *
- * # 参数
- * - `db`: 数据库句柄
+ * # Arguments
+ * - `db`: Database handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `db` must be a valid database handle created by `graphdb_open` or `graphdb_open_v2`
+ * - After calling this function, the database handle becomes invalid and must not be used
+ * - All sessions associated with this database must be closed before calling this function
  */
 int graphdb_close(struct graphdb_t *db);
 
 /**
  * 获取错误码
  *
- * # 参数
- * - `db`: 数据库句柄
+ * # Arguments
+ * - `db`: Database handle
  *
- * # 返回
- * - 错误码，如果没有错误返回 GRAPHDB_OK
+ * # Returns
+ * - Error code, returns GRAPHDB_OK if no error
+ *
+ * # Safety
+ * - `db` must be a valid database handle created by `graphdb_open` or `graphdb_open_v2`
  */
 int graphdb_errcode(struct graphdb_t *db);
 
@@ -495,28 +549,43 @@ const char *graphdb_libversion(void);
 /**
  * 释放字符串（由 GraphDB 分配的字符串）
  *
- * # 参数
- * - `str`: 字符串指针
+ * # Arguments
+ * - `str`: String pointer
+ *
+ * # Safety
+ * - `str` must be a valid pointer to a string allocated by GraphDB
+ * - After calling this function, the pointer becomes invalid and must not be used
+ * - This function should only be called on strings that were allocated by GraphDB C API functions
  */
 void graphdb_free_string(char *str);
 
 /**
  * 释放内存（由 GraphDB 分配的内存）
  *
- * # 参数
- * - `ptr`: 内存指针
+ * # Arguments
+ * - `ptr`: Memory pointer
+ *
+ * # Safety
+ * - `ptr` must be a valid pointer to memory allocated by GraphDB
+ * - After calling this function, the pointer becomes invalid and must not be used
+ * - This function should only be called on memory that was allocated by GraphDB C API functions
  */
 void graphdb_free(void *ptr);
 
 /**
  * 获取最后一个错误消息（线程安全）
  *
- * # 参数
- * - `msg`: 输出缓冲区
- * - `len`: 缓冲区长度
+ * # Arguments
+ * - `msg`: Output buffer
+ * - `len`: Buffer length
  *
- * # 返回
- * - 实际写入的字符数（不包括 null 终止符）
+ * # Returns
+ * - Number of characters actually written (excluding null terminator)
+ *
+ * # Safety
+ * - `msg` must be a valid pointer to a buffer with at least `len` bytes
+ * - The buffer must be large enough to hold the error message including null terminator
+ * - If the message is longer than `len - 1`, it will be truncated
  */
 int32_t graphdb_errmsg(char *msg, uintptr_t len);
 
@@ -575,26 +644,32 @@ int graphdb_extended_errcode(struct graphdb_session_t *session);
 /**
  * 创建自定义标量函数
  *
- * # 参数
- * - `session`: 会话句柄
- * - `name`: 函数名称
- * - `argc`: 参数数量，-1 表示可变参数
- * - `user_data`: 用户数据指针
- * - `x_func`: 标量函数回调
- * - `x_destroy`: 析构回调，可为 NULL
+ * # Arguments
+ * - `session`: Session handle
+ * - `name`: Function name
+ * - `argc`: Number of arguments, -1 for variable arguments
+ * - `user_data`: User data pointer
+ * - `x_func`: Scalar function callback
+ * - `x_destroy`: Destructor callback, can be NULL
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
- * # 示例
+ * # Example
  * ```c
  * extern void my_function(graphdb_context_t* ctx, int argc, graphdb_value_t* argv) {
- *     // 实现函数逻辑
+ *     // Implement function logic
  * }
  *
  * graphdb_create_function(session, "my_func", 2, NULL, my_function, NULL);
  * ```
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `name` must be a valid pointer to a null-terminated UTF-8 string
+ * - `x_func` must be a valid function pointer
+ * - `user_data` is passed to the callback and must remain valid for the lifetime of the function
  */
 int graphdb_create_function(struct graphdb_session_t *session,
                             const char *name,
@@ -606,18 +681,24 @@ int graphdb_create_function(struct graphdb_session_t *session,
 /**
  * 创建自定义聚合函数
  *
- * # 参数
- * - `session`: 会话句柄
- * - `name`: 函数名称
- * - `argc`: 参数数量，-1 表示可变参数
- * - `user_data`: 用户数据指针
- * - `x_step`: 聚合步骤回调
- * - `x_final`: 聚合最终回调
- * - `x_destroy`: 析构回调，可为 NULL
+ * # Arguments
+ * - `session`: Session handle
+ * - `name`: Function name
+ * - `argc`: Number of arguments, -1 for variable arguments
+ * - `user_data`: User data pointer
+ * - `x_step`: Aggregate step callback
+ * - `x_final`: Aggregate final callback
+ * - `x_destroy`: Destructor callback, can be NULL
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `name` must be a valid pointer to a null-terminated UTF-8 string
+ * - `x_step` and `x_final` must be valid function pointers
+ * - `user_data` is passed to the callbacks and must remain valid for the lifetime of the function
  */
 int graphdb_create_aggregate(struct graphdb_session_t *session,
                              const char *name,
@@ -630,25 +711,34 @@ int graphdb_create_aggregate(struct graphdb_session_t *session,
 /**
  * 删除自定义函数
  *
- * # 参数
- * - `session`: 会话句柄
- * - `name`: 函数名称
+ * # Arguments
+ * - `session`: Session handle
+ * - `name`: Function name
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `name` must be a valid pointer to a null-terminated UTF-8 string
  */
 int graphdb_delete_function(struct graphdb_session_t *session, const char *name);
 
 /**
  * 设置函数返回值
  *
- * # 参数
- * - `context`: 函数执行上下文
- * - `value`: 返回值
+ * # Arguments
+ * - `context`: Function execution context
+ * - `value`: Return value
  *
- * # 说明
- * 在标量函数或聚合函数的 xFinal 回调中调用此函数设置返回值
+ * # Description
+ * Call this function in the scalar function or aggregate function's xFinal callback to set the return value
+ *
+ * # Safety
+ * - `context` must be a valid function context pointer passed to the callback
+ * - `value` must be a valid pointer to a value structure, or NULL to set a null result
+ * - This function should only be called from within a registered function callback
  */
 int graphdb_context_set_result(struct graphdb_context_t *context,
                                const struct graphdb_value_t *value);
@@ -656,35 +746,50 @@ int graphdb_context_set_result(struct graphdb_context_t *context,
 /**
  * 获取函数返回值的类型
  *
- * # 参数
- * - `context`: 函数执行上下文
+ * # Arguments
+ * - `context`: Function execution context
  *
- * # 返回
- * - 值类型
+ * # Returns
+ * - Value type
+ *
+ * # Safety
+ * - `context` must be a valid function context pointer passed to the callback
+ * - This function should only be called from within a registered function callback
  */
 enum graphdb_value_type_t graphdb_context_result_type(struct graphdb_context_t *context);
 
 /**
  * 设置错误消息
  *
- * # 参数
- * - `context`: 函数执行上下文
- * - `error_msg`: 错误消息
+ * # Arguments
+ * - `context`: Function execution context
+ * - `error_msg`: Error message
  *
- * # 说明
- * 在函数执行出错时调用此函数设置错误消息
+ * # Description
+ * Call this function to set an error message when the function execution fails
+ *
+ * # Safety
+ * - `context` must be a valid function context pointer passed to the callback
+ * - `error_msg` must be a valid pointer to a null-terminated UTF-8 string
+ * - This function should only be called from within a registered function callback
  */
 int graphdb_context_set_error(struct graphdb_context_t *context, const char *error_msg);
 
 /**
  * 从上下文获取参数值（辅助函数）
  *
- * # 参数
- * - `context`: 函数执行上下文
- * - `index`: 参数索引
+ * # Arguments
+ * - `context`: Function execution context
+ * - `index`: Argument index
  *
- * # 返回
- * - 参数值指针，如果索引越界返回 NULL
+ * # Returns
+ * - Argument value pointer, returns NULL if index is out of bounds
+ *
+ * # Safety
+ * - `context` must be a valid function context pointer passed to the callback
+ * - `index` must be a valid argument index (0 <= index < argc)
+ * - The returned pointer is only valid for the duration of the callback
+ * - This function should only be called from within a registered function callback
  */
 const struct graphdb_value_t *graphdb_context_get_arg(struct graphdb_context_t *_context,
                                                       int _index);
@@ -692,25 +797,35 @@ const struct graphdb_value_t *graphdb_context_get_arg(struct graphdb_context_t *
 /**
  * 获取参数数量
  *
- * # 参数
- * - `context`: 函数执行上下文
+ * # Arguments
+ * - `context`: Function execution context
  *
- * # 返回
- * - 参数数量
+ * # Returns
+ * - Number of arguments
+ *
+ * # Safety
+ * - `context` must be a valid function context pointer passed to the callback
+ * - This function should only be called from within a registered function callback
  */
 int graphdb_context_arg_count(struct graphdb_context_t *_context);
 
 /**
  * 执行简单查询
  *
- * # 参数
- * - `session`: 会话句柄
- * - `query`: 查询语句（UTF-8 编码）
- * - `result`: 输出参数，结果集句柄
+ * # Arguments
+ * - `session`: Session handle
+ * - `query`: Query statement (UTF-8 encoded)
+ * - `result`: Output parameter, result set handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `query` must be a valid pointer to a null-terminated UTF-8 string
+ * - `result` must be a valid pointer to store the result handle
+ * - The caller is responsible for freeing the result handle using `graphdb_result_free` when done
  */
 int graphdb_execute(struct graphdb_session_t *session,
                     const char *query,
@@ -719,16 +834,23 @@ int graphdb_execute(struct graphdb_session_t *session,
 /**
  * 执行参数化查询
  *
- * # 参数
- * - `session`: 会话句柄
- * - `query`: 查询语句（UTF-8 编码）
- * - `params`: 参数数组
- * - `param_count`: 参数数量
- * - `result`: 输出参数，结果集句柄
+ * # Arguments
+ * - `session`: Session handle
+ * - `query`: Query statement (UTF-8 encoded)
+ * - `params`: Parameter array
+ * - `param_count`: Number of parameters
+ * - `result`: Output parameter, result set handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `query` must be a valid pointer to a null-terminated UTF-8 string
+ * - `result` must be a valid pointer to store the result handle
+ * - If `params` is not NULL, it must point to at least `param_count` valid `graphdb_value_t` elements
+ * - The caller is responsible for freeing the result handle using `graphdb_result_free` when done
  */
 int graphdb_execute_params(struct graphdb_session_t *session,
                            const char *query,
@@ -739,100 +861,140 @@ int graphdb_execute_params(struct graphdb_session_t *session,
 /**
  * 释放结果集
  *
- * # 参数
- * - `result`: 结果集句柄
+ * # Arguments
+ * - `result`: Result set handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - After calling this function, the result handle becomes invalid and must not be used
+ * - Any string pointers obtained from this result set become invalid after this call
  */
 int graphdb_result_free(struct graphdb_result_t *result);
 
 /**
  * 获取结果集列数
  *
- * # 参数
- * - `result`: 结果集句柄
+ * # Arguments
+ * - `result`: Result set handle
  *
- * # 返回
- * - 列数，错误返回 -1
+ * # Returns
+ * - Number of columns, returns -1 on error
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
  */
 int graphdb_column_count(struct graphdb_result_t *result);
 
 /**
  * 获取结果集行数
  *
- * # 参数
- * - `result`: 结果集句柄
+ * # Arguments
+ * - `result`: Result set handle
  *
- * # 返回
- * - 行数，错误返回 -1
+ * # Returns
+ * - Number of rows, returns -1 on error
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
  */
 int graphdb_row_count(struct graphdb_result_t *result);
 
 /**
  * 获取列名
  *
- * # 参数
- * - `result`: 结果集句柄
- * - `index`: 列索引（从 0 开始）
+ * # Arguments
+ * - `result`: Result set handle
+ * - `index`: Column index (starting from 0)
  *
- * # 返回
- * - 列名（UTF-8 编码），错误返回 NULL
+ * # Returns
+ * - Column name (UTF-8 encoded), returns NULL on error
  *
- * # 内存管理
- * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
- * 以避免内存泄漏。
+ * # Memory Management
+ * The returned string is dynamically allocated and must be freed by the caller using `graphdb_free_string`
+ * to avoid memory leaks.
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - `index` must be a valid column index (0 <= index < column count)
+ * - The returned pointer must be freed by the caller to avoid memory leaks
  */
-char *graphdb_column_name(struct graphdb_result_t *result, int index);
+char *graphdb_column_name(struct graphdb_result_t *result,
+                          int index);
 
 /**
  * 获取整数值
  *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列名（UTF-8 编码）
- * - `value`: 输出参数，整数值
+ * # Arguments
+ * - `result`: Result set handle
+ * - `row`: Row index (starting from 0)
+ * - `col`: Column name (UTF-8 encoded)
+ * - `value`: Output parameter, integer value
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - `col` must be a valid pointer to a null-terminated UTF-8 string
+ * - `value` must be a valid pointer to store the result
+ * - `row` must be a valid row index (0 <= row < row count)
  */
 int graphdb_get_int(struct graphdb_result_t *result, int row, const char *col, int64_t *value);
 
 /**
  * 获取字符串值
  *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列名（UTF-8 编码）
- * - `len`: 输出参数，字符串长度
+ * # Arguments
+ * - `result`: Result set handle
+ * - `row`: Row index (starting from 0)
+ * - `col`: Column name (UTF-8 encoded)
+ * - `len`: Output parameter, string length
  *
- * # 返回
- * - 字符串值（UTF-8 编码），错误返回 NULL
+ * # Returns
+ * - String value (UTF-8 encoded), returns NULL on error
  *
- * # 内存管理
- * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
- * 以避免内存泄漏。
+ * # Memory Management
+ * The returned string is dynamically allocated and must be freed by the caller using `graphdb_free_string`
+ * to avoid memory leaks.
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - `col` must be a valid pointer to a null-terminated UTF-8 string
+ * - `len` must be a valid pointer to store the string length, or NULL if not needed
+ * - `row` must be a valid row index (0 <= row < row count)
+ * - The returned pointer must be freed by the caller to avoid memory leaks
  */
-char *graphdb_get_string(struct graphdb_result_t *result, int row, const char *col, int *len);
+char *graphdb_get_string(struct graphdb_result_t *result,
+                         int row,
+                         const char *col,
+                         int *len);
 
 /**
  * 获取二进制数据
  *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列名（UTF-8 编码）
- * - `len`: 输出参数，数据长度（字节）
+ * # Arguments
+ * - `result`: Result set handle
+ * - `row`: Row index (starting from 0)
+ * - `col`: Column name (UTF-8 encoded)
+ * - `len`: Output parameter, data length (in bytes)
  *
- * # 返回
- * - 数据指针，错误返回 NULL
+ * # Returns
+ * - Data pointer, returns NULL on error
  *
- * # 注意
- * 返回的指针生命周期与结果集绑定，调用者不应释放
+ * # Note
+ * The returned pointer's lifetime is bound to the result set; the caller should not free it
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - `col` must be a valid pointer to a null-terminated UTF-8 string
+ * - `len` must be a valid pointer to store the data length, or NULL if not needed
+ * - `row` must be a valid row index (0 <= row < row count)
+ * - The returned pointer is only valid as long as the result set is not freed
  */
 const uint8_t *graphdb_get_blob(struct graphdb_result_t *result,
                                 int row,
@@ -842,80 +1004,115 @@ const uint8_t *graphdb_get_blob(struct graphdb_result_t *result,
 /**
  * 获取整数值（按列索引）
  *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列索引（从 0 开始）
- * - `value`: 输出参数，整数值
+ * # Arguments
+ * - `result`: Result set handle
+ * - `row`: Row index (starting from 0)
+ * - `col`: Column index (starting from 0)
+ * - `value`: Output parameter, integer value
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - `value` must be a valid pointer to store the result
+ * - `row` must be a valid row index (0 <= row < row count)
+ * - `col` must be a valid column index (0 <= col < column count)
  */
 int graphdb_get_int_by_index(struct graphdb_result_t *result, int row, int col, int64_t *value);
 
 /**
  * 获取字符串值（按列索引）
  *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列索引（从 0 开始）
- * - `len`: 输出参数，字符串长度
+ * # Arguments
+ * - `result`: Result set handle
+ * - `row`: Row index (starting from 0)
+ * - `col`: Column index (starting from 0)
+ * - `len`: Output parameter, string length
  *
- * # 返回
- * - 字符串值（UTF-8 编码），错误返回 NULL
+ * # Returns
+ * - String value (UTF-8 encoded), returns NULL on error
  *
- * # 内存管理
- * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
- * 以避免内存泄漏。
+ * # Memory Management
+ * The returned string is dynamically allocated and must be freed by the caller using `graphdb_free_string`
+ * to avoid memory leaks.
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - `len` must be a valid pointer to store the string length, or NULL if not needed
+ * - `row` must be a valid row index (0 <= row < row count)
+ * - `col` must be a valid column index (0 <= col < column count)
+ * - The returned pointer must be freed by the caller to avoid memory leaks
  */
-char *graphdb_get_string_by_index(struct graphdb_result_t *result, int row, int col, int *len);
+char *graphdb_get_string_by_index(struct graphdb_result_t *result,
+                                  int row,
+                                  int col,
+                                  int *len);
 
 /**
  * 获取布尔值（按列索引）
  *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列索引（从 0 开始）
- * - `value`: 输出参数，布尔值
+ * # Arguments
+ * - `result`: Result set handle
+ * - `row`: Row index (starting from 0)
+ * - `col`: Column index (starting from 0)
+ * - `value`: Output parameter, boolean value
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - `value` must be a valid pointer to store the result
+ * - `row` must be a valid row index (0 <= row < row count)
+ * - `col` must be a valid column index (0 <= col < column count)
  */
 int graphdb_get_bool_by_index(struct graphdb_result_t *result, int row, int col, bool *value);
 
 /**
  * 获取浮点值（按列索引）
  *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列索引（从 0 开始）
- * - `value`: 输出参数，浮点值
+ * # Arguments
+ * - `result`: Result set handle
+ * - `row`: Row index (starting from 0)
+ * - `col`: Column index (starting from 0)
+ * - `value`: Output parameter, float value
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - `value` must be a valid pointer to store the result
+ * - `row` must be a valid row index (0 <= row < row count)
+ * - `col` must be a valid column index (0 <= col < column count)
  */
 int graphdb_get_float_by_index(struct graphdb_result_t *result, int row, int col, double *value);
 
 /**
  * 获取二进制数据（按列索引）
  *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列索引（从 0 开始）
- * - `len`: 输出参数，数据长度（字节）
+ * # Arguments
+ * - `result`: Result set handle
+ * - `row`: Row index (starting from 0)
+ * - `col`: Column index (starting from 0)
+ * - `len`: Output parameter, data length (in bytes)
  *
- * # 返回
- * - 数据指针，错误返回 NULL
+ * # Returns
+ * - Data pointer, returns NULL on error
  *
- * # 注意
- * 返回的指针生命周期与结果集绑定，调用者不应释放
+ * # Note
+ * The returned pointer's lifetime is bound to the result set; the caller should not free it
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - `len` must be a valid pointer to store the data length, or NULL if not needed
+ * - `row` must be a valid row index (0 <= row < row count)
+ * - `col` must be a valid column index (0 <= col < column count)
+ * - The returned pointer is only valid as long as the result set is not freed
  */
 const uint8_t *graphdb_get_blob_by_index(struct graphdb_result_t *result,
                                          int row,
@@ -925,182 +1122,229 @@ const uint8_t *graphdb_get_blob_by_index(struct graphdb_result_t *result,
 /**
  * 获取列类型
  *
- * # 参数
- * - `result`: 结果集句柄
- * - `col`: 列索引（从 0 开始）
+ * # Arguments
+ * - `result`: Result set handle
+ * - `col`: Column index (starting from 0)
  *
- * # 返回
- * - 列类型，错误返回 GRAPHDB_NULL
+ * # Returns
+ * - Column type, returns GRAPHDB_NULL on error
+ *
+ * # Safety
+ * - `result` must be a valid result handle created by `graphdb_execute` or `graphdb_execute_params`
+ * - `col` must be a valid column index (0 <= col < column count)
  */
 enum graphdb_value_type_t graphdb_column_type(struct graphdb_result_t *result, int col);
 
 /**
  * 创建会话
  *
- * # 参数
- * - `db`: 数据库句柄
- * - `session`: 输出参数，会话句柄
+ * # Arguments
+ * - `db`: Database handle
+ * - `session`: Output parameter, session handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `db` must be a valid database handle created by `graphdb_open` or `graphdb_open_v2`
+ * - `session` must be a valid pointer to store the session handle
+ * - The caller is responsible for closing the session using `graphdb_session_close` when done
+ * - The session handle must not be used after closing
  */
 int graphdb_session_create(struct graphdb_t *db, struct graphdb_session_t **session);
 
 /**
  * 关闭会话
  *
- * # 参数
- * - `session`: 会话句柄
+ * # Arguments
+ * - `session`: Session handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - After calling this function, the session handle becomes invalid and must not be used
+ * - All pending transactions will be rolled back
  */
 int graphdb_session_close(struct graphdb_session_t *session);
 
 /**
  * 切换图空间
  *
- * # 参数
- * - `session`: 会话句柄
- * - `space_name`: 图空间名称（UTF-8 编码）
+ * # Arguments
+ * - `session`: Session handle
+ * - `space_name`: Graph space name (UTF-8 encoded)
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `space_name` must be a valid pointer to a null-terminated UTF-8 string
  */
 int graphdb_session_use_space(struct graphdb_session_t *session, const char *space_name);
 
 /**
  * 获取当前图空间
  *
- * # 参数
- * - `session`: 会话句柄
+ * # Arguments
+ * - `session`: Session handle
  *
- * # 返回
- * - 当前图空间名称（UTF-8 编码），如果没有则返回 NULL
+ * # Returns
+ * - Current graph space name (UTF-8 encoded), returns NULL if none
  *
- * # 内存管理
- * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
- * 以避免内存泄漏。
+ * # Memory Management
+ * The returned string is dynamically allocated and must be freed by the caller using `graphdb_free_string`
+ * to avoid memory leaks.
  *
- * # 示例
+ * # Example
  * ```c
  * char* space = graphdb_session_current_space(session);
  * if (space) {
  *     printf("Current space: %s\n", space);
- *     graphdb_free_string(space);  // 必须释放
+ *     graphdb_free_string(space);  // Must free
  * }
  * ```
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - The returned pointer must be freed by the caller to avoid memory leaks
  */
 char *graphdb_session_current_space(struct graphdb_session_t *session);
 
 /**
  * 设置自动提交模式
  *
- * # 参数
- * - `session`: 会话句柄
- * - `autocommit`: 是否自动提交
+ * # Arguments
+ * - `session`: Session handle
+ * - `autocommit`: Whether to enable autocommit
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
  */
 int graphdb_session_set_autocommit(struct graphdb_session_t *session, bool autocommit);
 
 /**
  * 获取自动提交模式
  *
- * # 参数
- * - `session`: 会话句柄
+ * # Arguments
+ * - `session`: Session handle
  *
- * # 返回
- * - 是否自动提交
+ * # Returns
+ * - Whether autocommit is enabled
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
  */
 bool graphdb_session_get_autocommit(struct graphdb_session_t *session);
 
 /**
  * 获取上次操作影响的行数
  *
- * # 参数
- * - `session`: 会话句柄
+ * # Arguments
+ * - `session`: Session handle
  *
- * # 返回
- * - 影响的行数，如果会话无效则返回 0
+ * # Returns
+ * - Number of rows affected by last operation, returns 0 if session is invalid
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
  */
 int graphdb_changes(struct graphdb_session_t *session);
 
 /**
- * 获取总会话变更数
+ * 获取自数据库打开以来的总变更数量
  *
- * # 参数
- * - `session`: 会话句柄
+ * # Arguments
+ * - `session`: Session handle
  *
- * # 返回
- * - 总会话变更数，如果会话无效则返回 0
+ * # Returns
+ * - Total number of changes
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
  */
 int64_t graphdb_total_changes(struct graphdb_session_t *session);
 
 /**
  * 获取最后插入的顶点 ID
  *
- * # 参数
- * - `session`: 会话句柄
+ * # Arguments
+ * - `session`: Session handle
  *
- * # 返回
- * - 最后插入的顶点 ID，如果没有则返回 -1
+ * # Returns
+ * - Last inserted vertex ID, returns 0 if none
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
  */
 int64_t graphdb_last_insert_vertex_id(struct graphdb_session_t *session);
 
 /**
  * 获取最后插入的边 ID
  *
- * # 参数
- * - `session`: 会话句柄
+ * # Arguments
+ * - `session`: Session handle
  *
- * # 返回
- * - 最后插入的边 ID，如果没有则返回 -1
+ * # Returns
+ * - Last inserted edge ID, returns 0 if none
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
  */
 int64_t graphdb_last_insert_edge_id(struct graphdb_session_t *session);
 
 /**
  * 设置忙等待超时
  *
- * # 参数
- * - `session`: 会话句柄
- * - `timeout_ms`: 超时时间（毫秒），0 表示不等待
+ * # Arguments
+ * - `session`: Session handle
+ * - `timeout_ms`: Timeout in milliseconds
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
  */
 int graphdb_busy_timeout(struct graphdb_session_t *session, int timeout_ms);
 
 /**
  * 获取忙等待超时
  *
- * # 参数
- * - `session`: 会话句柄
+ * # Arguments
+ * - `session`: Session handle
  *
- * # 返回
- * - 超时时间（毫秒），如果会话无效则返回 0
+ * # Returns
+ * - Timeout in milliseconds, returns -1 on error
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
  */
 int graphdb_busy_timeout_get(struct graphdb_session_t *session);
 
 /**
  * 设置 SQL 追踪回调
  *
- * # 参数
- * - `session`: 会话句柄
- * - `callback`: 追踪回调函数，NULL 表示取消追踪
- * - `user_data`: 用户数据指针，将传递给回调函数
+ * # Arguments
+ * - `session`: Session handle
+ * - `callback`: Trace callback function, NULL to disable tracing
+ * - `user_data`: User data pointer, will be passed to the callback
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
  *
- * # 示例
+ * # Example
  * ```c
  * extern void my_trace_callback(const char* sql, void* data) {
  *     printf("Executing: %s\n", sql);
@@ -1108,6 +1352,11 @@ int graphdb_busy_timeout_get(struct graphdb_session_t *session);
  *
  * graphdb_trace(session, my_trace_callback, NULL);
  * ```
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `callback` must be a valid function pointer, or NULL to disable tracing
+ * - `user_data` is passed to the callback and must remain valid for the lifetime of the callback
  */
 int graphdb_trace(struct graphdb_session_t *session,
                   graphdb_trace_callback callback,
@@ -1116,16 +1365,22 @@ int graphdb_trace(struct graphdb_session_t *session,
 /**
  * 设置提交钩子
  *
- * # 参数
- * - `session`: 会话句柄
- * - `callback`: 提交钩子回调函数，NULL 表示取消钩子
- * - `user_data`: 用户数据指针，将传递给回调函数
+ * # Arguments
+ * - `session`: Session handle
+ * - `callback`: Commit hook callback function, NULL to disable the hook
+ * - `user_data`: User data pointer, will be passed to the callback
  *
- * # 返回
- * - 之前的钩子用户数据指针（如果有）
+ * # Returns
+ * - Previous hook user data pointer (if any)
  *
- * # 说明
- * 提交钩子在事务提交前被调用。如果回调返回非零值，事务将回滚。
+ * # Description
+ * The commit hook is called before a transaction is committed. If the callback returns a non-zero value,
+ * the transaction will be rolled back.
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `callback` must be a valid function pointer, or NULL to disable the hook
+ * - `user_data` is passed to the callback and must remain valid for the lifetime of the callback
  */
 void *graphdb_commit_hook(struct graphdb_session_t *session,
                           graphdb_commit_hook_callback callback,
@@ -1134,13 +1389,18 @@ void *graphdb_commit_hook(struct graphdb_session_t *session,
 /**
  * 设置回滚钩子
  *
- * # 参数
- * - `session`: 会话句柄
- * - `callback`: 回滚钩子回调函数，NULL 表示取消钩子
- * - `user_data`: 用户数据指针，将传递给回调函数
+ * # Arguments
+ * - `session`: Session handle
+ * - `callback`: Rollback hook callback function, NULL to disable the hook
+ * - `user_data`: User data pointer, will be passed to the callback
  *
- * # 返回
- * - 之前的钩子用户数据指针（如果有）
+ * # Returns
+ * - Previous hook user data pointer (if any)
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `callback` must be a valid function pointer, or NULL to disable the hook
+ * - `user_data` is passed to the callback and must remain valid for the lifetime of the callback
  */
 void *graphdb_rollback_hook(struct graphdb_session_t *session,
                             graphdb_rollback_hook_callback callback,
@@ -1149,21 +1409,26 @@ void *graphdb_rollback_hook(struct graphdb_session_t *session,
 /**
  * 设置更新钩子
  *
- * 当数据库中的数据发生变更时调用回调函数
+ * When data in the database changes, the callback function is called
  *
- * # 参数
- * - `session`: 会话句柄
- * - `callback`: 更新钩子回调函数，NULL 表示取消钩子
- * - `user_data`: 用户数据指针，将传递给回调函数
+ * # Arguments
+ * - `session`: Session handle
+ * - `callback`: Update hook callback function, NULL to disable the hook
+ * - `user_data`: User data pointer, will be passed to the callback
  *
- * # 返回
- * - 之前的钩子用户数据指针（如果有）
+ * # Returns
+ * - Previous hook user data pointer (if any)
  *
- * # 回调参数说明
- * - `operation`: 操作类型（1=INSERT, 2=UPDATE, 3=DELETE）
- * - `database`: 数据库/空间名称
- * - `table`: 表名称（图数据库中为空字符串）
- * - `rowid`: 受影响的行 ID
+ * # Callback Parameters
+ * - `operation`: Operation type (1=INSERT, 2=UPDATE, 3=DELETE)
+ * - `database`: Database/space name
+ * - `table`: Table name (empty string for graph database)
+ * - `rowid`: Affected row ID
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `callback` must be a valid function pointer, or NULL to disable the hook
+ * - `user_data` is passed to the callback and must remain valid for the lifetime of the callback
  */
 void *graphdb_update_hook(struct graphdb_session_t *session,
                           graphdb_update_hook_callback callback,
@@ -1172,29 +1437,39 @@ void *graphdb_update_hook(struct graphdb_session_t *session,
 /**
  * 准备语句
  *
- * # 参数
- * - `session`: 会话句柄
- * - `query`: 查询语句（UTF-8 编码）
- * - `stmt`: 输出参数，语句句柄
+ * # Arguments
+ * - `session`: Session handle
+ * - `query`: Query statement (UTF-8 encoded)
+ * - `stmt`: Output parameter, statement handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `query` must be a valid pointer to a null-terminated UTF-8 string
+ * - `stmt` must be a valid pointer to store the statement handle
+ * - The caller is responsible for finalizing the statement using `graphdb_finalize` when done
  */
 int graphdb_prepare(struct graphdb_session_t *session,
                     const char *query,
                     struct graphdb_stmt_t **stmt);
 
 /**
- * 绑定 NULL 值（按索引）
+ * 绑定 NULL 值
  *
- * # 参数
- * - `stmt`: 语句句柄
- * - `index`: 参数索引（从 1 开始）
+ * # Arguments
+ * - `stmt`: Statement handle
+ * - `index`: Parameter index (starting from 1)
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Returns
+ * - Success: GRAPHDB_OK
+ * - Failure: Error code
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - `index` must be a valid parameter index (1 <= index <= parameter count)
  */
 int graphdb_bind_null(struct graphdb_stmt_t *stmt, int index);
 
@@ -1209,6 +1484,11 @@ int graphdb_bind_null(struct graphdb_stmt_t *stmt, int index);
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - `index` must be a valid parameter index (1 <= index <= parameter count)
+ * - The statement must not have been finalized
  */
 int graphdb_bind_bool(struct graphdb_stmt_t *stmt, int index, bool value);
 
@@ -1223,6 +1503,11 @@ int graphdb_bind_bool(struct graphdb_stmt_t *stmt, int index, bool value);
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - `index` must be a valid parameter index (1 <= index <= parameter count)
+ * - The statement must not have been finalized
  */
 int graphdb_bind_int(struct graphdb_stmt_t *stmt, int index, int64_t value);
 
@@ -1237,6 +1522,11 @@ int graphdb_bind_int(struct graphdb_stmt_t *stmt, int index, int64_t value);
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - `index` must be a valid parameter index (1 <= index <= parameter count)
+ * - The statement must not have been finalized
  */
 int graphdb_bind_float(struct graphdb_stmt_t *stmt, int index, double value);
 
@@ -1252,6 +1542,14 @@ int graphdb_bind_float(struct graphdb_stmt_t *stmt, int index, double value);
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - `index` must be a valid parameter index (1 <= index <= parameter count)
+ * - `value` must be a valid pointer to a null-terminated UTF-8 string if `len` is -1
+ * - If `len` >= 0, `value` must point to a valid memory region of at least `len` bytes
+ * - The string must be valid UTF-8
+ * - The statement must not have been finalized
  */
 int graphdb_bind_string(struct graphdb_stmt_t *stmt, int index, const char *value, int len);
 
@@ -1267,6 +1565,12 @@ int graphdb_bind_string(struct graphdb_stmt_t *stmt, int index, const char *valu
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - `index` must be a valid parameter index (1 <= index <= parameter count)
+ * - `data` must be a valid pointer to a memory region of at least `len` bytes
+ * - The statement must not have been finalized
  */
 int graphdb_bind_blob(struct graphdb_stmt_t *stmt, int index, const uint8_t *data, int len);
 
@@ -1281,6 +1585,13 @@ int graphdb_bind_blob(struct graphdb_stmt_t *stmt, int index, const uint8_t *dat
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - `name` must be a valid pointer to a null-terminated UTF-8 string
+ * - `value` must be a valid graphdb_value_t structure
+ * - If `value` contains string or blob data, those pointers must be valid
+ * - The statement must not have been finalized
  */
 int graphdb_bind_by_name(struct graphdb_stmt_t *stmt,
                          const char *name,
@@ -1297,6 +1608,10 @@ int graphdb_bind_by_name(struct graphdb_stmt_t *stmt,
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - The statement must not have been finalized
  */
 int graphdb_reset(struct graphdb_stmt_t *stmt);
 
@@ -1311,6 +1626,10 @@ int graphdb_reset(struct graphdb_stmt_t *stmt);
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - The statement must not have been finalized
  */
 int graphdb_clear_bindings(struct graphdb_stmt_t *stmt);
 
@@ -1323,6 +1642,12 @@ int graphdb_clear_bindings(struct graphdb_stmt_t *stmt);
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - After calling this function, the statement handle becomes invalid and must not be used
+ * - If `stmt` is NULL, this function returns GRAPHDB_MISUSE
+ * - It is safe to call this function multiple times on the same handle (idempotent)
  */
 int graphdb_finalize(struct graphdb_stmt_t *stmt);
 
@@ -1335,6 +1660,11 @@ int graphdb_finalize(struct graphdb_stmt_t *stmt);
  *
  * # 返回
  * - 参数索引（从 1 开始），未找到返回 0
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - `name` must be a valid pointer to a null-terminated UTF-8 string
+ * - The statement must not have been finalized
  */
 int graphdb_bind_parameter_index(struct graphdb_stmt_t *stmt, const char *name);
 
@@ -1347,8 +1677,16 @@ int graphdb_bind_parameter_index(struct graphdb_stmt_t *stmt, const char *name);
  *
  * # 返回
  * - 参数名称（UTF-8 编码），未找到返回 NULL
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - `index` must be a valid parameter index (1 <= index <= parameter count)
+ * - The returned pointer is valid until the statement is finalized or the next call to this function
+ * - The caller must not free the returned pointer
+ * - The statement must not have been finalized
  */
-const char *graphdb_bind_parameter_name(struct graphdb_stmt_t *stmt, int index);
+const char *graphdb_bind_parameter_name(struct graphdb_stmt_t *stmt,
+                                        int index);
 
 /**
  * 获取参数数量
@@ -1358,6 +1696,10 @@ const char *graphdb_bind_parameter_name(struct graphdb_stmt_t *stmt, int index);
  *
  * # 返回
  * - 参数数量
+ *
+ * # Safety
+ * - `stmt` must be a valid statement handle created by `graphdb_prepare`
+ * - The statement must not have been finalized
  */
 int graphdb_bind_parameter_count(struct graphdb_stmt_t *stmt);
 
@@ -1371,6 +1713,12 @@ int graphdb_bind_parameter_count(struct graphdb_stmt_t *stmt);
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `txn` must be a valid pointer to store the transaction handle
+ * - The session must not have been closed
+ * - The caller is responsible for freeing the transaction using `graphdb_txn_free` when done
  */
 int graphdb_txn_begin(struct graphdb_session_t *session, struct graphdb_txn_t **txn);
 
@@ -1384,6 +1732,12 @@ int graphdb_txn_begin(struct graphdb_session_t *session, struct graphdb_txn_t **
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `session` must be a valid session handle created by `graphdb_session_create`
+ * - `txn` must be a valid pointer to store the transaction handle
+ * - The session must not have been closed
+ * - The caller is responsible for freeing the transaction using `graphdb_txn_free` when done
  */
 int graphdb_txn_begin_readonly(struct graphdb_session_t *session, struct graphdb_txn_t **txn);
 
@@ -1398,6 +1752,13 @@ int graphdb_txn_begin_readonly(struct graphdb_session_t *session, struct graphdb
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+ * - `query` must be a valid pointer to a null-terminated UTF-8 string
+ * - `result` must be a valid pointer to store the result handle
+ * - The transaction must not have been committed or rolled back
+ * - The caller is responsible for freeing the result using `graphdb_result_free` when done
  */
 int graphdb_txn_execute(struct graphdb_txn_t *txn,
                         const char *query,
@@ -1412,6 +1773,12 @@ int graphdb_txn_execute(struct graphdb_txn_t *txn,
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+ * - The transaction must not have been committed or rolled back already
+ * - The associated session must still be valid
+ * - After calling this function, the transaction handle should be freed using `graphdb_txn_free`
  */
 int graphdb_txn_commit(struct graphdb_txn_t *txn);
 
@@ -1424,6 +1791,12 @@ int graphdb_txn_commit(struct graphdb_txn_t *txn);
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+ * - The transaction must not have been committed or rolled back already
+ * - The associated session must still be valid
+ * - After calling this function, the transaction handle should be freed using `graphdb_txn_free`
  */
 int graphdb_txn_rollback(struct graphdb_txn_t *txn);
 
@@ -1437,8 +1810,14 @@ int graphdb_txn_rollback(struct graphdb_txn_t *txn);
  * # 返回
  * - 成功: 保存点 ID
  * - 失败: -1
+ *
+ * # Safety
+ * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+ * - `name` must be a valid pointer to a null-terminated UTF-8 string
+ * - The transaction must not have been committed or rolled back
  */
-int64_t graphdb_txn_savepoint(struct graphdb_txn_t *txn, const char *name);
+int64_t graphdb_txn_savepoint(struct graphdb_txn_t *txn,
+                              const char *name);
 
 /**
  * 释放保存点
@@ -1450,8 +1829,14 @@ int64_t graphdb_txn_savepoint(struct graphdb_txn_t *txn, const char *name);
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+ * - `savepoint_id` must be a valid savepoint ID returned by `graphdb_txn_savepoint`
+ * - The transaction must not have been committed or rolled back
  */
-int graphdb_txn_release_savepoint(struct graphdb_txn_t *txn, int64_t savepoint_id);
+int graphdb_txn_release_savepoint(struct graphdb_txn_t *txn,
+                                  int64_t savepoint_id);
 
 /**
  * 回滚到保存点
@@ -1463,8 +1848,14 @@ int graphdb_txn_release_savepoint(struct graphdb_txn_t *txn, int64_t savepoint_i
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+ * - `savepoint_id` must be a valid savepoint ID returned by `graphdb_txn_savepoint`
+ * - The transaction must not have been committed or rolled back
  */
-int graphdb_txn_rollback_to_savepoint(struct graphdb_txn_t *txn, int64_t savepoint_id);
+int graphdb_txn_rollback_to_savepoint(struct graphdb_txn_t *txn,
+                                      int64_t savepoint_id);
 
 /**
  * 释放事务句柄
@@ -1475,5 +1866,11 @@ int graphdb_txn_rollback_to_savepoint(struct graphdb_txn_t *txn, int64_t savepoi
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
+ *
+ * # Safety
+ * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
+ * - After calling this function, the transaction handle becomes invalid and must not be used
+ * - If the transaction has not been committed or rolled back, it will be automatically rolled back
+ * - It is safe to call this function multiple times on the same handle (idempotent)
  */
 int graphdb_txn_free(struct graphdb_txn_t *txn);

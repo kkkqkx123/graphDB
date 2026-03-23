@@ -8,6 +8,12 @@ use crate::api::embedded::c_api::types::{
 use crate::core::Value;
 
 /// 将 C API 值类型转换为 Core Value
+///
+/// # Safety
+/// - `value` must be a valid pointer to a graphdb_value_t structure
+/// - If `value` contains string data, the string data pointer must be valid
+/// - The string data must be valid UTF-8
+/// - The caller is responsible for ensuring the memory pointed to by `value` remains valid during this function call
 pub unsafe fn graphdb_value_to_core(value: *const graphdb_value_t) -> Value {
     if value.is_null() {
         return Value::Null(crate::core::NullType::Null);

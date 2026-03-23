@@ -13,13 +13,14 @@ All instances of dynamic dispatch must be explicitly documented in the `dynamic.
 
 ## Language
 
-Always use **Simplified Chinese** in code, comments and docs. Using English in logging, error info.
+Always use **Simplified Chinese** in docs. Using English in code, comments, logging, error info.
 
 ## Project Overview
 
 This is a graph database project reimplemented in Rust, focusing on local single-node deployment scenarios. Unlike the original distributed NebulaGraph, this project removes distributed capabilities and significantly reduces external dependencies, aiming to provide a lightweight, high-performance graph database solution for personal use and small-scale applications.
 
 Key Features:
+
 - Single-node architecture, eliminating distributed complexity
 - Written in Rust, ensuring memory safety and concurrency safety
 - Minimal external dependencies, leveraging the Rust ecosystem
@@ -29,6 +30,7 @@ Key Features:
 ## Architecture-GraphDB
 
 The new codebase is organized into several main components:
+
 - `src` - Rust graphDB src director
 - `src/core` - core data structure and type definition
 - `src/storage` - storage engine
@@ -49,12 +51,13 @@ The new codebase is organized into several main components:
 
 The graphDB project utilises Cargo as its build system. To build the project:
 
-1. **Prerequisites**: 
+1. **Prerequisites**:
 
 - rustc: 1.88.0
 - cargo: 1.88.0
 
 2. **Build commands**:
+
    ```shell
    cd graphDB
    cargo build                 # Debug build (development)
@@ -65,9 +68,10 @@ The graphDB project utilises Cargo as its build system. To build the project:
 
 analyze_cargo is a cli tool that automatically runs `cargo test --lib`, categorizes the errors/warnings, and generates a detailed Markdown report.
 default output file is `cargo_errors_report.md` in pwd.
-Use it instead of `cargo test --lib` or `cargo check`. 
+Use it instead of `cargo test --lib` or `cargo check`.
 
 **Usage**
+
 ```shell
 analyze_cargo
 ```
@@ -94,20 +98,22 @@ analyze_cargo --filter-warnings
 The project includes a comprehensive test suite utilising Rust's standard testing framework:
 
 1. **Running tests**:
+
    ```shell
    cargo test # Run all tests
    cargo test --lib -- --nocapture # Run lib tests
    cargo test <test_name> # Run specific test(s) matching pattern
    cargo test --test <integration_test_file> # Run specific integration test
    ```
-It is not recommended to run all tests in one time. 
+
+   It is not recommended to run all tests in one time.
 
 2. **Test organization**:
    - Unit tests: Located in the same file as the code being tested, marked with `#[cfg(test)]`
    - Unit tests when original file is too large: Add individual test.rs, and add it to `mod.rs`
    - Integration tests: Located in the `tests/` directory
    - Benchmarks: Located in the `benches/` directory
-   
+
 ## Additional Notes
 
 - The project utilises Rust, employing the ownership system to ensure memory safety

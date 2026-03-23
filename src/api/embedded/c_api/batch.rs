@@ -178,9 +178,13 @@ impl GraphDbBatchHandle {
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 ///
-/// # 安全说明
-/// 创建的批量操作句柄持有会话指针，但不拥有会话的所有权。
-/// 调用者必须确保在批量操作句柄被释放之前不关闭会话。
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `batch_size` must be a positive integer (if <= 0, defaults to 100)
+/// - `batch` must be a valid pointer to store the batch handle
+/// - The created batch handle holds a session pointer but does not own the session
+/// - The caller must ensure the session is not closed before the batch handle is freed
+/// - The caller is responsible for freeing the batch handle using `graphdb_batch_inserter_free` when done
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_inserter_create(
     session: *mut graphdb_session_t,
@@ -224,6 +228,12 @@ pub unsafe extern "C" fn graphdb_batch_inserter_create(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
+/// - `tag_name` 必须是指向以 null 结尾的 UTF-8 字符串的有效指针
+/// - 如果 `properties` 不为 null,则必须指向至少 `prop_count` 个有效的 `graphdb_value_t` 元素
+/// - 调用者必须确保在调用此函数时,关联的会话仍然有效
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_add_vertex(
     batch: *mut graphdb_batch_t,
@@ -298,6 +308,12 @@ pub unsafe extern "C" fn graphdb_batch_add_vertex(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
+/// - `edge_type` 必须是指向以 null 结尾的 UTF-8 字符串的有效指针
+/// - 如果 `properties` 不为 null,则必须指向至少 `prop_count` 个有效的 `graphdb_value_t` 元素
+/// - 调用者必须确保在调用此函数时,关联的会话仍然有效
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_add_edge(
     batch: *mut graphdb_batch_t,
@@ -372,6 +388,11 @@ pub unsafe extern "C" fn graphdb_batch_add_edge(
 /// # 返回
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
+///
+/// # Safety
+/// - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
+/// - 调用者必须确保在调用此函数时,关联的会话仍然有效
+/// - 此函数会触发实际的数据库写入操作,可能涉及 I/O 操作
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_flush(batch: *mut graphdb_batch_t) -> c_int {
     if batch.is_null() {
@@ -405,6 +426,10 @@ pub unsafe extern "C" fn graphdb_batch_flush(batch: *mut graphdb_batch_t) -> c_i
 ///
 /// # 返回
 /// - 缓冲的顶点数量
+///
+/// # Safety
+/// - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
+/// - 调用者必须确保在调用此函数时,关联的会话仍然有效
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_buffered_vertices(batch: *mut graphdb_batch_t) -> c_int {
     if batch.is_null() {
@@ -423,11 +448,15 @@ pub unsafe extern "C" fn graphdb_batch_buffered_vertices(batch: *mut graphdb_bat
 
 /// 获取缓冲的边数量
 ///
-/// # 参数
-/// - `batch`: 批量操作句柄
+/// # Arguments
+/// - `batch`: Batch operation handle
 ///
-/// # 返回
-/// - 缓冲的边数量
+/// # Returns
+/// - Number of buffered edges
+///
+/// # Safety
+/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
+/// - Caller must ensure the associated session is still valid when calling this function
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_t) -> c_int {
     if batch.is_null() {
@@ -446,12 +475,17 @@ pub unsafe extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_
 
 /// 释放批量操作句柄
 ///
-/// # 参数
-/// - `batch`: 批量操作句柄
+/// # Arguments
+/// - `batch`: Batch operation handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `batch` must be a valid batch handle created by `graphdb_batch_inserter_create`
+/// - After calling this function, the batch handle becomes invalid and must not be used
+/// - This function does not close the associated session; the caller must close the session separately
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_batch_free(batch: *mut graphdb_batch_t) -> c_int {
     if batch.is_null() {

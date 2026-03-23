@@ -15,14 +15,20 @@ use std::ptr;
 
 /// 执行简单查询
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `query`: 查询语句（UTF-8 编码）
-/// - `result`: 输出参数，结果集句柄
+/// # Arguments
+/// - `session`: Session handle
+/// - `query`: Query statement (UTF-8 encoded)
+/// - `result`: Output parameter, result set handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `query` must be a valid pointer to a null-terminated UTF-8 string
+/// - `result` must be a valid pointer to store the result handle
+/// - The caller is responsible for freeing the result handle using `graphdb_result_free` when done
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_execute(
     session: *mut graphdb_session_t,
@@ -78,16 +84,23 @@ pub unsafe extern "C" fn graphdb_execute(
 
 /// 执行参数化查询
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `query`: 查询语句（UTF-8 编码）
-/// - `params`: 参数数组
-/// - `param_count`: 参数数量
-/// - `result`: 输出参数，结果集句柄
+/// # Arguments
+/// - `session`: Session handle
+/// - `query`: Query statement (UTF-8 encoded)
+/// - `params`: Parameter array
+/// - `param_count`: Number of parameters
+/// - `result`: Output parameter, result set handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Returns
+/// - Success: GRAPHDB_OK
+/// - Failure: Error code
+///
+/// # Safety
+/// - `session` must be a valid session handle created by `graphdb_session_create`
+/// - `query` must be a valid pointer to a null-terminated UTF-8 string
+/// - `result` must be a valid pointer to store the result handle
+/// - If `params` is not NULL, it must point to at least `param_count` valid `graphdb_value_t` elements
+/// - The caller is responsible for freeing the result handle using `graphdb_result_free` when done
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_execute_params(
     session: *mut graphdb_session_t,
