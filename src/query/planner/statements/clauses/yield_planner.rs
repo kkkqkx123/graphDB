@@ -9,6 +9,7 @@ use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEn
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -265,6 +266,7 @@ impl Default for YieldClausePlanner {
 mod tests {
     use super::*;
     use crate::core::Expression;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::query::parser::ast::{Span, YieldItem};
     use crate::query::planner::plan::core::nodes::StartNode;
     use crate::query::planner::plan::core::PlanNodeEnum;
@@ -282,7 +284,7 @@ mod tests {
         let expr = Expression::Variable("n".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
-        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+        let ctx_expr = ContextualExpression::new(id, ctx);
 
         let yield_stmt = Stmt::Yield(crate::query::parser::ast::stmt::YieldStmt {
             span: Span::default(),
@@ -312,7 +314,7 @@ mod tests {
         let expr = Expression::Variable("n".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
-        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+        let ctx_expr = ContextualExpression::new(id, ctx);
 
         let go_stmt = Stmt::Go(crate::query::parser::ast::stmt::GoStmt {
             span: Span::default(),
@@ -357,7 +359,7 @@ mod tests {
         let expr = Expression::Variable("n".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
-        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+        let ctx_expr = ContextualExpression::new(id, ctx);
 
         let items = vec![YieldItem {
             expression: ctx_expr.clone(),
@@ -396,7 +398,7 @@ mod tests {
         let expr = Expression::Variable("n".to_string());
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
-        let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
+        let ctx_expr = ContextualExpression::new(id, ctx);
 
         let yield_stmt = Stmt::Yield(crate::query::parser::ast::stmt::YieldStmt {
             span: Span::default(),

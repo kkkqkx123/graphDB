@@ -30,9 +30,9 @@
 
 use std::sync::Arc;
 
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::visitor_checkers::AggregateFunctionChecker;
 use crate::core::types::operators::AggregateFunction;
-use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
@@ -274,6 +274,7 @@ impl PushDownRule for PushFilterDownAggregateRule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 
     #[test]

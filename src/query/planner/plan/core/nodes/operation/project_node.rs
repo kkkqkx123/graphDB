@@ -5,8 +5,6 @@
 use std::sync::Arc;
 
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::Expression;
-use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::SerializableExpression;
 use crate::core::YieldColumn;
 use crate::define_plan_node_with_deps;

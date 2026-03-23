@@ -51,6 +51,7 @@ mod tests {
     use crate::query::planner::plan::core::nodes::StartNode;
     use crate::query::planner::plan::core::PlanNodeEnum;
     use crate::query::query_request_context::QueryRequestContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::collections::HashMap;
 
     #[derive(Debug)]

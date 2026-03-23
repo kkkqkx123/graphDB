@@ -3,6 +3,7 @@
 //! 提供计划节点的模式匹配功能，用于重写规则识别特定计划结构。
 //! 这是从 optimizer 层独立出来的简化版本，专注于启发式重写规则的需求。
 
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::query::planner::plan::PlanNodeEnum;
 
 /// 生成节点匹配方法的宏
@@ -293,6 +294,7 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::core::Value;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
     use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
     use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;

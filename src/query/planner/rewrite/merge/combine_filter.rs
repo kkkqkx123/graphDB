@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use crate::core::types::ContextualExpression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
@@ -155,6 +155,7 @@ impl MergeRule for CombineFilterRule {
 mod tests {
     use super::*;
     use crate::core::Expression;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 
     #[test]
