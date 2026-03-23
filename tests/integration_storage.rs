@@ -23,7 +23,7 @@ use std::sync::Arc;
 // 辅助函数：获取可变存储
 fn get_storage(
     storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>,
-) -> parking_lot::MutexGuard<graphdb::storage::redb_storage::RedbStorage> {
+) -> parking_lot::MutexGuard<'_, graphdb::storage::redb_storage::RedbStorage> {
     storage.lock()
 }
 
@@ -391,7 +391,7 @@ fn test_storage_vertex_batch_insert() {
 
     // 批量插入顶点
     let vertices: Vec<Vertex> = (1..=10)
-        .map(|i| create_simple_vertex(i, "Person", &format!("User{}", i), 20 + i as i64))
+        .map(|i| create_simple_vertex(i, "Person", &format!("User{}", i), 20 + i))
         .collect();
 
     let result = get_storage(&storage).batch_insert_vertices("vertex_batch_space", vertices);

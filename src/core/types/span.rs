@@ -38,8 +38,8 @@ impl Position {
         }
 
         let mut offset = 0;
-        for i in 0..self.line - 1 {
-            offset += line_lengths[i] + 1;
+        for length in line_lengths.iter().take(self.line - 1) {
+            offset += length + 1;
         }
         offset += self.column.saturating_sub(1);
 

@@ -845,7 +845,7 @@ fn test_basic_context_variables() {
 
 #[test]
 fn test_basic_context_functions() {
-    let ctx = DefaultExpressionContext::new();
+    let _ctx = DefaultExpressionContext::new();
 
     // 通过全局注册表测试函数存在性和执行
     let registry = FunctionRegistry::new();

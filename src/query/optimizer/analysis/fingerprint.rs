@@ -45,6 +45,12 @@ impl PlanFingerprint {
 #[derive(Debug, Clone)]
 pub struct FingerprintCalculator;
 
+impl Default for FingerprintCalculator {
+    fn default() -> Self {
+        Self
+    }
+}
+
 impl FingerprintCalculator {
     /// 创建新的指纹计算器
     pub fn new() -> Self {

@@ -11,15 +11,9 @@
 
 mod common;
 
-use common::{
-    assertions::{assert_count, assert_err_with, assert_ok},
-    data_fixtures::{create_edge, create_simple_vertex, social_network_dataset},
-    storage_helpers::{create_test_space, knows_edge_type_info, person_tag_info},
-    TestStorage,
-};
+use common::TestStorage;
 
 use graphdb::core::stats::StatsManager;
-use graphdb::core::Value;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
@@ -850,12 +844,10 @@ fn test_dml_crud_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = vec![
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)",
+    let queries = ["INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)",
         "UPDATE 1 SET age = 31",
         "FETCH PROP ON Person 1",
-        "DELETE VERTEX 1",
-    ];
+        "DELETE VERTEX 1"];
 
     for (i, query) in queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -876,12 +868,10 @@ fn test_dml_batch_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let batch_queries = vec![
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)",
+    let batch_queries = ["INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)",
         "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 2 -> 3:('2021-01-01')",
         "UPDATE 1 SET age = 31, name = 'Alice Smith'",
-        "DELETE VERTEX 1, 2, 3",
-    ];
+        "DELETE VERTEX 1, 2, 3"];
 
     for (i, query) in batch_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -927,12 +917,10 @@ fn test_dml_transaction_like_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let transaction_queries = vec![
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)",
+    let transaction_queries = ["INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)",
         "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')",
         "UPDATE 1 SET age = 31",
-        "FETCH PROP ON Person 1",
-    ];
+        "FETCH PROP ON Person 1"];
 
     for (i, query) in transaction_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -1080,12 +1068,10 @@ fn test_dml_with_index_optimization() {
         let _ = pipeline_manager.execute_query(query);
     }
 
-    let dml_queries = vec![
-        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)",
+    let dml_queries = ["INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)",
         "UPDATE 1 SET age = 31",
         "LOOKUP ON Person WHERE Person.age > 25 YIELD Person.name, Person.age LIMIT 2",
-        "DELETE VERTEX 3",
-    ];
+        "DELETE VERTEX 3"];
 
     for (i, query) in dml_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);

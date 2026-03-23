@@ -948,11 +948,7 @@ impl<S: StorageClient> TopNExecutor<S> {
 
             // 处理 NULL 值排序
             let adjusted_value = if value.is_null() {
-                if sort_col.nulls_first {
-                    Value::Null(crate::core::value::NullType::Null)
-                } else {
-                    Value::Null(crate::core::value::NullType::Null)
-                }
+                Value::Null(crate::core::value::NullType::Null)
             } else {
                 value.clone()
             };
@@ -1135,7 +1131,7 @@ impl Eq for TopNItemParallel {}
 
 impl PartialOrd for TopNItemParallel {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.sort_value.partial_cmp(&other.sort_value)
+        Some(self.cmp(other))
     }
 }
 
@@ -1354,7 +1350,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
         // 创建测试数据
-        let values: Vec<Value> = (1..=10).map(|i| Value::Int(i)).collect();
+        let values: Vec<Value> = (1..=10).map(Value::Int).collect();
 
         // 创建 TopN 执行器 (取3-5名，按数值升序)
         let mut executor =

@@ -182,13 +182,10 @@ impl GroupAggregateState {
         }
 
         // 合并 MAX
-        if !source.result().is_null() && !source.result().is_empty() {
-            if target.result().is_null() || target.result().is_empty() {
-                target.set_result(source.result().clone());
-            } else if source.result() > target.result() {
+        if !source.result().is_null() && !source.result().is_empty()
+            && (target.result().is_null() || target.result().is_empty() || source.result() > target.result()) {
                 target.set_result(source.result().clone());
             }
-        }
 
         // 合并去重集合
         if let Some(source_uniques) = source.uniques() {

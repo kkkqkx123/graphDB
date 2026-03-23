@@ -550,10 +550,8 @@ impl ExpressionParser {
                         num
                     } else if *op == "<=" {
                         num
-                    } else if *op == ">" {
+                    } else if *op == ">" || *op == ">=" {
                         // 无法确定起始值，使用保守估计
-                        num + 10
-                    } else if *op == ">=" {
                         num + 10
                     } else {
                         num

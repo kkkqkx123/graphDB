@@ -19,7 +19,7 @@ use graphdb::api::server::session::{
 };
 use graphdb::config::Config;
 use graphdb::core::{MetricType, QueryMetrics, RoleType, StatsManager};
-use graphdb::storage::{DefaultStorage, RedbStorage};
+use graphdb::storage::DefaultStorage;
 
 // ==================== 会话管理测试 ====================
 
@@ -972,7 +972,7 @@ async fn test_concurrent_session_operations() {
 #[test]
 fn test_query_manager_concurrent_operations() {
     use std::thread;
-    use std::time::Duration;
+    
 
     let query_manager = Arc::new(QueryManager::new());
     let mut handles = vec![];

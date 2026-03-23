@@ -97,7 +97,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             execution_time_ms: 0,
             max_depth_reached: 0,
             single_shortest: false,
-            limit: std::usize::MAX,
+            limit: usize::MAX,
         }
     }
 

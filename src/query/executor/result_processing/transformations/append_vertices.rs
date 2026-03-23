@@ -231,11 +231,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                 properties: std::collections::HashMap::new(),
             };
 
-            if !self.track_prev_path {
-                dataset.rows.push(vec![Value::Vertex(Box::new(vertex))]);
-            } else {
-                dataset.rows.push(vec![Value::Vertex(Box::new(vertex))]);
-            }
+            dataset.rows.push(vec![Value::Vertex(Box::new(vertex))]);
         }
 
         Ok(dataset)
@@ -307,11 +303,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                 }
             }
 
-            if !self.track_prev_path {
-                dataset.rows.push(vec![vertex_value]);
-            } else {
-                dataset.rows.push(vec![vertex_value]);
-            }
+            dataset.rows.push(vec![vertex_value]);
         }
 
         Ok(dataset)

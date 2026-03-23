@@ -336,7 +336,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
         // 创建测试数据
-        let values: Vec<Value> = (1..=10).map(|i| Value::Int(i)).collect();
+        let values: Vec<Value> = (1..=10).map(Value::Int).collect();
 
         // 创建限制执行器 (仅 LIMIT 3)
         let mut executor = LimitExecutor::with_limit(1, storage, 3);

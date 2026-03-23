@@ -823,7 +823,7 @@ fn test_rand_function() {
     assert!(result.is_ok());
 
     if let Value::Float(val) = result.expect("rand函数应该成功") {
-        assert!(val >= 0.0 && val < 1.0);
+        assert!((0.0..1.0).contains(&val));
     } else {
         panic!("期望返回浮点类型");
     }
@@ -842,7 +842,7 @@ fn test_rand32_function() {
     let result = registry.execute("rand32", &[Value::Int(100)]);
     assert!(result.is_ok());
     if let Value::Int(val) = result.expect("rand32函数应该成功") {
-        assert!(val >= 0 && val < 100);
+        assert!((0..100).contains(&val));
     } else {
         panic!("期望返回整数类型");
     }
@@ -851,7 +851,7 @@ fn test_rand32_function() {
     let result = registry.execute("rand32", &[Value::Int(10), Value::Int(20)]);
     assert!(result.is_ok());
     if let Value::Int(val) = result.expect("rand32函数应该成功") {
-        assert!(val >= 10 && val < 20);
+        assert!((10..20).contains(&val));
     } else {
         panic!("期望返回整数类型");
     }

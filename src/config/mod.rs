@@ -331,8 +331,8 @@ mod tests {
         assert_eq!(config.database.host, "127.0.0.1");
         assert_eq!(config.database.port, 9758);
         assert_eq!(config.log.level, "info");
-        assert_eq!(config.auth.enable_authorize, true);
-        assert_eq!(config.bootstrap.auto_create_default_space, true);
+        assert!(config.auth.enable_authorize);
+        assert!(config.bootstrap.auto_create_default_space);
         assert_eq!(config.optimizer.max_iteration_rounds, 5);
     }
 
@@ -414,11 +414,11 @@ enabled_rules = ["RemoveUselessNodeRule"]
         assert_eq!(config.transaction.default_timeout, 60);
         assert_eq!(config.transaction.max_concurrent_transactions, 500);
         assert_eq!(config.log.level, "debug");
-        assert_eq!(config.auth.enable_authorize, false);
+        assert!(!config.auth.enable_authorize);
         assert_eq!(config.auth.default_username, "admin");
-        assert_eq!(config.bootstrap.single_user_mode, true);
+        assert!(config.bootstrap.single_user_mode);
         assert_eq!(config.optimizer.max_iteration_rounds, 10);
-        assert_eq!(config.optimizer.enable_cost_model, false);
+        assert!(!config.optimizer.enable_cost_model);
         assert_eq!(config.optimizer.rules.disabled_rules.len(), 2);
         assert_eq!(config.optimizer.rules.enabled_rules.len(), 1);
     }

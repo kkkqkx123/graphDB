@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 fn get_storage(
     storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>,
-) -> parking_lot::MutexGuard<graphdb::storage::redb_storage::RedbStorage> {
+) -> parking_lot::MutexGuard<'_, graphdb::storage::redb_storage::RedbStorage> {
     storage.lock()
 }
 

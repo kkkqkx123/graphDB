@@ -623,7 +623,7 @@ fn test_expression_analysis_clone() {
 
     let analysis_clone = analysis.clone();
 
-    assert_eq!(analysis_clone.is_deterministic, false);
+    assert!(!analysis_clone.is_deterministic);
     assert_eq!(analysis_clone.complexity_score, 50);
 }
 

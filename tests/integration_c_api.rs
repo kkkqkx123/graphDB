@@ -602,10 +602,10 @@ fn test_c_api_full_workflow() {
     txn.commit();
 
     // 准备语句
-    let stmt = CApiTestStatement::from_session(&session, "SHOW SPACES");
+    let _stmt = CApiTestStatement::from_session(&session, "SHOW SPACES");
 
     // 创建批量插入器
-    let batch = CApiTestBatch::from_session(&session, 100);
+    let _batch = CApiTestBatch::from_session(&session, 100);
 
     // 所有资源会在 Drop 时自动清理
 }

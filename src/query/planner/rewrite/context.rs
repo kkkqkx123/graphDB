@@ -48,15 +48,21 @@ impl PlanNodeWrapper {
     }
 }
 
-impl RewriteContext {
-    /// 创建新的重写上下文（使用默认的 ExpressionContext）
-    pub fn new() -> Self {
+impl Default for RewriteContext {
+    fn default() -> Self {
         Self {
             node_id_counter: 0,
             plan_node_to_id: RefCell::new(HashMap::new()),
             nodes_by_id: RefCell::new(HashMap::new()),
             expr_context: Arc::new(ExpressionAnalysisContext::new()),
         }
+    }
+}
+
+impl RewriteContext {
+    /// 创建新的重写上下文（使用默认的 ExpressionContext）
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// 创建新的重写上下文（使用指定的 ExpressionContext）

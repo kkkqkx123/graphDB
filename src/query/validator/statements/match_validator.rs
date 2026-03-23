@@ -886,9 +886,8 @@ mod tests {
     fn test_has_aggregate_expression() {
         let validator = MatchValidator::new();
         let non_agg_expression = create_contextual_expr(Expression::Literal(Value::Int(1)));
-        assert_eq!(
-            validator.has_aggregate_expression(&non_agg_expression),
-            false
+        assert!(
+            !validator.has_aggregate_expression(&non_agg_expression)
         );
 
         // 测试有聚合函数的表达式
@@ -897,7 +896,7 @@ mod tests {
             arg: Box::new(Expression::Variable("n".to_string())),
             distinct: false,
         });
-        assert_eq!(validator.has_aggregate_expression(&agg_expression), true);
+        assert!(validator.has_aggregate_expression(&agg_expression));
     }
 
     #[test]

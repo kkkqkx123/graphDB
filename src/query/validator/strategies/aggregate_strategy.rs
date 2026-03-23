@@ -296,9 +296,8 @@ mod tests {
         let non_agg_meta = ExpressionMeta::new(non_agg_expr);
         let non_agg_id = expr_ctx.register_expression(non_agg_meta);
         let non_agg_expression = ContextualExpression::new(non_agg_id, expr_ctx.clone());
-        assert_eq!(
-            strategy.has_aggregate_expression(&non_agg_expression),
-            false
+        assert!(
+            !strategy.has_aggregate_expression(&non_agg_expression)
         );
 
         let binary_expr = Expression::Binary {
@@ -309,7 +308,7 @@ mod tests {
         let binary_meta = ExpressionMeta::new(binary_expr);
         let binary_id = expr_ctx.register_expression(binary_meta);
         let binary_expression = ContextualExpression::new(binary_id, expr_ctx);
-        assert_eq!(strategy.has_aggregate_expression(&binary_expression), false);
+        assert!(!strategy.has_aggregate_expression(&binary_expression));
     }
 
     #[test]
@@ -349,7 +348,7 @@ mod tests {
         let nested_id = expr_ctx.register_expression(nested_meta);
         let nested_expression = ContextualExpression::new(nested_id, expr_ctx);
 
-        assert_eq!(strategy.has_aggregate_expression(&nested_expression), false);
+        assert!(!strategy.has_aggregate_expression(&nested_expression));
     }
 
     #[test]

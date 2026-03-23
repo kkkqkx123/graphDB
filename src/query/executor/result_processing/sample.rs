@@ -505,7 +505,7 @@ mod tests {
 
         // 创建测试数据
         let values: Vec<crate::core::Value> =
-            (1..=100).map(|i| crate::core::Value::Int(i)).collect();
+            (1..=100).map(crate::core::Value::Int).collect();
 
         // 创建采样执行器 (随机采样10个值，使用固定种子保证可重现)
         let mut executor = SampleExecutor::new(1, storage, SampleMethod::Random, 10, Some(42));
@@ -545,7 +545,7 @@ mod tests {
 
         // 创建测试数据
         let values: Vec<crate::core::Value> =
-            (1..=100).map(|i| crate::core::Value::Int(i)).collect();
+            (1..=100).map(crate::core::Value::Int).collect();
 
         // 创建采样执行器 (蓄水池采样5个值)
         let mut executor = SampleExecutor::new(1, storage, SampleMethod::Reservoir, 5, Some(123));

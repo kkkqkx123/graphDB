@@ -488,7 +488,7 @@ mod tests {
             limit: None,
         };
 
-        assert!(strategy.validate_yield_clause(&mut yield_context).is_ok());
+        assert!(strategy.validate_yield_clause(&yield_context).is_ok());
     }
 
     #[test]

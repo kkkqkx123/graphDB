@@ -196,7 +196,7 @@ impl FunctionEvaluator {
                     return Ok(Value::Null(crate::core::NullType::NaN));
                 }
 
-                let mut result = std::i64::MAX;
+                let mut result = i64::MAX;
                 for value in values {
                     match value {
                         Value::Int(v) => result &= v,

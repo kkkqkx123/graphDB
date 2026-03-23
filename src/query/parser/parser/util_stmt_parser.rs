@@ -209,11 +209,8 @@ impl UtilStmtParser {
 
         let target = if ctx.match_token(TokenKind::On) {
             let name = ctx.expect_identifier()?;
-            if ctx.match_token(TokenKind::Tag) {
-                LookupTarget::Tag(name)
-            } else {
-                LookupTarget::Tag(name)
-            }
+            ctx.match_token(TokenKind::Tag); // 消费 TokenKind::Tag 标记
+            LookupTarget::Tag(name)
         } else {
             LookupTarget::Tag(String::new())
         };

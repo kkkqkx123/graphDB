@@ -393,9 +393,8 @@ impl TraversalDirectionOptimizer {
                     TraversalDirection::Backward
                 } else if s.avg_in_degree > self.super_node_threshold
                     && s.avg_out_degree <= self.super_node_threshold
+                    || s.avg_out_degree <= s.avg_in_degree
                 {
-                    TraversalDirection::Forward
-                } else if s.avg_out_degree <= s.avg_in_degree {
                     TraversalDirection::Forward
                 } else {
                     TraversalDirection::Backward

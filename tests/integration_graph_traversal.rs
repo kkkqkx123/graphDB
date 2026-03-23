@@ -22,7 +22,7 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-fn get_storage(storage: &Arc<Mutex<RedbStorage>>) -> parking_lot::MutexGuard<RedbStorage> {
+fn get_storage(storage: &Arc<Mutex<RedbStorage>>) -> parking_lot::MutexGuard<'_, RedbStorage> {
     storage.lock()
 }
 

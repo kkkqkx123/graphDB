@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_histogram_from_samples() {
-        let samples: Vec<Value> = (1..=100).map(|i| Value::Int(i)).collect();
+        let samples: Vec<Value> = (1..=100).map(Value::Int).collect();
         let hist = Histogram::from_samples(samples, 10, 100);
 
         assert_eq!(hist.bucket_count(), 10);
@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_estimate_equality_selectivity() {
-        let samples: Vec<Value> = (1..=100).map(|i| Value::Int(i)).collect();
+        let samples: Vec<Value> = (1..=100).map(Value::Int).collect();
         let hist = Histogram::from_samples(samples, 10, 100);
 
         // 对于均匀分布的数据，选择性应该接近 1/100 = 0.01
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_estimate_range_selectivity() {
-        let samples: Vec<Value> = (1..=100).map(|i| Value::Int(i)).collect();
+        let samples: Vec<Value> = (1..=100).map(Value::Int).collect();
         let hist = Histogram::from_samples(samples, 10, 100);
 
         // 估计小于50的选择性，应该接近 0.5
@@ -333,7 +333,7 @@ mod tests {
 
     #[test]
     fn test_null_handling() {
-        let mut samples: Vec<Value> = (1..=90).map(|i| Value::Int(i)).collect();
+        let mut samples: Vec<Value> = (1..=90).map(Value::Int).collect();
         // 添加10个空值
         for _ in 0..10 {
             samples.push(Value::Null(crate::core::value::NullType::Null));

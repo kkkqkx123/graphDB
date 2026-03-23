@@ -465,7 +465,7 @@ fn test_log_level_validation() {
 #[test]
 fn test_log_timestamp_format() {
     use flexi_logger::{
-        Cleanup, Criterion, DeferredNow, FileSpec, Logger, Naming, WriteMode,
+        DeferredNow, FileSpec, Logger, WriteMode,
         TS_DASHES_BLANK_COLONS_DOT_BLANK,
     };
 

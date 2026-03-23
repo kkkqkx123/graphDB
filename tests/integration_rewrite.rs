@@ -10,18 +10,9 @@ mod common;
 
 use graphdb::query::planner::rewrite::rule::RewriteRule;
 use graphdb::query::planner::rewrite::{
-    create_default_rewriter, CollapseConsecutiveProjectRule, CollapseProjectRule,
-    CombineFilterRule, DedupEliminationRule, EliminateAppendVerticesRule,
-    EliminateEmptySetOperationRule, EliminateFilterRule, EliminateRowCollectRule,
-    EliminateSortRule, MergeGetNbrsAndDedupRule, MergeGetNbrsAndProjectRule,
-    MergeGetVerticesAndDedupRule, MergeGetVerticesAndProjectRule, PlanRewriter,
-    ProjectionPushDownRule, PushEFilterDownRule, PushFilterDownAggregateRule,
-    PushFilterDownAllPathsRule, PushFilterDownCrossJoinRule, PushFilterDownExpandAllRule,
-    PushFilterDownGetNbrsRule, PushFilterDownHashInnerJoinRule, PushFilterDownHashLeftJoinRule,
-    PushFilterDownInnerJoinRule, PushFilterDownNodeRule, PushFilterDownTraverseRule,
-    PushLimitDownGetEdgesRule, PushLimitDownGetVerticesRule, PushLimitDownIndexScanRule,
-    PushLimitDownScanEdgesRule, PushLimitDownScanVerticesRule, PushProjectDownRule,
-    PushTopNDownIndexScanRule, PushVFilterDownScanVerticesRule, RemoveAppendVerticesBelowJoinRule,
+    create_default_rewriter,
+    CombineFilterRule, EliminateFilterRule, PlanRewriter,
+    ProjectionPushDownRule, PushFilterDownAggregateRule, PushFilterDownTraverseRule, PushLimitDownGetVerticesRule,
     RemoveNoopProjectRule, RewriteRuleEnum, RuleRegistry,
 };
 
