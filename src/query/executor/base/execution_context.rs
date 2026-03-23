@@ -7,7 +7,6 @@ use std::sync::Arc;
 
 use super::execution_result::ExecutionResult;
 use crate::core::Value;
-use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::functions::global_registry_ref;
 use crate::query::executor::expression::functions::FunctionRef;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -72,7 +71,9 @@ impl Default for ExecutionContext {
     }
 }
 
-impl ExpressionContext for ExecutionContext {
+impl crate::query::executor::expression::evaluator::traits::ExpressionContext
+    for ExecutionContext
+{
     fn get_variable(&self, name: &str) -> Option<Value> {
         self.variables.get(name).cloned()
     }

@@ -560,7 +560,7 @@ mod tests {
     use super::*;
     use crate::query::parser::parser::parse_context::ParseContext;
 
-    fn create_parser_context(input: &str) -> ParseContext {
+    fn create_parser_context<'a>(input: &'a str) -> ParseContext<'a> {
         ParseContext::new(input)
     }
 

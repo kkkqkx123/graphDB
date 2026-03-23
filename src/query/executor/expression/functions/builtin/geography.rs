@@ -4,8 +4,6 @@ use crate::core::error::ExpressionError;
 use crate::core::value::geography::GeographyValue;
 use crate::core::value::NullType;
 use crate::core::Value;
-use crate::define_binary_geography_fn;
-use crate::define_function_enum;
 
 define_function_enum! {
     /// 地理空间函数枚举

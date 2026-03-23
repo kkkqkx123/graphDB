@@ -210,7 +210,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # 返回
     /// - 成功时返回事务句柄
     /// - 失败时返回错误
-    pub fn begin_transaction(&self) -> CoreResult<Transaction<S>> {
+    pub fn begin_transaction(&self) -> CoreResult<Transaction<'_, S>> {
         let options = TransactionOptions::default();
         let txn_id = self.db.txn_manager
             .begin_transaction(options)
@@ -251,7 +251,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     pub fn begin_transaction_with_config(
         &self,
         config: TransactionConfig,
-    ) -> CoreResult<Transaction<S>> {
+    ) -> CoreResult<Transaction<'_, S>> {
         let options = config.into_options();
         let txn_id = self.db.txn_manager
             .begin_transaction(options)
@@ -271,7 +271,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// - 失败时返回错误
     pub fn with_transaction<F, T>(&self, f: F) -> CoreResult<T>
     where
-        F: FnOnce(&Transaction<S>) -> CoreResult<T>,
+        F: FnOnce(&Transaction<'_, S>) -> CoreResult<T>,
     {
         let txn = self.begin_transaction()?;
 

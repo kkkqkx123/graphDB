@@ -3,7 +3,6 @@
 use crate::core::error::ExpressionError;
 use crate::core::value::NullType;
 use crate::core::Value;
-use crate::define_function_enum;
 
 define_function_enum! {
     /// 类型转换函数枚举

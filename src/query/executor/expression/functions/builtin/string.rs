@@ -3,9 +3,6 @@
 use crate::core::error::ExpressionError;
 use crate::core::value::NullType;
 use crate::core::Value;
-use crate::define_binary_string_bool_fn;
-use crate::define_function_enum;
-use crate::define_unary_string_fn;
 
 define_function_enum! {
     /// 字符串函数枚举

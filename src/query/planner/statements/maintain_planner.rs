@@ -78,7 +78,7 @@ impl Planner for MaintainPlanner {
                         .clone()
                         .unwrap_or_default();
 
-                    let mut index_info = IndexManageInfo::new(
+                    let index_info = IndexManageInfo::new(
                         space_name.clone(),
                         name.clone(),
                         match index_type {

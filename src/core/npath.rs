@@ -287,17 +287,17 @@ impl NPath {
     }
 
     /// 迭代器：从起点到当前节点的所有顶点
-    pub fn iter_vertices(&self) -> NPathVertexIter {
+    pub fn iter_vertices(&self) -> NPathVertexIter<'_> {
         NPathVertexIter::new(self)
     }
 
     /// 迭代器：从起点到当前节点的所有边
-    pub fn iter_edges(&self) -> NPathEdgeIter {
+    pub fn iter_edges(&self) -> NPathEdgeIter<'_> {
         NPathEdgeIter::new(self)
     }
 
     /// 迭代器：从起点到当前节点的所有节点
-    pub fn iter(&self) -> NPathIter {
+    pub fn iter(&self) -> NPathIter<'_> {
         NPathIter::new(self)
     }
 

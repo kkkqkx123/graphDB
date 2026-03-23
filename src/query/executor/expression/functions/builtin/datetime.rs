@@ -3,8 +3,6 @@
 use crate::core::error::ExpressionError;
 use crate::core::value::{DateTimeValue, DateValue, NullType, TimeValue};
 use crate::core::Value;
-use crate::define_datetime_extractor;
-use crate::define_function_enum;
 use chrono::{Datelike, Timelike};
 
 define_function_enum! {
