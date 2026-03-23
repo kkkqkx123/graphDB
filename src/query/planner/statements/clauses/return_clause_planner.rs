@@ -125,11 +125,12 @@ impl ClausePlanner for ReturnClausePlanner {
 mod tests {
     use super::*;
     use crate::core::Expression;
+    use crate::core::types::expression::contextual::ContextualExpression;
     use crate::query::parser::ast::Span;
     use crate::query::planner::plan::core::nodes::StartNode;
     use crate::query::planner::plan::core::PlanNodeEnum;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
-    use ExpressionAnalysisContext;
 
     #[test]
     fn test_return_clause_planner_creation() {

@@ -621,8 +621,8 @@ mod tests {
     use crate::core::types::expression::contextual::ContextualExpression;
     use crate::core::types::expression::Expression;
     use crate::core::types::expression::ExpressionMeta;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
-    use ExpressionAnalysisContext;
 
     #[test]
     fn test_deduce_literal_type() {

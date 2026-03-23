@@ -171,7 +171,7 @@ mod tests {
     fn test_can_push_down() {
         let rule = PushFilterDownGetNbrsRule::new();
         use std::sync::Arc;
-        use ExpressionAnalysisContext;
+        use crate::query::validator::context::ExpressionAnalysisContext;
 
         let start = StartNode::new();
         let start_enum = PlanNodeEnum::Start(start);

@@ -12,6 +12,9 @@
 //! - 两个 Project 节点连续出现
 //! - 上层 Project 不依赖下层 Project 的别名解析
 
+use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
 use crate::core::YieldColumn;
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
@@ -177,8 +180,8 @@ mod tests {
     #[test]
     fn test_collapse_consecutive_projects() {
         use crate::core::types::expression::ExpressionMeta;
+        use crate::query::validator::context::ExpressionAnalysisContext;
         use std::sync::Arc;
-        use ExpressionAnalysisContext;
 
         // 创建起始节点
         let start = PlanNodeEnum::Start(StartNode::new());

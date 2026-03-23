@@ -137,8 +137,8 @@ mod tests {
     use super::*;
     use crate::core::types::expression::{ContextualExpression, ExpressionMeta};
     use crate::core::{Expression, Value};
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
-    use ExpressionAnalysisContext;
 
     // 辅助函数：创建常量表达式
     fn lit(val: Value) -> ContextualExpression {

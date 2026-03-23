@@ -94,8 +94,8 @@ mod tests {
     use crate::query::parser::ast::{OrderByItem, Span};
     use crate::query::planner::plan::core::nodes::StartNode;
     use crate::query::planner::plan::core::PlanNodeEnum;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
-    use ExpressionAnalysisContext;
 
     #[test]
     fn test_order_by_clause_planner_creation() {

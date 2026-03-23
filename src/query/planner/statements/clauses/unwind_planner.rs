@@ -78,8 +78,8 @@ mod tests {
     fn test_extract_unwind_info() {
         use crate::core::Expression;
         use crate::query::parser::ast::Span;
+        use crate::query::validator::context::ExpressionAnalysisContext;
         use std::sync::Arc;
-        use ExpressionAnalysisContext;
 
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::List(vec![]);

@@ -454,8 +454,8 @@ mod tests {
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
     use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
-    use ExpressionAnalysisContext;
 
     #[test]
     fn test_child_rewrite_visitor_single_input() {

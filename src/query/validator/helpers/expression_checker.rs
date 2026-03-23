@@ -3,6 +3,7 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::DataType;
 use std::collections::HashSet;
 
@@ -558,7 +559,8 @@ mod tests {
     use crate::core::types::expression::Expression;
     use crate::core::types::expression::ExpressionMeta;
     use crate::core::Value;
-    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
+    use crate::query::validator::context::ExpressionAnalysisContext;
+    use std::sync::Arc;
 
     #[test]
     fn test_expression_checker_creation() {

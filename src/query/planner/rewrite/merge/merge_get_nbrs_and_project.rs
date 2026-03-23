@@ -1,6 +1,9 @@
 //! 合并获取邻居和投影操作的规则
 
 use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::YieldColumn;
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
@@ -152,8 +155,8 @@ mod tests {
     #[test]
     fn test_merge_get_nbrs_and_project() {
         use crate::core::types::expression::ExpressionMeta;
+        use crate::query::validator::context::ExpressionAnalysisContext;
         use std::sync::Arc;
-        use ExpressionAnalysisContext;
 
         // 创建起始节点
         let start = PlanNodeEnum::Start(StartNode::new());

@@ -3,6 +3,7 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::DataType;
 use std::collections::HashSet;
 

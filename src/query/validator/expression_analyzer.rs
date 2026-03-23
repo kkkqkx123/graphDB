@@ -11,6 +11,8 @@
 //! - 支持增量分析
 
 
+use std::sync::Arc;
+
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::types::DataType;
