@@ -10,7 +10,7 @@
 mod common;
 
 use common::TestStorage;
-use graphdb::core::types::ExpressionAnalysisContext;
+use graphdb::query::validator::context::ExpressionAnalysisContext;
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Edge, Path, Step, Value, Vertex};
 use graphdb::query::executor::base::{EdgeDirection as ExecEdgeDirection, Executor};
@@ -585,7 +585,7 @@ fn test_weighted_path_query_parser_integration() {
     );
 
     let stmt = result.expect("解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "FIND PATH");
+    assert_eq!(stmt.ast.stmt.kind(), "FIND PATH");
 }
 
 #[test]

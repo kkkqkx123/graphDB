@@ -690,9 +690,6 @@ fn create_test_config() -> Config {
         transaction: graphdb::config::TransactionConfig {
             default_timeout: 30,
             max_concurrent_transactions: 1000,
-            enable_2pc: false,
-            auto_cleanup: true,
-            cleanup_interval: 10,
         },
         log: graphdb::config::LogConfig {
             level: "info".to_string(),

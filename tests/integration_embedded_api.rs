@@ -276,7 +276,6 @@ fn test_transaction_config_default() {
         config.durability,
         graphdb::transaction::DurabilityLevel::Immediate
     );
-    assert!(!config.two_phase_commit);
 }
 
 #[test]
@@ -284,8 +283,7 @@ fn test_transaction_config_builder() {
     let config = TransactionConfig::new()
         .read_only()
         .with_timeout(Duration::from_secs(60))
-        .with_durability(graphdb::transaction::DurabilityLevel::None)
-        .with_two_phase_commit();
+        .with_durability(graphdb::transaction::DurabilityLevel::None);
 
     assert!(config.read_only);
     assert_eq!(config.timeout, Some(Duration::from_secs(60)));
@@ -293,7 +291,6 @@ fn test_transaction_config_builder() {
         config.durability,
         graphdb::transaction::DurabilityLevel::None
     );
-    assert!(config.two_phase_commit);
 }
 
 #[test]

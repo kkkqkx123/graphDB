@@ -265,10 +265,11 @@ impl Default for YieldClausePlanner {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::ContextualExpression;
     use crate::query::parser::ast::{Span, YieldItem};
     use crate::query::planner::plan::core::nodes::StartNode;
     use crate::query::planner::plan::core::PlanNodeEnum;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     #[test]

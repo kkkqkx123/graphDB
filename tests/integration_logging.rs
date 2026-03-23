@@ -39,9 +39,6 @@ fn test_log_config_serialization() {
         transaction: graphdb::config::TransactionConfig {
             default_timeout: 30,
             max_concurrent_transactions: 1000,
-            enable_2pc: false,
-            auto_cleanup: true,
-            cleanup_interval: 10,
         },
         log: graphdb::config::LogConfig {
             level: "debug".to_string(),

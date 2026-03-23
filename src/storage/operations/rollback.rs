@@ -326,7 +326,10 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bincode::config::standard;
+    use bincode::encode_to_vec;
     use crate::core::vertex_edge_path::Tag;
+    use crate::core::{Edge, Vertex};
     use std::cell::RefCell;
     use std::collections::HashMap;
 

@@ -40,7 +40,7 @@ fn test_use_parser_basic() {
     assert!(result.is_ok(), "USE基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("USE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "USE");
+    assert_eq!(stmt.ast.stmt.kind(), "USE");
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn test_use_parser_complex_name() {
     );
 
     let stmt = result.expect("USE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "USE");
+    assert_eq!(stmt.ast.stmt.kind(), "USE");
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn test_use_parser_with_dots() {
     );
 
     let stmt = result.expect("USE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "USE");
+    assert_eq!(stmt.ast.stmt.kind(), "USE");
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn test_show_parser_spaces() {
     );
 
     let stmt = result.expect("SHOW语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn test_show_parser_tags() {
     assert!(result.is_ok(), "SHOW TAGS解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("SHOW语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
 #[test]
@@ -152,7 +152,7 @@ fn test_show_parser_edges() {
     assert!(result.is_ok(), "SHOW EDGES解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("SHOW语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
 #[test]
@@ -164,7 +164,7 @@ fn test_show_parser_hosts() {
     assert!(result.is_ok(), "SHOW HOSTS解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("SHOW语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn test_show_parser_parts() {
     assert!(result.is_ok(), "SHOW PARTS解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("SHOW语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW");
 }
 
 #[test]
@@ -251,7 +251,7 @@ fn test_explain_parser_match() {
     );
 
     let stmt = result.expect("EXPLAIN语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "EXPLAIN");
+    assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
 #[test]
@@ -263,7 +263,7 @@ fn test_explain_parser_go() {
     assert!(result.is_ok(), "EXPLAIN GO解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("EXPLAIN语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "EXPLAIN");
+    assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
 #[test]
@@ -279,7 +279,7 @@ fn test_explain_parser_lookup() {
     );
 
     let stmt = result.expect("EXPLAIN语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "EXPLAIN");
+    assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
 #[test]
@@ -331,7 +331,7 @@ fn test_return_parser_basic() {
     assert!(result.is_ok(), "RETURN基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("RETURN语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "RETURN");
+    assert_eq!(stmt.ast.stmt.kind(), "RETURN");
 }
 
 #[test]
@@ -347,7 +347,7 @@ fn test_return_parser_with_alias() {
     );
 
     let stmt = result.expect("RETURN语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "RETURN");
+    assert_eq!(stmt.ast.stmt.kind(), "RETURN");
 }
 
 #[test]
@@ -363,7 +363,7 @@ fn test_return_parser_with_expression() {
     );
 
     let stmt = result.expect("RETURN语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "RETURN");
+    assert_eq!(stmt.ast.stmt.kind(), "RETURN");
 }
 
 #[test]
@@ -379,7 +379,7 @@ fn test_return_parser_with_aggregate() {
     );
 
     let stmt = result.expect("RETURN语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "RETURN");
+    assert_eq!(stmt.ast.stmt.kind(), "RETURN");
 }
 
 #[test]
@@ -395,7 +395,7 @@ fn test_return_parser_with_distinct() {
     );
 
     let stmt = result.expect("RETURN语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "RETURN");
+    assert_eq!(stmt.ast.stmt.kind(), "RETURN");
 }
 
 #[test]
@@ -428,7 +428,7 @@ fn test_with_parser_basic() {
     assert!(result.is_ok(), "WITH基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("WITH语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "WITH");
+    assert_eq!(stmt.ast.stmt.kind(), "WITH");
 }
 
 #[test]
@@ -440,7 +440,7 @@ fn test_with_parser_with_aggregate() {
     assert!(result.is_ok(), "WITH带聚合解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("WITH语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "WITH");
+    assert_eq!(stmt.ast.stmt.kind(), "WITH");
 }
 
 #[test]
@@ -456,7 +456,7 @@ fn test_with_parser_with_expression() {
     );
 
     let stmt = result.expect("WITH语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "WITH");
+    assert_eq!(stmt.ast.stmt.kind(), "WITH");
 }
 
 #[test]
@@ -489,7 +489,7 @@ fn test_unwind_parser_basic() {
     assert!(result.is_ok(), "UNWIND基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("UNWIND语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UNWIND");
+    assert_eq!(stmt.ast.stmt.kind(), "UNWIND");
 }
 
 #[test]
@@ -505,7 +505,7 @@ fn test_unwind_parser_with_string_list() {
     );
 
     let stmt = result.expect("UNWIND语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UNWIND");
+    assert_eq!(stmt.ast.stmt.kind(), "UNWIND");
 }
 
 #[test]
@@ -521,7 +521,7 @@ fn test_unwind_parser_with_expression() {
     );
 
     let stmt = result.expect("UNWIND语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UNWIND");
+    assert_eq!(stmt.ast.stmt.kind(), "UNWIND");
 }
 
 #[test]
@@ -554,7 +554,7 @@ fn test_pipe_parser_basic() {
     assert!(result.is_ok(), "PIPE基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("PIPE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "PIPE");
+    assert_eq!(stmt.ast.stmt.kind(), "PIPE");
 }
 
 #[test]
@@ -570,7 +570,7 @@ fn test_pipe_parser_multiple() {
     );
 
     let stmt = result.expect("PIPE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "PIPE");
+    assert_eq!(stmt.ast.stmt.kind(), "PIPE");
 }
 
 #[test]
@@ -586,7 +586,7 @@ fn test_pipe_parser_complex() {
     );
 
     let stmt = result.expect("PIPE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "PIPE");
+    assert_eq!(stmt.ast.stmt.kind(), "PIPE");
 }
 
 #[test]
@@ -855,7 +855,7 @@ fn test_explain_format_table() {
     );
 
     let stmt = result.expect("EXPLAIN语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "EXPLAIN");
+    assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
 #[test]
@@ -871,7 +871,7 @@ fn test_explain_format_dot() {
     );
 
     let stmt = result.expect("EXPLAIN语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "EXPLAIN");
+    assert_eq!(stmt.ast.stmt.kind(), "EXPLAIN");
 }
 
 #[test]
@@ -883,7 +883,7 @@ fn test_profile_statement() {
     assert!(result.is_ok(), "PROFILE解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("PROFILE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "PROFILE");
+    assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
 }
 
 #[test]
@@ -899,7 +899,7 @@ fn test_profile_format_dot() {
     );
 
     let stmt = result.expect("PROFILE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "PROFILE");
+    assert_eq!(stmt.ast.stmt.kind(), "PROFILE");
 }
 
 // ==================== GROUP BY 语句测试 ====================
@@ -917,7 +917,7 @@ fn test_group_by_basic() {
     );
 
     let stmt = result.expect("GROUP BY语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "GROUP BY");
+    assert_eq!(stmt.ast.stmt.kind(), "GROUP BY");
 }
 
 #[test]
@@ -933,7 +933,7 @@ fn test_group_by_multiple_items() {
     );
 
     let stmt = result.expect("GROUP BY语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "GROUP BY");
+    assert_eq!(stmt.ast.stmt.kind(), "GROUP BY");
 }
 
 // ==================== 会话管理语句测试 ====================
@@ -951,7 +951,7 @@ fn test_show_sessions() {
     );
 
     let stmt = result.expect("SHOW SESSIONS语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW SESSIONS");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW SESSIONS");
 }
 
 #[test]
@@ -967,7 +967,7 @@ fn test_show_queries() {
     );
 
     let stmt = result.expect("SHOW QUERIES语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW QUERIES");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW QUERIES");
 }
 
 #[test]
@@ -979,7 +979,7 @@ fn test_kill_query() {
     assert!(result.is_ok(), "KILL QUERY解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("KILL QUERY语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "KILL QUERY");
+    assert_eq!(stmt.ast.stmt.kind(), "KILL QUERY");
 }
 
 // ==================== 配置管理语句测试 ====================
@@ -997,7 +997,7 @@ fn test_show_configs() {
     );
 
     let stmt = result.expect("SHOW CONFIGS语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW CONFIGS");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW CONFIGS");
 }
 
 #[test]
@@ -1013,7 +1013,7 @@ fn test_show_configs_with_module() {
     );
 
     let stmt = result.expect("SHOW CONFIGS语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW CONFIGS");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW CONFIGS");
 }
 
 #[test]
@@ -1029,7 +1029,7 @@ fn test_update_configs() {
     );
 
     let stmt = result.expect("UPDATE CONFIGS语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE CONFIGS");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
 }
 
 #[test]
@@ -1045,7 +1045,7 @@ fn test_update_configs_with_module() {
     );
 
     let stmt = result.expect("UPDATE CONFIGS语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE CONFIGS");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE CONFIGS");
 }
 
 // ==================== 新功能综合测试 ====================
@@ -1091,7 +1091,7 @@ fn test_assignment_statement() {
     assert!(result.is_ok(), "变量赋值解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("变量赋值语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ASSIGNMENT");
+    assert_eq!(stmt.ast.stmt.kind(), "ASSIGNMENT");
 }
 
 // ==================== 集合操作语句测试 ====================
@@ -1105,7 +1105,7 @@ fn test_union_statement() {
     assert!(result.is_ok(), "UNION解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("UNION语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SET OPERATION");
+    assert_eq!(stmt.ast.stmt.kind(), "SET OPERATION");
 }
 
 #[test]
@@ -1117,7 +1117,7 @@ fn test_intersect_statement() {
     assert!(result.is_ok(), "INTERSECT解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("INTERSECT语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SET OPERATION");
+    assert_eq!(stmt.ast.stmt.kind(), "SET OPERATION");
 }
 
 #[test]
@@ -1129,5 +1129,5 @@ fn test_minus_statement() {
     assert!(result.is_ok(), "MINUS解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("MINUS语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SET OPERATION");
+    assert_eq!(stmt.ast.stmt.kind(), "SET OPERATION");
 }

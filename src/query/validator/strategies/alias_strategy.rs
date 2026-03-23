@@ -320,6 +320,7 @@ impl AliasValidationStrategy {
 mod tests {
     use super::*;
     use crate::core::Expression;
+    use crate::core::types::expression::ExpressionMeta;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 

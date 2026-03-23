@@ -47,10 +47,11 @@ pub trait ClausePlanner: std::fmt::Debug {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::ast::Span;
+    use crate::query::parser::ast::{Ast, Span};
     use crate::query::planner::plan::core::nodes::StartNode;
     use crate::query::planner::plan::core::PlanNodeEnum;
     use crate::query::query_request_context::QueryRequestContext;
+    use crate::query::validator::{ValidatedStatement, ValidationInfo};
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::collections::HashMap;
 

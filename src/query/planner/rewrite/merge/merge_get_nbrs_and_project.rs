@@ -132,6 +132,7 @@ impl MergeRule for MergeGetNbrsAndProjectRule {
 mod tests {
     use super::*;
     use crate::core::{Expression, YieldColumn};
+    use crate::core::types::ContextualExpression;
     use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetNeighborsNode;
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;

@@ -293,7 +293,7 @@ impl Default for Decimal128Value {
 
 impl fmt::Display for Decimal128Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "{}", self.inner)
     }
 }
 

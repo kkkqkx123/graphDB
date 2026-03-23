@@ -147,11 +147,11 @@ fn test_validator_match_basic() {
     let stmt = assert_ok(parser.parse());
 
     // 创建验证器并验证（使用新的API）
-    let mut validator = Validator::create_from_stmt(&stmt.stmt).expect("创建验证器失败");
+    let mut validator = Validator::create_from_stmt(&stmt.ast.stmt).expect("创建验证器失败");
     let query_context = create_test_query_context();
 
     // 验证查询
-    let result = validator.validate(stmt.stmt, query_context);
+    let result = validator.validate(stmt.ast, query_context);
     // 验证结果取决于具体实现，可能成功或返回特定错误
     assert!(result.success || !result.success);
 }
@@ -163,11 +163,11 @@ fn test_validator_go_statement() {
     let stmt = assert_ok(parser.parse());
 
     // 创建验证器并验证（使用新的API）
-    let mut validator = Validator::create_from_stmt(&stmt.stmt).expect("创建验证器失败");
+    let mut validator = Validator::create_from_stmt(&stmt.ast.stmt).expect("创建验证器失败");
     let query_context = create_test_query_context();
 
     // GO语句验证
-    let result = validator.validate(stmt.stmt, query_context);
+    let result = validator.validate(stmt.ast, query_context);
     assert!(result.success || !result.success);
 }
 
@@ -178,11 +178,11 @@ fn test_validator_use_statement() {
     let stmt = assert_ok(parser.parse());
 
     // 创建验证器并验证（使用新的API）
-    let mut validator = Validator::create_from_stmt(&stmt.stmt).expect("创建验证器失败");
+    let mut validator = Validator::create_from_stmt(&stmt.ast.stmt).expect("创建验证器失败");
     let query_context = create_test_query_context();
 
     // USE语句验证
-    let result = validator.validate(stmt.stmt, query_context);
+    let result = validator.validate(stmt.ast, query_context);
     assert!(result.success || !result.success);
 }
 

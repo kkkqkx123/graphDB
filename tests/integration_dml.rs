@@ -40,7 +40,7 @@ fn test_insert_parser_vertex() {
     );
 
     let stmt = result.expect("INSERT语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "INSERT");
+    assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn test_insert_parser_multiple_vertices() {
     );
 
     let stmt = result.expect("INSERT语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "INSERT");
+    assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn test_insert_parser_edge() {
     );
 
     let stmt = result.expect("INSERT语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "INSERT");
+    assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
 #[test]
@@ -88,7 +88,7 @@ fn test_insert_parser_edge_with_rank() {
     );
 
     let stmt = result.expect("INSERT语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "INSERT");
+    assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn test_insert_parser_multiple_edges() {
     );
 
     let stmt = result.expect("INSERT语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "INSERT");
+    assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
 #[test]
@@ -235,7 +235,7 @@ fn test_update_parser_vertex() {
     assert!(result.is_ok(), "UPDATE顶点解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("UPDATE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
 #[test]
@@ -251,7 +251,7 @@ fn test_update_parser_vertex_with_when() {
     );
 
     let stmt = result.expect("UPDATE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
 #[test]
@@ -263,7 +263,7 @@ fn test_update_parser_edge() {
     assert!(result.is_ok(), "UPDATE边解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("UPDATE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
 #[test]
@@ -279,7 +279,7 @@ fn test_update_parser_edge_with_when() {
     );
 
     let stmt = result.expect("UPDATE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
 #[test]
@@ -295,7 +295,7 @@ fn test_update_parser_multiple_props() {
     );
 
     let stmt = result.expect("UPDATE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
 #[test]
@@ -351,7 +351,7 @@ fn test_delete_parser_vertex() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DELETE");
+    assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -367,7 +367,7 @@ fn test_delete_parser_multiple_vertices() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DELETE");
+    assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -383,7 +383,7 @@ fn test_delete_parser_edge() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DELETE");
+    assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -399,7 +399,7 @@ fn test_delete_parser_edge_with_rank() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DELETE");
+    assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -415,7 +415,7 @@ fn test_delete_parser_multiple_edges() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DELETE");
+    assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -471,7 +471,7 @@ fn test_insert_if_not_exists_parser() {
     );
 
     let stmt = result.expect("INSERT语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "INSERT");
+    assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
 #[test]
@@ -506,7 +506,7 @@ fn test_insert_multiple_tags_parser() {
     );
 
     let stmt = result.expect("INSERT语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "INSERT");
+    assert_eq!(stmt.ast.stmt.kind(), "INSERT");
 }
 
 #[test]
@@ -522,7 +522,7 @@ fn test_upsert_vertex_parser() {
     );
 
     let stmt = result.expect("UPSERT语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
 #[test]
@@ -538,7 +538,7 @@ fn test_upsert_edge_parser() {
     );
 
     let stmt = result.expect("UPSERT语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
 #[test]
@@ -554,7 +554,7 @@ fn test_update_with_yield_parser() {
     );
 
     let stmt = result.expect("UPDATE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
 #[test]
@@ -570,7 +570,7 @@ fn test_update_vertex_on_tag_parser() {
     );
 
     let stmt = result.expect("UPDATE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "UPDATE");
+    assert_eq!(stmt.ast.stmt.kind(), "UPDATE");
 }
 
 #[test]
@@ -586,7 +586,7 @@ fn test_delete_tag_wildcard_parser() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DELETE");
+    assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -602,7 +602,7 @@ fn test_delete_tag_specific_parser() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DELETE");
+    assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
 #[test]
@@ -618,7 +618,7 @@ fn test_delete_tag_multiple_vertices_parser() {
     );
 
     let stmt = result.expect("DELETE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DELETE");
+    assert_eq!(stmt.ast.stmt.kind(), "DELETE");
 }
 
 // ==================== MERGE 语句测试 ====================
@@ -693,7 +693,7 @@ fn test_set_parser_basic() {
     assert!(result.is_ok(), "SET基础解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("SET语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SET");
+    assert_eq!(stmt.ast.stmt.kind(), "SET");
 }
 
 #[test]
@@ -709,7 +709,7 @@ fn test_set_parser_multiple() {
     );
 
     let stmt = result.expect("SET语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SET");
+    assert_eq!(stmt.ast.stmt.kind(), "SET");
 }
 
 #[test]
@@ -725,7 +725,7 @@ fn test_set_parser_with_expression() {
     );
 
     let stmt = result.expect("SET语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SET");
+    assert_eq!(stmt.ast.stmt.kind(), "SET");
 }
 
 #[test]
@@ -758,7 +758,7 @@ fn test_remove_parser_property() {
     assert!(result.is_ok(), "REMOVE属性解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("REMOVE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "REMOVE");
+    assert_eq!(stmt.ast.stmt.kind(), "REMOVE");
 }
 
 #[test]
@@ -774,7 +774,7 @@ fn test_remove_parser_multiple_properties() {
     );
 
     let stmt = result.expect("REMOVE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "REMOVE");
+    assert_eq!(stmt.ast.stmt.kind(), "REMOVE");
 }
 
 #[test]
@@ -786,7 +786,7 @@ fn test_remove_parser_label() {
     assert!(result.is_ok(), "REMOVE标签解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("REMOVE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "REMOVE");
+    assert_eq!(stmt.ast.stmt.kind(), "REMOVE");
 }
 
 #[test]
@@ -802,7 +802,7 @@ fn test_remove_parser_multiple_labels() {
     );
 
     let stmt = result.expect("REMOVE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "REMOVE");
+    assert_eq!(stmt.ast.stmt.kind(), "REMOVE");
 }
 
 #[test]
@@ -814,7 +814,7 @@ fn test_remove_parser_mixed() {
     assert!(result.is_ok(), "REMOVE混合解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("REMOVE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "REMOVE");
+    assert_eq!(stmt.ast.stmt.kind(), "REMOVE");
 }
 
 #[test]

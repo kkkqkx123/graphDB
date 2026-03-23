@@ -34,7 +34,7 @@ fn test_create_tag_parser_basic() {
     );
 
     let stmt = result.expect("CREATE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn test_create_tag_parser_with_if_not_exists() {
     );
 
     let stmt = result.expect("CREATE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn test_create_tag_parser_single_property() {
     );
 
     let stmt = result.expect("CREATE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn test_create_tag_parser_multiple_properties() {
     );
 
     let stmt = result.expect("CREATE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn test_create_tag_parser_various_types() {
     );
 
     let stmt = result.expect("CREATE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -154,7 +154,7 @@ fn test_create_edge_parser_basic() {
     );
 
     let stmt = result.expect("CREATE EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn test_create_edge_parser_with_if_not_exists() {
     );
 
     let stmt = result.expect("CREATE EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -186,7 +186,7 @@ fn test_create_edge_parser_single_property() {
     );
 
     let stmt = result.expect("CREATE EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -202,7 +202,7 @@ fn test_create_edge_parser_multiple_properties() {
     );
 
     let stmt = result.expect("CREATE EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -218,7 +218,7 @@ fn test_create_edge_parser_various_types() {
     );
 
     let stmt = result.expect("CREATE EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -274,7 +274,7 @@ fn test_alter_tag_parser_add() {
     );
 
     let stmt = result.expect("ALTER TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ALTER");
+    assert_eq!(stmt.ast.stmt.kind(), "ALTER");
 }
 
 #[test]
@@ -290,7 +290,7 @@ fn test_alter_tag_parser_drop() {
     );
 
     let stmt = result.expect("ALTER TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ALTER");
+    assert_eq!(stmt.ast.stmt.kind(), "ALTER");
 }
 
 #[test]
@@ -306,7 +306,7 @@ fn test_alter_tag_parser_change() {
     );
 
     let stmt = result.expect("ALTER TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ALTER");
+    assert_eq!(stmt.ast.stmt.kind(), "ALTER");
 }
 
 #[test]
@@ -322,7 +322,7 @@ fn test_alter_tag_parser_add_single() {
     );
 
     let stmt = result.expect("ALTER TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ALTER");
+    assert_eq!(stmt.ast.stmt.kind(), "ALTER");
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn test_alter_tag_parser_drop_single() {
     );
 
     let stmt = result.expect("ALTER TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ALTER");
+    assert_eq!(stmt.ast.stmt.kind(), "ALTER");
 }
 
 #[test]
@@ -394,7 +394,7 @@ fn test_alter_edge_parser_add() {
     );
 
     let stmt = result.expect("ALTER EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ALTER");
+    assert_eq!(stmt.ast.stmt.kind(), "ALTER");
 }
 
 #[test]
@@ -410,7 +410,7 @@ fn test_alter_edge_parser_drop() {
     );
 
     let stmt = result.expect("ALTER EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ALTER");
+    assert_eq!(stmt.ast.stmt.kind(), "ALTER");
 }
 
 #[test]
@@ -426,7 +426,7 @@ fn test_alter_edge_parser_change() {
     );
 
     let stmt = result.expect("ALTER EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ALTER");
+    assert_eq!(stmt.ast.stmt.kind(), "ALTER");
 }
 
 #[test]
@@ -442,7 +442,7 @@ fn test_alter_edge_parser_add_single() {
     );
 
     let stmt = result.expect("ALTER EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ALTER");
+    assert_eq!(stmt.ast.stmt.kind(), "ALTER");
 }
 
 #[test]
@@ -458,7 +458,7 @@ fn test_alter_edge_parser_drop_single() {
     );
 
     let stmt = result.expect("ALTER EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "ALTER");
+    assert_eq!(stmt.ast.stmt.kind(), "ALTER");
 }
 
 #[test]
@@ -514,7 +514,7 @@ fn test_drop_tag_parser_basic() {
     );
 
     let stmt = result.expect("DROP TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DROP");
+    assert_eq!(stmt.ast.stmt.kind(), "DROP");
 }
 
 #[test]
@@ -530,7 +530,7 @@ fn test_drop_tag_parser_with_if_exists() {
     );
 
     let stmt = result.expect("DROP TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DROP");
+    assert_eq!(stmt.ast.stmt.kind(), "DROP");
 }
 
 #[test]
@@ -546,7 +546,7 @@ fn test_drop_tag_parser_multiple() {
     );
 
     let stmt = result.expect("DROP TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DROP");
+    assert_eq!(stmt.ast.stmt.kind(), "DROP");
 }
 
 #[test]
@@ -562,7 +562,7 @@ fn test_drop_tag_parser_multiple_with_if_exists() {
     );
 
     let stmt = result.expect("DROP TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DROP");
+    assert_eq!(stmt.ast.stmt.kind(), "DROP");
 }
 
 #[test]
@@ -618,7 +618,7 @@ fn test_drop_edge_parser_basic() {
     );
 
     let stmt = result.expect("DROP EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DROP");
+    assert_eq!(stmt.ast.stmt.kind(), "DROP");
 }
 
 #[test]
@@ -634,7 +634,7 @@ fn test_drop_edge_parser_with_if_exists() {
     );
 
     let stmt = result.expect("DROP EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DROP");
+    assert_eq!(stmt.ast.stmt.kind(), "DROP");
 }
 
 #[test]
@@ -650,7 +650,7 @@ fn test_drop_edge_parser_multiple() {
     );
 
     let stmt = result.expect("DROP EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DROP");
+    assert_eq!(stmt.ast.stmt.kind(), "DROP");
 }
 
 #[test]
@@ -666,7 +666,7 @@ fn test_drop_edge_parser_multiple_with_if_exists() {
     );
 
     let stmt = result.expect("DROP EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DROP");
+    assert_eq!(stmt.ast.stmt.kind(), "DROP");
 }
 
 #[test]
@@ -722,7 +722,7 @@ fn test_desc_parser_tag() {
     );
 
     let stmt = result.expect("DESCRIBE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DESC");
+    assert_eq!(stmt.ast.stmt.kind(), "DESC");
 }
 
 #[test]
@@ -738,7 +738,7 @@ fn test_desc_parser_edge() {
     );
 
     let stmt = result.expect("DESCRIBE EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DESC");
+    assert_eq!(stmt.ast.stmt.kind(), "DESC");
 }
 
 #[test]
@@ -750,7 +750,7 @@ fn test_desc_parser_short_tag() {
     assert!(result.is_ok(), "DESC TAG解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("DESC TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DESC");
+    assert_eq!(stmt.ast.stmt.kind(), "DESC");
 }
 
 #[test]
@@ -762,7 +762,7 @@ fn test_desc_parser_short_edge() {
     assert!(result.is_ok(), "DESC EDGE解析应该成功: {:?}", result.err());
 
     let stmt = result.expect("DESC EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "DESC");
+    assert_eq!(stmt.ast.stmt.kind(), "DESC");
 }
 
 #[test]
@@ -960,7 +960,7 @@ fn test_create_tag_with_default_value() {
     );
 
     let stmt = result.expect("CREATE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -1004,7 +1004,7 @@ fn test_create_tag_with_not_null() {
     );
 
     let stmt = result.expect("CREATE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -1049,7 +1049,7 @@ fn test_create_tag_with_comment() {
     );
 
     let stmt = result.expect("CREATE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -1083,7 +1083,7 @@ fn test_create_tag_with_ttl() {
     );
 
     let stmt = result.expect("CREATE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "CREATE");
 }
 
 #[test]
@@ -1116,7 +1116,7 @@ fn test_show_create_tag_parser() {
     );
 
     let stmt = result.expect("SHOW CREATE TAG语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW CREATE");
 }
 
 #[test]
@@ -1132,7 +1132,7 @@ fn test_show_create_edge_parser() {
     );
 
     let stmt = result.expect("SHOW CREATE EDGE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW CREATE");
 }
 
 #[test]
@@ -1146,7 +1146,7 @@ fn test_show_create_space_parser() {
     assert!(result.is_ok(), "SHOW CREATE SPACE应该解析成功");
 
     let stmt = result.expect("SHOW CREATE SPACE语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW CREATE");
 }
 
 #[test]
@@ -1160,7 +1160,7 @@ fn test_show_create_index_parser() {
     assert!(result.is_ok(), "SHOW CREATE INDEX应该解析成功");
 
     let stmt = result.expect("SHOW CREATE INDEX语句解析应该成功");
-    assert_eq!(stmt.stmt.kind(), "SHOW CREATE");
+    assert_eq!(stmt.ast.stmt.kind(), "SHOW CREATE");
 }
 
 #[test]

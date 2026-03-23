@@ -274,6 +274,7 @@ mod tests {
     use super::*;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use std::sync::Arc;
 
     #[test]
     fn test_rule_name() {

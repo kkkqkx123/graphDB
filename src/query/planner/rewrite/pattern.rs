@@ -292,6 +292,7 @@ impl NodeVisitor for NodeVisitorFinder {
 mod tests {
     use super::*;
     use crate::core::Expression;
+    use crate::core::types::ContextualExpression;
     use crate::core::Value;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;

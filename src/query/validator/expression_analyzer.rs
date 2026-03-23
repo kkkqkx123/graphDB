@@ -721,6 +721,7 @@ mod tests {
     use super::*;
     use crate::core::types::expression::ExpressionMeta;
     use crate::query::validator::context::ExpressionAnalysisContext;
+    use std::sync::Arc;
 
     #[test]
     fn test_analyze_literal() {
