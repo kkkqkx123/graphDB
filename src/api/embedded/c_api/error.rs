@@ -350,7 +350,7 @@ pub fn extended_error_code_to_message(code: graphdb_extended_error_code_t) -> &'
 /// # 返回
 /// - 实际写入的字符数（不包括 null 终止符）
 #[no_mangle]
-pub extern "C" fn graphdb_errmsg(msg: *mut std::ffi::c_char, len: usize) -> i32 {
+pub unsafe extern "C" fn graphdb_errmsg(msg: *mut std::ffi::c_char, len: usize) -> i32 {
     if msg.is_null() || len == 0 {
         return 0;
     }

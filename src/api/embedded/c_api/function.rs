@@ -61,7 +61,7 @@ pub struct graphdb_context_t {
 /// graphdb_create_function(session, "my_func", 2, NULL, my_function, NULL);
 /// ```
 #[no_mangle]
-pub extern "C" fn graphdb_create_function(
+pub unsafe extern "C" fn graphdb_create_function(
     session: *mut graphdb_session_t,
     name: *const c_char,
     argc: c_int,
@@ -121,7 +121,7 @@ pub extern "C" fn graphdb_create_function(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_create_aggregate(
+pub unsafe extern "C" fn graphdb_create_aggregate(
     session: *mut graphdb_session_t,
     name: *const c_char,
     argc: c_int,
@@ -179,7 +179,7 @@ pub extern "C" fn graphdb_create_aggregate(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_delete_function(
+pub unsafe extern "C" fn graphdb_delete_function(
     session: *mut graphdb_session_t,
     name: *const c_char,
 ) -> c_int {
@@ -201,7 +201,7 @@ pub extern "C" fn graphdb_delete_function(
 /// # 说明
 /// 在标量函数或聚合函数的 xFinal 回调中调用此函数设置返回值
 #[no_mangle]
-pub extern "C" fn graphdb_context_set_result(
+pub unsafe extern "C" fn graphdb_context_set_result(
     context: *mut graphdb_context_t,
     value: *const graphdb_value_t,
 ) -> c_int {
@@ -230,7 +230,7 @@ pub extern "C" fn graphdb_context_set_result(
 /// # 返回
 /// - 值类型
 #[no_mangle]
-pub extern "C" fn graphdb_context_result_type(
+pub unsafe extern "C" fn graphdb_context_result_type(
     context: *mut graphdb_context_t,
 ) -> graphdb_value_type_t {
     if context.is_null() {
@@ -255,7 +255,7 @@ pub extern "C" fn graphdb_context_result_type(
 /// # 说明
 /// 在函数执行出错时调用此函数设置错误消息
 #[no_mangle]
-pub extern "C" fn graphdb_context_set_error(
+pub unsafe extern "C" fn graphdb_context_set_error(
     context: *mut graphdb_context_t,
     error_msg: *const c_char,
 ) -> c_int {
@@ -281,7 +281,7 @@ pub extern "C" fn graphdb_context_set_error(
 /// # 返回
 /// - 参数值指针，如果索引越界返回 NULL
 #[no_mangle]
-pub extern "C" fn graphdb_context_get_arg(
+pub unsafe extern "C" fn graphdb_context_get_arg(
     _context: *mut graphdb_context_t,
     _index: c_int,
 ) -> *const graphdb_value_t {
@@ -297,7 +297,7 @@ pub extern "C" fn graphdb_context_get_arg(
 /// # 返回
 /// - 参数数量
 #[no_mangle]
-pub extern "C" fn graphdb_context_arg_count(_context: *mut graphdb_context_t) -> c_int {
+pub unsafe extern "C" fn graphdb_context_arg_count(_context: *mut graphdb_context_t) -> c_int {
     // 注意：参数数量通过 argc 直接传递，此函数当前未使用
     0
 }

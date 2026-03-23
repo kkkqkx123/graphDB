@@ -24,7 +24,7 @@ use std::ptr;
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_execute(
+pub unsafe extern "C" fn graphdb_execute(
     session: *mut graphdb_session_t,
     query: *const c_char,
     result: *mut *mut graphdb_result_t,
@@ -89,7 +89,7 @@ pub extern "C" fn graphdb_execute(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_execute_params(
+pub unsafe extern "C" fn graphdb_execute_params(
     session: *mut graphdb_session_t,
     query: *const c_char,
     params: *const graphdb_value_t,
@@ -233,7 +233,7 @@ mod tests {
             .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
-        let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
+        let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
         assert!(!db.is_null());
 
@@ -242,27 +242,29 @@ mod tests {
 
     #[test]
     fn test_execute_null_params() {
-        let rc = graphdb_execute(ptr::null_mut(), ptr::null(), ptr::null_mut());
+        let rc = unsafe { graphdb_execute(ptr::null_mut(), ptr::null(), ptr::null_mut()) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
 
         let mut result: *mut graphdb_result_t = ptr::null_mut();
-        let rc = graphdb_execute(ptr::null_mut(), ptr::null(), &mut result);
+        let rc = unsafe { graphdb_execute(ptr::null_mut(), ptr::null(), &mut result) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
     #[test]
     fn test_execute_params_null_params() {
-        let rc = graphdb_execute_params(
-            ptr::null_mut(),
-            ptr::null(),
-            ptr::null(),
-            0,
-            ptr::null_mut(),
-        );
+        let rc = unsafe {
+            graphdb_execute_params(
+                ptr::null_mut(),
+                ptr::null(),
+                ptr::null(),
+                0,
+                ptr::null_mut(),
+            )
+        };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
 
         let mut result: *mut graphdb_result_t = ptr::null_mut();
-        let rc = graphdb_execute_params(ptr::null_mut(), ptr::null(), ptr::null(), 0, &mut result);
+        let rc = unsafe { graphdb_execute_params(ptr::null_mut(), ptr::null(), ptr::null(), 0, &mut result) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
@@ -272,18 +274,18 @@ mod tests {
         let db = create_test_db();
         let mut session: *mut graphdb_session_t = ptr::null_mut();
 
-        let rc = graphdb_session_create(db, &mut session);
+        let rc = unsafe { graphdb_session_create(db, &mut session) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
         let query = CString::new("RETURN 1").expect("Failed to create query CString");
         let mut result: *mut graphdb_result_t = ptr::null_mut();
 
-        let rc = graphdb_execute(session, query.as_ptr(), &mut result);
+        let rc = unsafe { graphdb_execute(session, query.as_ptr(), &mut result) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
         assert!(!result.is_null());
 
-        graphdb_result_free(result);
-        graphdb_session_close(session);
-        graphdb_close(db);
+        unsafe { graphdb_result_free(result) };
+        unsafe { graphdb_session_close(session) };
+        unsafe { graphdb_close(db) };
     }
 }

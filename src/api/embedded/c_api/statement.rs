@@ -30,7 +30,7 @@ pub struct GraphDbStmtHandle {
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_prepare(
+pub unsafe extern "C" fn graphdb_prepare(
     session: *mut graphdb_session_t,
     query: *const c_char,
     stmt: *mut *mut graphdb_stmt_t,
@@ -39,32 +39,28 @@ pub extern "C" fn graphdb_prepare(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    let query_str = unsafe {
-        match CStr::from_ptr(query).to_str() {
-            Ok(s) => s,
-            Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-        }
+    let query_str = match CStr::from_ptr(query).to_str() {
+        Ok(s) => s,
+        Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
     };
 
-    unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
+    let handle = &*(session as *mut GraphDbSessionHandle);
 
-        match handle.inner.prepare(query_str) {
-            Ok(prepared_stmt) => {
-                let stmt_handle = Box::new(GraphDbStmtHandle {
-                    inner: prepared_stmt,
-                    last_error: None,
-                });
-                *stmt = Box::into_raw(stmt_handle) as *mut graphdb_stmt_t;
-                graphdb_error_code_t::GRAPHDB_OK as c_int
-            }
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg);
-                *stmt = ptr::null_mut();
-                error_code
-            }
+    match handle.inner.prepare(query_str) {
+        Ok(prepared_stmt) => {
+            let stmt_handle = Box::new(GraphDbStmtHandle {
+                inner: prepared_stmt,
+                last_error: None,
+            });
+            *stmt = Box::into_raw(stmt_handle) as *mut graphdb_stmt_t;
+            graphdb_error_code_t::GRAPHDB_OK as c_int
+        }
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
+            *stmt = ptr::null_mut();
+            error_code
         }
     }
 }
@@ -79,27 +75,25 @@ pub extern "C" fn graphdb_prepare(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_bind_null(stmt: *mut graphdb_stmt_t, index: c_int) -> c_int {
+pub unsafe extern "C" fn graphdb_bind_null(stmt: *mut graphdb_stmt_t, index: c_int) -> c_int {
     if stmt.is_null() || index < 1 {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(stmt as *mut GraphDbStmtHandle);
-        let param_name = format!("param_{}", index - 1);
+    let handle = &mut *(stmt as *mut GraphDbStmtHandle);
+    let param_name = format!("param_{}", index - 1);
 
-        match handle
-            .inner
-            .bind(&param_name, Value::Null(crate::core::value::NullType::Null))
-        {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                error_code
-            }
+    match handle
+        .inner
+        .bind(&param_name, Value::Null(crate::core::value::NullType::Null))
+    {
+        Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg.clone());
+            handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+            error_code
         }
     }
 }
@@ -115,24 +109,22 @@ pub extern "C" fn graphdb_bind_null(stmt: *mut graphdb_stmt_t, index: c_int) -> 
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_bind_bool(stmt: *mut graphdb_stmt_t, index: c_int, value: bool) -> c_int {
+pub unsafe extern "C" fn graphdb_bind_bool(stmt: *mut graphdb_stmt_t, index: c_int, value: bool) -> c_int {
     if stmt.is_null() || index < 1 {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(stmt as *mut GraphDbStmtHandle);
-        let param_name = format!("param_{}", index - 1);
+    let handle = &mut *(stmt as *mut GraphDbStmtHandle);
+    let param_name = format!("param_{}", index - 1);
 
-        match handle.inner.bind(&param_name, Value::Bool(value)) {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                error_code
-            }
+    match handle.inner.bind(&param_name, Value::Bool(value)) {
+        Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg.clone());
+            handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+            error_code
         }
     }
 }
@@ -148,24 +140,22 @@ pub extern "C" fn graphdb_bind_bool(stmt: *mut graphdb_stmt_t, index: c_int, val
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_bind_int(stmt: *mut graphdb_stmt_t, index: c_int, value: i64) -> c_int {
+pub unsafe extern "C" fn graphdb_bind_int(stmt: *mut graphdb_stmt_t, index: c_int, value: i64) -> c_int {
     if stmt.is_null() || index < 1 {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(stmt as *mut GraphDbStmtHandle);
-        let param_name = format!("param_{}", index - 1);
+    let handle = &mut *(stmt as *mut GraphDbStmtHandle);
+    let param_name = format!("param_{}", index - 1);
 
-        match handle.inner.bind(&param_name, Value::Int(value)) {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                error_code
-            }
+    match handle.inner.bind(&param_name, Value::Int(value)) {
+        Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg.clone());
+            handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+            error_code
         }
     }
 }
@@ -181,24 +171,22 @@ pub extern "C" fn graphdb_bind_int(stmt: *mut graphdb_stmt_t, index: c_int, valu
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_bind_float(stmt: *mut graphdb_stmt_t, index: c_int, value: f64) -> c_int {
+pub unsafe extern "C" fn graphdb_bind_float(stmt: *mut graphdb_stmt_t, index: c_int, value: f64) -> c_int {
     if stmt.is_null() || index < 1 {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(stmt as *mut GraphDbStmtHandle);
-        let param_name = format!("param_{}", index - 1);
+    let handle = &mut *(stmt as *mut GraphDbStmtHandle);
+    let param_name = format!("param_{}", index - 1);
 
-        match handle.inner.bind(&param_name, Value::Float(value)) {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                error_code
-            }
+    match handle.inner.bind(&param_name, Value::Float(value)) {
+        Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg.clone());
+            handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+            error_code
         }
     }
 }
@@ -215,7 +203,7 @@ pub extern "C" fn graphdb_bind_float(stmt: *mut graphdb_stmt_t, index: c_int, va
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_bind_string(
+pub unsafe extern "C" fn graphdb_bind_string(
     stmt: *mut graphdb_stmt_t,
     index: c_int,
     value: *const c_char,
@@ -225,7 +213,7 @@ pub extern "C" fn graphdb_bind_string(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    let string_value = unsafe {
+    let string_value = {
         let c_str = CStr::from_ptr(value);
         if len < 0 {
             c_str.to_str().unwrap_or("").to_string()
@@ -235,19 +223,17 @@ pub extern "C" fn graphdb_bind_string(
         }
     };
 
-    unsafe {
-        let handle = &mut *(stmt as *mut GraphDbStmtHandle);
-        let param_name = format!("param_{}", index - 1);
+    let handle = &mut *(stmt as *mut GraphDbStmtHandle);
+    let param_name = format!("param_{}", index - 1);
 
-        match handle.inner.bind(&param_name, Value::String(string_value)) {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                error_code
-            }
+    match handle.inner.bind(&param_name, Value::String(string_value)) {
+        Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg.clone());
+            handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+            error_code
         }
     }
 }
@@ -264,7 +250,7 @@ pub extern "C" fn graphdb_bind_string(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_bind_blob(
+pub unsafe extern "C" fn graphdb_bind_blob(
     stmt: *mut graphdb_stmt_t,
     index: c_int,
     data: *const u8,
@@ -274,21 +260,19 @@ pub extern "C" fn graphdb_bind_blob(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    let blob_data = unsafe { std::slice::from_raw_parts(data, len as usize).to_vec() };
+    let blob_data = std::slice::from_raw_parts(data, len as usize).to_vec();
 
-    unsafe {
-        let handle = &mut *(stmt as *mut GraphDbStmtHandle);
-        let param_name = format!("param_{}", index - 1);
+    let handle = &mut *(stmt as *mut GraphDbStmtHandle);
+    let param_name = format!("param_{}", index - 1);
 
-        match handle.inner.bind(&param_name, Value::Blob(blob_data)) {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                error_code
-            }
+    match handle.inner.bind(&param_name, Value::Blob(blob_data)) {
+        Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg.clone());
+            handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+            error_code
         }
     }
 }
@@ -304,7 +288,7 @@ pub extern "C" fn graphdb_bind_blob(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_bind_by_name(
+pub unsafe extern "C" fn graphdb_bind_by_name(
     stmt: *mut graphdb_stmt_t,
     name: *const c_char,
     value: graphdb_value_t,
@@ -313,27 +297,23 @@ pub extern "C" fn graphdb_bind_by_name(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    let param_name = unsafe {
-        match CStr::from_ptr(name).to_str() {
-            Ok(s) => s,
-            Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-        }
+    let param_name = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
     };
 
-    let rust_value = unsafe { convert_c_value_to_rust(&value) };
+    let rust_value = convert_c_value_to_rust(&value);
 
-    unsafe {
-        let handle = &mut *(stmt as *mut GraphDbStmtHandle);
+    let handle = &mut *(stmt as *mut GraphDbStmtHandle);
 
-        match handle.inner.bind(param_name, rust_value) {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg.clone());
-                handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
-                error_code
-            }
+    match handle.inner.bind(param_name, rust_value) {
+        Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg.clone());
+            handle.last_error = Some(CString::new(error_msg).unwrap_or_default());
+            error_code
         }
     }
 }
@@ -349,16 +329,14 @@ pub extern "C" fn graphdb_bind_by_name(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_reset(stmt: *mut graphdb_stmt_t) -> c_int {
+pub unsafe extern "C" fn graphdb_reset(stmt: *mut graphdb_stmt_t) -> c_int {
     if stmt.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(stmt as *mut GraphDbStmtHandle);
-        handle.inner.reset();
-        graphdb_error_code_t::GRAPHDB_OK as c_int
-    }
+    let handle = &mut *(stmt as *mut GraphDbStmtHandle);
+    handle.inner.reset();
+    graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
 /// 清除绑定
@@ -372,16 +350,14 @@ pub extern "C" fn graphdb_reset(stmt: *mut graphdb_stmt_t) -> c_int {
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_clear_bindings(stmt: *mut graphdb_stmt_t) -> c_int {
+pub unsafe extern "C" fn graphdb_clear_bindings(stmt: *mut graphdb_stmt_t) -> c_int {
     if stmt.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(stmt as *mut GraphDbStmtHandle);
-        handle.inner.clear_bindings();
-        graphdb_error_code_t::GRAPHDB_OK as c_int
-    }
+    let handle = &mut *(stmt as *mut GraphDbStmtHandle);
+    handle.inner.clear_bindings();
+    graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
 /// 释放语句
@@ -393,14 +369,12 @@ pub extern "C" fn graphdb_clear_bindings(stmt: *mut graphdb_stmt_t) -> c_int {
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_finalize(stmt: *mut graphdb_stmt_t) -> c_int {
+pub unsafe extern "C" fn graphdb_finalize(stmt: *mut graphdb_stmt_t) -> c_int {
     if stmt.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let _ = Box::from_raw(stmt as *mut GraphDbStmtHandle);
-    }
+    let _ = Box::from_raw(stmt as *mut GraphDbStmtHandle);
 
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
@@ -414,7 +388,7 @@ pub extern "C" fn graphdb_finalize(stmt: *mut graphdb_stmt_t) -> c_int {
 /// # 返回
 /// - 参数索引（从 1 开始），未找到返回 0
 #[no_mangle]
-pub extern "C" fn graphdb_bind_parameter_index(
+pub unsafe extern "C" fn graphdb_bind_parameter_index(
     stmt: *mut graphdb_stmt_t,
     name: *const c_char,
 ) -> c_int {
@@ -422,20 +396,16 @@ pub extern "C" fn graphdb_bind_parameter_index(
         return 0;
     }
 
-    let param_name = unsafe {
-        match CStr::from_ptr(name).to_str() {
-            Ok(s) => s,
-            Err(_) => return 0,
-        }
+    let param_name = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => return 0,
     };
 
-    unsafe {
-        let handle = &*(stmt as *mut GraphDbStmtHandle);
+    let handle = &*(stmt as *mut GraphDbStmtHandle);
 
-        for (idx, key) in handle.inner.parameters().keys().enumerate() {
-            if key == param_name {
-                return (idx + 1) as c_int;
-            }
+    for (idx, key) in handle.inner.parameters().keys().enumerate() {
+        if key == param_name {
+            return (idx + 1) as c_int;
         }
     }
 
@@ -451,7 +421,7 @@ pub extern "C" fn graphdb_bind_parameter_index(
 /// # 返回
 /// - 参数名称（UTF-8 编码），未找到返回 NULL
 #[no_mangle]
-pub extern "C" fn graphdb_bind_parameter_name(
+pub unsafe extern "C" fn graphdb_bind_parameter_name(
     stmt: *mut graphdb_stmt_t,
     index: c_int,
 ) -> *const c_char {
@@ -459,18 +429,16 @@ pub extern "C" fn graphdb_bind_parameter_name(
         return ptr::null();
     }
 
-    unsafe {
-        let handle = &*(stmt as *mut GraphDbStmtHandle);
+    let handle = &*(stmt as *mut GraphDbStmtHandle);
 
-        let keys: Vec<&String> = handle.inner.parameters().keys().collect();
-        if let Some(key) = keys.get((index - 1) as usize) {
-            match CString::new(key.as_str()) {
-                Ok(c_name) => c_name.into_raw(),
-                Err(_) => ptr::null(),
-            }
-        } else {
-            ptr::null()
+    let keys: Vec<&String> = handle.inner.parameters().keys().collect();
+    if let Some(key) = keys.get((index - 1) as usize) {
+        match CString::new(key.as_str()) {
+            Ok(c_name) => c_name.into_raw(),
+            Err(_) => ptr::null(),
         }
+    } else {
+        ptr::null()
     }
 }
 
@@ -482,15 +450,13 @@ pub extern "C" fn graphdb_bind_parameter_name(
 /// # 返回
 /// - 参数数量
 #[no_mangle]
-pub extern "C" fn graphdb_bind_parameter_count(stmt: *mut graphdb_stmt_t) -> c_int {
+pub unsafe extern "C" fn graphdb_bind_parameter_count(stmt: *mut graphdb_stmt_t) -> c_int {
     if stmt.is_null() {
         return 0;
     }
 
-    unsafe {
-        let handle = &*(stmt as *mut GraphDbStmtHandle);
-        handle.inner.parameters().len() as c_int
-    }
+    let handle = &*(stmt as *mut GraphDbStmtHandle);
+    handle.inner.parameters().len() as c_int
 }
 
 /// 将 C 值转换为 Rust 值
@@ -552,7 +518,7 @@ mod tests {
             .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
-        let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
+        let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
         if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
             panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);
         }
@@ -563,22 +529,22 @@ mod tests {
 
     #[test]
     fn test_prepare_null_params() {
-        let rc = graphdb_prepare(ptr::null_mut(), ptr::null(), ptr::null_mut());
+        let rc = unsafe { graphdb_prepare(ptr::null_mut(), ptr::null(), ptr::null_mut()) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
     #[test]
     fn test_bind_null_invalid_index() {
-        let rc = graphdb_bind_null(ptr::null_mut(), 0);
+        let rc = unsafe { graphdb_bind_null(ptr::null_mut(), 0) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
 
-        let rc = graphdb_bind_null(ptr::null_mut(), -1);
+        let rc = unsafe { graphdb_bind_null(ptr::null_mut(), -1) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
     #[test]
     fn test_finalize_null() {
-        let rc = graphdb_finalize(ptr::null_mut());
+        let rc = unsafe { graphdb_finalize(ptr::null_mut()) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
@@ -587,20 +553,20 @@ mod tests {
         let db = create_test_db();
         let mut session: *mut graphdb_session_t = ptr::null_mut();
 
-        let rc = graphdb_session_create(db, &mut session);
+        let rc = unsafe { graphdb_session_create(db, &mut session) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
         let query = CString::new("SHOW SPACES").expect("Failed to create query CString");
         let mut stmt: *mut graphdb_stmt_t = ptr::null_mut();
 
-        let rc = graphdb_prepare(session, query.as_ptr(), &mut stmt);
+        let rc = unsafe { graphdb_prepare(session, query.as_ptr(), &mut stmt) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
         assert!(!stmt.is_null());
 
-        let rc = graphdb_finalize(stmt);
+        let rc = unsafe { graphdb_finalize(stmt) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
-        graphdb_session_close(session);
-        graphdb_close(db);
+        unsafe { graphdb_session_close(session) };
+        unsafe { graphdb_close(db) };
     }
 }

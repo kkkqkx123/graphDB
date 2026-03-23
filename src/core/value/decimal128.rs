@@ -139,11 +139,6 @@ impl Decimal128Value {
         &mut self.inner
     }
 
-    /// 转换为字符串
-    pub fn to_string(&self) -> String {
-        self.inner.to_string()
-    }
-
     /// 加法运算
     pub fn add(&self, other: &Self) -> Result<Self, String> {
         Ok(Self {

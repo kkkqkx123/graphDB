@@ -126,7 +126,7 @@ impl GraphDbSessionHandle {
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_session_create(
+pub unsafe extern "C" fn graphdb_session_create(
     db: *mut graphdb_t,
     session: *mut *mut graphdb_session_t,
 ) -> c_int {
@@ -134,22 +134,20 @@ pub extern "C" fn graphdb_session_create(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let db_handle = &*(db as *mut GraphDbHandle);
+    let db_handle = &*(db as *mut GraphDbHandle);
 
-        match db_handle.inner.session() {
-            Ok(sess) => {
-                let handle = Box::new(GraphDbSessionHandle::new(sess));
-                *session = Box::into_raw(handle) as *mut graphdb_session_t;
-                graphdb_error_code_t::GRAPHDB_OK as c_int
-            }
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg);
-                *session = ptr::null_mut();
-                error_code
-            }
+    match db_handle.inner.session() {
+        Ok(sess) => {
+            let handle = Box::new(GraphDbSessionHandle::new(sess));
+            *session = Box::into_raw(handle) as *mut graphdb_session_t;
+            graphdb_error_code_t::GRAPHDB_OK as c_int
+        }
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
+            *session = ptr::null_mut();
+            error_code
         }
     }
 }
@@ -163,14 +161,12 @@ pub extern "C" fn graphdb_session_create(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_session_close(session: *mut graphdb_session_t) -> c_int {
+pub unsafe extern "C" fn graphdb_session_close(session: *mut graphdb_session_t) -> c_int {
     if session.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let _ = Box::from_raw(session as *mut GraphDbSessionHandle);
-    }
+    let _ = Box::from_raw(session as *mut GraphDbSessionHandle);
 
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
@@ -185,7 +181,7 @@ pub extern "C" fn graphdb_session_close(session: *mut graphdb_session_t) -> c_in
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_session_use_space(
+pub unsafe extern "C" fn graphdb_session_use_space(
     session: *mut graphdb_session_t,
     space_name: *const c_char,
 ) -> c_int {
@@ -193,29 +189,25 @@ pub extern "C" fn graphdb_session_use_space(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    let name_str = unsafe {
-        match CStr::from_ptr(space_name).to_str() {
-            Ok(s) => s,
-            Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-        }
+    let name_str = match CStr::from_ptr(space_name).to_str() {
+        Ok(s) => s,
+        Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
     };
 
-    unsafe {
-        let handle = &mut *(session as *mut GraphDbSessionHandle);
+    let handle = &mut *(session as *mut GraphDbSessionHandle);
 
-        match handle.inner.use_space(name_str) {
-            Ok(_) => {
-                handle.clear_error();
-                graphdb_error_code_t::GRAPHDB_OK as c_int
-            }
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                let offset = e.error_offset();
-                let extended_code = Some(extended_error_code_from_core_error(&e));
-                handle.set_error(error_msg, offset, extended_code);
-                error_code
-            }
+    match handle.inner.use_space(name_str) {
+        Ok(_) => {
+            handle.clear_error();
+            graphdb_error_code_t::GRAPHDB_OK as c_int
+        }
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            let offset = e.error_offset();
+            let extended_code = Some(extended_error_code_from_core_error(&e));
+            handle.set_error(error_msg, offset, extended_code);
+            error_code
         }
     }
 }
@@ -241,27 +233,25 @@ pub extern "C" fn graphdb_session_use_space(
 /// }
 /// ```
 #[no_mangle]
-pub extern "C" fn graphdb_session_current_space(session: *mut graphdb_session_t) -> *mut c_char {
+pub unsafe extern "C" fn graphdb_session_current_space(session: *mut graphdb_session_t) -> *mut c_char {
     if session.is_null() {
         return ptr::null_mut();
     }
 
-    unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
+    let handle = &*(session as *mut GraphDbSessionHandle);
 
-        match handle.inner.current_space() {
-            Some(name) => {
-                match CString::new(name) {
-                    Ok(c_name) => {
-                        // 将 CString 转换为原始指针
-                        // 调用者需要使用 graphdb_free_string 释放
-                        c_name.into_raw()
-                    }
-                    Err(_) => ptr::null_mut(),
+    match handle.inner.current_space() {
+        Some(name) => {
+            match CString::new(name) {
+                Ok(c_name) => {
+                    // 将 CString 转换为原始指针
+                    // 调用者需要使用 graphdb_free_string 释放
+                    c_name.into_raw()
                 }
+                Err(_) => ptr::null_mut(),
             }
-            None => ptr::null_mut(),
         }
+        None => ptr::null_mut(),
     }
 }
 
@@ -275,7 +265,7 @@ pub extern "C" fn graphdb_session_current_space(session: *mut graphdb_session_t)
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_session_set_autocommit(
+pub unsafe extern "C" fn graphdb_session_set_autocommit(
     session: *mut graphdb_session_t,
     autocommit: bool,
 ) -> c_int {
@@ -283,11 +273,9 @@ pub extern "C" fn graphdb_session_set_autocommit(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(session as *mut GraphDbSessionHandle);
-        handle.inner.set_auto_commit(autocommit);
-        graphdb_error_code_t::GRAPHDB_OK as c_int
-    }
+    let handle = &mut *(session as *mut GraphDbSessionHandle);
+    handle.inner.set_auto_commit(autocommit);
+    graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
 /// 获取自动提交模式
@@ -298,15 +286,13 @@ pub extern "C" fn graphdb_session_set_autocommit(
 /// # 返回
 /// - 是否自动提交
 #[no_mangle]
-pub extern "C" fn graphdb_session_get_autocommit(session: *mut graphdb_session_t) -> bool {
+pub unsafe extern "C" fn graphdb_session_get_autocommit(session: *mut graphdb_session_t) -> bool {
     if session.is_null() {
         return true; // 默认自动提交
     }
 
-    unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
-        handle.inner.auto_commit()
-    }
+    let handle = &*(session as *mut GraphDbSessionHandle);
+    handle.inner.auto_commit()
 }
 
 /// 获取上次操作影响的行数
@@ -317,15 +303,13 @@ pub extern "C" fn graphdb_session_get_autocommit(session: *mut graphdb_session_t
 /// # 返回
 /// - 影响的行数，如果会话无效则返回 0
 #[no_mangle]
-pub extern "C" fn graphdb_changes(session: *mut graphdb_session_t) -> c_int {
+pub unsafe extern "C" fn graphdb_changes(session: *mut graphdb_session_t) -> c_int {
     if session.is_null() {
         return 0;
     }
 
-    unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
-        handle.inner.changes() as c_int
-    }
+    let handle = &*(session as *mut GraphDbSessionHandle);
+    handle.inner.changes() as c_int
 }
 
 /// 获取总会话变更数
@@ -336,15 +320,13 @@ pub extern "C" fn graphdb_changes(session: *mut graphdb_session_t) -> c_int {
 /// # 返回
 /// - 总会话变更数，如果会话无效则返回 0
 #[no_mangle]
-pub extern "C" fn graphdb_total_changes(session: *mut graphdb_session_t) -> i64 {
+pub unsafe extern "C" fn graphdb_total_changes(session: *mut graphdb_session_t) -> i64 {
     if session.is_null() {
         return 0;
     }
 
-    unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
-        handle.inner.total_changes() as i64
-    }
+    let handle = &*(session as *mut GraphDbSessionHandle);
+    handle.inner.total_changes() as i64
 }
 
 /// 获取最后插入的顶点 ID
@@ -355,15 +337,13 @@ pub extern "C" fn graphdb_total_changes(session: *mut graphdb_session_t) -> i64 
 /// # 返回
 /// - 最后插入的顶点 ID，如果没有则返回 -1
 #[no_mangle]
-pub extern "C" fn graphdb_last_insert_vertex_id(session: *mut graphdb_session_t) -> i64 {
+pub unsafe extern "C" fn graphdb_last_insert_vertex_id(session: *mut graphdb_session_t) -> i64 {
     if session.is_null() {
         return -1;
     }
 
-    unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
-        handle.inner.last_insert_vertex_id().unwrap_or(-1)
-    }
+    let handle = &*(session as *mut GraphDbSessionHandle);
+    handle.inner.last_insert_vertex_id().unwrap_or(-1)
 }
 
 /// 获取最后插入的边 ID
@@ -374,15 +354,13 @@ pub extern "C" fn graphdb_last_insert_vertex_id(session: *mut graphdb_session_t)
 /// # 返回
 /// - 最后插入的边 ID，如果没有则返回 -1
 #[no_mangle]
-pub extern "C" fn graphdb_last_insert_edge_id(session: *mut graphdb_session_t) -> i64 {
+pub unsafe extern "C" fn graphdb_last_insert_edge_id(session: *mut graphdb_session_t) -> i64 {
     if session.is_null() {
         return -1;
     }
 
-    unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
-        handle.inner.last_insert_edge_id().unwrap_or(-1)
-    }
+    let handle = &*(session as *mut GraphDbSessionHandle);
+    handle.inner.last_insert_edge_id().unwrap_or(-1)
 }
 
 /// 设置忙等待超时
@@ -395,7 +373,7 @@ pub extern "C" fn graphdb_last_insert_edge_id(session: *mut graphdb_session_t) -
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_busy_timeout(
+pub unsafe extern "C" fn graphdb_busy_timeout(
     session: *mut graphdb_session_t,
     timeout_ms: c_int,
 ) -> c_int {
@@ -403,12 +381,10 @@ pub extern "C" fn graphdb_busy_timeout(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(session as *mut GraphDbSessionHandle);
-        // 存储超时设置到句柄中
-        handle.busy_timeout_ms = timeout_ms.max(0) as u32;
-        graphdb_error_code_t::GRAPHDB_OK as c_int
-    }
+    let handle = &mut *(session as *mut GraphDbSessionHandle);
+    // 存储超时设置到句柄中
+    handle.busy_timeout_ms = timeout_ms.max(0) as u32;
+    graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
 /// 获取忙等待超时
@@ -419,15 +395,13 @@ pub extern "C" fn graphdb_busy_timeout(
 /// # 返回
 /// - 超时时间（毫秒），如果会话无效则返回 0
 #[no_mangle]
-pub extern "C" fn graphdb_busy_timeout_get(session: *mut graphdb_session_t) -> c_int {
+pub unsafe extern "C" fn graphdb_busy_timeout_get(session: *mut graphdb_session_t) -> c_int {
     if session.is_null() {
         return 0;
     }
 
-    unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
-        handle.busy_timeout_ms as c_int
-    }
+    let handle = &*(session as *mut GraphDbSessionHandle);
+    handle.busy_timeout_ms as c_int
 }
 
 /// 设置 SQL 追踪回调
@@ -450,7 +424,7 @@ pub extern "C" fn graphdb_busy_timeout_get(session: *mut graphdb_session_t) -> c
 /// graphdb_trace(session, my_trace_callback, NULL);
 /// ```
 #[no_mangle]
-pub extern "C" fn graphdb_trace(
+pub unsafe extern "C" fn graphdb_trace(
     session: *mut graphdb_session_t,
     callback: graphdb_trace_callback,
     user_data: *mut c_void,
@@ -459,12 +433,10 @@ pub extern "C" fn graphdb_trace(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(session as *mut GraphDbSessionHandle);
-        handle.trace_callback = callback;
-        handle.trace_user_data = user_data;
-        graphdb_error_code_t::GRAPHDB_OK as c_int
-    }
+    let handle = &mut *(session as *mut GraphDbSessionHandle);
+    handle.trace_callback = callback;
+    handle.trace_user_data = user_data;
+    graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
 /// 设置提交钩子
@@ -480,7 +452,7 @@ pub extern "C" fn graphdb_trace(
 /// # 说明
 /// 提交钩子在事务提交前被调用。如果回调返回非零值，事务将回滚。
 #[no_mangle]
-pub extern "C" fn graphdb_commit_hook(
+pub unsafe extern "C" fn graphdb_commit_hook(
     session: *mut graphdb_session_t,
     callback: graphdb_commit_hook_callback,
     user_data: *mut c_void,
@@ -489,13 +461,11 @@ pub extern "C" fn graphdb_commit_hook(
         return ptr::null_mut();
     }
 
-    unsafe {
-        let handle = &mut *(session as *mut GraphDbSessionHandle);
-        let old_user_data = handle.commit_hook_user_data;
-        handle.commit_hook = callback;
-        handle.commit_hook_user_data = user_data;
-        old_user_data
-    }
+    let handle = &mut *(session as *mut GraphDbSessionHandle);
+    let old_user_data = handle.commit_hook_user_data;
+    handle.commit_hook = callback;
+    handle.commit_hook_user_data = user_data;
+    old_user_data
 }
 
 /// 设置回滚钩子
@@ -508,7 +478,7 @@ pub extern "C" fn graphdb_commit_hook(
 /// # 返回
 /// - 之前的钩子用户数据指针（如果有）
 #[no_mangle]
-pub extern "C" fn graphdb_rollback_hook(
+pub unsafe extern "C" fn graphdb_rollback_hook(
     session: *mut graphdb_session_t,
     callback: graphdb_rollback_hook_callback,
     user_data: *mut c_void,
@@ -517,13 +487,11 @@ pub extern "C" fn graphdb_rollback_hook(
         return ptr::null_mut();
     }
 
-    unsafe {
-        let handle = &mut *(session as *mut GraphDbSessionHandle);
-        let old_user_data = handle.rollback_hook_user_data;
-        handle.rollback_hook = callback;
-        handle.rollback_hook_user_data = user_data;
-        old_user_data
-    }
+    let handle = &mut *(session as *mut GraphDbSessionHandle);
+    let old_user_data = handle.rollback_hook_user_data;
+    handle.rollback_hook = callback;
+    handle.rollback_hook_user_data = user_data;
+    old_user_data
 }
 
 /// 设置更新钩子
@@ -544,7 +512,7 @@ pub extern "C" fn graphdb_rollback_hook(
 /// - `table`: 表名称（图数据库中为空字符串）
 /// - `rowid`: 受影响的行 ID
 #[no_mangle]
-pub extern "C" fn graphdb_update_hook(
+pub unsafe extern "C" fn graphdb_update_hook(
     session: *mut graphdb_session_t,
     callback: graphdb_update_hook_callback,
     user_data: *mut c_void,
@@ -553,13 +521,11 @@ pub extern "C" fn graphdb_update_hook(
         return ptr::null_mut();
     }
 
-    unsafe {
-        let handle = &mut *(session as *mut GraphDbSessionHandle);
-        let old_user_data = handle.update_hook_user_data;
-        handle.update_hook = callback;
-        handle.update_hook_user_data = user_data;
-        old_user_data
-    }
+    let handle = &mut *(session as *mut GraphDbSessionHandle);
+    let old_user_data = handle.update_hook_user_data;
+    handle.update_hook = callback;
+    handle.update_hook_user_data = user_data;
+    old_user_data
 }
 
 #[cfg(test)]
@@ -591,7 +557,7 @@ mod tests {
             .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
-        let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
+        let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
         if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
             panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);
         }
@@ -606,16 +572,16 @@ mod tests {
         let mut session: *mut graphdb_session_t = ptr::null_mut();
 
         // 创建会话
-        let rc = graphdb_session_create(db, &mut session);
+        let rc = unsafe { graphdb_session_create(db, &mut session) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
         assert!(!session.is_null());
 
         // 关闭会话
-        let rc = graphdb_session_close(session);
+        let rc = unsafe { graphdb_session_close(session) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
         // 关闭数据库
-        let rc = graphdb_close(db);
+        let rc = unsafe { graphdb_close(db) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
     }
 
@@ -624,21 +590,21 @@ mod tests {
         let db = create_test_db();
         let mut session: *mut graphdb_session_t = ptr::null_mut();
 
-        let rc = graphdb_session_create(db, &mut session);
+        let rc = unsafe { graphdb_session_create(db, &mut session) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
         // 默认自动提交
-        let autocommit = graphdb_session_get_autocommit(session);
+        let autocommit = unsafe { graphdb_session_get_autocommit(session) };
         assert!(autocommit);
 
         // 关闭自动提交
-        let rc = graphdb_session_set_autocommit(session, false);
+        let rc = unsafe { graphdb_session_set_autocommit(session, false) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
-        let autocommit = graphdb_session_get_autocommit(session);
+        let autocommit = unsafe { graphdb_session_get_autocommit(session) };
         assert!(!autocommit);
 
-        graphdb_session_close(session);
-        graphdb_close(db);
+        unsafe { graphdb_session_close(session) };
+        unsafe { graphdb_close(db) };
     }
 }

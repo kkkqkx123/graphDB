@@ -63,7 +63,7 @@ impl Drop for GraphDbTxnHandle {
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_txn_begin(
+pub unsafe extern "C" fn graphdb_txn_begin(
     session: *mut graphdb_session_t,
     txn: *mut *mut graphdb_txn_t,
 ) -> c_int {
@@ -71,30 +71,28 @@ pub extern "C" fn graphdb_txn_begin(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
+    let handle = &*(session as *mut GraphDbSessionHandle);
 
-        match handle.inner.begin_transaction() {
-            Ok(txn_obj) => {
-                let txn_manager = handle.inner.txn_manager();
-                let txn_handle = txn_obj.handle();
-                let handle = Box::new(GraphDbTxnHandle {
-                    session: session as *mut GraphDbSessionHandle,
-                    txn_manager,
-                    txn_handle: Some(txn_handle),
-                    committed: false,
-                    rolled_back: false,
-                });
-                *txn = Box::into_raw(handle) as *mut graphdb_txn_t;
-                graphdb_error_code_t::GRAPHDB_OK as c_int
-            }
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg);
-                *txn = ptr::null_mut();
-                error_code
-            }
+    match handle.inner.begin_transaction() {
+        Ok(txn_obj) => {
+            let txn_manager = handle.inner.txn_manager();
+            let txn_handle = txn_obj.handle();
+            let handle = Box::new(GraphDbTxnHandle {
+                session: session as *mut GraphDbSessionHandle,
+                txn_manager,
+                txn_handle: Some(txn_handle),
+                committed: false,
+                rolled_back: false,
+            });
+            *txn = Box::into_raw(handle) as *mut graphdb_txn_t;
+            graphdb_error_code_t::GRAPHDB_OK as c_int
+        }
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
+            *txn = ptr::null_mut();
+            error_code
         }
     }
 }
@@ -109,7 +107,7 @@ pub extern "C" fn graphdb_txn_begin(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_txn_begin_readonly(
+pub unsafe extern "C" fn graphdb_txn_begin_readonly(
     session: *mut graphdb_session_t,
     txn: *mut *mut graphdb_txn_t,
 ) -> c_int {
@@ -117,31 +115,29 @@ pub extern "C" fn graphdb_txn_begin_readonly(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &*(session as *mut GraphDbSessionHandle);
+    let handle = &*(session as *mut GraphDbSessionHandle);
 
-        let config = TransactionConfig::new().read_only();
-        match handle.inner.begin_transaction_with_config(config) {
-            Ok(txn_obj) => {
-                let txn_manager = handle.inner.txn_manager();
-                let handle_id = txn_obj.handle();
-                let txn_handle = Box::new(GraphDbTxnHandle {
-                    session: session as *mut GraphDbSessionHandle,
-                    txn_manager,
-                    txn_handle: Some(handle_id),
-                    committed: false,
-                    rolled_back: false,
-                });
-                *txn = Box::into_raw(txn_handle) as *mut graphdb_txn_t;
-                graphdb_error_code_t::GRAPHDB_OK as c_int
-            }
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg);
-                *txn = ptr::null_mut();
-                error_code
-            }
+    let config = TransactionConfig::new().read_only();
+    match handle.inner.begin_transaction_with_config(config) {
+        Ok(txn_obj) => {
+            let txn_manager = handle.inner.txn_manager();
+            let handle_id = txn_obj.handle();
+            let txn_handle = Box::new(GraphDbTxnHandle {
+                session: session as *mut GraphDbSessionHandle,
+                txn_manager,
+                txn_handle: Some(handle_id),
+                committed: false,
+                rolled_back: false,
+            });
+            *txn = Box::into_raw(txn_handle) as *mut graphdb_txn_t;
+            graphdb_error_code_t::GRAPHDB_OK as c_int
+        }
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
+            *txn = ptr::null_mut();
+            error_code
         }
     }
 }
@@ -157,7 +153,7 @@ pub extern "C" fn graphdb_txn_begin_readonly(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_txn_execute(
+pub unsafe extern "C" fn graphdb_txn_execute(
     txn: *mut graphdb_txn_t,
     query: *const c_char,
     result: *mut *mut graphdb_result_t,
@@ -166,56 +162,52 @@ pub extern "C" fn graphdb_txn_execute(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    let query_str = unsafe {
-        match CStr::from_ptr(query).to_str() {
-            Ok(s) => s,
-            Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-        }
+    let query_str = match CStr::from_ptr(query).to_str() {
+        Ok(s) => s,
+        Err(_) => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
     };
 
-    unsafe {
-        let handle = &mut *(txn as *mut GraphDbTxnHandle);
+    let handle = &mut *(txn as *mut GraphDbTxnHandle);
 
-        if handle.committed || handle.rolled_back {
-            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    if handle.committed || handle.rolled_back {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    // 检查会话有效性
+    let session = match handle.get_session() {
+        Some(s) => s,
+        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+    };
+
+    let txn_handle = match handle.txn_handle.as_ref() {
+        Some(h) => h,
+        None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
+    };
+
+    let ctx = crate::api::core::QueryRequest {
+        space_id: session.inner.space_id(),
+        auto_commit: false,
+        transaction_id: Some(txn_handle.0),
+        parameters: None,
+    };
+
+    let mut query_api = session.inner.query_api();
+    match query_api.execute(query_str, ctx) {
+        Ok(core_result) => {
+            let query_result =
+                crate::api::embedded::result::QueryResult::from_core(core_result);
+            let result_handle = Box::new(GraphDbResultHandle {
+                inner: query_result,
+            });
+            *result = Box::into_raw(result_handle) as *mut graphdb_result_t;
+            graphdb_error_code_t::GRAPHDB_OK as c_int
         }
-
-        // 检查会话有效性
-        let session = match handle.get_session() {
-            Some(s) => s,
-            None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-        };
-
-        let txn_handle = match handle.txn_handle.as_ref() {
-            Some(h) => h,
-            None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
-        };
-
-        let ctx = crate::api::core::QueryRequest {
-            space_id: session.inner.space_id(),
-            auto_commit: false,
-            transaction_id: Some(txn_handle.0),
-            parameters: None,
-        };
-
-        let mut query_api = session.inner.query_api();
-        match query_api.execute(query_str, ctx) {
-            Ok(core_result) => {
-                let query_result =
-                    crate::api::embedded::result::QueryResult::from_core(core_result);
-                let result_handle = Box::new(GraphDbResultHandle {
-                    inner: query_result,
-                });
-                *result = Box::into_raw(result_handle) as *mut graphdb_result_t;
-                graphdb_error_code_t::GRAPHDB_OK as c_int
-            }
-            Err(e) => {
-                let (error_code, _) = error_code_from_core_error(&e);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg);
-                *result = ptr::null_mut();
-                error_code
-            }
+        Err(e) => {
+            let (error_code, _) = error_code_from_core_error(&e);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
+            *result = ptr::null_mut();
+            error_code
         }
     }
 }
@@ -229,47 +221,45 @@ pub extern "C" fn graphdb_txn_execute(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
+pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
     if txn.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(txn as *mut GraphDbTxnHandle);
+    let handle = &mut *(txn as *mut GraphDbTxnHandle);
 
-        if handle.committed || handle.rolled_back {
-            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    if handle.committed || handle.rolled_back {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    // 检查会话有效性
+    let session = match handle.get_session() {
+        Some(s) => s,
+        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+    };
+
+    if let Some(callback) = session.commit_hook {
+        let result = callback(session.commit_hook_user_data);
+        if result != 0 {
+            return graphdb_txn_rollback(txn);
         }
+    }
 
-        // 检查会话有效性
-        let session = match handle.get_session() {
-            Some(s) => s,
-            None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-        };
+    let txn_handle = match handle.txn_handle.take() {
+        Some(h) => h,
+        None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
+    };
 
-        if let Some(callback) = session.commit_hook {
-            let result = callback(session.commit_hook_user_data);
-            if result != 0 {
-                return graphdb_txn_rollback(txn);
-            }
+    match handle.txn_manager.commit_transaction(txn_handle.0) {
+        Ok(_) => {
+            handle.committed = true;
+            graphdb_error_code_t::GRAPHDB_OK as c_int
         }
-
-        let txn_handle = match handle.txn_handle.take() {
-            Some(h) => h,
-            None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
-        };
-
-        match handle.txn_manager.commit_transaction(txn_handle.0) {
-            Ok(_) => {
-                handle.committed = true;
-                graphdb_error_code_t::GRAPHDB_OK as c_int
-            }
-            Err(e) => {
-                let error_code = graphdb_error_code_t::GRAPHDB_ABORT as c_int;
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg);
-                error_code
-            }
+        Err(e) => {
+            let error_code = graphdb_error_code_t::GRAPHDB_ABORT as c_int;
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
+            error_code
         }
     }
 }
@@ -283,44 +273,42 @@ pub extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int {
+pub unsafe extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int {
     if txn.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(txn as *mut GraphDbTxnHandle);
+    let handle = &mut *(txn as *mut GraphDbTxnHandle);
 
-        if handle.committed || handle.rolled_back {
-            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    if handle.committed || handle.rolled_back {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
+
+    // 检查会话有效性
+    let session = match handle.get_session() {
+        Some(s) => s,
+        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+    };
+
+    if let Some(callback) = session.rollback_hook {
+        callback(session.rollback_hook_user_data);
+    }
+
+    let txn_handle = match handle.txn_handle.take() {
+        Some(h) => h,
+        None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
+    };
+
+    match handle.txn_manager.abort_transaction(txn_handle.0) {
+        Ok(_) => {
+            handle.rolled_back = true;
+            graphdb_error_code_t::GRAPHDB_OK as c_int
         }
-
-        // 检查会话有效性
-        let session = match handle.get_session() {
-            Some(s) => s,
-            None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-        };
-
-        if let Some(callback) = session.rollback_hook {
-            callback(session.rollback_hook_user_data);
-        }
-
-        let txn_handle = match handle.txn_handle.take() {
-            Some(h) => h,
-            None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
-        };
-
-        match handle.txn_manager.abort_transaction(txn_handle.0) {
-            Ok(_) => {
-                handle.rolled_back = true;
-                graphdb_error_code_t::GRAPHDB_OK as c_int
-            }
-            Err(e) => {
-                let error_code = graphdb_error_code_t::GRAPHDB_ABORT as c_int;
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg);
-                error_code
-            }
+        Err(e) => {
+            let error_code = graphdb_error_code_t::GRAPHDB_ABORT as c_int;
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
+            error_code
         }
     }
 }
@@ -335,37 +323,33 @@ pub extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int {
 /// - 成功: 保存点 ID
 /// - 失败: -1
 #[no_mangle]
-pub extern "C" fn graphdb_txn_savepoint(txn: *mut graphdb_txn_t, name: *const c_char) -> i64 {
+pub unsafe extern "C" fn graphdb_txn_savepoint(txn: *mut graphdb_txn_t, name: *const c_char) -> i64 {
     if txn.is_null() || name.is_null() {
         return -1;
     }
 
-    let name_str = unsafe {
-        match CStr::from_ptr(name).to_str() {
-            Ok(s) => s,
-            Err(_) => return -1,
-        }
+    let name_str = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => return -1,
     };
 
-    unsafe {
-        let handle = &mut *(txn as *mut GraphDbTxnHandle);
+    let handle = &mut *(txn as *mut GraphDbTxnHandle);
 
-        if handle.committed || handle.rolled_back {
-            return -1;
-        }
+    if handle.committed || handle.rolled_back {
+        return -1;
+    }
 
-        let txn_handle = match handle.txn_handle.as_ref() {
-            Some(h) => h,
-            None => return -1,
-        };
+    let txn_handle = match handle.txn_handle.as_ref() {
+        Some(h) => h,
+        None => return -1,
+    };
 
-        match handle
-            .txn_manager
-            .create_savepoint(txn_handle.0, Some(name_str.to_string()))
-        {
-            Ok(id) => id as i64,
-            Err(_) => -1,
-        }
+    match handle
+        .txn_manager
+        .create_savepoint(txn_handle.0, Some(name_str.to_string()))
+    {
+        Ok(id) => id as i64,
+        Err(_) => -1,
     }
 }
 
@@ -379,7 +363,7 @@ pub extern "C" fn graphdb_txn_savepoint(txn: *mut graphdb_txn_t, name: *const c_
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_txn_release_savepoint(
+pub unsafe extern "C" fn graphdb_txn_release_savepoint(
     txn: *mut graphdb_txn_t,
     savepoint_id: i64,
 ) -> c_int {
@@ -387,30 +371,28 @@ pub extern "C" fn graphdb_txn_release_savepoint(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(txn as *mut GraphDbTxnHandle);
+    let handle = &mut *(txn as *mut GraphDbTxnHandle);
 
-        if handle.committed || handle.rolled_back {
-            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
-        }
+    if handle.committed || handle.rolled_back {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
 
-        let txn_handle = match handle.txn_handle.as_ref() {
-            Some(h) => h,
-            None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
-        };
+    let txn_handle = match handle.txn_handle.as_ref() {
+        Some(h) => h,
+        None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
+    };
 
-        match handle
-            .txn_manager
-            .release_savepoint(txn_handle.0, savepoint_id as u64)
-        {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
-            Err(e) => {
-                let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
-                let (error_code, _) = error_code_from_core_error(&core_error);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg);
-                error_code
-            }
+    match handle
+        .txn_manager
+        .release_savepoint(txn_handle.0, savepoint_id as u64)
+    {
+        Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+        Err(e) => {
+            let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
+            let (error_code, _) = error_code_from_core_error(&core_error);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
+            error_code
         }
     }
 }
@@ -425,7 +407,7 @@ pub extern "C" fn graphdb_txn_release_savepoint(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_txn_rollback_to_savepoint(
+pub unsafe extern "C" fn graphdb_txn_rollback_to_savepoint(
     txn: *mut graphdb_txn_t,
     savepoint_id: i64,
 ) -> c_int {
@@ -433,30 +415,28 @@ pub extern "C" fn graphdb_txn_rollback_to_savepoint(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let handle = &mut *(txn as *mut GraphDbTxnHandle);
+    let handle = &mut *(txn as *mut GraphDbTxnHandle);
 
-        if handle.committed || handle.rolled_back {
-            return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
-        }
+    if handle.committed || handle.rolled_back {
+        return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
+    }
 
-        let txn_handle = match handle.txn_handle.as_ref() {
-            Some(h) => h,
-            None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
-        };
+    let txn_handle = match handle.txn_handle.as_ref() {
+        Some(h) => h,
+        None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
+    };
 
-        match handle
-            .txn_manager
-            .rollback_to_savepoint(txn_handle.0, savepoint_id as u64)
-        {
-            Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
-            Err(e) => {
-                let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
-                let (error_code, _) = error_code_from_core_error(&core_error);
-                let error_msg = format!("{}", e);
-                set_last_error_message(error_msg);
-                error_code
-            }
+    match handle
+        .txn_manager
+        .rollback_to_savepoint(txn_handle.0, savepoint_id as u64)
+    {
+        Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
+        Err(e) => {
+            let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
+            let (error_code, _) = error_code_from_core_error(&core_error);
+            let error_msg = format!("{}", e);
+            set_last_error_message(error_msg);
+            error_code
         }
     }
 }
@@ -470,14 +450,12 @@ pub extern "C" fn graphdb_txn_rollback_to_savepoint(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_txn_free(txn: *mut graphdb_txn_t) -> c_int {
+pub unsafe extern "C" fn graphdb_txn_free(txn: *mut graphdb_txn_t) -> c_int {
     if txn.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    unsafe {
-        let _ = Box::from_raw(txn as *mut GraphDbTxnHandle);
-    }
+    let _ = Box::from_raw(txn as *mut GraphDbTxnHandle);
 
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
@@ -510,7 +488,7 @@ mod tests {
             .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
-        let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
+        let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
         if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
             panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);
         }
@@ -521,13 +499,13 @@ mod tests {
 
     #[test]
     fn test_txn_begin_null_params() {
-        let rc = graphdb_txn_begin(ptr::null_mut(), ptr::null_mut());
+        let rc = unsafe { graphdb_txn_begin(ptr::null_mut(), ptr::null_mut()) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
     #[test]
     fn test_txn_free_null() {
-        let rc = graphdb_txn_free(ptr::null_mut());
+        let rc = unsafe { graphdb_txn_free(ptr::null_mut()) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
@@ -536,18 +514,18 @@ mod tests {
         let db = create_test_db();
         let mut session: *mut graphdb_session_t = ptr::null_mut();
 
-        let rc = graphdb_session_create(db, &mut session);
+        let rc = unsafe { graphdb_session_create(db, &mut session) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
         let mut txn: *mut graphdb_txn_t = ptr::null_mut();
-        let rc = graphdb_txn_begin(session, &mut txn);
+        let rc = unsafe { graphdb_txn_begin(session, &mut txn) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
         assert!(!txn.is_null());
 
-        let rc = graphdb_txn_free(txn);
+        let rc = unsafe { graphdb_txn_free(txn) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
-        graphdb_session_close(session);
-        graphdb_close(db);
+        unsafe { graphdb_session_close(session) };
+        unsafe { graphdb_close(db) };
     }
 }

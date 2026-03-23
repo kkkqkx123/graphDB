@@ -30,7 +30,7 @@ pub struct GraphDbHandle {
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb_t) -> c_int {
+pub unsafe extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb_t) -> c_int {
     // 参数验证
     if path.is_null() || db.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
@@ -85,7 +85,7 @@ pub extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb_t) -> 
 /// - GRAPHDB_OPEN_READWRITE: 读写模式
 /// - GRAPHDB_OPEN_CREATE: 如果数据库不存在则创建
 #[no_mangle]
-pub extern "C" fn graphdb_open_v2(
+pub unsafe extern "C" fn graphdb_open_v2(
     path: *const c_char,
     db: *mut *mut graphdb_t,
     flags: c_int,
@@ -158,7 +158,7 @@ pub extern "C" fn graphdb_open_v2(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_close(db: *mut graphdb_t) -> c_int {
+pub unsafe extern "C" fn graphdb_close(db: *mut graphdb_t) -> c_int {
     if db.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
@@ -179,7 +179,7 @@ pub extern "C" fn graphdb_close(db: *mut graphdb_t) -> c_int {
 /// # 返回
 /// - 错误码，如果没有错误返回 GRAPHDB_OK
 #[no_mangle]
-pub extern "C" fn graphdb_errcode(db: *mut graphdb_t) -> c_int {
+pub unsafe extern "C" fn graphdb_errcode(db: *mut graphdb_t) -> c_int {
     if db.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
@@ -209,7 +209,7 @@ pub extern "C" fn graphdb_libversion() -> *const c_char {
 /// # 参数
 /// - `str`: 字符串指针
 #[no_mangle]
-pub extern "C" fn graphdb_free_string(str: *mut c_char) {
+pub unsafe extern "C" fn graphdb_free_string(str: *mut c_char) {
     if !str.is_null() {
         unsafe {
             let _ = CString::from_raw(str);
@@ -222,7 +222,7 @@ pub extern "C" fn graphdb_free_string(str: *mut c_char) {
 /// # 参数
 /// - `ptr`: 内存指针
 #[no_mangle]
-pub extern "C" fn graphdb_free(ptr: *mut c_void) {
+pub unsafe extern "C" fn graphdb_free(ptr: *mut c_void) {
     if !ptr.is_null() {
         unsafe {
             let _ = Box::from_raw(ptr);
@@ -271,22 +271,22 @@ mod tests {
             .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
-        let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
+        let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
         if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
             panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);
         }
         assert!(!db.is_null());
 
-        let rc = graphdb_close(db);
+        let rc = unsafe { graphdb_close(db) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
     }
 
     #[test]
     fn test_graphdb_null_params() {
-        let rc = graphdb_open(ptr::null(), ptr::null_mut());
+        let rc = unsafe { graphdb_open(ptr::null(), ptr::null_mut()) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
 
-        let rc = graphdb_close(ptr::null_mut());
+        let rc = unsafe { graphdb_close(ptr::null_mut()) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 }

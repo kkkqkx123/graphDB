@@ -155,14 +155,6 @@ impl Span {
         }
     }
 
-    /// 转换为字符串表示
-    pub fn to_string(&self) -> String {
-        format!(
-            "{}:{} - {}:{}",
-            self.start.line, self.start.column, self.end.line, self.end.column
-        )
-    }
-
     /// 获取起始位置的行号
     pub fn start_line(&self) -> usize {
         self.start.line

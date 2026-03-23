@@ -182,7 +182,7 @@ impl GraphDbBatchHandle {
 /// 创建的批量操作句柄持有会话指针，但不拥有会话的所有权。
 /// 调用者必须确保在批量操作句柄被释放之前不关闭会话。
 #[no_mangle]
-pub extern "C" fn graphdb_batch_inserter_create(
+pub unsafe extern "C" fn graphdb_batch_inserter_create(
     session: *mut graphdb_session_t,
     batch_size: c_int,
     batch: *mut *mut graphdb_batch_t,
@@ -225,7 +225,7 @@ pub extern "C" fn graphdb_batch_inserter_create(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_batch_add_vertex(
+pub unsafe extern "C" fn graphdb_batch_add_vertex(
     batch: *mut graphdb_batch_t,
     vid: i64,
     tag_name: *const c_char,
@@ -299,7 +299,7 @@ pub extern "C" fn graphdb_batch_add_vertex(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_batch_add_edge(
+pub unsafe extern "C" fn graphdb_batch_add_edge(
     batch: *mut graphdb_batch_t,
     src_vid: i64,
     dst_vid: i64,
@@ -373,7 +373,7 @@ pub extern "C" fn graphdb_batch_add_edge(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_batch_flush(batch: *mut graphdb_batch_t) -> c_int {
+pub unsafe extern "C" fn graphdb_batch_flush(batch: *mut graphdb_batch_t) -> c_int {
     if batch.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
@@ -406,7 +406,7 @@ pub extern "C" fn graphdb_batch_flush(batch: *mut graphdb_batch_t) -> c_int {
 /// # 返回
 /// - 缓冲的顶点数量
 #[no_mangle]
-pub extern "C" fn graphdb_batch_buffered_vertices(batch: *mut graphdb_batch_t) -> c_int {
+pub unsafe extern "C" fn graphdb_batch_buffered_vertices(batch: *mut graphdb_batch_t) -> c_int {
     if batch.is_null() {
         return -1;
     }
@@ -429,7 +429,7 @@ pub extern "C" fn graphdb_batch_buffered_vertices(batch: *mut graphdb_batch_t) -
 /// # 返回
 /// - 缓冲的边数量
 #[no_mangle]
-pub extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_t) -> c_int {
+pub unsafe extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_t) -> c_int {
     if batch.is_null() {
         return -1;
     }
@@ -453,7 +453,7 @@ pub extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_t) -> c
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_batch_free(batch: *mut graphdb_batch_t) -> c_int {
+pub unsafe extern "C" fn graphdb_batch_free(batch: *mut graphdb_batch_t) -> c_int {
     if batch.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
@@ -516,7 +516,7 @@ mod tests {
             .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
-        let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
+        let rc = unsafe { graphdb_open(path_cstring.as_ptr(), &mut db) };
         if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
             panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);
         }
@@ -527,13 +527,13 @@ mod tests {
 
     #[test]
     fn test_batch_inserter_create_null_params() {
-        let rc = graphdb_batch_inserter_create(ptr::null_mut(), 100, ptr::null_mut());
+        let rc = unsafe { graphdb_batch_inserter_create(ptr::null_mut(), 100, ptr::null_mut()) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
     #[test]
     fn test_batch_free_null() {
-        let rc = graphdb_batch_free(ptr::null_mut());
+        let rc = unsafe { graphdb_batch_free(ptr::null_mut()) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 
@@ -542,27 +542,27 @@ mod tests {
         let db = create_test_db();
         let mut session: *mut graphdb_session_t = ptr::null_mut();
 
-        let rc = graphdb_session_create(db, &mut session);
+        let rc = unsafe { graphdb_session_create(db, &mut session) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
         let mut batch: *mut graphdb_batch_t = ptr::null_mut();
-        let rc = graphdb_batch_inserter_create(session, 100, &mut batch);
+        let rc = unsafe { graphdb_batch_inserter_create(session, 100, &mut batch) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
         assert!(!batch.is_null());
 
-        let rc = graphdb_batch_free(batch);
+        let rc = unsafe { graphdb_batch_free(batch) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
-        graphdb_session_close(session);
-        graphdb_close(db);
+        unsafe { graphdb_session_close(session) };
+        unsafe { graphdb_close(db) };
     }
 
     #[test]
     fn test_batch_buffered_counts_null() {
-        let count = graphdb_batch_buffered_vertices(ptr::null_mut());
+        let count = unsafe { graphdb_batch_buffered_vertices(ptr::null_mut()) };
         assert_eq!(count, -1);
 
-        let count = graphdb_batch_buffered_edges(ptr::null_mut());
+        let count = unsafe { graphdb_batch_buffered_edges(ptr::null_mut()) };
         assert_eq!(count, -1);
     }
 }
