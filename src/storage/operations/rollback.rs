@@ -4,8 +4,8 @@
 
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::operations::{EdgeWriter, VertexWriter};
-use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use crate::transaction::types::OperationLog;
+use bincode::{config::standard, decode_from_slice, encode_to_vec};
 
 /// 操作日志上下文 trait
 ///
@@ -170,10 +170,7 @@ impl<'a> StorageRollbackExecutor<'a> {
             return Ok(Value::String(s.to_string()));
         }
 
-        Err(StorageError::DbError(format!(
-            "无法解析 Value 格式: {}",
-            s
-        )))
+        Err(StorageError::DbError(format!("无法解析 Value 格式: {}", s)))
     }
 }
 
@@ -392,28 +389,20 @@ mod tests {
 
     impl VertexWriter for MockStorageWriter {
         fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
-            self.vertex_operations.push(format!(
-                "insert_vertex({}, {:?})",
-                space,
-                vertex.vid()
-            ));
+            self.vertex_operations
+                .push(format!("insert_vertex({}, {:?})", space, vertex.vid()));
             Ok(vertex.vid().clone())
         }
 
         fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
-            self.vertex_operations.push(format!(
-                "update_vertex({}, {:?})",
-                space,
-                vertex.vid()
-            ));
+            self.vertex_operations
+                .push(format!("update_vertex({}, {:?})", space, vertex.vid()));
             Ok(())
         }
 
         fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
-            self.vertex_operations.push(format!(
-                "delete_vertex({}, {:?})",
-                space, id
-            ));
+            self.vertex_operations
+                .push(format!("delete_vertex({}, {:?})", space, id));
             Ok(())
         }
 
@@ -504,8 +493,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex1_bytes = encode_to_vec(&vertex1, standard())
-            .expect("顶点序列化失败");
+        let vertex1_bytes = encode_to_vec(&vertex1, standard()).expect("顶点序列化失败");
 
         let vertex2 = Vertex::new(
             Value::Int(2),
@@ -514,8 +502,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex2_bytes = encode_to_vec(&vertex2, standard())
-            .expect("顶点序列化失败");
+        let vertex2_bytes = encode_to_vec(&vertex2, standard()).expect("顶点序列化失败");
 
         ctx.add_log(OperationLog::InsertVertex {
             space: "test".to_string(),
@@ -566,8 +553,7 @@ mod tests {
                 properties: HashMap::new(),
             }],
         );
-        let vertex_bytes = encode_to_vec(&vertex, standard())
-            .expect("顶点序列化失败");
+        let vertex_bytes = encode_to_vec(&vertex, standard()).expect("顶点序列化失败");
 
         let log = OperationLog::DeleteVertex {
             space: "test_space".to_string(),

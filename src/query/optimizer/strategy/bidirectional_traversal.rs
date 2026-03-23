@@ -259,10 +259,7 @@ impl BidirectionalTraversalOptimizer {
     ///
     /// 基于边类型统计信息和度数估计，智能分配正向和反向搜索的深度
     /// 策略：度数较小的一端分配更多深度，因为分支少、搜索空间小
-    pub fn calculate_depth_allocation(
-        &self,
-        context: &DepthAllocationContext,
-    ) -> (u32, u32) {
+    pub fn calculate_depth_allocation(&self, context: &DepthAllocationContext) -> (u32, u32) {
         let total_depth = context.total_depth;
 
         // 深度小于2时，直接平均分配
@@ -280,12 +277,16 @@ impl BidirectionalTraversalOptimizer {
         // 估计起点和终点的度数
         let start_degree = context
             .start_degree_hint
-            .or_else(|| self.estimate_vertex_degree(&context.start_tag, &edge_stats, EdgeDirection::Out))
+            .or_else(|| {
+                self.estimate_vertex_degree(&context.start_tag, &edge_stats, EdgeDirection::Out)
+            })
             .unwrap_or_else(|| self.estimate_average_branching(&context.edge_types));
 
         let end_degree = context
             .end_degree_hint
-            .or_else(|| self.estimate_vertex_degree(&context.end_tag, &edge_stats, EdgeDirection::In))
+            .or_else(|| {
+                self.estimate_vertex_degree(&context.end_tag, &edge_stats, EdgeDirection::In)
+            })
             .unwrap_or_else(|| self.estimate_average_branching(&context.edge_types));
 
         // 基于度数比例计算深度分配
@@ -321,7 +322,8 @@ impl BidirectionalTraversalOptimizer {
         let adjusted_ratio = base_forward_ratio * (1.0 + skewness_adjustment);
         let forward_ratio = adjusted_ratio.clamp(0.2, 0.8); // 限制在20%-80%之间
 
-        let forward_depth = ((forward_ratio * total_depth as f64).round() as u32).clamp(1, total_depth - 1);
+        let forward_depth =
+            ((forward_ratio * total_depth as f64).round() as u32).clamp(1, total_depth - 1);
         let backward_depth = total_depth - forward_depth;
 
         (forward_depth, backward_depth)
@@ -333,10 +335,7 @@ impl BidirectionalTraversalOptimizer {
             return 0.0;
         }
 
-        let total_skewness: f64 = edge_stats
-            .iter()
-            .map(|s| s.degree_gini_coefficient)
-            .sum();
+        let total_skewness: f64 = edge_stats.iter().map(|s| s.degree_gini_coefficient).sum();
 
         let avg_skewness = total_skewness / edge_stats.len() as f64;
 
@@ -367,9 +366,7 @@ impl BidirectionalTraversalOptimizer {
         match direction {
             EdgeDirection::Out => Some(tag_stats.avg_out_degree),
             EdgeDirection::In => Some(tag_stats.avg_in_degree),
-            EdgeDirection::Both => {
-                Some((tag_stats.avg_out_degree + tag_stats.avg_in_degree) / 2.0)
-            }
+            EdgeDirection::Both => Some((tag_stats.avg_out_degree + tag_stats.avg_in_degree) / 2.0),
         }
     }
 
@@ -407,8 +404,7 @@ impl BidirectionalTraversalOptimizer {
 
         // 如果两个方向的度数都很低（< 10），双向遍历有收益
         // 或者两个方向度数接近，也可以考虑双向遍历
-        (avg_out < 10.0 && avg_in < 10.0)
-            || ((avg_out - avg_in).abs() / (avg_out + avg_in) < 0.3)
+        (avg_out < 10.0 && avg_in < 10.0) || ((avg_out - avg_in).abs() / (avg_out + avg_in) < 0.3)
     }
 }
 

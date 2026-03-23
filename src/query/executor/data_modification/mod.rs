@@ -14,4 +14,4 @@ pub use index_ops::{CreateIndexExecutor, DropIndexExecutor};
 pub use insert::InsertExecutor;
 pub use remove::{RemoveExecutor, RemoveItem, RemoveItemType, RemoveResult};
 pub use tag_ops::DeleteTagExecutor;
-pub use update::{UpdateExecutor, VertexUpdate, EdgeUpdate, UpdateResult};
+pub use update::{EdgeUpdate, UpdateExecutor, UpdateResult, VertexUpdate};

@@ -80,13 +80,12 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
             .condition()
             .expression()
             .map(|meta| meta.inner().clone())
-            .unwrap_or_else(|| {
-                crate::core::Expression::Literal(crate::core::Value::Bool(true))
-            });
+            .unwrap_or_else(|| crate::core::Expression::Literal(crate::core::Value::Bool(true)));
 
-        let if_branch = node.if_branch().as_ref().ok_or_else(|| {
-            QueryError::ExecutionError("Select节点缺少if_branch".to_string())
-        })?;
+        let if_branch = node
+            .if_branch()
+            .as_ref()
+            .ok_or_else(|| QueryError::ExecutionError("Select节点缺少if_branch".to_string()))?;
 
         let if_executor = create_executor_fn(if_branch, storage.clone(), context)?;
 
@@ -130,11 +129,8 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = PassThroughExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            PassThroughExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::PassThrough(executor))
     }
 
@@ -145,11 +141,8 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = DataCollectExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            DataCollectExecutor::new(node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::DataCollect(executor))
     }
 }

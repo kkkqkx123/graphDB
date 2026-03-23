@@ -96,7 +96,9 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         let probe_keys = self.base_executor.get_probe_keys().clone();
 
         if hash_keys.is_empty() || probe_keys.is_empty() {
-            return Err(QueryError::ExecutionError("Hash key or probe key is empty".to_string()));
+            return Err(QueryError::ExecutionError(
+                "Hash key or probe key is empty".to_string(),
+            ));
         }
 
         let hash_key = hash_keys[0].clone();
@@ -224,8 +226,9 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
             let mut key_values = Vec::with_capacity(hash_keys.len());
 
             for hash_key in &hash_keys {
-                let key = ExpressionEvaluator::evaluate(hash_key, &mut context)
-                    .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
+                let key = ExpressionEvaluator::evaluate(hash_key, &mut context).map_err(|e| {
+                    QueryError::ExecutionError(format!("Key evaluation failed: {}", e))
+                })?;
                 key_values.push(key);
             }
 
@@ -244,8 +247,9 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
             let mut key_values = Vec::with_capacity(probe_keys.len());
 
             for probe_key in &probe_keys {
-                let key = ExpressionEvaluator::evaluate(probe_key, &mut context)
-                    .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
+                let key = ExpressionEvaluator::evaluate(probe_key, &mut context).map_err(|e| {
+                    QueryError::ExecutionError(format!("Key evaluation failed: {}", e))
+                })?;
                 key_values.push(key);
             }
 

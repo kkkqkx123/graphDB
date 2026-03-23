@@ -5,7 +5,7 @@
 use crate::api::embedded::c_api::error::graphdb_error_code_t;
 use crate::api::embedded::c_api::types::graphdb_result_t;
 use crate::api::embedded::result::QueryResult;
-use std::ffi::{CStr, CString, c_char, c_int};
+use std::ffi::{c_char, c_int, CStr, CString};
 use std::ptr;
 
 /// 结果集句柄内部结构
@@ -85,24 +85,19 @@ pub extern "C" fn graphdb_row_count(result: *mut graphdb_result_t) -> c_int {
 /// 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
 /// 以避免内存泄漏。
 #[no_mangle]
-pub extern "C" fn graphdb_column_name(
-    result: *mut graphdb_result_t,
-    index: c_int,
-) -> *mut c_char {
+pub extern "C" fn graphdb_column_name(result: *mut graphdb_result_t, index: c_int) -> *mut c_char {
     if result.is_null() {
         return ptr::null_mut();
     }
 
     unsafe {
         let handle = &*(result as *mut GraphDbResultHandle);
-        
+
         match handle.inner.columns().get(index as usize) {
-            Some(name) => {
-                match CString::new(name.as_str()) {
-                    Ok(c_name) => c_name.into_raw(),
-                    Err(_) => ptr::null_mut(),
-                }
-            }
+            Some(name) => match CString::new(name.as_str()) {
+                Ok(c_name) => c_name.into_raw(),
+                Err(_) => ptr::null_mut(),
+            },
             None => ptr::null_mut(),
         }
     }
@@ -139,18 +134,16 @@ pub extern "C" fn graphdb_get_int(
 
     unsafe {
         let handle = &*(result as *mut GraphDbResultHandle);
-        
+
         match handle.inner.get(row as usize) {
-            Some(row_data) => {
-                match row_data.get(col_str) {
-                    Some(crate::core::Value::Int(i)) => {
-                        *value = *i;
-                        graphdb_error_code_t::GRAPHDB_OK as c_int
-                    }
-                    Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
-                    None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+            Some(row_data) => match row_data.get(col_str) {
+                Some(crate::core::Value::Int(i)) => {
+                    *value = *i;
+                    graphdb_error_code_t::GRAPHDB_OK as c_int
                 }
-            }
+                Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
+                None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+            },
             None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
         }
     }
@@ -179,7 +172,9 @@ pub extern "C" fn graphdb_get_string(
 ) -> *mut c_char {
     if result.is_null() || col.is_null() {
         if !len.is_null() {
-            unsafe { *len = -1; }
+            unsafe {
+                *len = -1;
+            }
         }
         return ptr::null_mut();
     }
@@ -198,28 +193,26 @@ pub extern "C" fn graphdb_get_string(
 
     unsafe {
         let handle = &*(result as *mut GraphDbResultHandle);
-        
+
         match handle.inner.get(row as usize) {
-            Some(row_data) => {
-                match row_data.get(col_str) {
-                    Some(crate::core::Value::String(s)) => {
-                        if !len.is_null() {
-                            *len = s.len() as c_int;
-                        }
-                        match CString::new(s.as_str()) {
-                            Ok(c_str) => c_str.into_raw(),
-                            Err(_) => ptr::null_mut(),
-                        }
+            Some(row_data) => match row_data.get(col_str) {
+                Some(crate::core::Value::String(s)) => {
+                    if !len.is_null() {
+                        *len = s.len() as c_int;
                     }
-                    Some(_) => {
-                        if !len.is_null() {
-                            *len = -1;
-                        }
-                        ptr::null_mut()
+                    match CString::new(s.as_str()) {
+                        Ok(c_str) => c_str.into_raw(),
+                        Err(_) => ptr::null_mut(),
                     }
-                    None => ptr::null_mut(),
                 }
-            }
+                Some(_) => {
+                    if !len.is_null() {
+                        *len = -1;
+                    }
+                    ptr::null_mut()
+                }
+                None => ptr::null_mut(),
+            },
             None => ptr::null_mut(),
         }
     }
@@ -247,7 +240,9 @@ pub extern "C" fn graphdb_get_blob(
 ) -> *const u8 {
     if result.is_null() || col.is_null() {
         if !len.is_null() {
-            unsafe { *len = -1; }
+            unsafe {
+                *len = -1;
+            }
         }
         return ptr::null();
     }
@@ -268,28 +263,26 @@ pub extern "C" fn graphdb_get_blob(
         let handle = &*(result as *mut GraphDbResultHandle);
 
         match handle.inner.get(row as usize) {
-            Some(row_data) => {
-                match row_data.get(col_str) {
-                    Some(crate::core::Value::Blob(blob)) => {
-                        if !len.is_null() {
-                            *len = blob.len() as c_int;
-                        }
-                        blob.as_ptr()
+            Some(row_data) => match row_data.get(col_str) {
+                Some(crate::core::Value::Blob(blob)) => {
+                    if !len.is_null() {
+                        *len = blob.len() as c_int;
                     }
-                    Some(_) => {
-                        if !len.is_null() {
-                            *len = -1;
-                        }
-                        ptr::null()
-                    }
-                    None => {
-                        if !len.is_null() {
-                            *len = -1;
-                        }
-                        ptr::null()
-                    }
+                    blob.as_ptr()
                 }
-            }
+                Some(_) => {
+                    if !len.is_null() {
+                        *len = -1;
+                    }
+                    ptr::null()
+                }
+                None => {
+                    if !len.is_null() {
+                        *len = -1;
+                    }
+                    ptr::null()
+                }
+            },
             None => {
                 if !len.is_null() {
                     *len = -1;
@@ -333,16 +326,14 @@ pub extern "C" fn graphdb_get_int_by_index(
         };
 
         match handle.inner.get(row as usize) {
-            Some(row_data) => {
-                match row_data.get(col_name) {
-                    Some(crate::core::Value::Int(i)) => {
-                        *value = *i;
-                        graphdb_error_code_t::GRAPHDB_OK as c_int
-                    }
-                    Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
-                    None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+            Some(row_data) => match row_data.get(col_name) {
+                Some(crate::core::Value::Int(i)) => {
+                    *value = *i;
+                    graphdb_error_code_t::GRAPHDB_OK as c_int
                 }
-            }
+                Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
+                None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+            },
             None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
         }
     }
@@ -371,7 +362,9 @@ pub extern "C" fn graphdb_get_string_by_index(
 ) -> *mut c_char {
     if result.is_null() || col < 0 {
         if !len.is_null() {
-            unsafe { *len = -1; }
+            unsafe {
+                *len = -1;
+            }
         }
         return ptr::null_mut();
     }
@@ -391,31 +384,29 @@ pub extern "C" fn graphdb_get_string_by_index(
         };
 
         match handle.inner.get(row as usize) {
-            Some(row_data) => {
-                match row_data.get(col_name) {
-                    Some(crate::core::Value::String(s)) => {
-                        if !len.is_null() {
-                            *len = s.len() as c_int;
-                        }
-                        match CString::new(s.as_str()) {
-                            Ok(c_str) => c_str.into_raw(),
-                            Err(_) => ptr::null_mut(),
-                        }
+            Some(row_data) => match row_data.get(col_name) {
+                Some(crate::core::Value::String(s)) => {
+                    if !len.is_null() {
+                        *len = s.len() as c_int;
                     }
-                    Some(_) => {
-                        if !len.is_null() {
-                            *len = -1;
-                        }
-                        ptr::null_mut()
-                    }
-                    None => {
-                        if !len.is_null() {
-                            *len = -1;
-                        }
-                        ptr::null_mut()
+                    match CString::new(s.as_str()) {
+                        Ok(c_str) => c_str.into_raw(),
+                        Err(_) => ptr::null_mut(),
                     }
                 }
-            }
+                Some(_) => {
+                    if !len.is_null() {
+                        *len = -1;
+                    }
+                    ptr::null_mut()
+                }
+                None => {
+                    if !len.is_null() {
+                        *len = -1;
+                    }
+                    ptr::null_mut()
+                }
+            },
             None => {
                 if !len.is_null() {
                     *len = -1;
@@ -458,16 +449,14 @@ pub extern "C" fn graphdb_get_bool_by_index(
         };
 
         match handle.inner.get(row as usize) {
-            Some(row_data) => {
-                match row_data.get(col_name) {
-                    Some(crate::core::Value::Bool(b)) => {
-                        *value = *b;
-                        graphdb_error_code_t::GRAPHDB_OK as c_int
-                    }
-                    Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
-                    None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+            Some(row_data) => match row_data.get(col_name) {
+                Some(crate::core::Value::Bool(b)) => {
+                    *value = *b;
+                    graphdb_error_code_t::GRAPHDB_OK as c_int
                 }
-            }
+                Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
+                None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+            },
             None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
         }
     }
@@ -505,16 +494,14 @@ pub extern "C" fn graphdb_get_float_by_index(
         };
 
         match handle.inner.get(row as usize) {
-            Some(row_data) => {
-                match row_data.get(col_name) {
-                    Some(crate::core::Value::Float(f)) => {
-                        *value = *f;
-                        graphdb_error_code_t::GRAPHDB_OK as c_int
-                    }
-                    Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
-                    None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+            Some(row_data) => match row_data.get(col_name) {
+                Some(crate::core::Value::Float(f)) => {
+                    *value = *f;
+                    graphdb_error_code_t::GRAPHDB_OK as c_int
                 }
-            }
+                Some(_) => graphdb_error_code_t::GRAPHDB_MISMATCH as c_int,
+                None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
+            },
             None => graphdb_error_code_t::GRAPHDB_NOTFOUND as c_int,
         }
     }
@@ -542,7 +529,9 @@ pub extern "C" fn graphdb_get_blob_by_index(
 ) -> *const u8 {
     if result.is_null() || col < 0 {
         if !len.is_null() {
-            unsafe { *len = -1; }
+            unsafe {
+                *len = -1;
+            }
         }
         return ptr::null();
     }
@@ -562,28 +551,26 @@ pub extern "C" fn graphdb_get_blob_by_index(
         };
 
         match handle.inner.get(row as usize) {
-            Some(row_data) => {
-                match row_data.get(col_name) {
-                    Some(crate::core::Value::Blob(blob)) => {
-                        if !len.is_null() {
-                            *len = blob.len() as c_int;
-                        }
-                        blob.as_ptr()
+            Some(row_data) => match row_data.get(col_name) {
+                Some(crate::core::Value::Blob(blob)) => {
+                    if !len.is_null() {
+                        *len = blob.len() as c_int;
                     }
-                    Some(_) => {
-                        if !len.is_null() {
-                            *len = -1;
-                        }
-                        ptr::null()
-                    }
-                    None => {
-                        if !len.is_null() {
-                            *len = -1;
-                        }
-                        ptr::null()
-                    }
+                    blob.as_ptr()
                 }
-            }
+                Some(_) => {
+                    if !len.is_null() {
+                        *len = -1;
+                    }
+                    ptr::null()
+                }
+                None => {
+                    if !len.is_null() {
+                        *len = -1;
+                    }
+                    ptr::null()
+                }
+            },
             None => {
                 if !len.is_null() {
                     *len = -1;
@@ -639,7 +626,7 @@ pub extern "C" fn graphdb_column_type(
                         crate::core::Value::Edge(_) => graphdb_value_type_t::GRAPHDB_EDGE,
                         crate::core::Value::Path(_) => graphdb_value_type_t::GRAPHDB_PATH,
                         _ => graphdb_value_type_t::GRAPHDB_NULL,
-                    }
+                    },
                     None => graphdb_value_type_t::GRAPHDB_NULL,
                 }
             }

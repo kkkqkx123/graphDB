@@ -5,8 +5,8 @@
 use dashmap::DashMap;
 use parking_lot::Mutex;
 use std::collections::{HashMap, VecDeque};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use super::error_stats::{ErrorInfo, ErrorStatsManager, ErrorType, QueryPhase};
 use super::metrics::QueryMetrics;

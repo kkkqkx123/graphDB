@@ -64,10 +64,7 @@ impl CreateIndexValidator {
         }
     }
 
-    fn validate_impl(
-        &mut self,
-        stmt: &CreateStmt,
-    ) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, stmt: &CreateStmt) -> Result<(), ValidationError> {
         let target = match &stmt.target {
             CreateTarget::Index { index_type, .. } => {
                 self.index_type = match index_type {

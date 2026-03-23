@@ -11,7 +11,6 @@ use crate::core::types::EdgeDirection;
 use crate::core::DataType;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::parser::ast::Stmt;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::validation_info::{OptimizationHint, ValidationInfo};
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::{

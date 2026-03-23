@@ -68,17 +68,17 @@ pub use self::tag::TagInfo;
 pub use self::metadata_version::{MetadataVersion, SchemaHistory, SchemaVersion};
 
 // 从拆分后的子模块导出类型
+pub use self::charset::CharsetInfo;
+pub use self::cluster::ClusterInfo;
+pub use self::data_modification::{
+    InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
+};
+pub use self::import_export::{ExportFormat, SchemaExportConfig, SchemaImportResult};
 pub use self::schema_change::{
     AlterTargetType, FieldChangeType, SchemaAlterOperation, SchemaChange, SchemaChangeType,
     SchemaFieldChange,
 };
-pub use self::data_modification::{
-    InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
-};
 pub use self::user::{PasswordInfo, UserAlterInfo, UserInfo};
-pub use self::cluster::ClusterInfo;
-pub use self::charset::CharsetInfo;
-pub use self::import_export::{ExportFormat, SchemaExportConfig, SchemaImportResult};
 
 pub use self::expression::{
     ContextualExpression, Expression, ExpressionMeta, SerializableExpression,

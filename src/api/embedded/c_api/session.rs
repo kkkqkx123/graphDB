@@ -13,7 +13,7 @@ use crate::api::embedded::c_api::types::{
 };
 use crate::api::embedded::Session;
 use crate::storage::RedbStorage;
-use std::ffi::{CStr, CString, c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::ptr;
 
 /// 会话句柄内部结构
@@ -136,7 +136,7 @@ pub extern "C" fn graphdb_session_create(
 
     unsafe {
         let db_handle = &*(db as *mut GraphDbHandle);
-        
+
         match db_handle.inner.session() {
             Ok(sess) => {
                 let handle = Box::new(GraphDbSessionHandle::new(sess));
@@ -202,7 +202,7 @@ pub extern "C" fn graphdb_session_use_space(
 
     unsafe {
         let handle = &mut *(session as *mut GraphDbSessionHandle);
-        
+
         match handle.inner.use_space(name_str) {
             Ok(_) => {
                 handle.clear_error();
@@ -241,16 +241,14 @@ pub extern "C" fn graphdb_session_use_space(
 /// }
 /// ```
 #[no_mangle]
-pub extern "C" fn graphdb_session_current_space(
-    session: *mut graphdb_session_t,
-) -> *mut c_char {
+pub extern "C" fn graphdb_session_current_space(session: *mut graphdb_session_t) -> *mut c_char {
     if session.is_null() {
         return ptr::null_mut();
     }
 
     unsafe {
         let handle = &*(session as *mut GraphDbSessionHandle);
-        
+
         match handle.inner.current_space() {
             Some(name) => {
                 match CString::new(name) {
@@ -357,9 +355,7 @@ pub extern "C" fn graphdb_total_changes(session: *mut graphdb_session_t) -> i64 
 /// # 返回
 /// - 最后插入的顶点 ID，如果没有则返回 -1
 #[no_mangle]
-pub extern "C" fn graphdb_last_insert_vertex_id(
-    session: *mut graphdb_session_t,
-) -> i64 {
+pub extern "C" fn graphdb_last_insert_vertex_id(session: *mut graphdb_session_t) -> i64 {
     if session.is_null() {
         return -1;
     }
@@ -378,9 +374,7 @@ pub extern "C" fn graphdb_last_insert_vertex_id(
 /// # 返回
 /// - 最后插入的边 ID，如果没有则返回 -1
 #[no_mangle]
-pub extern "C" fn graphdb_last_insert_edge_id(
-    session: *mut graphdb_session_t,
-) -> i64 {
+pub extern "C" fn graphdb_last_insert_edge_id(session: *mut graphdb_session_t) -> i64 {
     if session.is_null() {
         return -1;
     }
@@ -425,9 +419,7 @@ pub extern "C" fn graphdb_busy_timeout(
 /// # 返回
 /// - 超时时间（毫秒），如果会话无效则返回 0
 #[no_mangle]
-pub extern "C" fn graphdb_busy_timeout_get(
-    session: *mut graphdb_session_t,
-) -> c_int {
+pub extern "C" fn graphdb_busy_timeout_get(session: *mut graphdb_session_t) -> c_int {
     if session.is_null() {
         return 0;
     }
@@ -582,24 +574,29 @@ mod tests {
         let counter = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
         let temp_dir = std::env::temp_dir().join("graphdb_c_api_test");
         std::fs::create_dir_all(&temp_dir).ok();
-        let db_path = temp_dir.join(format!("test_session_{}_{}.db", std::process::id(), counter));
-        
+        let db_path = temp_dir.join(format!(
+            "test_session_{}_{}.db",
+            std::process::id(),
+            counter
+        ));
+
         // 确保数据库文件不存在
         if db_path.exists() {
             std::fs::remove_file(&db_path).ok();
             // 等待文件系统完成删除操作
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
-        
-        let path_cstring = CString::new(db_path.to_str().expect("Invalid path")).expect("Failed to create CString");
+
+        let path_cstring = CString::new(db_path.to_str().expect("Invalid path"))
+            .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
-        
+
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
         if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
             panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);
         }
         assert!(!db.is_null());
-        
+
         db
     }
 

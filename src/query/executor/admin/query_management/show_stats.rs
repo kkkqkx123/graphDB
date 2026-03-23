@@ -156,7 +156,9 @@ impl<S: StorageClient> HasStorage<S> for ShowStatsExecutor<S> {
 
 #[cfg(test)]
 mod tests {
-    use crate::query::executor::admin::query_management::show_stats::{ShowStatsExecutor, ShowStatsType};
+    use crate::query::executor::admin::query_management::show_stats::{
+        ShowStatsExecutor, ShowStatsType,
+    };
     use crate::query::executor::Executor;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
@@ -169,27 +171,29 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = ShowStatsExecutor::new(
-            1,
-            storage,
-            ShowStatsType::Storage,
-            expr_context,
-        );
+        let mut executor = ShowStatsExecutor::new(1, storage, ShowStatsType::Storage, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
 
         match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::DataSet(dataset) => {
-                assert_eq!(dataset.col_names, vec!["Statistic".to_string(), "Value".to_string()]);
+                assert_eq!(
+                    dataset.col_names,
+                    vec!["Statistic".to_string(), "Value".to_string()]
+                );
                 assert_eq!(dataset.rows.len(), 5);
-                
+
                 let stats_map: std::collections::HashMap<String, i64> = dataset
                     .rows
                     .iter()
                     .filter_map(|row| {
                         if row.len() >= 2 {
-                            if let (crate::core::Value::String(key), crate::core::Value::Int(value)) = (&row[0], &row[1]) {
+                            if let (
+                                crate::core::Value::String(key),
+                                crate::core::Value::Int(value),
+                            ) = (&row[0], &row[1])
+                            {
                                 Some((key.clone(), *value))
                             } else {
                                 None
@@ -216,12 +220,7 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = ShowStatsExecutor::new(
-            2,
-            storage,
-            ShowStatsType::Space,
-            expr_context,
-        );
+        let mut executor = ShowStatsExecutor::new(2, storage, ShowStatsType::Space, expr_context);
 
         let result = executor.execute();
         assert!(result.is_ok());
@@ -248,12 +247,7 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = ShowStatsExecutor::new(
-            3,
-            storage,
-            ShowStatsType::Storage,
-            expr_context,
-        );
+        let mut executor = ShowStatsExecutor::new(3, storage, ShowStatsType::Storage, expr_context);
 
         assert!(!executor.is_open());
         assert!(executor.open().is_ok());
@@ -268,12 +262,7 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let executor = ShowStatsExecutor::new(
-            4,
-            storage,
-            ShowStatsType::Space,
-            expr_context,
-        );
+        let executor = ShowStatsExecutor::new(4, storage, ShowStatsType::Space, expr_context);
 
         assert_eq!(executor.id(), 4);
         assert_eq!(executor.name(), "ShowStatsExecutor");
@@ -314,8 +303,18 @@ mod tests {
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let executor1 = ShowStatsExecutor::new(10, storage.clone(), ShowStatsType::Storage, expr_context.clone());
-        let executor2 = ShowStatsExecutor::new(20, storage.clone(), ShowStatsType::Space, expr_context.clone());
+        let executor1 = ShowStatsExecutor::new(
+            10,
+            storage.clone(),
+            ShowStatsType::Storage,
+            expr_context.clone(),
+        );
+        let executor2 = ShowStatsExecutor::new(
+            20,
+            storage.clone(),
+            ShowStatsType::Space,
+            expr_context.clone(),
+        );
 
         assert_eq!(executor1.id(), 10);
         assert_eq!(executor2.id(), 20);
@@ -327,12 +326,7 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = ShowStatsExecutor::new(
-            5,
-            storage,
-            ShowStatsType::Storage,
-            expr_context,
-        );
+        let mut executor = ShowStatsExecutor::new(5, storage, ShowStatsType::Storage, expr_context);
 
         let stats = executor.stats();
         assert_eq!(stats.num_rows, 0);
@@ -349,12 +343,7 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut executor = ShowStatsExecutor::new(
-            6,
-            storage,
-            ShowStatsType::Storage,
-            expr_context,
-        );
+        let mut executor = ShowStatsExecutor::new(6, storage, ShowStatsType::Storage, expr_context);
 
         let result1 = executor.execute();
         assert!(result1.is_ok());

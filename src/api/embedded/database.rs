@@ -226,7 +226,7 @@ unsafe impl<S: StorageClient + Clone + 'static> Sync for GraphDatabase<S> {}
 #[cfg(test)]
 impl GraphDatabase<MockStorage> {
     /// 创建测试用数据库（使用Mock存储）
-    /// 
+    ///
     /// 注意：此方法仅用于测试，实际使用时应使用 `GraphDatabase::open()`
     #[cfg(test)]
     pub fn open_test() -> CoreResult<Self> {

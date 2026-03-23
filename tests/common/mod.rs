@@ -3,9 +3,9 @@
 //! 提供测试基础设施和辅助函数，供所有集成测试使用
 
 pub mod assertions;
+pub mod c_api_helpers;
 pub mod data_fixtures;
 pub mod storage_helpers;
-pub mod c_api_helpers;
 
 use graphdb::core::error::DBResult;
 use graphdb::storage::redb_storage::RedbStorage;

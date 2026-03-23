@@ -8,9 +8,9 @@
 //! - 添加属性索引选择逻辑
 //! - 使用 IndexSelector 自动选择最优索引
 
+use crate::core::types::Index;
 use crate::core::value::types::NullType;
 use crate::core::Expression;
-use crate::core::types::Index;
 use crate::query::parser::ast::{LookupStmt, Stmt};
 use crate::query::planner::plan::core::nodes::access::{IndexScanNode, ScanType};
 use crate::query::planner::plan::SubPlan;
@@ -69,7 +69,8 @@ impl Planner for LookupPlanner {
 
         // 2. 检查索引提示
         let mut selected_index: Option<Index> = None;
-        let mut scan_limits: Vec<crate::query::planner::plan::core::nodes::access::IndexLimit> = Vec::new();
+        let mut scan_limits: Vec<crate::query::planner::plan::core::nodes::access::IndexLimit> =
+            Vec::new();
         let mut scan_type = ScanType::Full;
 
         if !validation_info.index_hints.is_empty() {
@@ -106,10 +107,12 @@ impl Planner for LookupPlanner {
 
             // 将列名转换为 IndexLimit
             for column in &hint.columns {
-                scan_limits.push(crate::query::planner::plan::core::nodes::access::IndexLimit::equal(
-                    column.clone(),
-                    "",
-                ));
+                scan_limits.push(
+                    crate::query::planner::plan::core::nodes::access::IndexLimit::equal(
+                        column.clone(),
+                        "",
+                    ),
+                );
             }
         }
 

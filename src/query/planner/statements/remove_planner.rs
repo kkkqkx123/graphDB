@@ -65,19 +65,19 @@ impl Planner for RemovePlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
         // 解析 REMOVE 项，确定是删除属性还是标签
-                let mut remove_items = Vec::new();
-                for item in &remove_stmt.items {
-                    // 根据表达式类型判断是属性还是标签
-                    let expr = item.get_expression();
-                    if let Some(expression) = expr {
-                        let item_type = match expression {
-                            crate::core::Expression::Property { .. } => "property",
-                            crate::core::Expression::Label { .. } => "tag",
-                            _ => "property",
-                        };
-                        remove_items.push((item_type.to_string(), item.clone()));
-                    }
-                }
+        let mut remove_items = Vec::new();
+        for item in &remove_stmt.items {
+            // 根据表达式类型判断是属性还是标签
+            let expr = item.get_expression();
+            if let Some(expression) = expr {
+                let item_type = match expression {
+                    crate::core::Expression::Property { .. } => "property",
+                    crate::core::Expression::Label { .. } => "tag",
+                    _ => "property",
+                };
+                remove_items.push((item_type.to_string(), item.clone()));
+            }
+        }
 
         // 创建 Remove 节点
         let remove_node = RemoveNode::new(arg_node_enum.clone(), remove_items).map_err(|e| {
@@ -100,9 +100,10 @@ impl Planner for RemovePlanner {
         }];
 
         // 创建投影节点输出删除结果
-        let project_node = ProjectNode::new(remove_node_enum.clone(), yield_columns).map_err(|e| {
-            PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
-        })?;
+        let project_node =
+            ProjectNode::new(remove_node_enum.clone(), yield_columns).map_err(|e| {
+                PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
+            })?;
 
         let final_node = PlanNodeEnum::Project(project_node);
 

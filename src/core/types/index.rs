@@ -2,10 +2,10 @@
 //!
 //! 提供统一的索引类型定义，包括索引状态、类型、结构等
 
+use super::property_trait::PropertyTypeTrait;
 use crate::core::Value;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use super::property_trait::PropertyTypeTrait;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub enum IndexStatus {
@@ -66,18 +66,15 @@ impl PropertyTypeTrait for IndexField {
         self.name = name;
     }
 
-    fn set_data_type(&mut self, _data_type: crate::core::DataType) {
-    }
+    fn set_data_type(&mut self, _data_type: crate::core::DataType) {}
 
     fn set_nullable(&mut self, nullable: bool) {
         self.is_nullable = nullable;
     }
 
-    fn set_default_value(&mut self, _default: Option<Value>) {
-    }
+    fn set_default_value(&mut self, _default: Option<Value>) {}
 
-    fn set_comment(&mut self, _comment: Option<String>) {
-    }
+    fn set_comment(&mut self, _comment: Option<String>) {}
 
     fn property_type_name(&self) -> &'static str {
         "IndexField"
@@ -133,8 +130,6 @@ impl Index {
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

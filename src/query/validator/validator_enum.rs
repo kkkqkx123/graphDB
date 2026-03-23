@@ -595,8 +595,12 @@ impl Validator {
                 CreateTarget::Tag { .. } => StatementType::CreateTag,
                 CreateTarget::EdgeType { .. } => StatementType::CreateEdge,
                 CreateTarget::Index { index_type, .. } => match index_type {
-                    crate::query::parser::ast::stmt::IndexType::Tag => StatementType::CreateTagIndex,
-                    crate::query::parser::ast::stmt::IndexType::Edge => StatementType::CreateEdgeIndex,
+                    crate::query::parser::ast::stmt::IndexType::Tag => {
+                        StatementType::CreateTagIndex
+                    }
+                    crate::query::parser::ast::stmt::IndexType::Edge => {
+                        StatementType::CreateEdgeIndex
+                    }
                 },
                 _ => StatementType::Create,
             },
@@ -630,9 +634,13 @@ impl Validator {
             StatementType::ShowRoles => Validator::ShowRoles(ShowRolesValidator::new()),
             StatementType::Alter => Validator::Alter(AlterValidator::new()),
             StatementType::Drop => Validator::Drop(DropValidator::new()),
-            StatementType::DropTagIndex | StatementType::DropEdgeIndex => Validator::Drop(DropValidator::new()),
+            StatementType::DropTagIndex | StatementType::DropEdgeIndex => {
+                Validator::Drop(DropValidator::new())
+            }
             StatementType::CreateTagIndex => Validator::CreateTagIndex(CreateIndexValidator::new()),
-            StatementType::CreateEdgeIndex => Validator::CreateEdgeIndex(CreateIndexValidator::new()),
+            StatementType::CreateEdgeIndex => {
+                Validator::CreateEdgeIndex(CreateIndexValidator::new())
+            }
             StatementType::Create
             | StatementType::CreateSpace
             | StatementType::CreateTag

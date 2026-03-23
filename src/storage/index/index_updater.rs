@@ -4,9 +4,9 @@
 //! 包括顶点索引更新、边索引更新、索引删除等
 //! 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
 
+use crate::core::types::Index;
 use crate::core::vertex_edge_path::Tag;
 use crate::core::{Edge, StorageError, Value};
-use crate::core::types::Index;
 use crate::storage::index::IndexDataManager;
 use crate::storage::metadata::IndexMetadataManager;
 
@@ -426,8 +426,8 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
     use crate::core::types::{IndexField, IndexType};
+    use crate::core::Value;
 
     #[test]
     fn test_index_field_creation() {

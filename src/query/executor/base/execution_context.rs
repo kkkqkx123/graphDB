@@ -71,9 +71,7 @@ impl Default for ExecutionContext {
     }
 }
 
-impl crate::query::executor::expression::evaluator::traits::ExpressionContext
-    for ExecutionContext
-{
+impl crate::query::executor::expression::evaluator::traits::ExpressionContext for ExecutionContext {
     fn get_variable(&self, name: &str) -> Option<Value> {
         self.variables.get(name).cloned()
     }
@@ -87,10 +85,6 @@ impl crate::query::executor::expression::evaluator::traits::ExpressionContext
         registry
             .get_builtin(name)
             .map(|f| FunctionRef::Builtin(f))
-            .or_else(|| {
-                registry
-                    .get_custom(name)
-                    .map(|f| FunctionRef::Custom(f))
-            })
+            .or_else(|| registry.get_custom(name).map(|f| FunctionRef::Custom(f)))
     }
 }

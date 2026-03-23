@@ -4,8 +4,8 @@ use axum::{
 };
 use tokio::task;
 
-use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::api::server::http::handlers::query_types::*;
+use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::query::executor::ExecutionResult;
 use crate::storage::StorageClient;
 
@@ -22,13 +22,11 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
                 // 将 ExecutionResult 转换为 QueryResponse
                 Ok::<_, HttpError>(execution_result_to_response(exec_result))
             }
-            Err(e) => {
-                Ok::<_, HttpError>(QueryResponse::error(
-                    "QUERY_ERROR".to_string(),
-                    e.to_string(),
-                    None,
-                ))
-            }
+            Err(e) => Ok::<_, HttpError>(QueryResponse::error(
+                "QUERY_ERROR".to_string(),
+                e.to_string(),
+                None,
+            )),
         }
     })
     .await
@@ -151,11 +149,9 @@ fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
                 space_id: None,
             },
         ),
-        ExecutionResult::Error(msg) => QueryResponse::error(
-            "EXECUTION_ERROR".to_string(),
-            msg,
-            None,
-        ),
+        ExecutionResult::Error(msg) => {
+            QueryResponse::error("EXECUTION_ERROR".to_string(), msg, None)
+        }
         ExecutionResult::Count(count) => {
             let mut rows = Vec::new();
             let mut map = std::collections::HashMap::new();

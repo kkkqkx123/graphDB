@@ -87,13 +87,22 @@ mod tests {
         ));
         assert!(type_matches(&Value::Float(1.0), &DataType::Float));
         assert!(!type_matches(&Value::Int(1), &DataType::String));
-        assert!(type_matches(&Value::Null(crate::core::value::NullType::Null), &DataType::Int));
+        assert!(type_matches(
+            &Value::Null(crate::core::value::NullType::Null),
+            &DataType::Int
+        ));
     }
 
     #[test]
     fn test_type_matches_compatibility() {
-        assert!(type_matches(&Value::Int(42), &DataType::Float), "Int 应该可以匹配 Float");
-        assert!(!type_matches(&Value::Float(42.0), &DataType::Int), "Float 不应该匹配 Int");
+        assert!(
+            type_matches(&Value::Int(42), &DataType::Float),
+            "Int 应该可以匹配 Float"
+        );
+        assert!(
+            !type_matches(&Value::Float(42.0), &DataType::Int),
+            "Float 不应该匹配 Int"
+        );
     }
 
     #[test]

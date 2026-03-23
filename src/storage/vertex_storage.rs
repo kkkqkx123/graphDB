@@ -11,7 +11,7 @@ use redb::Database;
 use std::sync::Arc;
 
 /// 顶点存储管理器
-/// 
+///
 /// 负责顶点的增删改查以及标签管理
 #[derive(Clone)]
 pub struct VertexStorage {
@@ -55,11 +55,18 @@ impl VertexStorage {
 
     /// 扫描所有顶点
     pub fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError> {
-        self.reader.lock().scan_vertices(space).map(|r| r.into_vec())
+        self.reader
+            .lock()
+            .scan_vertices(space)
+            .map(|r| r.into_vec())
     }
 
     /// 按标签扫描顶点
-    pub fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
+    pub fn scan_vertices_by_tag(
+        &self,
+        space: &str,
+        tag: &str,
+    ) -> Result<Vec<Vertex>, StorageError> {
         self.reader
             .lock()
             .scan_vertices_by_tag(space, tag)
@@ -127,7 +134,12 @@ impl VertexStorage {
     }
 
     /// 删除顶点
-    pub fn delete_vertex(&self, space: &str, space_id: u64, id: &Value) -> Result<(), StorageError> {
+    pub fn delete_vertex(
+        &self,
+        space: &str,
+        space_id: u64,
+        id: &Value,
+    ) -> Result<(), StorageError> {
         {
             let mut writer = self.writer.lock();
             writer.delete_vertex(space, id)?;
@@ -207,14 +219,12 @@ impl VertexStorage {
                 existing_vertex.tags.push(tag);
                 existing_vertex
             }
-            None => {
-                crate::core::Vertex {
-                    vid: Box::new(info.vertex_id.clone()),
-                    id: 0,
-                    tags: vec![tag],
-                    properties: std::collections::HashMap::new(),
-                }
-            }
+            None => crate::core::Vertex {
+                vid: Box::new(info.vertex_id.clone()),
+                id: 0,
+                tags: vec![tag],
+                properties: std::collections::HashMap::new(),
+            },
         };
 
         // 插入顶点

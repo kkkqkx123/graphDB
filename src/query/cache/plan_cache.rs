@@ -184,7 +184,7 @@ impl QueryPlanCache {
     pub fn new(config: PlanCacheConfig) -> Self {
         Self {
             cache: Mutex::new(LruCache::new(
-                NonZeroUsize::new(config.max_entries).expect("缓存条目数必须大于0")
+                NonZeroUsize::new(config.max_entries).expect("缓存条目数必须大于0"),
             )),
             config,
             stats: Mutex::new(PlanCacheStats::default()),
@@ -249,12 +249,7 @@ impl QueryPlanCache {
     /// - `query`: 查询文本
     /// - `plan`: 执行计划
     /// - `param_positions`: 参数位置信息
-    pub fn put(
-        &self,
-        query: &str,
-        plan: ExecutionPlan,
-        param_positions: Vec<ParamPosition>,
-    ) {
+    pub fn put(&self, query: &str, plan: ExecutionPlan, param_positions: Vec<ParamPosition>) {
         let key = PlanCacheKey::from_query(query);
         let query_bytes = query.len();
 
@@ -299,7 +294,8 @@ impl QueryPlanCache {
 
         stats.current_entries = new_len;
         if stats.current_entries > 0 {
-            stats.avg_query_template_bytes = stats.total_query_template_bytes / stats.current_entries;
+            stats.avg_query_template_bytes =
+                stats.total_query_template_bytes / stats.current_entries;
         }
     }
 
@@ -319,8 +315,8 @@ impl QueryPlanCache {
 
             // 更新平均执行时间（指数移动平均）
             let alpha = 0.1; // 平滑因子
-            plan_mut.avg_execution_time_ms = plan_mut.avg_execution_time_ms * (1.0 - alpha)
-                + execution_time_ms * alpha;
+            plan_mut.avg_execution_time_ms =
+                plan_mut.avg_execution_time_ms * (1.0 - alpha) + execution_time_ms * alpha;
         }
     }
 
@@ -457,11 +453,7 @@ impl ParameterizedQueryHandler {
     ///
     /// # 返回
     /// 绑定后的完整查询
-    pub fn bind_params(
-        &self,
-        template: &str,
-        params: &[crate::core::Value],
-    ) -> DBResult<String> {
+    pub fn bind_params(&self, template: &str, params: &[crate::core::Value]) -> DBResult<String> {
         let positions = self.extract_params(template);
 
         if positions.len() != params.len() {

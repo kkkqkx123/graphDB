@@ -11,7 +11,7 @@ use redb::Database;
 use std::sync::Arc;
 
 /// 边存储管理器
-/// 
+///
 /// 负责边的增删改查以及悬挂边检测修复
 #[derive(Clone)]
 pub struct EdgeStorage {
@@ -90,7 +90,11 @@ impl EdgeStorage {
     }
 
     /// 按类型扫描边
-    pub fn scan_edges_by_type(&self, space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
+    pub fn scan_edges_by_type(
+        &self,
+        space: &str,
+        edge_type: &str,
+    ) -> Result<Vec<Edge>, StorageError> {
         self.reader
             .lock()
             .scan_edges_by_type(space, edge_type)
@@ -99,16 +103,14 @@ impl EdgeStorage {
 
     /// 扫描所有边
     pub fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
-        self.reader.lock().scan_all_edges(space).map(|r| r.into_vec())
+        self.reader
+            .lock()
+            .scan_all_edges(space)
+            .map(|r| r.into_vec())
     }
 
     /// 插入边
-    pub fn insert_edge(
-        &self,
-        space: &str,
-        space_id: u64,
-        edge: Edge,
-    ) -> Result<(), StorageError> {
+    pub fn insert_edge(&self, space: &str, space_id: u64, edge: Edge) -> Result<(), StorageError> {
         {
             let mut writer = self.writer.lock();
             writer.insert_edge(space, edge.clone())?;

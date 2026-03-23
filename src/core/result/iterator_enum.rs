@@ -171,10 +171,16 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let row1 = iter.next().expect("获取第一行失败").expect("第一行不应为空");
+        let row1 = iter
+            .next()
+            .expect("获取第一行失败")
+            .expect("第一行不应为空");
         assert_eq!(row1[0], Value::Int(1));
 
-        let row2 = iter.next().expect("获取第二行失败").expect("第二行不应为空");
+        let row2 = iter
+            .next()
+            .expect("获取第二行失败")
+            .expect("第二行不应为空");
         assert_eq!(row2[0], Value::Int(2));
 
         assert!(iter.next().expect("获取第三行失败").is_none());
@@ -200,10 +206,16 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let row1 = iter.next().expect("获取第一行失败").expect("第一行不应为空");
+        let row1 = iter
+            .next()
+            .expect("获取第一行失败")
+            .expect("第一行不应为空");
         assert_eq!(row1[0], Value::Int(1));
 
-        let row2 = iter.next().expect("获取第二行失败").expect("第二行不应为空");
+        let row2 = iter
+            .next()
+            .expect("获取第二行失败")
+            .expect("第二行不应为空");
         assert_eq!(row2[0], Value::Int(2));
     }
 
@@ -221,10 +233,16 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let prop1 = iter.next().expect("获取第一个属性失败").expect("第一个属性不应为空");
+        let prop1 = iter
+            .next()
+            .expect("获取第一个属性失败")
+            .expect("第一个属性不应为空");
         assert_eq!(prop1[0], Value::String("name".to_string()));
 
-        let prop2 = iter.next().expect("获取第二个属性失败").expect("第二个属性不应为空");
+        let prop2 = iter
+            .next()
+            .expect("获取第二个属性失败")
+            .expect("第二个属性不应为空");
         assert_eq!(prop2[0], Value::String("age".to_string()));
     }
 
@@ -236,7 +254,10 @@ mod tests {
         iter1.next().expect("迭代不应失败");
 
         let mut iter2 = iter1.clone();
-        let row = iter2.next().expect("克隆后迭代不应失败").expect("克隆后第一行不应为空");
+        let row = iter2
+            .next()
+            .expect("克隆后迭代不应失败")
+            .expect("克隆后第一行不应为空");
         assert_eq!(row[0], Value::Int(1));
     }
 }

@@ -1,6 +1,6 @@
 use crate::core::types::{
-    EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo, TagInfo,
-    UpdateInfo, UserAlterInfo, UserInfo,
+    EdgeTypeInfo, Index, InsertEdgeInfo, InsertVertexInfo, PasswordInfo, PropertyDef, SpaceInfo,
+    TagInfo, UpdateInfo, UserAlterInfo, UserInfo,
 };
 use crate::core::{Edge, EdgeDirection, RoleType, StorageError, Value, Vertex};
 use crate::storage::Schema;

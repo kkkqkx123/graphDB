@@ -2,7 +2,9 @@
 //!
 //! 提供存储层测试的辅助函数
 
-use graphdb::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo, Index, IndexField, IndexType};
+use graphdb::core::types::{
+    EdgeTypeInfo, Index, IndexField, IndexType, PropertyDef, SpaceInfo, TagInfo,
+};
 use graphdb::core::DataType;
 use graphdb::core::Value;
 

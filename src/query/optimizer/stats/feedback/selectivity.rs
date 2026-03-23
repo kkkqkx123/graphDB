@@ -95,8 +95,10 @@ impl FeedbackDrivenSelectivity {
 
     /// 获取校正后的选择性
     pub fn corrected_selectivity(&self) -> f64 {
-        (self.estimated_selectivity * self.correction_factor)
-            .clamp(self.min_correction * self.estimated_selectivity, self.selectivity_cap)
+        (self.estimated_selectivity * self.correction_factor).clamp(
+            self.min_correction * self.estimated_selectivity,
+            self.selectivity_cap,
+        )
     }
 
     /// 获取校正因子
@@ -156,8 +158,7 @@ impl FeedbackDrivenSelectivity {
         self.error_sum_squares += error * error;
 
         // 使用EWMA更新校正因子
-        self.correction_factor =
-            (1.0 - self.alpha) * self.correction_factor + self.alpha * ratio;
+        self.correction_factor = (1.0 - self.alpha) * self.correction_factor + self.alpha * ratio;
 
         // 限制校正因子范围，避免过度校正
         self.correction_factor = self

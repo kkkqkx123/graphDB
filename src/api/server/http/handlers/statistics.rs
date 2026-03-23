@@ -29,7 +29,10 @@ pub async fn session<S: StorageClient + Clone + Send + Sync + 'static>(
 
     // 计算平均执行时间
     let avg_execution_time_ms = if total_queries > 0 {
-        session_queries.iter().map(|q| q.total_duration_ms).sum::<u64>() as f64
+        session_queries
+            .iter()
+            .map(|q| q.total_duration_ms)
+            .sum::<u64>() as f64
             / total_queries as f64
     } else {
         0.0
@@ -83,15 +86,33 @@ pub async fn queries<S: StorageClient + Clone + Send + Sync + 'static>(
         .collect::<Vec<_>>();
 
     // 获取各类型查询统计
-    let match_queries = stats_manager.get_value(MetricType::NumMatchQueries).unwrap_or(0);
-    let create_queries = stats_manager.get_value(MetricType::NumCreateQueries).unwrap_or(0);
-    let update_queries = stats_manager.get_value(MetricType::NumUpdateQueries).unwrap_or(0);
-    let delete_queries = stats_manager.get_value(MetricType::NumDeleteQueries).unwrap_or(0);
-    let insert_queries = stats_manager.get_value(MetricType::NumInsertQueries).unwrap_or(0);
-    let go_queries = stats_manager.get_value(MetricType::NumGoQueries).unwrap_or(0);
-    let fetch_queries = stats_manager.get_value(MetricType::NumFetchQueries).unwrap_or(0);
-    let lookup_queries = stats_manager.get_value(MetricType::NumLookupQueries).unwrap_or(0);
-    let show_queries = stats_manager.get_value(MetricType::NumShowQueries).unwrap_or(0);
+    let match_queries = stats_manager
+        .get_value(MetricType::NumMatchQueries)
+        .unwrap_or(0);
+    let create_queries = stats_manager
+        .get_value(MetricType::NumCreateQueries)
+        .unwrap_or(0);
+    let update_queries = stats_manager
+        .get_value(MetricType::NumUpdateQueries)
+        .unwrap_or(0);
+    let delete_queries = stats_manager
+        .get_value(MetricType::NumDeleteQueries)
+        .unwrap_or(0);
+    let insert_queries = stats_manager
+        .get_value(MetricType::NumInsertQueries)
+        .unwrap_or(0);
+    let go_queries = stats_manager
+        .get_value(MetricType::NumGoQueries)
+        .unwrap_or(0);
+    let fetch_queries = stats_manager
+        .get_value(MetricType::NumFetchQueries)
+        .unwrap_or(0);
+    let lookup_queries = stats_manager
+        .get_value(MetricType::NumLookupQueries)
+        .unwrap_or(0);
+    let show_queries = stats_manager
+        .get_value(MetricType::NumShowQueries)
+        .unwrap_or(0);
 
     Ok(JsonResponse(serde_json::json!({
         "total_queries": total_queries,
@@ -118,20 +139,23 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
     let stats_manager = state.server.get_stats_manager();
     let storage = state.server.get_storage();
-    
+
     // 在异步上下文中使用 spawn_blocking 获取存储锁
     let storage_stats = {
         let storage = storage.clone();
         tokio::task::spawn_blocking(move || {
             let storage = storage.lock();
             storage.get_storage_stats()
-        }).await
+        })
+        .await
         .map_err(|e| HttpError::internal(format!("获取存储统计失败: {:?}", e)))?
     };
 
     // 获取查询相关统计
     let total_queries = stats_manager.get_value(MetricType::NumQueries).unwrap_or(0);
-    let active_queries = stats_manager.get_value(MetricType::NumActiveQueries).unwrap_or(0);
+    let active_queries = stats_manager
+        .get_value(MetricType::NumActiveQueries)
+        .unwrap_or(0);
 
     // 获取缓存大小
     let cache_size = stats_manager.query_cache_size();
@@ -141,7 +165,10 @@ pub async fn database<S: StorageClient + Clone + Send + Sync + 'static>(
     let avg_latency_ms = if recent_queries.is_empty() {
         0.0
     } else {
-        recent_queries.iter().map(|q| q.total_duration_ms).sum::<u64>() as f64
+        recent_queries
+            .iter()
+            .map(|q| q.total_duration_ms)
+            .sum::<u64>() as f64
             / recent_queries.len() as f64
     };
 
@@ -238,7 +265,7 @@ fn get_cpu_usage() -> f64 {
 
     // 创建系统信息实例
     let mut sys = System::new();
-    
+
     // 刷新 CPU 使用率信息
     sys.refresh_cpu_usage();
 
@@ -247,7 +274,8 @@ fn get_cpu_usage() -> f64 {
     if cpus.is_empty() {
         0.0
     } else {
-        let avg_usage: f32 = cpus.iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() / cpus.len() as f32;
+        let avg_usage: f32 =
+            cpus.iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() / cpus.len() as f32;
         avg_usage as f64
     }
 }

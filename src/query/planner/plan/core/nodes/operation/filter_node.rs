@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::define_plan_node_with_deps;
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 define_plan_node_with_deps! {
@@ -70,7 +70,8 @@ mod tests {
 
     #[test]
     fn test_filter_node_creation() {
-        let start_node = crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
+        let start_node =
+            crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
         let start_node_enum =
             crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
                 start_node,

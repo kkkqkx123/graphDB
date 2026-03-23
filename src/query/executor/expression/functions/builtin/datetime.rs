@@ -264,7 +264,9 @@ mod tests {
             month: 1,
             day: 15,
         };
-        let result = func.execute(&[Value::Date(date)]).expect("Execution should succeed");
+        let result = func
+            .execute(&[Value::Date(date)])
+            .expect("Execution should succeed");
         assert_eq!(result, Value::Int(2024));
     }
 
@@ -276,7 +278,9 @@ mod tests {
             month: 6,
             day: 15,
         };
-        let result = func.execute(&[Value::Date(date)]).expect("Execution should succeed");
+        let result = func
+            .execute(&[Value::Date(date)])
+            .expect("Execution should succeed");
         assert_eq!(result, Value::Int(6));
     }
 
@@ -288,14 +292,18 @@ mod tests {
             month: 6,
             day: 25,
         };
-        let result = func.execute(&[Value::Date(date)]).expect("Execution should succeed");
+        let result = func
+            .execute(&[Value::Date(date)])
+            .expect("Execution should succeed");
         assert_eq!(result, Value::Int(25));
     }
 
     #[test]
     fn test_null_handling() {
         let func = DateTimeFunction::Year;
-        let result = func.execute(&[Value::Null(NullType::Null)]).expect("Execution should succeed");
+        let result = func
+            .execute(&[Value::Null(NullType::Null)])
+            .expect("Execution should succeed");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 }

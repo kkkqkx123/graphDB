@@ -977,7 +977,10 @@ impl ClearSpaceValidator {
         }
     }
 
-    fn validate_impl(&mut self, stmt: &crate::query::parser::ast::stmt::ClearSpaceStmt) -> Result<(), ValidationError> {
+    fn validate_impl(
+        &mut self,
+        stmt: &crate::query::parser::ast::stmt::ClearSpaceStmt,
+    ) -> Result<(), ValidationError> {
         self.space_name = stmt.space_name.clone();
         Ok(())
     }

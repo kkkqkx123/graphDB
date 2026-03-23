@@ -4,23 +4,20 @@
 //! 注意：索引元数据管理由 IndexMetadataManager 负责
 //! 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
 
+use crate::core::types::Index;
 use crate::core::Edge;
 use crate::core::{StorageError, Value};
-use crate::core::types::Index;
-use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
+use crate::storage::index::edge_index_manager::EdgeIndexManager;
 use crate::storage::index::index_key_codec::IndexKeyCodec;
 use crate::storage::index::vertex_index_manager::VertexIndexManager;
-use crate::storage::index::edge_index_manager::EdgeIndexManager;
+use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
 
 use redb::Database;
 use std::sync::Arc;
 
 /// 索引键类型标记
 pub use crate::storage::index::index_key_codec::{
-    KEY_TYPE_VERTEX_REVERSE,
-    KEY_TYPE_EDGE_REVERSE,
-    KEY_TYPE_VERTEX_FORWARD,
-    KEY_TYPE_EDGE_FORWARD,
+    KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
 
 /// 索引数据管理器 trait
@@ -204,7 +201,8 @@ impl IndexDataManager for RedbIndexDataManager {
         index_name: &str,
         props: &[(String, Value)],
     ) -> Result<(), StorageError> {
-        self.vertex_manager.update_vertex_indexes(space_id, vertex_id, index_name, props)
+        self.vertex_manager
+            .update_vertex_indexes(space_id, vertex_id, index_name, props)
     }
 
     fn update_edge_indexes(
@@ -215,11 +213,13 @@ impl IndexDataManager for RedbIndexDataManager {
         index_name: &str,
         props: &[(String, Value)],
     ) -> Result<(), StorageError> {
-        self.edge_manager.update_edge_indexes(space_id, src, dst, index_name, props)
+        self.edge_manager
+            .update_edge_indexes(space_id, src, dst, index_name, props)
     }
 
     fn delete_vertex_indexes(&self, space_id: u64, vertex_id: &Value) -> Result<(), StorageError> {
-        self.vertex_manager.delete_vertex_indexes(space_id, vertex_id)
+        self.vertex_manager
+            .delete_vertex_indexes(space_id, vertex_id)
     }
 
     fn delete_edge_indexes(
@@ -229,7 +229,8 @@ impl IndexDataManager for RedbIndexDataManager {
         dst: &Value,
         index_names: &[String],
     ) -> Result<(), StorageError> {
-        self.edge_manager.delete_edge_indexes(space_id, src, dst, index_names)
+        self.edge_manager
+            .delete_edge_indexes(space_id, src, dst, index_names)
     }
 
     fn lookup_tag_index(
@@ -284,11 +285,8 @@ impl IndexDataManager for RedbIndexDataManager {
                         .insert(index_key, ByteKey(field.name.as_bytes().to_vec()))
                         .map_err(|e| StorageError::DbError(format!("插入边索引数据失败: {}", e)))?;
 
-                    let reverse_key = IndexKeyCodec::build_edge_reverse_key(
-                        space_id,
-                        &index.name,
-                        &edge.src,
-                    )?;
+                    let reverse_key =
+                        IndexKeyCodec::build_edge_reverse_key(space_id, &index.name, &edge.src)?;
                     let prop_value_bytes = IndexKeyCodec::serialize_value(prop_value)?;
                     let value_key = format!("{}:{}", field.name, prop_value_bytes.len());
                     table
@@ -310,15 +308,16 @@ impl IndexDataManager for RedbIndexDataManager {
         vertex_id: &Value,
         tag_name: &str,
     ) -> Result<(), StorageError> {
-        self.vertex_manager.delete_tag_indexes(space_id, vertex_id, tag_name)
+        self.vertex_manager
+            .delete_tag_indexes(space_id, vertex_id, tag_name)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
     use crate::core::types::{Index, IndexField, IndexType};
+    use crate::core::Value;
     use std::sync::Arc;
     use tempfile::TempDir;
 

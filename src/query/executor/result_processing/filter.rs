@@ -20,7 +20,6 @@ use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::recursion_detector::ParallelConfig;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// FilterExecutor - 过滤执行器

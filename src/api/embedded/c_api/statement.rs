@@ -2,13 +2,15 @@
 //!
 //! 提供预编译语句功能，支持语句准备、参数绑定和重复执行
 
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
+use crate::api::embedded::c_api::error::{
+    error_code_from_core_error, graphdb_error_code_t, set_last_error_message,
+};
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
-use crate::api::embedded::c_api::types::{graphdb_session_t, graphdb_stmt_t, graphdb_value_t};
 use crate::api::embedded::c_api::types::graphdb_value_type_t;
+use crate::api::embedded::c_api::types::{graphdb_session_t, graphdb_stmt_t, graphdb_value_t};
 use crate::api::embedded::statement::PreparedStatement;
 use crate::core::Value;
-use std::ffi::{CStr, CString, c_char, c_int};
+use std::ffi::{c_char, c_int, CStr, CString};
 use std::ptr;
 
 /// 预编译语句句柄内部结构
@@ -86,7 +88,10 @@ pub extern "C" fn graphdb_bind_null(stmt: *mut graphdb_stmt_t, index: c_int) -> 
         let handle = &mut *(stmt as *mut GraphDbStmtHandle);
         let param_name = format!("param_{}", index - 1);
 
-        match handle.inner.bind(&param_name, Value::Null(crate::core::value::NullType::Null)) {
+        match handle
+            .inner
+            .bind(&param_name, Value::Null(crate::core::value::NullType::Null))
+        {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let (error_code, _) = error_code_from_core_error(&e);
@@ -110,11 +115,7 @@ pub extern "C" fn graphdb_bind_null(stmt: *mut graphdb_stmt_t, index: c_int) -> 
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_bind_bool(
-    stmt: *mut graphdb_stmt_t,
-    index: c_int,
-    value: bool,
-) -> c_int {
+pub extern "C" fn graphdb_bind_bool(stmt: *mut graphdb_stmt_t, index: c_int, value: bool) -> c_int {
     if stmt.is_null() || index < 1 {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
@@ -147,11 +148,7 @@ pub extern "C" fn graphdb_bind_bool(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_bind_int(
-    stmt: *mut graphdb_stmt_t,
-    index: c_int,
-    value: i64,
-) -> c_int {
+pub extern "C" fn graphdb_bind_int(stmt: *mut graphdb_stmt_t, index: c_int, value: i64) -> c_int {
     if stmt.is_null() || index < 1 {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
@@ -184,11 +181,7 @@ pub extern "C" fn graphdb_bind_int(
 /// - 成功: GRAPHDB_OK
 /// - 失败: 错误码
 #[no_mangle]
-pub extern "C" fn graphdb_bind_float(
-    stmt: *mut graphdb_stmt_t,
-    index: c_int,
-    value: f64,
-) -> c_int {
+pub extern "C" fn graphdb_bind_float(stmt: *mut graphdb_stmt_t, index: c_int, value: f64) -> c_int {
     if stmt.is_null() || index < 1 {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
@@ -281,9 +274,7 @@ pub extern "C" fn graphdb_bind_blob(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    let blob_data = unsafe {
-        std::slice::from_raw_parts(data, len as usize).to_vec()
-    };
+    let blob_data = unsafe { std::slice::from_raw_parts(data, len as usize).to_vec() };
 
     unsafe {
         let handle = &mut *(stmt as *mut GraphDbStmtHandle);
@@ -525,10 +516,8 @@ unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
             if c_value.data.blob.data.is_null() || c_value.data.blob.len == 0 {
                 Value::Blob(Vec::new())
             } else {
-                let slice = std::slice::from_raw_parts(
-                    c_value.data.blob.data,
-                    c_value.data.blob.len,
-                );
+                let slice =
+                    std::slice::from_raw_parts(c_value.data.blob.data, c_value.data.blob.len);
                 Value::Blob(slice.to_vec())
             }
         }
@@ -559,7 +548,8 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
-        let path_cstring = CString::new(db_path.to_str().expect("Invalid path")).expect("Failed to create CString");
+        let path_cstring = CString::new(db_path.to_str().expect("Invalid path"))
+            .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);

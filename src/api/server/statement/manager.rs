@@ -25,11 +25,7 @@ impl<S: StorageClient + Clone + 'static> StatementManager<S> {
     }
 
     /// 创建预编译语句
-    pub fn create_statement(
-        &self,
-        query: String,
-        space_id: u64,
-    ) -> CoreResult<StatementInfo> {
+    pub fn create_statement(&self, query: String, space_id: u64) -> CoreResult<StatementInfo> {
         // TODO: 解析查询语句，提取参数
         // 目前先简单实现，假设查询中包含 $param 形式的参数
         let parameters = Self::extract_parameters(&query);
@@ -52,14 +48,14 @@ impl<S: StorageClient + Clone + 'static> StatementManager<S> {
         statement_id: &str,
         _parameters: &std::collections::HashMap<String, serde_json::Value>,
     ) -> CoreResult<ExecuteStatementResponse> {
-        let mut info = self.statements
-            .get_mut(statement_id)
-            .ok_or_else(|| CoreError::InvalidParameter(format!("预编译语句不存在: {}", statement_id)))?;
+        let mut info = self.statements.get_mut(statement_id).ok_or_else(|| {
+            CoreError::InvalidParameter(format!("预编译语句不存在: {}", statement_id))
+        })?;
 
         // TODO: 实际执行查询
         // 目前返回模拟结果
         let start = std::time::Instant::now();
-        
+
         // 模拟执行
         let execution_time_ms = start.elapsed().as_millis() as u64;
         info.record_execution(execution_time_ms);
@@ -109,9 +105,9 @@ impl<S: StorageClient + Clone + 'static> StatementManager<S> {
 
     /// 删除预编译语句
     pub fn remove_statement(&self, statement_id: &str) -> CoreResult<()> {
-        self.statements
-            .remove(statement_id)
-            .ok_or_else(|| CoreError::InvalidParameter(format!("预编译语句不存在: {}", statement_id)))?;
+        self.statements.remove(statement_id).ok_or_else(|| {
+            CoreError::InvalidParameter(format!("预编译语句不存在: {}", statement_id))
+        })?;
         Ok(())
     }
 
@@ -142,7 +138,10 @@ impl<S: StorageClient + Clone + 'static> StatementManager<S> {
 
     /// 获取所有语句ID
     pub fn list_statements(&self) -> Vec<StatementId> {
-        self.statements.iter().map(|entry| entry.key().clone()).collect()
+        self.statements
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 
     /// 清理长时间未使用的语句

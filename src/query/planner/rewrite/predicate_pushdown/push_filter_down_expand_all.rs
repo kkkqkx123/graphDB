@@ -147,11 +147,12 @@ mod tests {
         let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
-        let filter = crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode::new(
-            start_enum.clone(),
-            ctx_expr,
-        )
-        .expect("创建FilterNode失败");
+        let filter =
+            crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode::new(
+                start_enum.clone(),
+                ctx_expr,
+            )
+            .expect("创建FilterNode失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         let expand_all = ExpandAllNode::new(1, vec![], "OUT");

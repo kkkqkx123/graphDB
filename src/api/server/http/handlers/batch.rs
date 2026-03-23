@@ -91,7 +91,12 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
         let storage = storage.lock();
         match storage.get_space_by_id(task.space_id) {
             Ok(Some(space_info)) => space_info.space_name,
-            Ok(None) => return Err(HttpError::NotFound(format!("图空间不存在: {}", task.space_id))),
+            Ok(None) => {
+                return Err(HttpError::NotFound(format!(
+                    "图空间不存在: {}",
+                    task.space_id
+                )))
+            }
             Err(e) => return Err(HttpError::InternalError(format!("查询图空间失败: {}", e))),
         }
     };

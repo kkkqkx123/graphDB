@@ -3,19 +3,16 @@
 //! 该规则识别 Filter -> InnerJoin 模式，
 //! 并将过滤条件下推到连接的一侧。
 
-use std::sync::Arc;
-
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::expression_utils::{check_col_name, split_filter};
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 将过滤条件下推到内连接操作的规则
 ///
@@ -220,8 +217,8 @@ impl PushDownRule for PushFilterDownInnerJoinRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::join::join_node::InnerJoinNode;
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::join::join_node::InnerJoinNode;
 
     #[test]
     fn test_rule_name() {

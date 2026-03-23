@@ -209,8 +209,6 @@ impl<S: StorageClient> BaseResultProcessor<S> {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

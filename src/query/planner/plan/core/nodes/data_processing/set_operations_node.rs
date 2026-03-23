@@ -27,7 +27,9 @@ impl MinusNode {
         })
     }
 
-    pub fn minus_input(&self) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    pub fn minus_input(
+        &self,
+    ) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.deps[1]
     }
 }
@@ -55,7 +57,9 @@ impl IntersectNode {
         })
     }
 
-    pub fn intersect_input(&self) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    pub fn intersect_input(
+        &self,
+    ) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.deps[1]
     }
 }

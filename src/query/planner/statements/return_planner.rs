@@ -6,7 +6,7 @@ use crate::core::YieldColumn;
 use crate::query::parser::ast::{ReturnItem, ReturnStmt, Stmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
-    nodes::{ArgumentNode, ProjectNode, DedupNode, SortNode, LimitNode},
+    nodes::{ArgumentNode, DedupNode, LimitNode, ProjectNode, SortNode},
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
@@ -140,9 +140,10 @@ impl Planner for ReturnPlanner {
 
         // 如果有 LIMIT 子句，创建限制节点
         if let Some(limit) = return_stmt.limit {
-            let limit_node = LimitNode::new(current_node.clone(), 0, limit as i64).map_err(|e| {
-                PlannerError::PlanGenerationFailed(format!("Failed to create LimitNode: {}", e))
-            })?;
+            let limit_node =
+                LimitNode::new(current_node.clone(), 0, limit as i64).map_err(|e| {
+                    PlannerError::PlanGenerationFailed(format!("Failed to create LimitNode: {}", e))
+                })?;
             current_node = PlanNodeEnum::Limit(limit_node);
         }
 

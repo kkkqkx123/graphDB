@@ -20,7 +20,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 /// Redb 存储引擎主结构体
-/// 
+///
 /// 作为存储层的统一入口，协调各个子模块完成具体的数据操作
 #[derive(Clone)]
 pub struct RedbStorage {
@@ -200,7 +200,9 @@ impl RedbStorage {
         *self.current_txn_context.lock() = context.clone();
 
         if let Some(ctx) = &context {
-            self.reader.lock().set_transaction_context(Some(ctx.clone()));
+            self.reader
+                .lock()
+                .set_transaction_context(Some(ctx.clone()));
         } else {
             self.reader.lock().set_transaction_context(None);
         }
@@ -253,7 +255,8 @@ impl StorageClient for RedbStorage {
         prop: &str,
         value: &Value,
     ) -> Result<Vec<Vertex>, StorageError> {
-        self.vertex_storage.scan_vertices_by_prop(space, tag, prop, value)
+        self.vertex_storage
+            .scan_vertices_by_prop(space, tag, prop, value)
     }
 
     fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
@@ -352,7 +355,8 @@ impl StorageClient for RedbStorage {
         edge_type: &str,
     ) -> Result<(), StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        self.edge_storage.delete_edge(space, space_id, src, dst, edge_type)
+        self.edge_storage
+            .delete_edge(space, space_id, src, dst, edge_type)
     }
 
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
@@ -472,8 +476,7 @@ impl StorageClient for RedbStorage {
     // ==================== 索引操作 ====================
     fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        self.index_metadata_manager
-            .create_tag_index(space_id, info)
+        self.index_metadata_manager.create_tag_index(space_id, info)
     }
 
     fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
@@ -565,9 +568,11 @@ impl StorageClient for RedbStorage {
         let vid = self.parse_vertex_id(vertex_id)?;
         let space_id = self.get_space_id_internal(space)?;
         // 先删除相关边
-        self.edge_storage.delete_vertex_edges(space, space_id, &vid)?;
+        self.edge_storage
+            .delete_vertex_edges(space, space_id, &vid)?;
         // 再删除顶点
-        self.vertex_storage.delete_vertex_data(space, space_id, &vid)
+        self.vertex_storage
+            .delete_vertex_data(space, space_id, &vid)
     }
 
     fn delete_edge_data(
@@ -678,7 +683,8 @@ impl StorageClient for RedbStorage {
         src: &Value,
         dst: &Value,
     ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
-        self.edge_storage.get_edge_with_schema(space, edge_type, src, dst)
+        self.edge_storage
+            .get_edge_with_schema(space, edge_type, src, dst)
     }
 
     fn scan_vertices_with_schema(
@@ -779,8 +785,7 @@ mod tests {
 
         assert!(!db_path.exists(), "数据库文件不应存在");
 
-        let storage = RedbStorage::new_with_path(db_path.clone())
-            .expect("创建存储应该成功");
+        let storage = RedbStorage::new_with_path(db_path.clone()).expect("创建存储应该成功");
 
         assert!(db_path.exists(), "数据库文件应该被创建");
         assert_eq!(storage.db_path, db_path);
@@ -792,14 +797,13 @@ mod tests {
         let db_path = temp_dir.path().join("test_open.db");
 
         {
-            let _storage = RedbStorage::new_with_path(db_path.clone())
-                .expect("第一次创建存储应该成功");
+            let _storage =
+                RedbStorage::new_with_path(db_path.clone()).expect("第一次创建存储应该成功");
         }
 
         assert!(db_path.exists(), "数据库文件应该存在");
 
-        let storage2 = RedbStorage::new_with_path(db_path.clone())
-            .expect("打开现有数据库应该成功");
+        let storage2 = RedbStorage::new_with_path(db_path.clone()).expect("打开现有数据库应该成功");
 
         assert_eq!(storage2.db_path, db_path);
     }
@@ -810,8 +814,7 @@ mod tests {
         let db_path = temp_dir.path().join("test_corrupted.db");
 
         {
-            let _storage = RedbStorage::new_with_path(db_path.clone())
-                .expect("创建存储应该成功");
+            let _storage = RedbStorage::new_with_path(db_path.clone()).expect("创建存储应该成功");
         }
 
         assert!(db_path.exists(), "数据库文件应该存在");
@@ -825,9 +828,18 @@ mod tests {
         assert!(result.is_err(), "打开损坏的数据库应该返回错误");
 
         if let Err(StorageError::DbError(msg)) = result {
-            assert!(msg.contains("打开数据库失败"), "错误信息应该包含'打开数据库失败'");
-            assert!(msg.contains(db_path.to_str().expect("路径转换为字符串失败")), "错误信息应该包含数据库路径");
-            assert!(msg.contains("如需恢复，请手动删除数据库文件后重试"), "错误信息应该包含恢复提示");
+            assert!(
+                msg.contains("打开数据库失败"),
+                "错误信息应该包含'打开数据库失败'"
+            );
+            assert!(
+                msg.contains(db_path.to_str().expect("路径转换为字符串失败")),
+                "错误信息应该包含数据库路径"
+            );
+            assert!(
+                msg.contains("如需恢复，请手动删除数据库文件后重试"),
+                "错误信息应该包含恢复提示"
+            );
         } else {
             panic!("应该返回 StorageError::DbError");
         }

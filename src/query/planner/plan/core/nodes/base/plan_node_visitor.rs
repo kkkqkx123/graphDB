@@ -1,47 +1,59 @@
 //! PlanNode 访问者模式实现
 
-use crate::query::planner::plan::core::nodes::management::edge_nodes::{AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode};
+use super::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::management::edge_nodes::{
+    AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
+};
 use crate::query::planner::plan::core::nodes::management::index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
-use super::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::management::space_nodes::{
     AlterSpaceNode, ClearSpaceNode, CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
     SpaceManageInfo, SwitchSpaceNode,
 };
 use crate::query::planner::plan::core::nodes::management::stats_nodes::ShowStatsNode;
-use crate::query::planner::plan::core::nodes::management::tag_nodes::{AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode};
+use crate::query::planner::plan::core::nodes::management::tag_nodes::{
+    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
+};
 use crate::query::planner::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode, GrantRoleNode, RevokeRoleNode,
 };
 
+pub use crate::query::planner::plan::core::nodes::access::graph_scan_node::{
+    EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
+    ScanVerticesNode,
+};
+pub use crate::query::planner::plan::core::nodes::access::index_scan::IndexScanNode;
+pub use crate::query::planner::plan::core::nodes::control_flow::control_flow_node::{
+    ArgumentNode, LoopNode, PassThroughNode, SelectNode,
+};
+pub use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
 pub use crate::query::planner::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
-pub use crate::query::planner::plan::core::nodes::control_flow::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 pub use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::{
     AssignNode, DataCollectNode, DedupNode, MaterializeNode, PatternApplyNode, RemoveNode,
     RollUpApplyNode, UnionNode, UnwindNode,
 };
-pub use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
-pub use crate::query::planner::plan::core::nodes::access::graph_scan_node::{
-    EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
-    ScanVerticesNode,
+pub use crate::query::planner::plan::core::nodes::data_processing::set_operations_node::{
+    IntersectNode, MinusNode,
 };
 pub use crate::query::planner::plan::core::nodes::join::join_node::{
     CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode,
     LeftJoinNode,
 };
+pub use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
 pub use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
 pub use crate::query::planner::plan::core::nodes::operation::sample_node::SampleNode;
-pub use crate::query::planner::plan::core::nodes::data_processing::set_operations_node::{IntersectNode, MinusNode};
-pub use crate::query::planner::plan::core::nodes::operation::sort_node::{LimitNode, SortNode, TopNNode};
-pub use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-pub use crate::query::planner::plan::core::nodes::traversal::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
+pub use crate::query::planner::plan::core::nodes::operation::sort_node::{
+    LimitNode, SortNode, TopNNode,
+};
 pub use crate::query::planner::plan::core::nodes::traversal::path_algorithms::{
     AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
-pub use crate::query::planner::plan::core::nodes::access::index_scan::IndexScanNode;
+pub use crate::query::planner::plan::core::nodes::traversal::traversal_node::{
+    AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode,
+};
 
 /// 生成 PlanNode 访问者默认方法的宏
 macro_rules! impl_visitor_methods {

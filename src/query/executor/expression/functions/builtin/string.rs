@@ -315,21 +315,27 @@ mod tests {
     #[test]
     fn test_length() {
         let func = StringFunction::Length;
-        let result = func.execute(&[Value::String("hello".to_string())]).expect("Execution should succeed");
+        let result = func
+            .execute(&[Value::String("hello".to_string())])
+            .expect("Execution should succeed");
         assert_eq!(result, Value::Int(5));
     }
 
     #[test]
     fn test_upper() {
         let func = StringFunction::Upper;
-        let result = func.execute(&[Value::String("hello".to_string())]).expect("Execution should succeed");
+        let result = func
+            .execute(&[Value::String("hello".to_string())])
+            .expect("Execution should succeed");
         assert_eq!(result, Value::String("HELLO".to_string()));
     }
 
     #[test]
     fn test_lower() {
         let func = StringFunction::Lower;
-        let result = func.execute(&[Value::String("HELLO".to_string())]).expect("Execution should succeed");
+        let result = func
+            .execute(&[Value::String("HELLO".to_string())])
+            .expect("Execution should succeed");
         assert_eq!(result, Value::String("hello".to_string()));
     }
 
@@ -407,7 +413,9 @@ mod tests {
     #[test]
     fn test_null_handling() {
         let func = StringFunction::Length;
-        let result = func.execute(&[Value::Null(NullType::Null)]).expect("Execution should succeed");
+        let result = func
+            .execute(&[Value::Null(NullType::Null)])
+            .expect("Execution should succeed");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 }

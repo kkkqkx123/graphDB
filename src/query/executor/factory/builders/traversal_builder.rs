@@ -5,17 +5,15 @@
 use crate::core::error::QueryError;
 use crate::core::types::EdgeDirection;
 use crate::query::executor::base::ExecutionContext;
+use crate::query::executor::data_processing::graph_traversal::algorithms::MultiShortestPathExecutor;
 use crate::query::executor::data_processing::graph_traversal::{
     AllPathsExecutor, ExpandAllExecutor, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
 };
-use crate::query::executor::data_processing::graph_traversal::algorithms::MultiShortestPathExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::planner::plan::core::nodes::traversal::{
     AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
-use crate::query::planner::plan::core::nodes::{
-    ExpandAllNode, ExpandNode, TraverseNode,
-};
+use crate::query::planner::plan::core::nodes::{ExpandAllNode, ExpandNode, TraverseNode};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -150,8 +148,8 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        use crate::query::executor::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
         use crate::core::Value;
+        use crate::query::executor::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
 
         // BFSShortestExecutor::new 参数: id, storage, steps, edge_types, with_cycle, max_depth, single_shortest, limit, start_vertex, end_vertex, expr_context
         let executor = BFSShortestExecutor::new(
@@ -161,8 +159,8 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
             node.edge_types().to_vec(),
             node.with_cycle(),
             Some(node.steps()),
-            false, // single_shortest
-            usize::MAX, // limit
+            false,                                    // single_shortest
+            usize::MAX,                               // limit
             Value::Null(crate::core::NullType::Null), // start_vertex - 需要从输入获取
             Value::Null(crate::core::NullType::Null), // end_vertex - 需要从输入获取
             context.expression_context().clone(),

@@ -126,7 +126,10 @@ pub enum Value {
     Decimal128(super::decimal128::Decimal128Value),
     String(String),
     /// 定长字符串，用于优化短字符串存储
-    FixedString { len: usize, data: String },
+    FixedString {
+        len: usize,
+        data: String,
+    },
     /// 二进制数据
     Blob(Vec<u8>),
     Date(super::date_time::DateValue),
@@ -321,9 +324,13 @@ impl Value {
             Value::UInt32(_) => base_size,
             Value::UInt64(_) => base_size,
             Value::Float(_) => base_size,
-            Value::Decimal128(_) => base_size + std::mem::size_of::<super::decimal128::Decimal128Value>(),
+            Value::Decimal128(_) => {
+                base_size + std::mem::size_of::<super::decimal128::Decimal128Value>()
+            }
             Value::String(s) => base_size + std::mem::size_of::<String>() + s.capacity(),
-            Value::FixedString { data, .. } => base_size + std::mem::size_of::<String>() + data.capacity(),
+            Value::FixedString { data, .. } => {
+                base_size + std::mem::size_of::<String>() + data.capacity()
+            }
             Value::Blob(b) => base_size + std::mem::size_of::<Vec<u8>>() + b.capacity(),
             Value::Date(d) => base_size + d.estimated_size(),
             Value::Time(t) => base_size + t.estimated_size(),

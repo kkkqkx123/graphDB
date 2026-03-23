@@ -2,14 +2,16 @@
 //!
 //! 提供事务管理功能，包括事务开始、提交、回滚和保存点
 
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
+use crate::api::core::TransactionHandle;
+use crate::api::embedded::c_api::error::{
+    error_code_from_core_error, graphdb_error_code_t, set_last_error_message,
+};
 use crate::api::embedded::c_api::result::GraphDbResultHandle;
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, graphdb_txn_t};
-use crate::api::core::TransactionHandle;
 use crate::api::embedded::transaction::TransactionConfig;
 use crate::transaction::TransactionManager;
-use std::ffi::{CStr, c_char, c_int};
+use std::ffi::{c_char, c_int, CStr};
 use std::ptr;
 use std::sync::Arc;
 
@@ -199,7 +201,8 @@ pub extern "C" fn graphdb_txn_execute(
         let mut query_api = session.inner.query_api();
         match query_api.execute(query_str, ctx) {
             Ok(core_result) => {
-                let query_result = crate::api::embedded::result::QueryResult::from_core(core_result);
+                let query_result =
+                    crate::api::embedded::result::QueryResult::from_core(core_result);
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
                 });
@@ -243,7 +246,7 @@ pub extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
             Some(s) => s,
             None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
         };
-        
+
         if let Some(callback) = session.commit_hook {
             let result = callback(session.commit_hook_user_data);
             if result != 0 {
@@ -297,7 +300,7 @@ pub extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int {
             Some(s) => s,
             None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
         };
-        
+
         if let Some(callback) = session.rollback_hook {
             callback(session.rollback_hook_user_data);
         }
@@ -332,10 +335,7 @@ pub extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int {
 /// - 成功: 保存点 ID
 /// - 失败: -1
 #[no_mangle]
-pub extern "C" fn graphdb_txn_savepoint(
-    txn: *mut graphdb_txn_t,
-    name: *const c_char,
-) -> i64 {
+pub extern "C" fn graphdb_txn_savepoint(txn: *mut graphdb_txn_t, name: *const c_char) -> i64 {
     if txn.is_null() || name.is_null() {
         return -1;
     }
@@ -359,7 +359,10 @@ pub extern "C" fn graphdb_txn_savepoint(
             None => return -1,
         };
 
-        match handle.txn_manager.create_savepoint(txn_handle.0, Some(name_str.to_string())) {
+        match handle
+            .txn_manager
+            .create_savepoint(txn_handle.0, Some(name_str.to_string()))
+        {
             Ok(id) => id as i64,
             Err(_) => -1,
         }
@@ -396,7 +399,10 @@ pub extern "C" fn graphdb_txn_release_savepoint(
             None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
         };
 
-        match handle.txn_manager.release_savepoint(txn_handle.0, savepoint_id as u64) {
+        match handle
+            .txn_manager
+            .release_savepoint(txn_handle.0, savepoint_id as u64)
+        {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
@@ -439,7 +445,10 @@ pub extern "C" fn graphdb_txn_rollback_to_savepoint(
             None => return graphdb_error_code_t::GRAPHDB_INTERNAL as c_int,
         };
 
-        match handle.txn_manager.rollback_to_savepoint(txn_handle.0, savepoint_id as u64) {
+        match handle
+            .txn_manager
+            .rollback_to_savepoint(txn_handle.0, savepoint_id as u64)
+        {
             Ok(_) => graphdb_error_code_t::GRAPHDB_OK as c_int,
             Err(e) => {
                 let core_error = crate::api::core::CoreError::TransactionFailed(format!("{}", e));
@@ -497,7 +506,8 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
-        let path_cstring = CString::new(db_path.to_str().expect("Invalid path")).expect("Failed to create CString");
+        let path_cstring = CString::new(db_path.to_str().expect("Invalid path"))
+            .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);

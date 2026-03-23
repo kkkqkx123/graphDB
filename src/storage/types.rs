@@ -1,8 +1,8 @@
 //! 存储层数据操作类型
 
+use crate::core::types::PropertyDef;
 use crate::core::DataType;
 use crate::core::Value;
-use crate::core::types::PropertyDef;
 
 // 重新导出core层的DataType作为FieldType
 pub type FieldType = DataType;

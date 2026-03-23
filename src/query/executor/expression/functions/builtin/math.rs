@@ -366,7 +366,9 @@ mod tests {
     #[test]
     fn test_abs_float() {
         let func = MathFunction::Abs;
-        let result = func.execute(&[Value::Float(-5.5)]).expect("Abs 函数执行失败");
+        let result = func
+            .execute(&[Value::Float(-5.5)])
+            .expect("Abs 函数执行失败");
         assert_eq!(result, Value::Float(5.5));
     }
 
@@ -389,14 +391,18 @@ mod tests {
     #[test]
     fn test_sin() {
         let func = MathFunction::Sin;
-        let result = func.execute(&[Value::Float(0.0)]).expect("Sin 函数执行失败");
+        let result = func
+            .execute(&[Value::Float(0.0)])
+            .expect("Sin 函数执行失败");
         assert_eq!(result, Value::Float(0.0));
     }
 
     #[test]
     fn test_cos() {
         let func = MathFunction::Cos;
-        let result = func.execute(&[Value::Float(0.0)]).expect("Cos 函数执行失败");
+        let result = func
+            .execute(&[Value::Float(0.0)])
+            .expect("Cos 函数执行失败");
         assert_eq!(result, Value::Float(1.0));
     }
 

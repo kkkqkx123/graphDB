@@ -22,9 +22,7 @@
 
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionMeta;
-use crate::core::types::expression::{
-    PropertyContainsChecker,
-};
+use crate::core::types::expression::PropertyContainsChecker;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::Expression;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -449,7 +447,8 @@ mod tests {
         let ctx_condition = ContextualExpression::new(id, expr_context.clone());
 
         let picker = |expr: &Expression| -> bool {
-            let mut collector = crate::core::types::expression::visitor_collectors::PropertyCollector::new();
+            let mut collector =
+                crate::core::types::expression::visitor_collectors::PropertyCollector::new();
             crate::core::types::expression::ExpressionVisitor::visit(&mut collector, expr);
             collector.properties.contains(&"a".to_string())
                 || collector.properties.contains(&"b".to_string())

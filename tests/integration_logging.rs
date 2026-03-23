@@ -467,7 +467,10 @@ fn test_log_level_validation() {
 /// 验证日志输出包含时间戳，并且时间戳格式正确
 #[test]
 fn test_log_timestamp_format() {
-    use flexi_logger::{Cleanup, Criterion, DeferredNow, FileSpec, Logger, Naming, TS_DASHES_BLANK_COLONS_DOT_BLANK, WriteMode};
+    use flexi_logger::{
+        Cleanup, Criterion, DeferredNow, FileSpec, Logger, Naming, WriteMode,
+        TS_DASHES_BLANK_COLONS_DOT_BLANK,
+    };
 
     let temp_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("target")
@@ -542,11 +545,18 @@ fn test_log_timestamp_format() {
     assert!(content.contains("时间戳格式测试日志"), "日志应包含测试消息");
 
     // 验证时间戳格式：YYYY-MM-DD HH:MM:SS.mmm
-    let timestamp_regex = regex::Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}").expect("创建正则表达式失败");
-    assert!(timestamp_regex.is_match(&content), "日志应包含时间戳，格式为 YYYY-MM-DD HH:MM:SS.mmm");
+    let timestamp_regex = regex::Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}")
+        .expect("创建正则表达式失败");
+    assert!(
+        timestamp_regex.is_match(&content),
+        "日志应包含时间戳，格式为 YYYY-MM-DD HH:MM:SS.mmm"
+    );
 
     // 验证日志级别标记
-    assert!(content.contains("[INFO]") || content.contains("[WARN]") || content.contains("[ERROR]"), "日志应包含日志级别标记");
+    assert!(
+        content.contains("[INFO]") || content.contains("[WARN]") || content.contains("[ERROR]"),
+        "日志应包含日志级别标记"
+    );
 
     // 清理
     let _ = fs::remove_dir_all(&temp_dir);

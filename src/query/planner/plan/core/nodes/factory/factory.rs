@@ -2,22 +2,28 @@
 //!
 //! 提供统一的节点创建接口
 
-use crate::query::planner::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
-use crate::query::planner::plan::core::nodes::control_flow::control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
-use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::{
-    DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
-};
 use crate::query::planner::plan::core::nodes::access::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
+use crate::query::planner::plan::core::nodes::control_flow::control_flow_node::{
+    ArgumentNode, LoopNode, PassThroughNode, SelectNode,
+};
+use crate::query::planner::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
+use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::{
+    DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
+};
 
-use crate::query::planner::plan::core::nodes::operation::sort_node::{LimitNode, SortItem, SortNode};
-use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-use crate::query::planner::plan::core::nodes::traversal::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::types::ContextualExpression;
 use crate::core::types::EdgeDirection;
 use crate::core::YieldColumn;
+use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+use crate::query::planner::plan::core::nodes::operation::sort_node::{
+    LimitNode, SortItem, SortNode,
+};
+use crate::query::planner::plan::core::nodes::traversal::traversal_node::{
+    AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode,
+};
 use crate::query::planner::plan::PlanNodeEnum;
 
 /// 节点工厂
@@ -315,12 +321,8 @@ impl PlanNodeFactory {
         use crate::query::planner::plan::core::nodes::access::{IndexScanNode, ScanType};
 
         // 创建 IndexScan 节点
-        let index_scan_node = IndexScanNode::new(
-            space_id,
-            tag_id,
-            index_id,
-            ScanType::from_str(scan_type),
-        );
+        let index_scan_node =
+            IndexScanNode::new(space_id, tag_id, index_id, ScanType::from_str(scan_type));
         Ok(PlanNodeEnum::IndexScan(index_scan_node))
     }
 

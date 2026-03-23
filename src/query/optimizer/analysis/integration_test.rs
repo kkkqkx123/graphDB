@@ -10,7 +10,9 @@ use crate::query::optimizer::analysis::{
     ExpressionAnalysis, ExpressionAnalyzer, FingerprintCalculator, PlanFingerprint,
     ReferenceCountAnalysis, ReferenceCountAnalyzer,
 };
-use crate::query::planner::plan::core::nodes::{FilterNode, GetVerticesNode, PlanNodeEnum, ProjectNode};
+use crate::query::planner::plan::core::nodes::{
+    FilterNode, GetVerticesNode, PlanNodeEnum, ProjectNode,
+};
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 创建测试用的表达式上下文
@@ -82,7 +84,9 @@ fn test_expression_analyzer_options() {
     let ctx_expr = create_test_context(prop_expr);
     let prop_analysis = property_analyzer.analyze(&ctx_expr);
 
-    assert!(prop_analysis.referenced_properties.contains(&"name".to_string()));
+    assert!(prop_analysis
+        .referenced_properties
+        .contains(&"name".to_string()));
 }
 
 #[test]
@@ -127,7 +131,8 @@ fn test_reference_count_analyzer_integration() {
     let analyzer = ReferenceCountAnalyzer::new();
 
     // 创建一个简单的计划树
-    let start_node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
+    let start_node =
+        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
 
     let analysis = analyzer.analyze(&start_node);
 
@@ -268,7 +273,9 @@ fn test_expression_analyzer_with_case_expression() {
                 Expression::Literal(Value::String("medium".to_string())),
             ),
         ],
-        default: Some(Box::new(Expression::Literal(Value::String("small".to_string())))),
+        default: Some(Box::new(Expression::Literal(Value::String(
+            "small".to_string(),
+        )))),
     };
 
     let ctx_expr = create_test_context(case_expr);
@@ -373,7 +380,10 @@ fn test_expression_analyzer_with_map_expression() {
     // 映射表达式
     let map_expr = Expression::Map(vec![
         ("key1".to_string(), Expression::Literal(Value::Int(1))),
-        ("key2".to_string(), Expression::Literal(Value::String("value".to_string()))),
+        (
+            "key2".to_string(),
+            Expression::Literal(Value::String("value".to_string())),
+        ),
     ]);
 
     let ctx_expr = create_test_context(map_expr);
@@ -466,7 +476,9 @@ fn test_expression_analyzer_with_label_tag_property() {
     let analysis = analyzer.analyze(&ctx_expr);
 
     assert!(analysis.is_deterministic);
-    assert!(analysis.referenced_variables.contains(&"tagName".to_string()));
+    assert!(analysis
+        .referenced_variables
+        .contains(&"tagName".to_string()));
 }
 
 #[test]

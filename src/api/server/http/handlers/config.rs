@@ -167,7 +167,9 @@ fn get_config_value(config: &crate::config::Config, section: &str, key: &str) ->
         },
         "transaction" => match key {
             "default_timeout" => serde_json::json!(config.transaction.default_timeout),
-            "max_concurrent_transactions" => serde_json::json!(config.transaction.max_concurrent_transactions),
+            "max_concurrent_transactions" => {
+                serde_json::json!(config.transaction.max_concurrent_transactions)
+            }
             _ => serde_json::Value::Null,
         },
         "log" => match key {
@@ -182,12 +184,16 @@ fn get_config_value(config: &crate::config::Config, section: &str, key: &str) ->
             "enable_authorize" => serde_json::json!(config.auth.enable_authorize),
             "failed_login_attempts" => serde_json::json!(config.auth.failed_login_attempts),
             "session_idle_timeout_secs" => serde_json::json!(config.auth.session_idle_timeout_secs),
-            "force_change_default_password" => serde_json::json!(config.auth.force_change_default_password),
+            "force_change_default_password" => {
+                serde_json::json!(config.auth.force_change_default_password)
+            }
             "default_username" => serde_json::json!(config.auth.default_username),
             _ => serde_json::Value::Null,
         },
         "bootstrap" => match key {
-            "auto_create_default_space" => serde_json::json!(config.bootstrap.auto_create_default_space),
+            "auto_create_default_space" => {
+                serde_json::json!(config.bootstrap.auto_create_default_space)
+            }
             "default_space_name" => serde_json::json!(config.bootstrap.default_space_name),
             "single_user_mode" => serde_json::json!(config.bootstrap.single_user_mode),
             _ => serde_json::Value::Null,
@@ -197,8 +203,12 @@ fn get_config_value(config: &crate::config::Config, section: &str, key: &str) ->
             "max_exploration_rounds" => serde_json::json!(config.optimizer.max_exploration_rounds),
             "enable_cost_model" => serde_json::json!(config.optimizer.enable_cost_model),
             "enable_multi_plan" => serde_json::json!(config.optimizer.enable_multi_plan),
-            "enable_property_pruning" => serde_json::json!(config.optimizer.enable_property_pruning),
-            "enable_adaptive_iteration" => serde_json::json!(config.optimizer.enable_adaptive_iteration),
+            "enable_property_pruning" => {
+                serde_json::json!(config.optimizer.enable_property_pruning)
+            }
+            "enable_adaptive_iteration" => {
+                serde_json::json!(config.optimizer.enable_adaptive_iteration)
+            }
             "stable_threshold" => serde_json::json!(config.optimizer.stable_threshold),
             "min_iteration_rounds" => serde_json::json!(config.optimizer.min_iteration_rounds),
             _ => serde_json::Value::Null,
@@ -206,9 +216,13 @@ fn get_config_value(config: &crate::config::Config, section: &str, key: &str) ->
         "monitoring" => match key {
             "enabled" => serde_json::json!(config.monitoring.enabled),
             "memory_cache_size" => serde_json::json!(config.monitoring.memory_cache_size),
-            "slow_query_threshold_ms" => serde_json::json!(config.monitoring.slow_query_threshold_ms),
+            "slow_query_threshold_ms" => {
+                serde_json::json!(config.monitoring.slow_query_threshold_ms)
+            }
             "slow_query_log_dir" => serde_json::json!(config.monitoring.slow_query_log_dir),
-            "slow_query_log_retention_days" => serde_json::json!(config.monitoring.slow_query_log_retention_days),
+            "slow_query_log_retention_days" => {
+                serde_json::json!(config.monitoring.slow_query_log_retention_days)
+            }
             _ => serde_json::Value::Null,
         },
         _ => serde_json::Value::Null,

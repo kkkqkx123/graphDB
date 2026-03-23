@@ -10,9 +10,9 @@ pub mod factory;
 pub mod logic;
 pub mod macros;
 pub mod object_pool;
+pub mod pipeline_executors;
 pub mod recursion_detector;
 pub mod result_processing;
-pub mod pipeline_executors;
 pub mod tag_filter;
 
 // Re-export from base module (基础类型从 base 模块统一导出)

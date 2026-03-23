@@ -92,8 +92,8 @@ impl<'a> NodeEstimator for JoinEstimator<'a> {
 mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
-    use crate::query::planner::plan::core::nodes::join::join_node::*;
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::join::join_node::*;
     use std::sync::Arc;
 
     fn create_test_calculator() -> CostCalculator {
@@ -113,7 +113,8 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = HashInnerJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
+        let node = HashInnerJoinNode::new(left, right, vec![], vec![])
+            .expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::HashInnerJoin(node);
 
         let child_estimates = vec![
@@ -136,7 +137,8 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = HashLeftJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
+        let node = HashLeftJoinNode::new(left, right, vec![], vec![])
+            .expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::HashLeftJoin(node);
 
         let child_estimates = vec![
@@ -158,7 +160,8 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = InnerJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
+        let node =
+            InnerJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::InnerJoin(node);
 
         let child_estimates = vec![
@@ -181,7 +184,8 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = LeftJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
+        let node =
+            LeftJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::LeftJoin(node);
 
         let child_estimates = vec![
@@ -225,7 +229,8 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = FullOuterJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
+        let node = FullOuterJoinNode::new(left, right, vec![], vec![])
+            .expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::FullOuterJoin(node);
 
         let child_estimates = vec![
@@ -260,7 +265,8 @@ mod tests {
         for (left_rows, right_rows) in [(10, 20), (100, 200), (1000, 500)] {
             let left = create_test_start_node();
             let right = create_test_start_node();
-            let node = HashInnerJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
+            let node = HashInnerJoinNode::new(left, right, vec![], vec![])
+                .expect("Node creation should succeed");
             let plan_node = PlanNodeEnum::HashInnerJoin(node);
 
             let child_estimates = vec![
@@ -305,7 +311,8 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = HashInnerJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
+        let node = HashInnerJoinNode::new(left, right, vec![], vec![])
+            .expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::HashInnerJoin(node);
 
         let child_estimates = vec![
@@ -327,7 +334,8 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = LeftJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
+        let node =
+            LeftJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::LeftJoin(node);
 
         let child_estimates = vec![
@@ -348,7 +356,8 @@ mod tests {
 
         let left = create_test_start_node();
         let right = create_test_start_node();
-        let node = HashLeftJoinNode::new(left, right, vec![], vec![]).expect("Node creation should succeed");
+        let node = HashLeftJoinNode::new(left, right, vec![], vec![])
+            .expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::HashLeftJoin(node);
 
         let child_estimates = vec![

@@ -48,12 +48,14 @@ impl<S: StorageClient + Send + 'static> PlanExecutor<S> {
         }
 
         // 创建执行上下文
-        let expr_context = Arc::new(crate::query::validator::context::ExpressionAnalysisContext::new());
+        let expr_context =
+            Arc::new(crate::query::validator::context::ExpressionAnalysisContext::new());
         let execution_context = ExecutionContext::new(expr_context);
 
         // 递归构建执行器树并执行
-        let mut executor =
-            self.factory.create_executor(root_node, storage, &execution_context)?;
+        let mut executor = self
+            .factory
+            .create_executor(root_node, storage, &execution_context)?;
 
         // 执行根执行器
         let result = executor

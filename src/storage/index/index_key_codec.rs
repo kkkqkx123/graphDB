@@ -324,13 +324,9 @@ mod tests {
         let prop_value = Value::String("test_value".to_string());
         let vertex_id = Value::Int(123);
 
-        let key = IndexKeyCodec::build_vertex_index_key(
-            space_id,
-            index_name,
-            &prop_value,
-            &vertex_id,
-        )
-        .unwrap();
+        let key =
+            IndexKeyCodec::build_vertex_index_key(space_id, index_name, &prop_value, &vertex_id)
+                .unwrap();
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_VERTEX_FORWARD);
@@ -345,8 +341,8 @@ mod tests {
         let index_name = "idx_test";
         let vertex_id = Value::Int(456);
 
-        let key = IndexKeyCodec::build_vertex_reverse_key(space_id, index_name, &vertex_id)
-            .unwrap();
+        let key =
+            IndexKeyCodec::build_vertex_reverse_key(space_id, index_name, &vertex_id).unwrap();
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_VERTEX_REVERSE);
@@ -366,14 +362,9 @@ mod tests {
         let src = Value::Int(100);
         let dst = Value::Int(200);
 
-        let key = IndexKeyCodec::build_edge_index_key(
-            space_id,
-            index_name,
-            &prop_value,
-            &src,
-            &dst,
-        )
-        .unwrap();
+        let key =
+            IndexKeyCodec::build_edge_index_key(space_id, index_name, &prop_value, &src, &dst)
+                .unwrap();
 
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_EDGE_FORWARD);

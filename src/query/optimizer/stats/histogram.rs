@@ -342,7 +342,8 @@ mod tests {
         let hist = Histogram::from_samples(samples, 10, 100);
         assert!((hist.null_fraction() - 0.1).abs() < 0.01);
 
-        let null_selectivity = hist.estimate_equality_selectivity(&Value::Null(crate::core::value::NullType::Null));
+        let null_selectivity =
+            hist.estimate_equality_selectivity(&Value::Null(crate::core::value::NullType::Null));
         assert!((null_selectivity - 0.1).abs() < 0.01);
     }
 }

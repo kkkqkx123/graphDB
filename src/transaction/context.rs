@@ -55,7 +55,11 @@ impl SavepointManager {
         }
     }
 
-    fn create_savepoint(&mut self, name: Option<String>, operation_log_index: usize) -> SavepointId {
+    fn create_savepoint(
+        &mut self,
+        name: Option<String>,
+        operation_log_index: usize,
+    ) -> SavepointId {
         let id = self.next_id;
         self.next_id += 1;
         let info = SavepointInfo {
@@ -304,7 +308,8 @@ impl TransactionContext {
     /// 释放保存点
     pub fn release_savepoint(&self, id: SavepointId) -> Result<(), TransactionError> {
         let mut manager = self.savepoint_manager.write();
-        manager.remove_savepoint(id)
+        manager
+            .remove_savepoint(id)
             .map(|_| ())
             .ok_or(TransactionError::SavepointNotFound(id))
     }
@@ -321,7 +326,8 @@ impl TransactionContext {
         }
 
         let manager = self.savepoint_manager.write();
-        let savepoint_info = manager.get_savepoint(id)
+        let savepoint_info = manager
+            .get_savepoint(id)
             .cloned()
             .ok_or(TransactionError::SavepointNotFound(id))?;
 
@@ -340,12 +346,14 @@ impl TransactionContext {
         // 先执行数据回滚（使用回滚执行器）
         if !logs_to_rollback.is_empty() {
             let mut executor_guard = self.rollback_executor.lock();
-            let executor = executor_guard.as_mut()
+            let executor = executor_guard
+                .as_mut()
                 .ok_or_else(|| TransactionError::RollbackFailed("未设置回滚执行器".to_string()))?;
-            
+
             // 按逆序执行回滚操作
             for log in logs_to_rollback.iter().rev() {
-                executor.execute_rollback(log)
+                executor
+                    .execute_rollback(log)
                     .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
             }
         }

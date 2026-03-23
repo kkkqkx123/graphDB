@@ -2,10 +2,10 @@
 //!
 //! 提供顶点索引的更新、删除和查询功能
 
-use crate::core::{StorageError, Value};
 use crate::core::types::Index;
-use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
+use crate::core::{StorageError, Value};
 use crate::storage::index::index_key_codec::IndexKeyCodec;
+use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
@@ -40,14 +40,16 @@ impl VertexIndexManager {
                 .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
 
             for (prop_name, prop_value) in props {
-                let index_key =
-                    IndexKeyCodec::build_vertex_index_key(space_id, index_name, prop_value, vertex_id)?;
+                let index_key = IndexKeyCodec::build_vertex_index_key(
+                    space_id, index_name, prop_value, vertex_id,
+                )?;
 
                 table
                     .insert(&index_key, ByteKey(prop_name.as_bytes().to_vec()))
                     .map_err(|e| StorageError::DbError(format!("插入索引数据失败: {}", e)))?;
 
-                let reverse_key = IndexKeyCodec::build_vertex_reverse_key(space_id, index_name, vertex_id)?;
+                let reverse_key =
+                    IndexKeyCodec::build_vertex_reverse_key(space_id, index_name, vertex_id)?;
                 let prop_value_bytes = IndexKeyCodec::serialize_value(prop_value)?;
                 let value_key = format!("{}:{}", prop_name, prop_value_bytes.len());
                 table
@@ -63,7 +65,11 @@ impl VertexIndexManager {
     }
 
     /// 删除顶点所有索引
-    pub fn delete_vertex_indexes(&self, space_id: u64, vertex_id: &Value) -> Result<(), StorageError> {
+    pub fn delete_vertex_indexes(
+        &self,
+        space_id: u64,
+        vertex_id: &Value,
+    ) -> Result<(), StorageError> {
         let txn = self
             .db
             .begin_write()
@@ -101,21 +107,45 @@ impl VertexIndexManager {
                                 if value_parts.len() >= 2 {
                                     let _prop_name = value_parts[0];
                                     if let Ok(prop_value_len) = value_parts[1].parse::<usize>() {
-                                        let forward_key_start = IndexKeyCodec::build_vertex_index_prefix(space_id, &index_name);
-                                        let forward_key_end = IndexKeyCodec::build_range_end(&forward_key_start);
+                                        let forward_key_start =
+                                            IndexKeyCodec::build_vertex_index_prefix(
+                                                space_id,
+                                                &index_name,
+                                            );
+                                        let forward_key_end =
+                                            IndexKeyCodec::build_range_end(&forward_key_start);
 
                                         for fwd_entry in table
                                             .range::<ByteKey>(&forward_key_start..&forward_key_end)
-                                            .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?
+                                            .map_err(|e| {
+                                                StorageError::DbError(format!(
+                                                    "范围查询失败: {}",
+                                                    e
+                                                ))
+                                            })?
                                         {
                                             if let Ok((fwd_key, _)) = fwd_entry {
-                                                let fwd_key_bytes: Vec<u8> = fwd_key.value().0.clone();
-                                                if let Ok(vid) = IndexKeyCodec::parse_vertex_id_from_key(&fwd_key_bytes) {
+                                                let fwd_key_bytes: Vec<u8> =
+                                                    fwd_key.value().0.clone();
+                                                if let Ok(vid) =
+                                                    IndexKeyCodec::parse_vertex_id_from_key(
+                                                        &fwd_key_bytes,
+                                                    )
+                                                {
                                                     if vid == *vertex_id {
-                                                        if fwd_key_bytes.len() >= forward_key_start.0.len() + 4 + prop_value_len + 4 {
-                                                            let vid_start = fwd_key_bytes.len() - vertex_bytes.len();
-                                                            if &fwd_key_bytes[vid_start..] == vertex_bytes {
-                                                                forward_keys_to_delete.push(ByteKey(fwd_key_bytes));
+                                                        if fwd_key_bytes.len()
+                                                            >= forward_key_start.0.len()
+                                                                + 4
+                                                                + prop_value_len
+                                                                + 4
+                                                        {
+                                                            let vid_start = fwd_key_bytes.len()
+                                                                - vertex_bytes.len();
+                                                            if &fwd_key_bytes[vid_start..]
+                                                                == vertex_bytes
+                                                            {
+                                                                forward_keys_to_delete
+                                                                    .push(ByteKey(fwd_key_bytes));
                                                             }
                                                         }
                                                     }
@@ -243,7 +273,8 @@ impl VertexIndexManager {
 
                         if prop_value_len == value_bytes.len() {
                             let prop_value_start = prop_len_start + 4;
-                            let stored_prop_value = &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+                            let stored_prop_value =
+                                &key_bytes[prop_value_start..prop_value_start + prop_value_len];
 
                             if stored_prop_value == value_bytes.as_slice() {
                                 results.push(vertex_id);
@@ -261,8 +292,8 @@ impl VertexIndexManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
     use crate::core::types::{Index, IndexField, IndexType};
+    use crate::core::Value;
     use tempfile::TempDir;
 
     fn create_test_db() -> (Arc<Database>, TempDir) {

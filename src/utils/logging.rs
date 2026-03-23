@@ -3,7 +3,10 @@
 // 封装 flexi_logger 的初始化和关闭操作，确保异步日志正确 flush
 
 use crate::config::Config;
-use flexi_logger::{Cleanup, Criterion, DeferredNow, FileSpec, Logger, LoggerHandle, Naming, TS_DASHES_BLANK_COLONS_DOT_BLANK, WriteMode};
+use flexi_logger::{
+    Cleanup, Criterion, DeferredNow, FileSpec, Logger, LoggerHandle, Naming, WriteMode,
+    TS_DASHES_BLANK_COLONS_DOT_BLANK,
+};
 use parking_lot::Mutex;
 
 /// 全局日志句柄，用于程序退出时 flush
@@ -64,7 +67,11 @@ pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
     // 保存句柄供后续 flush 使用
     *LOGGER_HANDLE.lock() = Some(handle);
 
-    log::info!("Logging system initialized: {}/{}", config.log.dir, config.log.file);
+    log::info!(
+        "Logging system initialized: {}/{}",
+        config.log.dir,
+        config.log.file
+    );
     Ok(())
 }
 

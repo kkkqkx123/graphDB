@@ -15,23 +15,13 @@ use std::ffi::{c_char, c_int, c_void, CStr};
 
 /// 标量函数回调类型
 #[allow(non_camel_case_types)]
-pub type graphdb_scalar_function_callback = Option<
-    extern "C" fn(
-        context: *mut graphdb_context_t,
-        argc: c_int,
-        argv: *mut graphdb_value_t,
-    ),
->;
+pub type graphdb_scalar_function_callback =
+    Option<extern "C" fn(context: *mut graphdb_context_t, argc: c_int, argv: *mut graphdb_value_t)>;
 
 /// 聚合函数步骤回调类型
 #[allow(non_camel_case_types)]
-pub type graphdb_aggregate_step_callback = Option<
-    extern "C" fn(
-        context: *mut graphdb_context_t,
-        argc: c_int,
-        argv: *mut graphdb_value_t,
-    ),
->;
+pub type graphdb_aggregate_step_callback =
+    Option<extern "C" fn(context: *mut graphdb_context_t, argc: c_int, argv: *mut graphdb_value_t)>;
 
 /// 聚合函数最终回调类型
 #[allow(non_camel_case_types)]
@@ -240,7 +230,9 @@ pub extern "C" fn graphdb_context_set_result(
 /// # 返回
 /// - 值类型
 #[no_mangle]
-pub extern "C" fn graphdb_context_result_type(context: *mut graphdb_context_t) -> graphdb_value_type_t {
+pub extern "C" fn graphdb_context_result_type(
+    context: *mut graphdb_context_t,
+) -> graphdb_value_type_t {
     if context.is_null() {
         return graphdb_value_type_t::GRAPHDB_NULL;
     }
@@ -273,9 +265,7 @@ pub extern "C" fn graphdb_context_set_error(
 
     unsafe {
         let ctx = &mut (*context).inner;
-        let msg = CStr::from_ptr(error_msg)
-            .to_string_lossy()
-            .into_owned();
+        let msg = CStr::from_ptr(error_msg).to_string_lossy().into_owned();
         ctx.set_error(msg);
     }
 

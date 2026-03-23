@@ -293,10 +293,7 @@ pub struct StreamingQueryResult {
 impl StreamingQueryResult {
     /// 创建流式查询结果
     pub fn new(columns: Vec<String>, metadata: ResultMetadata) -> Self {
-        Self {
-            columns,
-            metadata,
-        }
+        Self { columns, metadata }
     }
 
     /// 获取列名列表

@@ -93,9 +93,7 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
             }
 
             // 设置变量以便后续使用
-            self.base
-                .context
-                .set_variable(var_name.clone(), value);
+            self.base.context.set_variable(var_name.clone(), value);
         }
 
         Ok(())

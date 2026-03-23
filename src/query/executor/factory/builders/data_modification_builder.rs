@@ -3,14 +3,12 @@
 //! 负责创建数据修改类型的执行器（InsertVertices, InsertEdges, Remove）
 
 use crate::core::error::QueryError;
-use crate::core::{Edge, Value, Vertex};
 use crate::core::vertex_edge_path::Tag;
+use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::data_modification::{InsertExecutor, RemoveExecutor, RemoveItem};
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::planner::plan::core::nodes::{
-    InsertEdgesNode, InsertVerticesNode, RemoveNode,
-};
+use crate::query::planner::plan::core::nodes::{InsertEdgesNode, InsertVerticesNode, RemoveNode};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -63,7 +61,10 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                             if let Some(prop_name) = prop_names.get(prop_idx) {
                                 if let Some(_value_expr) = prop_value.get_expression() {
                                     // 将表达式转换为值（这里简化处理，实际应该求值）
-                                    tag_props.insert(prop_name.clone(), Value::Null(crate::core::NullType::Null));
+                                    tag_props.insert(
+                                        prop_name.clone(),
+                                        Value::Null(crate::core::NullType::Null),
+                                    );
                                 }
                             }
                         }
@@ -136,13 +137,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
             // 创建边（使用占位ID，实际执行时会求值）
             let src = Value::Null(crate::core::NullType::Null);
             let dst = Value::Null(crate::core::NullType::Null);
-            let edge = Edge::new(
-                src,
-                dst,
-                node.edge_name().to_string(),
-                rank,
-                props,
-            );
+            let edge = Edge::new(src, dst, node.edge_name().to_string(), rank, props);
 
             edges.push(edge);
         }

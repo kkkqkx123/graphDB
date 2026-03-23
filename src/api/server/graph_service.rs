@@ -340,7 +340,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     // ==================== 事务控制方法 ====================
 
     /// 处理 BEGIN TRANSACTION 语句
-    fn handle_begin_transaction(&self, session: &Arc<ClientSession>) -> Result<ExecutionResult, String> {
+    fn handle_begin_transaction(
+        &self,
+        session: &Arc<ClientSession>,
+    ) -> Result<ExecutionResult, String> {
         if session.has_active_transaction() {
             return Err("会话已有活跃事务".to_string());
         }
@@ -363,7 +366,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     }
 
     /// 处理 COMMIT 语句
-    fn handle_commit_transaction(&self, session: &Arc<ClientSession>) -> Result<ExecutionResult, String> {
+    fn handle_commit_transaction(
+        &self,
+        session: &Arc<ClientSession>,
+    ) -> Result<ExecutionResult, String> {
         let txn_id = session.current_transaction().ok_or("没有活跃事务可提交")?;
 
         let txn_manager = self
@@ -518,18 +524,14 @@ mod tests {
         let session_id = session.id();
 
         // 查找会话
-        let found_session = graph_service
-            .get_session_manager()
-            .find_session(session_id);
+        let found_session = graph_service.get_session_manager().find_session(session_id);
         assert!(found_session.is_some(), "应该能找到刚创建的会话");
 
         // 签出会话
         graph_service.signout(session_id).await;
 
         // 验证会话已被移除
-        let found_session = graph_service
-            .get_session_manager()
-            .find_session(session_id);
+        let found_session = graph_service.get_session_manager().find_session(session_id);
         assert!(found_session.is_none(), "签出后应该找不到会话");
     }
 

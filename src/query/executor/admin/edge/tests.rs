@@ -2,7 +2,9 @@
 mod tests {
     use crate::core::types::PropertyDef;
     use crate::core::DataType;
-    use crate::query::executor::admin::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem, AlterEdgeOp};
+    use crate::query::executor::admin::edge::alter_edge::{
+        AlterEdgeInfo, AlterEdgeItem, AlterEdgeOp,
+    };
     use crate::query::executor::admin::edge::create_edge::ExecutorEdgeInfo;
     use crate::query::executor::admin::edge::{
         AlterEdgeExecutor, CreateEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor,
@@ -248,8 +250,9 @@ mod tests {
             PropertyDef::new("required_field".to_string(), DataType::Int64),
             PropertyDef::new("optional_field".to_string(), DataType::String),
         ];
-        let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "nullable_edge".to_string())
-            .with_properties(properties);
+        let edge_info =
+            ExecutorEdgeInfo::new("test_space".to_string(), "nullable_edge".to_string())
+                .with_properties(properties);
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = CreateEdgeExecutor::new(12, storage, edge_info, expr_context);
@@ -300,10 +303,9 @@ mod tests {
         ));
         let new_prop = PropertyDef::new("new_field".to_string(), DataType::Int64);
         let items = vec![AlterEdgeItem::add_property(new_prop)];
-        let alter_info =
-            AlterEdgeInfo::new("test_space".to_string(), "knows".to_string())
-                .with_items(items)
-                .with_comment("Updated edge type".to_string());
+        let alter_info = AlterEdgeInfo::new("test_space".to_string(), "knows".to_string())
+            .with_items(items)
+            .with_comment("Updated edge type".to_string());
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = AlterEdgeExecutor::new(15, storage, alter_info, expr_context);
@@ -400,7 +402,8 @@ mod tests {
 
     #[test]
     fn test_executor_edge_info_default_values() {
-        let edge_info = ExecutorEdgeInfo::new("default_space".to_string(), "default_edge".to_string());
+        let edge_info =
+            ExecutorEdgeInfo::new("default_space".to_string(), "default_edge".to_string());
 
         assert_eq!(edge_info.space_name, "default_space");
         assert_eq!(edge_info.edge_name, "default_edge");
@@ -481,10 +484,8 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let edge_info = ExecutorEdgeInfo::new(
-            "test_space".to_string(),
-            "edge_with_underscore".to_string(),
-        );
+        let edge_info =
+            ExecutorEdgeInfo::new("test_space".to_string(), "edge_with_underscore".to_string());
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         let mut executor = CreateEdgeExecutor::new(22, storage, edge_info, expr_context);
@@ -521,16 +522,32 @@ mod tests {
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        let create_executor =
-            CreateEdgeExecutor::new(24, storage.clone(), ExecutorEdgeInfo::new("s".to_string(), "e".to_string()), expr_context.clone());
+        let create_executor = CreateEdgeExecutor::new(
+            24,
+            storage.clone(),
+            ExecutorEdgeInfo::new("s".to_string(), "e".to_string()),
+            expr_context.clone(),
+        );
         let alter_executor = AlterEdgeExecutor::new(
             25,
             storage.clone(),
             AlterEdgeInfo::new("s".to_string(), "e".to_string()),
             expr_context.clone(),
         );
-        let drop_executor = DropEdgeExecutor::new(26, storage.clone(), "s".to_string(), "e".to_string(), expr_context.clone());
-        let desc_executor = DescEdgeExecutor::new(27, storage.clone(), "s".to_string(), "e".to_string(), expr_context.clone());
+        let drop_executor = DropEdgeExecutor::new(
+            26,
+            storage.clone(),
+            "s".to_string(),
+            "e".to_string(),
+            expr_context.clone(),
+        );
+        let desc_executor = DescEdgeExecutor::new(
+            27,
+            storage.clone(),
+            "s".to_string(),
+            "e".to_string(),
+            expr_context.clone(),
+        );
         let show_executor = ShowEdgesExecutor::new(28, storage, "s".to_string(), expr_context);
 
         assert_eq!(create_executor.name(), "CreateEdgeExecutor");
@@ -564,9 +581,10 @@ mod tests {
 
     #[test]
     fn test_alter_edge_info_builder_chain() {
-        let items = vec![
-            AlterEdgeItem::add_property(PropertyDef::new("new_prop".to_string(), DataType::Int64)),
-        ];
+        let items = vec![AlterEdgeItem::add_property(PropertyDef::new(
+            "new_prop".to_string(),
+            DataType::Int64,
+        ))];
         let alter_info = AlterEdgeInfo::new("space1".to_string(), "edge1".to_string())
             .with_items(items)
             .with_comment("Alter test".to_string());

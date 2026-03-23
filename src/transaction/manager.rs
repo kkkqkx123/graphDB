@@ -2,8 +2,8 @@
 //!
 //! 管理所有事务的生命周期，提供事务的开始、提交、中止等操作
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use dashmap::DashMap;
 use parking_lot::Mutex;
@@ -28,7 +28,8 @@ pub struct TransactionManager {
     /// 是否已关闭
     shutdown_flag: AtomicU64,
     /// 回滚执行器工厂（用于为每个事务创建回滚执行器）
-    rollback_executor_factory: Mutex<Option<Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>>>,
+    rollback_executor_factory:
+        Mutex<Option<Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>>>,
 }
 
 impl TransactionManager {
@@ -330,11 +331,7 @@ impl TransactionManager {
     /// # Returns
     /// * `Some(SavepointInfo)` - 保存点信息
     /// * `None` - 保存点不存在
-    pub fn get_savepoint(
-        &self,
-        txn_id: TransactionId,
-        id: SavepointId,
-    ) -> Option<SavepointInfo> {
+    pub fn get_savepoint(&self, txn_id: TransactionId, id: SavepointId) -> Option<SavepointInfo> {
         let context = self.get_context(txn_id).ok()?;
         context.get_savepoint(id)
     }
@@ -420,7 +417,10 @@ impl TransactionManager {
     /// # 注意
     /// 此方法用于将存储层的回滚能力集成到事务管理器中，
     /// 使得保存点回滚能够执行实际的数据回滚操作
-    pub fn set_rollback_executor_factory(&self, factory: Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>) {
+    pub fn set_rollback_executor_factory(
+        &self,
+        factory: Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>,
+    ) {
         let mut guard = self.rollback_executor_factory.lock();
         *guard = Some(factory);
     }

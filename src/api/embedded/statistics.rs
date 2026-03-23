@@ -55,7 +55,8 @@ impl SessionStatistics {
     /// - `id` - 插入的顶点ID
     pub fn record_vertex_insert(&self, id: i64) {
         if id > 0 {
-            self.last_insert_vertex_id.store(id as u64, Ordering::SeqCst);
+            self.last_insert_vertex_id
+                .store(id as u64, Ordering::SeqCst);
             self.has_vertex_id.store(1, Ordering::SeqCst);
             self.last_changes.store(1, Ordering::SeqCst);
             self.total_changes.fetch_add(1, Ordering::SeqCst);
@@ -141,9 +142,7 @@ impl Clone for SessionStatistics {
             last_insert_vertex_id: AtomicU64::new(
                 self.last_insert_vertex_id.load(Ordering::SeqCst),
             ),
-            last_insert_edge_id: AtomicU64::new(
-                self.last_insert_edge_id.load(Ordering::SeqCst),
-            ),
+            last_insert_edge_id: AtomicU64::new(self.last_insert_edge_id.load(Ordering::SeqCst)),
             has_vertex_id: AtomicU64::new(self.has_vertex_id.load(Ordering::SeqCst)),
             has_edge_id: AtomicU64::new(self.has_edge_id.load(Ordering::SeqCst)),
         }

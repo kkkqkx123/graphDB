@@ -225,8 +225,10 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         let mut results = Vec::new();
 
         for probe_row in &probe_dataset.rows {
-            let key = JoinKeyEvaluator::evaluate_key(probe_key_expression, context)
-                .map_err(|e| QueryError::ExecutionError(format!("Probe key evaluation failed: {}", e)))?;
+            let key =
+                JoinKeyEvaluator::evaluate_key(probe_key_expression, context).map_err(|e| {
+                    QueryError::ExecutionError(format!("Probe key evaluation failed: {}", e))
+                })?;
 
             if let Some(matching_rows) = hash_table.get(&key) {
                 results.push((probe_row.clone(), matching_rows.clone()));
@@ -248,8 +250,10 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         let mut results = Vec::new();
 
         for probe_row in &probe_dataset.rows {
-            let key_values = JoinKeyEvaluator::evaluate_keys(probe_key_exprs, context)
-                .map_err(|e| QueryError::ExecutionError(format!("Probe key evaluation failed: {}", e)))?;
+            let key_values =
+                JoinKeyEvaluator::evaluate_keys(probe_key_exprs, context).map_err(|e| {
+                    QueryError::ExecutionError(format!("Probe key evaluation failed: {}", e))
+                })?;
 
             let join_key = JoinKey::new(key_values);
 
@@ -299,7 +303,9 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
                 if key_idx < row.len() {
                     key_values.push(row[key_idx].clone());
                 } else {
-                    return Err(QueryError::ExecutionError("Key index out of range".to_string()));
+                    return Err(QueryError::ExecutionError(
+                        "Key index out of range".to_string(),
+                    ));
                 }
             }
 

@@ -267,7 +267,9 @@ impl SelectivityEstimator {
                     .or_else(|| self.extract_property_name(right));
 
                 // 尝试提取值
-                let value = self.extract_value(right).or_else(|| self.extract_value(left));
+                let value = self
+                    .extract_value(right)
+                    .or_else(|| self.extract_value(left));
 
                 if let Some(prop) = property_name {
                     self.estimate_equality_selectivity(tag_name, &prop, value.as_ref())

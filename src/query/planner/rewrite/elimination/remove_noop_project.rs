@@ -230,7 +230,8 @@ mod tests {
         let rule = RemoveNoopProjectRule::new();
 
         // 测试允许的子节点类型
-        let start_node = crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
+        let start_node =
+            crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
         // Start 不在允许列表中
         assert!(!rule.is_allowed_child_type(&PlanNodeEnum::Start(start_node.clone())));
     }

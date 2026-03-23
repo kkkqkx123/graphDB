@@ -29,9 +29,7 @@ pub mod metrics;
 pub mod profile;
 
 // 重新导出常用类型
-pub use error_stats::{
-    ErrorInfo, ErrorStatsManager, ErrorSummary, ErrorType, QueryPhase,
-};
+pub use error_stats::{ErrorInfo, ErrorStatsManager, ErrorSummary, ErrorType, QueryPhase};
 pub use manager::{MetricType, MetricValue, StatsManager};
 pub use metrics::QueryMetrics;
 pub use profile::{ExecutorStat, QueryProfile, QueryStatus, StageMetrics};

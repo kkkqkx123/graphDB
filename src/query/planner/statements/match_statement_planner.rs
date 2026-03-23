@@ -14,8 +14,8 @@ use crate::core::YieldColumn;
 use crate::query::parser::ast::pattern::{PathElement, Pattern, RepetitionType};
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::OrderByItem;
-use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::ExpandAllNode;
 use crate::query::planner::plan::core::nodes::{
     ArgumentNode, LeftJoinNode, LimitNode, LoopNode, ProjectNode, ScanVerticesNode, SortItem,
@@ -153,22 +153,13 @@ impl MatchStatementPlanner {
                 } else {
                     // 处理第一个路径模式
                     let first_pattern = &match_stmt.patterns[0];
-                    self.plan_path_pattern(
-                        first_pattern,
-                        space_id,
-                        validation_info,
-                        qctx,
-                    )?
+                    self.plan_path_pattern(first_pattern, space_id, validation_info, qctx)?
                 };
 
                 // 处理额外的路径模式（使用交叉连接）
                 for pattern in match_stmt.patterns.iter().skip(1) {
-                    let path_plan = self.plan_path_pattern(
-                        pattern,
-                        space_id,
-                        validation_info,
-                        qctx,
-                    )?;
+                    let path_plan =
+                        self.plan_path_pattern(pattern, space_id, validation_info, qctx)?;
                     plan = self.cross_join_plans(plan, path_plan)?;
                 }
 
@@ -227,7 +218,9 @@ impl MatchStatementPlanner {
                                         alias,
                                         &node.variable,
                                         self.expr_context.as_ref().ok_or_else(|| {
-                                            PlannerError::PlanGenerationFailed("Expression context is unavailable".to_string())
+                                            PlannerError::PlanGenerationFailed(
+                                                "Expression context is unavailable".to_string(),
+                                            )
                                         })?,
                                     )?
                                 } else {
@@ -305,7 +298,9 @@ impl MatchStatementPlanner {
                                 prev_node_alias.as_deref(),
                                 validation_info,
                                 self.expr_context.as_ref().ok_or_else(|| {
-                                    PlannerError::PlanGenerationFailed("Expression context is unavailable".to_string())
+                                    PlannerError::PlanGenerationFailed(
+                                        "Expression context is unavailable".to_string(),
+                                    )
                                 })?,
                             )?;
                             plan = if let Some(existing_root) = plan.root.take() {
@@ -684,13 +679,11 @@ impl MatchStatementPlanner {
         }
 
         // 规划第一个路径选项
-        let mut plan =
-            self.plan_pattern(&patterns[0], space_id, validation_info, qctx)?;
+        let mut plan = self.plan_pattern(&patterns[0], space_id, validation_info, qctx)?;
 
         // 将剩余路径选项通过并集合并
         for pattern in patterns.iter().skip(1) {
-            let pattern_plan =
-                self.plan_pattern(pattern, space_id, validation_info, qctx)?;
+            let pattern_plan = self.plan_pattern(pattern, space_id, validation_info, qctx)?;
             plan = self.union_plans(plan, pattern_plan)?;
         }
 
@@ -708,9 +701,7 @@ impl MatchStatementPlanner {
         match pattern {
             Pattern::Node(node) => self.plan_pattern_node(node, space_id),
             Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id),
-            Pattern::Path(_) => {
-                self.plan_path_pattern(pattern, space_id, validation_info, _qctx)
-            }
+            Pattern::Path(_) => self.plan_path_pattern(pattern, space_id, validation_info, _qctx),
             Pattern::Variable(var) => self.plan_variable_pattern(var, space_id, validation_info),
         }
     }

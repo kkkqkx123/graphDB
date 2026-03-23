@@ -273,12 +273,8 @@ mod tests {
         feedback.actual_time_us = 6000;
 
         // 添加算子反馈
-        let op_feedback = OperatorFeedback::new(
-            "scan_1".to_string(),
-            "SeqScan".to_string(),
-            1000,
-            1200,
-        );
+        let op_feedback =
+            OperatorFeedback::new("scan_1".to_string(), "SeqScan".to_string(), 1000, 1200);
         feedback.add_operator_feedback(op_feedback);
 
         assert_eq!(feedback.operator_feedback_count(), 1);

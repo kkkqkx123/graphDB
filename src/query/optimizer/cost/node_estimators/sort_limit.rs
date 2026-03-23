@@ -139,11 +139,11 @@ mod tests {
     use super::*;
     use crate::core::types::operators::AggregateFunction;
     use crate::query::optimizer::cost::config::CostModelConfig;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
     use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::DedupNode;
     use crate::query::planner::plan::core::nodes::operation::sample_node::SampleNode;
     use crate::query::planner::plan::core::nodes::operation::sort_node::*;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use std::sync::Arc;
 
     fn create_test_calculator() -> CostCalculator {
@@ -219,7 +219,8 @@ mod tests {
         let input = PlanNodeEnum::Start(StartNode::new());
         let group_keys = vec!["category".to_string()];
         let agg_funcs = vec![AggregateFunction::Count(None)];
-        let node = AggregateNode::new(input, group_keys, agg_funcs).expect("Node creation should succeed");
+        let node =
+            AggregateNode::new(input, group_keys, agg_funcs).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Aggregate(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
@@ -324,7 +325,8 @@ mod tests {
         let input = PlanNodeEnum::Start(StartNode::new());
         let group_keys = vec![];
         let agg_funcs = vec![AggregateFunction::Count(None)];
-        let node = AggregateNode::new(input, group_keys, agg_funcs).expect("Node creation should succeed");
+        let node =
+            AggregateNode::new(input, group_keys, agg_funcs).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Aggregate(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 100)];
@@ -342,9 +344,14 @@ mod tests {
         let estimator = SortLimitEstimator::new(&calculator);
 
         let input = PlanNodeEnum::Start(StartNode::new());
-        let group_keys = vec!["category".to_string(), "type".to_string(), "status".to_string()];
+        let group_keys = vec![
+            "category".to_string(),
+            "type".to_string(),
+            "status".to_string(),
+        ];
         let agg_funcs = vec![AggregateFunction::Count(None)];
-        let node = AggregateNode::new(input, group_keys, agg_funcs).expect("Node creation should succeed");
+        let node =
+            AggregateNode::new(input, group_keys, agg_funcs).expect("Node creation should succeed");
         let plan_node = PlanNodeEnum::Aggregate(node);
 
         let child_estimates = vec![NodeCostEstimate::new(10.0, 10.0, 1000)];

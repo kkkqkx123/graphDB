@@ -12,18 +12,21 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use graphdb::storage::RedbStorage;
 use graphdb::storage::operations::rollback::RollbackExecutor;
+use graphdb::storage::RedbStorage;
 use graphdb::transaction::{
-    TransactionManager, TransactionManagerConfig, TransactionOptions, TransactionState,
-    TransactionError,
+    TransactionError, TransactionManager, TransactionManagerConfig, TransactionOptions,
+    TransactionState,
 };
 
 /// Mock回滚执行器，用于测试
 struct MockRollbackExecutor;
 
 impl RollbackExecutor for MockRollbackExecutor {
-    fn execute_rollback(&mut self, _log: &graphdb::transaction::types::OperationLog) -> Result<(), graphdb::core::StorageError> {
+    fn execute_rollback(
+        &mut self,
+        _log: &graphdb::transaction::types::OperationLog,
+    ) -> Result<(), graphdb::core::StorageError> {
         // Mock实现，总是成功
         Ok(())
     }
@@ -54,14 +57,20 @@ fn test_transaction_lifecycle() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 检查事务状态
-    let txn_info = txn_manager.get_transaction_info(txn_id).expect("获取事务失败");
+    let txn_info = txn_manager
+        .get_transaction_info(txn_id)
+        .expect("获取事务失败");
     assert_eq!(txn_info.state, TransactionState::Active);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 
     // 事务已提交，不再在活跃事务表中
     let txn_info = txn_manager.get_transaction_info(txn_id);
@@ -69,7 +78,12 @@ fn test_transaction_lifecycle() {
 
     // 验证统计信息
     let stats = txn_manager.stats();
-    assert_eq!(stats.committed_transactions.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(
+        stats
+            .committed_transactions
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1
+    );
 }
 
 /// 测试事务回滚
@@ -79,7 +93,9 @@ fn test_transaction_rollback() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 回滚事务
     txn_manager.abort_transaction(txn_id).expect("回滚事务失败");
@@ -90,7 +106,12 @@ fn test_transaction_rollback() {
 
     // 验证统计信息
     let stats = txn_manager.stats();
-    assert_eq!(stats.aborted_transactions.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(
+        stats
+            .aborted_transactions
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1
+    );
 }
 
 /// 测试只读事务
@@ -104,14 +125,20 @@ fn test_read_only_transaction() {
         timeout: Some(Duration::from_secs(30)),
         durability: graphdb::transaction::DurabilityLevel::None,
     };
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 检查事务是否为只读
-    let txn_info = txn_manager.get_transaction_info(txn_id).expect("获取事务失败");
+    let txn_info = txn_manager
+        .get_transaction_info(txn_id)
+        .expect("获取事务失败");
     assert!(txn_info.is_read_only);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试事务超时
@@ -125,7 +152,9 @@ fn test_transaction_timeout() {
         timeout: Some(Duration::from_millis(100)),
         durability: graphdb::transaction::DurabilityLevel::None,
     };
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 等待超时
     std::thread::sleep(Duration::from_millis(150));
@@ -139,7 +168,12 @@ fn test_transaction_timeout() {
 
     // 验证超时统计
     let stats = txn_manager.stats();
-    assert_eq!(stats.timeout_transactions.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(
+        stats
+            .timeout_transactions
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1
+    );
 }
 
 /// 测试并发事务
@@ -155,18 +189,27 @@ fn test_concurrent_transactions() {
             timeout: Some(Duration::from_secs(30)),
             durability: graphdb::transaction::DurabilityLevel::None,
         };
-        let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+        let txn_id = txn_manager
+            .begin_transaction(options)
+            .expect("开始事务失败");
         txn_ids.push(txn_id);
     }
 
     // 提交所有事务
     for txn_id in txn_ids {
-        txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+        txn_manager
+            .commit_transaction(txn_id)
+            .expect("提交事务失败");
     }
 
     // 验证所有事务都已提交
     let stats = txn_manager.stats();
-    assert_eq!(stats.committed_transactions.load(std::sync::atomic::Ordering::SeqCst), 10);
+    assert_eq!(
+        stats
+            .committed_transactions
+            .load(std::sync::atomic::Ordering::SeqCst),
+        10
+    );
 }
 
 /// 测试事务与存储层的集成
@@ -187,10 +230,14 @@ fn test_transaction_with_storage() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试事务统计信息
@@ -200,18 +247,36 @@ fn test_transaction_stats() {
 
     // 开始并提交一个事务
     let options = TransactionOptions::default();
-    let txn_id1 = txn_manager.begin_transaction(options).expect("开始事务失败");
-    txn_manager.commit_transaction(txn_id1).expect("提交事务失败");
+    let txn_id1 = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
+    txn_manager
+        .commit_transaction(txn_id1)
+        .expect("提交事务失败");
 
     // 开始并回滚一个事务
     let options = TransactionOptions::default();
-    let txn_id2 = txn_manager.begin_transaction(options).expect("开始事务失败");
-    txn_manager.abort_transaction(txn_id2).expect("回滚事务失败");
+    let txn_id2 = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
+    txn_manager
+        .abort_transaction(txn_id2)
+        .expect("回滚事务失败");
 
     // 检查统计信息
     let stats = txn_manager.stats();
-    assert_eq!(stats.committed_transactions.load(std::sync::atomic::Ordering::SeqCst), 1);
-    assert_eq!(stats.aborted_transactions.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(
+        stats
+            .committed_transactions
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1
+    );
+    assert_eq!(
+        stats
+            .aborted_transactions
+            .load(std::sync::atomic::Ordering::SeqCst),
+        1
+    );
 }
 
 /// 测试创建保存点
@@ -221,7 +286,9 @@ fn test_create_savepoint() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建保存点
     let savepoint_id1 = txn_manager
@@ -241,7 +308,9 @@ fn test_create_savepoint() {
     assert_eq!(savepoints.len(), 2);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试通过名称查找保存点
@@ -251,7 +320,9 @@ fn test_find_savepoint_by_name() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建命名保存点
     let savepoint_id = txn_manager
@@ -268,7 +339,9 @@ fn test_find_savepoint_by_name() {
     assert!(not_found.is_none());
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试释放保存点
@@ -278,7 +351,9 @@ fn test_release_savepoint() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建保存点
     let savepoint_id1 = txn_manager
@@ -300,7 +375,9 @@ fn test_release_savepoint() {
     assert_eq!(savepoints[0].id, savepoint_id2);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试回滚到保存点
@@ -313,7 +390,9 @@ fn test_rollback_to_savepoint() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建第一个保存点
     let savepoint_id1 = txn_manager
@@ -340,7 +419,9 @@ fn test_rollback_to_savepoint() {
     assert_eq!(savepoints[0].id, savepoint_id1);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试回滚到不存在的保存点
@@ -350,18 +431,27 @@ fn test_rollback_to_nonexistent_savepoint() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 尝试回滚到不存在的保存点
     let result = txn_manager.rollback_to_savepoint(txn_id, 999);
-    assert!(matches!(result, Err(TransactionError::SavepointNotFound(_))));
+    assert!(matches!(
+        result,
+        Err(TransactionError::SavepointNotFound(_))
+    ));
 
     // 验证事务仍然处于活跃状态
-    let txn_info = txn_manager.get_transaction_info(txn_id).expect("获取事务失败");
+    let txn_info = txn_manager
+        .get_transaction_info(txn_id)
+        .expect("获取事务失败");
     assert_eq!(txn_info.state, TransactionState::Active);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试释放不存在的保存点
@@ -371,14 +461,21 @@ fn test_release_nonexistent_savepoint() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 尝试释放不存在的保存点
     let result = txn_manager.release_savepoint(txn_id, 999);
-    assert!(matches!(result, Err(TransactionError::SavepointNotFound(_))));
+    assert!(matches!(
+        result,
+        Err(TransactionError::SavepointNotFound(_))
+    ));
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试保存点与事务提交
@@ -388,7 +485,9 @@ fn test_savepoint_with_transaction_commit() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建保存点
     let _savepoint_id = txn_manager
@@ -396,7 +495,9 @@ fn test_savepoint_with_transaction_commit() {
         .expect("创建保存点失败");
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 
     // 事务已提交，不再在活跃事务表中
     let txn_info = txn_manager.get_transaction_info(txn_id);
@@ -410,7 +511,9 @@ fn test_savepoint_with_transaction_rollback() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建保存点
     let _savepoint_id = txn_manager
@@ -432,7 +535,9 @@ fn test_get_savepoint_info() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建保存点
     let savepoint_id = txn_manager
@@ -449,7 +554,9 @@ fn test_get_savepoint_info() {
     assert!(nonexistent.is_none());
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试多个保存点的管理
@@ -462,7 +569,9 @@ fn test_multiple_savepoints() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建多个保存点
     let mut savepoint_ids = Vec::new();
@@ -487,7 +596,9 @@ fn test_multiple_savepoints() {
     assert_eq!(savepoints.len(), 3);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试事务管理器关闭
@@ -497,7 +608,9 @@ fn test_transaction_manager_shutdown() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 关闭事务管理器
     txn_manager.shutdown();
@@ -532,7 +645,9 @@ fn test_operation_log_recording_and_rollback() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 获取事务上下文
     let context = txn_manager.get_context(txn_id).expect("获取事务上下文失败");
@@ -581,7 +696,9 @@ fn test_operation_log_recording_and_rollback() {
     assert_eq!(logs.len(), 2);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试批量操作操作日志记录
@@ -605,7 +722,9 @@ fn test_batch_operation_log_recording() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 获取事务上下文
     let context = txn_manager.get_context(txn_id).expect("获取事务上下文失败");
@@ -671,7 +790,9 @@ fn test_batch_operation_log_recording() {
     assert_eq!(logs.len(), 3);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试保存点资源自动清理
@@ -692,7 +813,9 @@ fn test_savepoint_resource_cleanup() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建多个保存点
     let _savepoint_id1 = txn_manager
@@ -710,7 +833,9 @@ fn test_savepoint_resource_cleanup() {
     assert_eq!(savepoints.len(), 3);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 
     // 事务已提交，不再在活跃事务表中
     let txn_info = txn_manager.get_transaction_info(txn_id);
@@ -718,11 +843,15 @@ fn test_savepoint_resource_cleanup() {
 
     // 验证保存点资源已被清理（通过重新开始事务验证）
     let options2 = TransactionOptions::default();
-    let txn_id2 = txn_manager.begin_transaction(options2).expect("开始事务失败");
+    let txn_id2 = txn_manager
+        .begin_transaction(options2)
+        .expect("开始事务失败");
     let savepoints = txn_manager.get_active_savepoints(txn_id2);
     assert_eq!(savepoints.len(), 0);
 
-    txn_manager.commit_transaction(txn_id2).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id2)
+        .expect("提交事务失败");
 }
 
 /// 测试保存点资源在事务回滚时自动清理
@@ -743,7 +872,9 @@ fn test_savepoint_cleanup_on_rollback() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建多个保存点
     let _savepoint_id1 = txn_manager
@@ -783,7 +914,9 @@ fn test_rollback_failure_error_handling() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 获取事务上下文
     let context = txn_manager.get_context(txn_id).expect("获取事务上下文失败");
@@ -820,14 +953,16 @@ fn test_rollback_failure_error_handling() {
     assert_eq!(logs.len(), 2);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试并发访问操作日志
 #[test]
 fn test_concurrent_operation_log_access() {
-    use tempfile::TempDir;
     use std::thread;
+    use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("test_concurrent.db");
@@ -842,7 +977,9 @@ fn test_concurrent_operation_log_access() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 获取事务上下文
     let context = txn_manager.get_context(txn_id).expect("获取事务上下文失败");
@@ -854,7 +991,7 @@ fn test_concurrent_operation_log_access() {
         let context_clone = context.clone();
         let handle = thread::spawn(move || {
             use graphdb::transaction::types::OperationLog;
-            
+
             // 添加操作日志
             context_clone.add_operation_log(OperationLog::InsertVertex {
                 space: "test_space".to_string(),
@@ -879,7 +1016,9 @@ fn test_concurrent_operation_log_access() {
     assert_eq!(logs.len(), 5);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试操作日志截断功能
@@ -900,7 +1039,9 @@ fn test_operation_log_truncation() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 获取事务上下文
     let context = txn_manager.get_context(txn_id).expect("获取事务上下文失败");
@@ -927,7 +1068,9 @@ fn test_operation_log_truncation() {
     assert_eq!(logs.len(), 5);
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }
 
 /// 测试保存点回滚后后续保存点的清理
@@ -940,7 +1083,9 @@ fn test_savepoint_cleanup_after_rollback() {
 
     // 开始事务
     let options = TransactionOptions::default();
-    let txn_id = txn_manager.begin_transaction(options).expect("开始事务失败");
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
 
     // 创建多个保存点
     let savepoint_id1 = txn_manager
@@ -965,7 +1110,7 @@ fn test_savepoint_cleanup_after_rollback() {
     // 验证第三个保存点已被移除
     let savepoints = txn_manager.get_active_savepoints(txn_id);
     assert_eq!(savepoints.len(), 2);
-    
+
     // 验证剩下的保存点ID
     let savepoint_ids: Vec<_> = savepoints.iter().map(|sp| sp.id).collect();
     assert!(savepoint_ids.contains(&savepoint_id1));
@@ -973,5 +1118,7 @@ fn test_savepoint_cleanup_after_rollback() {
     assert!(!savepoint_ids.contains(&savepoint_id3));
 
     // 提交事务
-    txn_manager.commit_transaction(txn_id).expect("提交事务失败");
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
 }

@@ -96,7 +96,7 @@ impl RegexFunction {
     }
 
     /// 执行函数（带缓存）
-    /// 
+    ///
     /// 注意：缓存功能已移除，直接调用execute
     pub fn execute_with_cache(
         &self,

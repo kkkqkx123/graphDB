@@ -35,7 +35,9 @@ pub fn core_value_to_graphdb(value: &Value) -> graphdb_value_t {
     match value {
         Value::Null(_) => graphdb_value_t {
             type_: graphdb_value_type_t::GRAPHDB_NULL,
-            data: graphdb_value_data_t { ptr: std::ptr::null_mut() },
+            data: graphdb_value_data_t {
+                ptr: std::ptr::null_mut(),
+            },
         },
         Value::Bool(b) => graphdb_value_t {
             type_: graphdb_value_type_t::GRAPHDB_BOOL,
@@ -61,7 +63,9 @@ pub fn core_value_to_graphdb(value: &Value) -> graphdb_value_t {
         }
         _ => graphdb_value_t {
             type_: graphdb_value_type_t::GRAPHDB_NULL,
-            data: graphdb_value_data_t { ptr: std::ptr::null_mut() },
+            data: graphdb_value_data_t {
+                ptr: std::ptr::null_mut(),
+            },
         },
     }
 }

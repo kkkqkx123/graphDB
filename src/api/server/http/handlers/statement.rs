@@ -23,7 +23,10 @@ pub async fn create<S: StorageClient + Clone + Send + Sync + 'static>(
             parameters: info.parameters.clone(),
             created_at: info.created_at.to_rfc3339(),
         })),
-        Err(e) => Err(HttpError::InternalError(format!("创建预编译语句失败: {}", e))),
+        Err(e) => Err(HttpError::InternalError(format!(
+            "创建预编译语句失败: {}",
+            e
+        ))),
     }
 }
 
@@ -36,7 +39,10 @@ pub async fn info<S: StorageClient + Clone + Send + Sync + 'static>(
 
     match statement_manager.get_statement(&statement_id) {
         Some(info) => Ok(JsonResponse(info.to_response())),
-        None => Err(HttpError::NotFound(format!("预编译语句不存在: {}", statement_id))),
+        None => Err(HttpError::NotFound(format!(
+            "预编译语句不存在: {}",
+            statement_id
+        ))),
     }
 }
 
@@ -50,7 +56,10 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
 
     match statement_manager.execute_statement(&statement_id, &request.parameters) {
         Ok(response) => Ok(JsonResponse(response)),
-        Err(e) => Err(HttpError::InternalError(format!("执行预编译语句失败: {}", e))),
+        Err(e) => Err(HttpError::InternalError(format!(
+            "执行预编译语句失败: {}",
+            e
+        ))),
     }
 }
 
@@ -64,7 +73,10 @@ pub async fn batch_execute<S: StorageClient + Clone + Send + Sync + 'static>(
 
     match statement_manager.batch_execute_statement(&statement_id, request.batch_parameters) {
         Ok(response) => Ok(JsonResponse(response)),
-        Err(e) => Err(HttpError::InternalError(format!("批量执行预编译语句失败: {}", e))),
+        Err(e) => Err(HttpError::InternalError(format!(
+            "批量执行预编译语句失败: {}",
+            e
+        ))),
     }
 }
 

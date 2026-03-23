@@ -19,13 +19,12 @@ pub mod property;
 pub mod tag;
 
 // 从feedback模块重新导出主要类型
+pub use edge::{EdgeTypeStatistics, HotVertexInfo, SkewnessLevel};
 pub use feedback::{
+    generate_query_fingerprint, normalize_query, AutoFeedbackConfig, AutoFeedbackTrigger,
     ExecutionFeedbackCollector, FeedbackDrivenSelectivity, OperatorFeedback,
     QueryExecutionFeedback, QueryFeedbackHistory, SelectivityFeedbackManager,
-    AutoFeedbackConfig, AutoFeedbackTrigger,
-    normalize_query, generate_query_fingerprint,
 };
-pub use edge::{EdgeTypeStatistics, HotVertexInfo, SkewnessLevel};
 pub use histogram::{Histogram, HistogramBucket, RangeCondition};
 pub use manager::StatisticsManager;
 pub use property::PropertyStatistics;

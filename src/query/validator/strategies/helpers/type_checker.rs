@@ -5,7 +5,6 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::DataType;
 use crate::core::Expression;
 use crate::core::TypeUtils;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::ValueType;
 use std::collections::HashMap;

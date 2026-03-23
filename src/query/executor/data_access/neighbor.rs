@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use super::super::base::{BaseExecutor, ExecutorStats, EdgeDirection};
+use super::super::base::{BaseExecutor, EdgeDirection, ExecutorStats};
 use crate::core::Value;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;

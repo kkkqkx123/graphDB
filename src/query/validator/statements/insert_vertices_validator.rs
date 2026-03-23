@@ -11,7 +11,6 @@ use crate::core::Expression;
 use crate::core::Value;
 use crate::query::parser::ast::stmt::{Ast, InsertTarget, TagInsertSpec, VertexRow};
 use crate::query::parser::ast::Stmt;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,

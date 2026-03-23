@@ -121,9 +121,9 @@ impl MergeRule for MergeGetNbrsAndDedupRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::DedupNode;
     use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetNeighborsNode;
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::DedupNode;
 
     #[test]
     fn test_rule_name() {

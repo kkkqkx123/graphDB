@@ -7,9 +7,7 @@ use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::factory::builders::Builders;
-use crate::query::executor::factory::validators::{
-    RecursionDetector, SafetyValidator,
-};
+use crate::query::executor::factory::validators::{RecursionDetector, SafetyValidator};
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -141,273 +139,343 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             }
 
             // 数据访问执行器
-            PlanNodeEnum::ScanVertices(node) => {
-                self.builders.data_access().build_scan_vertices(node, storage, context)
-            }
-            PlanNodeEnum::ScanEdges(node) => {
-                self.builders.data_access().build_scan_edges(node, storage, context)
-            }
-            PlanNodeEnum::GetVertices(node) => {
-                self.builders.data_access().build_get_vertices(node, storage, context)
-            }
-            PlanNodeEnum::GetNeighbors(node) => {
-                self.builders.data_access().build_get_neighbors(node, storage, context)
-            }
-            PlanNodeEnum::EdgeIndexScan(node) => {
-                self.builders.data_access().build_edge_index_scan(node, storage, context)
-            }
-            PlanNodeEnum::GetEdges(node) => {
-                self.builders.data_access().build_get_edges(node, storage, context)
-            }
-            PlanNodeEnum::IndexScan(node) => {
-                self.builders.data_access().build_index_scan(node, storage, context)
-            }
+            PlanNodeEnum::ScanVertices(node) => self
+                .builders
+                .data_access()
+                .build_scan_vertices(node, storage, context),
+            PlanNodeEnum::ScanEdges(node) => self
+                .builders
+                .data_access()
+                .build_scan_edges(node, storage, context),
+            PlanNodeEnum::GetVertices(node) => self
+                .builders
+                .data_access()
+                .build_get_vertices(node, storage, context),
+            PlanNodeEnum::GetNeighbors(node) => self
+                .builders
+                .data_access()
+                .build_get_neighbors(node, storage, context),
+            PlanNodeEnum::EdgeIndexScan(node) => self
+                .builders
+                .data_access()
+                .build_edge_index_scan(node, storage, context),
+            PlanNodeEnum::GetEdges(node) => self
+                .builders
+                .data_access()
+                .build_get_edges(node, storage, context),
+            PlanNodeEnum::IndexScan(node) => self
+                .builders
+                .data_access()
+                .build_index_scan(node, storage, context),
 
             // 数据修改执行器
-            PlanNodeEnum::InsertVertices(node) => {
-                self.builders.data_modification().build_insert_vertices(node, storage, context)
-            }
-            PlanNodeEnum::InsertEdges(node) => {
-                self.builders.data_modification().build_insert_edges(node, storage, context)
-            }
-            PlanNodeEnum::Remove(node) => {
-                self.builders.data_modification().build_remove(node, storage, context)
-            }
+            PlanNodeEnum::InsertVertices(node) => self
+                .builders
+                .data_modification()
+                .build_insert_vertices(node, storage, context),
+            PlanNodeEnum::InsertEdges(node) => self
+                .builders
+                .data_modification()
+                .build_insert_edges(node, storage, context),
+            PlanNodeEnum::Remove(node) => self
+                .builders
+                .data_modification()
+                .build_remove(node, storage, context),
 
             // 数据处理执行器
-            PlanNodeEnum::Filter(node) => {
-                self.builders.data_processing().build_filter(node, storage, context)
-            }
-            PlanNodeEnum::Project(node) => {
-                self.builders.data_processing().build_project(node, storage, context)
-            }
-            PlanNodeEnum::Limit(node) => {
-                self.builders.data_processing().build_limit(node, storage, context)
-            }
-            PlanNodeEnum::Sort(node) => {
-                self.builders.data_processing().build_sort(node, storage, context)
-            }
-            PlanNodeEnum::TopN(node) => {
-                self.builders.data_processing().build_topn(node, storage, context)
-            }
-            PlanNodeEnum::Sample(node) => {
-                self.builders.data_processing().build_sample(node, storage, context)
-            }
-            PlanNodeEnum::Aggregate(node) => {
-                self.builders.data_processing().build_aggregate(node, storage, context)
-            }
-            PlanNodeEnum::Dedup(node) => {
-                self.builders.data_processing().build_dedup(node, storage, context)
-            }
+            PlanNodeEnum::Filter(node) => self
+                .builders
+                .data_processing()
+                .build_filter(node, storage, context),
+            PlanNodeEnum::Project(node) => self
+                .builders
+                .data_processing()
+                .build_project(node, storage, context),
+            PlanNodeEnum::Limit(node) => self
+                .builders
+                .data_processing()
+                .build_limit(node, storage, context),
+            PlanNodeEnum::Sort(node) => self
+                .builders
+                .data_processing()
+                .build_sort(node, storage, context),
+            PlanNodeEnum::TopN(node) => self
+                .builders
+                .data_processing()
+                .build_topn(node, storage, context),
+            PlanNodeEnum::Sample(node) => self
+                .builders
+                .data_processing()
+                .build_sample(node, storage, context),
+            PlanNodeEnum::Aggregate(node) => self
+                .builders
+                .data_processing()
+                .build_aggregate(node, storage, context),
+            PlanNodeEnum::Dedup(node) => self
+                .builders
+                .data_processing()
+                .build_dedup(node, storage, context),
 
             // 连接执行器
-            PlanNodeEnum::InnerJoin(node) => {
-                self.builders.join().build_inner_join(node, storage, context)
-            }
-            PlanNodeEnum::HashInnerJoin(node) => {
-                self.builders.join().build_hash_inner_join(node, storage, context)
-            }
+            PlanNodeEnum::InnerJoin(node) => self
+                .builders
+                .join()
+                .build_inner_join(node, storage, context),
+            PlanNodeEnum::HashInnerJoin(node) => self
+                .builders
+                .join()
+                .build_hash_inner_join(node, storage, context),
             PlanNodeEnum::LeftJoin(node) => {
                 self.builders.join().build_left_join(node, storage, context)
             }
-            PlanNodeEnum::HashLeftJoin(node) => {
-                self.builders.join().build_hash_left_join(node, storage, context)
-            }
-            PlanNodeEnum::FullOuterJoin(node) => {
-                self.builders.join().build_full_outer_join(node, storage, context)
-            }
-            PlanNodeEnum::CrossJoin(node) => {
-                self.builders.join().build_cross_join(node, storage, context)
-            }
+            PlanNodeEnum::HashLeftJoin(node) => self
+                .builders
+                .join()
+                .build_hash_left_join(node, storage, context),
+            PlanNodeEnum::FullOuterJoin(node) => self
+                .builders
+                .join()
+                .build_full_outer_join(node, storage, context),
+            PlanNodeEnum::CrossJoin(node) => self
+                .builders
+                .join()
+                .build_cross_join(node, storage, context),
 
             // 集合操作执行器
-            PlanNodeEnum::Union(node) => {
-                self.builders.set_operation().build_union(node, storage, context)
-            }
-            PlanNodeEnum::Minus(node) => {
-                self.builders.set_operation().build_minus(node, storage, context)
-            }
-            PlanNodeEnum::Intersect(node) => {
-                self.builders.set_operation().build_intersect(node, storage, context)
-            }
+            PlanNodeEnum::Union(node) => self
+                .builders
+                .set_operation()
+                .build_union(node, storage, context),
+            PlanNodeEnum::Minus(node) => self
+                .builders
+                .set_operation()
+                .build_minus(node, storage, context),
+            PlanNodeEnum::Intersect(node) => self
+                .builders
+                .set_operation()
+                .build_intersect(node, storage, context),
 
             // 图遍历执行器
-            PlanNodeEnum::Expand(node) => {
-                self.builders.traversal().build_expand(node, storage, context)
-            }
-            PlanNodeEnum::ExpandAll(node) => {
-                self.builders.traversal().build_expand_all(node, storage, context)
-            }
-            PlanNodeEnum::Traverse(node) => {
-                self.builders.traversal().build_traverse(node, storage, context)
-            }
-            PlanNodeEnum::AllPaths(node) => {
-                self.builders.traversal().build_all_paths(node, storage, context)
-            }
-            PlanNodeEnum::ShortestPath(node) => {
-                self.builders.traversal().build_shortest_path(node, storage, context)
-            }
-            PlanNodeEnum::BFSShortest(node) => {
-                self.builders.traversal().build_bfs_shortest(node, storage, context)
-            }
-            PlanNodeEnum::MultiShortestPath(node) => {
-                self.builders.traversal().build_multi_shortest_path(node, storage, context)
-            }
+            PlanNodeEnum::Expand(node) => self
+                .builders
+                .traversal()
+                .build_expand(node, storage, context),
+            PlanNodeEnum::ExpandAll(node) => self
+                .builders
+                .traversal()
+                .build_expand_all(node, storage, context),
+            PlanNodeEnum::Traverse(node) => self
+                .builders
+                .traversal()
+                .build_traverse(node, storage, context),
+            PlanNodeEnum::AllPaths(node) => self
+                .builders
+                .traversal()
+                .build_all_paths(node, storage, context),
+            PlanNodeEnum::ShortestPath(node) => self
+                .builders
+                .traversal()
+                .build_shortest_path(node, storage, context),
+            PlanNodeEnum::BFSShortest(node) => self
+                .builders
+                .traversal()
+                .build_bfs_shortest(node, storage, context),
+            PlanNodeEnum::MultiShortestPath(node) => self
+                .builders
+                .traversal()
+                .build_multi_shortest_path(node, storage, context),
 
             // 数据转换执行器
-            PlanNodeEnum::Unwind(node) => {
-                self.builders.transformation().build_unwind(node, storage, context)
-            }
-            PlanNodeEnum::Assign(node) => {
-                self.builders.transformation().build_assign(node, storage, context)
-            }
-            PlanNodeEnum::Materialize(node) => {
-                self.builders.transformation().build_materialize(node, storage, context)
-            }
-            PlanNodeEnum::AppendVertices(node) => {
-                self.builders.transformation().build_append_vertices(node, storage, context)
-            }
-            PlanNodeEnum::RollUpApply(node) => {
-                self.builders.transformation().build_rollup_apply(node, storage, context)
-            }
-            PlanNodeEnum::PatternApply(node) => {
-                self.builders.transformation().build_pattern_apply(node, storage, context)
-            }
+            PlanNodeEnum::Unwind(node) => self
+                .builders
+                .transformation()
+                .build_unwind(node, storage, context),
+            PlanNodeEnum::Assign(node) => self
+                .builders
+                .transformation()
+                .build_assign(node, storage, context),
+            PlanNodeEnum::Materialize(node) => self
+                .builders
+                .transformation()
+                .build_materialize(node, storage, context),
+            PlanNodeEnum::AppendVertices(node) => self
+                .builders
+                .transformation()
+                .build_append_vertices(node, storage, context),
+            PlanNodeEnum::RollUpApply(node) => self
+                .builders
+                .transformation()
+                .build_rollup_apply(node, storage, context),
+            PlanNodeEnum::PatternApply(node) => self
+                .builders
+                .transformation()
+                .build_pattern_apply(node, storage, context),
 
             // 控制流执行器
-            PlanNodeEnum::Loop(node) => {
-                self.build_loop_executor(node, storage, context)
-            }
-            PlanNodeEnum::Select(node) => {
-                self.build_select_executor(node, storage, context)
-            }
-            PlanNodeEnum::Argument(node) => {
-                self.builders.control_flow().build_argument(node, storage, context)
-            }
-            PlanNodeEnum::PassThrough(node) => {
-                self.builders.control_flow().build_pass_through(node, storage, context)
-            }
-            PlanNodeEnum::DataCollect(node) => {
-                self.builders.control_flow().build_data_collect(node, storage, context)
-            }
+            PlanNodeEnum::Loop(node) => self.build_loop_executor(node, storage, context),
+            PlanNodeEnum::Select(node) => self.build_select_executor(node, storage, context),
+            PlanNodeEnum::Argument(node) => self
+                .builders
+                .control_flow()
+                .build_argument(node, storage, context),
+            PlanNodeEnum::PassThrough(node) => self
+                .builders
+                .control_flow()
+                .build_pass_through(node, storage, context),
+            PlanNodeEnum::DataCollect(node) => self
+                .builders
+                .control_flow()
+                .build_data_collect(node, storage, context),
 
             // 管理执行器 - 空间管理
-            PlanNodeEnum::CreateSpace(node) => {
-                self.builders.admin().build_create_space(node, storage, context)
-            }
-            PlanNodeEnum::DropSpace(node) => {
-                self.builders.admin().build_drop_space(node, storage, context)
-            }
-            PlanNodeEnum::DescSpace(node) => {
-                self.builders.admin().build_desc_space(node, storage, context)
-            }
-            PlanNodeEnum::ShowSpaces(node) => {
-                self.builders.admin().build_show_spaces(node, storage, context)
-            }
+            PlanNodeEnum::CreateSpace(node) => self
+                .builders
+                .admin()
+                .build_create_space(node, storage, context),
+            PlanNodeEnum::DropSpace(node) => self
+                .builders
+                .admin()
+                .build_drop_space(node, storage, context),
+            PlanNodeEnum::DescSpace(node) => self
+                .builders
+                .admin()
+                .build_desc_space(node, storage, context),
+            PlanNodeEnum::ShowSpaces(node) => self
+                .builders
+                .admin()
+                .build_show_spaces(node, storage, context),
 
             // 管理执行器 - 标签管理
-            PlanNodeEnum::CreateTag(node) => {
-                self.builders.admin().build_create_tag(node, storage, context)
-            }
-            PlanNodeEnum::AlterTag(node) => {
-                self.builders.admin().build_alter_tag(node, storage, context)
-            }
+            PlanNodeEnum::CreateTag(node) => self
+                .builders
+                .admin()
+                .build_create_tag(node, storage, context),
+            PlanNodeEnum::AlterTag(node) => self
+                .builders
+                .admin()
+                .build_alter_tag(node, storage, context),
             PlanNodeEnum::DescTag(node) => {
                 self.builders.admin().build_desc_tag(node, storage, context)
             }
             PlanNodeEnum::DropTag(node) => {
                 self.builders.admin().build_drop_tag(node, storage, context)
             }
-            PlanNodeEnum::ShowTags(node) => {
-                self.builders.admin().build_show_tags(node, storage, context)
-            }
+            PlanNodeEnum::ShowTags(node) => self
+                .builders
+                .admin()
+                .build_show_tags(node, storage, context),
 
             // 管理执行器 - 边管理
-            PlanNodeEnum::CreateEdge(node) => {
-                self.builders.admin().build_create_edge(node, storage, context)
-            }
-            PlanNodeEnum::AlterEdge(node) => {
-                self.builders.admin().build_alter_edge(node, storage, context)
-            }
-            PlanNodeEnum::DescEdge(node) => {
-                self.builders.admin().build_desc_edge(node, storage, context)
-            }
-            PlanNodeEnum::DropEdge(node) => {
-                self.builders.admin().build_drop_edge(node, storage, context)
-            }
-            PlanNodeEnum::ShowEdges(node) => {
-                self.builders.admin().build_show_edges(node, storage, context)
-            }
+            PlanNodeEnum::CreateEdge(node) => self
+                .builders
+                .admin()
+                .build_create_edge(node, storage, context),
+            PlanNodeEnum::AlterEdge(node) => self
+                .builders
+                .admin()
+                .build_alter_edge(node, storage, context),
+            PlanNodeEnum::DescEdge(node) => self
+                .builders
+                .admin()
+                .build_desc_edge(node, storage, context),
+            PlanNodeEnum::DropEdge(node) => self
+                .builders
+                .admin()
+                .build_drop_edge(node, storage, context),
+            PlanNodeEnum::ShowEdges(node) => self
+                .builders
+                .admin()
+                .build_show_edges(node, storage, context),
 
             // 管理执行器 - 标签索引管理
-            PlanNodeEnum::CreateTagIndex(node) => {
-                self.builders.admin().build_create_tag_index(node, storage, context)
-            }
-            PlanNodeEnum::DropTagIndex(node) => {
-                self.builders.admin().build_drop_tag_index(node, storage, context)
-            }
-            PlanNodeEnum::DescTagIndex(node) => {
-                self.builders.admin().build_desc_tag_index(node, storage, context)
-            }
-            PlanNodeEnum::ShowTagIndexes(node) => {
-                self.builders.admin().build_show_tag_indexes(node, storage, context)
-            }
-            PlanNodeEnum::RebuildTagIndex(node) => {
-                self.builders.admin().build_rebuild_tag_index(node, storage, context)
-            }
+            PlanNodeEnum::CreateTagIndex(node) => self
+                .builders
+                .admin()
+                .build_create_tag_index(node, storage, context),
+            PlanNodeEnum::DropTagIndex(node) => self
+                .builders
+                .admin()
+                .build_drop_tag_index(node, storage, context),
+            PlanNodeEnum::DescTagIndex(node) => self
+                .builders
+                .admin()
+                .build_desc_tag_index(node, storage, context),
+            PlanNodeEnum::ShowTagIndexes(node) => self
+                .builders
+                .admin()
+                .build_show_tag_indexes(node, storage, context),
+            PlanNodeEnum::RebuildTagIndex(node) => self
+                .builders
+                .admin()
+                .build_rebuild_tag_index(node, storage, context),
 
             // 管理执行器 - 边索引管理
-            PlanNodeEnum::CreateEdgeIndex(node) => {
-                self.builders.admin().build_create_edge_index(node, storage, context)
-            }
-            PlanNodeEnum::DropEdgeIndex(node) => {
-                self.builders.admin().build_drop_edge_index(node, storage, context)
-            }
-            PlanNodeEnum::DescEdgeIndex(node) => {
-                self.builders.admin().build_desc_edge_index(node, storage, context)
-            }
-            PlanNodeEnum::ShowEdgeIndexes(node) => {
-                self.builders.admin().build_show_edge_indexes(node, storage, context)
-            }
-            PlanNodeEnum::RebuildEdgeIndex(node) => {
-                self.builders.admin().build_rebuild_edge_index(node, storage, context)
-            }
+            PlanNodeEnum::CreateEdgeIndex(node) => self
+                .builders
+                .admin()
+                .build_create_edge_index(node, storage, context),
+            PlanNodeEnum::DropEdgeIndex(node) => self
+                .builders
+                .admin()
+                .build_drop_edge_index(node, storage, context),
+            PlanNodeEnum::DescEdgeIndex(node) => self
+                .builders
+                .admin()
+                .build_desc_edge_index(node, storage, context),
+            PlanNodeEnum::ShowEdgeIndexes(node) => self
+                .builders
+                .admin()
+                .build_show_edge_indexes(node, storage, context),
+            PlanNodeEnum::RebuildEdgeIndex(node) => self
+                .builders
+                .admin()
+                .build_rebuild_edge_index(node, storage, context),
 
             // 管理执行器 - 用户管理
-            PlanNodeEnum::CreateUser(node) => {
-                self.builders.admin().build_create_user(node, storage, context)
-            }
-            PlanNodeEnum::DropUser(node) => {
-                self.builders.admin().build_drop_user(node, storage, context)
-            }
-            PlanNodeEnum::AlterUser(node) => {
-                self.builders.admin().build_alter_user(node, storage, context)
-            }
-            PlanNodeEnum::ChangePassword(node) => {
-                self.builders.admin().build_change_password(node, storage, context)
-            }
-            PlanNodeEnum::GrantRole(node) => {
-                self.builders.admin().build_grant_role(node, storage, context)
-            }
-            PlanNodeEnum::RevokeRole(node) => {
-                self.builders.admin().build_revoke_role(node, storage, context)
-            }
+            PlanNodeEnum::CreateUser(node) => self
+                .builders
+                .admin()
+                .build_create_user(node, storage, context),
+            PlanNodeEnum::DropUser(node) => self
+                .builders
+                .admin()
+                .build_drop_user(node, storage, context),
+            PlanNodeEnum::AlterUser(node) => self
+                .builders
+                .admin()
+                .build_alter_user(node, storage, context),
+            PlanNodeEnum::ChangePassword(node) => self
+                .builders
+                .admin()
+                .build_change_password(node, storage, context),
+            PlanNodeEnum::GrantRole(node) => self
+                .builders
+                .admin()
+                .build_grant_role(node, storage, context),
+            PlanNodeEnum::RevokeRole(node) => self
+                .builders
+                .admin()
+                .build_revoke_role(node, storage, context),
 
             // 管理执行器 - 空间管理（补充）
-            PlanNodeEnum::SwitchSpace(node) => {
-                self.builders.admin().build_switch_space(node, storage, context)
-            }
-            PlanNodeEnum::AlterSpace(node) => {
-                self.builders.admin().build_alter_space(node, storage, context)
-            }
-            PlanNodeEnum::ClearSpace(node) => {
-                self.builders.admin().build_clear_space(node, storage, context)
-            }
+            PlanNodeEnum::SwitchSpace(node) => self
+                .builders
+                .admin()
+                .build_switch_space(node, storage, context),
+            PlanNodeEnum::AlterSpace(node) => self
+                .builders
+                .admin()
+                .build_alter_space(node, storage, context),
+            PlanNodeEnum::ClearSpace(node) => self
+                .builders
+                .admin()
+                .build_clear_space(node, storage, context),
 
             // 管理执行器 - 查询管理
-            PlanNodeEnum::ShowStats(node) => {
-                self.builders.admin().build_show_stats(node, storage, context)
-            }
+            PlanNodeEnum::ShowStats(node) => self
+                .builders
+                .admin()
+                .build_show_stats(node, storage, context),
         }
     }
 
@@ -482,13 +550,13 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             .condition()
             .expression()
             .map(|meta| meta.inner().clone())
-            .unwrap_or_else(|| {
-                crate::core::Expression::Literal(crate::core::Value::Bool(true))
-            });
+            .unwrap_or_else(|| crate::core::Expression::Literal(crate::core::Value::Bool(true)));
 
         // 构建 if_branch
         let if_branch = {
-            let if_node = node.if_branch().as_ref()
+            let if_node = node
+                .if_branch()
+                .as_ref()
                 .ok_or_else(|| QueryError::ExecutionError("Select节点缺少if_branch".to_string()))?;
 
             let config = self.config.clone();

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use super::super::base::{BaseExecutor, ExecutorStats, EdgeDirection};
-use crate::core::{Value, Path, Step};
+use super::super::base::{BaseExecutor, EdgeDirection, ExecutorStats};
+use crate::core::{Path, Step, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;

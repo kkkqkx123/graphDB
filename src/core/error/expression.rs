@@ -167,7 +167,10 @@ impl ExpressionError {
     pub fn argument_count_error(expected: usize, actual: usize) -> Self {
         Self::new(
             ExpressionErrorType::ArgumentCountError,
-            format!("Argument count error: expected {}, got {}", expected, actual),
+            format!(
+                "Argument count error: expected {}, got {}",
+                expected, actual
+            ),
         )
     }
 

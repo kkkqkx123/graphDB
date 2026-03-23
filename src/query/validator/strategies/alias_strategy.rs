@@ -4,10 +4,8 @@
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::ExpressionMeta;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 /// 别名验证策略
 pub struct AliasValidationStrategy;

@@ -96,7 +96,7 @@ impl EdgeTypeStatistics {
     /// 计算倾斜感知代价（对倾斜数据使用更保守的估计）
     pub fn calculate_skewed_expand_cost(&self, start_nodes: u64) -> f64 {
         let base_cost = self.estimate_expand_cost(start_nodes);
-        
+
         // 根据倾斜度增加惩罚
         let penalty = match self.skewness_level() {
             SkewnessLevel::Severe => 2.0,
@@ -104,7 +104,7 @@ impl EdgeTypeStatistics {
             SkewnessLevel::Mild => 1.2,
             SkewnessLevel::None => 1.0,
         };
-        
+
         base_cost * penalty
     }
 

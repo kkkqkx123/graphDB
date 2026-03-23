@@ -38,8 +38,9 @@ pub struct UserInfo {
 impl UserInfo {
     /// 创建新用户（使用明文密码，内部自动哈希）
     pub fn new(username: String, password: String) -> Result<Self, crate::core::StorageError> {
-        let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST)
-            .map_err(|e| crate::core::StorageError::DbError(format!("Password encryption failed: {}", e)))?;
+        let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST).map_err(|e| {
+            crate::core::StorageError::DbError(format!("Password encryption failed: {}", e))
+        })?;
 
         let now = chrono::Utc::now().timestamp_millis();
 
@@ -67,8 +68,9 @@ impl UserInfo {
         &mut self,
         new_password: String,
     ) -> Result<(), crate::core::StorageError> {
-        self.password_hash = bcrypt::hash(new_password, bcrypt::DEFAULT_COST)
-            .map_err(|e| crate::core::StorageError::DbError(format!("Password encryption failed: {}", e)))?;
+        self.password_hash = bcrypt::hash(new_password, bcrypt::DEFAULT_COST).map_err(|e| {
+            crate::core::StorageError::DbError(format!("Password encryption failed: {}", e))
+        })?;
         self.password_changed_at = chrono::Utc::now().timestamp_millis();
         Ok(())
     }

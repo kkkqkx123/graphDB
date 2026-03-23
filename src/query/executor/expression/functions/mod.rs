@@ -84,7 +84,7 @@ impl OwnedFunctionRef {
     }
 
     /// 执行函数（带缓存）
-    /// 
+    ///
     /// 注意：缓存功能已移除，直接调用execute
     pub fn execute_with_cache(
         &self,
@@ -230,7 +230,7 @@ impl BuiltinFunction {
     }
 
     /// 执行函数（带缓存）
-    /// 
+    ///
     /// 注意：缓存功能已移除，此方法直接调用execute
     pub fn execute_with_cache(
         &self,
@@ -455,9 +455,8 @@ impl CustomFunction {
                 let ctx_ptr = &mut ctx as *mut CFunctionContext;
 
                 // 将 usize 转换回函数指针
-                let callback: ScalarFunctionCallback = unsafe {
-                    std::mem::transmute(*scalar_callback)
-                };
+                let callback: ScalarFunctionCallback =
+                    unsafe { std::mem::transmute(*scalar_callback) };
 
                 // 调用 C 回调
                 callback(ctx_ptr, args.len() as i32, args.as_ptr());
@@ -478,12 +477,10 @@ impl CustomFunction {
                     )
                 })
             }
-            CustomFunctionImpl::Aggregate { .. } => {
-                Err(ExpressionError::new(
-                    ExpressionErrorType::InvalidOperation,
-                    "聚合函数需要在聚合上下文中执行".to_string(),
-                ))
-            }
+            CustomFunctionImpl::Aggregate { .. } => Err(ExpressionError::new(
+                ExpressionErrorType::InvalidOperation,
+                "聚合函数需要在聚合上下文中执行".to_string(),
+            )),
         }
     }
 }

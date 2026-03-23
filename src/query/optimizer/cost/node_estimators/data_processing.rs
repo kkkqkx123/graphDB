@@ -16,8 +16,8 @@ use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::expression_parser::ExpressionParser;
 use crate::query::optimizer::cost::selectivity::SelectivityEstimator;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::data_processing::UnwindNode;
+use crate::query::planner::plan::PlanNodeEnum;
 
 /// 数据处理节点估算器
 pub struct DataProcessingEstimator<'a> {
@@ -60,10 +60,7 @@ impl<'a> DataProcessingEstimator<'a> {
     }
 
     /// 估算 Unwind 节点的列表大小
-    fn estimate_unwind_list_size(
-        &self,
-        node: &UnwindNode,
-    ) -> f64 {
+    fn estimate_unwind_list_size(&self, node: &UnwindNode) -> f64 {
         let list_expr = node.list_expression();
 
         // 尝试解析表达式推断列表大小
@@ -140,14 +137,14 @@ impl<'a> NodeEstimator for DataProcessingEstimator<'a> {
 mod tests {
     use super::*;
     use crate::core::types::expression::ExpressionMeta;
+    use crate::core::YieldColumn;
     use crate::core::{Expression, Value};
     use crate::query::optimizer::cost::config::CostModelConfig;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::*;
     use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
     use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::validator::context::ExpressionAnalysisContext;
-    use crate::core::YieldColumn;
     use std::sync::Arc;
 
     fn create_test_expression() -> crate::core::types::ContextualExpression {

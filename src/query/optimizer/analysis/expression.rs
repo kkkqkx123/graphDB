@@ -11,7 +11,6 @@ use crate::core::types::expression::visitor_collectors::{
 };
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 表达式分析结果
 #[derive(Debug, Clone, Default)]

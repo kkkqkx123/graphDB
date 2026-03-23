@@ -3,7 +3,9 @@
 //! 提供与传输层无关的 Schema 管理功能
 
 use crate::api::core::{CoreError, CoreResult, IndexTarget, PropertyDef, SpaceConfig};
-use crate::core::types::{EdgeTypeInfo, Index, IndexField, IndexStatus, IndexType, SpaceInfo, TagInfo};
+use crate::core::types::{
+    EdgeTypeInfo, Index, IndexField, IndexStatus, IndexType, SpaceInfo, TagInfo,
+};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;

@@ -286,19 +286,16 @@ impl JoinOrderOptimizer {
 
         // 获取最优解
         let full_set = (1 << n) - 1;
-        let best_solution = dp.get(&full_set).cloned().unwrap_or_else(|| {
-            SubproblemSolution {
+        let best_solution = dp
+            .get(&full_set)
+            .cloned()
+            .unwrap_or_else(|| SubproblemSolution {
                 table_set: full_set,
-                last_table: tables
-                    .last()
-                    .expect("tables 集合不为空")
-                    .id
-                    .clone(),
+                last_table: tables.last().expect("tables 集合不为空").id.clone(),
                 total_cost: f64::MAX,
                 output_rows: 0,
                 join_tree: "fallback".to_string(),
-            }
-        });
+            });
 
         // 重构连接顺序
         let order = self.reconstruct_order(&best_solution, &dp, tables);

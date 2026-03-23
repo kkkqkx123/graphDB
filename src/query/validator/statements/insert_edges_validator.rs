@@ -4,11 +4,9 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::Expression;
 use crate::core::{NullType, Value};
 use crate::query::parser::ast::stmt::{Ast, InsertTarget};
 use crate::query::parser::ast::Stmt;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,

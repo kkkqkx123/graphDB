@@ -2,8 +2,8 @@ use crate::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use crate::core::value::Value;
 use crate::core::StorageError;
 use crate::storage::redb_types::{
-    ByteKey, EDGE_TYPES_TABLE, EDGE_TYPE_ID_COUNTER_TABLE,
-    SPACES_TABLE, TAGS_TABLE, TAG_ID_COUNTER_TABLE, SPACE_NAME_INDEX_TABLE,
+    ByteKey, EDGE_TYPES_TABLE, EDGE_TYPE_ID_COUNTER_TABLE, SPACES_TABLE, SPACE_NAME_INDEX_TABLE,
+    TAGS_TABLE, TAG_ID_COUNTER_TABLE,
 };
 use crate::storage::{FieldDef, Schema};
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
@@ -96,9 +96,9 @@ impl super::SchemaManager for RedbSchemaManager {
 
         {
             // 检查名称索引
-            let mut name_index = write_txn
-                .open_table(SPACE_NAME_INDEX_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e)))?;
+            let mut name_index = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
+                StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e))
+            })?;
 
             let name_key = ByteKey(space.space_name.as_bytes().to_vec());
 
@@ -145,9 +145,9 @@ impl super::SchemaManager for RedbSchemaManager {
         // 通过名称索引查找ID
         let name_key = ByteKey(space_name.as_bytes().to_vec());
         let space_id_option = {
-            let name_index = write_txn
-                .open_table(SPACE_NAME_INDEX_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e)))?;
+            let name_index = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
+                StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e))
+            })?;
 
             let result = name_index
                 .get(&name_key)
@@ -156,9 +156,9 @@ impl super::SchemaManager for RedbSchemaManager {
             match result {
                 Some(id_value) => {
                     let bytes = id_value.value().0;
-                    let array: [u8; 8] = bytes[0..8].try_into().map_err(|_| {
-                        StorageError::DbError("ID字节长度不足8字节".to_string())
-                    })?;
+                    let array: [u8; 8] = bytes[0..8]
+                        .try_into()
+                        .map_err(|_| StorageError::DbError("ID字节长度不足8字节".to_string()))?;
                     Some(u64::from_be_bytes(array))
                 }
                 None => None,
@@ -180,9 +180,9 @@ impl super::SchemaManager for RedbSchemaManager {
 
             // 删除名称索引
             {
-                let mut name_index = write_txn
-                    .open_table(SPACE_NAME_INDEX_TABLE)
-                    .map_err(|e| StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e)))?;
+                let mut name_index = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
+                    StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e))
+                })?;
 
                 name_index
                     .remove(&name_key)
@@ -218,10 +218,10 @@ impl super::SchemaManager for RedbSchemaManager {
         {
             let id_bytes = id_value.value().0;
             let space_id = u64::from_be_bytes(
-            id_bytes[0..8].try_into().map_err(|_| {
-                StorageError::DbError("ID字节长度不足8字节".to_string())
-            })?
-        );
+                id_bytes[0..8]
+                    .try_into()
+                    .map_err(|_| StorageError::DbError("ID字节长度不足8字节".to_string()))?,
+            );
 
             // 通过ID获取完整信息
             let spaces_table = read_txn
@@ -278,14 +278,13 @@ impl super::SchemaManager for RedbSchemaManager {
 
         let mut spaces = Vec::new();
 
-        let mut iter = spaces_table.iter().map_err(|e| {
-            StorageError::DbError(format!("遍历空间失败: {}", e))
-        })?;
+        let mut iter = spaces_table
+            .iter()
+            .map_err(|e| StorageError::DbError(format!("遍历空间失败: {}", e)))?;
 
         while let Some(result) = iter.next() {
-            let (_key, value) = result.map_err(|e| {
-                StorageError::DbError(format!("迭代空间失败: {}", e))
-            })?;
+            let (_key, value) =
+                result.map_err(|e| StorageError::DbError(format!("迭代空间失败: {}", e)))?;
             let space: SpaceInfo = decode_from_slice(&value.value().0, standard())?.0;
             spaces.push(space);
         }
@@ -331,9 +330,9 @@ impl super::SchemaManager for RedbSchemaManager {
         }
 
         {
-            let mut id_counter_table = write_txn
-                .open_table(TAG_ID_COUNTER_TABLE)
-                .map_err(|e| StorageError::DbError(format!("打开TAG_ID_COUNTER_TABLE失败: {}", e)))?;
+            let mut id_counter_table = write_txn.open_table(TAG_ID_COUNTER_TABLE).map_err(|e| {
+                StorageError::DbError(format!("打开TAG_ID_COUNTER_TABLE失败: {}", e))
+            })?;
 
             let key = ByteKey(space_info.space_id.to_be_bytes().to_vec());
             let current_id = id_counter_table
@@ -380,21 +379,23 @@ impl super::SchemaManager for RedbSchemaManager {
                 .open_table(TAGS_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
 
-            let mut iter = tags_table.iter().map_err(|e| {
-                StorageError::DbError(format!("遍历标签失败: {}", e))
-            })?;
+            let mut iter = tags_table
+                .iter()
+                .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
 
             while let Some(result) = iter.next() {
-                let (key, value) = result.map_err(|e| {
-                    StorageError::DbError(format!("迭代标签失败: {}", e))
-                })?;
+                let (key, value) =
+                    result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
                 let key_bytes = &key.value().0;
                 if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
                     let tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
                     if tag.tag_name == tag_name {
                         let id_bytes = &key_bytes[8..12];
                         tag_id = Some(i32::from_be_bytes([
-                            id_bytes[0], id_bytes[1], id_bytes[2], id_bytes[3],
+                            id_bytes[0],
+                            id_bytes[1],
+                            id_bytes[2],
+                            id_bytes[3],
                         ]));
                         break;
                     }
@@ -444,14 +445,13 @@ impl super::SchemaManager for RedbSchemaManager {
             .open_table(TAGS_TABLE)
             .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
 
-        let mut iter = tags_table.iter().map_err(|e| {
-            StorageError::DbError(format!("遍历标签失败: {}", e))
-        })?;
+        let mut iter = tags_table
+            .iter()
+            .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
 
         while let Some(result) = iter.next() {
-            let (key, value) = result.map_err(|e| {
-                StorageError::DbError(format!("迭代标签失败: {}", e))
-            })?;
+            let (key, value) =
+                result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
             let key_bytes = &key.value().0;
             if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
                 let tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -480,14 +480,13 @@ impl super::SchemaManager for RedbSchemaManager {
 
         let mut tags = Vec::new();
 
-        let mut iter = tags_table.iter().map_err(|e| {
-            StorageError::DbError(format!("遍历标签失败: {}", e))
-        })?;
+        let mut iter = tags_table
+            .iter()
+            .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
 
         while let Some(result) = iter.next() {
-            let (key, value) = result.map_err(|e| {
-                StorageError::DbError(format!("迭代标签失败: {}", e))
-            })?;
+            let (key, value) =
+                result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
             let key_bytes = &key.value().0;
             if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
                 let tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -540,11 +539,12 @@ impl super::SchemaManager for RedbSchemaManager {
         }
 
         {
-            let mut id_counter_table = write_txn
-                .open_table(EDGE_TYPE_ID_COUNTER_TABLE)
-                .map_err(|e| {
-                    StorageError::DbError(format!("打开EDGE_TYPE_ID_COUNTER_TABLE失败: {}", e))
-                })?;
+            let mut id_counter_table =
+                write_txn
+                    .open_table(EDGE_TYPE_ID_COUNTER_TABLE)
+                    .map_err(|e| {
+                        StorageError::DbError(format!("打开EDGE_TYPE_ID_COUNTER_TABLE失败: {}", e))
+                    })?;
 
             let key = ByteKey(space_info.space_id.to_be_bytes().to_vec());
             let current_id = id_counter_table
@@ -591,21 +591,24 @@ impl super::SchemaManager for RedbSchemaManager {
                 .open_table(EDGE_TYPES_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
 
-            let mut iter = edge_types_table.iter().map_err(|e| {
-                StorageError::DbError(format!("遍历边类型失败: {}", e))
-            })?;
+            let mut iter = edge_types_table
+                .iter()
+                .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
 
             while let Some(result) = iter.next() {
-                let (key, value) = result.map_err(|e| {
-                    StorageError::DbError(format!("迭代边类型失败: {}", e))
-                })?;
+                let (key, value) =
+                    result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
                 let key_bytes = &key.value().0;
                 if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
-                    let edge_type: EdgeTypeInfo = decode_from_slice(&value.value().0, standard())?.0;
+                    let edge_type: EdgeTypeInfo =
+                        decode_from_slice(&value.value().0, standard())?.0;
                     if edge_type.edge_type_name == edge_type_name {
                         let id_bytes = &key_bytes[8..12];
                         edge_type_id = Some(i32::from_be_bytes([
-                            id_bytes[0], id_bytes[1], id_bytes[2], id_bytes[3],
+                            id_bytes[0],
+                            id_bytes[1],
+                            id_bytes[2],
+                            id_bytes[3],
                         ]));
                         break;
                     }
@@ -615,9 +618,9 @@ impl super::SchemaManager for RedbSchemaManager {
 
         if let Some(id) = edge_type_id {
             {
-                let mut edge_types_table = write_txn
-                    .open_table(EDGE_TYPES_TABLE)
-                    .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
+                let mut edge_types_table = write_txn.open_table(EDGE_TYPES_TABLE).map_err(|e| {
+                    StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e))
+                })?;
 
                 let key = ByteKey(
                     [
@@ -659,14 +662,13 @@ impl super::SchemaManager for RedbSchemaManager {
             .open_table(EDGE_TYPES_TABLE)
             .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
 
-        let mut iter = edge_types_table.iter().map_err(|e| {
-            StorageError::DbError(format!("遍历边类型失败: {}", e))
-        })?;
+        let mut iter = edge_types_table
+            .iter()
+            .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
 
         while let Some(result) = iter.next() {
-            let (key, value) = result.map_err(|e| {
-                StorageError::DbError(format!("迭代边类型失败: {}", e))
-            })?;
+            let (key, value) =
+                result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
             let key_bytes = &key.value().0;
             if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
                 let edge_type: EdgeTypeInfo = decode_from_slice(&value.value().0, standard())?.0;
@@ -695,14 +697,13 @@ impl super::SchemaManager for RedbSchemaManager {
 
         let mut edge_types = Vec::new();
 
-        let mut iter = edge_types_table.iter().map_err(|e| {
-            StorageError::DbError(format!("遍历边类型失败: {}", e))
-        })?;
+        let mut iter = edge_types_table
+            .iter()
+            .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
 
         while let Some(result) = iter.next() {
-            let (key, value) = result.map_err(|e| {
-                StorageError::DbError(format!("迭代边类型失败: {}", e))
-            })?;
+            let (key, value) =
+                result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
             let key_bytes = &key.value().0;
             if key_bytes.starts_with(&space_info.space_id.to_be_bytes().to_vec()) {
                 let edge_type: EdgeTypeInfo = decode_from_slice(&value.value().0, standard())?.0;

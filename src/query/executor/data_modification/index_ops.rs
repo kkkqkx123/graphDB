@@ -5,8 +5,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::core::types::Index;
+use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;

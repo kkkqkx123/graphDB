@@ -41,7 +41,10 @@ pub async fn create_space<S: StorageClient + Clone + Send + Sync + 'static>(
                 "message": "Space created successfully",
                 "space_name": request.name,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("Failed to create space: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to create space: {}",
+                e
+            ))),
         }
     })
     .await
@@ -87,7 +90,10 @@ pub async fn drop_space<S: StorageClient + Clone + Send + Sync + 'static>(
                 "message": "Space deleted successfully",
                 "space_name": name,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("Failed to delete space: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to delete space: {}",
+                e
+            ))),
         }
     })
     .await
@@ -162,7 +168,10 @@ pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
                 "tag_name": request.name,
                 "space_name": space_name,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("Failed to create tag: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to create tag: {}",
+                e
+            ))),
         }
     })
     .await
@@ -231,7 +240,10 @@ pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
                 "edge_type_name": request.name,
                 "space_name": space_name,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("Failed to create edge type: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to create edge type: {}",
+                e
+            ))),
         }
     })
     .await

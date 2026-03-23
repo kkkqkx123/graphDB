@@ -64,7 +64,12 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
         context: crate::query::executor::base::ExecutionContext,
     ) -> Self {
         Self {
-            base: BaseExecutor::with_context(id, "RollUpApplyExecutor".to_string(), storage, context),
+            base: BaseExecutor::with_context(
+                id,
+                "RollUpApplyExecutor".to_string(),
+                storage,
+                context,
+            ),
             left_input_var,
             right_input_var,
             compare_cols,

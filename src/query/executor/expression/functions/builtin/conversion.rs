@@ -41,12 +41,10 @@ define_function_enum! {
 fn execute_to_string(args: &[Value]) -> Result<Value, ExpressionError> {
     match &args[0] {
         Value::Null(_) => Ok(Value::Null(NullType::Null)),
-        _ => {
-            args[0]
-                .to_string()
-                .map(Value::String)
-                .map_err(ExpressionError::type_error)
-        }
+        _ => args[0]
+            .to_string()
+            .map(Value::String)
+            .map_err(ExpressionError::type_error),
     }
 }
 
@@ -106,7 +104,9 @@ mod tests {
     #[test]
     fn test_to_int() {
         let func = ConversionFunction::ToInt;
-        let result = func.execute(&[Value::String("42".to_string())]).expect("执行不应失败");
+        let result = func
+            .execute(&[Value::String("42".to_string())])
+            .expect("执行不应失败");
         assert_eq!(result, Value::Int(42));
     }
 
@@ -127,7 +127,9 @@ mod tests {
     #[test]
     fn test_null_handling() {
         let func = ConversionFunction::ToString;
-        let result = func.execute(&[Value::Null(NullType::Null)]).expect("执行不应失败");
+        let result = func
+            .execute(&[Value::Null(NullType::Null)])
+            .expect("执行不应失败");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 }

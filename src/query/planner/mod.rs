@@ -21,8 +21,8 @@ pub use template_extractor::{ParameterizedResult, ParameterizingTransformer, Tem
 
 // 从cache模块重新导出计划缓存类型（向后兼容）
 pub use crate::query::cache::{
-    CachedPlan, ParamPosition, PlanCacheConfig, PlanCacheKey, PlanCacheStats,
-    ParameterizedQueryHandler, QueryPlanCache,
+    CachedPlan, ParamPosition, ParameterizedQueryHandler, PlanCacheConfig, PlanCacheKey,
+    PlanCacheStats, QueryPlanCache,
 };
 
 // 从 core 模块重新导出 JoinType

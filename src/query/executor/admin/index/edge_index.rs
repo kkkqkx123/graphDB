@@ -5,8 +5,8 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::core::{DataSet, Value};
 use crate::core::types::{Index, IndexType};
+use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::iterator::Row;

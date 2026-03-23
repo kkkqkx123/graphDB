@@ -235,7 +235,9 @@ mod tests {
             longitude: 116.4074,
             latitude: 39.9042,
         };
-        let result = func.execute(&[Value::Geography(geo)]).expect("执行不应失败");
+        let result = func
+            .execute(&[Value::Geography(geo)])
+            .expect("执行不应失败");
         assert_eq!(result, Value::Bool(true));
     }
 
@@ -259,7 +261,9 @@ mod tests {
     #[test]
     fn test_null_handling() {
         let func = GeographyFunction::StIsValid;
-        let result = func.execute(&[Value::Null(NullType::Null)]).expect("执行不应失败");
+        let result = func
+            .execute(&[Value::Null(NullType::Null)])
+            .expect("执行不应失败");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 }

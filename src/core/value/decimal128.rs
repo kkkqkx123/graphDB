@@ -21,9 +21,9 @@
 //! Decimal128 运算比原生浮点数慢，但提供了精确的十进制计算。
 //! 对于不需要高精度的场景，建议使用 Float 类型。
 
+use bincode::Encode;
 use dec::Decimal128;
 use serde::{Deserialize, Serialize};
-use bincode::Encode;
 use std::fmt;
 use std::str::FromStr;
 
@@ -498,11 +498,11 @@ mod tests {
         let price = Decimal128Value::from_str("19.99").expect("解析失败");
         let quantity = Decimal128Value::from_str("3").expect("解析失败");
         let tax_rate = Decimal128Value::from_str("0.08").expect("解析失败");
-        
+
         let subtotal = &price * &quantity;
         let tax = &subtotal * &tax_rate;
         let total = &subtotal + &tax;
-        
+
         assert_eq!(subtotal.to_string(), "59.97");
         assert_eq!(tax.to_string(), "4.7976");
         assert_eq!(total.to_string(), "64.7676");

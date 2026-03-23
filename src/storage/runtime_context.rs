@@ -65,10 +65,7 @@ impl RuntimeContext {
 impl RuntimeContext {
     /// 创建简单的运行时上下文（用于不需要完整PlanContext的场景）
     pub fn new_simple() -> Arc<Self> {
-        let storage = Arc::new(
-            RedbStorage::new()
-                .expect("Failed to create RedbStorage"),
-        );
+        let storage = Arc::new(RedbStorage::new().expect("Failed to create RedbStorage"));
         let storage_env = Arc::new(StorageEnv {
             storage_engine: storage.clone(),
             schema_manager: storage.schema_manager.clone(),

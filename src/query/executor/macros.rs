@@ -324,7 +324,14 @@ macro_rules! delegate_debug_fmt {
                 ExecutorEnum::ChangePassword(exec) => exec.name(),
                 ExecutorEnum::Analyze(exec) => exec.name(),
             };
-            f.write_str(&format!("{}({})", std::any::type_name::<Self>().split("::").last().unwrap_or("ExecutorEnum"), name))
+            f.write_str(&format!(
+                "{}({})",
+                std::any::type_name::<Self>()
+                    .split("::")
+                    .last()
+                    .unwrap_or("ExecutorEnum"),
+                name
+            ))
         }
     };
 }

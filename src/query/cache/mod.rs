@@ -18,8 +18,8 @@ pub mod plan_cache;
 
 // 重新导出计划缓存类型
 pub use plan_cache::{
-    CachedPlan, ParamPosition, PlanCacheConfig, PlanCacheKey, PlanCacheStats,
-    ParameterizedQueryHandler, QueryPlanCache,
+    CachedPlan, ParamPosition, ParameterizedQueryHandler, PlanCacheConfig, PlanCacheKey,
+    PlanCacheStats, QueryPlanCache,
 };
 
 // 重新导出CTE缓存类型

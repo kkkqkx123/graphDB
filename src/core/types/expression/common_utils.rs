@@ -4,12 +4,12 @@
 //! 这些函数不依赖于特定的验证、重写或规划逻辑，可以在多个层中使用。
 
 use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::Expression;
-use crate::core::types::expression::ExpressionVisitor;
 use crate::core::types::expression::visitor_checkers::ConstantChecker;
 use crate::core::types::expression::visitor_collectors::PropertyCollector;
-use crate::query::planner::PlannerError;
+use crate::core::types::expression::Expression;
+use crate::core::types::expression::ExpressionVisitor;
 use crate::core::Value;
+use crate::query::planner::PlannerError;
 
 /// 从表达式中提取字符串值
 ///

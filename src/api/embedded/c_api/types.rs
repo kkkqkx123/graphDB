@@ -160,13 +160,15 @@ pub type graphdb_commit_hook_callback = Option<extern "C" fn(user_data: *mut c_v
 #[allow(non_camel_case_types)]
 pub type graphdb_rollback_hook_callback = Option<extern "C" fn(user_data: *mut c_void)>;
 #[allow(non_camel_case_types)]
-pub type graphdb_update_hook_callback = Option<extern "C" fn(
-    user_data: *mut c_void,
-    operation: c_int,
-    database: *const c_char,
-    table: *const c_char,
-    rowid: i64,
-)>;
+pub type graphdb_update_hook_callback = Option<
+    extern "C" fn(
+        user_data: *mut c_void,
+        operation: c_int,
+        database: *const c_char,
+        table: *const c_char,
+        rowid: i64,
+    ),
+>;
 
 /// 钩子类型常量
 pub const GRAPHDB_HOOK_INSERT: c_int = 1;

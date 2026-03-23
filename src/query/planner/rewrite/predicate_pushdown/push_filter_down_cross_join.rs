@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::expression_utils::{check_col_name, split_filter};
 use crate::query::planner::rewrite::pattern::Pattern;
@@ -216,8 +216,8 @@ impl PushDownRule for PushFilterDownCrossJoinRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::join::join_node::CrossJoinNode;
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::join::join_node::CrossJoinNode;
 
     #[test]
     fn test_rule_name() {

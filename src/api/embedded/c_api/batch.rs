@@ -4,13 +4,12 @@
 
 use crate::api::embedded::c_api::error::{graphdb_error_code_t, set_last_error_message};
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
-use crate::api::embedded::c_api::types::{graphdb_batch_t, graphdb_session_t, graphdb_value_t};
 use crate::api::embedded::c_api::types::graphdb_value_type_t;
+use crate::api::embedded::c_api::types::{graphdb_batch_t, graphdb_session_t, graphdb_value_t};
 use crate::core::{Edge, Value, Vertex};
 use crate::storage::StorageClient;
 use std::collections::HashMap;
-use std::ffi::{CStr, CString, c_char, c_int};
-use std::ptr;
+use std::ffi::{c_char, c_int, CStr, CString};
 
 /// 批量操作项类型
 enum BatchItem {
@@ -19,7 +18,7 @@ enum BatchItem {
 }
 
 /// 批量操作句柄内部结构
-/// 
+///
 /// 注意：此结构体持有会话指针，但不拥有会话的所有权。
 /// 调用者必须确保在批量操作句柄被释放之前不关闭会话。
 pub struct GraphDbBatchHandle {
@@ -59,14 +58,14 @@ impl GraphDbBatchHandle {
         // 分离顶点和边
         let mut vertices = Vec::new();
         let mut remaining = Vec::new();
-        
+
         for item in self.buffer.drain(..) {
             match item {
                 BatchItem::Vertex(v) => vertices.push(v),
                 _ => remaining.push(item),
             }
         }
-        
+
         // 将边放回缓冲区
         self.buffer.extend(remaining);
 
@@ -75,20 +74,23 @@ impl GraphDbBatchHandle {
         }
 
         let vertex_count = vertices.len();
-        
+
         // 将会话相关操作放在独立作用域中，避免借用冲突
         let result = {
-            let session = self.get_session()
+            let session = self
+                .get_session()
                 .ok_or_else(|| "会话无效或已关闭".to_string())?;
 
-            let space_name = session.inner.space_name()
+            let space_name = session
+                .inner
+                .space_name()
                 .ok_or_else(|| "未选择图空间".to_string())?;
 
             // 调用存储层的批量插入接口
             let mut storage = session.inner.storage();
             storage.batch_insert_vertices(space_name, vertices)
         };
-        
+
         match result {
             Ok(_) => {
                 self.vertices_inserted += vertex_count;
@@ -107,14 +109,14 @@ impl GraphDbBatchHandle {
         // 分离边和顶点
         let mut edges = Vec::new();
         let mut remaining = Vec::new();
-        
+
         for item in self.buffer.drain(..) {
             match item {
                 BatchItem::Edge(e) => edges.push(e),
                 _ => remaining.push(item),
             }
         }
-        
+
         // 将顶点放回缓冲区
         self.buffer.extend(remaining);
 
@@ -123,20 +125,23 @@ impl GraphDbBatchHandle {
         }
 
         let edge_count = edges.len();
-        
+
         // 将会话相关操作放在独立作用域中，避免借用冲突
         let result = {
-            let session = self.get_session()
+            let session = self
+                .get_session()
                 .ok_or_else(|| "会话无效或已关闭".to_string())?;
 
-            let space_name = session.inner.space_name()
+            let space_name = session
+                .inner
+                .space_name()
                 .ok_or_else(|| "未选择图空间".to_string())?;
 
             // 调用存储层的批量插入接口
             let mut storage = session.inner.storage();
             storage.batch_insert_edges(space_name, edges)
         };
-        
+
         match result {
             Ok(_) => {
                 self.edges_inserted += edge_count;
@@ -154,7 +159,7 @@ impl GraphDbBatchHandle {
     fn execute(&mut self) -> Result<(), String> {
         // 先刷新顶点
         self.flush_vertices()?;
-        
+
         // 再刷新边
         self.flush_edges()?;
 
@@ -186,7 +191,11 @@ pub extern "C" fn graphdb_batch_inserter_create(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    let size = if batch_size <= 0 { 100 } else { batch_size as usize };
+    let size = if batch_size <= 0 {
+        100
+    } else {
+        batch_size as usize
+    };
 
     unsafe {
         let batch_handle = Box::new(GraphDbBatchHandle {
@@ -258,9 +267,9 @@ pub extern "C" fn graphdb_batch_add_vertex(
         let mut vertex = Vertex::with_vid(Value::Int(vid));
         let tag = crate::core::vertex_edge_path::Tag::new(tag_str.to_string(), props);
         vertex.add_tag(tag);
-        
+
         handle.buffer.push(BatchItem::Vertex(vertex));
-        
+
         // 如果达到批次大小，自动刷新
         if handle.buffer.len() >= handle.batch_size {
             if let Err(e) = handle.flush_vertices() {
@@ -270,7 +279,7 @@ pub extern "C" fn graphdb_batch_add_vertex(
                 return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
             }
         }
-        
+
         graphdb_error_code_t::GRAPHDB_OK as c_int
     }
 }
@@ -338,9 +347,9 @@ pub extern "C" fn graphdb_batch_add_edge(
             rank,
             props,
         );
-        
+
         handle.buffer.push(BatchItem::Edge(edge));
-        
+
         // 如果达到批次大小，自动刷新
         if handle.buffer.len() >= handle.batch_size {
             if let Err(e) = handle.flush_edges() {
@@ -350,7 +359,7 @@ pub extern "C" fn graphdb_batch_add_edge(
                 return graphdb_error_code_t::GRAPHDB_ERROR as c_int;
             }
         }
-        
+
         graphdb_error_code_t::GRAPHDB_OK as c_int
     }
 }
@@ -404,7 +413,11 @@ pub extern "C" fn graphdb_batch_buffered_vertices(batch: *mut graphdb_batch_t) -
 
     unsafe {
         let handle = &*(batch as *mut GraphDbBatchHandle);
-        handle.buffer.iter().filter(|item| matches!(item, BatchItem::Vertex(_))).count() as c_int
+        handle
+            .buffer
+            .iter()
+            .filter(|item| matches!(item, BatchItem::Vertex(_)))
+            .count() as c_int
     }
 }
 
@@ -423,7 +436,11 @@ pub extern "C" fn graphdb_batch_buffered_edges(batch: *mut graphdb_batch_t) -> c
 
     unsafe {
         let handle = &*(batch as *mut GraphDbBatchHandle);
-        handle.buffer.iter().filter(|item| matches!(item, BatchItem::Edge(_))).count() as c_int
+        handle
+            .buffer
+            .iter()
+            .filter(|item| matches!(item, BatchItem::Edge(_)))
+            .count() as c_int
     }
 }
 
@@ -494,7 +511,8 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
-        let path_cstring = CString::new(db_path.to_str().expect("Invalid path")).expect("Failed to create CString");
+        let path_cstring = CString::new(db_path.to_str().expect("Invalid path"))
+            .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);

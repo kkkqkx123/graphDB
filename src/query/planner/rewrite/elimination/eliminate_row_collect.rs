@@ -26,8 +26,8 @@
 //! - DataCollect 节点的 kind 为 kRowBasedMove
 //! - DataCollect 的子节点为 Project
 
-use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::DataCollectNode;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::DataCollectNode;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
@@ -143,7 +143,8 @@ mod tests {
         let rule = EliminateRowCollectRule::new();
 
         // 创建测试用的 DataCollectNode
-        let start_node = crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
+        let start_node =
+            crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
         let start_enum = PlanNodeEnum::Start(start_node);
 
         let data_collect = DataCollectNode::new(start_enum.clone(), "kRowBasedMove")

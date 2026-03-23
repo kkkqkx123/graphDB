@@ -97,7 +97,8 @@ impl ExpressionParser {
                 let folded_right = self.fold_constants(right);
 
                 // 如果两边都是常量，直接计算结果
-                if let (Expression::Literal(l), Expression::Literal(r)) = (&folded_left, &folded_right)
+                if let (Expression::Literal(l), Expression::Literal(r)) =
+                    (&folded_left, &folded_right)
                 {
                     if let Some(result) = self.evaluate_binary_op(op, l, r) {
                         return Expression::Literal(result);
@@ -130,7 +131,10 @@ impl ExpressionParser {
                     args.iter().map(|arg| self.fold_constants(arg)).collect();
 
                 // 如果所有参数都是常量，尝试计算函数
-                if folded_args.iter().all(|arg| matches!(arg, Expression::Literal(_))) {
+                if folded_args
+                    .iter()
+                    .all(|arg| matches!(arg, Expression::Literal(_)))
+                {
                     let arg_values: Vec<&Value> = folded_args
                         .iter()
                         .filter_map(|arg| match arg {
@@ -167,24 +171,42 @@ impl ExpressionParser {
     }
 
     /// 评估二元操作
-    fn evaluate_binary_op(&self, op: &BinaryOperator, left: &Value, right: &Value) -> Option<Value> {
+    fn evaluate_binary_op(
+        &self,
+        op: &BinaryOperator,
+        left: &Value,
+        right: &Value,
+    ) -> Option<Value> {
         match op {
             BinaryOperator::Add => self.add_values(left, right),
             BinaryOperator::Subtract => self.subtract_values(left, right),
             BinaryOperator::Multiply => self.multiply_values(left, right),
             BinaryOperator::Divide => self.divide_values(left, right),
             BinaryOperator::Modulo => self.modulo_values(left, right),
-            BinaryOperator::Equal => Some(Value::Bool(self.compare_values(left, right) == Some(std::cmp::Ordering::Equal))),
-            BinaryOperator::NotEqual => Some(Value::Bool(self.compare_values(left, right) != Some(std::cmp::Ordering::Equal))),
-            BinaryOperator::LessThan => Some(Value::Bool(self.compare_values(left, right) == Some(std::cmp::Ordering::Less))),
-            BinaryOperator::GreaterThan => Some(Value::Bool(self.compare_values(left, right) == Some(std::cmp::Ordering::Greater))),
+            BinaryOperator::Equal => Some(Value::Bool(
+                self.compare_values(left, right) == Some(std::cmp::Ordering::Equal),
+            )),
+            BinaryOperator::NotEqual => Some(Value::Bool(
+                self.compare_values(left, right) != Some(std::cmp::Ordering::Equal),
+            )),
+            BinaryOperator::LessThan => Some(Value::Bool(
+                self.compare_values(left, right) == Some(std::cmp::Ordering::Less),
+            )),
+            BinaryOperator::GreaterThan => Some(Value::Bool(
+                self.compare_values(left, right) == Some(std::cmp::Ordering::Greater),
+            )),
             BinaryOperator::LessThanOrEqual => {
                 let cmp = self.compare_values(left, right);
-                Some(Value::Bool(cmp == Some(std::cmp::Ordering::Less) || cmp == Some(std::cmp::Ordering::Equal)))
+                Some(Value::Bool(
+                    cmp == Some(std::cmp::Ordering::Less) || cmp == Some(std::cmp::Ordering::Equal),
+                ))
             }
             BinaryOperator::GreaterThanOrEqual => {
                 let cmp = self.compare_values(left, right);
-                Some(Value::Bool(cmp == Some(std::cmp::Ordering::Greater) || cmp == Some(std::cmp::Ordering::Equal)))
+                Some(Value::Bool(
+                    cmp == Some(std::cmp::Ordering::Greater)
+                        || cmp == Some(std::cmp::Ordering::Equal),
+                ))
             }
             BinaryOperator::And => self.logical_and(left, right),
             BinaryOperator::Or => self.logical_or(left, right),
@@ -234,23 +256,26 @@ impl ExpressionParser {
                 Value::String(s) => Some(Value::String(s.to_lowercase())),
                 _ => None,
             },
-            "substring" | "substr" if args.len() >= 2 => {
-                match (args[0], args.get(1).copied()) {
-                    (Value::String(s), Some(Value::Int(start))) => {
-                        let start_idx = if *start >= 0 { *start as usize } else { 0 };
-                        let end_idx = if args.len() >= 3 {
-                            match args[2] {
-                                Value::Int(len) => start_idx + (*len as usize),
-                                _ => s.len(),
-                            }
-                        } else {
-                            s.len()
-                        };
-                        Some(Value::String(s.chars().skip(start_idx).take(end_idx - start_idx).collect()))
-                    }
-                    _ => None,
+            "substring" | "substr" if args.len() >= 2 => match (args[0], args.get(1).copied()) {
+                (Value::String(s), Some(Value::Int(start))) => {
+                    let start_idx = if *start >= 0 { *start as usize } else { 0 };
+                    let end_idx = if args.len() >= 3 {
+                        match args[2] {
+                            Value::Int(len) => start_idx + (*len as usize),
+                            _ => s.len(),
+                        }
+                    } else {
+                        s.len()
+                    };
+                    Some(Value::String(
+                        s.chars()
+                            .skip(start_idx)
+                            .take(end_idx - start_idx)
+                            .collect(),
+                    ))
                 }
-            }
+                _ => None,
+            },
             "trim" if args.len() == 1 => match args[0] {
                 Value::String(s) => Some(Value::String(s.trim().to_string())),
                 _ => None,

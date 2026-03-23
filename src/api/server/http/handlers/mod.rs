@@ -13,18 +13,26 @@ pub mod stream;
 pub mod transaction;
 
 pub use auth::{login, logout};
-pub use batch::{add_items, cancel as cancel_batch, create as create_batch, delete as delete_batch, execute as execute_batch, status as batch_status};
+pub use batch::{
+    add_items, cancel as cancel_batch, create as create_batch, delete as delete_batch,
+    execute as execute_batch, status as batch_status,
+};
 pub use config::{get, get_key, reset_key, update, update_key};
 pub use function::{info as function_info, list, register, unregister};
 pub use health::check;
 pub use query::{execute, validate};
-pub use query_types::{QueryData, QueryError, QueryMetadata, QueryRequest, QueryResponse, ValidateResponse};
+pub use query_types::{
+    QueryData, QueryError, QueryMetadata, QueryRequest, QueryResponse, ValidateResponse,
+};
 pub use schema::{
     create_edge_type, create_space, create_tag, drop_space, get_space, list_edge_types,
     list_spaces, list_tags,
 };
 pub use session::{create as create_session, delete_session, get_session};
-pub use statement::{batch_execute, create as create_statement, drop as drop_statement, execute as execute_statement, info as statement_info};
+pub use statement::{
+    batch_execute, create as create_statement, drop as drop_statement,
+    execute as execute_statement, info as statement_info,
+};
 pub use statistics::{database, queries, session, system};
 pub use stream::{execute_stream, StreamQueryRequest};
 pub use transaction::{begin, commit, rollback};

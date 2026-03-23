@@ -169,7 +169,9 @@ mod tests {
     #[test]
     fn test_hash() {
         let func = UtilityFunction::Hash;
-        let result = func.execute(&[Value::String("test".to_string())]).expect("Execution should succeed");
+        let result = func
+            .execute(&[Value::String("test".to_string())])
+            .expect("Execution should succeed");
         assert!(matches!(result, Value::Int(_)));
     }
 }

@@ -43,7 +43,10 @@ pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
                 transaction_id: txn_id,
                 status: "Active".to_string(),
             }),
-            Err(e) => Err(HttpError::InternalError(format!("Failed to begin transaction: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to begin transaction: {}",
+                e
+            ))),
         }
     })
     .await
@@ -71,7 +74,10 @@ pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
                 "message": "Transaction committed successfully",
                 "transaction_id": txn_id,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("Failed to commit transaction: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to commit transaction: {}",
+                e
+            ))),
         }
     })
     .await
@@ -94,7 +100,10 @@ pub async fn rollback<S: StorageClient + Clone + Send + Sync + 'static>(
                 "message": "Transaction rolled back successfully",
                 "transaction_id": txn_id,
             })),
-            Err(e) => Err(HttpError::InternalError(format!("Failed to rollback transaction: {}", e))),
+            Err(e) => Err(HttpError::InternalError(format!(
+                "Failed to rollback transaction: {}",
+                e
+            ))),
         }
     })
     .await

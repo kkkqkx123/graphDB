@@ -172,11 +172,11 @@ impl CteCacheConfig {
     /// 创建小内存配置
     pub fn low_memory() -> Self {
         Self {
-            max_size: 16 * 1024 * 1024,       // 16MB
-            max_entry_size: 5 * 1024 * 1024,  // 5MB
+            max_size: 16 * 1024 * 1024,      // 16MB
+            max_entry_size: 5 * 1024 * 1024, // 5MB
             min_row_count: 50,
             max_row_count: 50_000,
-            entry_ttl_seconds: 1800,          // 30分钟
+            entry_ttl_seconds: 1800, // 30分钟
             enabled: true,
         }
     }
@@ -188,7 +188,7 @@ impl CteCacheConfig {
             max_entry_size: 50 * 1024 * 1024, // 50MB
             min_row_count: 100,
             max_row_count: 500_000,
-            entry_ttl_seconds: 7200,          // 2小时
+            entry_ttl_seconds: 7200, // 2小时
             enabled: true,
         }
     }
@@ -263,7 +263,12 @@ impl CteCacheManager {
     /// - `cte_definition`: CTE定义文本
     /// - `estimated_rows`: 估计行数
     /// - `is_deterministic`: 是否确定性CTE
-    pub fn should_cache(&self, cte_definition: &str, estimated_rows: u64, is_deterministic: bool) -> bool {
+    pub fn should_cache(
+        &self,
+        cte_definition: &str,
+        estimated_rows: u64,
+        is_deterministic: bool,
+    ) -> bool {
         let config = self.config.read();
 
         if !config.enabled {
@@ -601,7 +606,12 @@ impl CteCacheDecisionMaker {
     }
 
     /// 做出缓存决策
-    pub fn decide(&self, cte_definition: &str, estimated_rows: u64, compute_cost: f64) -> CteCacheDecision {
+    pub fn decide(
+        &self,
+        cte_definition: &str,
+        estimated_rows: u64,
+        compute_cost: f64,
+    ) -> CteCacheDecision {
         if !self.cache_manager.is_enabled() {
             return CteCacheDecision {
                 should_cache: false,

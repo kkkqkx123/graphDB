@@ -375,7 +375,10 @@ mod tests {
         let result = executor.execute();
         executor.close().expect("关闭执行器失败");
 
-        assert!(result.is_err(), "Should return error when variable is not defined");
+        assert!(
+            result.is_err(),
+            "Should return error when variable is not defined"
+        );
     }
 
     #[test]

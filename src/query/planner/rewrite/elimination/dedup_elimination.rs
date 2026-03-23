@@ -151,7 +151,8 @@ mod tests {
         let rule = DedupEliminationRule::new();
 
         // Start 节点保证唯一性
-        let start_node = crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
+        let start_node =
+            crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
         assert!(rule.child_guarantees_uniqueness(&PlanNodeEnum::Start(start_node)));
     }
 }

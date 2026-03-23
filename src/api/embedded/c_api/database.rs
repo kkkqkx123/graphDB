@@ -2,13 +2,15 @@
 //!
 //! 提供数据库的打开、关闭和基本管理功能
 
-use crate::api::embedded::c_api::error::{error_code_from_core_error, graphdb_error_code_t, set_last_error_message};
+use crate::api::embedded::c_api::error::{
+    error_code_from_core_error, graphdb_error_code_t, set_last_error_message,
+};
 use crate::api::embedded::c_api::types::{
     graphdb_t, GRAPHDB_OPEN_CREATE, GRAPHDB_OPEN_READONLY, GRAPHDB_OPEN_READWRITE,
 };
 use crate::api::embedded::{DatabaseConfig, GraphDatabase};
 use crate::storage::RedbStorage;
-use std::ffi::{CStr, CString, c_char, c_int, c_void};
+use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::ptr;
 use std::sync::Arc;
 
@@ -264,10 +266,11 @@ mod tests {
     #[test]
     fn test_graphdb_open_close_file() {
         let db_path = get_test_db_path();
-        
-        let path_cstring = CString::new(db_path.to_str().expect("Invalid path")).expect("Failed to create CString");
+
+        let path_cstring = CString::new(db_path.to_str().expect("Invalid path"))
+            .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
-        
+
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
         if rc != graphdb_error_code_t::GRAPHDB_OK as c_int {
             panic!("打开数据库失败，错误码: {}, 路径: {:?}", rc, db_path);

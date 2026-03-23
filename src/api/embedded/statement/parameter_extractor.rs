@@ -7,9 +7,9 @@ use crate::core::types::expression::{ContextualExpression, Expression};
 use crate::core::DataType;
 use crate::query::parser::ast::pattern::{PathElement, Pattern};
 use crate::query::parser::ast::stmt::{
-    CreateStmt, DeleteStmt, FetchStmt, FindPathStmt, GoStmt, GroupByStmt,
-    InsertStmt, LookupStmt, MatchStmt, MergeStmt, PipeStmt, QueryStmt, RemoveStmt, ReturnStmt,
-    SetStmt, Stmt, SubgraphStmt, UnwindStmt, UpdateStmt, WithStmt, YieldStmt,
+    CreateStmt, DeleteStmt, FetchStmt, FindPathStmt, GoStmt, GroupByStmt, InsertStmt, LookupStmt,
+    MatchStmt, MergeStmt, PipeStmt, QueryStmt, RemoveStmt, ReturnStmt, SetStmt, Stmt, SubgraphStmt,
+    UnwindStmt, UpdateStmt, WithStmt, YieldStmt,
 };
 use crate::query::parser::parser::Parser;
 use std::collections::HashMap;
@@ -31,12 +31,10 @@ pub fn extract_parameters(query: &str) -> Result<HashMap<String, DataType>, Core
             extract_params_from_stmt(&parser_result.ast.stmt, &mut params);
             Ok(params)
         }
-        Err(e) => {
-            Err(CoreError::QueryExecutionFailed(format!(
-                "查询解析失败: {:?}",
-                e
-            )))
-        }
+        Err(e) => Err(CoreError::QueryExecutionFailed(format!(
+            "查询解析失败: {:?}",
+            e
+        ))),
     }
 }
 
@@ -103,14 +101,31 @@ fn extract_params_from_stmt(stmt: &Stmt, params: &mut HashMap<String, DataType>)
         Stmt::Pipe(pipe_stmt) => {
             extract_params_from_pipe(pipe_stmt, params);
         }
-        Stmt::Show(_) | Stmt::Use(_) | Stmt::Explain(_) | Stmt::Profile(_)
-        | Stmt::Drop(_) | Stmt::Desc(_) | Stmt::Alter(_)
-        | Stmt::CreateUser(_) | Stmt::AlterUser(_) | Stmt::DropUser(_)
-        | Stmt::ChangePassword(_) | Stmt::Grant(_) | Stmt::Revoke(_)
-        | Stmt::DescribeUser(_) | Stmt::ShowUsers(_) | Stmt::ShowRoles(_)
-        | Stmt::ShowCreate(_) | Stmt::ShowSessions(_) | Stmt::ShowQueries(_)
-        | Stmt::KillQuery(_) | Stmt::ShowConfigs(_) | Stmt::UpdateConfigs(_)
-        | Stmt::Assignment(_) | Stmt::SetOperation(_) | Stmt::ClearSpace(_) => {}
+        Stmt::Show(_)
+        | Stmt::Use(_)
+        | Stmt::Explain(_)
+        | Stmt::Profile(_)
+        | Stmt::Drop(_)
+        | Stmt::Desc(_)
+        | Stmt::Alter(_)
+        | Stmt::CreateUser(_)
+        | Stmt::AlterUser(_)
+        | Stmt::DropUser(_)
+        | Stmt::ChangePassword(_)
+        | Stmt::Grant(_)
+        | Stmt::Revoke(_)
+        | Stmt::DescribeUser(_)
+        | Stmt::ShowUsers(_)
+        | Stmt::ShowRoles(_)
+        | Stmt::ShowCreate(_)
+        | Stmt::ShowSessions(_)
+        | Stmt::ShowQueries(_)
+        | Stmt::KillQuery(_)
+        | Stmt::ShowConfigs(_)
+        | Stmt::UpdateConfigs(_)
+        | Stmt::Assignment(_)
+        | Stmt::SetOperation(_)
+        | Stmt::ClearSpace(_) => {}
     }
 }
 
@@ -137,10 +152,7 @@ fn extract_params_from_go(go_stmt: &GoStmt, params: &mut HashMap<String, DataTyp
 }
 
 /// 从 INSERT 语句中提取参数
-fn extract_params_from_insert(
-    insert_stmt: &InsertStmt,
-    params: &mut HashMap<String, DataType>,
-) {
+fn extract_params_from_insert(insert_stmt: &InsertStmt, params: &mut HashMap<String, DataType>) {
     use crate::query::parser::ast::stmt::InsertTarget;
 
     match &insert_stmt.target {
@@ -170,10 +182,7 @@ fn extract_params_from_insert(
 }
 
 /// 从 UPDATE 语句中提取参数
-fn extract_params_from_update(
-    update_stmt: &UpdateStmt,
-    params: &mut HashMap<String, DataType>,
-) {
+fn extract_params_from_update(update_stmt: &UpdateStmt, params: &mut HashMap<String, DataType>) {
     use crate::query::parser::ast::stmt::UpdateTarget;
 
     match &update_stmt.target {
@@ -203,10 +212,7 @@ fn extract_params_from_update(
 }
 
 /// 从 DELETE 语句中提取参数
-fn extract_params_from_delete(
-    delete_stmt: &DeleteStmt,
-    params: &mut HashMap<String, DataType>,
-) {
+fn extract_params_from_delete(delete_stmt: &DeleteStmt, params: &mut HashMap<String, DataType>) {
     use crate::query::parser::ast::stmt::DeleteTarget;
 
     match &delete_stmt.target {
@@ -264,10 +270,7 @@ fn extract_params_from_fetch(fetch_stmt: &FetchStmt, params: &mut HashMap<String
 }
 
 /// 从 LOOKUP 语句中提取参数
-fn extract_params_from_lookup(
-    lookup_stmt: &LookupStmt,
-    params: &mut HashMap<String, DataType>,
-) {
+fn extract_params_from_lookup(lookup_stmt: &LookupStmt, params: &mut HashMap<String, DataType>) {
     if let Some(where_clause) = &lookup_stmt.where_clause {
         extract_params_from_expr(where_clause, params);
     }
@@ -310,10 +313,7 @@ fn extract_params_from_merge(merge_stmt: &MergeStmt, params: &mut HashMap<String
 }
 
 /// 从 UNWIND 语句中提取参数
-fn extract_params_from_unwind(
-    unwind_stmt: &UnwindStmt,
-    params: &mut HashMap<String, DataType>,
-) {
+fn extract_params_from_unwind(unwind_stmt: &UnwindStmt, params: &mut HashMap<String, DataType>) {
     extract_params_from_expr(&unwind_stmt.expression, params);
 }
 
@@ -346,10 +346,7 @@ fn extract_params_from_set(set_stmt: &SetStmt, params: &mut HashMap<String, Data
 }
 
 /// 从 REMOVE 语句中提取参数
-fn extract_params_from_remove(
-    remove_stmt: &RemoveStmt,
-    params: &mut HashMap<String, DataType>,
-) {
+fn extract_params_from_remove(remove_stmt: &RemoveStmt, params: &mut HashMap<String, DataType>) {
     for item in &remove_stmt.items {
         extract_params_from_expr(item, params);
     }
@@ -403,10 +400,7 @@ fn extract_params_from_query(query_stmt: &QueryStmt, params: &mut HashMap<String
 }
 
 /// 从 RETURN 语句中提取参数
-fn extract_params_from_return(
-    return_stmt: &ReturnStmt,
-    params: &mut HashMap<String, DataType>,
-) {
+fn extract_params_from_return(return_stmt: &ReturnStmt, params: &mut HashMap<String, DataType>) {
     for item in &return_stmt.items {
         match item {
             crate::query::parser::ast::stmt::ReturnItem::Expression { expression, .. } => {
@@ -503,10 +497,7 @@ fn extract_params_from_pattern(pattern: &Pattern, params: &mut HashMap<String, D
 }
 
 /// 从表达式中递归提取参数
-fn extract_params_from_expr(
-    expr: &ContextualExpression,
-    params: &mut HashMap<String, DataType>,
-) {
+fn extract_params_from_expr(expr: &ContextualExpression, params: &mut HashMap<String, DataType>) {
     let expr_meta = match expr.expression() {
         Some(e) => e,
         None => return,
@@ -516,10 +507,7 @@ fn extract_params_from_expr(
 }
 
 /// 从 Expression 枚举中递归提取参数
-fn extract_params_from_expression(
-    expr: &Expression,
-    params: &mut HashMap<String, DataType>,
-) {
+fn extract_params_from_expression(expr: &Expression, params: &mut HashMap<String, DataType>) {
     match expr {
         Expression::Parameter(name) => {
             if !params.contains_key(name.as_str()) {
@@ -557,7 +545,11 @@ fn extract_params_from_expression(
                 extract_params_from_expression(value, params);
             }
         }
-        Expression::Case { conditions, default, .. } => {
+        Expression::Case {
+            conditions,
+            default,
+            ..
+        } => {
             for (condition, value) in conditions {
                 extract_params_from_expression(condition, params);
                 extract_params_from_expression(value, params);
@@ -566,7 +558,11 @@ fn extract_params_from_expression(
                 extract_params_from_expression(default_expr, params);
             }
         }
-        Expression::Range { collection, start, end } => {
+        Expression::Range {
+            collection,
+            start,
+            end,
+        } => {
             extract_params_from_expression(collection, params);
             if let Some(start_expr) = start {
                 extract_params_from_expression(start_expr, params);
@@ -593,7 +589,12 @@ fn extract_params_from_expression(
         Expression::TypeCast { expression, .. } => {
             extract_params_from_expression(expression, params);
         }
-        Expression::ListComprehension { source, filter, map, .. } => {
+        Expression::ListComprehension {
+            source,
+            filter,
+            map,
+            ..
+        } => {
             extract_params_from_expression(source, params);
             if let Some(filter_expr) = filter {
                 extract_params_from_expression(filter_expr, params);
@@ -610,7 +611,12 @@ fn extract_params_from_expression(
                 extract_params_from_expression(arg, params);
             }
         }
-        Expression::Reduce { initial, source, mapping, .. } => {
+        Expression::Reduce {
+            initial,
+            source,
+            mapping,
+            ..
+        } => {
             extract_params_from_expression(initial, params);
             extract_params_from_expression(source, params);
             extract_params_from_expression(mapping, params);

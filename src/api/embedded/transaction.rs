@@ -7,8 +7,8 @@ use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::session::Session;
 use crate::core::Value;
 use crate::storage::StorageClient;
-use crate::transaction::{DurabilityLevel, TransactionOptions};
 use crate::transaction::types::{SavepointId, SavepointInfo};
+use crate::transaction::{DurabilityLevel, TransactionOptions};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -321,7 +321,9 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
         }
 
         let txn_manager = self.session.txn_manager();
-        txn_manager.find_savepoint_by_name(self.txn_handle.0, name).map(|info| info.id)
+        txn_manager
+            .find_savepoint_by_name(self.txn_handle.0, name)
+            .map(|info| info.id)
     }
 
     /// 获取所有活跃保存点
@@ -403,7 +405,8 @@ impl<'sess, S: StorageClient + Clone + 'static> Drop for Transaction<'sess, S> {
     fn drop(&mut self) {
         // 如果事务仍处于活动状态，自动回滚
         if self.is_active() {
-            let _ = self.session
+            let _ = self
+                .session
                 .txn_manager()
                 .abort_transaction(self.txn_handle.0);
         }

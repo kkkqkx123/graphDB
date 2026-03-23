@@ -65,7 +65,7 @@ impl<'a> GraphTraversalEstimator<'a> {
         direction: EdgeDirection,
     ) -> f64 {
         let stats = self.get_edge_stats(edge_type);
-        
+
         match stats {
             Some(s) if s.is_heavily_skewed() => {
                 // 根据倾斜度和方向计算代价
@@ -87,10 +87,14 @@ impl<'a> GraphTraversalEstimator<'a> {
                     _ => penalty,
                 };
 
-                let base_cost = self.cost_calculator.calculate_expand_cost(start_rows, edge_type);
+                let base_cost = self
+                    .cost_calculator
+                    .calculate_expand_cost(start_rows, edge_type);
                 base_cost * direction_penalty
             }
-            _ => self.cost_calculator.calculate_expand_cost(start_rows, edge_type),
+            _ => self
+                .cost_calculator
+                .calculate_expand_cost(start_rows, edge_type),
         }
     }
 
@@ -141,8 +145,7 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                 // 使用倾斜感知估计
                 let output_rows =
                     self.estimate_skew_aware_output_rows(start_rows, edge_type, direction);
-                let cost =
-                    self.calculate_skew_aware_expand_cost(start_rows, edge_type, direction);
+                let cost = self.calculate_skew_aware_expand_cost(start_rows, edge_type, direction);
 
                 Ok((cost, output_rows.max(1)))
             }
@@ -225,7 +228,9 @@ mod tests {
     use crate::query::optimizer::cost::config::CostModelConfig;
     use crate::query::optimizer::stats::{EdgeTypeStatistics, TagStatistics};
     use crate::query::planner::plan::core::nodes::access::graph_scan_node::*;
-    use crate::query::planner::plan::core::nodes::base::plan_node_traits::{MultipleInputNode, SingleInputNode};
+    use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
+        MultipleInputNode, SingleInputNode,
+    };
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::traversal::traversal_node::*;
     use std::sync::Arc;
@@ -238,7 +243,7 @@ mod tests {
 
     fn create_test_calculator_with_stats() -> CostCalculator {
         let stats_manager = Arc::new(crate::query::optimizer::stats::StatisticsManager::new());
-        
+
         let tag_stats = TagStatistics {
             tag_name: "Person".to_string(),
             vertex_count: 1000,

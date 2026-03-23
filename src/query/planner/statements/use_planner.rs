@@ -47,10 +47,7 @@ impl Planner for UsePlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
         // 创建 SwitchSpace 节点
-        let switch_space_node = SwitchSpaceNode::new(
-            next_node_id(),
-            use_stmt.space.clone(),
-        );
+        let switch_space_node = SwitchSpaceNode::new(next_node_id(), use_stmt.space.clone());
 
         let final_node = PlanNodeEnum::SwitchSpace(switch_space_node);
 

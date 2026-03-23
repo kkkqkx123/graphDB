@@ -2,11 +2,11 @@
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
 use crate::query::parser::ast::{AlterTarget, CreateTarget, IndexType, ShowTarget, Stmt};
+use crate::query::planner::plan::core::nodes::management::index_nodes::IndexManageInfo;
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ArgumentNode, ClearSpaceNode, PlanNodeEnum,
     ProjectNode, ShowStatsNode, ShowStatsType,
 };
-use crate::query::planner::plan::core::nodes::management::index_nodes::IndexManageInfo;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
@@ -52,17 +52,18 @@ impl Planner for MaintainPlanner {
             // 处理 SHOW STATS 语句
             if let Stmt::Show(show_stmt) = validated.stmt() {
                 if show_stmt.target == ShowTarget::Stats {
-                    let stats_node = ShowStatsNode::new(
-                        next_node_id(),
-                        ShowStatsType::Storage,
-                    );
+                    let stats_node = ShowStatsNode::new(next_node_id(), ShowStatsType::Storage);
                     PlanNodeEnum::ShowStats(stats_node)
                 } else {
                     // 其他 SHOW 语句使用 PassThrough 节点
-                    PlanNodeEnum::PassThrough(crate::query::planner::plan::core::PassThroughNode::new(1))
+                    PlanNodeEnum::PassThrough(
+                        crate::query::planner::plan::core::PassThroughNode::new(1),
+                    )
                 }
             } else {
-                PlanNodeEnum::PassThrough(crate::query::planner::plan::core::PassThroughNode::new(1))
+                PlanNodeEnum::PassThrough(crate::query::planner::plan::core::PassThroughNode::new(
+                    1,
+                ))
             }
         } else if stmt_type == "SUBMIT JOB" {
             // 提交作业类型的维护操作
@@ -70,7 +71,13 @@ impl Planner for MaintainPlanner {
         } else if stmt_type.starts_with("CREATE") {
             // 创建类型的操作
             if let Stmt::Create(create_stmt) = validated.stmt() {
-                if let CreateTarget::Index { index_type, name, on, properties } = &create_stmt.target {
+                if let CreateTarget::Index {
+                    index_type,
+                    name,
+                    on,
+                    properties,
+                } = &create_stmt.target
+                {
                     let space_name = validated
                         .validation_info
                         .semantic_info
@@ -91,21 +98,26 @@ impl Planner for MaintainPlanner {
 
                     let plan_node = match index_type {
                         IndexType::Tag => {
-                            let create_tag_index_node = crate::query::planner::plan::core::nodes::CreateTagIndexNode::new(
-                                next_node_id(),
-                                index_info,
-                            );
+                            let create_tag_index_node =
+                                crate::query::planner::plan::core::nodes::CreateTagIndexNode::new(
+                                    next_node_id(),
+                                    index_info,
+                                );
                             PlanNodeEnum::CreateTagIndex(create_tag_index_node)
                         }
                         IndexType::Edge => {
-                            let create_edge_index_node = crate::query::planner::plan::core::nodes::CreateEdgeIndexNode::new(
-                                next_node_id(),
-                                index_info,
-                            );
+                            let create_edge_index_node =
+                                crate::query::planner::plan::core::nodes::CreateEdgeIndexNode::new(
+                                    next_node_id(),
+                                    index_info,
+                                );
                             PlanNodeEnum::CreateEdgeIndex(create_edge_index_node)
                         }
                     };
-                    return Ok(SubPlan::new(Some(plan_node), Some(PlanNodeEnum::Argument(arg_node))));
+                    return Ok(SubPlan::new(
+                        Some(plan_node),
+                        Some(PlanNodeEnum::Argument(arg_node)),
+                    ));
                 }
             }
             // 其他创建操作使用默认处理
@@ -113,15 +125,23 @@ impl Planner for MaintainPlanner {
         } else if stmt_type.starts_with("ALTER") {
             // 处理 ALTER SPACE 语句
             if let Stmt::Alter(alter_stmt) = validated.stmt() {
-                if let AlterTarget::Space { space_name, comment } = &alter_stmt.target {
-                    let options = comment.as_ref().map(|c| {
-                        vec![crate::query::planner::plan::core::nodes::SpaceAlterOption::Comment(c.clone())]
-                    }).unwrap_or_default();
-                    let alter_space_node = AlterSpaceNode::new(
-                        next_node_id(),
-                        space_name.clone(),
-                        options,
-                    );
+                if let AlterTarget::Space {
+                    space_name,
+                    comment,
+                } = &alter_stmt.target
+                {
+                    let options = comment
+                        .as_ref()
+                        .map(|c| {
+                            vec![
+                                crate::query::planner::plan::core::nodes::SpaceAlterOption::Comment(
+                                    c.clone(),
+                                ),
+                            ]
+                        })
+                        .unwrap_or_default();
+                    let alter_space_node =
+                        AlterSpaceNode::new(next_node_id(), space_name.clone(), options);
                     PlanNodeEnum::AlterSpace(alter_space_node)
                 } else {
                     PlanNodeEnum::Project(project_node)
@@ -132,10 +152,8 @@ impl Planner for MaintainPlanner {
         } else if stmt_type == "CLEAR SPACE" {
             // 处理 CLEAR SPACE 语句
             if let Stmt::ClearSpace(clear_stmt) = validated.stmt() {
-                let clear_space_node = ClearSpaceNode::new(
-                    next_node_id(),
-                    clear_stmt.space_name.clone(),
-                );
+                let clear_space_node =
+                    ClearSpaceNode::new(next_node_id(), clear_stmt.space_name.clone());
                 PlanNodeEnum::ClearSpace(clear_space_node)
             } else {
                 PlanNodeEnum::Project(project_node)

@@ -448,14 +448,12 @@ impl Value {
             | DataType::Int64 => Ok(self.to_int()),
             DataType::Float | DataType::Double => Ok(self.to_float()),
             DataType::String => self.to_string().map(Value::String),
-            DataType::FixedString(len) => {
-                match self {
-                    Value::String(s) | Value::FixedString { data: s, .. } => {
-                        Ok(Value::fixed_string(*len, s.clone()))
-                    }
-                    _ => self.to_string().map(|s| Value::fixed_string(*len, s)),
+            DataType::FixedString(len) => match self {
+                Value::String(s) | Value::FixedString { data: s, .. } => {
+                    Ok(Value::fixed_string(*len, s.clone()))
                 }
-            }
+                _ => self.to_string().map(|s| Value::fixed_string(*len, s)),
+            },
             DataType::Date => Ok(self.to_date()),
             DataType::Time => Ok(self.to_time()),
             DataType::DateTime => Ok(self.to_datetime()),

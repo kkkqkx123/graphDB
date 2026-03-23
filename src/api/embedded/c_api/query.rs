@@ -10,7 +10,7 @@ use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, graphdb_value_t};
 use crate::core::Value;
 use std::collections::HashMap;
-use std::ffi::{CStr, CString, c_char, c_int};
+use std::ffi::{c_char, c_int, CStr};
 use std::ptr;
 
 /// 执行简单查询
@@ -49,13 +49,14 @@ pub extern "C" fn graphdb_execute(
         match handle.inner.execute(query_str) {
             Ok(query_result) => {
                 handle.clear_error();
-                
+
                 // 检查是否是数据修改操作，并调用更新钩子
-                if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result) {
+                if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result)
+                {
                     let space_name = handle.inner.current_space().unwrap_or("default");
                     handle.invoke_update_hook(operation, space_name, rowid);
                 }
-                
+
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
                 });
@@ -125,13 +126,14 @@ pub extern "C" fn graphdb_execute_params(
         match handle.inner.execute_with_params(query_str, params_map) {
             Ok(query_result) => {
                 handle.clear_error();
-                
+
                 // 检查是否是数据修改操作，并调用更新钩子
-                if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result) {
+                if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result)
+                {
                     let space_name = handle.inner.current_space().unwrap_or("default");
                     handle.invoke_update_hook(operation, space_name, rowid);
                 }
-                
+
                 let result_handle = Box::new(GraphDbResultHandle {
                     inner: query_result,
                 });
@@ -180,29 +182,32 @@ unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
 ///
 /// 返回 (操作类型, 行ID) 的元组，如果不是数据修改操作则返回 None
 /// 操作类型：1=INSERT, 2=UPDATE, 3=DELETE
-fn detect_data_modification(query: &str, _result: &crate::api::embedded::result::QueryResult) -> Option<(i32, i64)> {
+fn detect_data_modification(
+    query: &str,
+    _result: &crate::api::embedded::result::QueryResult,
+) -> Option<(i32, i64)> {
     let query_upper = query.trim().to_uppercase();
-    
+
     // 检查是否是 INSERT 操作
     if query_upper.starts_with("INSERT") {
         return Some((1, 0));
     }
-    
+
     // 检查是否是 UPDATE 操作
     if query_upper.starts_with("UPDATE") {
         return Some((2, 0));
     }
-    
+
     // 检查是否是 DELETE 操作
     if query_upper.starts_with("DELETE") {
         return Some((3, 0));
     }
-    
+
     // 检查是否是 REMOVE 操作
     if query_upper.starts_with("REMOVE") {
         return Some((2, 0));
     }
-    
+
     None
 }
 
@@ -210,9 +215,9 @@ fn detect_data_modification(query: &str, _result: &crate::api::embedded::result:
 mod tests {
     use super::*;
     use crate::api::embedded::c_api::database::{graphdb_close, graphdb_open};
+    use crate::api::embedded::c_api::result::graphdb_result_free;
     use crate::api::embedded::c_api::session::{graphdb_session_close, graphdb_session_create};
     use crate::api::embedded::c_api::types::graphdb_t;
-    use crate::api::embedded::c_api::result::graphdb_result_free;
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -223,7 +228,8 @@ mod tests {
         std::fs::create_dir_all(&temp_dir).ok();
         let db_path = temp_dir.join(format!("test_{}_{}.db", std::process::id(), counter));
 
-        let path_cstring = CString::new(db_path.to_str().expect("Invalid path")).expect("Failed to create CString");
+        let path_cstring = CString::new(db_path.to_str().expect("Invalid path"))
+            .expect("Failed to create CString");
         let mut db: *mut graphdb_t = ptr::null_mut();
 
         let rc = graphdb_open(path_cstring.as_ptr(), &mut db);
@@ -255,13 +261,7 @@ mod tests {
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
 
         let mut result: *mut graphdb_result_t = ptr::null_mut();
-        let rc = graphdb_execute_params(
-            ptr::null_mut(),
-            ptr::null(),
-            ptr::null(),
-            0,
-            &mut result,
-        );
+        let rc = graphdb_execute_params(ptr::null_mut(), ptr::null(), ptr::null(), 0, &mut result);
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 

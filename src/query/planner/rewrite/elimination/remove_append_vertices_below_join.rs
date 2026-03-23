@@ -39,9 +39,11 @@ use crate::core::types::expression::visitor_collectors::PropertyCollector;
 use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::YieldColumn;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::join::join_node::{HashInnerJoinNode, HashLeftJoinNode};
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, SingleInputNode,
+};
+use crate::query::planner::plan::core::nodes::join::join_node::{
+    HashInnerJoinNode, HashLeftJoinNode,
 };
 use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
 use crate::query::planner::plan::PlanNodeEnum;

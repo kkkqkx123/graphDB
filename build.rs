@@ -21,18 +21,17 @@ fn generate_c_header() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let output_path = PathBuf::from(&crate_dir).join("include").join("graphdb.h");
 
-    std::fs::create_dir_all(
-        output_path
-            .parent()
-            .expect("输出路径应有父目录")
-    )
-    .expect("创建 include 目录失败");
+    std::fs::create_dir_all(output_path.parent().expect("输出路径应有父目录"))
+        .expect("创建 include 目录失败");
 
     // 尝试使用 cbindgen 生成头文件
     match try_cbindgen(&crate_dir, &output_path) {
         Ok(_) => println!("cargo:warning=Generated C header at {:?}", output_path),
         Err(e) => {
-            println!("cargo:warning=Failed to generate C header with cbindgen: {}", e);
+            println!(
+                "cargo:warning=Failed to generate C header with cbindgen: {}",
+                e
+            );
             // 如果 cbindgen 失败，使用备用方案
             generate_fallback_header(&output_path);
         }
@@ -369,6 +368,5 @@ void graphdb_free(void *ptr);
 #endif /* GRAPHDB_H */
 "#;
 
-    std::fs::write(output_path, header_content)
-        .expect("Failed to write fallback header");
+    std::fs::write(output_path, header_content).expect("Failed to write fallback header");
 }

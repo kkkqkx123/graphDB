@@ -1,10 +1,10 @@
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::storage::operations::{EdgeWriter, VertexWriter};
 use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
-use bincode::{config::standard, decode_from_slice, encode_to_vec};
-use crate::transaction::TransactionContext;
 use crate::transaction::types::OperationLog;
+use crate::transaction::TransactionContext;
 use crate::utils::id_gen::generate_id;
+use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 

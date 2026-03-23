@@ -74,10 +74,10 @@ impl<'a> NodeEstimator for GraphAlgorithmEstimator<'a> {
 mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
+    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::traversal::{
         AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
     };
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use std::sync::Arc;
 
     fn create_test_calculator() -> CostCalculator {
@@ -98,7 +98,10 @@ mod tests {
         let left = create_test_start_node();
         let right = create_test_start_node();
         let node = PlanNodeEnum::ShortestPath(ShortestPathNode::new(
-            left, right, vec!["friend".to_string()], 5,
+            left,
+            right,
+            vec!["friend".to_string()],
+            5,
         ));
 
         let child_estimates = vec![];

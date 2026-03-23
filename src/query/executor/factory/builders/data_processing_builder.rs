@@ -7,7 +7,7 @@ use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::result_processing::{
     AggregateExecutor, AggregateFunctionSpec, DedupExecutor, FilterExecutor, LimitExecutor,
-    ProjectionColumn, ProjectExecutor, SampleExecutor, SampleMethod, SortExecutor, SortKey,
+    ProjectExecutor, ProjectionColumn, SampleExecutor, SampleMethod, SortExecutor, SortKey,
     TopNExecutor,
 };
 use crate::query::planner::plan::core::nodes::{
@@ -99,13 +99,12 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
             .iter()
             .map(|item| {
                 let expr = crate::core::Expression::Variable(item.column.clone());
-                let order = if item.direction
-                    == crate::core::types::graph_schema::OrderDirection::Desc
-                {
-                    crate::query::executor::result_processing::SortOrder::Desc
-                } else {
-                    crate::query::executor::result_processing::SortOrder::Asc
-                };
+                let order =
+                    if item.direction == crate::core::types::graph_schema::OrderDirection::Desc {
+                        crate::query::executor::result_processing::SortOrder::Desc
+                    } else {
+                        crate::query::executor::result_processing::SortOrder::Asc
+                    };
                 SortKey::new(expr, order)
             })
             .collect();
@@ -193,18 +192,15 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
             .map(|agg_func| {
                 // AggregateFunction 的 name() 返回函数名
                 let func_name = agg_func.name().to_string();
-                AggregateFunctionSpec::new(crate::query::executor::result_processing::AggregateFunction::Count(None))
-                    .with_field(func_name)
+                AggregateFunctionSpec::new(
+                    crate::query::executor::result_processing::AggregateFunction::Count(None),
+                )
+                .with_field(func_name)
             })
             .collect();
 
         // AggregateExecutor::new 只需要4个参数: id, storage, aggregate_functions, group_keys
-        let executor = AggregateExecutor::new(
-            node.id(),
-            storage,
-            aggregate_functions,
-            group_keys,
-        );
+        let executor = AggregateExecutor::new(node.id(), storage, aggregate_functions, group_keys);
         Ok(ExecutorEnum::Aggregate(executor))
     }
 

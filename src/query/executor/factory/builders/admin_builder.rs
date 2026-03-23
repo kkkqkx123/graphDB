@@ -4,27 +4,29 @@
 
 use crate::core::error::QueryError;
 use crate::core::RoleType;
-use crate::query::executor::admin::{
-    AlterEdgeExecutor, AlterSpaceExecutor, AlterTagExecutor, AlterUserExecutor, ChangePasswordExecutor,
-    ClearSpaceExecutor, CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateSpaceExecutor, CreateTagExecutor,
-    CreateTagIndexExecutor, CreateUserExecutor, DescEdgeExecutor, DescEdgeIndexExecutor,
-    DescSpaceExecutor, DescTagExecutor, DescTagIndexExecutor, DropEdgeExecutor,
-    DropEdgeIndexExecutor, DropSpaceExecutor, DropTagExecutor, DropTagIndexExecutor,
-    DropUserExecutor, GrantRoleExecutor, RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, RevokeRoleExecutor,
-    ShowEdgeIndexesExecutor, ShowEdgesExecutor, ShowSpacesExecutor, ShowStatsExecutor, ShowTagIndexesExecutor, ShowTagsExecutor,
-    SwitchSpaceExecutor,
-};
 use crate::query::executor::admin::query_management::show_stats::ShowStatsType as ExecutorShowStatsType;
 use crate::query::executor::admin::space::alter_space::SpaceAlterOption as ExecutorSpaceAlterOption;
+use crate::query::executor::admin::{
+    AlterEdgeExecutor, AlterSpaceExecutor, AlterTagExecutor, AlterUserExecutor,
+    ChangePasswordExecutor, ClearSpaceExecutor, CreateEdgeExecutor, CreateEdgeIndexExecutor,
+    CreateSpaceExecutor, CreateTagExecutor, CreateTagIndexExecutor, CreateUserExecutor,
+    DescEdgeExecutor, DescEdgeIndexExecutor, DescSpaceExecutor, DescTagExecutor,
+    DescTagIndexExecutor, DropEdgeExecutor, DropEdgeIndexExecutor, DropSpaceExecutor,
+    DropTagExecutor, DropTagIndexExecutor, DropUserExecutor, GrantRoleExecutor,
+    RebuildEdgeIndexExecutor, RebuildTagIndexExecutor, RevokeRoleExecutor, ShowEdgeIndexesExecutor,
+    ShowEdgesExecutor, ShowSpacesExecutor, ShowStatsExecutor, ShowTagIndexesExecutor,
+    ShowTagsExecutor, SwitchSpaceExecutor,
+};
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::planner::plan::core::nodes::{
-    AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode, ClearSpaceNode, CreateEdgeIndexNode,
-    CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode, CreateTagNode, CreateUserNode,
-    DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
-    DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode, GrantRoleNode,
-    RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode, ShowEdgeIndexesNode, ShowEdgesNode, ShowSpacesNode, ShowStatsNode,
-    ShowTagIndexesNode, ShowTagsNode, SwitchSpaceNode,
+    AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode, ClearSpaceNode,
+    CreateEdgeIndexNode, CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode, CreateTagNode,
+    CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
+    DropEdgeIndexNode, DropEdgeNode, DropSpaceNode, DropTagIndexNode, DropTagNode, DropUserNode,
+    GrantRoleNode, RebuildEdgeIndexNode, RebuildTagIndexNode, RevokeRoleNode, ShowEdgeIndexesNode,
+    ShowEdgesNode, ShowSpacesNode, ShowStatsNode, ShowTagIndexesNode, ShowTagsNode,
+    SwitchSpaceNode,
 };
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -103,11 +105,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        let executor = ShowSpacesExecutor::new(
-            _node.id(),
-            storage,
-            context.expression_context().clone(),
-        );
+        let executor =
+            ShowSpacesExecutor::new(_node.id(), storage, context.expression_context().clone());
         Ok(ExecutorEnum::ShowSpaces(executor))
     }
 
@@ -121,11 +120,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::admin::tag::create_tag::ExecutorTagInfo;
-        let tag_info = ExecutorTagInfo::new(
-            node.info().space_name.clone(),
-            node.info().tag_name.clone(),
-        )
-        .with_properties(node.info().properties.clone());
+        let tag_info =
+            ExecutorTagInfo::new(node.info().space_name.clone(), node.info().tag_name.clone())
+                .with_properties(node.info().properties.clone());
         let executor = CreateTagExecutor::new(
             node.id(),
             storage,
@@ -522,10 +519,8 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         use crate::core::types::UserInfo;
         // CreateUserNode 使用 username() 和 password() 方法
         // UserInfo::new 需要 username 和 password 两个参数
-        let user_info = UserInfo::new(
-            node.username().to_string(),
-            node.password().to_string(),
-        ).map_err(|e| QueryError::ExecutionError(format!("创建用户信息失败: {}", e)))?;
+        let user_info = UserInfo::new(node.username().to_string(), node.password().to_string())
+            .map_err(|e| QueryError::ExecutionError(format!("创建用户信息失败: {}", e)))?;
         let executor = CreateUserExecutor::new(
             node.id(),
             storage,
@@ -581,10 +576,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // ChangePasswordNode 使用 password_info() 方法获取 PasswordInfo
         let password_info = node.password_info();
-        let username = password_info
-            .username
-            .clone()
-            .unwrap_or_default();
+        let username = password_info.username.clone().unwrap_or_default();
         let executor = ChangePasswordExecutor::new(
             node.id(),
             storage,

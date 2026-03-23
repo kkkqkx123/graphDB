@@ -5,11 +5,13 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::core::error::DBError;
 use crate::core::types::expression::ContextualExpression;
 use crate::core::{Expression, Value};
-use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage, InputExecutor};
+use crate::query::executor::base::{BaseExecutor, ExecutorStats};
+use crate::query::executor::base::{
+    DBResult, ExecutionResult, Executor, HasStorage, InputExecutor,
+};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::expression::evaluation_context::DefaultExpressionContext;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
@@ -136,7 +138,9 @@ impl<S: StorageClient + Send + Sync + 'static> RemoveExecutor<S> {
 
             match &remove_item.item_type {
                 RemoveItemType::Property => {
-                    if let Some((vertex_id, property_name)) = self.extract_property_info(&expression)? {
+                    if let Some((vertex_id, property_name)) =
+                        self.extract_property_info(&expression)?
+                    {
                         if let Some(mut vertex) = storage.get_vertex("default", &vertex_id)? {
                             vertex.properties.remove(&property_name);
                             storage.update_vertex("default", vertex)?;

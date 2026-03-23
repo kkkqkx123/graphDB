@@ -61,7 +61,8 @@ mod tests {
     fn test_aggregate_node_creation() {
         let start_node =
             crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
-                crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new(),
+                crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new(
+                ),
             );
 
         let group_keys = vec!["category".to_string()];

@@ -3,10 +3,10 @@
 //! 处理 YIELD 语句的查询规划
 
 use crate::core::YieldColumn;
-use crate::query::parser::ast::{YieldItem, YieldStmt, Stmt};
+use crate::query::parser::ast::{Stmt, YieldItem, YieldStmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
-    nodes::{ArgumentNode, ProjectNode, FilterNode, DedupNode, SortNode, LimitNode},
+    nodes::{ArgumentNode, DedupNode, FilterNode, LimitNode, ProjectNode, SortNode},
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
@@ -98,9 +98,13 @@ impl Planner for YieldPlanner {
 
         // 如果有 WHERE 子句，创建过滤节点
         if let Some(where_clause) = &yield_stmt.where_clause {
-            let filter_node = FilterNode::new(current_node.clone(), where_clause.clone()).map_err(
-                |e| PlannerError::PlanGenerationFailed(format!("Failed to create FilterNode: {}", e)),
-            )?;
+            let filter_node =
+                FilterNode::new(current_node.clone(), where_clause.clone()).map_err(|e| {
+                    PlannerError::PlanGenerationFailed(format!(
+                        "Failed to create FilterNode: {}",
+                        e
+                    ))
+                })?;
             current_node = PlanNodeEnum::Filter(filter_node);
         }
 
@@ -146,9 +150,10 @@ impl Planner for YieldPlanner {
 
         // 如果有 LIMIT 子句，创建限制节点
         if let Some(limit) = yield_stmt.limit {
-            let limit_node = LimitNode::new(current_node.clone(), 0, limit as i64).map_err(|e| {
-                PlannerError::PlanGenerationFailed(format!("Failed to create LimitNode: {}", e))
-            })?;
+            let limit_node =
+                LimitNode::new(current_node.clone(), 0, limit as i64).map_err(|e| {
+                    PlannerError::PlanGenerationFailed(format!("Failed to create LimitNode: {}", e))
+                })?;
             current_node = PlanNodeEnum::Limit(limit_node);
         }
 

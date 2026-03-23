@@ -29,11 +29,9 @@
 //! let decision = optimizer.should_materialize(&cte_node);
 //! ```
 
-use crate::core::Expression;
 use crate::query::optimizer::analysis::{ExpressionAnalyzer, ReferenceCountAnalyzer};
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planner::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// CTE 物化决策
 #[derive(Debug, Clone, PartialEq)]

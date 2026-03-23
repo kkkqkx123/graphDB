@@ -1,7 +1,7 @@
 //! 批量任务管理器
 
-use crate::api::server::batch::types::*;
 use crate::api::core::{CoreError, CoreResult};
+use crate::api::server::batch::types::*;
 use crate::core::{Edge, Value, Vertex};
 use crate::storage::StorageClient;
 use dashmap::DashMap;
@@ -35,9 +35,9 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     ) -> CoreResult<BatchTask> {
         let batch_id = Uuid::new_v4().to_string();
         let task = BatchTask::new(batch_id.clone(), space_id, batch_type, batch_size);
-        
+
         self.tasks.insert(batch_id.clone(), task.clone());
-        
+
         Ok(task)
     }
 
@@ -48,14 +48,16 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
 
     /// 添加批量项
     pub fn add_items(&self, batch_id: &str, items: Vec<BatchItem>) -> CoreResult<usize> {
-        let mut task = self.tasks
+        let mut task = self
+            .tasks
             .get_mut(batch_id)
             .ok_or_else(|| CoreError::InvalidParameter(format!("批量任务不存在: {}", batch_id)))?;
 
         if task.status != BatchStatus::Created {
-            return Err(CoreError::InvalidParameter(
-                format!("批量任务状态不正确: {:?}", task.status)
-            ));
+            return Err(CoreError::InvalidParameter(format!(
+                "批量任务状态不正确: {:?}",
+                task.status
+            )));
         }
 
         let count = task.add_items(items);
@@ -63,30 +65,32 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     }
 
     /// 执行批量任务
-    pub async fn execute_task(&self, batch_id: &str, space_name: &str) -> CoreResult<BatchResultData> {
-        let task = self.tasks
+    pub async fn execute_task(
+        &self,
+        batch_id: &str,
+        space_name: &str,
+    ) -> CoreResult<BatchResultData> {
+        let task = self
+            .tasks
             .get(batch_id)
             .ok_or_else(|| CoreError::InvalidParameter(format!("批量任务不存在: {}", batch_id)))?;
 
         if task.status != BatchStatus::Created {
-            return Err(CoreError::InvalidParameter(
-                format!("批量任务状态不正确: {:?}", task.status)
-            ));
+            return Err(CoreError::InvalidParameter(format!(
+                "批量任务状态不正确: {:?}",
+                task.status
+            )));
         }
 
         // 更新状态为运行中
         {
-            let mut task = self.tasks
-                .get_mut(batch_id)
-                .expect("任务应该存在");
+            let mut task = self.tasks.get_mut(batch_id).expect("任务应该存在");
             task.update_status(BatchStatus::Running);
         }
 
         // 获取所有缓冲的项
         let items = {
-            let mut task = self.tasks
-                .get_mut(batch_id)
-                .expect("任务应该存在");
+            let mut task = self.tasks.get_mut(batch_id).expect("任务应该存在");
             task.take_buffered_items()
         };
 
@@ -95,10 +99,8 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
 
         // 更新任务状态和结果
         {
-            let mut task = self.tasks
-                .get_mut(batch_id)
-                .expect("任务应该存在");
-            
+            let mut task = self.tasks.get_mut(batch_id).expect("任务应该存在");
+
             match &result {
                 Ok(data) => {
                     let status = if data.errors.is_empty() {
@@ -129,7 +131,8 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
 
     /// 取消批量任务
     pub fn cancel_task(&self, batch_id: &str) -> CoreResult<()> {
-        let mut task = self.tasks
+        let mut task = self
+            .tasks
             .get_mut(batch_id)
             .ok_or_else(|| CoreError::InvalidParameter(format!("批量任务不存在: {}", batch_id)))?;
 
@@ -138,9 +141,10 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
                 task.update_status(BatchStatus::Cancelled);
                 Ok(())
             }
-            _ => Err(CoreError::InvalidParameter(
-                format!("无法取消状态为 {:?} 的任务", task.status)
-            )),
+            _ => Err(CoreError::InvalidParameter(format!(
+                "无法取消状态为 {:?} 的任务",
+                task.status
+            ))),
         }
     }
 
@@ -221,15 +225,19 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     /// 转换顶点数据
     fn convert_vertex_data(&self, data: VertexData) -> Option<Vertex> {
         let vid = json_to_value(data.vid)?;
-        
+
         // 构建标签列表
-        let tags: Vec<crate::core::vertex_edge_path::Tag> = data.tags
+        let tags: Vec<crate::core::vertex_edge_path::Tag> = data
+            .tags
             .into_iter()
-            .map(|name| crate::core::vertex_edge_path::Tag::new(name, std::collections::HashMap::new()))
+            .map(|name| {
+                crate::core::vertex_edge_path::Tag::new(name, std::collections::HashMap::new())
+            })
             .collect();
 
         // 转换属性
-        let properties: std::collections::HashMap<String, Value> = data.properties
+        let properties: std::collections::HashMap<String, Value> = data
+            .properties
             .into_iter()
             .filter_map(|(k, v)| json_to_value(v).map(|val| (k, val)))
             .collect();
@@ -241,9 +249,10 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     fn convert_edge_data(&self, data: EdgeData) -> Option<Edge> {
         let src_vid = json_to_value(data.src_vid)?;
         let dst_vid = json_to_value(data.dst_vid)?;
-        
+
         // 转换属性
-        let props: std::collections::HashMap<String, Value> = data.properties
+        let props: std::collections::HashMap<String, Value> = data
+            .properties
             .into_iter()
             .filter_map(|(k, v)| json_to_value(v).map(|val| (k, val)))
             .collect();
@@ -258,11 +267,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     }
 
     /// 插入顶点
-    async fn insert_vertices(
-        &self,
-        space_name: &str,
-        vertices: Vec<Vertex>,
-    ) -> CoreResult<usize> {
+    async fn insert_vertices(&self, space_name: &str, vertices: Vec<Vertex>) -> CoreResult<usize> {
         let count = vertices.len();
 
         let mut storage = self.storage.lock();
@@ -273,11 +278,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     }
 
     /// 插入边
-    async fn insert_edges(
-        &self,
-        space_name: &str,
-        edges: Vec<Edge>,
-    ) -> CoreResult<usize> {
+    async fn insert_edges(&self, space_name: &str, edges: Vec<Edge>) -> CoreResult<usize> {
         let count = edges.len();
 
         let mut storage = self.storage.lock();

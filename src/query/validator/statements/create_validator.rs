@@ -652,8 +652,7 @@ impl CreateValidator {
                 Ok(())
             }
             // CREATE TAG/EDGE: 需要空间，但当前验证器不支持
-            CreateTarget::Tag { .. }
-            | CreateTarget::EdgeType { .. } => Err(ValidationError::new(
+            CreateTarget::Tag { .. } | CreateTarget::EdgeType { .. } => Err(ValidationError::new(
                 "CreateValidator 不支持 CREATE TAG/EDGE，请使用 DDL 验证器".to_string(),
                 ValidationErrorType::SemanticError,
             )),

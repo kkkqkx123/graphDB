@@ -104,10 +104,8 @@ impl QueryFeedbackHistory {
     /// 获取最近N条反馈
     pub fn get_recent_feedbacks(&self, n: usize) -> Vec<QueryExecutionFeedback> {
         let feedbacks = self.feedbacks.read();
-        let mut all_feedbacks: Vec<_> = feedbacks
-            .values()
-            .flat_map(|v| v.iter().cloned())
-            .collect();
+        let mut all_feedbacks: Vec<_> =
+            feedbacks.values().flat_map(|v| v.iter().cloned()).collect();
 
         // 按时间戳排序（最新的在前）
         all_feedbacks.sort_by(|a, b| {

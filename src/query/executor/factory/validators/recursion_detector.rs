@@ -33,7 +33,11 @@ impl RecursionDetector {
     }
 
     /// 验证执行器是否会导致递归
-    pub fn validate_executor(&mut self, node_id: i64, node_name: &'static str) -> Result<(), DBError> {
+    pub fn validate_executor(
+        &mut self,
+        node_id: i64,
+        node_name: &'static str,
+    ) -> Result<(), DBError> {
         // 检查是否超过最大深度
         if self.visit_stack.len() >= self.max_depth {
             return Err(DBError::Internal(format!(

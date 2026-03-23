@@ -21,14 +21,12 @@
 //! - Project 节点的子节点是数据访问节点（ScanVertices、ScanEdges、GetVertices、GetEdges、GetNeighbors）
 //! - Project 节点有列定义
 
-use crate::core::types::ContextualExpression;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
-use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 投影下推规则
 ///

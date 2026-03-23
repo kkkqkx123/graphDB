@@ -174,7 +174,8 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         let result = query_api.execute(query, ctx)?;
 
         // 更新统计信息
-        self.statistics.record_changes(result.metadata.rows_returned);
+        self.statistics
+            .record_changes(result.metadata.rows_returned);
 
         Ok(QueryResult::from_core(result))
     }
@@ -212,7 +213,9 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// - 失败时返回错误
     pub fn begin_transaction(&self) -> CoreResult<Transaction<'_, S>> {
         let options = TransactionOptions::default();
-        let txn_id = self.db.txn_manager
+        let txn_id = self
+            .db
+            .txn_manager
             .begin_transaction(options)
             .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
         let txn_handle = crate::api::core::TransactionHandle(txn_id);
@@ -253,7 +256,9 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         config: TransactionConfig,
     ) -> CoreResult<Transaction<'_, S>> {
         let options = config.into_options();
-        let txn_id = self.db.txn_manager
+        let txn_id = self
+            .db
+            .txn_manager
             .begin_transaction(options)
             .map_err(|e| crate::api::core::CoreError::TransactionFailed(e.to_string()))?;
         let txn_handle = crate::api::core::TransactionHandle(txn_id);

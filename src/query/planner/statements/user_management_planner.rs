@@ -105,7 +105,12 @@ impl Planner for UserManagementPlanner {
     fn match_planner(&self, stmt: &Stmt) -> bool {
         matches!(
             stmt,
-            Stmt::CreateUser(_) | Stmt::AlterUser(_) | Stmt::DropUser(_) | Stmt::ChangePassword(_) | Stmt::Grant(_) | Stmt::Revoke(_)
+            Stmt::CreateUser(_)
+                | Stmt::AlterUser(_)
+                | Stmt::DropUser(_)
+                | Stmt::ChangePassword(_)
+                | Stmt::Grant(_)
+                | Stmt::Revoke(_)
         )
     }
 }

@@ -165,13 +165,15 @@ impl AutoFeedbackTrigger {
     pub fn should_trigger(&self, current_error: f64) -> bool {
         let count = self.feedback_count.load(Ordering::Relaxed) as usize;
         let last_update = self.last_update_time_ms.load(Ordering::Relaxed);
-        self.config.should_trigger_update(count, last_update, current_error)
+        self.config
+            .should_trigger_update(count, last_update, current_error)
     }
 
     /// 标记更新完成
     pub fn mark_updated(&self) {
         let current_time = Instant::now().elapsed().as_millis() as u64;
-        self.last_update_time_ms.store(current_time, Ordering::Relaxed);
+        self.last_update_time_ms
+            .store(current_time, Ordering::Relaxed);
         self.feedback_count.store(0, Ordering::Relaxed);
     }
 

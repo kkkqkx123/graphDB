@@ -5,8 +5,8 @@ pub mod index_validator;
 
 pub use admin_validator::{
     ClearSpaceValidator, DescTargetType, DescValidator, KillQueryValidator, ShowConfigsValidator,
-    ShowCreateValidator, ShowQueriesValidator, ShowSessionsValidator, ShowTargetType, ShowValidator,
-    ValidatedDesc, ValidatedShow,
+    ShowCreateValidator, ShowQueriesValidator, ShowSessionsValidator, ShowTargetType,
+    ShowValidator, ValidatedDesc, ValidatedShow,
 };
 pub use alter_validator::{AlterTargetType, AlterValidator, ValidatedAlter};
 pub use drop_validator::{DropTargetType, DropValidator, ValidatedDrop};

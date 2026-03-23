@@ -5,8 +5,8 @@
 
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;

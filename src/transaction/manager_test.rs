@@ -16,8 +16,7 @@ use crate::transaction::types::{
 fn create_test_manager() -> (TransactionManager, Arc<redb::Database>, TempDir) {
     let temp_dir = TempDir::new().expect("创建临时目录失败");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("创建测试数据库失败"),
+        redb::Database::create(temp_dir.path().join("test.db")).expect("创建测试数据库失败"),
     );
 
     let config = crate::transaction::types::TransactionManagerConfig {
@@ -44,15 +43,11 @@ fn test_begin_write_transaction() {
     let (manager, _db, _temp) = create_test_manager();
 
     let options = TransactionOptions::default();
-    let txn_id = manager
-        .begin_transaction(options)
-        .expect("开始事务失败");
+    let txn_id = manager.begin_transaction(options).expect("开始事务失败");
 
     assert!(manager.is_transaction_active(txn_id));
 
-    let context = manager
-        .get_context(txn_id)
-        .expect("获取事务上下文失败");
+    let context = manager.get_context(txn_id).expect("获取事务上下文失败");
     assert_eq!(context.id, txn_id);
     assert_eq!(context.state(), TransactionState::Active);
     assert!(!context.read_only);
@@ -69,9 +64,7 @@ fn test_begin_readonly_transaction() {
 
     assert!(manager.is_transaction_active(txn_id));
 
-    let context = manager
-        .get_context(txn_id)
-        .expect("获取事务上下文失败");
+    let context = manager.get_context(txn_id).expect("获取事务上下文失败");
     assert_eq!(context.id, txn_id);
     assert!(context.read_only);
 }
@@ -84,13 +77,9 @@ fn test_begin_transaction_with_timeout() {
         .with_timeout(Duration::from_secs(60))
         .with_durability(DurabilityLevel::None);
 
-    let txn_id = manager
-        .begin_transaction(options)
-        .expect("开始事务失败");
+    let txn_id = manager.begin_transaction(options).expect("开始事务失败");
 
-    let context = manager
-        .get_context(txn_id)
-        .expect("获取事务上下文失败");
+    let context = manager.get_context(txn_id).expect("获取事务上下文失败");
     assert!(context.remaining_time() > Duration::from_secs(50));
 }
 
@@ -104,16 +93,16 @@ fn test_commit_transaction() {
 
     assert!(manager.is_transaction_active(txn_id));
 
-    manager
-        .commit_transaction(txn_id)
-        .expect("提交事务失败");
+    manager.commit_transaction(txn_id).expect("提交事务失败");
 
     assert!(!manager.is_transaction_active(txn_id));
 
     // 验证统计信息
     let stats = manager.stats();
     assert_eq!(
-        stats.committed_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .committed_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         1
     );
 }
@@ -128,16 +117,16 @@ fn test_abort_transaction() {
 
     assert!(manager.is_transaction_active(txn_id));
 
-    manager
-        .abort_transaction(txn_id)
-        .expect("中止事务失败");
+    manager.abort_transaction(txn_id).expect("中止事务失败");
 
     assert!(!manager.is_transaction_active(txn_id));
 
     // 验证统计信息
     let stats = manager.stats();
     assert_eq!(
-        stats.aborted_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .aborted_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         1
     );
 }
@@ -199,9 +188,7 @@ fn test_commit_already_committed_transaction() {
         .begin_transaction(TransactionOptions::default())
         .expect("开始事务失败");
 
-    manager
-        .commit_transaction(txn_id)
-        .expect("第一次提交失败");
+    manager.commit_transaction(txn_id).expect("第一次提交失败");
 
     // 再次提交应该失败
     let result = manager.commit_transaction(txn_id);
@@ -219,9 +206,7 @@ fn test_abort_already_aborted_transaction() {
         .begin_transaction(TransactionOptions::default())
         .expect("开始事务失败");
 
-    manager
-        .abort_transaction(txn_id)
-        .expect("第一次中止失败");
+    manager.abort_transaction(txn_id).expect("第一次中止失败");
 
     // 再次中止应该失败
     let result = manager.abort_transaction(txn_id);
@@ -311,9 +296,7 @@ fn test_sequential_write_transactions() {
     let txn2 = manager
         .begin_transaction(TransactionOptions::default())
         .expect("开始第二个事务失败");
-    manager
-        .abort_transaction(txn2)
-        .expect("中止第二个事务失败");
+    manager.abort_transaction(txn2).expect("中止第二个事务失败");
 
     // 第三个事务
     let txn3 = manager
@@ -326,11 +309,15 @@ fn test_sequential_write_transactions() {
     // 验证统计信息
     let stats = manager.stats();
     assert_eq!(
-        stats.committed_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .committed_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         2
     );
     assert_eq!(
-        stats.aborted_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .aborted_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         1
     );
 }
@@ -339,27 +326,23 @@ fn test_sequential_write_transactions() {
 fn test_transaction_timeout() {
     let (manager, _db, _temp) = create_test_manager();
 
-    let options = TransactionOptions::new()
-        .with_timeout(Duration::from_millis(50));
+    let options = TransactionOptions::new().with_timeout(Duration::from_millis(50));
 
-    let txn_id = manager
-        .begin_transaction(options)
-        .expect("开始事务失败");
+    let txn_id = manager.begin_transaction(options).expect("开始事务失败");
 
     // 等待事务超时
     std::thread::sleep(Duration::from_millis(100));
 
     // 提交超时的事务应该失败
     let result = manager.commit_transaction(txn_id);
-    assert!(matches!(
-        result,
-        Err(TransactionError::TransactionTimeout)
-    ));
+    assert!(matches!(result, Err(TransactionError::TransactionTimeout)));
 
     // 验证统计信息
     let stats = manager.stats();
     assert_eq!(
-        stats.timeout_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .timeout_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         1
     );
 }
@@ -381,18 +364,14 @@ fn test_list_active_transactions() {
     assert_eq!(active_txns.len(), 2);
 
     // 提交一个事务
-    manager
-        .commit_transaction(txn1)
-        .expect("提交事务失败");
+    manager.commit_transaction(txn1).expect("提交事务失败");
 
     // 再次列出活跃事务
     let active_txns = manager.list_active_transactions();
     assert_eq!(active_txns.len(), 1);
 
     // 清理
-    manager
-        .commit_transaction(txn2)
-        .expect("提交事务失败");
+    manager.commit_transaction(txn2).expect("提交事务失败");
 }
 
 #[test]
@@ -411,9 +390,7 @@ fn test_get_transaction_info() {
     assert_eq!(info.state, TransactionState::Active);
     assert!(!info.is_read_only);
 
-    manager
-        .commit_transaction(txn_id)
-        .expect("提交事务失败");
+    manager.commit_transaction(txn_id).expect("提交事务失败");
 
     // 提交后事务信息应该不存在
     let info = manager.get_transaction_info(txn_id);
@@ -430,8 +407,7 @@ fn test_max_concurrent_transactions() {
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("创建测试数据库失败"),
+        redb::Database::create(temp_dir.path().join("test.db")).expect("创建测试数据库失败"),
     );
 
     let manager = TransactionManager::new(db, config);
@@ -448,10 +424,7 @@ fn test_max_concurrent_transactions() {
 
     // 尝试开始第三个事务应该失败（超过最大并发数）
     let result = manager.begin_transaction(TransactionOptions::new().read_only());
-    assert!(matches!(
-        result,
-        Err(TransactionError::TooManyTransactions)
-    ));
+    assert!(matches!(result, Err(TransactionError::TooManyTransactions)));
 
     // 清理
     manager
@@ -470,19 +443,27 @@ fn test_transaction_stats() {
 
     // 初始统计
     assert_eq!(
-        stats.total_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .total_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         0
     );
     assert_eq!(
-        stats.active_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .active_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         0
     );
     assert_eq!(
-        stats.committed_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .committed_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         0
     );
     assert_eq!(
-        stats.aborted_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .aborted_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         0
     );
 
@@ -492,25 +473,31 @@ fn test_transaction_stats() {
         .expect("开始事务失败");
 
     assert_eq!(
-        stats.total_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .total_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         1
     );
     assert_eq!(
-        stats.active_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .active_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         1
     );
 
     // 提交事务
-    manager
-        .commit_transaction(txn1)
-        .expect("提交事务失败");
+    manager.commit_transaction(txn1).expect("提交事务失败");
 
     assert_eq!(
-        stats.active_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .active_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         0
     );
     assert_eq!(
-        stats.committed_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .committed_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         1
     );
 
@@ -519,12 +506,12 @@ fn test_transaction_stats() {
         .begin_transaction(TransactionOptions::default())
         .expect("开始事务失败");
 
-    manager
-        .abort_transaction(txn2)
-        .expect("中止事务失败");
+    manager.abort_transaction(txn2).expect("中止事务失败");
 
     assert_eq!(
-        stats.aborted_transactions.load(std::sync::atomic::Ordering::Relaxed),
+        stats
+            .aborted_transactions
+            .load(std::sync::atomic::Ordering::Relaxed),
         1
     );
 }
@@ -533,8 +520,7 @@ fn test_transaction_stats() {
 fn test_cleanup_expired_transactions() {
     let temp_dir = TempDir::new().expect("创建临时目录失败");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db"))
-            .expect("创建测试数据库失败"),
+        redb::Database::create(temp_dir.path().join("test.db")).expect("创建测试数据库失败"),
     );
 
     let config = crate::transaction::types::TransactionManagerConfig {
@@ -546,10 +532,7 @@ fn test_cleanup_expired_transactions() {
 
     // 开始一个短超时的事务
     let txn1 = manager
-        .begin_transaction(
-            TransactionOptions::new()
-                .with_timeout(Duration::from_millis(50)),
-        )
+        .begin_transaction(TransactionOptions::new().with_timeout(Duration::from_millis(50)))
         .expect("开始事务失败");
 
     // 等待第一个事务超时
@@ -583,8 +566,5 @@ fn test_shutdown_manager() {
 
     // 关闭后不能开始新事务
     let result = manager.begin_transaction(TransactionOptions::default());
-    assert!(matches!(
-        result,
-        Err(TransactionError::Internal(_))
-    ));
+    assert!(matches!(result, Err(TransactionError::Internal(_))));
 }

@@ -23,7 +23,9 @@ impl Value {
             (String(a), String(b)) => Ok(String(format!("{}{}", a, b))),
             (String(a), FixedString { data: b, .. }) => Ok(String(format!("{}{}", a, b))),
             (FixedString { data: a, .. }, String(b)) => Ok(String(format!("{}{}", a, b))),
-            (FixedString { data: a, .. }, FixedString { data: b, .. }) => Ok(String(format!("{}{}", a, b))),
+            (FixedString { data: a, .. }, FixedString { data: b, .. }) => {
+                Ok(String(format!("{}{}", a, b)))
+            }
             _ => Err("无法对这些类型的值进行加法运算".to_string()),
         }
     }

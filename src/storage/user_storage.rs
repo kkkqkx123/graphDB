@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// 用户存储管理器
-/// 
+///
 /// 负责管理用户账户的创建、修改、删除以及角色授权
 #[derive(Clone)]
 pub struct UserStorage {

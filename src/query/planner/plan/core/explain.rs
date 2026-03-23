@@ -181,9 +181,9 @@ impl Default for PlanDescription {
 }
 
 use crate::query::planner::plan::core::nodes::access::IndexScanNode;
-use crate::query::planner::plan::core::nodes::traversal::{
-    AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
-};
+use crate::query::planner::plan::core::nodes::base::plan_node_enum::*;
+use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::core::nodes::management::edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
 };
@@ -192,9 +192,6 @@ use crate::query::planner::plan::core::nodes::management::index_nodes::{
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::*;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::core::nodes::management::space_nodes::{
     CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
 };
@@ -203,6 +200,9 @@ use crate::query::planner::plan::core::nodes::management::tag_nodes::{
 };
 use crate::query::planner::plan::core::nodes::management::user_nodes::{
     AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
+};
+use crate::query::planner::plan::core::nodes::traversal::{
+    AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
 use crate::query::planner::plan::core::nodes::{
     EdgeIndexScanNode, HashInnerJoinNode, HashLeftJoinNode, IntersectNode, MinusNode, SampleNode,

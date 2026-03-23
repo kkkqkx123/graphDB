@@ -96,7 +96,9 @@ impl HashTable {
 
     /// 探测哈希表
     pub fn probe(&self, key: &JoinKey) -> Vec<HashTableEntry> {
-        self.table.get(key).map_or_else(Vec::new, |entries| entries.clone())
+        self.table
+            .get(key)
+            .map_or_else(Vec::new, |entries| entries.clone())
     }
 
     /// 获取条目数量
@@ -260,11 +262,15 @@ mod tests {
     fn test_build_hash_table() {
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["id".to_string(), "name".to_string()];
-        dataset.rows.push(vec![Value::Int(1), Value::String("Alice".to_string())]);
-        dataset.rows.push(vec![Value::Int(2), Value::String("Bob".to_string())]);
+        dataset
+            .rows
+            .push(vec![Value::Int(1), Value::String("Alice".to_string())]);
+        dataset
+            .rows
+            .push(vec![Value::Int(2), Value::String("Bob".to_string())]);
 
-        let hash_table = HashTableBuilder::build_from_dataset(&dataset, &[0], 10)
-            .expect("build should succeed");
+        let hash_table =
+            HashTableBuilder::build_from_dataset(&dataset, &[0], 10).expect("build should succeed");
 
         assert_eq!(hash_table.len(), 2);
 
@@ -277,12 +283,15 @@ mod tests {
     fn test_build_hash_table_with_expr() {
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["id".to_string(), "name".to_string()];
-        dataset.rows.push(vec![Value::Int(1), Value::String("Alice".to_string())]);
-        dataset.rows.push(vec![Value::Int(2), Value::String("Bob".to_string())]);
+        dataset
+            .rows
+            .push(vec![Value::Int(1), Value::String("Alice".to_string())]);
+        dataset
+            .rows
+            .push(vec![Value::Int(2), Value::String("Bob".to_string())]);
 
         let id_expr = Expression::Variable("id".to_string());
-        let hash_table = build_hash_table(&dataset, &[id_expr])
-            .expect("build should succeed");
+        let hash_table = build_hash_table(&dataset, &[id_expr]).expect("build should succeed");
 
         assert_eq!(hash_table.len(), 2);
 

@@ -224,14 +224,54 @@ impl TypeUtils {
     pub fn get_cast_targets(from: &DataType) -> Vec<DataType> {
         match from {
             DataType::Int => vec![DataType::Int, DataType::Float, DataType::String],
-            DataType::Int8 => vec![DataType::Int8, DataType::Int, DataType::Float, DataType::String],
-            DataType::Int16 => vec![DataType::Int16, DataType::Int, DataType::Float, DataType::String],
-            DataType::Int32 => vec![DataType::Int32, DataType::Int, DataType::Float, DataType::String],
-            DataType::Int64 => vec![DataType::Int64, DataType::Int, DataType::Float, DataType::String],
-            DataType::UInt8 => vec![DataType::UInt8, DataType::Int, DataType::Float, DataType::String],
-            DataType::UInt16 => vec![DataType::UInt16, DataType::Int, DataType::Float, DataType::String],
-            DataType::UInt32 => vec![DataType::UInt32, DataType::Int, DataType::Float, DataType::String],
-            DataType::UInt64 => vec![DataType::UInt64, DataType::Int, DataType::Float, DataType::String],
+            DataType::Int8 => vec![
+                DataType::Int8,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
+            ],
+            DataType::Int16 => vec![
+                DataType::Int16,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
+            ],
+            DataType::Int32 => vec![
+                DataType::Int32,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
+            ],
+            DataType::Int64 => vec![
+                DataType::Int64,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
+            ],
+            DataType::UInt8 => vec![
+                DataType::UInt8,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
+            ],
+            DataType::UInt16 => vec![
+                DataType::UInt16,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
+            ],
+            DataType::UInt32 => vec![
+                DataType::UInt32,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
+            ],
+            DataType::UInt64 => vec![
+                DataType::UInt64,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
+            ],
             DataType::Float => vec![DataType::Float, DataType::Int, DataType::String],
             DataType::String => vec![
                 DataType::String,

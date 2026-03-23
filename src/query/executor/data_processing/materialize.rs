@@ -51,12 +51,7 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
         memory_limit: Option<usize>,
         expr_context: Arc<crate::query::validator::context::ExpressionAnalysisContext>,
     ) -> Self {
-        let base = BaseExecutor::new(
-            id,
-            "MaterializeExecutor".to_string(),
-            storage,
-            expr_context,
-        );
+        let base = BaseExecutor::new(id, "MaterializeExecutor".to_string(), storage, expr_context);
 
         Self {
             base,
@@ -101,29 +96,30 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
             return Ok(());
         }
 
-        let input = self.input_executor.as_mut()
-            .ok_or_else(|| crate::core::DBError::Query(
-                crate::core::QueryError::ExecutionError("物化执行器缺少输入".to_string())
-            ))?;
+        let input = self.input_executor.as_mut().ok_or_else(|| {
+            crate::core::DBError::Query(crate::core::QueryError::ExecutionError(
+                "物化执行器缺少输入".to_string(),
+            ))
+        })?;
 
         let result = input.execute()?;
-        
+
         // 估算内存使用量
         self.current_memory_usage = self.estimate_memory_usage(&result);
-        
+
         if self.current_memory_usage > self.memory_limit {
-            self.state = MaterializeState::Failed(
-                format!("物化数据大小({} bytes)超过内存限制({} bytes)",
-                    self.current_memory_usage, self.memory_limit)
-            );
+            self.state = MaterializeState::Failed(format!(
+                "物化数据大小({} bytes)超过内存限制({} bytes)",
+                self.current_memory_usage, self.memory_limit
+            ));
             return Err(crate::core::DBError::Query(
-                crate::core::QueryError::ExecutionError("物化数据超过内存限制".to_string())
+                crate::core::QueryError::ExecutionError("物化数据超过内存限制".to_string()),
             ));
         }
 
         self.materialized_data = Some(result);
         self.state = MaterializeState::Materialized;
-        
+
         Ok(())
     }
 
@@ -132,25 +128,13 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
         match result {
             ExecutionResult::Empty => 0,
             ExecutionResult::Values(values) => {
-                values.iter()
-                    .map(|v| std::mem::size_of_val(v))
-                    .sum()
+                values.iter().map(|v| std::mem::size_of_val(v)).sum()
             }
             ExecutionResult::Vertices(vertices) => {
-                vertices.iter()
-                    .map(|v| std::mem::size_of_val(v))
-                    .sum()
+                vertices.iter().map(|v| std::mem::size_of_val(v)).sum()
             }
-            ExecutionResult::Edges(edges) => {
-                edges.iter()
-                    .map(|e| std::mem::size_of_val(e))
-                    .sum()
-            }
-            ExecutionResult::Paths(paths) => {
-                paths.iter()
-                    .map(|p| std::mem::size_of_val(p))
-                    .sum()
-            }
+            ExecutionResult::Edges(edges) => edges.iter().map(|e| std::mem::size_of_val(e)).sum(),
+            ExecutionResult::Paths(paths) => paths.iter().map(|p| std::mem::size_of_val(p)).sum(),
             ExecutionResult::DataSet(_dataset) => {
                 // 估算数据集大小
                 1024 // 简化估算
@@ -168,10 +152,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for MaterializeExecutor<S> {
         }
 
         // 返回物化数据的克隆
-        self.materialized_data.clone()
-            .ok_or_else(|| crate::core::DBError::Query(
-                crate::core::QueryError::ExecutionError("物化数据不可用".to_string())
+        self.materialized_data.clone().ok_or_else(|| {
+            crate::core::DBError::Query(crate::core::QueryError::ExecutionError(
+                "物化数据不可用".to_string(),
             ))
+        })
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -193,7 +178,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for MaterializeExecutor<S> {
     }
 
     fn is_open(&self) -> bool {
-        self.input_executor.as_ref()
+        self.input_executor
+            .as_ref()
             .map(|input| input.is_open())
             .unwrap_or(false)
     }
@@ -225,8 +211,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for MaterializeExecutor
     }
 
     fn get_input(&self) -> Option<&ExecutorEnum<S>> {
-        self.input_executor.as_ref()
-            .map(|boxed| boxed.as_ref())
+        self.input_executor.as_ref().map(|boxed| boxed.as_ref())
     }
 }
 

@@ -154,7 +154,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             let execute_start = Instant::now();
             let result = self.execute_plan(query_context, cached_plan.plan.clone())?;
             let execution_time_ms = execute_start.elapsed().as_millis() as f64;
-            self.plan_cache.record_execution(query_text, execution_time_ms);
+            self.plan_cache
+                .record_execution(query_text, execution_time_ms);
             return Ok(result);
         }
 
@@ -162,10 +163,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let parser_result = self.parse_into_context(query_text)?;
 
         // 4. 验证查询（复用已创建的 QueryContext）
-        let validation_info = self.validate_query_with_context(
-            parser_result.ast.clone(),
-            query_context.clone(),
-        )?;
+        let validation_info =
+            self.validate_query_with_context(parser_result.ast.clone(), query_context.clone())?;
 
         // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
@@ -183,8 +182,10 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         // 8. 缓存查询计划
         let param_positions = self.param_handler.extract_params(query_text);
-        self.plan_cache.put(query_text, optimized_plan, param_positions);
-        self.plan_cache.record_execution(query_text, execution_time_ms);
+        self.plan_cache
+            .put(query_text, optimized_plan, param_positions);
+        self.plan_cache
+            .record_execution(query_text, execution_time_ms);
 
         Ok(result)
     }
@@ -212,10 +213,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let parser_result = self.parse_into_context(query_text)?;
 
         // 3. 验证查询（复用已创建的 QueryContext）
-        let validation_info = self.validate_query_with_context(
-            parser_result.ast.clone(),
-            query_context.clone(),
-        )?;
+        let validation_info =
+            self.validate_query_with_context(parser_result.ast.clone(), query_context.clone())?;
 
         // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
@@ -280,10 +279,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         let validate_start = Instant::now();
-        let validation_info = match self.validate_query_with_context(
-            parser_result.ast.clone(),
-            query_context.clone(),
-        ) {
+        let validation_info = match self
+            .validate_query_with_context(parser_result.ast.clone(), query_context.clone())
+        {
             Ok(info) => info,
             Err(e) => {
                 profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;

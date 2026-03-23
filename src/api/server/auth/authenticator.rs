@@ -217,17 +217,26 @@ mod tests {
         // 第一次失败 - 还剩1次
         let result1 = auth.authenticate("user", "wrong");
         assert!(result1.is_err());
-        assert!(result1.unwrap_err().to_string().contains("1 attempts remaining"));
+        assert!(result1
+            .unwrap_err()
+            .to_string()
+            .contains("1 attempts remaining"));
 
         // 第二次失败 - 达到最大尝试次数
         let result2 = auth.authenticate("user", "wrong");
         assert!(result2.is_err());
-        assert!(result2.unwrap_err().to_string().contains("Maximum attempts exceeded"));
+        assert!(result2
+            .unwrap_err()
+            .to_string()
+            .contains("Maximum attempts exceeded"));
 
         // 第三次失败 - 仍然显示达到最大尝试次数
         let result3 = auth.authenticate("user", "wrong");
         assert!(result3.is_err());
-        assert!(result3.unwrap_err().to_string().contains("Maximum attempts exceeded"));
+        assert!(result3
+            .unwrap_err()
+            .to_string()
+            .contains("Maximum attempts exceeded"));
     }
 
     #[test]

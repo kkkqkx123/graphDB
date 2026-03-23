@@ -16,9 +16,8 @@ use std::time::Duration;
 
 use graphdb::api::core::SpaceConfig;
 use graphdb::api::embedded::{
-    BatchConfig, BatchError, BatchItemType, BatchResult, DatabaseConfig,
-    GraphDatabase, QueryResult, ResultMetadata, Row, SyncMode,
-    TransactionConfig,
+    BatchConfig, BatchError, BatchItemType, BatchResult, DatabaseConfig, GraphDatabase,
+    QueryResult, ResultMetadata, Row, SyncMode, TransactionConfig,
 };
 use graphdb::core::{Edge, Value, Vertex};
 use graphdb::storage::redb_storage::RedbStorage;
@@ -201,7 +200,8 @@ fn test_session_execute() {
     let session = db.session().expect("创建会话失败");
 
     let space_config = SpaceConfig::default();
-    session.create_space("test_space", space_config)
+    session
+        .create_space("test_space", space_config)
         .expect("创建空间失败");
 
     let spaces = session.list_spaces().expect("列出空间失败");
@@ -215,7 +215,8 @@ fn test_session_execute_with_params() {
     let session = db.session().expect("创建会话失败");
 
     let space_config = SpaceConfig::default();
-    session.create_space("test_space", space_config)
+    session
+        .create_space("test_space", space_config)
         .expect("创建空间失败");
 
     let spaces = session.list_spaces().expect("列出空间失败");
@@ -271,7 +272,10 @@ fn test_transaction_config_default() {
     let config = TransactionConfig::default();
     assert!(!config.read_only);
     assert!(config.timeout.is_none());
-    assert_eq!(config.durability, graphdb::transaction::DurabilityLevel::Immediate);
+    assert_eq!(
+        config.durability,
+        graphdb::transaction::DurabilityLevel::Immediate
+    );
     assert!(!config.two_phase_commit);
 }
 
@@ -285,7 +289,10 @@ fn test_transaction_config_builder() {
 
     assert!(config.read_only);
     assert_eq!(config.timeout, Some(Duration::from_secs(60)));
-    assert_eq!(config.durability, graphdb::transaction::DurabilityLevel::None);
+    assert_eq!(
+        config.durability,
+        graphdb::transaction::DurabilityLevel::None
+    );
     assert!(config.two_phase_commit);
 }
 
@@ -345,7 +352,8 @@ fn test_transaction_execute() {
     let txn = session.begin_transaction().expect("开始事务失败");
 
     let space_config = SpaceConfig::default();
-    session.create_space("test_space", space_config)
+    session
+        .create_space("test_space", space_config)
         .expect("创建空间失败");
 
     let spaces = session.list_spaces().expect("列出空间失败");
@@ -397,9 +405,7 @@ fn test_session_with_transaction() {
     let session = db.session().expect("创建会话失败");
 
     let result = session
-        .with_transaction(|_txn| {
-            Ok::<_, graphdb::api::core::CoreError>(42)
-        })
+        .with_transaction(|_txn| Ok::<_, graphdb::api::core::CoreError>(42))
         .expect("事务执行失败");
 
     assert_eq!(result, 42);
@@ -412,7 +418,9 @@ fn test_session_with_transaction_rollback_on_error() {
     let session = db.session().expect("创建会话失败");
 
     let result = session.with_transaction(|_txn| {
-        Err::<i32, _>(graphdb::api::core::CoreError::Internal("测试错误".to_string()))
+        Err::<i32, _>(graphdb::api::core::CoreError::Internal(
+            "测试错误".to_string(),
+        ))
     });
 
     assert!(result.is_err());
@@ -489,8 +497,7 @@ fn test_prepared_statement_reset() {
         .prepare("MATCH (n:User {id: $user_id}) RETURN n")
         .expect("预编译语句失败");
 
-    stmt.bind("user_id", Value::Int(1))
-        .expect("绑定参数失败");
+    stmt.bind("user_id", Value::Int(1)).expect("绑定参数失败");
     assert!(stmt.is_bound("user_id"), "参数应该已绑定");
 
     stmt.reset();
@@ -510,8 +517,7 @@ fn test_prepared_statement_stats() {
     let stats = stmt.stats();
     assert_eq!(stats.execution_count, 0);
 
-    stmt.bind("user_id", Value::Int(1))
-        .expect("绑定参数失败");
+    stmt.bind("user_id", Value::Int(1)).expect("绑定参数失败");
     let _ = stmt.execute();
 
     let stats = stmt.stats();
@@ -525,7 +531,9 @@ fn test_prepared_statement_parameters() {
     let session = db.session().expect("创建会话失败");
 
     let stmt = session
-        .prepare("MATCH (n:User {id: $user_id}) WHERE n.age > $min_age AND n.age < $max_age RETURN n")
+        .prepare(
+            "MATCH (n:User {id: $user_id}) WHERE n.age > $min_age AND n.age < $max_age RETURN n",
+        )
         .expect("预编译语句失败");
 
     let params = stmt.parameters();

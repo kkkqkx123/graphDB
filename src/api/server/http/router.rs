@@ -18,23 +18,16 @@ use super::{
     handlers::{
         auth::{login, logout},
         batch::{
-            add_items,
-            cancel as cancel_batch,
-            create as create_batch,
-            delete as delete_batch,
-            execute as execute_batch,
-            status as batch_status,
+            add_items, cancel as cancel_batch, create as create_batch, delete as delete_batch,
+            execute as execute_batch, status as batch_status,
         },
         config::{get as get_config, get_key, reset_key, update as update_config, update_key},
         function::{info as function_info, list, register, unregister},
         health, query, schema,
         session::{create as create_session, delete_session, get_session},
         statement::{
-            batch_execute,
-            create as create_statement,
-            drop as drop_statement,
-            execute as execute_statement,
-            info as statement_info,
+            batch_execute, create as create_statement, drop as drop_statement,
+            execute as execute_statement, info as statement_info,
         },
         statistics::{database, queries, session, system},
         stream::execute_stream,
@@ -79,7 +72,10 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
         .route("/batch/:id/cancel", post(cancel_batch))
         // 预编译语句路由
         .route("/statements", post(create_statement))
-        .route("/statements/:id", get(statement_info).delete(drop_statement))
+        .route(
+            "/statements/:id",
+            get(statement_info).delete(drop_statement),
+        )
         .route("/statements/:id/execute", post(execute_statement))
         .route("/statements/:id/batch", post(batch_execute))
         // 统计信息路由
@@ -89,7 +85,10 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
         .route("/statistics/system", get(system))
         // 配置管理路由
         .route("/config", get(get_config).put(update_config))
-        .route("/config/:section/:key", get(get_key).put(update_key).delete(reset_key))
+        .route(
+            "/config/:section/:key",
+            get(get_key).put(update_key).delete(reset_key),
+        )
         // 自定义函数路由
         .route("/functions", post(register).get(list))
         .route("/functions/:name", get(function_info).delete(unregister))

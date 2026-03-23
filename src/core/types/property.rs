@@ -1,9 +1,9 @@
 //! 属性定义基础类型
 
+use super::property_trait::PropertyTypeTrait;
 use crate::core::{DataType, Value};
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use super::property_trait::PropertyTypeTrait;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct PropertyDef {

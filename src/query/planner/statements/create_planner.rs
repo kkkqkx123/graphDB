@@ -10,8 +10,8 @@ use crate::query::parser::ast::{CreateStmt, CreateTarget, Stmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
-        EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, PassThroughNode, TagInsertSpec,
-        VertexInsertInfo, ArgumentNode, ProjectNode,
+        ArgumentNode, EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, PassThroughNode,
+        ProjectNode, TagInsertSpec, VertexInsertInfo,
     },
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};

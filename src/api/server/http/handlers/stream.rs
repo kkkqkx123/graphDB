@@ -44,7 +44,10 @@ struct StreamMetadata {
 pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<StreamQueryRequest>,
-) -> Result<Sse<impl tokio_stream::Stream<Item = Result<Event, HttpError>> + Send + 'static>, HttpError> {
+) -> Result<
+    Sse<impl tokio_stream::Stream<Item = Result<Event, HttpError>> + Send + 'static>,
+    HttpError,
+> {
     let batch_size = request.batch_size.max(1).min(1000);
     let server = state.server.clone();
 
@@ -58,10 +61,10 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
         // 执行查询
         let exec_result = match tokio::task::spawn_blocking({
             let graph_service = graph_service.clone();
-            move || {
-                graph_service.execute(request.session_id, &request.query)
-            }
-        }).await {
+            move || graph_service.execute(request.session_id, &request.query)
+        })
+        .await
+        {
             Ok(Ok(result)) => result,
             Ok(Err(e)) => {
                 let error_msg = json!({
@@ -69,9 +72,11 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
                     "message": e,
                     "code": "QUERY_ERROR"
                 });
-                let _ = tx.send(Ok(Event::default()
-                    .event("error")
-                    .data(error_msg.to_string()))).await;
+                let _ = tx
+                    .send(Ok(Event::default()
+                        .event("error")
+                        .data(error_msg.to_string())))
+                    .await;
                 let _ = tx.send(Ok(Event::default().event("done").data("{}"))).await;
                 return;
             }
@@ -81,9 +86,11 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
                     "message": format!("Task execution failed: {}", e),
                     "code": "INTERNAL_ERROR"
                 });
-                let _ = tx.send(Ok(Event::default()
-                    .event("error")
-                    .data(error_msg.to_string()))).await;
+                let _ = tx
+                    .send(Ok(Event::default()
+                        .event("error")
+                        .data(error_msg.to_string())))
+                    .await;
                 let _ = tx.send(Ok(Event::default().event("done").data("{}"))).await;
                 return;
             }
@@ -95,10 +102,7 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
 
         // 分批发送数据
         for (index, row) in rows.into_iter().enumerate() {
-            let item = StreamDataItem {
-                row,
-                index,
-            };
+            let item = StreamDataItem { row, index };
 
             if let Ok(data) = serde_json::to_string(&item) {
                 if tx.send(Ok(Event::default().data(data))).await.is_err() {
@@ -121,9 +125,9 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
         };
 
         if let Ok(meta_str) = serde_json::to_string(&metadata) {
-            let _ = tx.send(Ok(Event::default()
-                .event("metadata")
-                .data(meta_str))).await;
+            let _ = tx
+                .send(Ok(Event::default().event("metadata").data(meta_str)))
+                .await;
         }
 
         // 发送完成事件
@@ -150,17 +154,13 @@ fn execution_result_to_stream_data(
             (rows, vec!["value".to_string()])
         }
         ExecutionResult::Vertices(vertices) => {
-            let rows: Vec<serde_json::Value> = vertices
-                .into_iter()
-                .map(|v| json!({"vertex": v}))
-                .collect();
+            let rows: Vec<serde_json::Value> =
+                vertices.into_iter().map(|v| json!({"vertex": v})).collect();
             (rows, vec!["vertex".to_string()])
         }
         ExecutionResult::Edges(edges) => {
-            let rows: Vec<serde_json::Value> = edges
-                .into_iter()
-                .map(|e| json!({"edge": e}))
-                .collect();
+            let rows: Vec<serde_json::Value> =
+                edges.into_iter().map(|e| json!({"edge": e})).collect();
             (rows, vec!["edge".to_string()])
         }
         ExecutionResult::DataSet(dataset) => {
@@ -183,24 +183,17 @@ fn execution_result_to_stream_data(
             (rows, columns)
         }
         ExecutionResult::Paths(paths) => {
-            let rows: Vec<serde_json::Value> = paths
-                .into_iter()
-                .map(|p| json!({"path": p}))
-                .collect();
+            let rows: Vec<serde_json::Value> =
+                paths.into_iter().map(|p| json!({"path": p})).collect();
             (rows, vec!["path".to_string()])
         }
-        ExecutionResult::Count(count) => {
-            (vec![json!({"count": count})], vec!["count".to_string()])
-        }
-        ExecutionResult::Result(core_result) => {
-            (vec![json!({"result": core_result.row_count()})], vec!["result".to_string()])
-        }
-        ExecutionResult::Empty | ExecutionResult::Success => {
-            (vec![], vec![])
-        }
-        ExecutionResult::Error(msg) => {
-            (vec![json!({"error": msg})], vec!["error".to_string()])
-        }
+        ExecutionResult::Count(count) => (vec![json!({"count": count})], vec!["count".to_string()]),
+        ExecutionResult::Result(core_result) => (
+            vec![json!({"result": core_result.row_count()})],
+            vec!["result".to_string()],
+        ),
+        ExecutionResult::Empty | ExecutionResult::Success => (vec![], vec![]),
+        ExecutionResult::Error(msg) => (vec![json!({"error": msg})], vec!["error".to_string()]),
     }
 }
 

@@ -2,6 +2,9 @@
 //!
 //! 提供用于减少样板代码的宏，用于定义函数枚举和执行函数
 
+use crate::core::value::NullType;
+use crate::core::Value;
+
 /// 定义内置函数枚举的宏
 ///
 /// 自动生成 name(), arity(), is_variadic(), description(), execute() 方法
@@ -61,8 +64,8 @@ macro_rules! define_function_enum {
             }
 
             /// 执行函数
-            $vis fn execute(&self, args: &[crate::core::Value]) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
-                let handler: fn(&[crate::core::Value]) -> Result<crate::core::Value, crate::core::error::ExpressionError> = match self {
+            $vis fn execute(&self, args: &[$crate::core::Value]) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
+                let handler: fn(&[$crate::core::Value]) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> = match self {
                     $(Self::$variant => $handler,)*
                 };
                 handler(args)
@@ -76,14 +79,11 @@ macro_rules! define_function_enum {
 macro_rules! define_unary_float_fn {
     ($name:ident, $op:expr, $desc:literal) => {
         fn $name(
-            args: &[crate::core::Value],
-        ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
-            use crate::core::value::NullType;
-            use crate::core::Value;
-
+            args: &[$crate::core::Value],
+        ) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
             if args.is_empty() {
-                return Err(crate::core::error::ExpressionError::new(
-                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                return Err($crate::core::error::ExpressionError::new(
+                    $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
                     concat!($desc, "函数需要1个参数"),
                 ));
             }
@@ -93,7 +93,7 @@ macro_rules! define_unary_float_fn {
                 Value::Int(i) => Ok(Value::Float(op(*i as f64))),
                 Value::Float(f) => Ok(Value::Float(op(*f))),
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(crate::core::error::ExpressionError::type_error(concat!(
+                _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
                     "函数需要数值类型"
                 ))),
@@ -107,14 +107,11 @@ macro_rules! define_unary_float_fn {
 macro_rules! define_unary_numeric_fn {
     ($name:ident, int: $int_op:expr, float: $float_op:expr, $desc:literal) => {
         fn $name(
-            args: &[crate::core::Value],
-        ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
-            use crate::core::value::NullType;
-            use crate::core::Value;
-
+            args: &[$crate::core::Value],
+        ) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
             if args.is_empty() {
-                return Err(crate::core::error::ExpressionError::new(
-                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                return Err($crate::core::error::ExpressionError::new(
+                    $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
                     concat!($desc, "函数需要1个参数"),
                 ));
             }
@@ -123,7 +120,7 @@ macro_rules! define_unary_numeric_fn {
                 Value::Int(i) => $int_op(*i),
                 Value::Float(f) => $float_op(*f),
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(crate::core::error::ExpressionError::type_error(concat!(
+                _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
                     "函数需要数值类型"
                 ))),
@@ -137,14 +134,11 @@ macro_rules! define_unary_numeric_fn {
 macro_rules! define_unary_string_fn {
     ($name:ident, $op:expr, $desc:literal) => {
         fn $name(
-            args: &[crate::core::Value],
-        ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
-            use crate::core::value::NullType;
-            use crate::core::Value;
-
+            args: &[$crate::core::Value],
+        ) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
             if args.is_empty() {
-                return Err(crate::core::error::ExpressionError::new(
-                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                return Err($crate::core::error::ExpressionError::new(
+                    $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
                     concat!($desc, "函数需要1个参数"),
                 ));
             }
@@ -153,7 +147,7 @@ macro_rules! define_unary_string_fn {
             match &args[0] {
                 Value::String(s) => Ok(Value::String(op(s))),
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(crate::core::error::ExpressionError::type_error(concat!(
+                _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
                     "函数需要字符串类型"
                 ))),
@@ -167,14 +161,11 @@ macro_rules! define_unary_string_fn {
 macro_rules! define_datetime_extractor {
     ($name:ident, Date => $date_field:ident, DateTime => $datetime_field:ident) => {
         fn $name(
-            args: &[crate::core::Value],
-        ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
-            use crate::core::value::NullType;
-            use crate::core::Value;
-
+            args: &[$crate::core::Value],
+        ) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
             if args.is_empty() {
-                return Err(crate::core::error::ExpressionError::new(
-                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                return Err($crate::core::error::ExpressionError::new(
+                    $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
                     concat!(stringify!($name), "函数需要1个参数"),
                 ));
             }
@@ -183,7 +174,7 @@ macro_rules! define_datetime_extractor {
                 Value::Date(d) => Ok(Value::Int(d.$date_field as i64)),
                 Value::DateTime(dt) => Ok(Value::Int(dt.$datetime_field as i64)),
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(crate::core::error::ExpressionError::type_error(concat!(
+                _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     stringify!($name),
                     "函数需要日期或日期时间类型"
                 ))),
@@ -192,14 +183,11 @@ macro_rules! define_datetime_extractor {
     };
     ($name:ident, Time => $time_field:ident, DateTime => $datetime_field:ident) => {
         fn $name(
-            args: &[crate::core::Value],
-        ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
-            use crate::core::value::NullType;
-            use crate::core::Value;
-
+            args: &[$crate::core::Value],
+        ) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
             if args.is_empty() {
-                return Err(crate::core::error::ExpressionError::new(
-                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                return Err($crate::core::error::ExpressionError::new(
+                    $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
                     concat!(stringify!($name), "函数需要1个参数"),
                 ));
             }
@@ -208,7 +196,7 @@ macro_rules! define_datetime_extractor {
                 Value::Time(t) => Ok(Value::Int(t.$time_field as i64)),
                 Value::DateTime(dt) => Ok(Value::Int(dt.$datetime_field as i64)),
                 Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(crate::core::error::ExpressionError::type_error(concat!(
+                _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     stringify!($name),
                     "函数需要时间或日期时间类型"
                 ))),
@@ -222,10 +210,10 @@ macro_rules! define_datetime_extractor {
 macro_rules! define_arg_checked_fn {
     ($name:ident, $arity:expr, $handler:expr, $type_desc:literal) => {
         fn $name(
-            args: &[crate::core::Value],
-        ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
+            args: &[$crate::core::Value],
+        ) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
             if args.len() != $arity {
-                return Err(crate::core::error::ExpressionError::type_error(concat!(
+                return Err($crate::core::error::ExpressionError::type_error(concat!(
                     stringify!($name),
                     "函数需要",
                     stringify!($arity),
@@ -242,14 +230,11 @@ macro_rules! define_arg_checked_fn {
 macro_rules! define_binary_numeric_fn {
     ($name:ident, $op:expr, $desc:literal) => {
         fn $name(
-            args: &[crate::core::Value],
-        ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
-            use crate::core::value::NullType;
-            use crate::core::Value;
-
+            args: &[$crate::core::Value],
+        ) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
             if args.len() != 2 {
-                return Err(crate::core::error::ExpressionError::new(
-                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                return Err($crate::core::error::ExpressionError::new(
+                    $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
                     concat!($desc, "函数需要2个参数"),
                 ));
             }
@@ -261,7 +246,7 @@ macro_rules! define_binary_numeric_fn {
                 (Value::Float(a), Value::Int(b)) => op(*a, *b as f64),
                 (Value::Float(a), Value::Float(b)) => op(*a, *b),
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(crate::core::error::ExpressionError::type_error(concat!(
+                _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
                     "函数需要数值类型"
                 ))),
@@ -275,14 +260,11 @@ macro_rules! define_binary_numeric_fn {
 macro_rules! define_binary_string_bool_fn {
     ($name:ident, $op:expr, $desc:literal) => {
         fn $name(
-            args: &[crate::core::Value],
-        ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
-            use crate::core::value::NullType;
-            use crate::core::Value;
-
+            args: &[$crate::core::Value],
+        ) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
             if args.len() != 2 {
-                return Err(crate::core::error::ExpressionError::new(
-                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                return Err($crate::core::error::ExpressionError::new(
+                    $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
                     concat!($desc, "函数需要2个参数"),
                 ));
             }
@@ -291,7 +273,7 @@ macro_rules! define_binary_string_bool_fn {
             match (&args[0], &args[1]) {
                 (Value::String(a), Value::String(b)) => Ok(Value::Bool(op(a, b))),
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(crate::core::error::ExpressionError::type_error(concat!(
+                _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
                     "函数需要字符串类型"
                 ))),
@@ -305,14 +287,11 @@ macro_rules! define_binary_string_bool_fn {
 macro_rules! define_binary_geography_fn {
     ($name:ident, $op:expr, $desc:literal) => {
         fn $name(
-            args: &[crate::core::Value],
-        ) -> Result<crate::core::Value, crate::core::error::ExpressionError> {
-            use crate::core::value::NullType;
-            use crate::core::Value;
-
+            args: &[$crate::core::Value],
+        ) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
             if args.len() != 2 {
-                return Err(crate::core::error::ExpressionError::new(
-                    crate::core::error::ExpressionErrorType::InvalidArgumentCount,
+                return Err($crate::core::error::ExpressionError::new(
+                    $crate::core::error::ExpressionErrorType::InvalidArgumentCount,
                     concat!($desc, "函数需要2个参数"),
                 ));
             }
@@ -321,7 +300,7 @@ macro_rules! define_binary_geography_fn {
             match (&args[0], &args[1]) {
                 (Value::Geography(geo1), Value::Geography(geo2)) => op(geo1, geo2),
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(crate::core::error::ExpressionError::type_error(concat!(
+                _ => Err($crate::core::error::ExpressionError::type_error(concat!(
                     $desc,
                     "函数需要地理类型参数"
                 ))),

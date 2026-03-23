@@ -2,10 +2,10 @@
 //!
 //! 提供边索引的更新、删除和查询功能
 
-use crate::core::{StorageError, Value};
 use crate::core::types::Index;
-use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
+use crate::core::{StorageError, Value};
 use crate::storage::index::index_key_codec::IndexKeyCodec;
+use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
@@ -41,8 +41,9 @@ impl EdgeIndexManager {
                 .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
 
             for (prop_name, prop_value) in props {
-                let index_key =
-                    IndexKeyCodec::build_edge_index_key(space_id, index_name, prop_value, src, dst)?;
+                let index_key = IndexKeyCodec::build_edge_index_key(
+                    space_id, index_name, prop_value, src, dst,
+                )?;
 
                 table
                     .insert(index_key, ByteKey(prop_name.as_bytes().to_vec()))
@@ -108,34 +109,64 @@ impl EdgeIndexManager {
                                 if value_parts.len() >= 2 {
                                     let _prop_name = value_parts[0];
                                     if let Ok(prop_value_len) = value_parts[1].parse::<usize>() {
-                                        let forward_key_start = IndexKeyCodec::build_edge_index_prefix(space_id, &index_name);
-                                        let forward_key_end = IndexKeyCodec::build_range_end(&forward_key_start);
+                                        let forward_key_start =
+                                            IndexKeyCodec::build_edge_index_prefix(
+                                                space_id,
+                                                &index_name,
+                                            );
+                                        let forward_key_end =
+                                            IndexKeyCodec::build_range_end(&forward_key_start);
 
                                         for fwd_entry in table
                                             .range::<ByteKey>(&forward_key_start..&forward_key_end)
-                                            .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?
+                                            .map_err(|e| {
+                                                StorageError::DbError(format!(
+                                                    "范围查询失败: {}",
+                                                    e
+                                                ))
+                                            })?
                                         {
                                             if let Ok((fwd_key, _)) = fwd_entry {
-                                                let fwd_key_bytes: Vec<u8> = fwd_key.value().0.clone();
-                                                if fwd_key_bytes.len() >= forward_key_start.0.len() + 4 + prop_value_len + 4 {
-                                                    let src_start = forward_key_start.0.len() + 4 + prop_value_len + 4;
+                                                let fwd_key_bytes: Vec<u8> =
+                                                    fwd_key.value().0.clone();
+                                                if fwd_key_bytes.len()
+                                                    >= forward_key_start.0.len()
+                                                        + 4
+                                                        + prop_value_len
+                                                        + 4
+                                                {
+                                                    let src_start = forward_key_start.0.len()
+                                                        + 4
+                                                        + prop_value_len
+                                                        + 4;
                                                     if fwd_key_bytes.len() >= src_start + 4 {
                                                         let src_len = u32::from_le_bytes(
                                                             fwd_key_bytes[src_start - 4..src_start]
                                                                 .try_into()
-                                                                .unwrap_or([0; 4])
-                                                        ) as usize;
-                                                        if fwd_key_bytes.len() >= src_start + src_len + 4 {
+                                                                .unwrap_or([0; 4]),
+                                                        )
+                                                            as usize;
+                                                        if fwd_key_bytes.len()
+                                                            >= src_start + src_len + 4
+                                                        {
                                                             let dst_len_start = src_start + src_len;
                                                             let dst_len = u32::from_le_bytes(
-                                                                fwd_key_bytes[dst_len_start..dst_len_start + 4]
+                                                                fwd_key_bytes[dst_len_start
+                                                                    ..dst_len_start + 4]
                                                                     .try_into()
-                                                                    .unwrap_or([0; 4])
-                                                            ) as usize;
+                                                                    .unwrap_or([0; 4]),
+                                                            )
+                                                                as usize;
                                                             let dst_start = dst_len_start + 4;
-                                                            if fwd_key_bytes.len() >= dst_start + dst_len {
-                                                                let stored_src = &fwd_key_bytes[src_start..src_start + src_len];
-                                                                let stored_dst = &fwd_key_bytes[dst_start..dst_start + dst_len];
+                                                            if fwd_key_bytes.len()
+                                                                >= dst_start + dst_len
+                                                            {
+                                                                let stored_src = &fwd_key_bytes
+                                                                    [src_start
+                                                                        ..src_start + src_len];
+                                                                let stored_dst = &fwd_key_bytes
+                                                                    [dst_start
+                                                                        ..dst_start + dst_len];
                                                                 if stored_src == src_bytes && stored_dst == IndexKeyCodec::serialize_value(dst)? {
                                                                     forward_keys_to_delete.push(ByteKey(fwd_key_bytes));
                                                                 }
@@ -211,7 +242,8 @@ impl EdgeIndexManager {
 
                     if prop_value_len == value_bytes.len() {
                         let prop_value_start = prop_len_start + 4;
-                        let stored_prop_value = &key_bytes[prop_value_start..prop_value_start + prop_value_len];
+                        let stored_prop_value =
+                            &key_bytes[prop_value_start..prop_value_start + prop_value_len];
 
                         if stored_prop_value == value_bytes.as_slice() {
                             let src_len_start = prop_value_start + prop_value_len;
@@ -282,8 +314,8 @@ impl EdgeIndexManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
     use crate::core::types::{Index, IndexField, IndexType};
+    use crate::core::Value;
     use tempfile::TempDir;
 
     fn create_test_db() -> (Arc<Database>, TempDir) {
