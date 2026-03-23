@@ -372,6 +372,7 @@ mod tests {
     #[test]
     fn test_validate_return_item_expression() {
         use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
+        use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
         use std::sync::Arc;
 
         let mut validator = ReturnValidator::new();

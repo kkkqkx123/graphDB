@@ -351,6 +351,7 @@ mod tests {
         DedupNode, FilterNode, GetVerticesNode, LimitNode, ProjectNode, ScanVerticesNode, StartNode,
     };
     use std::sync::Arc;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 
     fn create_yield_column(expr: Expression, alias: &str) -> YieldColumn {
         let ctx = Arc::new(ExpressionAnalysisContext::new());

@@ -398,6 +398,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for FilterExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use crate::storage::test_mock::MockStorage;
 
     #[test]

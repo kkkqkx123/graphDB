@@ -515,6 +515,7 @@ mod tests {
     use crate::query::parser::ast::stmt::{Ast, LookupStmt, LookupTarget, YieldClause};
     use crate::query::parser::ast::Span;
     use crate::query::query_request_context::QueryRequestContext;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     /// 创建测试用的 QueryContext，带有有效的 space_id

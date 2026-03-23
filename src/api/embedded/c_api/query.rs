@@ -219,6 +219,7 @@ mod tests {
     use crate::api::embedded::c_api::session::{graphdb_session_close, graphdb_session_create};
     use crate::api::embedded::c_api::types::graphdb_t;
     use std::sync::atomic::{AtomicU64, Ordering};
+    use std::ffi::CString;
 
     static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 

@@ -75,7 +75,7 @@ impl crate::query::executor::expression::evaluator::traits::ExpressionContext
     fn get_function(
         &self,
         name: &str,
-    ) -> Option<crate::query::executor::expression::functions::FunctionRef> {
+    ) -> Option<crate::query::executor::expression::functions::OwnedFunctionRef> {
         let _ = name;
         None
     }

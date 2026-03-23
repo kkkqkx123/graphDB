@@ -599,6 +599,7 @@ impl StatementValidator for OrderByValidator {
 mod tests {
     use super::*;
     use crate::core::Value;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 
     #[test]
     fn test_order_by_validator_new() {

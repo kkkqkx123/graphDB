@@ -191,7 +191,7 @@ impl PushDownRule for ProjectionPushDownRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Expression, YieldColumn};
+    use crate::core::YieldColumn;
     use crate::query::planner::plan::core::nodes::{ProjectNode, ScanVerticesNode, StartNode};
 
     #[test]
@@ -218,9 +218,11 @@ mod tests {
 
     #[test]
     fn test_apply_with_pushable_target() {
+        use crate::core::types::expression::contextual::ContextualExpression;
+        use crate::core::types::expression::Expression;
         use crate::core::types::expression::ExpressionMeta;
+        use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
         use std::sync::Arc;
-        use ExpressionAnalysisContext;
 
         let rule = ProjectionPushDownRule::new();
         let mut ctx = RewriteContext::new();
@@ -277,9 +279,11 @@ mod tests {
 
     #[test]
     fn test_apply_with_non_pushable_target() {
+        use crate::core::types::expression::contextual::ContextualExpression;
+        use crate::core::types::expression::Expression;
         use crate::core::types::expression::ExpressionMeta;
+        use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
         use std::sync::Arc;
-        use ExpressionAnalysisContext;
 
         let rule = ProjectionPushDownRule::new();
         let mut ctx = RewriteContext::new();
@@ -314,9 +318,11 @@ mod tests {
 
     #[test]
     fn test_push_down_rule_trait() {
+        use crate::core::types::expression::contextual::ContextualExpression;
+        use crate::core::types::expression::Expression;
         use crate::core::types::expression::ExpressionMeta;
+        use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
         use std::sync::Arc;
-        use ExpressionAnalysisContext;
 
         let rule = ProjectionPushDownRule::new();
 

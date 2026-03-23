@@ -458,6 +458,8 @@ impl MaterializationOptimizer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::Expression;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 
     #[test]
     fn test_optimizer_creation() {

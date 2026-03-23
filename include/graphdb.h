@@ -160,36 +160,11 @@ typedef struct graphdb_session_t {
 } graphdb_session_t;
 
 /**
- * 数据库句柄（不透明指针）
+ * 批量操作句柄（不透明指针）
  */
-typedef struct graphdb_t {
+typedef struct graphdb_batch_t {
 
-} graphdb_t;
-
-/**
- * SQL 追踪回调类型
- */
-typedef void (*graphdb_trace_callback)(const char *sql, void *user_data);
-
-/**
- * 钩子回调类型
- */
-typedef int (*graphdb_commit_hook_callback)(void *user_data);
-
-typedef void (*graphdb_rollback_hook_callback)(void *user_data);
-
-typedef void (*graphdb_update_hook_callback)(void *user_data,
-                                             int operation,
-                                             const char *database,
-                                             const char *table,
-                                             int64_t rowid);
-
-/**
- * 结果集句柄（不透明指针）
- */
-typedef struct graphdb_result_t {
-
-} graphdb_result_t;
+} graphdb_batch_t;
 
 /**
  * 字符串结构
@@ -264,25 +239,11 @@ typedef struct graphdb_value_t {
 } graphdb_value_t;
 
 /**
- * 预编译语句句柄（不透明指针）
+ * 数据库句柄（不透明指针）
  */
-typedef struct graphdb_stmt_t {
+typedef struct graphdb_t {
 
-} graphdb_stmt_t;
-
-/**
- * 事务句柄（不透明指针）
- */
-typedef struct graphdb_txn_t {
-
-} graphdb_txn_t;
-
-/**
- * 批量操作句柄（不透明指针）
- */
-typedef struct graphdb_batch_t {
-
-} graphdb_batch_t;
+} graphdb_t;
 
 /**
  * 函数执行上下文（不透明指针）
@@ -319,68 +280,153 @@ typedef void (*graphdb_aggregate_step_callback)(struct graphdb_context_t *contex
 typedef void (*graphdb_aggregate_final_callback)(struct graphdb_context_t *context);
 
 /**
- * 获取最后一个错误消息（线程安全）
- *
- * # 参数
- * - `msg`: 输出缓冲区
- * - `len`: 缓冲区长度
- *
- * # 返回
- * - 实际写入的字符数（不包括 null 终止符）
+ * 结果集句柄（不透明指针）
  */
-int32_t graphdb_errmsg(char *msg, uintptr_t len);
+typedef struct graphdb_result_t {
+
+} graphdb_result_t;
 
 /**
- * 获取错误码描述
- *
- * # 参数
- * - `code`: 错误码
- *
- * # 返回
- * - 错误描述字符串（静态生命周期）
+ * SQL 追踪回调类型
  */
-const char *graphdb_error_string(int32_t code);
+typedef void (*graphdb_trace_callback)(const char *sql, void *user_data);
 
 /**
- * 获取错误码对应的字符串描述（类似 SQLite 的 sqlite3_errstr）
- *
- * # 参数
- * - `code`: 错误码
- *
- * # 返回
- * - 错误描述字符串（静态生命周期，不需要释放）
+ * 钩子回调类型
  */
-const char *graphdb_errstr(int32_t code);
+typedef int (*graphdb_commit_hook_callback)(void *user_data);
+
+typedef void (*graphdb_rollback_hook_callback)(void *user_data);
+
+typedef void (*graphdb_update_hook_callback)(void *user_data,
+                                             int operation,
+                                             const char *database,
+                                             const char *table,
+                                             int64_t rowid);
 
 /**
- * 获取最后的错误消息
- *
- * # 返回
- * - 错误消息字符串指针（线程局部存储，不需要释放）
+ * 预编译语句句柄（不透明指针）
  */
-const char *graphdb_get_last_error_message(void);
+typedef struct graphdb_stmt_t {
+
+} graphdb_stmt_t;
 
 /**
- * 获取 SQL 错误位置（字符偏移量）
+ * 事务句柄（不透明指针）
+ */
+typedef struct graphdb_txn_t {
+
+} graphdb_txn_t;
+
+/**
+ * 创建批量插入器
  *
  * # 参数
  * - `session`: 会话句柄
+ * - `batch_size`: 批次大小
+ * - `batch`: 输出参数，批量操作句柄
  *
  * # 返回
- * - 错误位置的字符偏移量，如果没有错误或无效会话返回 -1
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ *
+ * # 安全说明
+ * 创建的批量操作句柄持有会话指针，但不拥有会话的所有权。
+ * 调用者必须确保在批量操作句柄被释放之前不关闭会话。
  */
-int graphdb_error_offset(struct graphdb_session_t *session);
+int graphdb_batch_inserter_create(struct graphdb_session_t *session,
+                                  int batch_size,
+                                  struct graphdb_batch_t **batch);
 
 /**
- * 获取扩展错误码
+ * 添加顶点
  *
  * # 参数
- * - `session`: 会话句柄
+ * - `batch`: 批量操作句柄
+ * - `vid`: 顶点 ID
+ * - `tag_name`: 标签名称（UTF-8 编码）
+ * - `properties`: 属性数组
+ * - `prop_count`: 属性数量
  *
  * # 返回
- * - 扩展错误码，如果没有错误或无效会话返回 0 (GRAPHDB_EXTENDED_NONE)
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
  */
-int graphdb_extended_errcode(struct graphdb_session_t *session);
+int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
+                             int64_t vid,
+                             const char *tag_name,
+                             const struct graphdb_value_t *properties,
+                             uintptr_t prop_count);
+
+/**
+ * 添加边
+ *
+ * # 参数
+ * - `batch`: 批量操作句柄
+ * - `src_vid`: 源顶点 ID
+ * - `dst_vid`: 目标顶点 ID
+ * - `edge_type`: 边类型名称（UTF-8 编码）
+ * - `rank`: 排名
+ * - `properties`: 属性数组
+ * - `prop_count`: 属性数量
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_batch_add_edge(struct graphdb_batch_t *batch,
+                           int64_t src_vid,
+                           int64_t dst_vid,
+                           const char *edge_type,
+                           int64_t rank,
+                           const struct graphdb_value_t *properties,
+                           uintptr_t prop_count);
+
+/**
+ * 执行批量插入
+ *
+ * # 参数
+ * - `batch`: 批量操作句柄
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_batch_flush(struct graphdb_batch_t *batch);
+
+/**
+ * 获取缓冲的顶点数量
+ *
+ * # 参数
+ * - `batch`: 批量操作句柄
+ *
+ * # 返回
+ * - 缓冲的顶点数量
+ */
+int graphdb_batch_buffered_vertices(struct graphdb_batch_t *batch);
+
+/**
+ * 获取缓冲的边数量
+ *
+ * # 参数
+ * - `batch`: 批量操作句柄
+ *
+ * # 返回
+ * - 缓冲的边数量
+ */
+int graphdb_batch_buffered_edges(struct graphdb_batch_t *batch);
+
+/**
+ * 释放批量操作句柄
+ *
+ * # 参数
+ * - `batch`: 批量操作句柄
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_batch_free(struct graphdb_batch_t *batch);
 
 /**
  * 打开数据库
@@ -461,6 +507,432 @@ void graphdb_free_string(char *str);
  * - `ptr`: 内存指针
  */
 void graphdb_free(void *ptr);
+
+/**
+ * 获取最后一个错误消息（线程安全）
+ *
+ * # 参数
+ * - `msg`: 输出缓冲区
+ * - `len`: 缓冲区长度
+ *
+ * # 返回
+ * - 实际写入的字符数（不包括 null 终止符）
+ */
+int32_t graphdb_errmsg(char *msg, uintptr_t len);
+
+/**
+ * 获取错误码描述
+ *
+ * # 参数
+ * - `code`: 错误码
+ *
+ * # 返回
+ * - 错误描述字符串（静态生命周期）
+ */
+const char *graphdb_error_string(int32_t code);
+
+/**
+ * 获取错误码对应的字符串描述（类似 SQLite 的 sqlite3_errstr）
+ *
+ * # 参数
+ * - `code`: 错误码
+ *
+ * # 返回
+ * - 错误描述字符串（静态生命周期，不需要释放）
+ */
+const char *graphdb_errstr(int32_t code);
+
+/**
+ * 获取最后的错误消息
+ *
+ * # 返回
+ * - 错误消息字符串指针（线程局部存储，不需要释放）
+ */
+const char *graphdb_get_last_error_message(void);
+
+/**
+ * 获取 SQL 错误位置（字符偏移量）
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ *
+ * # 返回
+ * - 错误位置的字符偏移量，如果没有错误或无效会话返回 -1
+ */
+int graphdb_error_offset(struct graphdb_session_t *session);
+
+/**
+ * 获取扩展错误码
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ *
+ * # 返回
+ * - 扩展错误码，如果没有错误或无效会话返回 0 (GRAPHDB_EXTENDED_NONE)
+ */
+int graphdb_extended_errcode(struct graphdb_session_t *session);
+
+/**
+ * 创建自定义标量函数
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `name`: 函数名称
+ * - `argc`: 参数数量，-1 表示可变参数
+ * - `user_data`: 用户数据指针
+ * - `x_func`: 标量函数回调
+ * - `x_destroy`: 析构回调，可为 NULL
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ *
+ * # 示例
+ * ```c
+ * extern void my_function(graphdb_context_t* ctx, int argc, graphdb_value_t* argv) {
+ *     // 实现函数逻辑
+ * }
+ *
+ * graphdb_create_function(session, "my_func", 2, NULL, my_function, NULL);
+ * ```
+ */
+int graphdb_create_function(struct graphdb_session_t *session,
+                            const char *name,
+                            int argc,
+                            void *user_data,
+                            graphdb_scalar_function_callback x_func,
+                            graphdb_function_destroy_callback _x_destroy);
+
+/**
+ * 创建自定义聚合函数
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `name`: 函数名称
+ * - `argc`: 参数数量，-1 表示可变参数
+ * - `user_data`: 用户数据指针
+ * - `x_step`: 聚合步骤回调
+ * - `x_final`: 聚合最终回调
+ * - `x_destroy`: 析构回调，可为 NULL
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_create_aggregate(struct graphdb_session_t *session,
+                             const char *name,
+                             int argc,
+                             void *user_data,
+                             graphdb_aggregate_step_callback x_step,
+                             graphdb_aggregate_final_callback x_final,
+                             graphdb_function_destroy_callback _x_destroy);
+
+/**
+ * 删除自定义函数
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `name`: 函数名称
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_delete_function(struct graphdb_session_t *session, const char *name);
+
+/**
+ * 设置函数返回值
+ *
+ * # 参数
+ * - `context`: 函数执行上下文
+ * - `value`: 返回值
+ *
+ * # 说明
+ * 在标量函数或聚合函数的 xFinal 回调中调用此函数设置返回值
+ */
+int graphdb_context_set_result(struct graphdb_context_t *context,
+                               const struct graphdb_value_t *value);
+
+/**
+ * 获取函数返回值的类型
+ *
+ * # 参数
+ * - `context`: 函数执行上下文
+ *
+ * # 返回
+ * - 值类型
+ */
+enum graphdb_value_type_t graphdb_context_result_type(struct graphdb_context_t *context);
+
+/**
+ * 设置错误消息
+ *
+ * # 参数
+ * - `context`: 函数执行上下文
+ * - `error_msg`: 错误消息
+ *
+ * # 说明
+ * 在函数执行出错时调用此函数设置错误消息
+ */
+int graphdb_context_set_error(struct graphdb_context_t *context, const char *error_msg);
+
+/**
+ * 从上下文获取参数值（辅助函数）
+ *
+ * # 参数
+ * - `context`: 函数执行上下文
+ * - `index`: 参数索引
+ *
+ * # 返回
+ * - 参数值指针，如果索引越界返回 NULL
+ */
+const struct graphdb_value_t *graphdb_context_get_arg(struct graphdb_context_t *_context,
+                                                      int _index);
+
+/**
+ * 获取参数数量
+ *
+ * # 参数
+ * - `context`: 函数执行上下文
+ *
+ * # 返回
+ * - 参数数量
+ */
+int graphdb_context_arg_count(struct graphdb_context_t *_context);
+
+/**
+ * 执行简单查询
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `query`: 查询语句（UTF-8 编码）
+ * - `result`: 输出参数，结果集句柄
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_execute(struct graphdb_session_t *session,
+                    const char *query,
+                    struct graphdb_result_t **result);
+
+/**
+ * 执行参数化查询
+ *
+ * # 参数
+ * - `session`: 会话句柄
+ * - `query`: 查询语句（UTF-8 编码）
+ * - `params`: 参数数组
+ * - `param_count`: 参数数量
+ * - `result`: 输出参数，结果集句柄
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_execute_params(struct graphdb_session_t *session,
+                           const char *query,
+                           const struct graphdb_value_t *params,
+                           uintptr_t param_count,
+                           struct graphdb_result_t **result);
+
+/**
+ * 释放结果集
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_result_free(struct graphdb_result_t *result);
+
+/**
+ * 获取结果集列数
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ *
+ * # 返回
+ * - 列数，错误返回 -1
+ */
+int graphdb_column_count(struct graphdb_result_t *result);
+
+/**
+ * 获取结果集行数
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ *
+ * # 返回
+ * - 行数，错误返回 -1
+ */
+int graphdb_row_count(struct graphdb_result_t *result);
+
+/**
+ * 获取列名
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `index`: 列索引（从 0 开始）
+ *
+ * # 返回
+ * - 列名（UTF-8 编码），错误返回 NULL
+ *
+ * # 内存管理
+ * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+ * 以避免内存泄漏。
+ */
+char *graphdb_column_name(struct graphdb_result_t *result, int index);
+
+/**
+ * 获取整数值
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列名（UTF-8 编码）
+ * - `value`: 输出参数，整数值
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_get_int(struct graphdb_result_t *result, int row, const char *col, int64_t *value);
+
+/**
+ * 获取字符串值
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列名（UTF-8 编码）
+ * - `len`: 输出参数，字符串长度
+ *
+ * # 返回
+ * - 字符串值（UTF-8 编码），错误返回 NULL
+ *
+ * # 内存管理
+ * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+ * 以避免内存泄漏。
+ */
+char *graphdb_get_string(struct graphdb_result_t *result, int row, const char *col, int *len);
+
+/**
+ * 获取二进制数据
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列名（UTF-8 编码）
+ * - `len`: 输出参数，数据长度（字节）
+ *
+ * # 返回
+ * - 数据指针，错误返回 NULL
+ *
+ * # 注意
+ * 返回的指针生命周期与结果集绑定，调用者不应释放
+ */
+const uint8_t *graphdb_get_blob(struct graphdb_result_t *result,
+                                int row,
+                                const char *col,
+                                int *len);
+
+/**
+ * 获取整数值（按列索引）
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列索引（从 0 开始）
+ * - `value`: 输出参数，整数值
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_get_int_by_index(struct graphdb_result_t *result, int row, int col, int64_t *value);
+
+/**
+ * 获取字符串值（按列索引）
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列索引（从 0 开始）
+ * - `len`: 输出参数，字符串长度
+ *
+ * # 返回
+ * - 字符串值（UTF-8 编码），错误返回 NULL
+ *
+ * # 内存管理
+ * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
+ * 以避免内存泄漏。
+ */
+char *graphdb_get_string_by_index(struct graphdb_result_t *result, int row, int col, int *len);
+
+/**
+ * 获取布尔值（按列索引）
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列索引（从 0 开始）
+ * - `value`: 输出参数，布尔值
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_get_bool_by_index(struct graphdb_result_t *result, int row, int col, bool *value);
+
+/**
+ * 获取浮点值（按列索引）
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列索引（从 0 开始）
+ * - `value`: 输出参数，浮点值
+ *
+ * # 返回
+ * - 成功: GRAPHDB_OK
+ * - 失败: 错误码
+ */
+int graphdb_get_float_by_index(struct graphdb_result_t *result, int row, int col, double *value);
+
+/**
+ * 获取二进制数据（按列索引）
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `row`: 行索引（从 0 开始）
+ * - `col`: 列索引（从 0 开始）
+ * - `len`: 输出参数，数据长度（字节）
+ *
+ * # 返回
+ * - 数据指针，错误返回 NULL
+ *
+ * # 注意
+ * 返回的指针生命周期与结果集绑定，调用者不应释放
+ */
+const uint8_t *graphdb_get_blob_by_index(struct graphdb_result_t *result,
+                                         int row,
+                                         int col,
+                                         int *len);
+
+/**
+ * 获取列类型
+ *
+ * # 参数
+ * - `result`: 结果集句柄
+ * - `col`: 列索引（从 0 开始）
+ *
+ * # 返回
+ * - 列类型，错误返回 GRAPHDB_NULL
+ */
+enum graphdb_value_type_t graphdb_column_type(struct graphdb_result_t *result, int col);
 
 /**
  * 创建会话
@@ -696,42 +1168,6 @@ void *graphdb_rollback_hook(struct graphdb_session_t *session,
 void *graphdb_update_hook(struct graphdb_session_t *session,
                           graphdb_update_hook_callback callback,
                           void *user_data);
-
-/**
- * 执行简单查询
- *
- * # 参数
- * - `session`: 会话句柄
- * - `query`: 查询语句（UTF-8 编码）
- * - `result`: 输出参数，结果集句柄
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_execute(struct graphdb_session_t *session,
-                    const char *query,
-                    struct graphdb_result_t **result);
-
-/**
- * 执行参数化查询
- *
- * # 参数
- * - `session`: 会话句柄
- * - `query`: 查询语句（UTF-8 编码）
- * - `params`: 参数数组
- * - `param_count`: 参数数量
- * - `result`: 输出参数，结果集句柄
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_execute_params(struct graphdb_session_t *session,
-                           const char *query,
-                           const struct graphdb_value_t *params,
-                           uintptr_t param_count,
-                           struct graphdb_result_t **result);
 
 /**
  * 准备语句
@@ -1041,439 +1477,3 @@ int graphdb_txn_rollback_to_savepoint(struct graphdb_txn_t *txn, int64_t savepoi
  * - 失败: 错误码
  */
 int graphdb_txn_free(struct graphdb_txn_t *txn);
-
-/**
- * 创建批量插入器
- *
- * # 参数
- * - `session`: 会话句柄
- * - `batch_size`: 批次大小
- * - `batch`: 输出参数，批量操作句柄
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- *
- * # 安全说明
- * 创建的批量操作句柄持有会话指针，但不拥有会话的所有权。
- * 调用者必须确保在批量操作句柄被释放之前不关闭会话。
- */
-int graphdb_batch_inserter_create(struct graphdb_session_t *session,
-                                  int batch_size,
-                                  struct graphdb_batch_t **batch);
-
-/**
- * 添加顶点
- *
- * # 参数
- * - `batch`: 批量操作句柄
- * - `vid`: 顶点 ID
- * - `tag_name`: 标签名称（UTF-8 编码）
- * - `properties`: 属性数组
- * - `prop_count`: 属性数量
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
-                             int64_t vid,
-                             const char *tag_name,
-                             const struct graphdb_value_t *properties,
-                             uintptr_t prop_count);
-
-/**
- * 添加边
- *
- * # 参数
- * - `batch`: 批量操作句柄
- * - `src_vid`: 源顶点 ID
- * - `dst_vid`: 目标顶点 ID
- * - `edge_type`: 边类型名称（UTF-8 编码）
- * - `rank`: 排名
- * - `properties`: 属性数组
- * - `prop_count`: 属性数量
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_batch_add_edge(struct graphdb_batch_t *batch,
-                           int64_t src_vid,
-                           int64_t dst_vid,
-                           const char *edge_type,
-                           int64_t rank,
-                           const struct graphdb_value_t *properties,
-                           uintptr_t prop_count);
-
-/**
- * 执行批量插入
- *
- * # 参数
- * - `batch`: 批量操作句柄
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_batch_flush(struct graphdb_batch_t *batch);
-
-/**
- * 获取缓冲的顶点数量
- *
- * # 参数
- * - `batch`: 批量操作句柄
- *
- * # 返回
- * - 缓冲的顶点数量
- */
-int graphdb_batch_buffered_vertices(struct graphdb_batch_t *batch);
-
-/**
- * 获取缓冲的边数量
- *
- * # 参数
- * - `batch`: 批量操作句柄
- *
- * # 返回
- * - 缓冲的边数量
- */
-int graphdb_batch_buffered_edges(struct graphdb_batch_t *batch);
-
-/**
- * 释放批量操作句柄
- *
- * # 参数
- * - `batch`: 批量操作句柄
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_batch_free(struct graphdb_batch_t *batch);
-
-/**
- * 释放结果集
- *
- * # 参数
- * - `result`: 结果集句柄
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_result_free(struct graphdb_result_t *result);
-
-/**
- * 获取结果集列数
- *
- * # 参数
- * - `result`: 结果集句柄
- *
- * # 返回
- * - 列数，错误返回 -1
- */
-int graphdb_column_count(struct graphdb_result_t *result);
-
-/**
- * 获取结果集行数
- *
- * # 参数
- * - `result`: 结果集句柄
- *
- * # 返回
- * - 行数，错误返回 -1
- */
-int graphdb_row_count(struct graphdb_result_t *result);
-
-/**
- * 获取列名
- *
- * # 参数
- * - `result`: 结果集句柄
- * - `index`: 列索引（从 0 开始）
- *
- * # 返回
- * - 列名（UTF-8 编码），错误返回 NULL
- *
- * # 内存管理
- * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
- * 以避免内存泄漏。
- */
-char *graphdb_column_name(struct graphdb_result_t *result, int index);
-
-/**
- * 获取整数值
- *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列名（UTF-8 编码）
- * - `value`: 输出参数，整数值
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_get_int(struct graphdb_result_t *result, int row, const char *col, int64_t *value);
-
-/**
- * 获取字符串值
- *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列名（UTF-8 编码）
- * - `len`: 输出参数，字符串长度
- *
- * # 返回
- * - 字符串值（UTF-8 编码），错误返回 NULL
- *
- * # 内存管理
- * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
- * 以避免内存泄漏。
- */
-char *graphdb_get_string(struct graphdb_result_t *result, int row, const char *col, int *len);
-
-/**
- * 获取二进制数据
- *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列名（UTF-8 编码）
- * - `len`: 输出参数，数据长度（字节）
- *
- * # 返回
- * - 数据指针，错误返回 NULL
- *
- * # 注意
- * 返回的指针生命周期与结果集绑定，调用者不应释放
- */
-const uint8_t *graphdb_get_blob(struct graphdb_result_t *result,
-                                int row,
-                                const char *col,
-                                int *len);
-
-/**
- * 获取整数值（按列索引）
- *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列索引（从 0 开始）
- * - `value`: 输出参数，整数值
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_get_int_by_index(struct graphdb_result_t *result, int row, int col, int64_t *value);
-
-/**
- * 获取字符串值（按列索引）
- *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列索引（从 0 开始）
- * - `len`: 输出参数，字符串长度
- *
- * # 返回
- * - 字符串值（UTF-8 编码），错误返回 NULL
- *
- * # 内存管理
- * 返回的字符串是动态分配的，调用者必须使用 `graphdb_free_string` 释放，
- * 以避免内存泄漏。
- */
-char *graphdb_get_string_by_index(struct graphdb_result_t *result, int row, int col, int *len);
-
-/**
- * 获取布尔值（按列索引）
- *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列索引（从 0 开始）
- * - `value`: 输出参数，布尔值
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_get_bool_by_index(struct graphdb_result_t *result, int row, int col, bool *value);
-
-/**
- * 获取浮点值（按列索引）
- *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列索引（从 0 开始）
- * - `value`: 输出参数，浮点值
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_get_float_by_index(struct graphdb_result_t *result, int row, int col, double *value);
-
-/**
- * 获取二进制数据（按列索引）
- *
- * # 参数
- * - `result`: 结果集句柄
- * - `row`: 行索引（从 0 开始）
- * - `col`: 列索引（从 0 开始）
- * - `len`: 输出参数，数据长度（字节）
- *
- * # 返回
- * - 数据指针，错误返回 NULL
- *
- * # 注意
- * 返回的指针生命周期与结果集绑定，调用者不应释放
- */
-const uint8_t *graphdb_get_blob_by_index(struct graphdb_result_t *result,
-                                         int row,
-                                         int col,
-                                         int *len);
-
-/**
- * 获取列类型
- *
- * # 参数
- * - `result`: 结果集句柄
- * - `col`: 列索引（从 0 开始）
- *
- * # 返回
- * - 列类型，错误返回 GRAPHDB_NULL
- */
-enum graphdb_value_type_t graphdb_column_type(struct graphdb_result_t *result, int col);
-
-/**
- * 创建自定义标量函数
- *
- * # 参数
- * - `session`: 会话句柄
- * - `name`: 函数名称
- * - `argc`: 参数数量，-1 表示可变参数
- * - `user_data`: 用户数据指针
- * - `x_func`: 标量函数回调
- * - `x_destroy`: 析构回调，可为 NULL
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- *
- * # 示例
- * ```c
- * extern void my_function(graphdb_context_t* ctx, int argc, graphdb_value_t* argv) {
- *     // 实现函数逻辑
- * }
- *
- * graphdb_create_function(session, "my_func", 2, NULL, my_function, NULL);
- * ```
- */
-int graphdb_create_function(struct graphdb_session_t *session,
-                            const char *name,
-                            int argc,
-                            void *user_data,
-                            graphdb_scalar_function_callback x_func,
-                            graphdb_function_destroy_callback _x_destroy);
-
-/**
- * 创建自定义聚合函数
- *
- * # 参数
- * - `session`: 会话句柄
- * - `name`: 函数名称
- * - `argc`: 参数数量，-1 表示可变参数
- * - `user_data`: 用户数据指针
- * - `x_step`: 聚合步骤回调
- * - `x_final`: 聚合最终回调
- * - `x_destroy`: 析构回调，可为 NULL
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_create_aggregate(struct graphdb_session_t *session,
-                             const char *name,
-                             int argc,
-                             void *user_data,
-                             graphdb_aggregate_step_callback x_step,
-                             graphdb_aggregate_final_callback x_final,
-                             graphdb_function_destroy_callback _x_destroy);
-
-/**
- * 删除自定义函数
- *
- * # 参数
- * - `session`: 会话句柄
- * - `name`: 函数名称
- *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
- */
-int graphdb_delete_function(struct graphdb_session_t *session, const char *name);
-
-/**
- * 设置函数返回值
- *
- * # 参数
- * - `context`: 函数执行上下文
- * - `value`: 返回值
- *
- * # 说明
- * 在标量函数或聚合函数的 xFinal 回调中调用此函数设置返回值
- */
-int graphdb_context_set_result(struct graphdb_context_t *context,
-                               const struct graphdb_value_t *value);
-
-/**
- * 获取函数返回值的类型
- *
- * # 参数
- * - `context`: 函数执行上下文
- *
- * # 返回
- * - 值类型
- */
-enum graphdb_value_type_t graphdb_context_result_type(struct graphdb_context_t *context);
-
-/**
- * 设置错误消息
- *
- * # 参数
- * - `context`: 函数执行上下文
- * - `error_msg`: 错误消息
- *
- * # 说明
- * 在函数执行出错时调用此函数设置错误消息
- */
-int graphdb_context_set_error(struct graphdb_context_t *context, const char *error_msg);
-
-/**
- * 从上下文获取参数值（辅助函数）
- *
- * # 参数
- * - `context`: 函数执行上下文
- * - `index`: 参数索引
- *
- * # 返回
- * - 参数值指针，如果索引越界返回 NULL
- */
-const struct graphdb_value_t *graphdb_context_get_arg(struct graphdb_context_t *_context,
-                                                      int _index);
-
-/**
- * 获取参数数量
- *
- * # 参数
- * - `context`: 函数执行上下文
- *
- * # 返回
- * - 参数数量
- */
-int graphdb_context_arg_count(struct graphdb_context_t *_context);

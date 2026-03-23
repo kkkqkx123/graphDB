@@ -6,7 +6,7 @@
 //! 编译时分析请使用 `ExpressionAnalysisContext`。
 
 use crate::core::Value;
-use crate::query::executor::expression::functions::FunctionRef;
+use crate::query::executor::expression::functions::OwnedFunctionRef;
 
 /// 表达式求值上下文 trait
 ///
@@ -22,7 +22,7 @@ pub trait ExpressionContext {
     fn set_variable(&mut self, name: String, value: Value);
 
     /// 获取函数引用
-    fn get_function(&self, name: &str) -> Option<FunctionRef> {
+    fn get_function(&self, name: &str) -> Option<OwnedFunctionRef> {
         let _ = name;
         None
     }

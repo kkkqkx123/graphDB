@@ -2,9 +2,6 @@
 //!
 //! 提供用于减少样板代码的宏，用于定义函数枚举和执行函数
 
-use crate::core::value::NullType;
-use crate::core::Value;
-
 /// 定义内置函数枚举的宏
 ///
 /// 自动生成 name(), arity(), is_variadic(), description(), execute() 方法

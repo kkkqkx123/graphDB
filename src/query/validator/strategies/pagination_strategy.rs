@@ -173,6 +173,7 @@ mod tests {
     use super::*;
     use crate::core::types::expression::{ContextualExpression, ExpressionMeta};
     use crate::core::Expression;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     /// 从 Expression 创建 ContextualExpression

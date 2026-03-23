@@ -548,6 +548,7 @@ mod tests {
     use super::*;
     use crate::core::Value;
     use std::sync::Arc;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 
     #[test]
     fn test_expression_analyzer_new() {

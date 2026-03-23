@@ -521,7 +521,7 @@ mod tests {
     use crate::query::parser::ast::Span;
     use crate::query::query_request_context::QueryRequestContext;
     use std::sync::Arc;
-    use ExpressionAnalysisContext;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());

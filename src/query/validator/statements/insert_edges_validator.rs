@@ -431,11 +431,12 @@ impl StatementValidator for InsertEdgesValidator {
 mod tests {
     use super::*;
     use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expression::Expression;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
     use crate::query::query_request_context::QueryRequestContext;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
-    use ExpressionAnalysisContext;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());

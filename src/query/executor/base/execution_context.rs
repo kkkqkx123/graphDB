@@ -8,7 +8,7 @@ use std::sync::Arc;
 use super::execution_result::ExecutionResult;
 use crate::core::Value;
 use crate::query::executor::expression::functions::global_registry_ref;
-use crate::query::executor::expression::functions::FunctionRef;
+use crate::query::executor::expression::functions::OwnedFunctionRef;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 执行上下文
@@ -80,11 +80,11 @@ impl crate::query::executor::expression::evaluator::traits::ExpressionContext fo
         self.variables.insert(name, value);
     }
 
-    fn get_function(&self, name: &str) -> Option<FunctionRef> {
+    fn get_function(&self, name: &str) -> Option<OwnedFunctionRef> {
         let registry = global_registry_ref();
         registry
             .get_builtin(name)
-            .map(|f| FunctionRef::Builtin(f))
-            .or_else(|| registry.get_custom(name).map(|f| FunctionRef::Custom(f)))
+            .map(|f| OwnedFunctionRef::Builtin(f.clone()))
+            .or_else(|| registry.get_custom(name).map(|f| OwnedFunctionRef::Custom(f.clone())))
     }
 }

@@ -219,6 +219,8 @@ mod tests {
     use super::*;
     use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::join::join_node::InnerJoinNode;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
+    use std::sync::Arc;
 
     #[test]
     fn test_rule_name() {

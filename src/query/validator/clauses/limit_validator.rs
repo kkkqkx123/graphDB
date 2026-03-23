@@ -316,8 +316,11 @@ impl StatementValidator for LimitValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::expression::Expression;
+    use crate::core::Value;
     use crate::query::parser::ast::Stmt;
     use crate::query::query_request_context::QueryRequestContext;
+    use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 
     /// 创建测试用的 QueryContext，带有有效的 space_id
     fn create_test_query_context() -> Arc<QueryContext> {
