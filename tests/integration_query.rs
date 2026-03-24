@@ -153,7 +153,7 @@ fn test_validator_match_basic() {
     // 验证查询
     let result = validator.validate(stmt.ast, query_context);
     // 验证结果取决于具体实现，可能成功或返回特定错误
-    assert!(result.is_ok(), "验证应该成功");
+    assert!(result.success, "验证应该成功");
 }
 
 #[test]
@@ -168,7 +168,7 @@ fn test_validator_go_statement() {
 
     // GO语句验证
     let result = validator.validate(stmt.ast, query_context);
-    assert!(result.is_ok(), "GO语句验证应该成功");
+    assert!(result.success, "GO语句验证应该成功");
 }
 
 #[test]
@@ -183,7 +183,7 @@ fn test_validator_use_statement() {
 
     // USE语句验证
     let result = validator.validate(stmt.ast, query_context);
-    assert!(result.is_ok(), "USE语句验证应该成功");
+    assert!(result.success, "USE语句验证应该成功");
 }
 
 // ==================== Planner 集成测试 ====================

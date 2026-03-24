@@ -55,16 +55,16 @@ pub fn create_tag_index(id: i32, name: &str, tag_name: &str, properties: Vec<&st
         .map(|prop| IndexField::new(prop.to_string(), Value::String("string".to_string()), false))
         .collect();
 
-    Index::new(
+    Index::new(graphdb::core::types::IndexConfig {
         id,
-        name.to_string(),
-        0,
-        tag_name.to_string(),
+        name: name.to_string(),
+        space_id: 0,
+        schema_name: tag_name.to_string(),
         fields,
-        properties.iter().map(|s| s.to_string()).collect(),
-        IndexType::TagIndex,
-        false,
-    )
+        properties: properties.iter().map(|s| s.to_string()).collect(),
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    })
 }
 
 /// 创建测试 Edge 索引
@@ -74,16 +74,16 @@ pub fn create_edge_index(id: i32, name: &str, edge_type: &str, properties: Vec<&
         .map(|prop| IndexField::new(prop.to_string(), Value::String("string".to_string()), false))
         .collect();
 
-    Index::new(
+    Index::new(graphdb::core::types::IndexConfig {
         id,
-        name.to_string(),
-        0,
-        edge_type.to_string(),
+        name: name.to_string(),
+        space_id: 0,
+        schema_name: edge_type.to_string(),
         fields,
-        properties.iter().map(|s| s.to_string()).collect(),
-        IndexType::EdgeIndex,
-        false,
-    )
+        properties: properties.iter().map(|s| s.to_string()).collect(),
+        index_type: IndexType::EdgeIndex,
+        is_unique: false,
+    })
 }
 
 /// 创建唯一索引
@@ -94,14 +94,14 @@ pub fn create_unique_tag_index(id: i32, name: &str, tag_name: &str, property: &s
         false,
     );
 
-    Index::new(
+    Index::new(graphdb::core::types::IndexConfig {
         id,
-        name.to_string(),
-        0,
-        tag_name.to_string(),
-        vec![field],
-        vec![property.to_string()],
-        IndexType::TagIndex,
-        true,
-    )
+        name: name.to_string(),
+        space_id: 0,
+        schema_name: tag_name.to_string(),
+        fields: vec![field],
+        properties: vec![property.to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: true,
+    })
 }

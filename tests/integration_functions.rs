@@ -810,7 +810,7 @@ fn test_sign_function() {
     assert_eq!(result.expect("sign函数应该成功"), Value::Int(0));
 
     // 浮点数
-    let result = registry.execute("sign", &[Value::Float(-3.14_f64)]);
+    let result = registry.execute("sign", &[Value::Float(-2.5_f64)]);
     assert!(result.is_ok());
     assert_eq!(result.expect("sign函数应该成功"), Value::Int(-1));
 }

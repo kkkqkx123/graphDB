@@ -509,10 +509,11 @@ mod tests {
     #[test]
     fn test_literal_type() {
         use crate::core::value::Value;
+        use std::f64::consts::PI;
 
         assert_eq!(TypeUtils::literal_type(&Value::Int(42)), DataType::Int);
         assert_eq!(
-            TypeUtils::literal_type(&Value::Float(3.14_f64)),
+            TypeUtils::literal_type(&Value::Float(PI)),
             DataType::Float
         );
         assert_eq!(

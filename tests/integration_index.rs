@@ -40,20 +40,20 @@ fn test_create_tag_index_metadata() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     let result = get_storage(&storage).create_tag_index("test_space", &index);
     let created = result.expect("创建索引应该成功");
@@ -80,20 +80,20 @@ fn test_create_tag_index_duplicate() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -113,20 +113,20 @@ fn test_drop_tag_index_metadata() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -150,31 +150,31 @@ fn test_list_tag_indexes() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index1 = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index1 = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
-    let index2 = Index::new(
-        2,
-        "person_age_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new("age".to_string(), Value::Int(0), false)],
-        vec!["age".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+    let index2 = Index::new(graphdb::core::types::IndexConfig {
+        id: 2,
+        name: "person_age_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new("age".to_string(), Value::Int(0), false)],
+        properties: vec!["age".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index1));
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index2));
@@ -205,31 +205,31 @@ fn test_drop_tag_indexes_by_tag() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index1 = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index1 = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
-    let index2 = Index::new(
-        2,
-        "person_age_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new("age".to_string(), Value::Int(0), false)],
-        vec!["age".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+    let index2 = Index::new(graphdb::core::types::IndexConfig {
+        id: 2,
+        name: "person_age_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new("age".to_string(), Value::Int(0), false)],
+        properties: vec!["age".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index1));
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index2));
@@ -260,20 +260,20 @@ fn test_create_edge_index_metadata() {
     let edge_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("test_space", &edge_info));
 
-    let index = Index::new(
-        1,
-        "knows_since_idx".to_string(),
-        0,
-        "KNOWS".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "knows_since_idx".to_string(),
+        space_id: 0,
+        schema_name: "KNOWS".to_string(),
+        fields: vec![IndexField::new(
             "since".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["since".to_string()],
-        IndexType::EdgeIndex,
-        false,
-    );
+        properties: vec!["since".to_string()],
+        index_type: IndexType::EdgeIndex,
+        is_unique: false,
+    });
 
     let result = get_storage(&storage).create_edge_index("test_space", &index);
     let created = result.expect("创建索引应该成功");
@@ -300,20 +300,20 @@ fn test_drop_edge_index_metadata() {
     let edge_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("test_space", &edge_info));
 
-    let index = Index::new(
-        1,
-        "knows_since_idx".to_string(),
-        0,
-        "KNOWS".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "knows_since_idx".to_string(),
+        space_id: 0,
+        schema_name: "KNOWS".to_string(),
+        fields: vec![IndexField::new(
             "since".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["since".to_string()],
-        IndexType::EdgeIndex,
-        false,
-    );
+        properties: vec!["since".to_string()],
+        index_type: IndexType::EdgeIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_edge_index("test_space", &index));
 
@@ -337,35 +337,35 @@ fn test_list_edge_indexes() {
     let edge_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("test_space", &edge_info));
 
-    let index1 = Index::new(
-        1,
-        "knows_since_idx".to_string(),
-        0,
-        "KNOWS".to_string(),
-        vec![IndexField::new(
+    let index1 = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "knows_since_idx".to_string(),
+        space_id: 0,
+        schema_name: "KNOWS".to_string(),
+        fields: vec![IndexField::new(
             "since".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["since".to_string()],
-        IndexType::EdgeIndex,
-        false,
-    );
+        properties: vec!["since".to_string()],
+        index_type: IndexType::EdgeIndex,
+        is_unique: false,
+    });
 
-    let index2 = Index::new(
-        2,
-        "knows_weight_idx".to_string(),
-        0,
-        "KNOWS".to_string(),
-        vec![IndexField::new(
+    let index2 = Index::new(graphdb::core::types::IndexConfig {
+        id: 2,
+        name: "knows_weight_idx".to_string(),
+        space_id: 0,
+        schema_name: "KNOWS".to_string(),
+        fields: vec![IndexField::new(
             "weight".to_string(),
             Value::Float(0.0),
             false,
         )],
-        vec!["weight".to_string()],
-        IndexType::EdgeIndex,
-        false,
-    );
+        properties: vec!["weight".to_string()],
+        index_type: IndexType::EdgeIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_edge_index("test_space", &index1));
     assert_ok(get_storage(&storage).create_edge_index("test_space", &index2));
@@ -398,20 +398,20 @@ fn test_update_vertex_indexes() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -445,20 +445,20 @@ fn test_update_edge_indexes() {
     let edge_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("test_space", &edge_info));
 
-    let index = Index::new(
-        1,
-        "knows_since_idx".to_string(),
-        0,
-        "KNOWS".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "knows_since_idx".to_string(),
+        space_id: 0,
+        schema_name: "KNOWS".to_string(),
+        fields: vec![IndexField::new(
             "since".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["since".to_string()],
-        IndexType::EdgeIndex,
-        false,
-    );
+        properties: vec!["since".to_string()],
+        index_type: IndexType::EdgeIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_edge_index("test_space", &index));
 
@@ -493,20 +493,20 @@ fn test_delete_vertex_indexes() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -543,20 +543,20 @@ fn test_delete_edge_indexes() {
     let edge_info = knows_edge_type_info();
     assert_ok(get_storage(&storage).create_edge_type("test_space", &edge_info));
 
-    let index = Index::new(
-        1,
-        "knows_since_idx".to_string(),
-        0,
-        "KNOWS".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "knows_since_idx".to_string(),
+        space_id: 0,
+        schema_name: "KNOWS".to_string(),
+        fields: vec![IndexField::new(
             "since".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["since".to_string()],
-        IndexType::EdgeIndex,
-        false,
-    );
+        properties: vec!["since".to_string()],
+        index_type: IndexType::EdgeIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_edge_index("test_space", &index));
 
@@ -593,20 +593,20 @@ fn test_index_exact_query() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -645,16 +645,16 @@ fn test_index_query_multiple_matches() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_age_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new("age".to_string(), Value::Int(0), false)],
-        vec!["age".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_age_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new("age".to_string(), Value::Int(0), false)],
+        properties: vec!["age".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -691,20 +691,20 @@ fn test_index_query_no_match() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -738,20 +738,20 @@ fn test_index_status_active() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -778,20 +778,20 @@ fn test_unique_index() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_unique_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_unique_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        true,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: true,
+    });
 
     let result = get_storage(&storage).create_tag_index("test_space", &index);
     result.expect("创建唯一索引应该成功");
@@ -817,19 +817,19 @@ fn test_composite_index() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_age_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_age_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![
             IndexField::new("name".to_string(), Value::String("".to_string()), false),
             IndexField::new("age".to_string(), Value::Int(0), false),
         ],
-        vec!["name".to_string(), "age".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string(), "age".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -958,16 +958,16 @@ fn test_index_range_query_with_boundaries() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_age_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new("age".to_string(), Value::Int(0), false)],
-        vec!["age".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_age_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new("age".to_string(), Value::Int(0), false)],
+        properties: vec!["age".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -1024,20 +1024,20 @@ fn test_scan_type_unique() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -1079,16 +1079,16 @@ fn test_scan_type_range() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_age_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new("age".to_string(), Value::Int(0), false)],
-        vec!["age".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_age_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new("age".to_string(), Value::Int(0), false)],
+        properties: vec!["age".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 
@@ -1119,20 +1119,20 @@ fn test_scan_type_full() {
     let tag_info = person_tag_info();
     assert_ok(get_storage(&storage).create_tag("test_space", &tag_info));
 
-    let index = Index::new(
-        1,
-        "person_name_idx".to_string(),
-        0,
-        "Person".to_string(),
-        vec![IndexField::new(
+    let index = Index::new(graphdb::core::types::IndexConfig {
+        id: 1,
+        name: "person_name_idx".to_string(),
+        space_id: 0,
+        schema_name: "Person".to_string(),
+        fields: vec![IndexField::new(
             "name".to_string(),
             Value::String("".to_string()),
             false,
         )],
-        vec!["name".to_string()],
-        IndexType::TagIndex,
-        false,
-    );
+        properties: vec!["name".to_string()],
+        index_type: IndexType::TagIndex,
+        is_unique: false,
+    });
 
     assert_ok(get_storage(&storage).create_tag_index("test_space", &index));
 

@@ -78,14 +78,17 @@ fn test_multi_shortest_path_executor_creation() {
     let storage = test_storage.storage();
 
     let executor = MultiShortestPathExecutor::new(
-        1,
-        storage.clone(),
-        vec![Value::from("alice")],
-        vec![Value::from("bob")],
-        ExecEdgeDirection::Out,
-        None,
-        10,
-        Arc::new(ExpressionAnalysisContext::new()),
+        graphdb::query::executor::base::ExecutorConfig::new(
+            1,
+            storage.clone(),
+            Arc::new(ExpressionAnalysisContext::new()),
+        ),
+        graphdb::query::executor::base::MultiShortestPathConfig {
+            start_vids: vec![Value::from("alice")],
+            direction: ExecEdgeDirection::Out,
+            edge_types: None,
+            max_steps: 10,
+        },
     );
 
     assert_eq!(executor.id(), 1);
@@ -99,14 +102,17 @@ fn test_multi_shortest_path_with_edge_filter() {
     let storage = test_storage.storage();
 
     let executor = MultiShortestPathExecutor::new(
-        1,
-        storage.clone(),
-        vec![Value::from("alice")],
-        vec![Value::from("bob")],
-        ExecEdgeDirection::Out,
-        Some(vec!["KNOWS".to_string()]),
-        10,
-        Arc::new(ExpressionAnalysisContext::new()),
+        graphdb::query::executor::base::ExecutorConfig::new(
+            1,
+            storage.clone(),
+            Arc::new(ExpressionAnalysisContext::new()),
+        ),
+        graphdb::query::executor::base::MultiShortestPathConfig {
+            start_vids: vec![Value::from("alice")],
+            direction: ExecEdgeDirection::Out,
+            edge_types: Some(vec!["KNOWS".to_string()]),
+            max_steps: 10,
+        },
     );
 
     assert_eq!(executor.id(), 1);
@@ -119,14 +125,17 @@ fn test_multi_shortest_path_bidirectional_direction() {
     let storage = test_storage.storage();
 
     let executor = MultiShortestPathExecutor::new(
-        1,
-        storage.clone(),
-        vec![Value::from("alice")],
-        vec![Value::from("bob")],
-        ExecEdgeDirection::Both,
-        None,
-        10,
-        Arc::new(ExpressionAnalysisContext::new()),
+        graphdb::query::executor::base::ExecutorConfig::new(
+            1,
+            storage.clone(),
+            Arc::new(ExpressionAnalysisContext::new()),
+        ),
+        graphdb::query::executor::base::MultiShortestPathConfig {
+            start_vids: vec![Value::from("alice")],
+            direction: ExecEdgeDirection::Both,
+            edge_types: None,
+            max_steps: 10,
+        },
     );
 
     assert_eq!(executor.id(), 1);
@@ -298,14 +307,17 @@ fn test_multi_shortest_path_empty_start() {
     let storage = test_storage.storage();
 
     let executor = MultiShortestPathExecutor::new(
-        1,
-        storage.clone(),
-        vec![], // 空起点
-        vec![Value::from("bob")],
-        ExecEdgeDirection::Out,
-        None,
-        10,
-        Arc::new(ExpressionAnalysisContext::new()),
+        graphdb::query::executor::base::ExecutorConfig::new(
+            1,
+            storage.clone(),
+            Arc::new(ExpressionAnalysisContext::new()),
+        ),
+        graphdb::query::executor::base::MultiShortestPathConfig {
+            start_vids: vec![],
+            direction: ExecEdgeDirection::Out,
+            edge_types: None,
+            max_steps: 10,
+        },
     );
 
     assert_eq!(executor.id(), 1);
@@ -318,14 +330,17 @@ fn test_multi_shortest_path_empty_end() {
     let storage = test_storage.storage();
 
     let executor = MultiShortestPathExecutor::new(
-        1,
-        storage.clone(),
-        vec![Value::from("alice")],
-        vec![], // 空终点
-        ExecEdgeDirection::Out,
-        None,
-        10,
-        Arc::new(ExpressionAnalysisContext::new()),
+        graphdb::query::executor::base::ExecutorConfig::new(
+            1,
+            storage.clone(),
+            Arc::new(ExpressionAnalysisContext::new()),
+        ),
+        graphdb::query::executor::base::MultiShortestPathConfig {
+            start_vids: vec![Value::from("alice")],
+            direction: ExecEdgeDirection::Out,
+            edge_types: None,
+            max_steps: 10,
+        },
     );
 
     assert_eq!(executor.id(), 1);
@@ -458,27 +473,35 @@ fn test_all_paths_executor_with_loop() {
 
     // 创建默认执行器（with_loop = false）
     let executor_default = AllPathsExecutor::new(
-        1,
-        storage.clone(),
-        vec![Value::from("A")],
-        vec![Value::from("B")],
-        ExecEdgeDirection::Both,
-        None,
-        5,
-        Arc::new(ExpressionAnalysisContext::new()),
+        graphdb::query::executor::base::ExecutorConfig::new(
+            1,
+            storage.clone(),
+            Arc::new(ExpressionAnalysisContext::new()),
+        ),
+        graphdb::query::executor::base::AllPathsConfig {
+            left_start_ids: vec![Value::from("A")],
+            right_start_ids: vec![Value::from("B")],
+            max_hops: 5,
+            edge_types: None,
+            direction: ExecEdgeDirection::Both,
+        },
     );
     assert!(!executor_default.with_loop);
 
     // 创建允许自环边的执行器
     let executor_with_loop = AllPathsExecutor::new(
-        2,
-        storage.clone(),
-        vec![Value::from("A")],
-        vec![Value::from("B")],
-        ExecEdgeDirection::Both,
-        None,
-        5,
-        Arc::new(ExpressionAnalysisContext::new()),
+        graphdb::query::executor::base::ExecutorConfig::new(
+            2,
+            storage.clone(),
+            Arc::new(ExpressionAnalysisContext::new()),
+        ),
+        graphdb::query::executor::base::AllPathsConfig {
+            left_start_ids: vec![Value::from("A")],
+            right_start_ids: vec![Value::from("B")],
+            max_hops: 5,
+            edge_types: None,
+            direction: ExecEdgeDirection::Both,
+        },
     )
     .with_loop(true);
     assert!(executor_with_loop.with_loop);
@@ -498,15 +521,17 @@ fn test_weighted_shortest_path_executor_creation() {
 
     // 创建带权最短路径执行器
     let executor = ShortestPathExecutor::new(
-        100,
-        storage.clone(),
-        vec![Value::from("A")],
-        vec![Value::from("C")],
-        ExecEdgeDirection::Out,
-        Some(vec!["connect".to_string()]),
-        Some(10),
+        graphdb::query::executor::base::ExecutorConfig::new(
+            100,
+            storage.clone(),
+            Arc::new(ExpressionAnalysisContext::new()),
+        ),
+        graphdb::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::from("A")],
+            direction: ExecEdgeDirection::Out,
+            edge_types: Some(vec!["connect".to_string()]),
+        },
         ShortestPathAlgorithmType::Dijkstra,
-        Arc::new(ExpressionAnalysisContext::new()),
     )
     .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
 
@@ -526,15 +551,17 @@ fn test_weighted_shortest_path_with_ranking() {
 
     // 使用ranking作为权重
     let executor = ShortestPathExecutor::new(
-        101,
-        storage.clone(),
-        vec![Value::from("A")],
-        vec![Value::from("C")],
-        ExecEdgeDirection::Out,
-        None,
-        Some(5),
+        graphdb::query::executor::base::ExecutorConfig::new(
+            101,
+            storage.clone(),
+            Arc::new(ExpressionAnalysisContext::new()),
+        ),
+        graphdb::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::from("A")],
+            direction: ExecEdgeDirection::Out,
+            edge_types: None,
+        },
         ShortestPathAlgorithmType::Dijkstra,
-        Arc::new(ExpressionAnalysisContext::new()),
     )
     .with_weight_config(EdgeWeightConfig::Ranking);
 
@@ -553,15 +580,17 @@ fn test_weighted_shortest_path_astar() {
 
     // 使用A*算法，带启发式函数
     let executor = ShortestPathExecutor::new(
-        102,
-        storage.clone(),
-        vec![Value::from("A")],
-        vec![Value::from("C")],
-        ExecEdgeDirection::Out,
-        None,
-        Some(10),
+        graphdb::query::executor::base::ExecutorConfig::new(
+            102,
+            storage.clone(),
+            Arc::new(ExpressionAnalysisContext::new()),
+        ),
+        graphdb::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::from("A")],
+            direction: ExecEdgeDirection::Out,
+            edge_types: None,
+        },
         ShortestPathAlgorithmType::AStar,
-        Arc::new(ExpressionAnalysisContext::new()),
     )
     .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
     .with_heuristic_config(HeuristicFunction::Zero);
