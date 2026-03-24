@@ -421,7 +421,6 @@ define_plan_node! {
         src_expression: Option<ContextualExpression>,
         src_expression_serializable: Option<SerializableExpression>,
         dedup: bool,
-        track_prev_path: bool,
         need_fetch_prop: bool,
         vids: Vec<String>,
         tag_ids: Vec<i32>,
@@ -447,7 +446,6 @@ impl AppendVerticesNode {
             src_expression: None,
             src_expression_serializable: None,
             dedup: false,
-            track_prev_path: false,
             need_fetch_prop: false,
             vids: Vec::new(),
             tag_ids: Vec::new(),
@@ -568,10 +566,6 @@ impl AppendVerticesNode {
 
     pub fn dedup(&self) -> bool {
         self.dedup
-    }
-
-    pub fn track_prev_path(&self) -> bool {
-        self.track_prev_path
     }
 
     pub fn need_fetch_prop(&self) -> bool {

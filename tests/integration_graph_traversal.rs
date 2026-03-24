@@ -10,13 +10,13 @@
 mod common;
 
 use common::TestStorage;
-use graphdb::query::validator::context::ExpressionAnalysisContext;
 use graphdb::core::vertex_edge_path::Tag;
 use graphdb::core::{Edge, Path, Step, Value, Vertex};
 use graphdb::query::executor::base::{EdgeDirection as ExecEdgeDirection, Executor};
 use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
     AlgorithmContext, AlgorithmStats, MultiShortestPathExecutor, SubgraphConfig, SubgraphExecutor,
 };
+use graphdb::query::validator::context::ExpressionAnalysisContext;
 use graphdb::storage::RedbStorage;
 use parking_lot::Mutex;
 use std::collections::HashMap;

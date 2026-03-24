@@ -45,16 +45,24 @@ pub enum ScanType {
     Full,
 }
 
-impl ScanType {
-    /// 从字符串解析扫描类型
-    pub fn from_str(s: &str) -> Self {
+impl std::str::FromStr for ScanType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
-            "UNIQUE" => ScanType::Unique,
-            "PREFIX" => ScanType::Prefix,
-            "RANGE" => ScanType::Range,
-            "FULL" => ScanType::Full,
-            _ => ScanType::Range, // 默认使用范围扫描
+            "UNIQUE" => Ok(ScanType::Unique),
+            "PREFIX" => Ok(ScanType::Prefix),
+            "RANGE" => Ok(ScanType::Range),
+            "FULL" => Ok(ScanType::Full),
+            _ => Err(format!("Unknown scan type: {}", s)),
         }
+    }
+}
+
+impl ScanType {
+    /// 从字符串解析扫描类型（带默认值）
+    pub fn from_str_with_default(s: &str) -> Self {
+        std::str::FromStr::from_str(s).unwrap_or(ScanType::Range)
     }
 
     /// 转换为字符串
@@ -164,7 +172,7 @@ impl IndexScanNode {
 
     /// 从字符串创建新的 IndexScanNode
     pub fn new_with_str(space_id: u64, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
-        Self::new(space_id, tag_id, index_id, ScanType::from_str(scan_type))
+        Self::new(space_id, tag_id, index_id, ScanType::from_str_with_default(scan_type))
     }
 
     pub fn set_limit(&mut self, limit: i64) {

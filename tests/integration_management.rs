@@ -616,11 +616,13 @@ fn test_management_show_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let show_queries = ["SHOW SPACES",
+    let show_queries = [
+        "SHOW SPACES",
         "SHOW TAGS",
         "SHOW EDGES",
         "SHOW HOSTS",
-        "SHOW PARTS"];
+        "SHOW PARTS",
+    ];
 
     for (i, query) in show_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -641,10 +643,12 @@ fn test_management_explain_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let explain_queries = ["EXPLAIN MATCH (n:Person) RETURN n",
+    let explain_queries = [
+        "EXPLAIN MATCH (n:Person) RETURN n",
         "EXPLAIN GO FROM 1 OVER KNOWS",
         "EXPLAIN LOOKUP ON Person WHERE Person.age > 25",
-        "EXPLAIN FETCH PROP ON Person 1"];
+        "EXPLAIN FETCH PROP ON Person 1",
+    ];
 
     for (i, query) in explain_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -665,10 +669,12 @@ fn test_auxiliary_return_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let return_queries = ["RETURN 'Hello'",
+    let return_queries = [
+        "RETURN 'Hello'",
         "RETURN 1 + 2",
         "RETURN [1, 2, 3]",
-        "RETURN {name: 'Alice', age: 30}"];
+        "RETURN {name: 'Alice', age: 30}",
+    ];
 
     for (i, query) in return_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -689,9 +695,11 @@ fn test_auxiliary_unwind_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let unwind_queries = ["UNWIND [1, 2, 3] AS n RETURN n",
+    let unwind_queries = [
+        "UNWIND [1, 2, 3] AS n RETURN n",
         "UNWIND ['a', 'b', 'c'] AS s RETURN s",
-        "UNWIND [1, 2, 3] AS n RETURN n * 2"];
+        "UNWIND [1, 2, 3] AS n RETURN n * 2",
+    ];
 
     for (i, query) in unwind_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -712,9 +720,11 @@ fn test_auxiliary_pipe_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let pipe_queries = ["GO FROM 1 OVER KNOWS | YIELD target.name",
+    let pipe_queries = [
+        "GO FROM 1 OVER KNOWS | YIELD target.name",
         "GO FROM 1 OVER KNOWS | YIELD target.name AS name | RETURN name",
-        "LOOKUP ON Person WHERE Person.age > 25 | YIELD Person.name"];
+        "LOOKUP ON Person WHERE Person.age > 25 | YIELD Person.name",
+    ];
 
     for (i, query) in pipe_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -762,11 +772,13 @@ fn test_management_combined_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let combined_queries = ["USE test_space",
+    let combined_queries = [
+        "USE test_space",
         "SHOW TAGS",
         "EXPLAIN GO FROM 1 OVER KNOWS",
         "UNWIND [1, 2, 3] AS n RETURN n",
-        "RETURN 'Complete'"];
+        "RETURN 'Complete'",
+    ];
 
     for (i, query) in combined_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -787,9 +799,11 @@ fn test_auxiliary_with_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let with_queries = ["WITH 1 AS x RETURN x",
+    let with_queries = [
+        "WITH 1 AS x RETURN x",
         "WITH [1, 2, 3] AS list RETURN list",
-        "WITH 'Hello' AS msg RETURN msg"];
+        "WITH 'Hello' AS msg RETURN msg",
+    ];
 
     for (i, query) in with_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -1042,14 +1056,16 @@ fn test_new_management_features() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let new_queries = ["EXPLAIN FORMAT = TABLE MATCH (n:Person) RETURN n",
+    let new_queries = [
+        "EXPLAIN FORMAT = TABLE MATCH (n:Person) RETURN n",
         "EXPLAIN FORMAT = DOT GO FROM 1 OVER KNOWS",
         "PROFILE MATCH (n:Person) RETURN n LIMIT 10",
         "GROUP BY category YIELD category",
         "SHOW SESSIONS",
         "SHOW QUERIES",
         "SHOW CONFIGS",
-        "SHOW CONFIGS storage"];
+        "SHOW CONFIGS storage",
+    ];
 
     for (i, query) in new_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);

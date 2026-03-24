@@ -12,9 +12,10 @@ impl std::fmt::Display for AggregateFunction {
     }
 }
 
-impl AggregateFunction {
-    /// 从字符串创建聚合函数
-    pub fn from_str(func_name: &str) -> Result<Self, ExpressionError> {
+impl std::str::FromStr for AggregateFunction {
+    type Err = ExpressionError;
+
+    fn from_str(func_name: &str) -> Result<Self, Self::Err> {
         match func_name.to_uppercase().as_str() {
             "COUNT" => Ok(AggregateFunction::Count(None)),
             "COUNT_DISTINCT" => Ok(AggregateFunction::Distinct("".to_string())),
@@ -31,7 +32,9 @@ impl AggregateFunction {
             ))),
         }
     }
+}
 
+impl AggregateFunction {
     /// 从字符串和参数创建聚合函数
     pub fn from_str_with_args(func_name: &str, args: &[String]) -> Result<Self, ExpressionError> {
         match func_name.to_uppercase().as_str() {
@@ -423,10 +426,10 @@ mod tests {
     #[test]
     fn test_unified_aggregate_function() {
         // 测试从字符串创建
-        let func = AggregateFunction::from_str("COUNT").expect("from_str should succeed");
+        let func = std::str::FromStr::from_str("COUNT").expect("from_str should succeed");
         assert!(matches!(func, AggregateFunction::Count(_)));
 
-        let func = AggregateFunction::from_str("SUM").expect("from_str should succeed");
+        let func = std::str::FromStr::from_str("SUM").expect("from_str should succeed");
         assert!(matches!(func, AggregateFunction::Sum(_)));
 
         let sum_func = AggregateFunction::from_str_with_args("SUM", &["field".to_string()])

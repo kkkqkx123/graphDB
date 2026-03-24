@@ -45,6 +45,7 @@ impl ResultIteratorEnum {
     }
 
     /// 获取下一行
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> DBResult<Option<Vec<Value>>> {
         match self {
             ResultIteratorEnum::Default(iter) => iter.next(),

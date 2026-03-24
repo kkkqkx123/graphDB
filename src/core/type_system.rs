@@ -512,7 +512,7 @@ mod tests {
 
         assert_eq!(TypeUtils::literal_type(&Value::Int(42)), DataType::Int);
         assert_eq!(
-            TypeUtils::literal_type(&Value::Float(3.14)),
+            TypeUtils::literal_type(&Value::Float(3.14_f64)),
             DataType::Float
         );
         assert_eq!(

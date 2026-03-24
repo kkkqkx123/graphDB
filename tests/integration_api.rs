@@ -307,7 +307,6 @@ fn test_client_session_idle_time() {
     // 等待一小段时间
     std::thread::sleep(Duration::from_millis(10));
     let idle_time = client_session.idle_seconds();
-    assert!(idle_time >= 0);
 
     // 重置空闲时间
     client_session.charge();
@@ -972,7 +971,6 @@ async fn test_concurrent_session_operations() {
 #[test]
 fn test_query_manager_concurrent_operations() {
     use std::thread;
-    
 
     let query_manager = Arc::new(QueryManager::new());
     let mut handles = vec![];

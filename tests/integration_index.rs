@@ -14,8 +14,8 @@ use common::{
     storage_helpers::{create_test_space, knows_edge_type_info, person_tag_info},
     TestStorage,
 };
-use graphdb::core::{Edge, Value, Vertex};
 use graphdb::core::types::{Index, IndexField, IndexStatus, IndexType};
+use graphdb::core::{Edge, Value, Vertex};
 use graphdb::query::planner::plan::{IndexLimit, ScanType};
 use graphdb::storage::StorageClient;
 use parking_lot::Mutex;

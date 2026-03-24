@@ -665,10 +665,12 @@ fn test_dql_multiple_queries() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = ["MATCH (n:Person) RETURN n",
+    let queries = [
+        "MATCH (n:Person) RETURN n",
         "GO FROM 1 OVER KNOWS",
         "LOOKUP ON Person WHERE Person.age > 25",
-        "FETCH PROP ON Person 1"];
+        "FETCH PROP ON Person 1",
+    ];
 
     for (i, query) in queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -854,7 +856,6 @@ fn test_dangling_edge_detection_and_repair() {
 
 #[test]
 fn test_dangling_edge_workflow() {
-    
     use graphdb::storage::StorageClient;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");

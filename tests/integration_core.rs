@@ -61,7 +61,7 @@ fn test_value_type_checking() {
     assert_eq!(Value::Null(NullType::Null).get_type(), DataType::Null);
     assert_eq!(Value::Bool(true).get_type(), DataType::Bool);
     assert_eq!(Value::Int(42).get_type(), DataType::Int);
-    assert_eq!(Value::Float(3.14).get_type(), DataType::Float);
+    assert_eq!(Value::Float(3.14_f64).get_type(), DataType::Float);
     assert_eq!(
         Value::String("test".to_string()).get_type(),
         DataType::String
@@ -69,7 +69,7 @@ fn test_value_type_checking() {
 
     // 数值类型检查
     assert!(Value::Int(42).is_numeric());
-    assert!(Value::Float(3.14).is_numeric());
+    assert!(Value::Float(3.14_f64).is_numeric());
     assert!(!Value::String("42".to_string()).is_numeric());
     assert!(!Value::Bool(true).is_numeric());
 
@@ -125,7 +125,7 @@ fn test_value_integer_conversion() {
     assert_eq!(Value::Int(-100).to_int(), Value::Int(-100));
 
     // 浮点数转换（截断）
-    assert_eq!(Value::Float(3.14).to_int(), Value::Int(3));
+    assert_eq!(Value::Float(3.14_f64).to_int(), Value::Int(3));
     assert_eq!(Value::Float(-2.9).to_int(), Value::Int(-2));
 
     // 边界值处理
@@ -155,7 +155,7 @@ fn test_value_integer_conversion() {
 #[test]
 fn test_value_float_conversion() {
     // 浮点数直接返回
-    assert_eq!(Value::Float(3.14).to_float(), Value::Float(3.14));
+    assert_eq!(Value::Float(3.14_f64).to_float(), Value::Float(3.14_f64));
 
     // 整数转换
     assert_eq!(Value::Int(42).to_float(), Value::Float(42.0));
@@ -163,7 +163,7 @@ fn test_value_float_conversion() {
     // 字符串解析
     assert_eq!(
         Value::String("3.14".to_string()).to_float(),
-        Value::Float(3.14)
+        Value::Float(3.14_f64)
     );
     assert_eq!(
         Value::String("-2.5".to_string()).to_float(),
@@ -269,7 +269,7 @@ fn test_value_comparison() {
     assert_eq!(Value::Int(10), Value::Int(10));
 
     // 浮点数比较（包含 NaN 处理）
-    assert!(Value::Float(3.14) > Value::Float(2.0));
+    assert!(Value::Float(3.14_f64) > Value::Float(2.0));
     assert_eq!(Value::Float(f64::NAN), Value::Float(f64::NAN));
 
     // 字符串比较
@@ -294,8 +294,8 @@ fn test_value_unary_operations() {
         Value::Int(-42)
     );
     assert_eq!(
-        Value::Float(3.14).negate().expect("浮点数取反应该成功"),
-        Value::Float(-3.14)
+        Value::Float(3.14_f64).negate().expect("浮点数取反应该成功"),
+        Value::Float(-3.14_f64)
     );
     assert!(Value::String("test".to_string()).negate().is_err());
 
@@ -305,8 +305,8 @@ fn test_value_unary_operations() {
         Value::Int(42)
     );
     assert_eq!(
-        Value::Float(-3.14).abs().expect("浮点数绝对值应该成功"),
-        Value::Float(3.14)
+        Value::Float(-3.14_f64).abs().expect("浮点数绝对值应该成功"),
+        Value::Float(3.14_f64)
     );
     assert!(Value::String("test".to_string()).abs().is_err());
 
@@ -794,9 +794,9 @@ fn test_function_registry_builtins() {
     assert_eq!(result, Value::Int(42));
 
     let result = registry
-        .execute("abs", &[Value::Float(-3.14)])
+        .execute("abs", &[Value::Float(-3.14_f64)])
         .expect("abs函数执行应该成功");
-    assert_eq!(result, Value::Float(3.14));
+    assert_eq!(result, Value::Float(3.14_f64));
 
     // 测试字符串函数
     let result = registry

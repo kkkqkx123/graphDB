@@ -29,8 +29,6 @@ pub struct AppendVerticesExecutor<S: StorageClient + Send + 'static> {
     col_names: Vec<String>,
     /// 是否去重
     dedup: bool,
-    /// 是否跟踪前一个路径
-    track_prev_path: bool,
     /// 是否需要获取属性
     need_fetch_prop: bool,
 }
@@ -45,7 +43,6 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
         v_filter: Option<Expression>,
         col_names: Vec<String>,
         dedup: bool,
-        track_prev_path: bool,
         need_fetch_prop: bool,
         expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
@@ -61,7 +58,6 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             v_filter,
             col_names,
             dedup,
-            track_prev_path,
             need_fetch_prop,
         }
     }
@@ -75,7 +71,6 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
         v_filter: Option<Expression>,
         col_names: Vec<String>,
         dedup: bool,
-        track_prev_path: bool,
         need_fetch_prop: bool,
         context: crate::query::executor::base::ExecutionContext,
     ) -> Self {
@@ -91,7 +86,6 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             v_filter,
             col_names,
             dedup,
-            track_prev_path,
             need_fetch_prop,
         }
     }
@@ -397,7 +391,6 @@ mod tests {
             src_expression,
             None,
             vec!["vertex".to_string()],
-            false,
             false,
             false,
             context,

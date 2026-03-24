@@ -817,13 +817,15 @@ fn test_ddl_tag_lifecycle() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let lifecycle_queries = ["CREATE TAG TestTag(name: STRING, age: INT)",
+    let lifecycle_queries = [
+        "CREATE TAG TestTag(name: STRING, age: INT)",
         "DESCRIBE TAG TestTag",
         "ALTER TAG TestTag ADD (email: STRING)",
         "DESCRIBE TAG TestTag",
         "ALTER TAG TestTag DROP (email)",
         "DESCRIBE TAG TestTag",
-        "DROP TAG TestTag"];
+        "DROP TAG TestTag",
+    ];
 
     for (i, query) in lifecycle_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -844,13 +846,15 @@ fn test_ddl_edge_lifecycle() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let lifecycle_queries = ["CREATE EDGE TestEdge(since: DATE, weight: DOUBLE)",
+    let lifecycle_queries = [
+        "CREATE EDGE TestEdge(since: DATE, weight: DOUBLE)",
         "DESCRIBE EDGE TestEdge",
         "ALTER EDGE TestEdge ADD (note: STRING)",
         "DESCRIBE EDGE TestEdge",
         "ALTER EDGE TestEdge DROP (note)",
         "DESCRIBE EDGE TestEdge",
-        "DROP EDGE TestEdge"];
+        "DROP EDGE TestEdge",
+    ];
 
     for (i, query) in lifecycle_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -871,10 +875,12 @@ fn test_ddl_multiple_operations() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let create_queries = ["CREATE TAG Person(name: STRING, age: INT)",
+    let create_queries = [
+        "CREATE TAG Person(name: STRING, age: INT)",
         "CREATE TAG Company(name: STRING, founded: INT)",
         "CREATE EDGE WORKS_AT(since: DATE)",
-        "CREATE EDGE KNOWS(since: DATE)"];
+        "CREATE EDGE KNOWS(since: DATE)",
+    ];
 
     for (i, query) in create_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);

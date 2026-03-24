@@ -103,6 +103,7 @@ impl Decimal128Value {
     }
 
     /// 从字符串解析 Decimal128
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         Decimal128::from_str(s)
             .map(|inner| Self { inner })
@@ -178,22 +179,6 @@ impl Decimal128Value {
         Ok(Self {
             inner: self.inner % other.inner,
         })
-    }
-
-    /// 比较运算
-    pub fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.inner < other.inner {
-            std::cmp::Ordering::Less
-        } else if self.inner > other.inner {
-            std::cmp::Ordering::Greater
-        } else {
-            std::cmp::Ordering::Equal
-        }
-    }
-
-    /// 等于比较
-    pub fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
     }
 
     /// 绝对值
@@ -301,7 +286,9 @@ impl FromStr for Decimal128Value {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_str(s)
+        Decimal128::from_str(s)
+            .map(|inner| Self { inner })
+            .map_err(|e| format!("Decimal128 解析失败: {}", e))
     }
 }
 
@@ -370,6 +357,24 @@ impl PartialEq for Decimal128Value {
 }
 
 impl Eq for Decimal128Value {}
+
+impl PartialOrd for Decimal128Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Decimal128Value {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if self.inner < other.inner {
+            std::cmp::Ordering::Less
+        } else if self.inner > other.inner {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    }
+}
 
 impl std::hash::Hash for Decimal128Value {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

@@ -10,10 +10,9 @@ mod common;
 
 use graphdb::query::planner::rewrite::rule::RewriteRule;
 use graphdb::query::planner::rewrite::{
-    create_default_rewriter,
-    CombineFilterRule, EliminateFilterRule, PlanRewriter,
-    ProjectionPushDownRule, PushFilterDownAggregateRule, PushFilterDownTraverseRule, PushLimitDownGetVerticesRule,
-    RemoveNoopProjectRule, RewriteRuleEnum, RuleRegistry,
+    create_default_rewriter, CombineFilterRule, EliminateFilterRule, PlanRewriter,
+    ProjectionPushDownRule, PushFilterDownAggregateRule, PushFilterDownTraverseRule,
+    PushLimitDownGetVerticesRule, RemoveNoopProjectRule, RewriteRuleEnum, RuleRegistry,
 };
 
 // ==================== RuleRegistry 集成测试 ====================

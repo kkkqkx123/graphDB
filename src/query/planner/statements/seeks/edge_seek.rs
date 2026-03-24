@@ -32,6 +32,7 @@ pub enum EdgeDirection {
 
 impl EdgeDirection {
     /// 从字符串解析方向
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_uppercase().as_str() {
             "OUT" | "OUTGOING" | "->" => Some(EdgeDirection::Outgoing),

@@ -202,11 +202,6 @@ impl ExecutorSafetyValidator {
         }
     }
 
-    /// 使用默认配置创建验证器
-    pub fn default() -> Self {
-        Self::new(ExecutorSafetyConfig::default())
-    }
-
     /// 验证执行器链的安全性
     pub fn validate_executor_chain(
         &mut self,
@@ -258,6 +253,12 @@ impl ExecutorSafetyValidator {
     /// 获取当前递归深度
     pub fn current_depth(&self) -> usize {
         self.recursion_detector.current_depth()
+    }
+}
+
+impl Default for ExecutorSafetyValidator {
+    fn default() -> Self {
+        Self::new(ExecutorSafetyConfig::default())
     }
 }
 

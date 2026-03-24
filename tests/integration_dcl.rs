@@ -459,10 +459,12 @@ fn test_dcl_user_lifecycle() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let lifecycle_queries = ["CREATE USER testuser WITH PASSWORD 'password123'",
+    let lifecycle_queries = [
+        "CREATE USER testuser WITH PASSWORD 'password123'",
         "ALTER USER testuser WITH PASSWORD 'newpassword123'",
         "CHANGE PASSWORD 'newpassword123' TO 'anotherpassword123'",
-        "DROP USER testuser"];
+        "DROP USER testuser",
+    ];
 
     for (i, query) in lifecycle_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -483,9 +485,11 @@ fn test_dcl_multiple_users() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let create_queries = ["CREATE USER alice WITH PASSWORD 'alice123'",
+    let create_queries = [
+        "CREATE USER alice WITH PASSWORD 'alice123'",
         "CREATE USER bob WITH PASSWORD 'bob123'",
-        "CREATE USER charlie WITH PASSWORD 'charlie123'"];
+        "CREATE USER charlie WITH PASSWORD 'charlie123'",
+    ];
 
     for (i, query) in create_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -573,9 +577,11 @@ fn test_dcl_password_security() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let password_queries = ["CREATE USER secureuser WITH PASSWORD 'SecureP@ssw0rd!2024'",
+    let password_queries = [
+        "CREATE USER secureuser WITH PASSWORD 'SecureP@ssw0rd!2024'",
         "ALTER USER secureuser WITH PASSWORD 'N3wS3cur3P@ssw0rd!2024'",
-        "CHANGE PASSWORD 'N3wS3cur3P@ssw0rd!2024' TO 'An0th3rS3cur3P@ssw0rd!2024'"];
+        "CHANGE PASSWORD 'N3wS3cur3P@ssw0rd!2024' TO 'An0th3rS3cur3P@ssw0rd!2024'",
+    ];
 
     for (i, query) in password_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -596,12 +602,14 @@ fn test_dcl_user_management_workflow() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let workflow_queries = ["CREATE USER admin WITH PASSWORD 'Admin@2024'",
+    let workflow_queries = [
+        "CREATE USER admin WITH PASSWORD 'Admin@2024'",
         "CREATE USER readonly WITH PASSWORD 'Read@2024'",
         "ALTER USER readonly WITH PASSWORD 'NewRead@2024'",
         "DROP USER readonly",
         "CHANGE PASSWORD 'Admin@2024' TO 'NewAdmin@2024'",
-        "DROP USER admin"];
+        "DROP USER admin",
+    ];
 
     for (i, query) in workflow_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -622,12 +630,14 @@ fn test_dcl_special_usernames() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let special_username_queries = ["CREATE USER user_123 WITH PASSWORD 'password'",
+    let special_username_queries = [
+        "CREATE USER user_123 WITH PASSWORD 'password'",
         "CREATE USER user-456 WITH PASSWORD 'password'",
         "CREATE USER user.789 WITH PASSWORD 'password'",
         "DROP USER user_123",
         "DROP USER user-456",
-        "DROP USER user.789"];
+        "DROP USER user.789",
+    ];
 
     for (i, query) in special_username_queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -728,10 +738,12 @@ fn test_grant_revoke_execution() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = ["CREATE USER alice WITH PASSWORD 'password123'",
+    let queries = [
+        "CREATE USER alice WITH PASSWORD 'password123'",
         "GRANT ADMIN ON test_space TO alice",
         "REVOKE ADMIN ON test_space FROM alice",
-        "DROP USER alice"];
+        "DROP USER alice",
+    ];
 
     for (i, query) in queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -770,9 +782,11 @@ fn test_describe_user_execution() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = ["CREATE USER alice WITH PASSWORD 'password123'",
+    let queries = [
+        "CREATE USER alice WITH PASSWORD 'password123'",
         "DESCRIBE USER alice",
-        "DROP USER alice"];
+        "DROP USER alice",
+    ];
 
     for (i, query) in queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -811,11 +825,13 @@ fn test_show_users_execution() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = ["CREATE USER alice WITH PASSWORD 'password123'",
+    let queries = [
+        "CREATE USER alice WITH PASSWORD 'password123'",
         "CREATE USER bob WITH PASSWORD 'password456'",
         "SHOW USERS",
         "DROP USER alice",
-        "DROP USER bob"];
+        "DROP USER bob",
+    ];
 
     for (i, query) in queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);
@@ -870,12 +886,14 @@ fn test_show_roles_execution() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = ["CREATE USER alice WITH PASSWORD 'password123'",
+    let queries = [
+        "CREATE USER alice WITH PASSWORD 'password123'",
         "GRANT ADMIN ON test_space TO alice",
         "SHOW ROLES",
         "SHOW ROLES IN test_space",
         "REVOKE ADMIN ON test_space FROM alice",
-        "DROP USER alice"];
+        "DROP USER alice",
+    ];
 
     for (i, query) in queries.iter().enumerate() {
         let result = pipeline_manager.execute_query(query);

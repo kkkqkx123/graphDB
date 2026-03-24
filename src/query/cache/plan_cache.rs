@@ -191,11 +191,6 @@ impl QueryPlanCache {
         }
     }
 
-    /// 使用默认配置创建
-    pub fn default() -> Self {
-        Self::new(PlanCacheConfig::default())
-    }
-
     /// 获取缓存的计划
     ///
     /// # 参数

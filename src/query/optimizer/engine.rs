@@ -154,11 +154,6 @@ impl OptimizerEngine {
         }
     }
 
-    /// 使用默认配置创建优化器引擎
-    pub fn default() -> Self {
-        Self::new(CostModelConfig::default())
-    }
-
     /// 使用 SSD 优化配置创建
     pub fn for_ssd() -> Self {
         Self::new(CostModelConfig::for_ssd())
@@ -264,6 +259,12 @@ impl OptimizerEngine {
             &self.stats_manager,
         );
         log::info!("优化器代价模型配置已更新: {:?}", self.cost_config);
+    }
+}
+
+impl Default for OptimizerEngine {
+    fn default() -> Self {
+        Self::new(CostModelConfig::default())
     }
 }
 

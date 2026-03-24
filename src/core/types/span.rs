@@ -147,14 +147,6 @@ impl Span {
         (self.start.column, self.end.column)
     }
 
-    /// 创建默认跨度（用于内部生成的表达式）
-    pub fn default() -> Self {
-        Self {
-            start: Position::new(0, 0),
-            end: Position::new(0, 0),
-        }
-    }
-
     /// 获取起始位置的行号
     pub fn start_line(&self) -> usize {
         self.start.line

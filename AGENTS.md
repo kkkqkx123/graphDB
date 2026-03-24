@@ -60,30 +60,15 @@ The graphDB project utilises Cargo as its build system. To build the project:
 
    ```shell
    cd graphDB
-   cargo build                 # Debug build (development)
-   cargo build --release       # Release build (optimized for performance)
+   cargo build           # Debug build (development)
+   cargo build --release # Release build (optimized for performance)
    ```
 
-3. **Type check and compile check**
-
-analyze_cargo is a cli tool that automatically runs `cargo test --lib`, categorizes the errors/warnings, and generates a detailed Markdown report.
-default output file is `cargo_errors_report.md` in pwd.
-Use it instead of `cargo test --lib` or `cargo check`.
-
-**Usage**
+3. **Lint check**
 
 ```shell
-analyze_cargo
-```
-
-**Examples**
-
-```shell
-# Default usage
-analyze_cargo
-
-# Filter warnings only
-analyze_cargo --filter-warnings
+cargo clippy --all-targets --all-features
+cargo fmt
 ```
 
 ## Development Conventions

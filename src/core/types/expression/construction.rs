@@ -222,21 +222,25 @@ impl Expression {
     }
 
     /// 创建加法表达式
+    #[allow(clippy::should_implement_trait)]
     pub fn add(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::Add, right)
     }
 
     /// 创建减法表达式
+    #[allow(clippy::should_implement_trait)]
     pub fn sub(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::Subtract, right)
     }
 
     /// 创建乘法表达式
+    #[allow(clippy::should_implement_trait)]
     pub fn mul(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::Multiply, right)
     }
 
     /// 创建除法表达式
+    #[allow(clippy::should_implement_trait)]
     pub fn div(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::Divide, right)
     }
@@ -287,11 +291,13 @@ impl Expression {
     }
 
     /// 创建逻辑非表达式
+    #[allow(clippy::should_implement_trait)]
     pub fn not(operand: Expression) -> Self {
         Self::unary(UnaryOperator::Not, operand)
     }
 
     /// 创建负号表达式
+    #[allow(clippy::should_implement_trait)]
     pub fn neg(operand: Expression) -> Self {
         Self::unary(UnaryOperator::Minus, operand)
     }
