@@ -13,6 +13,17 @@ use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
+/// Yield info result type alias
+type YieldInfoResult = Result<
+    (
+        Vec<YieldColumn>,
+        Option<crate::core::types::ContextualExpression>,
+        Option<usize>,
+        Option<usize>,
+    ),
+    PlannerError,
+>;
+
 /// YIELD 子句规划器
 #[derive(Debug)]
 pub struct YieldClausePlanner {}
@@ -143,15 +154,7 @@ impl YieldClausePlanner {
     /// - 别名处理
     fn extract_yield_info(
         stmt: &Stmt,
-    ) -> Result<
-        (
-            Vec<YieldColumn>,
-            Option<crate::core::types::ContextualExpression>,
-            Option<usize>,
-            Option<usize>,
-        ),
-        PlannerError,
-    > {
+    ) -> YieldInfoResult {
         use crate::query::parser::ast::Stmt;
 
         // YIELD 可能作为独立语句或子句出现在其他语句中

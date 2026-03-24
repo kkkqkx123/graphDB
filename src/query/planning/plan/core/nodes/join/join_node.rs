@@ -22,7 +22,7 @@ impl InnerJoinNode {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
 
-        let deps = vec![Box::new(left.clone()), Box::new(right.clone())];
+        let deps = vec![left.clone(), right.clone()];
 
         Ok(Self {
             id: -1,
@@ -53,7 +53,7 @@ impl LeftJoinNode {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
 
-        let deps = vec![Box::new(left.clone()), Box::new(right.clone())];
+        let deps = vec![left.clone(), right.clone()];
 
         Ok(Self {
             id: -1,
@@ -83,7 +83,7 @@ impl CrossJoinNode {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
 
-        let deps = vec![Box::new(left.clone()), Box::new(right.clone())];
+        let deps = vec![left.clone(), right.clone()];
 
         Ok(Self {
             id: -1,
@@ -112,7 +112,7 @@ impl HashInnerJoinNode {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
 
-        let deps = vec![Box::new(left.clone()), Box::new(right.clone())];
+        let deps = vec![left.clone(), right.clone()];
 
         Ok(Self {
             id: -1,
@@ -143,7 +143,7 @@ impl HashLeftJoinNode {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
 
-        let deps = vec![Box::new(left.clone()), Box::new(right.clone())];
+        let deps = vec![left.clone(), right.clone()];
 
         Ok(Self {
             id: -1,
@@ -174,7 +174,7 @@ impl FullOuterJoinNode {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
 
-        let deps = vec![Box::new(left.clone()), Box::new(right.clone())];
+        let deps = vec![left.clone(), right.clone()];
 
         Ok(Self {
             id: -1,

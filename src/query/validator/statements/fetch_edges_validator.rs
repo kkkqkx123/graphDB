@@ -221,18 +221,14 @@ impl FetchEdgesValidator {
             return Ok(());
         }
 
-        if expr.is_literal() {
-            if let Some(value) = expr.as_literal() {
-                if let Value::Int(i) = value {
-                    if i >= 0 {
-                        return Ok(());
-                    } else {
-                        return Err(ValidationError::new(
-                            "rank 值必须为非负整数".to_string(),
-                            ValidationErrorType::SemanticError,
-                        ));
-                    }
-                }
+        if let Some(Value::Int(i)) = expr.as_literal() {
+            if i >= 0 {
+                return Ok(());
+            } else {
+                return Err(ValidationError::new(
+                    "rank 值必须为非负整数".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
             }
         }
 
@@ -284,10 +280,8 @@ impl FetchEdgesValidator {
             return Ok(0);
         }
 
-        if let Some(value) = inner_expr.as_literal() {
-            if let Value::Int(i) = value {
-                return Ok(i);
-            }
+        if let Some(Value::Int(i)) = inner_expr.as_literal() {
+            return Ok(i);
         }
 
         Err(ValidationError::new(

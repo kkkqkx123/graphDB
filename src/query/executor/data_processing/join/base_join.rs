@@ -16,6 +16,9 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use ExpressionAnalysisContext as ExpressionContextStruct;
 
+/// Probe result type alias
+type ProbeResult = Result<Vec<(Vec<Value>, Vec<Vec<Value>>)>, QueryError>;
+
 /// Join执行器的基础结构
 pub struct BaseJoinExecutor<S: StorageClient> {
     pub base: BaseExecutor<S>,
@@ -213,7 +216,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         probe_key_expression: &Expression,
         _evaluator: &JoinKeyEvaluator,
         context: &mut C,
-    ) -> Result<Vec<(Vec<Value>, Vec<Vec<Value>>)>, QueryError> {
+    ) -> ProbeResult {
         let mut results = Vec::new();
 
         for probe_row in &probe_dataset.rows {
@@ -238,7 +241,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         probe_key_exprs: &[Expression],
         _evaluator: &JoinKeyEvaluator,
         context: &mut C,
-    ) -> Result<Vec<(Vec<Value>, Vec<Vec<Value>>)>, QueryError> {
+    ) -> ProbeResult {
         let mut results = Vec::new();
 
         for probe_row in &probe_dataset.rows {

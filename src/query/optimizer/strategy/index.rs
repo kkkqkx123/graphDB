@@ -184,13 +184,9 @@ impl IndexSelector {
                     .estimate_greater_than_selectivity(None),
                 PredicateOperator::Like => {
                     // 尝试从表达式中提取模式
-                    if let Expression::Literal(value) = &predicate.value {
-                        if let crate::core::value::Value::String(pattern) = value {
-                            self.selectivity_estimator
-                                .estimate_like_selectivity(pattern)
-                        } else {
-                            0.3
-                        }
+                    if let Expression::Literal(crate::core::value::Value::String(pattern)) = &predicate.value {
+                        self.selectivity_estimator
+                            .estimate_like_selectivity(pattern)
                     } else {
                         0.3
                     }

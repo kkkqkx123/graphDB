@@ -162,10 +162,10 @@ impl<T: JoinNode + ?Sized> JoinNode for &T {
 /// 适用于有多个输入的节点（如Union）
 pub trait MultipleInputNode: PlanNode {
     /// 获取所有输入节点
-    fn inputs(&self) -> &[Box<PlanNodeEnum>];
+    fn inputs(&self) -> &[PlanNodeEnum];
 
     /// 获取所有输入节点的可变引用
-    fn inputs_mut(&mut self) -> &mut Vec<Box<PlanNodeEnum>>;
+    fn inputs_mut(&mut self) -> &mut Vec<PlanNodeEnum>;
 
     /// 添加输入节点
     fn add_input(&mut self, input: PlanNodeEnum);

@@ -29,7 +29,7 @@ impl AggregateNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             group_keys,
             aggregation_functions,
             output_var: None,

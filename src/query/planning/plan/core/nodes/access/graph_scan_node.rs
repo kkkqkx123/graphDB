@@ -116,15 +116,15 @@ impl GetVerticesNode {
         self.src_ref = src_ref;
     }
 
-    pub fn deps(&self) -> &[Box<PlanNodeEnum>] {
+    pub fn deps(&self) -> &[PlanNodeEnum] {
         &self.deps
     }
 
-    pub fn deps_mut(&mut self) -> &mut Vec<Box<PlanNodeEnum>> {
+    pub fn deps_mut(&mut self) -> &mut Vec<PlanNodeEnum> {
         &mut self.deps
     }
 
-    pub fn set_deps(&mut self, deps: Vec<Box<PlanNodeEnum>>) {
+    pub fn set_deps(&mut self, deps: Vec<PlanNodeEnum>) {
         self.deps = deps;
     }
 }
@@ -397,15 +397,15 @@ impl GetNeighborsNode {
         self.limit = Some(limit);
     }
 
-    pub fn deps(&self) -> &[Box<PlanNodeEnum>] {
+    pub fn deps(&self) -> &[PlanNodeEnum] {
         &self.deps
     }
 
-    pub fn deps_mut(&mut self) -> &mut Vec<Box<PlanNodeEnum>> {
+    pub fn deps_mut(&mut self) -> &mut Vec<PlanNodeEnum> {
         &mut self.deps
     }
 
-    pub fn set_deps(&mut self, deps: Vec<Box<PlanNodeEnum>>) {
+    pub fn set_deps(&mut self, deps: Vec<PlanNodeEnum>) {
         self.deps = deps;
     }
 }

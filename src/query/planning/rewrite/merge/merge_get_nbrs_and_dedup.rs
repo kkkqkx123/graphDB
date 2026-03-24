@@ -75,7 +75,7 @@ impl RewriteRule for MergeGetNbrsAndDedupRule {
         }
 
         // 检查第一个依赖是否为Dedup节点
-        let dedup_node = match deps.first().map(|d| d.as_ref()) {
+        let dedup_node = match deps.first() {
             Some(PlanNodeEnum::Dedup(n)) => n,
             _ => return Ok(None),
         };
@@ -93,7 +93,7 @@ impl RewriteRule for MergeGetNbrsAndDedupRule {
 
         // 清除原有依赖并设置新的输入
         new_get_neighbors.deps_mut().clear();
-        new_get_neighbors.deps_mut().push(Box::new(dedup_input));
+        new_get_neighbors.deps_mut().push(dedup_input);
 
         let mut result = TransformResult::new();
         result.erase_curr = true;
@@ -154,7 +154,7 @@ mod tests {
         // 手动设置依赖关系
         if let PlanNodeEnum::GetNeighbors(ref mut gn) = get_neighbors_node {
             gn.deps_mut().clear();
-            gn.deps_mut().push(Box::new(dedup_node));
+            gn.deps_mut().push(dedup_node);
         }
 
         // 应用规则

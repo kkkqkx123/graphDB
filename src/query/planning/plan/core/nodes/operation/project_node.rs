@@ -29,7 +29,7 @@ impl ProjectNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             columns,
             columns_serializable: None,
             output_var: None,

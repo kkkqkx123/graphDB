@@ -12,6 +12,9 @@ use super::error_stats::{ErrorInfo, ErrorStatsManager, ErrorType, QueryPhase};
 use super::metrics::QueryMetrics;
 use super::profile::QueryProfile;
 
+/// Space metrics type alias
+type SpaceMetrics = Arc<DashMap<MetricType, Arc<MetricValue>>>;
+
 /// 指标类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MetricType {
@@ -106,7 +109,7 @@ impl MetricValue {
 /// 统一管理查询指标、查询画像和错误统计。
 pub struct StatsManager {
     metrics: Arc<DashMap<MetricType, Arc<MetricValue>>>,
-    space_metrics: Arc<DashMap<String, Arc<DashMap<MetricType, Arc<MetricValue>>>>>,
+    space_metrics: Arc<DashMap<String, SpaceMetrics>>,
     last_query_metrics: Arc<Mutex<Option<QueryMetrics>>>,
     query_profiles: Arc<Mutex<VecDeque<QueryProfile>>>,
     config: crate::config::MonitoringConfig,

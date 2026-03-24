@@ -76,7 +76,7 @@ impl RewriteRule for MergeGetNbrsAndProjectRule {
         }
 
         // 检查第一个依赖是否为Project节点
-        let project_node = match deps.first().map(|d| d.as_ref()) {
+        let project_node = match deps.first() {
             Some(PlanNodeEnum::Project(n)) => n,
             _ => return Ok(None),
         };
@@ -103,7 +103,7 @@ impl RewriteRule for MergeGetNbrsAndProjectRule {
 
         // 清除原有依赖并设置新的输入
         new_get_neighbors.deps_mut().clear();
-        new_get_neighbors.deps_mut().push(Box::new(project_input));
+        new_get_neighbors.deps_mut().push(project_input);
 
         let mut result = TransformResult::new();
         result.erase_curr = true;

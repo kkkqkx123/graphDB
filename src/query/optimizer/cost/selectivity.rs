@@ -347,10 +347,8 @@ impl SelectivityEstimator {
         match name_lower.as_str() {
             "like" | "ilike" if args.len() >= 2 => {
                 // 尝试提取 LIKE 模式
-                if let Expression::Literal(value) = &args[1] {
-                    if let crate::core::value::Value::String(pattern) = value {
-                        return self.estimate_like_selectivity(pattern);
-                    }
+                if let Expression::Literal(crate::core::value::Value::String(pattern)) = &args[1] {
+                    return self.estimate_like_selectivity(pattern);
                 }
                 defaults::EQUALITY
             }

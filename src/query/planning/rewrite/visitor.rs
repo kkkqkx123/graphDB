@@ -131,7 +131,7 @@ macro_rules! impl_multi_input_deps_rewrite {
                 let deps: Vec<PlanNodeEnum> = node
                     .dependencies()
                     .iter()
-                    .map(|dep| dep.as_ref().clone())
+                    .map(|dep| dep.clone())
                     .collect();
                 let mut new_deps = Vec::new();
                 for dep in deps.iter() {
@@ -155,7 +155,7 @@ macro_rules! impl_multi_input_inputs_rewrite {
                 let deps: Vec<PlanNodeEnum> = node
                     .inputs()
                     .iter()
-                    .map(|dep| dep.as_ref().clone())
+                    .map(|dep| dep.clone())
                     .collect();
                 let mut new_deps = Vec::new();
                 for dep in deps.iter() {
@@ -164,7 +164,7 @@ macro_rules! impl_multi_input_inputs_rewrite {
                     new_deps.push(new_dep);
                 }
                 let mut new_node = node.clone();
-                *new_node.inputs_mut() = new_deps.into_iter().map(Box::new).collect();
+                *new_node.inputs_mut() = new_deps.into_iter().collect();
                 Ok(PlanNodeEnum::$enum_variant(new_node))
             }
         )*

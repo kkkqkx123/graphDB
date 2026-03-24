@@ -22,7 +22,7 @@ impl SampleNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             count,
             output_var: None,
             col_names,

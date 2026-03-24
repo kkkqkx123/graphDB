@@ -167,7 +167,7 @@ impl PlanNodeEnum {
     }
 
     /// 获取节点的依赖节点列表
-    pub fn dependencies(&self) -> Vec<Box<PlanNodeEnum>> {
+    pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
         match self {
             // 零输入节点
             PlanNodeEnum::Start(_node) => vec![],
@@ -183,41 +183,41 @@ impl PlanNodeEnum {
             PlanNodeEnum::ShortestPath(_node) => vec![],
 
             // 单输入节点
-            PlanNodeEnum::Project(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::Sort(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::Limit(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::TopN(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::Sample(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::Filter(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::Aggregate(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::DataCollect(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::Dedup(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::PatternApply(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::RollUpApply(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::Union(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::Unwind(node) => vec![Box::new(node.input().clone())],
-            PlanNodeEnum::Assign(node) => vec![Box::new(node.input().clone())],
+            PlanNodeEnum::Project(node) => vec![node.input().clone()],
+            PlanNodeEnum::Sort(node) => vec![node.input().clone()],
+            PlanNodeEnum::Limit(node) => vec![node.input().clone()],
+            PlanNodeEnum::TopN(node) => vec![node.input().clone()],
+            PlanNodeEnum::Sample(node) => vec![node.input().clone()],
+            PlanNodeEnum::Filter(node) => vec![node.input().clone()],
+            PlanNodeEnum::Aggregate(node) => vec![node.input().clone()],
+            PlanNodeEnum::DataCollect(node) => vec![node.input().clone()],
+            PlanNodeEnum::Dedup(node) => vec![node.input().clone()],
+            PlanNodeEnum::PatternApply(node) => vec![node.input().clone()],
+            PlanNodeEnum::RollUpApply(node) => vec![node.input().clone()],
+            PlanNodeEnum::Union(node) => vec![node.input().clone()],
+            PlanNodeEnum::Unwind(node) => vec![node.input().clone()],
+            PlanNodeEnum::Assign(node) => vec![node.input().clone()],
 
             // 双输入节点
             PlanNodeEnum::InnerJoin(node) => vec![
-                Box::new(node.left_input().clone()),
-                Box::new(node.right_input().clone()),
+                node.left_input().clone(),
+                node.right_input().clone(),
             ],
             PlanNodeEnum::LeftJoin(node) => vec![
-                Box::new(node.left_input().clone()),
-                Box::new(node.right_input().clone()),
+                node.left_input().clone(),
+                node.right_input().clone(),
             ],
             PlanNodeEnum::CrossJoin(node) => vec![
-                Box::new(node.left_input().clone()),
-                Box::new(node.right_input().clone()),
+                node.left_input().clone(),
+                node.right_input().clone(),
             ],
             PlanNodeEnum::HashInnerJoin(node) => vec![
-                Box::new(node.left_input().clone()),
-                Box::new(node.right_input().clone()),
+                node.left_input().clone(),
+                node.right_input().clone(),
             ],
             PlanNodeEnum::HashLeftJoin(node) => vec![
-                Box::new(node.left_input().clone()),
-                Box::new(node.right_input().clone()),
+                node.left_input().clone(),
+                node.right_input().clone(),
             ],
 
             // 多输入节点
@@ -226,7 +226,7 @@ impl PlanNodeEnum {
                 node.inputs().to_vec()
             }
             PlanNodeEnum::Traverse(node) => {
-                vec![Box::new(node.input().clone())]
+                vec![node.input().clone()]
             }
             PlanNodeEnum::AppendVertices(node) => {
                 node.inputs().to_vec()
@@ -249,7 +249,7 @@ impl PlanNodeEnum {
         if deps.is_empty() {
             None
         } else {
-            Some(*deps[0].clone())
+            Some(deps[0].clone())
         }
     }
 

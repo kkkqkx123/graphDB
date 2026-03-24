@@ -23,7 +23,7 @@ impl UnionNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             distinct,
             output_var: None,
             col_names,
@@ -56,7 +56,7 @@ impl UnwindNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             alias: alias.to_string(),
             list_expression,
             output_var: None,
@@ -89,7 +89,7 @@ impl DedupNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             output_var: None,
             col_names,
         })
@@ -114,7 +114,7 @@ impl DataCollectNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             collect_kind: collect_kind.to_string(),
             output_var: None,
             col_names,
@@ -144,7 +144,7 @@ impl AssignNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             assignments,
             output_var: None,
             col_names,
@@ -165,7 +165,7 @@ pub struct RollUpApplyNode {
     id: i64,
     left_input: Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
     right_input: Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-    deps: Vec<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+    deps: Vec<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
     left_input_var: Option<String>,
     right_input_var: Option<String>,
     compare_cols: Vec<String>,
@@ -183,8 +183,8 @@ impl RollUpApplyNode {
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = left_input.col_names().to_vec();
         let deps = vec![
-            Box::new(left_input.clone()),
-            Box::new(right_input.clone()),
+            left_input.clone(),
+            right_input.clone(),
         ];
 
         Ok(Self {
@@ -247,7 +247,7 @@ impl RollUpApplyNode {
 
     pub fn dependencies(
         &self,
-    ) -> &[Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+    ) -> &[crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum] {
         &self.deps
     }
 
@@ -257,7 +257,7 @@ impl RollUpApplyNode {
     ) {
         *self.left_input = dep.clone();
         self.deps.clear();
-        self.deps.push(Box::new(dep));
+        self.deps.push(dep);
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -388,7 +388,7 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleIn
     ) {
         *self.left_input = input.clone();
         self.deps.clear();
-        self.deps.push(Box::new(input));
+        self.deps.push(input);
     }
 }
 
@@ -401,7 +401,7 @@ pub struct PatternApplyNode {
     id: i64,
     left_input: Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
     right_input: Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-    deps: Vec<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+    deps: Vec<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
     left_input_var: Option<String>,
     right_input_var: Option<String>,
     key_cols: Vec<crate::core::types::ContextualExpression>,
@@ -419,8 +419,8 @@ impl PatternApplyNode {
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = left_input.col_names().to_vec();
         let deps = vec![
-            Box::new(left_input.clone()),
-            Box::new(right_input.clone()),
+            left_input.clone(),
+            right_input.clone(),
         ];
 
         Ok(Self {
@@ -483,7 +483,7 @@ impl PatternApplyNode {
 
     pub fn dependencies(
         &self,
-    ) -> &[Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+    ) -> &[crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum] {
         &self.deps
     }
 
@@ -493,7 +493,7 @@ impl PatternApplyNode {
     ) {
         *self.left_input = dep.clone();
         self.deps.clear();
-        self.deps.push(Box::new(dep));
+        self.deps.push(dep);
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {
@@ -624,7 +624,7 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleIn
     ) {
         *self.left_input = input.clone();
         self.deps.clear();
-        self.deps.push(Box::new(input));
+        self.deps.push(input);
     }
 }
 
@@ -644,7 +644,7 @@ impl MaterializeNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             output_var: None,
             col_names,
         })
@@ -718,7 +718,7 @@ mod tests {
 pub struct RemoveNode {
     id: i64,
     input: Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-    deps: Vec<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+    deps: Vec<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
     remove_items: Vec<(String, ContextualExpression)>,
     output_var: Option<String>,
     col_names: Vec<String>,
@@ -734,7 +734,7 @@ impl RemoveNode {
         Ok(Self {
             id: -1,
             input: Box::new(input.clone()),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             remove_items,
             output_var: None,
             col_names,
@@ -747,7 +747,7 @@ impl RemoveNode {
 
     pub fn dependencies(
         &self,
-    ) -> &[Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+    ) -> &[crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum] {
         &self.deps
     }
 
@@ -757,7 +757,7 @@ impl RemoveNode {
     ) {
         *self.input = dep.clone();
         self.deps.clear();
-        self.deps.push(Box::new(dep));
+        self.deps.push(dep);
     }
 
     pub fn remove_dependency(&mut self, _id: i64) -> bool {

@@ -579,7 +579,7 @@ impl MatchValidator {
     }
 
     /// 构建输出
-    pub fn build_outputs(&mut self, paths: &mut Vec<Path>) -> Result<(), ValidationError> {
+    pub fn build_outputs(&mut self, paths: &[Path]) -> Result<(), ValidationError> {
         // 构建输出列
         for path in paths.iter() {
             for node_info in &path.node_infos {

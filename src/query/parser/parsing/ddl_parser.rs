@@ -9,6 +9,12 @@ use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
 
+/// Tag/Edge definitions result type alias
+type TagEdgeDefsResult = (Vec<PropertyDef>, Option<i64>, Option<String>);
+
+/// Alter operations result type alias
+type AlterOpsResult = (Vec<PropertyDef>, Vec<String>, Vec<PropertyChange>);
+
 /// DDL 解析器
 pub struct DdlParser;
 
@@ -592,7 +598,7 @@ impl DdlParser {
     fn parse_alter_operations(
         &mut self,
         ctx: &mut ParseContext,
-    ) -> Result<(Vec<PropertyDef>, Vec<String>, Vec<PropertyChange>), ParseError> {
+    ) -> Result<AlterOpsResult, ParseError> {
         let mut additions = Vec::new();
         let mut deletions = Vec::new();
         let mut changes = Vec::new();
@@ -798,7 +804,7 @@ impl DdlParser {
     fn parse_tag_edge_defs(
         &mut self,
         ctx: &mut ParseContext,
-    ) -> Result<(Vec<PropertyDef>, Option<i64>, Option<String>), ParseError> {
+    ) -> Result<TagEdgeDefsResult, ParseError> {
         let mut properties = Vec::new();
         let mut ttl_duration = None;
         let mut ttl_col = None;

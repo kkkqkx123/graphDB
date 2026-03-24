@@ -259,7 +259,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
         }
 
         // 检查是否为 Traverse
-        let traverse = match &*append_inputs[0] {
+        let traverse = match &append_inputs[0] {
             PlanNodeEnum::Traverse(n) => n,
             _ => return Ok(None),
         };
@@ -320,7 +320,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
         };
 
         // 创建新的 Project 节点
-        let new_project = ProjectNode::new(append_inputs[0].as_ref().clone(), new_columns)
+        let new_project = ProjectNode::new(append_inputs[0].clone(), new_columns)
             .map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?;
 
         // 创建新的 probe keys

@@ -1093,22 +1093,18 @@ impl StmtUtils {
                 }
             }
             Stmt::Create(s) => match &s.target {
-                CreateTarget::Node { properties, .. } => {
-                    if let Some(props) = properties {
-                        variables.extend(collect_variables_from_contextual(props));
-                    }
+                CreateTarget::Node { properties: Some(props), .. } => {
+                    variables.extend(collect_variables_from_contextual(props));
                 }
                 CreateTarget::Edge {
                     src,
                     dst,
-                    properties,
+                    properties: Some(props),
                     ..
                 } => {
                     variables.extend(collect_variables_from_contextual(src));
                     variables.extend(collect_variables_from_contextual(dst));
-                    if let Some(props) = properties {
-                        variables.extend(collect_variables_from_contextual(props));
-                    }
+                    variables.extend(collect_variables_from_contextual(props));
                 }
                 _ => {}
             },

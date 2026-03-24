@@ -70,7 +70,7 @@ pub trait RewriteRule: std::fmt::Debug + Send + Sync {
 
             // 添加依赖节点
             for dep in node.dependencies() {
-                result.add_dependency(dep.as_ref().clone());
+                result.add_dependency(dep.clone());
             }
 
             result.set_root_node(node.clone());

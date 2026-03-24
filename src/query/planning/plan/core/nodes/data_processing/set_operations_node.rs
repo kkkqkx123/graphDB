@@ -21,7 +21,7 @@ impl MinusNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input), Box::new(minus_input)],
+            deps: vec![input, minus_input],
             output_var: None,
             col_names,
         })
@@ -51,7 +51,7 @@ impl IntersectNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input), Box::new(intersect_input)],
+            deps: vec![input, intersect_input],
             output_var: None,
             col_names,
         })

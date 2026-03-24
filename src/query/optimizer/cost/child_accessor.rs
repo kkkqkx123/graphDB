@@ -156,16 +156,16 @@ impl ChildAccessor for PlanNodeEnum {
                     None
                 }
             }
-            PlanNodeEnum::Union(n) => n.dependencies_mut().get_mut(index).map(|b| b.as_mut()),
-            PlanNodeEnum::Minus(n) => n.dependencies_mut().get_mut(index).map(|b| b.as_mut()),
-            PlanNodeEnum::Intersect(n) => n.dependencies_mut().get_mut(index).map(|b| b.as_mut()),
+            PlanNodeEnum::Union(n) => n.dependencies_mut().get_mut(index),
+            PlanNodeEnum::Minus(n) => n.dependencies_mut().get_mut(index),
+            PlanNodeEnum::Intersect(n) => n.dependencies_mut().get_mut(index),
 
             // ==================== 多输入节点 ====================
-            PlanNodeEnum::Expand(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
-            PlanNodeEnum::ExpandAll(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
-            PlanNodeEnum::AppendVertices(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
-            PlanNodeEnum::GetVertices(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
-            PlanNodeEnum::GetNeighbors(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
+            PlanNodeEnum::Expand(n) => n.inputs_mut().get_mut(index),
+            PlanNodeEnum::ExpandAll(n) => n.inputs_mut().get_mut(index),
+            PlanNodeEnum::AppendVertices(n) => n.inputs_mut().get_mut(index),
+            PlanNodeEnum::GetVertices(n) => n.inputs_mut().get_mut(index),
+            PlanNodeEnum::GetNeighbors(n) => n.inputs_mut().get_mut(index),
 
             // ==================== 控制流节点 ====================
             PlanNodeEnum::Loop(n) => {

@@ -279,10 +279,8 @@ impl InsertEdgesValidator {
     /// 评估 rank 表达式
     fn evaluate_rank(&self, rank: &Option<ContextualExpression>) -> Result<i64, ValidationError> {
         if let Some(rank_expr) = rank {
-            if let Some(value) = rank_expr.as_literal() {
-                if let Value::Int(n) = value {
-                    return Ok(n);
-                }
+            if let Some(Value::Int(n)) = rank_expr.as_literal() {
+                return Ok(n);
             }
         }
         Ok(0)

@@ -134,30 +134,6 @@ impl Index {
             comment: None,
         }
     }
-
-    /// 兼容性方法：直接使用参数创建索引（已废弃，请使用 IndexConfig）
-    #[deprecated(since = "0.1.0", note = "请使用 IndexConfig 和 new 方法")]
-    pub fn with_params(
-        id: i32,
-        name: String,
-        space_id: u64,
-        schema_name: String,
-        fields: Vec<IndexField>,
-        properties: Vec<String>,
-        index_type: IndexType,
-        is_unique: bool,
-    ) -> Self {
-        Self::new(IndexConfig {
-            id,
-            name,
-            space_id,
-            schema_name,
-            fields,
-            properties,
-            index_type,
-            is_unique,
-        })
-    }
 }
 
 #[cfg(test)]

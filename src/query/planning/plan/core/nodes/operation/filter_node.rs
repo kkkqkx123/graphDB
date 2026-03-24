@@ -29,7 +29,7 @@ impl FilterNode {
         Ok(Self {
             id: -1,
             input: Some(Box::new(input.clone())),
-            deps: vec![Box::new(input)],
+            deps: vec![input],
             condition,
             condition_serializable: None,
             output_var: None,

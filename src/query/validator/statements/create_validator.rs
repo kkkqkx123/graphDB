@@ -53,12 +53,19 @@ pub enum ValidatedPattern {
     Path(ValidatedPathCreate),
 }
 
+/// 属性条目
+#[derive(Debug, Clone)]
+pub struct PropertyEntry {
+    pub name: String,
+    pub value: Value,
+}
+
 /// 验证后的节点创建
 #[derive(Debug, Clone)]
 pub struct ValidatedNodeCreate {
     pub variable: Option<String>,
     pub labels: Vec<String>,
-    pub properties: Vec<(String, Value)>,
+    pub properties: Vec<PropertyEntry>,
 }
 
 /// 验证后的边创建
@@ -68,7 +75,7 @@ pub struct ValidatedEdgeCreate {
     pub edge_type: String,
     pub src: Value,
     pub dst: Value,
-    pub properties: Vec<(String, Value)>,
+    pub properties: Vec<PropertyEntry>,
     pub direction: EdgeDirection,
 }
 
@@ -484,6 +491,7 @@ impl CreateValidator {
     }
 
     /// 验证单个边创建（简化版）
+    #[allow(clippy::too_many_arguments)]
     fn validate_single_edge(
         &self,
         variable: &Option<String>,
