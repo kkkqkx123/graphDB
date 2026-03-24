@@ -8,13 +8,20 @@
 //! - execution_context.rs - 执行上下文
 //! - executor_base.rs     - 基础执行器实现
 //! - result_processor.rs  - 结果处理器
+//! - config.rs            - 执行器配置结构体
 
+pub mod config;
 pub mod execution_context;
 pub mod execution_result;
 pub mod executor_base;
 pub mod executor_stats;
 pub mod result_processor;
 
+pub use config::{
+    AllPathsConfig, AppendVerticesConfig, BfsShortestConfig, ExecutorConfig, IndexScanConfig,
+    JoinConfig, JoinConfigWithDesc, LoopConfig, MultiShortestPathConfig, PathConfig,
+    PatternApplyConfig, RollupApplyConfig, ShortestPathConfig,
+};
 pub use execution_context::ExecutionContext;
 pub use execution_result::{DBResult, ExecutionResult, IntoExecutionResult};
 pub use executor_base::{

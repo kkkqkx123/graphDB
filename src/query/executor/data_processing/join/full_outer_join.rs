@@ -5,7 +5,7 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::ContextualExpression;
 use crate::core::{DataSet, Expression, Value};
-use crate::query::executor::base::{ExecutionResult, Executor};
+use crate::query::executor::base::{ExecutionResult, Executor, JoinConfigWithDesc};
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,
     hash_table::{build_hash_table, extract_key_values, JoinKey},
@@ -24,29 +24,28 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        left_var: String,
-        right_var: String,
+        expr_context: Arc<ExpressionContextStruct>,
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
+        left_var: String,
+        right_var: String,
         output_columns: Vec<String>,
-        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         // 从 ContextualExpression 列表提取 Expression 列表
         let hash_exprs = Self::extract_expressions(&hash_keys);
         let probe_exprs = Self::extract_expressions(&probe_keys);
 
+        let config = JoinConfigWithDesc {
+            left_var,
+            right_var,
+            hash_keys: hash_exprs,
+            probe_keys: probe_exprs,
+            col_names: output_columns,
+            description: "Full outer join executor - performs full outer join".to_string(),
+        };
+
         Self {
-            base: BaseJoinExecutor::with_description(
-                id,
-                storage,
-                left_var,
-                right_var,
-                hash_exprs,
-                probe_exprs,
-                output_columns,
-                "Full outer join executor - performs full outer join".to_string(),
-                expr_context,
-            ),
+            base: BaseJoinExecutor::with_description(id, storage, expr_context, config),
         }
     }
 

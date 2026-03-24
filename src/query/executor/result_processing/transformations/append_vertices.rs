@@ -8,8 +8,7 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::{DataSet, Value, Vertex};
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{AppendVerticesConfig, BaseExecutor, ExecutionResult, Executor, ExecutorConfig, HasStorage};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -36,29 +35,22 @@ pub struct AppendVerticesExecutor<S: StorageClient + Send + 'static> {
 impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
     /// 创建新的AppendVerticesExecutor
     pub fn new(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        input_var: String,
-        src_expression: Expression,
-        v_filter: Option<Expression>,
-        col_names: Vec<String>,
-        dedup: bool,
-        need_fetch_prop: bool,
-        expr_context: Arc<ExpressionAnalysisContext>,
+        base_config: ExecutorConfig<S>,
+        config: AppendVerticesConfig,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
-                id,
+                base_config.id,
                 "AppendVerticesExecutor".to_string(),
-                storage,
-                expr_context,
+                base_config.storage,
+                base_config.expr_context,
             ),
-            input_var,
-            src_expression,
-            v_filter,
-            col_names,
-            dedup,
-            need_fetch_prop,
+            input_var: config.input_var,
+            src_expression: config.src_expression,
+            v_filter: config.v_filter,
+            col_names: config.col_names,
+            dedup: config.dedup,
+            need_fetch_prop: config.need_fetch_prop,
         }
     }
 
@@ -66,13 +58,8 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
     pub fn with_context(
         id: i64,
         storage: Arc<Mutex<S>>,
-        input_var: String,
-        src_expression: Expression,
-        v_filter: Option<Expression>,
-        col_names: Vec<String>,
-        dedup: bool,
-        need_fetch_prop: bool,
         context: crate::query::executor::base::ExecutionContext,
+        config: AppendVerticesConfig,
     ) -> Self {
         Self {
             base: BaseExecutor::with_context(
@@ -81,12 +68,12 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                 storage,
                 context,
             ),
-            input_var,
-            src_expression,
-            v_filter,
-            col_names,
-            dedup,
-            need_fetch_prop,
+            input_var: config.input_var,
+            src_expression: config.src_expression,
+            v_filter: config.v_filter,
+            col_names: config.col_names,
+            dedup: config.dedup,
+            need_fetch_prop: config.need_fetch_prop,
         }
     }
 

@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use super::super::base::BaseExecutor;
+use super::super::base::{BaseExecutor, ExecutorConfig, IndexScanConfig};
 use crate::core::error::DBError;
 use crate::core::{NullType, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
@@ -30,31 +30,23 @@ pub struct IndexScanExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient> IndexScanExecutor<S> {
-    pub fn new(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        space_id: u64,
-        tag_id: i32,
-        index_id: i32,
-        scan_type: &str,
-        scan_limits: Vec<crate::query::planner::plan::core::nodes::access::IndexLimit>,
-        filter: Option<crate::core::Expression>,
-        return_columns: Vec<String>,
-        limit: Option<usize>,
-        is_edge: bool,
-        expr_context: Arc<ExpressionAnalysisContext>,
-    ) -> Self {
+    pub fn new(base_config: ExecutorConfig<S>, scan_config: IndexScanConfig) -> Self {
         Self {
-            base: BaseExecutor::new(id, "IndexScanExecutor".to_string(), storage, expr_context),
-            space_id,
-            tag_id,
-            index_id,
-            scan_type: scan_type.to_string(),
-            scan_limits,
-            filter,
-            return_columns,
-            limit,
-            is_edge,
+            base: BaseExecutor::new(
+                base_config.id,
+                "IndexScanExecutor".to_string(),
+                base_config.storage,
+                base_config.expr_context,
+            ),
+            space_id: scan_config.space_id,
+            tag_id: scan_config.tag_id,
+            index_id: scan_config.index_id,
+            scan_type: scan_config.scan_type,
+            scan_limits: scan_config.scan_limits,
+            filter: scan_config.filter,
+            return_columns: scan_config.return_columns,
+            limit: scan_config.limit,
+            is_edge: scan_config.is_edge,
         }
     }
 

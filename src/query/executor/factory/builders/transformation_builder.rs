@@ -123,7 +123,6 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
             None,
             node.col_names().to_vec(),
             node.dedup(),
-            node.track_prev_path(),
             node.need_fetch_prop(),
             context.expression_context().clone(),
         );

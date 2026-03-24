@@ -155,7 +155,7 @@ impl SelectivityEstimator {
         // 这里使用简单的启发式：假设数据均匀分布
         match value {
             Some(v) if v < 0.0 => 0.1,   // 负值通常较少
-            Some(v) if v == 0.0 => 0.05, // 零值通常很少
+            Some(0.0) => 0.05, // 零值通常很少
             _ => defaults::COMPARISON,
         }
     }
@@ -164,7 +164,7 @@ impl SelectivityEstimator {
     pub fn estimate_greater_than_selectivity(&self, value: Option<f64>) -> f64 {
         match value {
             Some(v) if v < 0.0 => 0.9,   // 大于负值通常选择大部分数据
-            Some(v) if v == 0.0 => 0.95, // 大于零通常选择大部分数据
+            Some(0.0) => 0.95, // 大于零通常选择大部分数据
             _ => defaults::COMPARISON,
         }
     }

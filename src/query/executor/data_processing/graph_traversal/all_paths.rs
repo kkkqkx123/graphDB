@@ -21,7 +21,7 @@ use rayon::prelude::*;
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, NPath, Path, Value};
 use crate::query::executor::base::{
-    BaseExecutor, EdgeDirection, ExecutionResult, Executor, ExecutorStats,
+    AllPathsConfig, BaseExecutor, EdgeDirection, ExecutionResult, Executor, ExecutorStats,
 };
 use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -132,22 +132,21 @@ pub struct AllPathsExecutor<S: StorageClient + Send + 'static> {
 
 impl<S: StorageClient> AllPathsExecutor<S> {
     pub fn new(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        left_start_ids: Vec<Value>,
-        right_start_ids: Vec<Value>,
-        edge_direction: EdgeDirection,
-        edge_types: Option<Vec<String>>,
-        max_steps: usize,
-        expr_context: Arc<ExpressionAnalysisContext>,
+        base_config: crate::query::executor::base::ExecutorConfig<S>,
+        config: AllPathsConfig,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "AllPathsExecutor".to_string(), storage, expr_context),
-            left_start_ids,
-            right_start_ids,
-            edge_direction,
-            edge_types,
-            max_steps,
+            base: BaseExecutor::new(
+                base_config.id,
+                "AllPathsExecutor".to_string(),
+                base_config.storage,
+                base_config.expr_context,
+            ),
+            left_start_ids: config.left_start_ids,
+            right_start_ids: config.right_start_ids,
+            edge_direction: config.direction,
+            edge_types: config.edge_types,
+            max_steps: config.max_hops,
             with_prop: false,
             limit: usize::MAX,
             offset: 0,

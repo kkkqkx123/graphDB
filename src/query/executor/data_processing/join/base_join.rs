@@ -7,8 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::{DataSet, Expression, Value};
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::base::ExecutionResult;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, JoinConfig, JoinConfigWithDesc};
 use crate::query::executor::data_processing::join::hash_table::JoinKey;
 use crate::query::executor::data_processing::join::join_key_evaluator::JoinKeyEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
@@ -42,45 +41,38 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        left_var: String,
-        right_var: String,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
-        col_names: Vec<String>,
         expr_context: Arc<ExpressionContextStruct>,
+        config: JoinConfig,
     ) -> Self {
         Self::with_description(
             id,
             storage,
-            left_var,
-            right_var,
-            hash_keys,
-            probe_keys,
-            col_names,
-            String::new(),
             expr_context,
+            JoinConfigWithDesc {
+                left_var: config.left_var,
+                right_var: config.right_var,
+                hash_keys: config.hash_keys,
+                probe_keys: config.probe_keys,
+                col_names: config.col_names,
+                description: String::new(),
+            },
         )
     }
 
     pub fn with_description(
         id: i64,
         storage: Arc<Mutex<S>>,
-        left_var: String,
-        right_var: String,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
-        col_names: Vec<String>,
-        description: String,
         expr_context: Arc<ExpressionContextStruct>,
+        config: JoinConfigWithDesc,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "BaseJoinExecutor".to_string(), storage, expr_context),
-            left_var,
-            right_var,
-            hash_keys,
-            probe_keys,
-            col_names,
-            description,
+            left_var: config.left_var,
+            right_var: config.right_var,
+            hash_keys: config.hash_keys,
+            probe_keys: config.probe_keys,
+            col_names: config.col_names,
+            description: config.description,
             exchange: false,
             rhs_output_col_idxs: None,
         }

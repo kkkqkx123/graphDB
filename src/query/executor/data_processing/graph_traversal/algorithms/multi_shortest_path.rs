@@ -10,7 +10,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
-    Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor,
+    Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor, MultiShortestPathConfig,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -75,29 +75,23 @@ impl<S: StorageClient> std::fmt::Debug for MultiShortestPathExecutor<S> {
 
 impl<S: StorageClient> MultiShortestPathExecutor<S> {
     pub fn new(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        start_vids: Vec<Value>,
-        end_vids: Vec<Value>,
-        edge_direction: EdgeDirection,
-        edge_types: Option<Vec<String>>,
-        max_steps: usize,
-        expr_context: Arc<ExpressionAnalysisContext>,
+        base_config: crate::query::executor::base::ExecutorConfig<S>,
+        config: MultiShortestPathConfig,
     ) -> Self {
-        let termination_map = create_termination_map(&start_vids, &end_vids);
+        let termination_map = create_termination_map(&config.start_vids, &vec![]);
 
         Self {
             base: BaseExecutor::new(
-                id,
+                base_config.id,
                 "MultiShortestPathExecutor".to_string(),
-                storage,
-                expr_context,
+                base_config.storage,
+                base_config.expr_context,
             ),
-            start_vids,
-            end_vids,
+            start_vids: config.start_vids,
+            end_vids: vec![],
             termination_map,
-            edge_direction,
-            edge_types,
+            edge_direction: config.direction,
+            edge_types: config.edge_types,
             max_steps,
             single_shortest: false,
             limit: usize::MAX,

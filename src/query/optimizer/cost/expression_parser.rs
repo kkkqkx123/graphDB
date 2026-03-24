@@ -482,16 +482,15 @@ impl ExpressionParser {
 
     /// 解析范围表达式
     fn parse_range_expression(&self, expr: &str) -> Option<f64> {
-        if let Some(pos) = expr.find("..") {
-            let start_str = expr[..pos].trim();
-            let end_part = &expr[pos + 2..];
-
-            let (end_str, inclusive) = if end_part.starts_with('=') {
-                (&end_part[1..], true)
-            } else {
-                (end_part, false)
-            };
-
+                    if let Some(pos) = expr.find("..") {
+                    let start_str = expr[..pos].trim();
+                    let end_part = &expr[pos + 2..];
+        
+                    let (end_str, inclusive) = if let Some(stripped) = end_part.strip_prefix('=') {
+                        (stripped, true)
+                    } else {
+                        (end_part, false)
+                    };
             if let (Ok(start), Ok(end)) = (start_str.parse::<i64>(), end_str.trim().parse::<i64>())
             {
                 if end > start {
@@ -515,8 +514,8 @@ impl ExpressionParser {
             let end_part = &expr[pos + 2..];
 
             // 检查是否包含等号（1..=10 表示包含结束）
-            let (end_str, inclusive) = if end_part.starts_with('=') {
-                (&end_part[1..], true)
+            let (end_str, inclusive) = if let Some(stripped) = end_part.strip_prefix('=') {
+                (stripped, true)
             } else {
                 (end_part, false)
             };
@@ -546,11 +545,7 @@ impl ExpressionParser {
                 let right_side = &expr[pos + op.len()..];
                 if let Ok(num) = right_side.trim().parse::<u32>() {
                     // 对于 < 操作符，实际迭代次数是 num（如果 num > 0）
-                    let iterations = if *op == "<" && num > 0 {
-                        num
-                    } else if *op == "<=" {
-                        num
-                    } else if *op == ">" || *op == ">=" {
+                    let iterations = if *op == ">" || *op == ">=" {
                         // 无法确定起始值，使用保守估计
                         num + 10
                     } else {

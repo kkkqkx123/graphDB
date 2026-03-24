@@ -10,8 +10,7 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::{DataSet, List, Value};
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::base::{ExecutionResult, Executor};
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorConfig, PatternApplyConfig};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
@@ -46,39 +45,29 @@ pub struct PatternApplyExecutor<S: StorageClient + Send + 'static> {
 
 impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
     pub fn new(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        left_input_var: String,
-        right_input_var: String,
-        key_cols: Vec<Expression>,
-        col_names: Vec<String>,
-        is_anti_predicate: bool,
-        expr_context: Arc<ExpressionContextStruct>,
+        base_config: ExecutorConfig<S>,
+        config: PatternApplyConfig,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
-                id,
+                base_config.id,
                 "PatternApplyExecutor".to_string(),
-                storage,
-                expr_context,
+                base_config.storage,
+                base_config.expr_context,
             ),
-            left_input_var,
-            right_input_var,
-            key_cols,
-            col_names,
-            is_anti_predicate,
+            left_input_var: config.left_input_var,
+            right_input_var: config.right_input_var,
+            key_cols: config.key_cols,
+            col_names: config.col_names,
+            is_anti_predicate: config.is_anti_predicate,
         }
     }
 
     pub fn with_context(
         id: i64,
         storage: Arc<Mutex<S>>,
-        left_input_var: String,
-        right_input_var: String,
-        key_cols: Vec<Expression>,
-        col_names: Vec<String>,
-        is_anti_predicate: bool,
         context: crate::query::executor::base::ExecutionContext,
+        config: PatternApplyConfig,
     ) -> Self {
         Self {
             base: BaseExecutor::with_context(
@@ -87,11 +76,11 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
                 storage,
                 context,
             ),
-            left_input_var,
-            right_input_var,
-            key_cols,
-            col_names,
-            is_anti_predicate,
+            left_input_var: config.left_input_var,
+            right_input_var: config.right_input_var,
+            key_cols: config.key_cols,
+            col_names: config.col_names,
+            is_anti_predicate: config.is_anti_predicate,
         }
     }
 

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::core::error::DBResult;
 use crate::core::{Path, Value};
-use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
+use crate::query::executor::base::{BaseExecutor, EdgeDirection, ExecutorConfig, InputExecutor, ShortestPathConfig};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -65,28 +65,22 @@ impl<S: StorageClient> std::fmt::Debug for ShortestPathExecutor<S> {
 
 impl<S: StorageClient> ShortestPathExecutor<S> {
     pub fn new(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        start_vertex_ids: Vec<Value>,
-        end_vertex_ids: Vec<Value>,
-        edge_direction: EdgeDirection,
-        edge_types: Option<Vec<String>>,
-        max_depth: Option<usize>,
+        base_config: ExecutorConfig<S>,
+        config: ShortestPathConfig,
         algorithm: ShortestPathAlgorithmType,
-        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(
-                id,
+                base_config.id,
                 "ShortestPathExecutor".to_string(),
-                storage,
-                expr_context,
+                base_config.storage,
+                base_config.expr_context,
             ),
-            start_vertex_ids,
-            end_vertex_ids,
-            edge_direction,
-            edge_types,
-            max_depth,
+            start_vertex_ids: config.start_vertex_ids,
+            end_vertex_ids: vec![],
+            edge_direction: config.direction,
+            edge_types: config.edge_types,
+            max_depth: None,
             algorithm_type: algorithm,
             weight_config: EdgeWeightConfig::Unweighted,
             heuristic_config: HeuristicFunction::Zero,

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::types::ContextualExpression;
 use crate::core::{DataSet, Expression, NullType, Value};
-use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage, JoinConfig};
 use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,
     hash_table::{build_hash_table, extract_key_values, JoinKey},
@@ -30,12 +30,12 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        left_var: String,
-        right_var: String,
+        expr_context: Arc<ExpressionContextStruct>,
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
+        left_var: String,
+        right_var: String,
         col_names: Vec<String>,
-        expr_context: Arc<ExpressionContextStruct>,
     ) -> Self {
         let use_multi_key = hash_keys.len() > 1;
 
@@ -43,17 +43,16 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
         let hash_exprs = Self::extract_expressions(&hash_keys);
         let probe_exprs = Self::extract_expressions(&probe_keys);
 
+        let config = JoinConfig {
+            left_var,
+            right_var,
+            hash_keys: hash_exprs,
+            probe_keys: probe_exprs,
+            col_names,
+        };
+
         Self {
-            base_executor: BaseJoinExecutor::new(
-                id,
-                storage,
-                left_var,
-                right_var,
-                hash_exprs,
-                probe_exprs,
-                col_names,
-                expr_context,
-            ),
+            base_executor: BaseJoinExecutor::new(id, storage, expr_context, config),
             right_col_size: 0,
             use_multi_key,
         }

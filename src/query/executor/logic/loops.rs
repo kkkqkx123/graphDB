@@ -10,8 +10,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::Value;
 use crate::query::core::LoopExecutionState;
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorConfig, HasStorage, LoopConfig};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
@@ -470,20 +469,29 @@ impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
+        expr_context: Arc<ExpressionAnalysisContext>,
         loop_var: String,
         start: i64,
         end: i64,
         step: i64,
         body_executor: ExecutorEnum<S>,
-        expr_context: Arc<ExpressionAnalysisContext>,
     ) -> Self {
+        let base_config = ExecutorConfig::new(id, storage, expr_context);
+        let loop_config = LoopConfig {
+            loop_var: loop_var.clone(),
+            body_executor: Box::new(body_executor),
+            loop_condition: crate::core::Expression::Literal(crate::core::Value::Bool(true)),
+        };
+
+        let max_iterations = Some(((end - start).abs() / step.abs() + 1) as usize);
+
         let mut executor = LoopExecutor::new(
-            id,
-            storage,
+            base_config.id,
+            base_config.storage,
             None,
-            body_executor,
-            Some(((end - start).abs() / step.abs() + 1) as usize),
-            expr_context,
+            *loop_config.body_executor,
+            max_iterations,
+            base_config.expr_context,
         );
 
         executor.set_loop_variable(loop_var.clone(), Value::Int(start));

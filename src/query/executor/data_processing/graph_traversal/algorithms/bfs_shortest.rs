@@ -7,11 +7,23 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use crate::core::{Edge, EdgeDirection, Path, Value, Vertex};
-use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::base::{BaseExecutor, ExecutorConfig};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
+
+/// BFS最短路径配置
+pub struct BfsShortestPathConfig {
+    pub steps: usize,
+    pub edge_types: Vec<String>,
+    pub with_cycle: bool,
+    pub max_depth: Option<usize>,
+    pub single_shortest: bool,
+    pub limit: usize,
+    pub start_vertex: Value,
+    pub end_vertex: Value,
+}
 
 /// BFSShortestExecutor - BFS最短路径执行器
 ///
@@ -45,30 +57,23 @@ pub struct BFSShortestExecutor<S: StorageClient + 'static> {
 }
 
 impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
-    pub fn new(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        steps: usize,
-        edge_types: Vec<String>,
-        with_cycle: bool,
-        max_depth: Option<usize>,
-        single_shortest: bool,
-        limit: usize,
-        start_vertex: Value,
-        end_vertex: Value,
-        expr_context: Arc<ExpressionAnalysisContext>,
-    ) -> Self {
+    pub fn new(base_config: ExecutorConfig<S>, config: BfsShortestPathConfig) -> Self {
         Self {
-            base: BaseExecutor::new(id, "BFSShortestExecutor".to_string(), storage, expr_context),
-            steps,
-            max_depth,
-            edge_types,
-            with_cycle,
+            base: BaseExecutor::new(
+                base_config.id,
+                "BFSShortestExecutor".to_string(),
+                base_config.storage,
+                base_config.expr_context,
+            ),
+            steps: config.steps,
+            max_depth: config.max_depth,
+            edge_types: config.edge_types,
+            with_cycle: config.with_cycle,
             with_loop: false,
-            single_shortest,
-            limit,
-            start_vertex,
-            end_vertex,
+            single_shortest: config.single_shortest,
+            limit: config.limit,
+            start_vertex: config.start_vertex,
+            end_vertex: config.end_vertex,
             step: 1,
             left_visited_vids: HashSet::new(),
             right_visited_vids: HashSet::new(),

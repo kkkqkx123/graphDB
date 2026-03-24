@@ -9,8 +9,7 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::dataset::List;
 use crate::core::{DataSet, Expression, Path, Value};
-use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::base::{ExecutionResult, Executor};
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorConfig, RollupApplyConfig};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
@@ -32,22 +31,21 @@ pub struct RollUpApplyExecutor<S: StorageClient + Send + 'static> {
 
 impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
     pub fn new(
-        id: i64,
-        storage: Arc<Mutex<S>>,
-        left_input_var: String,
-        right_input_var: String,
-        compare_cols: Vec<Expression>,
-        collect_col: Expression,
-        col_names: Vec<String>,
-        expr_context: Arc<ExpressionAnalysisContext>,
+        base_config: ExecutorConfig<S>,
+        config: RollupApplyConfig,
     ) -> Self {
         Self {
-            base: BaseExecutor::new(id, "RollUpApplyExecutor".to_string(), storage, expr_context),
-            left_input_var,
-            right_input_var,
-            compare_cols,
-            collect_col,
-            col_names,
+            base: BaseExecutor::new(
+                base_config.id,
+                "RollUpApplyExecutor".to_string(),
+                base_config.storage,
+                base_config.expr_context,
+            ),
+            left_input_var: config.left_input_var,
+            right_input_var: config.right_input_var,
+            compare_cols: config.compare_cols,
+            collect_col: config.collect_col,
+            col_names: config.col_names,
             movable: false,
             path_mode: false,
         }
@@ -56,12 +54,8 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
     pub fn with_context(
         id: i64,
         storage: Arc<Mutex<S>>,
-        left_input_var: String,
-        right_input_var: String,
-        compare_cols: Vec<Expression>,
-        collect_col: Expression,
-        col_names: Vec<String>,
         context: crate::query::executor::base::ExecutionContext,
+        config: RollupApplyConfig,
     ) -> Self {
         Self {
             base: BaseExecutor::with_context(
@@ -70,11 +64,11 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
                 storage,
                 context,
             ),
-            left_input_var,
-            right_input_var,
-            compare_cols,
-            collect_col,
-            col_names,
+            left_input_var: config.left_input_var,
+            right_input_var: config.right_input_var,
+            compare_cols: config.compare_cols,
+            collect_col: config.collect_col,
+            col_names: config.col_names,
             movable: false,
             path_mode: false,
         }

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::query::executor::base::{ExecutorConfig, ShortestPathConfig};
 use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
 use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
@@ -77,24 +78,11 @@ impl GraphTraversalExecutorFactory {
     pub fn create_shortest_path_executor<S: crate::storage::StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
-        start_vertex_ids: Vec<crate::core::Value>,
-        end_vertex_ids: Vec<crate::core::Value>,
-        edge_direction: crate::query::executor::base::EdgeDirection,
-        edge_types: Option<Vec<String>>,
-        max_depth: Option<usize>,
-        algorithm: ShortestPathAlgorithmType,
         expr_context: Arc<ExpressionAnalysisContext>,
+        config: ShortestPathConfig,
+        algorithm: ShortestPathAlgorithmType,
     ) -> ShortestPathExecutor<S> {
-        ShortestPathExecutor::new(
-            id,
-            storage,
-            start_vertex_ids,
-            end_vertex_ids,
-            edge_direction,
-            edge_types,
-            max_depth,
-            algorithm,
-            expr_context,
-        )
+        let base_config = ExecutorConfig::new(id, storage, expr_context);
+        ShortestPathExecutor::new(base_config, config, algorithm)
     }
 }

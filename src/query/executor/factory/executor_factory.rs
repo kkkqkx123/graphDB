@@ -80,7 +80,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
 
         // 使用 dependencies() 方法获取所有依赖，统一处理
         for dep in node.dependencies() {
-            self.analyze_plan_node(&dep, loop_layers)?;
+            self.analyze_plan_node(&dep, loop_layers + 1)?;
         }
 
         // 离开当前节点

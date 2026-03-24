@@ -91,6 +91,19 @@ impl IndexField {
     }
 }
 
+/// 索引配置结构体
+#[derive(Debug, Clone)]
+pub struct IndexConfig {
+    pub id: i32,
+    pub name: String,
+    pub space_id: u64,
+    pub schema_name: String,
+    pub fields: Vec<IndexField>,
+    pub properties: Vec<String>,
+    pub index_type: IndexType,
+    pub is_unique: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct Index {
     pub id: i32,
@@ -106,7 +119,25 @@ pub struct Index {
 }
 
 impl Index {
-    pub fn new(
+    /// 使用配置结构体创建索引
+    pub fn new(config: IndexConfig) -> Self {
+        Self {
+            id: config.id,
+            name: config.name,
+            space_id: config.space_id,
+            schema_name: config.schema_name,
+            fields: config.fields,
+            properties: config.properties,
+            index_type: config.index_type,
+            status: IndexStatus::Active,
+            is_unique: config.is_unique,
+            comment: None,
+        }
+    }
+
+    /// 兼容性方法：直接使用参数创建索引（已废弃，请使用 IndexConfig）
+    #[deprecated(since = "0.1.0", note = "请使用 IndexConfig 和 new 方法")]
+    pub fn with_params(
         id: i32,
         name: String,
         space_id: u64,
@@ -116,7 +147,7 @@ impl Index {
         index_type: IndexType,
         is_unique: bool,
     ) -> Self {
-        Self {
+        Self::new(IndexConfig {
             id,
             name,
             space_id,
@@ -124,10 +155,8 @@ impl Index {
             fields,
             properties,
             index_type,
-            status: IndexStatus::Active,
             is_unique,
-            comment: None,
-        }
+        })
     }
 }
 
@@ -185,16 +214,18 @@ mod tests {
             false,
         )];
 
-        let index = Index::new(
-            1,
-            "person_name_idx".to_string(),
-            1,
-            "person".to_string(),
+        let config = IndexConfig {
+            id: 1,
+            name: "person_name_idx".to_string(),
+            space_id: 1,
+            schema_name: "person".to_string(),
             fields,
-            vec![],
-            IndexType::TagIndex,
-            false,
-        );
+            properties: vec![],
+            index_type: IndexType::TagIndex,
+            is_unique: false,
+        };
+
+        let index = Index::new(config);
 
         assert_eq!(index.id, 1);
         assert_eq!(index.name, "person_name_idx");

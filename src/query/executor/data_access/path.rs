@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::super::base::{BaseExecutor, EdgeDirection, ExecutorStats};
+use super::super::base::{BaseExecutor, EdgeDirection, ExecutorStats, PathConfig};
 use crate::core::{Path, Step, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -21,20 +21,16 @@ impl<S: StorageClient> AllPathsExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        start_vertex: Value,
-        end_vertex: Option<Value>,
-        max_hops: usize,
-        edge_types: Option<Vec<String>>,
-        direction: EdgeDirection,
         expr_context: Arc<ExpressionAnalysisContext>,
+        config: PathConfig,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AllPathsExecutor".to_string(), storage, expr_context),
-            start_vertex,
-            end_vertex,
-            max_hops,
-            edge_types,
-            direction,
+            start_vertex: config.start_vertex,
+            end_vertex: config.end_vertex,
+            max_hops: config.max_hops,
+            edge_types: config.edge_types,
+            direction: config.direction,
         }
     }
 }
