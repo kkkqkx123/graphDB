@@ -446,10 +446,7 @@ impl SchemaValidator {
     }
 
     /// 内部方法：验证表达式是否为可计算的值
-    fn is_evaluable_expr_internal(
-        &self,
-        expr: &crate::core::types::expr::Expression,
-    ) -> bool {
+    fn is_evaluable_expr_internal(&self, expr: &crate::core::types::expr::Expression) -> bool {
         use crate::core::types::expr::Expression;
         match expr {
             Expression::Literal(_) => true,

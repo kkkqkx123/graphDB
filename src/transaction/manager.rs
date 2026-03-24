@@ -78,13 +78,19 @@ impl TransactionManager {
         let timeout = options.timeout.unwrap_or(self.config.default_timeout);
 
         // 创建事务上下文
+        let db = Arc::clone(&self.db);
         let context = if options.read_only {
             let read_txn = self
                 .db
                 .begin_read()
                 .map_err(|e| TransactionError::BeginFailed(e.to_string()))?;
 
-            Arc::new(TransactionContext::new_readonly(txn_id, timeout, read_txn))
+            Arc::new(TransactionContext::new_readonly(
+                txn_id,
+                timeout,
+                read_txn,
+                Some(db),
+            ))
         } else {
             // redb 会自动处理单写者限制，不需要手动管理
             let write_txn = self
@@ -97,10 +103,12 @@ impl TransactionManager {
                 timeout,
                 options.durability,
                 write_txn,
+                Some(db),
             ))
         };
 
-        // 为读写事务设置回滚执行器
+        // 为读写事务设置回滚执行器（已废弃，不再使用）
+        // 保存点回滚现在直接在 TransactionContext 中实现
         if !options.read_only {
             let factory_guard = self.rollback_executor_factory.lock();
             if let Some(factory) = factory_guard.as_ref() {

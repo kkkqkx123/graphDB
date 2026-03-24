@@ -3,7 +3,6 @@
 //! 该规则识别 Filter -> CrossJoin 模式，
 //! 并将过滤条件下推到连接的两侧。
 
-
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
@@ -214,9 +213,9 @@ impl PushDownRule for PushFilterDownCrossJoinRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::planning::plan::core::nodes::join::join_node::CrossJoinNode;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     #[test]

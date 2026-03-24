@@ -126,8 +126,8 @@ impl MergeRule for MergeGetVerticesAndProjectRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Expression, YieldColumn};
     use crate::core::types::ContextualExpression;
+    use crate::core::{Expression, YieldColumn};
     use crate::query::planning::plan::core::nodes::access::graph_scan_node::GetVerticesNode;
     use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
@@ -178,7 +178,7 @@ mod tests {
         // 手动设置依赖关系
         if let PlanNodeEnum::GetVertices(ref mut gv) = get_vertices_node {
             gv.deps_mut().clear();
-            gv.deps_mut().push(Box::new(project_node));
+            gv.deps_mut().push(project_node);
         }
 
         // 应用规则

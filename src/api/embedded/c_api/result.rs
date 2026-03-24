@@ -95,7 +95,10 @@ pub unsafe extern "C" fn graphdb_row_count(result: *mut graphdb_result_t) -> c_i
 /// - `index` must be a valid column index (0 <= index < column count)
 /// - The returned pointer must be freed by the caller to avoid memory leaks
 #[no_mangle]
-pub unsafe extern "C" fn graphdb_column_name(result: *mut graphdb_result_t, index: c_int) -> *mut c_char {
+pub unsafe extern "C" fn graphdb_column_name(
+    result: *mut graphdb_result_t,
+    index: c_int,
+) -> *mut c_char {
     if result.is_null() {
         return ptr::null_mut();
     }

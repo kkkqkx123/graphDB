@@ -9,7 +9,9 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::dataset::List;
 use crate::core::{DataSet, Expression, Path, Value};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorConfig, RollupApplyConfig};
+use crate::query::executor::base::{
+    BaseExecutor, ExecutionResult, Executor, ExecutorConfig, RollupApplyConfig,
+};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
@@ -29,10 +31,7 @@ pub struct RollUpApplyExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
-    pub fn new(
-        base_config: ExecutorConfig<S>,
-        config: RollupApplyConfig,
-    ) -> Self {
+    pub fn new(base_config: ExecutorConfig<S>, config: RollupApplyConfig) -> Self {
         Self {
             base: BaseExecutor::new(
                 base_config.id,

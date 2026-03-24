@@ -88,7 +88,8 @@ impl VertexIndexManager {
 
             for (key, value) in table
                 .iter()
-                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?.flatten()
+                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+                .flatten()
             {
                 let key_bytes: Vec<u8> = key.value().0.clone();
 
@@ -117,18 +118,13 @@ impl VertexIndexManager {
                                     for (fwd_key, _) in table
                                         .range::<ByteKey>(&forward_key_start..&forward_key_end)
                                         .map_err(|e| {
-                                            StorageError::DbError(format!(
-                                                "范围查询失败: {}",
-                                                e
-                                            ))
-                                        })?.flatten()
+                                            StorageError::DbError(format!("范围查询失败: {}", e))
+                                        })?
+                                        .flatten()
                                     {
-                                        let fwd_key_bytes: Vec<u8> =
-                                            fwd_key.value().0.clone();
+                                        let fwd_key_bytes: Vec<u8> = fwd_key.value().0.clone();
                                         if let Ok(vid) =
-                                            IndexKeyCodec::parse_vertex_id_from_key(
-                                                &fwd_key_bytes,
-                                            )
+                                            IndexKeyCodec::parse_vertex_id_from_key(&fwd_key_bytes)
                                         {
                                             if vid == *vertex_id
                                                 && fwd_key_bytes.len()
@@ -136,16 +132,14 @@ impl VertexIndexManager {
                                                         + 4
                                                         + prop_value_len
                                                         + 4
-                                                {
-                                                    let vid_start = fwd_key_bytes.len()
-                                                        - vertex_bytes.len();
-                                                    if fwd_key_bytes[vid_start..]
-                                                        == vertex_bytes
-                                                    {
-                                                        forward_keys_to_delete
-                                                            .push(ByteKey(fwd_key_bytes));
-                                                    }
+                                            {
+                                                let vid_start =
+                                                    fwd_key_bytes.len() - vertex_bytes.len();
+                                                if fwd_key_bytes[vid_start..] == vertex_bytes {
+                                                    forward_keys_to_delete
+                                                        .push(ByteKey(fwd_key_bytes));
                                                 }
+                                            }
                                         }
                                     }
                                 }
@@ -198,7 +192,8 @@ impl VertexIndexManager {
 
             for (key, _) in table
                 .iter()
-                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?.flatten()
+                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+                .flatten()
             {
                 let key_bytes: Vec<u8> = key.value().0.clone();
 
@@ -250,7 +245,8 @@ impl VertexIndexManager {
 
         for (key, _) in table
             .range::<ByteKey>(&prefix..&end)
-            .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?.flatten()
+            .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?
+            .flatten()
         {
             let key_bytes: Vec<u8> = key.value().0.clone();
 

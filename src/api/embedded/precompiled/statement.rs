@@ -3,9 +3,9 @@
 //! 提供预编译语句的核心功能，包括参数绑定、查询执行等
 
 use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest};
-use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::precompiled::config::{ExecutionStats, ParameterInfo, StatementConfig};
 use crate::api::embedded::precompiled::parameter_extractor::{extract_parameters, type_matches};
+use crate::api::embedded::result::QueryResult;
 use crate::core::{DataType, Value};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;

@@ -45,8 +45,7 @@ pub struct BatchInserter<'sess, S: StorageClient + Clone + 'static> {
 }
 
 /// 批量操作结果
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct BatchResult {
     /// 插入的顶点数量
     pub vertices_inserted: usize,
@@ -261,7 +260,6 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         !self.vertex_buffer.is_empty() || !self.edge_buffer.is_empty()
     }
 }
-
 
 impl BatchResult {
     /// 获取总插入数量

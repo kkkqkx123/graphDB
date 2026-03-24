@@ -277,11 +277,12 @@ impl VariableChecker {
     ) -> bool {
         match expression {
             crate::core::types::expr::Expression::Binary {
-                op: crate::core::types::operators::BinaryOperator::Add
-                | crate::core::types::operators::BinaryOperator::Subtract
-                | crate::core::types::operators::BinaryOperator::Multiply
-                | crate::core::types::operators::BinaryOperator::Divide
-                | crate::core::types::operators::BinaryOperator::Modulo,
+                op:
+                    crate::core::types::operators::BinaryOperator::Add
+                    | crate::core::types::operators::BinaryOperator::Subtract
+                    | crate::core::types::operators::BinaryOperator::Multiply
+                    | crate::core::types::operators::BinaryOperator::Divide
+                    | crate::core::types::operators::BinaryOperator::Modulo,
                 left,
                 right,
             } => {
@@ -289,8 +290,9 @@ impl VariableChecker {
                     || self.contains_variable_internal(right, var)
             }
             crate::core::types::expr::Expression::Unary {
-                op: crate::core::types::operators::UnaryOperator::Minus
-                | crate::core::types::operators::UnaryOperator::Plus,
+                op:
+                    crate::core::types::operators::UnaryOperator::Minus
+                    | crate::core::types::operators::UnaryOperator::Plus,
                 operand,
             } => self.contains_variable_internal(operand, var),
             _ => false,
@@ -301,9 +303,9 @@ impl VariableChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
-    use crate::core::types::ContextualExpression;
     use crate::core::types::expr::ExpressionMeta;
+    use crate::core::types::ContextualExpression;
+    use crate::core::Expression;
     use crate::core::Value;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;

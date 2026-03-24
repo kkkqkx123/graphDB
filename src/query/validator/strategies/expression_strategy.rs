@@ -204,12 +204,14 @@ impl ExpressionValidationStrategy {
 
             // 验证聚合函数的使用
             if type_validator.has_aggregate_expression_internal(expr)
-                && !context.has_agg && context.group_keys.is_empty() {
-                    return Err(ValidationError::new(
-                        "在GROUP BY子句中使用聚合函数时，必须指定GROUP BY键".to_string(),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
+                && !context.has_agg
+                && context.group_keys.is_empty()
+            {
+                return Err(ValidationError::new(
+                    "在GROUP BY子句中使用聚合函数时，必须指定GROUP BY键".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
 
             // 验证表达式中的变量引用
             var_validator

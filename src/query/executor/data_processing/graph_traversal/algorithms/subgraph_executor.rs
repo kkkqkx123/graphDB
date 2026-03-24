@@ -269,9 +269,10 @@ impl<S: StorageClient> SubgraphExecutor<S> {
 
                 // 如果不是最后一步，添加到下一步访问列表
                 if self.current_step < self.config.steps
-                    && self.current_vids.insert(neighbor_id.clone()) {
-                        self.next_vids.push(neighbor_id);
-                    }
+                    && self.current_vids.insert(neighbor_id.clone())
+                {
+                    self.next_vids.push(neighbor_id);
+                }
             }
         }
 

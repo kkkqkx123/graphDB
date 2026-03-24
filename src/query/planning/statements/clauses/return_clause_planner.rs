@@ -124,8 +124,8 @@ impl ClausePlanner for ReturnClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
     use crate::core::types::expr::contextual::ContextualExpression;
+    use crate::core::Expression;
     use crate::query::parser::ast::Span;
     use crate::query::planning::plan::core::nodes::StartNode;
     use crate::query::planning::plan::core::PlanNodeEnum;

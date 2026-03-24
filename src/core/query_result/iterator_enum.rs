@@ -230,17 +230,14 @@ mod tests {
         let mut iter = ResultIteratorEnum::default_iterator(rows);
 
         // 测试标准的 Iterator trait
-        let collected: Vec<_> = iter.by_ref().collect();
+        let collected = iter.by_ref().collect().expect("收集结果失败");
         assert_eq!(collected.len(), 2);
 
         // 验证收集到的结果
-        assert!(collected[0].is_ok());
-        assert!(collected[1].is_ok());
-
-        let row1 = collected[0].as_ref().expect("第一行不应出错");
+        let row1 = &collected[0];
         assert_eq!(row1[0], Value::Int(1));
 
-        let row2 = collected[1].as_ref().expect("第二行不应出错");
+        let row2 = &collected[1];
         assert_eq!(row2[0], Value::Int(2));
     }
 

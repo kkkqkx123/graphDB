@@ -112,10 +112,9 @@ impl ScanSeek {
             if !has_all_labels {
                 return false;
             }
-        } else if !any_label
-            && vertex.tags.is_empty() {
-                return false;
-            }
+        } else if !any_label && vertex.tags.is_empty() {
+            return false;
+        }
 
         for (prop_name, prop_value) in &pattern.properties {
             let found = vertex

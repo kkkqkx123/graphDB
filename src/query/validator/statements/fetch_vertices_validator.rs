@@ -302,11 +302,10 @@ impl StatementValidator for FetchVerticesValidator {
                     crate::core::Expression::Variable(prop.clone()),
                 );
                 let id = ast.expr_context.register_expression(expr_meta);
-                let ctx_expr =
-                    crate::core::types::expr::contextual::ContextualExpression::new(
-                        id,
-                        ast.expr_context.clone(),
-                    );
+                let ctx_expr = crate::core::types::expr::contextual::ContextualExpression::new(
+                    id,
+                    ast.expr_context.clone(),
+                );
                 validated_columns.push(ValidatedYieldColumn {
                     expression: ctx_expr,
                     alias: prop.clone(),

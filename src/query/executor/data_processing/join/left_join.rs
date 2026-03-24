@@ -397,17 +397,13 @@ mod tests {
         let config = LeftJoinConfig {
             id: 1,
             hash_keys: vec![ctx_expr1.clone()], // 左表id列作为键
-            probe_keys: vec![ctx_expr1],         // 右表id列作为键
+            probe_keys: vec![ctx_expr1],        // 右表id列作为键
             left_var: "left".to_string(),
             right_var: "right".to_string(),
             col_names: vec!["id".to_string(), "name".to_string(), "age".to_string()],
         };
 
-        let mut executor = LeftJoinExecutor::new(
-            storage,
-            expr_context.clone(),
-            config,
-        );
+        let mut executor = LeftJoinExecutor::new(storage, expr_context.clone(), config);
 
         // 设置执行上下文
         let left_dataset = DataSet {
@@ -499,11 +495,7 @@ mod tests {
             col_names: vec!["id".to_string(), "name".to_string(), "age".to_string()],
         };
 
-        let mut executor = LeftJoinExecutor::new(
-            storage,
-            expr_context.clone(),
-            config,
-        );
+        let mut executor = LeftJoinExecutor::new(storage, expr_context.clone(), config);
 
         // 设置执行上下文
         let left_dataset = DataSet {

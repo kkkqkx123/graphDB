@@ -48,8 +48,7 @@ pub enum PathYieldType {
 }
 
 /// Node信息
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct NodeInfo {
     pub alias: String,
     pub labels: Vec<String>,
@@ -59,7 +58,6 @@ pub struct NodeInfo {
     pub tids: Vec<i32>,                       // 标签ID列表
     pub label_props: Vec<Option<Expression>>, // 标签属性
 }
-
 
 /// Edge信息
 #[derive(Debug, Clone)]

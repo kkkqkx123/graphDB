@@ -168,7 +168,9 @@ impl GroupAggregateState {
             if target.cnt().is_null() || target.cnt().is_empty() {
                 target.set_cnt(source.cnt().clone());
             } else {
-                if let Ok(new_cnt) = target.cnt().add(source.cnt()) { target.set_cnt(new_cnt) }
+                if let Ok(new_cnt) = target.cnt().add(source.cnt()) {
+                    target.set_cnt(new_cnt)
+                }
             }
         }
 
@@ -177,15 +179,21 @@ impl GroupAggregateState {
             if target.sum().is_null() || target.sum().is_empty() {
                 target.set_sum(source.sum().clone());
             } else {
-                if let Ok(new_sum) = target.sum().add(source.sum()) { target.set_sum(new_sum) }
+                if let Ok(new_sum) = target.sum().add(source.sum()) {
+                    target.set_sum(new_sum)
+                }
             }
         }
 
         // 合并 MAX
-        if !source.result().is_null() && !source.result().is_empty()
-            && (target.result().is_null() || target.result().is_empty() || source.result() > target.result()) {
-                target.set_result(source.result().clone());
-            }
+        if !source.result().is_null()
+            && !source.result().is_empty()
+            && (target.result().is_null()
+                || target.result().is_empty()
+                || source.result() > target.result())
+        {
+            target.set_result(source.result().clone());
+        }
 
         // 合并去重集合
         if let Some(source_uniques) = source.uniques() {

@@ -27,7 +27,6 @@
 //! - Filter 节点的子节点是 Aggregate 节点
 //! - Filter 条件不涉及聚合函数（只涉及聚合的输入列）
 
-
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor_checkers::AggregateFunctionChecker;
 use crate::core::types::operators::AggregateFunction;
@@ -272,8 +271,8 @@ impl PushDownRule for PushFilterDownAggregateRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     #[test]

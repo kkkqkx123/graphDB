@@ -98,10 +98,7 @@ impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
 
         self.stats.total_releases += 1;
 
-        let pool = self
-            .pools
-            .entry(executor_type.to_string())
-            .or_default();
+        let pool = self.pools.entry(executor_type.to_string()).or_default();
 
         if pool.len() < self.config.max_pool_size {
             pool.push(executor);

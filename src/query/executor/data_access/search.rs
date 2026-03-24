@@ -101,9 +101,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 Ok(format!("edge_type_{}", self.tag_id.abs()))
             }
         } else {
-            let tags = storage
-                .list_tags(&space_name)
-                .map_err(DBError::Storage)?;
+            let tags = storage.list_tags(&space_name).map_err(DBError::Storage)?;
             if let Some(tag_info) = tags.iter().find(|t| t.tag_id == self.tag_id) {
                 Ok(tag_info.tag_name.clone())
             } else {

@@ -12,8 +12,7 @@ use std::collections::HashMap;
 /// - 图空间名称
 /// - 查询字符串
 /// - 查询参数
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct QueryRequestContext {
     /// 会话ID
     pub session_id: Option<i64>,
@@ -73,7 +72,6 @@ impl QueryRequestContext {
         self.parameters.contains_key(param)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

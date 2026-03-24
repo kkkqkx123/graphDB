@@ -333,10 +333,7 @@ impl UnwindValidator {
     }
 
     /// 检查表达式是否为空
-    fn expression_is_empty(
-        &self,
-        _expression: &crate::core::types::expr::Expression,
-    ) -> bool {
+    fn expression_is_empty(&self, _expression: &crate::core::types::expr::Expression) -> bool {
         // 简化实现，实际应该检查表达式是否为空
         false
     }

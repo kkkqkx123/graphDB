@@ -214,10 +214,9 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
                         let right_row = &right_dataset.rows[*right_idx];
 
                         // 检查是否有左表行匹配当前右表行的键
-                        let has_left_match =
-                            left_hash_table.get(key).is_some_and(|left_entries| {
-                                left_entries.iter().any(|(_left_idx, matched)| !matched)
-                            });
+                        let has_left_match = left_hash_table.get(key).is_some_and(|left_entries| {
+                            left_entries.iter().any(|(_left_idx, matched)| !matched)
+                        });
 
                         if !has_left_match {
                             // 没有匹配的左表行，用NULL填充左表部分

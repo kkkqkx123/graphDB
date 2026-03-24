@@ -35,9 +35,9 @@ pub mod batch;
 pub mod busy_handler;
 pub mod config;
 pub mod database;
+pub mod precompiled;
 pub mod result;
 pub mod session;
-pub mod precompiled;
 pub mod statistics;
 pub mod transaction;
 
@@ -50,9 +50,9 @@ pub use batch::{BatchConfig, BatchError, BatchInserter, BatchItemType, BatchResu
 pub use busy_handler::{BusyConfig, BusyHandler, BusyResult};
 pub use config::{DatabaseConfig, SyncMode};
 pub use database::GraphDatabase;
+pub use precompiled::PreparedStatement;
 pub use result::{QueryResult, ResultMetadata, Row};
 pub use session::Session;
-pub use precompiled::PreparedStatement;
 pub use statistics::{QueryStatistics, SessionStatistics};
 pub use transaction::{Transaction, TransactionConfig, TransactionInfo};
 

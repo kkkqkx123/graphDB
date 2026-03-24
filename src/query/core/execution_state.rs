@@ -8,8 +8,7 @@ use std::fmt;
 /// 查询执行状态 - 顶层执行流程状态
 ///
 /// 表示整个查询执行的生命周期状态，用于查询流程管理。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum QueryExecutionState {
     /// 查询已创建，等待执行
     #[default]
@@ -65,12 +64,10 @@ impl fmt::Display for QueryExecutionState {
     }
 }
 
-
 /// 执行器状态 - 单个执行器的运行状态
 ///
 /// 表示单个执行器实例的执行状态，用于执行器生命周期管理。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ExecutorState {
     /// 执行器已创建，未开始执行
     #[default]
@@ -131,12 +128,10 @@ impl fmt::Display for ExecutorState {
     }
 }
 
-
 /// 循环执行状态 - 循环控制专用状态
 ///
 /// 专门用于循环执行器（LoopExecutor）的状态管理。
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum LoopExecutionState {
     /// 循环未开始
     #[default]
@@ -192,12 +187,10 @@ impl fmt::Display for LoopExecutionState {
     }
 }
 
-
 /// 结果行状态 - 单行数据处理状态
 ///
 /// 表示单条数据记录的处理结果状态。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum RowStatus {
     /// 正常数据
     #[default]
@@ -238,12 +231,10 @@ impl fmt::Display for RowStatus {
     }
 }
 
-
 /// 优化阶段状态 - 查询优化过程状态
 ///
 /// 表示查询优化器的工作阶段。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OptimizationState {
     /// 未开始优化
     #[default]
@@ -290,12 +281,10 @@ impl fmt::Display for OptimizationState {
     }
 }
 
-
 /// 优化阶段 - 用于优化规则分类
 ///
 /// 表示优化规则所属的阶段，用于控制规则的执行顺序。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OptimizationPhase {
     /// 重写阶段 - 逻辑重写规则
     Rewrite,
@@ -338,7 +327,6 @@ impl fmt::Display for OptimizationPhase {
         write!(f, "{}", self.description())
     }
 }
-
 
 #[cfg(test)]
 mod tests {

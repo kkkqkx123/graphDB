@@ -294,10 +294,12 @@ impl DataSet {
 
     /// 获取指定列的所有值
     pub fn get_column(&self, col_name: &str) -> Option<Vec<super::types::Value>> {
-        self.get_col_index(col_name).map(|index| self.rows
-                    .iter()
-                    .filter_map(|row| row.get(index).cloned())
-                    .collect())
+        self.get_col_index(col_name).map(|index| {
+            self.rows
+                .iter()
+                .filter_map(|row| row.get(index).cloned())
+                .collect()
+        })
     }
 
     /// 过滤数据集

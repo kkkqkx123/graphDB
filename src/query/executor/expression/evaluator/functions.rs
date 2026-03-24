@@ -33,9 +33,7 @@ impl FunctionEvaluator {
             AggregateFunction::Sum(_) => {
                 let mut sum = Value::Int(0);
                 for arg in args {
-                    sum = sum
-                        .add(arg)
-                        .map_err(ExpressionError::runtime_error)?;
+                    sum = sum.add(arg).map_err(ExpressionError::runtime_error)?;
                 }
                 Ok(sum)
             }
@@ -47,8 +45,7 @@ impl FunctionEvaluator {
                 )?;
                 let count =
                     Self::eval_aggregate_function(&AggregateFunction::Count(None), args, distinct)?;
-                sum.div(&count)
-                    .map_err(ExpressionError::runtime_error)
+                sum.div(&count).map_err(ExpressionError::runtime_error)
             }
             AggregateFunction::Min(_) => {
                 let mut min = args[0].clone();

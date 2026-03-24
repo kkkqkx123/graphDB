@@ -95,7 +95,6 @@ impl QueryContextBuilder {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

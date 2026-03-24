@@ -297,7 +297,9 @@ fn json_to_value(json: serde_json::Value) -> Option<Value> {
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
                 Some(Value::Int(i))
-            } else { n.as_f64().map(Value::Float) }
+            } else {
+                n.as_f64().map(Value::Float)
+            }
         }
         serde_json::Value::String(s) => Some(Value::String(s)),
         serde_json::Value::Array(arr) => {

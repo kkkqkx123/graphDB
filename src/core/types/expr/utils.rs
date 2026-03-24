@@ -269,9 +269,7 @@ fn requires_runtime_context(expression: &Expression) -> bool {
             end,
         } => {
             requires_runtime_context(collection)
-                || start
-                    .as_ref()
-                    .is_some_and(|s| requires_runtime_context(s))
+                || start.as_ref().is_some_and(|s| requires_runtime_context(s))
                 || end.as_ref().is_some_and(|e| requires_runtime_context(e))
         }
         Expression::Path(items) => items.iter().any(requires_runtime_context),
@@ -283,9 +281,7 @@ fn requires_runtime_context(expression: &Expression) -> bool {
             ..
         } => {
             requires_runtime_context(source)
-                || filter
-                    .as_ref()
-                    .is_some_and(|f| requires_runtime_context(f))
+                || filter.as_ref().is_some_and(|f| requires_runtime_context(f))
                 || map.as_ref().is_some_and(|m| requires_runtime_context(m))
         }
         Expression::LabelTagProperty { tag, .. } => requires_runtime_context(tag),
@@ -492,9 +488,7 @@ pub fn has_aggregate_function(expression: &Expression) -> bool {
                 || conditions.iter().any(|(cond, expr)| {
                     has_aggregate_function(cond) || has_aggregate_function(expr)
                 })
-                || default
-                    .as_ref()
-                    .is_some_and(|e| has_aggregate_function(e))
+                || default.as_ref().is_some_and(|e| has_aggregate_function(e))
         }
         Expression::TypeCast { expression, .. } => has_aggregate_function(expression),
         Expression::Subscript { collection, index } => {

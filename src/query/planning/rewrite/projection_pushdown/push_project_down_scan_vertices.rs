@@ -17,8 +17,8 @@
 //! ```
 
 use crate::core::YieldColumn;
-use crate::query::planning::plan::core::nodes::ScanVerticesNode;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::ScanVerticesNode;
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::planning::rewrite::context::RewriteContext;
 use crate::query::planning::rewrite::pattern::Pattern;
@@ -36,7 +36,9 @@ impl PushProjectDownScanVerticesRule {
         Self
     }
 
-    fn can_push_down_project(project_node: &crate::query::planning::plan::core::nodes::ProjectNode) -> bool {
+    fn can_push_down_project(
+        project_node: &crate::query::planning::plan::core::nodes::ProjectNode,
+    ) -> bool {
         !project_node.columns().is_empty()
     }
 
@@ -132,8 +134,8 @@ mod tests {
     use crate::core::types::ContextualExpression;
     use crate::core::{Expression, YieldColumn};
     use crate::query::planning::plan::core::nodes::{ProjectNode, ScanVerticesNode};
-    use std::sync::Arc;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
+    use std::sync::Arc;
 
     fn create_yield_column(expr: Expression, alias: &str) -> YieldColumn {
         let ctx = Arc::new(ExpressionAnalysisContext::new());

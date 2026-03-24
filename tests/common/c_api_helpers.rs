@@ -316,4 +316,3 @@ impl Drop for CApiTestBatch {
         }
     }
 }
-

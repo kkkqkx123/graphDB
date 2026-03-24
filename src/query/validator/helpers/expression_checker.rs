@@ -107,18 +107,17 @@ impl ExpressionChecker {
 
         match op {
             crate::core::BinaryOperator::Divide => {
-                if let crate::core::types::expr::Expression::Literal(
-                    crate::core::Value::Int(0),
-                ) = right
+                if let crate::core::types::expr::Expression::Literal(crate::core::Value::Int(0)) =
+                    right
                 {
                     return Err(ValidationError::new(
                         "除数不能为0".to_string(),
                         ValidationErrorType::DivisionByZero,
                     ));
                 }
-                if let crate::core::types::expr::Expression::Literal(
-                    crate::core::Value::Float(0.0),
-                ) = right
+                if let crate::core::types::expr::Expression::Literal(crate::core::Value::Float(
+                    0.0,
+                )) = right
                 {
                     return Err(ValidationError::new(
                         "除数不能为0.0".to_string(),
@@ -127,9 +126,8 @@ impl ExpressionChecker {
                 }
             }
             crate::core::BinaryOperator::Modulo => {
-                if let crate::core::types::expr::Expression::Literal(
-                    crate::core::Value::Int(0),
-                ) = right
+                if let crate::core::types::expr::Expression::Literal(crate::core::Value::Int(0)) =
+                    right
                 {
                     return Err(ValidationError::new(
                         "模数不能为0".to_string(),

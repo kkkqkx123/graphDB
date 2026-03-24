@@ -213,8 +213,7 @@ pub unsafe extern "C" fn graphdb_txn_execute(
     let mut query_api = session.inner.query_api();
     match query_api.execute(query_str, ctx) {
         Ok(core_result) => {
-            let query_result =
-                crate::api::embedded::result::QueryResult::from_core(core_result);
+            let query_result = crate::api::embedded::result::QueryResult::from_core(core_result);
             let result_handle = Box::new(GraphDbResultHandle {
                 inner: query_result,
             });
@@ -359,7 +358,10 @@ pub unsafe extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int 
 /// - `name` must be a valid pointer to a null-terminated UTF-8 string
 /// - The transaction must not have been committed or rolled back
 #[no_mangle]
-pub unsafe extern "C" fn graphdb_txn_savepoint(txn: *mut graphdb_txn_t, name: *const c_char) -> i64 {
+pub unsafe extern "C" fn graphdb_txn_savepoint(
+    txn: *mut graphdb_txn_t,
+    name: *const c_char,
+) -> i64 {
     if txn.is_null() || name.is_null() {
         return -1;
     }

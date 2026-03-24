@@ -17,8 +17,7 @@ pub enum ExportFormat {
     Rust,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode, Default)]
 pub struct SchemaImportResult {
     pub success: bool,
     pub space_name: String,
@@ -28,7 +27,6 @@ pub struct SchemaImportResult {
     pub skipped_items: Vec<String>,
     pub errors: Vec<String>,
 }
-
 
 impl SchemaImportResult {
     pub fn new() -> Self {

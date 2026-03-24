@@ -8,7 +8,9 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::{DataSet, Value, Vertex};
-use crate::query::executor::base::{AppendVerticesConfig, BaseExecutor, ExecutionResult, Executor, ExecutorConfig, HasStorage};
+use crate::query::executor::base::{
+    AppendVerticesConfig, BaseExecutor, ExecutionResult, Executor, ExecutorConfig, HasStorage,
+};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::storage::StorageClient;
@@ -33,10 +35,7 @@ pub struct AppendVerticesExecutor<S: StorageClient + Send + 'static> {
 
 impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
     /// 创建新的AppendVerticesExecutor
-    pub fn new(
-        base_config: ExecutorConfig<S>,
-        config: AppendVerticesConfig,
-    ) -> Self {
+    pub fn new(base_config: ExecutorConfig<S>, config: AppendVerticesConfig) -> Self {
         Self {
             base: BaseExecutor::new(
                 base_config.id,
@@ -228,9 +227,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                 continue;
             }
 
-            let vertex = storage
-                .get_vertex("default", &vid)
-                .map_err(DBError::from)?;
+            let vertex = storage.get_vertex("default", &vid).map_err(DBError::from)?;
 
             if let Some(vertex) = vertex {
                 vertices.push(vertex);

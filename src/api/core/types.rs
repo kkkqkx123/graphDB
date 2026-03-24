@@ -68,15 +68,13 @@ impl Row {
 }
 
 /// 执行元数据
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ExecutionMetadata {
     pub execution_time_ms: u64,
     pub rows_scanned: u64,
     pub rows_returned: u64,
     pub cache_hit: bool,
 }
-
 
 /// 事务句柄
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
-use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::base::JoinConfig;
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
@@ -46,10 +46,10 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
                 storage,
                 expr_context,
                 JoinConfig {
-                    left_var: String::new(), // 左变量（不使用）
+                    left_var: String::new(),  // 左变量（不使用）
                     right_var: String::new(), // 右变量（不使用）
                     hash_keys: Vec::new(),    // 哈希键（不使用）
-                    probe_keys: Vec::new(),    // 探测键（不使用）
+                    probe_keys: Vec::new(),   // 探测键（不使用）
                     col_names,
                 },
             ),

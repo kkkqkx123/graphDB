@@ -143,6 +143,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return self.handle_commit_transaction(&session);
         } else if trimmed_stmt.starts_with("ROLLBACK") {
             return self.handle_rollback_transaction(&session, stmt);
+        } else if trimmed_stmt.starts_with("SAVEPOINT") {
+            return self.handle_savepoint(&session, stmt);
+        } else if trimmed_stmt.starts_with("RELEASE SAVEPOINT") {
+            return self.handle_release_savepoint(&session, stmt);
         }
 
         // 执行普通查询
@@ -396,27 +400,138 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     ) -> Result<ExecutionResult, String> {
         let trimmed = stmt.trim().to_uppercase();
 
-        // 检查是否是 ROLLBACK TO SAVEPOINT（不支持）
+        // 检查是否是 ROLLBACK TO SAVEPOINT
         if trimmed.starts_with("ROLLBACK TO ") {
-            return Err("SAVEPOINT 功能已移除，请使用完整的事务回滚".to_string());
+            let savepoint_name = stmt[trimmed.find("ROLLBACK TO ").unwrap() + 12..].trim();
+
+            let txn_id = session.current_transaction().ok_or("没有活跃事务可回滚")?;
+
+            let txn_manager = self
+                .transaction_manager
+                .as_ref()
+                .ok_or("事务管理器未初始化")?;
+
+            let context = txn_manager
+                .get_context(txn_id)
+                .map_err(|e| format!("获取事务上下文失败: {}", e))?;
+
+            // 尝试通过名称查找保存点
+            let savepoint_info = context
+                .find_savepoint_by_name(savepoint_name)
+                .ok_or_else(|| format!("保存点 '{}' 不存在", savepoint_name))?;
+
+            // 执行回滚
+            match txn_manager.rollback_to_savepoint(txn_id, savepoint_info.id) {
+                Ok(()) => {
+                    info!(
+                        "会话 {} 回滚事务 {} 到保存点 {}",
+                        session.id(),
+                        txn_id,
+                        savepoint_name
+                    );
+                    Ok(ExecutionResult::Success)
+                }
+                Err(e) => Err(format!("回滚到保存点失败: {}", e)),
+            }
+        } else {
+            // 完整的事务回滚
+            let txn_id = session.current_transaction().ok_or("没有活跃事务可回滚")?;
+
+            let txn_manager = self
+                .transaction_manager
+                .as_ref()
+                .ok_or("事务管理器未初始化")?;
+
+            match txn_manager.abort_transaction(txn_id) {
+                Ok(()) => {
+                    session.unbind_transaction();
+                    session.set_auto_commit(true);
+                    info!("会话 {} 回滚事务 {}", session.id(), txn_id);
+                    Ok(ExecutionResult::Success)
+                }
+                Err(e) => Err(format!("回滚事务失败: {}", e)),
+            }
+        }
+    }
+
+    /// 处理 SAVEPOINT 语句
+    fn handle_savepoint(
+        &self,
+        session: &Arc<ClientSession>,
+        stmt: &str,
+    ) -> Result<ExecutionResult, String> {
+        let savepoint_name = stmt["SAVEPOINT".len()..].trim();
+
+        if savepoint_name.is_empty() {
+            return Err("保存点名称不能为空".to_string());
         }
 
-        let txn_id = session.current_transaction().ok_or("没有活跃事务可回滚")?;
+        let txn_id = session
+            .current_transaction()
+            .ok_or("没有活跃事务，无法创建保存点")?;
 
         let txn_manager = self
             .transaction_manager
             .as_ref()
             .ok_or("事务管理器未初始化")?;
 
-        match txn_manager.abort_transaction(txn_id) {
-            Ok(()) => {
-                session.unbind_transaction();
-                session.set_auto_commit(true);
-                info!("会话 {} 回滚事务 {}", session.id(), txn_id);
-                Ok(ExecutionResult::Success)
-            }
-            Err(e) => Err(format!("回滚事务失败: {}", e)),
+        let context = txn_manager
+            .get_context(txn_id)
+            .map_err(|e| format!("获取事务上下文失败: {}", e))?;
+
+        let savepoint_id = context.create_savepoint(Some(savepoint_name.to_string()));
+
+        info!(
+            "会话 {} 在事务 {} 中创建保存点 {} (ID: {})",
+            session.id(),
+            txn_id,
+            savepoint_name,
+            savepoint_id
+        );
+
+        Ok(ExecutionResult::Success)
+    }
+
+    /// 处理 RELEASE SAVEPOINT 语句
+    fn handle_release_savepoint(
+        &self,
+        session: &Arc<ClientSession>,
+        stmt: &str,
+    ) -> Result<ExecutionResult, String> {
+        let savepoint_name = stmt["RELEASE SAVEPOINT".len()..].trim();
+
+        if savepoint_name.is_empty() {
+            return Err("保存点名称不能为空".to_string());
         }
+
+        let txn_id = session.current_transaction().ok_or("没有活跃事务")?;
+
+        let txn_manager = self
+            .transaction_manager
+            .as_ref()
+            .ok_or("事务管理器未初始化")?;
+
+        let context = txn_manager
+            .get_context(txn_id)
+            .map_err(|e| format!("获取事务上下文失败: {}", e))?;
+
+        let savepoint_info = context
+            .find_savepoint_by_name(savepoint_name)
+            .ok_or_else(|| format!("保存点 '{}' 不存在", savepoint_name))?;
+
+        context
+            .release_savepoint(savepoint_info.id)
+            .map_err(|e| format!("释放保存点失败: {}", e))?;
+
+        info!(
+            "会话 {} 在事务 {} 中释放保存点 {} (ID: {})",
+            session.id(),
+            txn_id,
+            savepoint_name,
+            savepoint_info.id
+        );
+
+        Ok(ExecutionResult::Success)
     }
 }
 

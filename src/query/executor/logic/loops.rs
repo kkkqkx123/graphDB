@@ -10,7 +10,9 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::Value;
 use crate::query::core::LoopExecutionState;
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorConfig, HasStorage, LoopConfig};
+use crate::query::executor::base::{
+    BaseExecutor, ExecutionResult, Executor, ExecutorConfig, HasStorage, LoopConfig,
+};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
@@ -488,7 +490,8 @@ impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
             loop_condition: crate::core::Expression::Literal(crate::core::Value::Bool(true)),
         };
 
-        let max_iterations = Some(((config.end - config.start).abs() / config.step.abs() + 1) as usize);
+        let max_iterations =
+            Some(((config.end - config.start).abs() / config.step.abs() + 1) as usize);
 
         let mut executor = LoopExecutor::new(
             base_config.id,
@@ -760,12 +763,7 @@ mod tests {
             step: 1,
             body_executor,
         };
-        let mut executor = ForLoopExecutor::new(
-            1,
-            storage,
-            expr_context,
-            config,
-        );
+        let mut executor = ForLoopExecutor::new(1, storage, expr_context, config);
 
         let result = executor.execute().expect("Failed to execute");
 

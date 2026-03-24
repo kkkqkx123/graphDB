@@ -32,12 +32,10 @@ pub trait GraphTraversalExecutor<S: StorageClient> {
 }
 
 /// 图遍历统计信息
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct TraversalStats {
     pub nodes_visited: usize,
     pub edges_traversed: usize,
     pub execution_time_ms: u64,
     pub max_depth_reached: usize,
 }
-

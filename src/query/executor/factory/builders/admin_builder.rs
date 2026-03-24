@@ -3,9 +3,9 @@
 //! 负责创建管理类型的执行器（空间管理、标签管理、边管理、索引管理、用户管理）
 
 use crate::core::error::QueryError;
-use crate::core::RoleType;
-use crate::core::types::IndexField;
 use crate::core::types::index::IndexConfig;
+use crate::core::types::IndexField;
+use crate::core::RoleType;
 use crate::core::Value;
 use crate::query::executor::admin::query_management::show_stats::ShowStatsType as ExecutorShowStatsType;
 use crate::query::executor::admin::space::alter_space::SpaceAlterOption as ExecutorSpaceAlterOption;
@@ -326,7 +326,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::{Index, IndexType};
-        let fields = node.info().properties
+        let fields = node
+            .info()
+            .properties
             .iter()
             .map(|prop| IndexField::new(prop.clone(), Value::String("string".to_string()), false))
             .collect();
@@ -427,7 +429,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::{Index, IndexType};
-        let fields = node.info().properties
+        let fields = node
+            .info()
+            .properties
             .iter()
             .map(|prop| IndexField::new(prop.clone(), Value::String("string".to_string()), false))
             .collect();

@@ -273,10 +273,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
             if key_idx < row.len() {
                 let key = row[key_idx].clone();
-                hash_table
-                    .entry(key)
-                    .or_default()
-                    .push(row.clone());
+                hash_table.entry(key).or_default().push(row.clone());
             }
         }
         Ok(())
@@ -305,10 +302,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
             }
 
             let join_key = JoinKey::new(key_values);
-            hash_table
-                .entry(join_key)
-                .or_default()
-                .push(row.clone());
+            hash_table.entry(join_key).or_default().push(row.clone());
         }
         Ok(())
     }

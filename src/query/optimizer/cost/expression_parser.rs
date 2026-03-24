@@ -482,15 +482,15 @@ impl ExpressionParser {
 
     /// 解析范围表达式
     fn parse_range_expression(&self, expr: &str) -> Option<f64> {
-                    if let Some(pos) = expr.find("..") {
-                    let start_str = expr[..pos].trim();
-                    let end_part = &expr[pos + 2..];
-        
-                    let (end_str, inclusive) = if let Some(stripped) = end_part.strip_prefix('=') {
-                        (stripped, true)
-                    } else {
-                        (end_part, false)
-                    };
+        if let Some(pos) = expr.find("..") {
+            let start_str = expr[..pos].trim();
+            let end_part = &expr[pos + 2..];
+
+            let (end_str, inclusive) = if let Some(stripped) = end_part.strip_prefix('=') {
+                (stripped, true)
+            } else {
+                (end_part, false)
+            };
             if let (Ok(start), Ok(end)) = (start_str.parse::<i64>(), end_str.trim().parse::<i64>())
             {
                 if end > start {

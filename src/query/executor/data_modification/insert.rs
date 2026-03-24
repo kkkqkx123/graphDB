@@ -156,11 +156,10 @@ impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
             let mut storage = self.get_storage().lock();
             for vertex in vertices {
                 // 如果启用了 IF NOT EXISTS，检查顶点是否已存在
-                if self.if_not_exists
-                    && storage.get_vertex("default", &vertex.vid)?.is_some() {
-                        // 顶点已存在，跳过插入
-                        continue;
-                    }
+                if self.if_not_exists && storage.get_vertex("default", &vertex.vid)?.is_some() {
+                    // 顶点已存在，跳过插入
+                    continue;
+                }
                 storage.insert_vertex("default", vertex.clone())?;
                 total_inserted += 1;
             }

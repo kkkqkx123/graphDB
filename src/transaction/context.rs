@@ -3,13 +3,16 @@
 //! 管理单个事务的状态和资源
 
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use crossbeam_utils::atomic::AtomicCell;
 use parking_lot::{Mutex, RwLock};
 
 use crate::core::StorageError;
 use crate::storage::operations::rollback::RollbackExecutor;
+use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
 use crate::transaction::types::*;
 
 /// 事务上下文
@@ -39,6 +42,9 @@ pub struct TransactionContext {
     savepoint_manager: RwLock<SavepointManager>,
     /// 回滚执行器（用于保存点回滚时执行实际的数据回滚）
     rollback_executor: Mutex<Option<Box<dyn RollbackExecutor>>>,
+    /// 数据库引用（用于创建回滚执行器，暂未使用）
+    #[allow(dead_code)]
+    db: Option<Arc<redb::Database>>,
 }
 
 /// 保存点管理器
@@ -99,6 +105,7 @@ impl TransactionContext {
         timeout: Duration,
         durability: DurabilityLevel,
         write_txn: redb::WriteTransaction,
+        db: Option<Arc<redb::Database>>,
     ) -> Self {
         Self {
             id,
@@ -113,6 +120,7 @@ impl TransactionContext {
             modified_tables: Mutex::new(Vec::new()),
             savepoint_manager: RwLock::new(SavepointManager::new()),
             rollback_executor: Mutex::new(None),
+            db,
         }
     }
 
@@ -121,6 +129,7 @@ impl TransactionContext {
         id: TransactionId,
         timeout: Duration,
         read_txn: redb::ReadTransaction,
+        db: Option<Arc<redb::Database>>,
     ) -> Self {
         Self {
             id,
@@ -135,6 +144,7 @@ impl TransactionContext {
             modified_tables: Mutex::new(Vec::new()),
             savepoint_manager: RwLock::new(SavepointManager::new()),
             rollback_executor: Mutex::new(None),
+            db,
         }
     }
 
@@ -165,8 +175,10 @@ impl TransactionContext {
         // 验证状态转换是否合法
         let valid_transition = matches!(
             (current, new_state),
-            (TransactionState::Active, TransactionState::Committing | TransactionState::Aborting)
-                | (TransactionState::Committing, TransactionState::Committed)
+            (
+                TransactionState::Active,
+                TransactionState::Committing | TransactionState::Aborting
+            ) | (TransactionState::Committing, TransactionState::Committed)
                 | (TransactionState::Aborting, TransactionState::Aborted)
         );
 
@@ -342,19 +354,9 @@ impl TransactionContext {
 
         drop(manager);
 
-        // 先执行数据回滚（使用回滚执行器）
+        // 先执行数据回滚
         if !logs_to_rollback.is_empty() {
-            let mut executor_guard = self.rollback_executor.lock();
-            let executor = executor_guard
-                .as_mut()
-                .ok_or_else(|| TransactionError::RollbackFailed("未设置回滚执行器".to_string()))?;
-
-            // 按逆序执行回滚操作
-            for log in logs_to_rollback.iter().rev() {
-                executor
-                    .execute_rollback(log)
-                    .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
-            }
+            self.execute_rollback_logs(&logs_to_rollback)?;
         }
 
         // 数据回滚成功后，再截断操作日志
@@ -371,6 +373,187 @@ impl TransactionContext {
 
         for sp_id in savepoints_to_remove {
             manager.remove_savepoint(sp_id);
+        }
+
+        Ok(())
+    }
+
+    /// 执行操作日志的回滚
+    fn execute_rollback_logs(&self, logs: &[OperationLog]) -> Result<(), TransactionError> {
+        // 按逆序执行回滚操作
+        for log in logs.iter().rev() {
+            match log {
+                OperationLog::InsertVertex {
+                    space: _,
+                    vertex_id,
+                    previous_state,
+                } => {
+                    let id_bytes = vertex_id.clone();
+
+                    if let Some(ref state) = previous_state {
+                        let vertex: crate::core::Vertex = decode_from_slice(state, standard())
+                            .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
+                            .0;
+                        let vertex_bytes = encode_to_vec(&vertex, standard())
+                            .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
+
+                        self.with_write_txn(|write_txn| {
+                            let mut table = write_txn
+                                .open_table(NODES_TABLE)
+                                .map_err(|e| StorageError::DbError(e.to_string()))?;
+                            table
+                                .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
+                                .map_err(|e| StorageError::DbError(e.to_string()))?;
+                            Ok(())
+                        })?;
+                    } else {
+                        self.with_write_txn(|write_txn| {
+                            let mut table = write_txn
+                                .open_table(NODES_TABLE)
+                                .map_err(|e| StorageError::DbError(e.to_string()))?;
+                            table
+                                .remove(ByteKey(id_bytes))
+                                .map_err(|e| StorageError::DbError(e.to_string()))?;
+                            Ok(())
+                        })?;
+                    }
+                }
+
+                OperationLog::UpdateVertex {
+                    space: _,
+                    vertex_id: _,
+                    previous_data,
+                } => {
+                    let vertex: crate::core::Vertex = decode_from_slice(previous_data, standard())
+                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
+                        .0;
+                    let id_bytes = encode_to_vec(&vertex.vid, standard())
+                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
+                    let vertex_bytes = encode_to_vec(&vertex, standard())
+                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
+
+                    self.with_write_txn(|write_txn| {
+                        let mut table = write_txn
+                            .open_table(NODES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+                        table
+                            .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+                        Ok(())
+                    })?;
+                }
+
+                OperationLog::DeleteVertex {
+                    space: _,
+                    vertex_id: _,
+                    vertex,
+                } => {
+                    let decoded_vertex: crate::core::Vertex = decode_from_slice(vertex, standard())
+                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
+                        .0;
+                    let id_bytes = encode_to_vec(&decoded_vertex.vid, standard())
+                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
+                    let vertex_bytes = encode_to_vec(&decoded_vertex, standard())
+                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
+
+                    self.with_write_txn(|write_txn| {
+                        let mut table = write_txn
+                            .open_table(NODES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+                        table
+                            .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+                        Ok(())
+                    })?;
+                }
+
+                OperationLog::InsertEdge {
+                    space: _,
+                    edge_id,
+                    previous_state,
+                } => {
+                    let edge_key_bytes = edge_id.clone();
+
+                    if let Some(ref state) = previous_state {
+                        let edge: crate::core::Edge = decode_from_slice(state, standard())
+                            .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
+                            .0;
+                        let edge_bytes = encode_to_vec(&edge, standard())
+                            .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
+
+                        self.with_write_txn(|write_txn| {
+                            let mut table = write_txn
+                                .open_table(EDGES_TABLE)
+                                .map_err(|e| StorageError::DbError(e.to_string()))?;
+                            table
+                                .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
+                                .map_err(|e| StorageError::DbError(e.to_string()))?;
+                            Ok(())
+                        })?;
+                    } else {
+                        self.with_write_txn(|write_txn| {
+                            let mut table = write_txn
+                                .open_table(EDGES_TABLE)
+                                .map_err(|e| StorageError::DbError(e.to_string()))?;
+                            table
+                                .remove(ByteKey(edge_key_bytes))
+                                .map_err(|e| StorageError::DbError(e.to_string()))?;
+                            Ok(())
+                        })?;
+                    }
+                }
+
+                OperationLog::DeleteEdge {
+                    space: _,
+                    edge_id: _,
+                    edge,
+                } => {
+                    let decoded_edge: crate::core::Edge = decode_from_slice(edge, standard())
+                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
+                        .0;
+                    let edge_key = format!(
+                        "{:?}_{:?}_{}",
+                        decoded_edge.src, decoded_edge.dst, decoded_edge.edge_type
+                    );
+                    let edge_key_bytes = edge_key.as_bytes().to_vec();
+                    let edge_bytes = encode_to_vec(&decoded_edge, standard())
+                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
+
+                    self.with_write_txn(|write_txn| {
+                        let mut table = write_txn
+                            .open_table(EDGES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+                        table
+                            .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+                        Ok(())
+                    })?;
+                }
+
+                OperationLog::UpdateEdge {
+                    space: _,
+                    edge_id: _,
+                    previous_data,
+                } => {
+                    let edge: crate::core::Edge = decode_from_slice(previous_data, standard())
+                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?
+                        .0;
+                    let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
+                    let edge_key_bytes = edge_key.as_bytes().to_vec();
+                    let edge_bytes = encode_to_vec(&edge, standard())
+                        .map_err(|e| TransactionError::RollbackFailed(e.to_string()))?;
+
+                    self.with_write_txn(|write_txn| {
+                        let mut table = write_txn
+                            .open_table(EDGES_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+                        table
+                            .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+                        Ok(())
+                    })?;
+                }
+            }
         }
 
         Ok(())

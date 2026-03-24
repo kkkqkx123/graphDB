@@ -326,10 +326,7 @@ impl TraversalStartSelector {
     /// - id(v) == value
     /// - v.id == value
     /// - {id: value}
-    fn has_vid_condition_ctx(
-        &self,
-        expr: &crate::core::types::expr::ContextualExpression,
-    ) -> bool {
+    fn has_vid_condition_ctx(&self, expr: &crate::core::types::expr::ContextualExpression) -> bool {
         match expr.expression() {
             Some(meta) => self.has_vid_condition(meta.inner()),
             None => false,
@@ -364,9 +361,10 @@ impl TraversalStartSelector {
             Expression::Binary { left, right, op } => {
                 // 检查是否为等值比较且包含VID
                 if matches!(op, BinaryOperator::Equal | BinaryOperator::NotEqual)
-                    && (self.is_vid_expression(left) || self.is_vid_expression(right)) {
-                        return true;
-                    }
+                    && (self.is_vid_expression(left) || self.is_vid_expression(right))
+                {
+                    return true;
+                }
                 // 递归检查
                 self.has_vid_condition(left) || self.has_vid_condition(right)
             }

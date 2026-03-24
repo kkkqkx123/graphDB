@@ -886,9 +886,7 @@ mod tests {
     fn test_has_aggregate_expression() {
         let validator = MatchValidator::new();
         let non_agg_expression = create_contextual_expr(Expression::Literal(Value::Int(1)));
-        assert!(
-            !validator.has_aggregate_expression(&non_agg_expression)
-        );
+        assert!(!validator.has_aggregate_expression(&non_agg_expression));
 
         // 测试有聚合函数的表达式
         let agg_expression = create_contextual_expr(Expression::Aggregate {

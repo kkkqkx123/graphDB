@@ -53,11 +53,10 @@ use std::hash::Hash;
 /// let nan_val = NullType::NaN;
 /// let div_zero = NullType::DivByZero;
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode, Default)]
 pub enum NullType {
     #[default]
-    Null,        // 标准null值
+    Null, // 标准null值
     NaN,         // 非数字结果
     BadData,     // 坏数据（解析失败）
     BadType,     // 类型不匹配
@@ -95,7 +94,6 @@ impl NullType {
         }
     }
 }
-
 
 impl std::fmt::Display for NullType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

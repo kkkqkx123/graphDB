@@ -222,8 +222,7 @@ pub enum ShortestPathAlgorithmType {
 }
 
 /// 边权重配置
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub enum EdgeWeightConfig {
     /// 无权图，使用步数作为距离
     #[default]
@@ -236,8 +235,7 @@ pub enum EdgeWeightConfig {
 
 /// 启发式函数类型
 /// 用于A*算法估计从当前节点到目标节点的代价
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub enum HeuristicFunction {
     /// 零启发式，退化为Dijkstra算法
     #[default]
@@ -320,7 +318,6 @@ impl HeuristicFunction {
     }
 }
 
-
 impl EdgeWeightConfig {
     /// 是否为带权图
     pub fn is_weighted(&self) -> bool {
@@ -335,7 +332,6 @@ impl EdgeWeightConfig {
         }
     }
 }
-
 
 /// 路径拼接工具函数
 /// 左路径从起点到中间，右路径从终点到中间

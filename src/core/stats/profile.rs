@@ -7,8 +7,7 @@ use std::time::Instant;
 use super::error_stats::{ErrorInfo, ErrorType, QueryPhase};
 
 /// 查询执行阶段统计（毫秒级）
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct StageMetrics {
     pub parse_ms: u64,
     pub validate_ms: u64,
@@ -16,7 +15,6 @@ pub struct StageMetrics {
     pub optimize_ms: u64,
     pub execute_ms: u64,
 }
-
 
 /// 执行器统计
 #[derive(Debug, Clone)]

@@ -3,7 +3,9 @@
 //! 负责创建数据转换类型的执行器（Unwind, Assign, Materialize, AppendVertices, RollUpApply, PatternApply）
 
 use crate::core::error::QueryError;
-use crate::query::executor::base::{ExecutionContext, ExecutorConfig, AppendVerticesConfig, RollupApplyConfig, PatternApplyConfig};
+use crate::query::executor::base::{
+    AppendVerticesConfig, ExecutionContext, ExecutorConfig, PatternApplyConfig, RollupApplyConfig,
+};
 use crate::query::executor::data_processing::MaterializeExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::result_processing::{

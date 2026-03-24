@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use super::pattern::*;
 use super::types::*;
-use crate::core::types::expr::utils::collect_variables_from_contextual;
 use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::utils::collect_variables_from_contextual;
 use crate::core::types::PropertyDef;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
@@ -797,14 +797,12 @@ pub enum ShowTarget {
 }
 
 /// EXPLAIN 格式类型
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ExplainFormat {
     #[default]
     Table,
     Dot,
 }
-
 
 /// EXPLAIN 语句
 #[derive(Debug, Clone, PartialEq)]
@@ -1093,7 +1091,10 @@ impl StmtUtils {
                 }
             }
             Stmt::Create(s) => match &s.target {
-                CreateTarget::Node { properties: Some(props), .. } => {
+                CreateTarget::Node {
+                    properties: Some(props),
+                    ..
+                } => {
                     variables.extend(collect_variables_from_contextual(props));
                 }
                 CreateTarget::Edge {

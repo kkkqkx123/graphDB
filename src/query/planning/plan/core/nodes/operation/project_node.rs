@@ -78,8 +78,8 @@ impl ProjectNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::ContextualExpression;
     use crate::core::types::expr::ExpressionMeta;
+    use crate::core::types::ContextualExpression;
     use crate::core::Expression;
     use std::sync::Arc;
     use ExpressionAnalysisContext;

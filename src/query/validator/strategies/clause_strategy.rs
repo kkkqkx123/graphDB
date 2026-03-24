@@ -8,7 +8,9 @@ use crate::core::Expression;
 use crate::core::YieldColumn;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::alias_structs::{AliasType, BoundaryClauseContext};
-use crate::query::validator::structs::{MatchClauseContext, ReturnClauseContext, YieldClauseContext};
+use crate::query::validator::structs::{
+    MatchClauseContext, ReturnClauseContext, YieldClauseContext,
+};
 use crate::query::validator::{Path, QueryPart};
 use std::sync::Arc;
 
@@ -44,8 +46,10 @@ impl ClauseValidationStrategy {
         let alias_validator = AliasValidationStrategy::new();
 
         for col in &context.yield_clause.yield_columns {
-            alias_validator
-                .validate_aliases(std::slice::from_ref(&col.expression), &context.aliases_available)?;
+            alias_validator.validate_aliases(
+                std::slice::from_ref(&col.expression),
+                &context.aliases_available,
+            )?;
         }
 
         // 验证分页
@@ -228,8 +232,10 @@ impl ClauseValidationStrategy {
         use super::alias_strategy::AliasValidationStrategy;
         let alias_validator = AliasValidationStrategy::new();
         for col in &context.yield_columns {
-            alias_validator
-                .validate_aliases(std::slice::from_ref(&col.expression), &context.aliases_available)?;
+            alias_validator.validate_aliases(
+                std::slice::from_ref(&col.expression),
+                &context.aliases_available,
+            )?;
         }
 
         Ok(())

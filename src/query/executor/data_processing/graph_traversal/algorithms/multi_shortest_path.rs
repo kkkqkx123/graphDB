@@ -10,7 +10,8 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Step, Value, Vertex};
 use crate::query::executor::base::{
     BaseExecutor, DBResult as ExecDBResult, EdgeDirection, ExecutionResult,
-    Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor, MultiShortestPathConfig,
+    Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor,
+    MultiShortestPathConfig,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
@@ -442,10 +443,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
     fn update_history(&mut self) {
         // 将当前左向路径合并到历史
         for (dst, src_map) in &self.left_paths {
-            let history_entry = self
-                .history_left_paths
-                .entry(dst.clone())
-                .or_default();
+            let history_entry = self.history_left_paths.entry(dst.clone()).or_default();
             for (src, paths) in src_map {
                 let src_entry = history_entry.entry(src.clone()).or_default();
                 src_entry.extend(paths.clone());
@@ -454,10 +452,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
         // 将当前右向路径合并到历史
         for (dst, src_map) in &self.right_paths {
-            let history_entry = self
-                .history_right_paths
-                .entry(dst.clone())
-                .or_default();
+            let history_entry = self.history_right_paths.entry(dst.clone()).or_default();
             for (src, paths) in src_map {
                 let src_entry = history_entry.entry(src.clone()).or_default();
                 src_entry.extend(paths.clone());

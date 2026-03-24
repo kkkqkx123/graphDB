@@ -67,11 +67,8 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
             col_names: node.col_names().to_vec(),
         };
 
-        let executor = InnerJoinExecutor::new(
-            storage,
-            context.expression_context().clone(),
-            config,
-        );
+        let executor =
+            InnerJoinExecutor::new(storage, context.expression_context().clone(), config);
         Ok(ExecutorEnum::InnerJoin(executor))
     }
 
@@ -95,11 +92,8 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
             col_names: node.col_names().to_vec(),
         };
 
-        let executor = HashInnerJoinExecutor::new(
-            storage,
-            context.expression_context().clone(),
-            config,
-        );
+        let executor =
+            HashInnerJoinExecutor::new(storage, context.expression_context().clone(), config);
         Ok(ExecutorEnum::HashInnerJoin(executor))
     }
 
@@ -123,11 +117,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
             col_names: node.col_names().to_vec(),
         };
 
-        let executor = LeftJoinExecutor::new(
-            storage,
-            context.expression_context().clone(),
-            config,
-        );
+        let executor = LeftJoinExecutor::new(storage, context.expression_context().clone(), config);
         Ok(ExecutorEnum::LeftJoin(executor))
     }
 
@@ -151,11 +141,8 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
             col_names: node.col_names().to_vec(),
         };
 
-        let executor = HashLeftJoinExecutor::new(
-            storage,
-            context.expression_context().clone(),
-            config,
-        );
+        let executor =
+            HashLeftJoinExecutor::new(storage, context.expression_context().clone(), config);
         Ok(ExecutorEnum::HashLeftJoin(executor))
     }
 
@@ -170,13 +157,14 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let hash_keys: Vec<crate::core::types::ContextualExpression> = node.hash_keys().to_vec();
         let probe_keys: Vec<crate::core::types::ContextualExpression> = node.probe_keys().to_vec();
 
-        let config = crate::query::executor::data_processing::join::full_outer_join::FullOuterJoinConfig {
-            hash_keys,
-            probe_keys,
-            left_var,
-            right_var,
-            output_columns: node.col_names().to_vec(),
-        };
+        let config =
+            crate::query::executor::data_processing::join::full_outer_join::FullOuterJoinConfig {
+                hash_keys,
+                probe_keys,
+                left_var,
+                right_var,
+                output_columns: node.col_names().to_vec(),
+            };
         let executor = FullOuterJoinExecutor::new(
             node.id(),
             storage,

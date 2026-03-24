@@ -90,7 +90,8 @@ impl EdgeIndexManager {
 
             for (key, value) in table
                 .iter()
-                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?.flatten()
+                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+                .flatten()
             {
                 let key_bytes: Vec<u8> = key.value().0.clone();
 
@@ -108,35 +109,26 @@ impl EdgeIndexManager {
                             if value_parts.len() >= 2 {
                                 let _prop_name = value_parts[0];
                                 if let Ok(prop_value_len) = value_parts[1].parse::<usize>() {
-                                    let forward_key_start =
-                                        IndexKeyCodec::build_edge_index_prefix(
-                                            space_id,
-                                            &index_name,
-                                        );
+                                    let forward_key_start = IndexKeyCodec::build_edge_index_prefix(
+                                        space_id,
+                                        &index_name,
+                                    );
                                     let forward_key_end =
                                         IndexKeyCodec::build_range_end(&forward_key_start);
 
                                     for (fwd_key, _) in table
                                         .range::<ByteKey>(&forward_key_start..&forward_key_end)
                                         .map_err(|e| {
-                                            StorageError::DbError(format!(
-                                                "范围查询失败: {}",
-                                                e
-                                            ))
-                                        })?.flatten()
+                                            StorageError::DbError(format!("范围查询失败: {}", e))
+                                        })?
+                                        .flatten()
                                     {
-                                        let fwd_key_bytes: Vec<u8> =
-                                            fwd_key.value().0.clone();
+                                        let fwd_key_bytes: Vec<u8> = fwd_key.value().0.clone();
                                         if fwd_key_bytes.len()
-                                            >= forward_key_start.0.len()
-                                                + 4
-                                                + prop_value_len
-                                                + 4
+                                            >= forward_key_start.0.len() + 4 + prop_value_len + 4
                                         {
-                                            let src_start = forward_key_start.0.len()
-                                                + 4
-                                                + prop_value_len
-                                                + 4;
+                                            let src_start =
+                                                forward_key_start.0.len() + 4 + prop_value_len + 4;
                                             if fwd_key_bytes.len() >= src_start + 4 {
                                                 let src_len = u32::from_le_bytes(
                                                     fwd_key_bytes[src_start - 4..src_start]
@@ -144,29 +136,29 @@ impl EdgeIndexManager {
                                                         .unwrap_or([0; 4]),
                                                 )
                                                     as usize;
-                                                if fwd_key_bytes.len()
-                                                    >= src_start + src_len + 4
-                                                {
+                                                if fwd_key_bytes.len() >= src_start + src_len + 4 {
                                                     let dst_len_start = src_start + src_len;
                                                     let dst_len = u32::from_le_bytes(
-                                                        fwd_key_bytes[dst_len_start
-                                                            ..dst_len_start + 4]
+                                                        fwd_key_bytes
+                                                            [dst_len_start..dst_len_start + 4]
                                                             .try_into()
                                                             .unwrap_or([0; 4]),
                                                     )
                                                         as usize;
                                                     let dst_start = dst_len_start + 4;
-                                                    if fwd_key_bytes.len()
-                                                        >= dst_start + dst_len
-                                                    {
+                                                    if fwd_key_bytes.len() >= dst_start + dst_len {
                                                         let stored_src = &fwd_key_bytes
-                                                            [src_start
-                                                                ..src_start + src_len];
+                                                            [src_start..src_start + src_len];
                                                         let stored_dst = &fwd_key_bytes
-                                                            [dst_start
-                                                                ..dst_start + dst_len];
-                                                        if stored_src == src_bytes && stored_dst == IndexKeyCodec::serialize_value(dst)? {
-                                                            forward_keys_to_delete.push(ByteKey(fwd_key_bytes));
+                                                            [dst_start..dst_start + dst_len];
+                                                        if stored_src == src_bytes
+                                                            && stored_dst
+                                                                == IndexKeyCodec::serialize_value(
+                                                                    dst,
+                                                                )?
+                                                        {
+                                                            forward_keys_to_delete
+                                                                .push(ByteKey(fwd_key_bytes));
                                                         }
                                                     }
                                                 }
@@ -223,7 +215,8 @@ impl EdgeIndexManager {
 
         for (key, _) in table
             .range::<ByteKey>(&prefix..&end)
-            .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?.flatten()
+            .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?
+            .flatten()
         {
             let key_bytes: Vec<u8> = key.value().0.clone();
 
@@ -283,7 +276,8 @@ impl EdgeIndexManager {
 
             for (key, _) in table
                 .range::<ByteKey>(&prefix..&end)
-                .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?.flatten()
+                .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?
+                .flatten()
             {
                 let key_bytes: Vec<u8> = key.value().0.clone();
                 keys_to_delete.push(ByteKey(key_bytes));

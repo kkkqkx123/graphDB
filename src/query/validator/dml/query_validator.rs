@@ -99,7 +99,8 @@ impl StatementValidator for QueryValidator {
 
         // 提取第一个语句
         let first_stmt = query_stmt
-            .statements.first()
+            .statements
+            .first()
             .ok_or_else(|| {
                 ValidationError::new(
                     "Query must contain at least one statement".to_string(),

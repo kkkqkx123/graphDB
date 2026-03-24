@@ -252,7 +252,9 @@ pub unsafe extern "C" fn graphdb_session_use_space(
 /// - `session` must be a valid session handle created by `graphdb_session_create`
 /// - The returned pointer must be freed by the caller to avoid memory leaks
 #[no_mangle]
-pub unsafe extern "C" fn graphdb_session_current_space(session: *mut graphdb_session_t) -> *mut c_char {
+pub unsafe extern "C" fn graphdb_session_current_space(
+    session: *mut graphdb_session_t,
+) -> *mut c_char {
     if session.is_null() {
         return ptr::null_mut();
     }

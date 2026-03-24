@@ -298,12 +298,12 @@ impl AliasValidationStrategy {
                 && cur_aliases
                     .insert(name.clone(), alias_type.clone())
                     .is_some()
-                {
-                    return Err(ValidationError::new(
-                        format!("`{}': 重复定义的别名", name),
-                        ValidationErrorType::AliasError,
-                    ));
-                }
+            {
+                return Err(ValidationError::new(
+                    format!("`{}': 重复定义的别名", name),
+                    ValidationErrorType::AliasError,
+                ));
+            }
         }
         Ok(())
     }
@@ -319,8 +319,8 @@ impl AliasValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
     use crate::core::types::expr::ExpressionMeta;
+    use crate::core::Expression;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 

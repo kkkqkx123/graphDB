@@ -152,9 +152,7 @@ impl YieldClausePlanner {
     /// - YieldItem 到 YieldColumn 的完整转换
     /// - 聚合表达式检测
     /// - 别名处理
-    fn extract_yield_info(
-        stmt: &Stmt,
-    ) -> YieldInfoResult {
+    fn extract_yield_info(stmt: &Stmt) -> YieldInfoResult {
         use crate::query::parser::ast::Stmt;
 
         // YIELD 可能作为独立语句或子句出现在其他语句中
@@ -267,8 +265,8 @@ impl Default for YieldClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
     use crate::core::types::ContextualExpression;
+    use crate::core::Expression;
     use crate::query::parser::ast::{Span, YieldItem};
     use crate::query::planning::plan::core::nodes::StartNode;
     use crate::query::planning::plan::core::PlanNodeEnum;

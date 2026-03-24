@@ -158,13 +158,9 @@ impl AggregateValidationStrategy {
             return Ok(());
         }
 
-        if let crate::core::types::expr::Expression::Property { object, property } =
-            expression
-        {
+        if let crate::core::types::expr::Expression::Property { object, property } = expression {
             if property == "*" {
-                if let crate::core::types::expr::Expression::Variable(var_name) =
-                    object.as_ref()
-                {
+                if let crate::core::types::expr::Expression::Variable(var_name) = object.as_ref() {
                     let ref_type = if var_name == "-" {
                         "输入属性"
                     } else {
@@ -296,9 +292,7 @@ mod tests {
         let non_agg_meta = ExpressionMeta::new(non_agg_expr);
         let non_agg_id = expr_ctx.register_expression(non_agg_meta);
         let non_agg_expression = ContextualExpression::new(non_agg_id, expr_ctx.clone());
-        assert!(
-            !strategy.has_aggregate_expression(&non_agg_expression)
-        );
+        assert!(!strategy.has_aggregate_expression(&non_agg_expression));
 
         let binary_expr = Expression::Binary {
             left: Box::new(Expression::Literal(crate::core::Value::Int(1))),

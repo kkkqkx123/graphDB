@@ -80,9 +80,7 @@ pub use self::schema_change::{
 };
 pub use self::user::{PasswordInfo, UserAlterInfo, UserInfo};
 
-pub use self::expr::{
-    ContextualExpression, Expression, ExpressionMeta, SerializableExpression,
-};
+pub use self::expr::{ContextualExpression, Expression, ExpressionMeta, SerializableExpression};
 pub use self::graph_schema::{
     EdgeDirection, EdgeTypeRef, GraphTypeInference, JoinType, OrderDirection, PathInfo,
     PropertyType, VertexType,

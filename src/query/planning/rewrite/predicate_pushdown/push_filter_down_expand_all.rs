@@ -135,8 +135,8 @@ mod tests {
     #[test]
     fn test_can_push_down() {
         let rule = PushFilterDownExpandAllRule::new();
-        use std::sync::Arc;
         use crate::query::validator::context::ExpressionAnalysisContext;
+        use std::sync::Arc;
 
         let start = StartNode::new();
         let start_enum = PlanNodeEnum::Start(start);

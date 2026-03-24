@@ -131,19 +131,13 @@ impl PlanNodeEnum {
 
             // MultipleInputNode: 有多个子节点
             PlanNodeEnum::Expand(node) => node.dependencies().iter().collect(),
-            PlanNodeEnum::ExpandAll(node) => {
-                node.dependencies().iter().collect()
-            }
-            PlanNodeEnum::AppendVertices(node) => {
-                node.dependencies().iter().collect()
-            }
+            PlanNodeEnum::ExpandAll(node) => node.dependencies().iter().collect(),
+            PlanNodeEnum::AppendVertices(node) => node.dependencies().iter().collect(),
 
             // UnionNode: 使用 dependencies() 获取所有子节点
             PlanNodeEnum::Union(node) => node.dependencies().iter().collect(),
             PlanNodeEnum::Minus(node) => node.dependencies().iter().collect(),
-            PlanNodeEnum::Intersect(node) => {
-                node.dependencies().iter().collect()
-            }
+            PlanNodeEnum::Intersect(node) => node.dependencies().iter().collect(),
 
             // ControlFlowNode
             PlanNodeEnum::Argument(_) => vec![],

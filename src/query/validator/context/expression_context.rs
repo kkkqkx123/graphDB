@@ -18,8 +18,7 @@ use crate::core::Value;
 use crate::query::optimizer::analysis::ExpressionAnalysis;
 
 /// 表达式优化状态标记
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct OptimizationFlags {
     /// 是否已经过类型推导
     pub typed: bool,
@@ -28,7 +27,6 @@ pub struct OptimizationFlags {
     /// 是否已经过公共子表达式消除
     pub cse_eliminated: bool,
 }
-
 
 /// 表达式分析上下文
 ///

@@ -219,14 +219,9 @@ impl PermissionManager {
         space_id: i64,
         permission: Permission,
     ) -> PermissionResult<()> {
-        let mut space_map = self
-            .space_permissions
-            .entry(space_id)
-            .or_default();
+        let mut space_map = self.space_permissions.entry(space_id).or_default();
 
-        let user_permissions = space_map
-            .entry(username.to_string())
-            .or_default();
+        let user_permissions = space_map.entry(username.to_string()).or_default();
 
         if !user_permissions.contains(&permission) {
             user_permissions.push(permission);

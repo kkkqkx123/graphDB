@@ -4,7 +4,9 @@
 
 use crate::core::error::QueryError;
 use crate::core::types::EdgeDirection;
-use crate::query::executor::base::{ExecutionContext, ExecutorConfig, AllPathsConfig, ShortestPathConfig, MultiShortestPathConfig};
+use crate::query::executor::base::{
+    AllPathsConfig, ExecutionContext, ExecutorConfig, MultiShortestPathConfig, ShortestPathConfig,
+};
 use crate::query::executor::data_processing::graph_traversal::algorithms::bfs_shortest::BfsShortestPathConfig;
 use crate::query::executor::data_processing::graph_traversal::algorithms::MultiShortestPathExecutor;
 use crate::query::executor::data_processing::graph_traversal::{
@@ -104,7 +106,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         let executor = AllPathsExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
             AllPathsConfig {
-                left_start_ids: Vec::new(), // 需要从输入获取
+                left_start_ids: Vec::new(),  // 需要从输入获取
                 right_start_ids: Vec::new(), // 需要从输入获取
                 max_hops: node.max_hop(),
                 edge_types: Some(node.edge_types().to_vec()),

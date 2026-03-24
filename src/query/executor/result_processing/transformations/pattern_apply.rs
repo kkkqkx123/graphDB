@@ -10,7 +10,9 @@ use std::sync::Arc;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::{DataSet, List, Value};
-use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, ExecutorConfig, PatternApplyConfig};
+use crate::query::executor::base::{
+    BaseExecutor, ExecutionResult, Executor, ExecutorConfig, PatternApplyConfig,
+};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
@@ -42,10 +44,7 @@ pub struct PatternApplyExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
-    pub fn new(
-        base_config: ExecutorConfig<S>,
-        config: PatternApplyConfig,
-    ) -> Self {
+    pub fn new(base_config: ExecutorConfig<S>, config: PatternApplyConfig) -> Self {
         Self {
             base: BaseExecutor::new(
                 base_config.id,

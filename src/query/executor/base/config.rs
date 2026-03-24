@@ -19,7 +19,11 @@ pub struct ExecutorConfig<S: StorageClient> {
 }
 
 impl<S: StorageClient> ExecutorConfig<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        expr_context: Arc<ExpressionAnalysisContext>,
+    ) -> Self {
         Self {
             id,
             storage,

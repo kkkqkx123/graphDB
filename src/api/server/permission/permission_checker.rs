@@ -267,7 +267,10 @@ impl PermissionChecker {
             .or_else(|| self.permission_manager.get_role(username, GOD_SPACE_ID));
 
         // 检查操作者是否有权限管理角色（Admin、Dba 或 God）
-        let can_manage = matches!(operator_role, Some(RoleType::God) | Some(RoleType::Admin) | Some(RoleType::Dba));
+        let can_manage = matches!(
+            operator_role,
+            Some(RoleType::God) | Some(RoleType::Admin) | Some(RoleType::Dba)
+        );
 
         if !can_manage {
             return Err(PermissionError::OnlyAdminOrGodCanManageRoles);
@@ -304,8 +307,7 @@ impl PermissionChecker {
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        let target =
-            target_user.ok_or(PermissionError::ChangePasswordTargetUserRequired)?;
+        let target = target_user.ok_or(PermissionError::ChangePasswordTargetUserRequired)?;
 
         // 用户可以修改自己的密码
         if username == target {

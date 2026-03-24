@@ -512,10 +512,7 @@ mod tests {
         use std::f64::consts::PI;
 
         assert_eq!(TypeUtils::literal_type(&Value::Int(42)), DataType::Int);
-        assert_eq!(
-            TypeUtils::literal_type(&Value::Float(PI)),
-            DataType::Float
-        );
+        assert_eq!(TypeUtils::literal_type(&Value::Float(PI)), DataType::Float);
         assert_eq!(
             TypeUtils::literal_type(&Value::String("test".to_string())),
             DataType::String

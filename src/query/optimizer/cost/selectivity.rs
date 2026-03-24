@@ -154,8 +154,8 @@ impl SelectivityEstimator {
         // 如果有具体值，可以尝试根据值的分布调整
         // 这里使用简单的启发式：假设数据均匀分布
         match value {
-            Some(v) if v < 0.0 => 0.1,   // 负值通常较少
-            Some(0.0) => 0.05, // 零值通常很少
+            Some(v) if v < 0.0 => 0.1, // 负值通常较少
+            Some(0.0) => 0.05,         // 零值通常很少
             _ => defaults::COMPARISON,
         }
     }
@@ -163,8 +163,8 @@ impl SelectivityEstimator {
     /// 估计大于条件选择性
     pub fn estimate_greater_than_selectivity(&self, value: Option<f64>) -> f64 {
         match value {
-            Some(v) if v < 0.0 => 0.9,   // 大于负值通常选择大部分数据
-            Some(0.0) => 0.95, // 大于零通常选择大部分数据
+            Some(v) if v < 0.0 => 0.9, // 大于负值通常选择大部分数据
+            Some(0.0) => 0.95,         // 大于零通常选择大部分数据
             _ => defaults::COMPARISON,
         }
     }
@@ -295,7 +295,8 @@ impl SelectivityEstimator {
             }
             BinaryOperator::GreaterThanOrEqual => {
                 let value = self.extract_numeric_value(right);
-                self.estimate_greater_than_selectivity(value).clamp(0.01, 0.9)
+                self.estimate_greater_than_selectivity(value)
+                    .clamp(0.01, 0.9)
             }
             BinaryOperator::And => {
                 let left_sel = self.estimate_from_expression(left, tag_name);

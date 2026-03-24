@@ -129,10 +129,12 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
             IndexScanConfig {
                 space_id: node.space_id(),
-                tag_id: node.edge_type()
+                tag_id: node
+                    .edge_type()
                     .chars()
                     .fold(0i32, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)),
-                index_id: node.index_name()
+                index_id: node
+                    .index_name()
                     .chars()
                     .fold(0i32, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)),
                 scan_type: node.scan_type().as_str().to_string(),

@@ -318,10 +318,9 @@ impl ExpressionVisitor for AnalysisVisitor<'_> {
     }
 
     fn visit_function(&mut self, name: &str, args: &[Expression]) {
-        if self.options.check_deterministic
-            && NondeterministicChecker::is_nondeterministic(name) {
-                self.analysis.is_deterministic = false;
-            }
+        if self.options.check_deterministic && NondeterministicChecker::is_nondeterministic(name) {
+            self.analysis.is_deterministic = false;
+        }
         if self.options.check_complexity {
             self.analysis.complexity_score += 10 + args.len() as u32 * 2;
         }
@@ -543,8 +542,8 @@ impl Default for ExpressionAnalyzer {
 mod tests {
     use super::*;
     use crate::core::Value;
-    use std::sync::Arc;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
+    use std::sync::Arc;
 
     #[test]
     fn test_expression_analyzer_new() {

@@ -158,8 +158,8 @@ impl MergeRule for CollapseConsecutiveProjectRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
     use crate::core::types::ContextualExpression;
+    use crate::core::Expression;
     use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
 
     #[test]

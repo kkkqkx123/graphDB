@@ -202,8 +202,7 @@ impl Default for MonitoringConfig {
 }
 
 /// 全局配置
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[derive(Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Config {
     /// 数据库配置
     pub database: DatabaseConfig,
@@ -222,7 +221,6 @@ pub struct Config {
     #[serde(default)]
     pub monitoring: MonitoringConfig,
 }
-
 
 impl Config {
     /// 从文件加载配置

@@ -195,7 +195,9 @@ impl SelectNode {
     ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Select(cloned)
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Select(
+            cloned,
+        )
     }
 }
 
@@ -245,7 +247,8 @@ pub struct LoopNode {
     id: i64,
     condition: ContextualExpression,
     condition_serializable: Option<SerializableExpression>,
-    body: Option<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+    body:
+        Option<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<String>,
     col_names: Vec<String>,
 }

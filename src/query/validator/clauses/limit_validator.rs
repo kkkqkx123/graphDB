@@ -164,10 +164,7 @@ impl LimitValidator {
     }
 
     /// 内部方法：检查表达式是否为整数类型
-    fn is_integer_expression_internal(
-        &self,
-        expr: &crate::core::types::expr::Expression,
-    ) -> bool {
+    fn is_integer_expression_internal(&self, expr: &crate::core::types::expr::Expression) -> bool {
         use crate::core::types::expr::Expression;
 
         match expr {

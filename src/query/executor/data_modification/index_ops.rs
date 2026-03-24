@@ -5,8 +5,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::core::types::{Index, IndexField};
 use crate::core::types::index::IndexConfig;
+use crate::core::types::{Index, IndexField};
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
@@ -107,7 +107,8 @@ impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
             .unwrap_or_default();
 
         let index_type = self.index_type.clone();
-        let fields = self.properties
+        let fields = self
+            .properties
             .iter()
             .map(|prop| IndexField::new(prop.clone(), Value::String("string".to_string()), false))
             .collect();

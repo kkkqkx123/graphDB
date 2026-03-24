@@ -23,8 +23,7 @@ macro_rules! define_matcher {
 ///
 /// 用于匹配计划树的特定结构。
 /// 包含当前节点的匹配条件和子节点的模式。
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Pattern {
     /// 当前节点的匹配条件
     pub node: Option<MatchNode>,
@@ -141,7 +140,6 @@ impl Pattern {
         ])
     }
 }
-
 
 /// 节点匹配枚举
 ///
@@ -291,13 +289,13 @@ impl NodeVisitor for NodeVisitorFinder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
     use crate::core::types::ContextualExpression;
+    use crate::core::Expression;
     use crate::core::Value;
-    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
     use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
     use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
     #[test]
@@ -308,9 +306,8 @@ mod tests {
             ProjectNode::new(input_node.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
         );
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expr::ExpressionMeta::new(Expression::Literal(
-            Value::Bool(true),
-        ));
+        let expr_meta =
+            crate::core::types::expr::ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
         let filter_node = PlanNodeEnum::Filter(
@@ -353,9 +350,8 @@ mod tests {
             ProjectNode::new(scan.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
         );
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expr::ExpressionMeta::new(Expression::Literal(
-            Value::Bool(true),
-        ));
+        let expr_meta =
+            crate::core::types::expr::ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx.clone());
         let filter = PlanNodeEnum::Filter(
@@ -365,9 +361,8 @@ mod tests {
         assert!(pattern.matches(&filter));
 
         // Filter -> Scan 不应该匹配
-        let expr_meta2 = crate::core::types::expr::ExpressionMeta::new(Expression::Literal(
-            Value::Bool(true),
-        ));
+        let expr_meta2 =
+            crate::core::types::expr::ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
         let id2 = ctx.register_expression(expr_meta2);
         let ctx_expr2 = ContextualExpression::new(id2, ctx);
         let filter2 =

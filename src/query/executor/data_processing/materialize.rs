@@ -127,12 +127,8 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
     fn estimate_memory_usage(&self, result: &ExecutionResult) -> usize {
         match result {
             ExecutionResult::Empty => 0,
-            ExecutionResult::Values(values) => {
-                values.iter().map(std::mem::size_of_val).sum()
-            }
-            ExecutionResult::Vertices(vertices) => {
-                vertices.iter().map(std::mem::size_of_val).sum()
-            }
+            ExecutionResult::Values(values) => values.iter().map(std::mem::size_of_val).sum(),
+            ExecutionResult::Vertices(vertices) => vertices.iter().map(std::mem::size_of_val).sum(),
             ExecutionResult::Edges(edges) => edges.iter().map(std::mem::size_of_val).sum(),
             ExecutionResult::Paths(paths) => paths.iter().map(std::mem::size_of_val).sum(),
             ExecutionResult::DataSet(_dataset) => {

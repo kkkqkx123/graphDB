@@ -132,10 +132,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
             let key = ExpressionEvaluator::evaluate(&hash_key, &mut context)
                 .map_err(|e| QueryError::ExecutionError(format!("Key evaluation failed: {}", e)))?;
 
-            hash_table
-                .entry(key)
-                .or_default()
-                .push(row.clone());
+            hash_table.entry(key).or_default().push(row.clone());
         }
 
         let mut result = DataSet::new();
@@ -237,10 +234,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
                 key_values.push(key);
             }
 
-            hash_table
-                .entry(key_values)
-                .or_default()
-                .push(row.clone());
+            hash_table.entry(key_values).or_default().push(row.clone());
         }
 
         let mut result = DataSet::new();

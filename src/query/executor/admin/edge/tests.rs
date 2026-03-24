@@ -331,7 +331,9 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        if let crate::query::executor::base::ExecutionResult::Success = result.expect("Failed to execute query") {}
+        if let crate::query::executor::base::ExecutionResult::Success =
+            result.expect("Failed to execute query")
+        {}
     }
 
     #[test]

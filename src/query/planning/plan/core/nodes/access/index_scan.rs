@@ -172,7 +172,12 @@ impl IndexScanNode {
 
     /// 从字符串创建新的 IndexScanNode
     pub fn new_with_str(space_id: u64, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
-        Self::new(space_id, tag_id, index_id, ScanType::from_str_with_default(scan_type))
+        Self::new(
+            space_id,
+            tag_id,
+            index_id,
+            ScanType::from_str_with_default(scan_type),
+        )
     }
 
     pub fn set_limit(&mut self, limit: i64) {

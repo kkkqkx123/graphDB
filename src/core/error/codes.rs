@@ -17,8 +17,7 @@ use serde::{Deserialize, Serialize};
 /// 1. 稳定性：错误码一旦定义不应随意修改，保证客户端兼容性
 /// 2. 精简性：只暴露必要的错误信息，不包含内部实现细节
 /// 3. 标准化：遵循 HTTP/GraphQL 等常见错误码设计规范
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ErrorCode {
     // ==================== 成功 (00xx) ====================
     #[default]
@@ -189,7 +188,6 @@ impl ErrorCode {
         )
     }
 }
-
 
 impl std::fmt::Display for ErrorCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

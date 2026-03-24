@@ -131,8 +131,8 @@ impl MergeRule for MergeGetNbrsAndProjectRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Expression, YieldColumn};
     use crate::core::types::ContextualExpression;
+    use crate::core::{Expression, YieldColumn};
     use crate::query::planning::plan::core::nodes::access::graph_scan_node::GetNeighborsNode;
     use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
     use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
@@ -183,7 +183,7 @@ mod tests {
         // 手动设置依赖关系
         if let PlanNodeEnum::GetNeighbors(ref mut gn) = get_neighbors_node {
             gn.deps_mut().clear();
-            gn.deps_mut().push(Box::new(project_node));
+            gn.deps_mut().push(project_node);
         }
 
         // 应用规则

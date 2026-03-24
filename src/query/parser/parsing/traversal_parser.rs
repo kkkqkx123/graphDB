@@ -121,7 +121,9 @@ impl TraversalParser {
         // 解析路径类型: SHORTEST, ALL
         let shortest = if ctx.match_token(TokenKind::Shortest) {
             true
-        } else { !ctx.match_token(TokenKind::All) };
+        } else {
+            !ctx.match_token(TokenKind::All)
+        };
 
         ctx.expect_token(TokenKind::Path)?;
 

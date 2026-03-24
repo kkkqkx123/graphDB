@@ -151,11 +151,11 @@ impl WithClausePlanner {
         }
 
         // 创建排序节点
-        let sort_node =
-            crate::query::planning::plan::core::nodes::SortNode::new(input_node.clone(), sort_items)
-                .map_err(|e| {
-                    PlannerError::PlanGenerationFailed(format!("创建排序节点失败: {}", e))
-                })?;
+        let sort_node = crate::query::planning::plan::core::nodes::SortNode::new(
+            input_node.clone(),
+            sort_items,
+        )
+        .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建排序节点失败: {}", e)))?;
 
         Ok(SubPlan::new(
             Some(PlanNodeEnum::Sort(sort_node)),

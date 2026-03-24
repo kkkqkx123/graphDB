@@ -133,9 +133,8 @@ impl ExpressionOperationsValidator {
         match op {
             crate::core::BinaryOperator::Divide => {
                 // 除法需要特殊检查：除数不能为常量0
-                if let crate::core::types::expr::Expression::Literal(
-                    crate::core::Value::Int(0),
-                ) = right
+                if let crate::core::types::expr::Expression::Literal(crate::core::Value::Int(0)) =
+                    right
                 {
                     return Err(ValidationError::new(
                         "除数不能为0".to_string(),

@@ -17,9 +17,9 @@
 //! ```
 
 use crate::core::YieldColumn;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::GetNeighborsNode;
 use crate::query::planning::plan::PlanNodeEnum;
-use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::rewrite::context::RewriteContext;
 use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
@@ -36,7 +36,9 @@ impl PushProjectDownGetNeighborsRule {
         Self
     }
 
-    fn can_push_down_project(project_node: &crate::query::planning::plan::core::nodes::ProjectNode) -> bool {
+    fn can_push_down_project(
+        project_node: &crate::query::planning::plan::core::nodes::ProjectNode,
+    ) -> bool {
         !project_node.columns().is_empty()
     }
 
@@ -92,7 +94,8 @@ impl RewriteRule for PushProjectDownGetNeighborsRule {
         };
 
         let columns = project_node.columns();
-        let new_get_neighbors_node = self.create_get_neighbors_with_projection(get_neighbors_node, columns);
+        let new_get_neighbors_node =
+            self.create_get_neighbors_with_projection(get_neighbors_node, columns);
         let new_node = PlanNodeEnum::GetNeighbors(new_get_neighbors_node);
 
         let mut result = TransformResult::new();
@@ -132,8 +135,8 @@ mod tests {
     use crate::core::types::ContextualExpression;
     use crate::core::{Expression, YieldColumn};
     use crate::query::planning::plan::core::nodes::{GetNeighborsNode, ProjectNode};
-    use std::sync::Arc;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
+    use std::sync::Arc;
 
     fn create_yield_column(expr: Expression, alias: &str) -> YieldColumn {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
@@ -199,7 +202,8 @@ mod tests {
             Expression::Variable("test".to_string()),
             "test",
         )];
-        let project = ProjectNode::new(get_neighbors.clone(), columns).expect("创建 ProjectNode 失败");
+        let project =
+            ProjectNode::new(get_neighbors.clone(), columns).expect("创建 ProjectNode 失败");
         let project_enum = PlanNodeEnum::Project(project);
 
         assert!(rule.can_push_down(&project_enum, &get_neighbors));

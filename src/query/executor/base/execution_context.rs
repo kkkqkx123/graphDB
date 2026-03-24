@@ -85,6 +85,10 @@ impl crate::query::executor::expression::evaluator::traits::ExpressionContext fo
         registry
             .get_builtin(name)
             .map(|f| OwnedFunctionRef::Builtin(f.clone()))
-            .or_else(|| registry.get_custom(name).map(|f| OwnedFunctionRef::Custom(f.clone())))
+            .or_else(|| {
+                registry
+                    .get_custom(name)
+                    .map(|f| OwnedFunctionRef::Custom(f.clone()))
+            })
     }
 }

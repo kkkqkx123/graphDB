@@ -4,9 +4,7 @@
 
 #![allow(dead_code)]
 
-use graphdb::core::types::{
-    EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo,
-};
+use graphdb::core::types::{EdgeTypeInfo, PropertyDef, SpaceInfo, TagInfo};
 use graphdb::core::DataType;
 
 /// 创建测试图空间信息

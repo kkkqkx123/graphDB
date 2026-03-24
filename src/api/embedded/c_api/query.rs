@@ -231,8 +231,8 @@ mod tests {
     use crate::api::embedded::c_api::result::graphdb_result_free;
     use crate::api::embedded::c_api::session::{graphdb_session_close, graphdb_session_create};
     use crate::api::embedded::c_api::types::graphdb_t;
-    use std::sync::atomic::{AtomicU64, Ordering};
     use std::ffi::CString;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
     static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -277,7 +277,9 @@ mod tests {
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
 
         let mut result: *mut graphdb_result_t = ptr::null_mut();
-        let rc = unsafe { graphdb_execute_params(ptr::null_mut(), ptr::null(), ptr::null(), 0, &mut result) };
+        let rc = unsafe {
+            graphdb_execute_params(ptr::null_mut(), ptr::null(), ptr::null(), 0, &mut result)
+        };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as c_int);
     }
 

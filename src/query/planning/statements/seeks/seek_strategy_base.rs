@@ -167,9 +167,9 @@ impl SeekStrategySelector {
             .iter()
             .filter(|idx| {
                 idx.properties.iter().any(|prop| {
-                    predicates
-                        .iter()
-                        .any(|pred| PropertyContainsChecker::check(pred, std::slice::from_ref(prop)))
+                    predicates.iter().any(|pred| {
+                        PropertyContainsChecker::check(pred, std::slice::from_ref(prop))
+                    })
                 })
             })
             .collect();
@@ -200,7 +200,10 @@ impl SeekStrategySelector {
             SeekStrategyType::PropIndexSeek
         } else if context.node_pattern.labels.is_empty() {
             SeekStrategyType::ScanSeek
-        } else if context.get_index_for_labels(&context.node_pattern.labels).is_some() {
+        } else if context
+            .get_index_for_labels(&context.node_pattern.labels)
+            .is_some()
+        {
             if context.estimated_rows < self.scan_threshold {
                 SeekStrategyType::IndexSeek
             } else {

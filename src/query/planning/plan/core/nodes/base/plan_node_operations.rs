@@ -199,38 +199,29 @@ impl PlanNodeEnum {
             PlanNodeEnum::Assign(node) => vec![node.input().clone()],
 
             // 双输入节点
-            PlanNodeEnum::InnerJoin(node) => vec![
-                node.left_input().clone(),
-                node.right_input().clone(),
-            ],
-            PlanNodeEnum::LeftJoin(node) => vec![
-                node.left_input().clone(),
-                node.right_input().clone(),
-            ],
-            PlanNodeEnum::CrossJoin(node) => vec![
-                node.left_input().clone(),
-                node.right_input().clone(),
-            ],
-            PlanNodeEnum::HashInnerJoin(node) => vec![
-                node.left_input().clone(),
-                node.right_input().clone(),
-            ],
-            PlanNodeEnum::HashLeftJoin(node) => vec![
-                node.left_input().clone(),
-                node.right_input().clone(),
-            ],
+            PlanNodeEnum::InnerJoin(node) => {
+                vec![node.left_input().clone(), node.right_input().clone()]
+            }
+            PlanNodeEnum::LeftJoin(node) => {
+                vec![node.left_input().clone(), node.right_input().clone()]
+            }
+            PlanNodeEnum::CrossJoin(node) => {
+                vec![node.left_input().clone(), node.right_input().clone()]
+            }
+            PlanNodeEnum::HashInnerJoin(node) => {
+                vec![node.left_input().clone(), node.right_input().clone()]
+            }
+            PlanNodeEnum::HashLeftJoin(node) => {
+                vec![node.left_input().clone(), node.right_input().clone()]
+            }
 
             // 多输入节点
             PlanNodeEnum::Expand(node) => node.inputs().to_vec(),
-            PlanNodeEnum::ExpandAll(node) => {
-                node.inputs().to_vec()
-            }
+            PlanNodeEnum::ExpandAll(node) => node.inputs().to_vec(),
             PlanNodeEnum::Traverse(node) => {
                 vec![node.input().clone()]
             }
-            PlanNodeEnum::AppendVertices(node) => {
-                node.inputs().to_vec()
-            }
+            PlanNodeEnum::AppendVertices(node) => node.inputs().to_vec(),
 
             // 其他节点
             PlanNodeEnum::Argument(_node) => vec![],

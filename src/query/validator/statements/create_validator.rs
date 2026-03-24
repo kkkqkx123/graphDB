@@ -311,19 +311,23 @@ impl CreateValidator {
                     schema_manager,
                     missing_tags,
                 )?),
-                Pattern::Edge(edge) => ValidatedPattern::Edge(Box::new(self.validate_edge_pattern(
-                    edge,
-                    space_name,
-                    schema_manager,
-                    missing_edge_types,
-                )?)),
-                Pattern::Path(path) => ValidatedPattern::Path(Box::new(self.validate_path_pattern(
-                    path,
-                    space_name,
-                    schema_manager,
-                    missing_tags,
-                    missing_edge_types,
-                )?)),
+                Pattern::Edge(edge) => {
+                    ValidatedPattern::Edge(Box::new(self.validate_edge_pattern(
+                        edge,
+                        space_name,
+                        schema_manager,
+                        missing_edge_types,
+                    )?))
+                }
+                Pattern::Path(path) => {
+                    ValidatedPattern::Path(Box::new(self.validate_path_pattern(
+                        path,
+                        space_name,
+                        schema_manager,
+                        missing_tags,
+                        missing_edge_types,
+                    )?))
+                }
                 Pattern::Variable(_) => {
                     return Err(ValidationError::new(
                         "Variable pattern is not supported in CREATE statement".to_string(),

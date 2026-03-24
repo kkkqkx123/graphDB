@@ -3,8 +3,8 @@
 //! 图模式匹配相关的 AST 定义，支持节点、边和路径模式。
 
 use super::types::*;
-use crate::core::types::expr::utils::collect_variables_from_contextual;
 use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::utils::collect_variables_from_contextual;
 
 /// 模式枚举 - 图模式匹配
 #[derive(Debug, Clone, PartialEq)]

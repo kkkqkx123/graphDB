@@ -21,7 +21,6 @@ pub use data_processing::{
     AggregateNode, AssignNode, DataCollectNode, DedupNode, IntersectNode, MaterializeNode,
     MinusNode, PatternApplyNode, RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
-pub use plan_node_factory::PlanNodeFactory;
 pub use insert::{
     EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, TagInsertSpec, VertexInsertInfo,
 };
@@ -40,6 +39,7 @@ pub use management::{
     SpaceManageInfo, SwitchSpaceNode, TagAlterInfo, TagManageInfo,
 };
 pub use operation::{FilterNode, LimitNode, ProjectNode, SampleNode, SortItem, SortNode, TopNNode};
+pub use plan_node_factory::PlanNodeFactory;
 pub use traversal::{
     AllPathsNode, AppendVerticesNode, BFSShortestNode, ExpandAllNode, ExpandNode,
     MultiShortestPathNode, ShortestPathNode, TraverseNode,

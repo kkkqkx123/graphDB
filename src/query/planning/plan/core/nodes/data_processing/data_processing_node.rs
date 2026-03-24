@@ -182,10 +182,7 @@ impl RollUpApplyNode {
         collect_col: Option<String>,
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = left_input.col_names().to_vec();
-        let deps = vec![
-            left_input.clone(),
-            right_input.clone(),
-        ];
+        let deps = vec![left_input.clone(), right_input.clone()];
 
         Ok(Self {
             id: -1,
@@ -418,10 +415,7 @@ impl PatternApplyNode {
         is_anti_predicate: bool,
     ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = left_input.col_names().to_vec();
-        let deps = vec![
-            left_input.clone(),
-            right_input.clone(),
-        ];
+        let deps = vec![left_input.clone(), right_input.clone()];
 
         Ok(Self {
             id: -1,

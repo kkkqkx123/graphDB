@@ -64,33 +64,27 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_add(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        left.add(right)
-            .map_err(ExpressionError::runtime_error)
+        left.add(right).map_err(ExpressionError::runtime_error)
     }
 
     fn eval_subtract(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        left.sub(right)
-            .map_err(ExpressionError::runtime_error)
+        left.sub(right).map_err(ExpressionError::runtime_error)
     }
 
     fn eval_multiply(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        left.mul(right)
-            .map_err(ExpressionError::runtime_error)
+        left.mul(right).map_err(ExpressionError::runtime_error)
     }
 
     fn eval_divide(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        left.div(right)
-            .map_err(ExpressionError::runtime_error)
+        left.div(right).map_err(ExpressionError::runtime_error)
     }
 
     fn eval_modulo(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        left.rem(right)
-            .map_err(ExpressionError::runtime_error)
+        left.rem(right).map_err(ExpressionError::runtime_error)
     }
 
     fn eval_exponent(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        left.pow(right)
-            .map_err(ExpressionError::runtime_error)
+        left.pow(right).map_err(ExpressionError::runtime_error)
     }
 
     fn eval_equal(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
@@ -118,13 +112,11 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_and(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        left.and(right)
-            .map_err(ExpressionError::runtime_error)
+        left.and(right).map_err(ExpressionError::runtime_error)
     }
 
     fn eval_or(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        left.or(right)
-            .map_err(ExpressionError::runtime_error)
+        left.or(right).map_err(ExpressionError::runtime_error)
     }
 
     fn eval_xor(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
@@ -135,8 +127,7 @@ impl BinaryOperationEvaluator {
     }
 
     fn eval_string_concat(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        left.add(right)
-            .map_err(ExpressionError::runtime_error)
+        left.add(right).map_err(ExpressionError::runtime_error)
     }
 
     fn eval_like(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
@@ -175,7 +166,9 @@ impl BinaryOperationEvaluator {
                     }
 
                     for i in 0..=remaining_text.len() {
-                        if let Value::Bool(b) = Self::eval_like_operation(&remaining_pattern, &remaining_text[i..])? {
+                        if let Value::Bool(b) =
+                            Self::eval_like_operation(&remaining_pattern, &remaining_text[i..])?
+                        {
                             if b {
                                 return Ok(Value::Bool(true));
                             }

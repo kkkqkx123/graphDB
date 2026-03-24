@@ -94,11 +94,15 @@ impl crate::query::executor::expression::evaluator::traits::ExpressionContext
         let registry = global_registry_ref();
         registry
             .get_builtin(name)
-            .map(|f| crate::query::executor::expression::functions::OwnedFunctionRef::Builtin(f.clone()))
+            .map(|f| {
+                crate::query::executor::expression::functions::OwnedFunctionRef::Builtin(f.clone())
+            })
             .or_else(|| {
-                registry
-                    .get_custom(name)
-                    .map(|f| crate::query::executor::expression::functions::OwnedFunctionRef::Custom(f.clone()))
+                registry.get_custom(name).map(|f| {
+                    crate::query::executor::expression::functions::OwnedFunctionRef::Custom(
+                        f.clone(),
+                    )
+                })
             })
     }
 }

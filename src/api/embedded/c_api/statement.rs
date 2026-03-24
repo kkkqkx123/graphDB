@@ -124,7 +124,11 @@ pub unsafe extern "C" fn graphdb_bind_null(stmt: *mut graphdb_stmt_t, index: c_i
 /// - `index` must be a valid parameter index (1 <= index <= parameter count)
 /// - The statement must not have been finalized
 #[no_mangle]
-pub unsafe extern "C" fn graphdb_bind_bool(stmt: *mut graphdb_stmt_t, index: c_int, value: bool) -> c_int {
+pub unsafe extern "C" fn graphdb_bind_bool(
+    stmt: *mut graphdb_stmt_t,
+    index: c_int,
+    value: bool,
+) -> c_int {
     if stmt.is_null() || index < 1 {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
@@ -160,7 +164,11 @@ pub unsafe extern "C" fn graphdb_bind_bool(stmt: *mut graphdb_stmt_t, index: c_i
 /// - `index` must be a valid parameter index (1 <= index <= parameter count)
 /// - The statement must not have been finalized
 #[no_mangle]
-pub unsafe extern "C" fn graphdb_bind_int(stmt: *mut graphdb_stmt_t, index: c_int, value: i64) -> c_int {
+pub unsafe extern "C" fn graphdb_bind_int(
+    stmt: *mut graphdb_stmt_t,
+    index: c_int,
+    value: i64,
+) -> c_int {
     if stmt.is_null() || index < 1 {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
@@ -196,7 +204,11 @@ pub unsafe extern "C" fn graphdb_bind_int(stmt: *mut graphdb_stmt_t, index: c_in
 /// - `index` must be a valid parameter index (1 <= index <= parameter count)
 /// - The statement must not have been finalized
 #[no_mangle]
-pub unsafe extern "C" fn graphdb_bind_float(stmt: *mut graphdb_stmt_t, index: c_int, value: f64) -> c_int {
+pub unsafe extern "C" fn graphdb_bind_float(
+    stmt: *mut graphdb_stmt_t,
+    index: c_int,
+    value: f64,
+) -> c_int {
     if stmt.is_null() || index < 1 {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }

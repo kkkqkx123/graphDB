@@ -151,7 +151,9 @@ impl PropIterator {
     }
 }
 
-impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Value>> for DefaultIterator {
+impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Value>>
+    for DefaultIterator
+{
     type Row = Vec<Value>;
 
     fn next(&mut self) -> crate::core::DBResult<Option<Self::Row>> {
@@ -238,7 +240,9 @@ impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Valu
     }
 }
 
-impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Value>> for PropIterator {
+impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Value>>
+    for PropIterator
+{
     type Row = Vec<Value>;
 
     fn next(&mut self) -> crate::core::DBResult<Option<Self::Row>> {

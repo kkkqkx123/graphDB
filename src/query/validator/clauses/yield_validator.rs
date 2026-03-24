@@ -354,8 +354,8 @@ mod tests {
     use crate::core::types::expr::contextual::ContextualExpression;
     use crate::core::types::expr::ExpressionMeta;
     use crate::core::{Expression, Value};
-    use std::sync::Arc;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
+    use std::sync::Arc;
 
     /// 测试辅助函数：创建简单的 ContextualExpression
     fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {

@@ -30,7 +30,7 @@ fn test_transaction_context_writable_creation() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx = TransactionContext::new_writable(txn_id, timeout, durability, write_txn);
+    let ctx = TransactionContext::new_writable(txn_id, timeout, durability, write_txn, None);
 
     assert_eq!(ctx.id, txn_id);
     assert_eq!(ctx.state(), TransactionState::Active);
@@ -46,7 +46,7 @@ fn test_transaction_context_readonly_creation() {
 
     let read_txn = db.begin_read().expect("创建读事务失败");
 
-    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn);
+    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
 
     assert_eq!(ctx.id, txn_id);
     assert_eq!(ctx.state(), TransactionState::Active);
@@ -61,8 +61,13 @@ fn test_transaction_context_state_transitions() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // Active -> Committing
     assert!(ctx.transition_to(TransactionState::Committing).is_ok());
@@ -81,8 +86,13 @@ fn test_transaction_context_invalid_state_transition() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // Active -> Committed (无效转换)
     let result = ctx.transition_to(TransactionState::Committed);
@@ -108,8 +118,13 @@ fn test_transaction_context_timeout() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 初始不应该超时
     assert!(!ctx.is_expired());
@@ -129,8 +144,13 @@ fn test_transaction_context_remaining_time() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 初始剩余时间应该接近超时时间
     let remaining = ctx.remaining_time();
@@ -153,8 +173,13 @@ fn test_transaction_context_modified_tables() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 记录表修改
     ctx.record_table_modification("vertices");
@@ -175,8 +200,13 @@ fn test_transaction_context_operation_log() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 初始操作日志为空
     assert_eq!(ctx.operation_log_len(), 0);
@@ -211,8 +241,13 @@ fn test_transaction_context_can_execute() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // Active 状态可以执行
     assert!(ctx.can_execute().is_ok());
@@ -233,8 +268,13 @@ fn test_transaction_context_can_execute_expired() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 等待超时
     std::thread::sleep(Duration::from_millis(100));
@@ -256,8 +296,13 @@ fn test_transaction_context_info() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 记录一些修改
     ctx.record_table_modification("vertices");
@@ -278,8 +323,13 @@ fn test_transaction_context_take_write_txn() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 取出写事务
     let taken_txn = ctx.take_write_txn();
@@ -298,7 +348,7 @@ fn test_transaction_context_readonly_take_write_txn() {
 
     let read_txn = db.begin_read().expect("创建读事务失败");
 
-    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn);
+    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
 
     // 只读事务不能取出写事务
     let result = ctx.take_write_txn();
@@ -313,8 +363,13 @@ fn test_transaction_context_with_write_txn() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 使用写事务执行操作
     let result = ctx.with_write_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
@@ -330,7 +385,7 @@ fn test_transaction_context_readonly_with_write_txn() {
 
     let read_txn = db.begin_read().expect("创建读事务失败");
 
-    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn);
+    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
 
     // 只读事务不能使用 with_write_txn
     let result = ctx.with_write_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
@@ -350,7 +405,7 @@ fn test_transaction_context_with_read_txn() {
 
     let read_txn = db.begin_read().expect("创建读事务失败");
 
-    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn);
+    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
 
     // 使用读事务执行操作
     let result = ctx.with_read_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
@@ -366,8 +421,13 @@ fn test_transaction_context_writable_with_read_txn() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 读写事务不能直接使用 with_read_txn
     let result = ctx.with_read_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
@@ -384,8 +444,13 @@ fn test_transaction_context_with_write_txn_expired() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 等待超时
     std::thread::sleep(Duration::from_millis(100));
@@ -408,8 +473,13 @@ fn test_transaction_context_with_write_txn_invalid_state() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 正确的状态转换路径: Active -> Committing -> Committed
     ctx.transition_to(TransactionState::Committing)

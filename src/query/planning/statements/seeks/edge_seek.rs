@@ -69,9 +69,10 @@ impl EdgeSeek {
     fn edge_matches_pattern(&self, edge: &crate::core::Edge) -> bool {
         // 检查边类型
         if !self.edge_pattern.edge_types.is_empty()
-            && !self.edge_pattern.edge_types.contains(&edge.edge_type) {
-                return false;
-            }
+            && !self.edge_pattern.edge_types.contains(&edge.edge_type)
+        {
+            return false;
+        }
 
         // 检查源顶点ID
         if let Some(ref src_vid) = self.edge_pattern.src_vid {
@@ -189,10 +190,22 @@ mod tests {
             "OUT".parse::<EdgeDirection>().ok(),
             Some(EdgeDirection::Outgoing)
         );
-        assert_eq!("->".parse::<EdgeDirection>().ok(), Some(EdgeDirection::Outgoing));
-        assert_eq!("IN".parse::<EdgeDirection>().ok(), Some(EdgeDirection::Incoming));
-        assert_eq!("<-".parse::<EdgeDirection>().ok(), Some(EdgeDirection::Incoming));
-        assert_eq!("BOTH".parse::<EdgeDirection>().ok(), Some(EdgeDirection::Both));
+        assert_eq!(
+            "->".parse::<EdgeDirection>().ok(),
+            Some(EdgeDirection::Outgoing)
+        );
+        assert_eq!(
+            "IN".parse::<EdgeDirection>().ok(),
+            Some(EdgeDirection::Incoming)
+        );
+        assert_eq!(
+            "<-".parse::<EdgeDirection>().ok(),
+            Some(EdgeDirection::Incoming)
+        );
+        assert_eq!(
+            "BOTH".parse::<EdgeDirection>().ok(),
+            Some(EdgeDirection::Both)
+        );
         assert_eq!("-".parse::<EdgeDirection>().ok(), Some(EdgeDirection::Both));
         assert!("unknown".parse::<EdgeDirection>().is_err());
     }

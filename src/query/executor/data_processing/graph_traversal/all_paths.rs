@@ -443,7 +443,8 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         let right_steps: Vec<(Arc<Edge>, Arc<Vertex>)> = right_path
             .iter()
             .filter_map(|node| {
-                node.edge().map(|edge| (edge.clone(), node.vertex().clone()))
+                node.edge()
+                    .map(|edge| (edge.clone(), node.vertex().clone()))
             })
             .collect();
 

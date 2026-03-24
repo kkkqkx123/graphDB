@@ -110,17 +110,27 @@ impl ParseError {
     }
 
     pub fn with_hint(mut self, hint: impl Into<String>) -> Self {
-        self.hints = std::iter::once(hint.into()).collect::<Vec<String>>().into_boxed_slice();
+        self.hints = std::iter::once(hint.into())
+            .collect::<Vec<String>>()
+            .into_boxed_slice();
         self
     }
 
     pub fn with_hints(mut self, hints: Vec<impl Into<String>>) -> Self {
-        self.hints = hints.into_iter().map(|h| h.into()).collect::<Vec<String>>().into_boxed_slice();
+        self.hints = hints
+            .into_iter()
+            .map(|h| h.into())
+            .collect::<Vec<String>>()
+            .into_boxed_slice();
         self
     }
 
     pub fn add_hint(&mut self, hint: impl Into<String>) {
-        let mut new_hints = self.hints.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        let mut new_hints = self
+            .hints
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
         new_hints.push(hint.into());
         self.hints = new_hints.into_boxed_slice();
     }
