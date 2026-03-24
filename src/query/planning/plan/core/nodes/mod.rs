@@ -2,11 +2,11 @@ pub mod access;
 pub mod base;
 pub mod control_flow;
 pub mod data_processing;
-pub mod factory;
 pub mod insert;
 pub mod join;
 pub mod management;
 pub mod operation;
+pub mod plan_node_factory;
 pub mod traversal;
 
 pub use access::{
@@ -21,7 +21,7 @@ pub use data_processing::{
     AggregateNode, AssignNode, DataCollectNode, DedupNode, IntersectNode, MaterializeNode,
     MinusNode, PatternApplyNode, RemoveNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
-pub use factory::PlanNodeFactory;
+pub use plan_node_factory::PlanNodeFactory;
 pub use insert::{
     EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, TagInsertSpec, VertexInsertInfo,
 };

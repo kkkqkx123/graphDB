@@ -2,8 +2,16 @@
 //!
 //! 这些规则负责将投影操作推向数据源，减少数据传输量
 
-pub mod projection_pushdown;
-pub mod push_project_down;
+pub mod push_project_down_scan_vertices;
+pub mod push_project_down_scan_edges;
+pub mod push_project_down_get_vertices;
+pub mod push_project_down_get_edges;
+pub mod push_project_down_get_neighbors;
+pub mod push_project_down_edge_index_scan;
 
-pub use projection_pushdown::ProjectionPushDownRule;
-pub use push_project_down::PushProjectDownRule;
+pub use push_project_down_scan_vertices::PushProjectDownScanVerticesRule;
+pub use push_project_down_scan_edges::PushProjectDownScanEdgesRule;
+pub use push_project_down_get_vertices::PushProjectDownGetVerticesRule;
+pub use push_project_down_get_edges::PushProjectDownGetEdgesRule;
+pub use push_project_down_get_neighbors::PushProjectDownGetNeighborsRule;
+pub use push_project_down_edge_index_scan::PushProjectDownEdgeIndexScanRule;

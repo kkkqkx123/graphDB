@@ -153,8 +153,12 @@ define_rewrite_rules! {
         PushFilterDownAllPaths(predicate_pushdown::PushFilterDownAllPathsRule),
 
         // ==================== 投影下推规则 ====================
-        ProjectionPushDown(projection_pushdown::ProjectionPushDownRule),
-        PushProjectDown(projection_pushdown::PushProjectDownRule),
+        PushProjectDownScanVertices(projection_pushdown::PushProjectDownScanVerticesRule),
+        PushProjectDownScanEdges(projection_pushdown::PushProjectDownScanEdgesRule),
+        PushProjectDownGetVertices(projection_pushdown::PushProjectDownGetVerticesRule),
+        PushProjectDownGetEdges(projection_pushdown::PushProjectDownGetEdgesRule),
+        PushProjectDownGetNeighbors(projection_pushdown::PushProjectDownGetNeighborsRule),
+        PushProjectDownEdgeIndexScan(projection_pushdown::PushProjectDownEdgeIndexScanRule),
 
         // ==================== LIMIT下推规则 ====================
         PushLimitDownGetVertices(limit_pushdown::PushLimitDownGetVerticesRule),
@@ -283,11 +287,23 @@ impl Default for RuleRegistry {
         registry.add(RewriteRule::PushFilterDownAllPaths(
             predicate_pushdown::PushFilterDownAllPathsRule::new(),
         ));
-        registry.add(RewriteRule::ProjectionPushDown(
-            projection_pushdown::ProjectionPushDownRule::new(),
+        registry.add(RewriteRule::PushProjectDownScanVertices(
+            projection_pushdown::PushProjectDownScanVerticesRule::new(),
         ));
-        registry.add(RewriteRule::PushProjectDown(
-            projection_pushdown::PushProjectDownRule::new(),
+        registry.add(RewriteRule::PushProjectDownScanEdges(
+            projection_pushdown::PushProjectDownScanEdgesRule::new(),
+        ));
+        registry.add(RewriteRule::PushProjectDownGetVertices(
+            projection_pushdown::PushProjectDownGetVerticesRule::new(),
+        ));
+        registry.add(RewriteRule::PushProjectDownGetEdges(
+            projection_pushdown::PushProjectDownGetEdgesRule::new(),
+        ));
+        registry.add(RewriteRule::PushProjectDownGetNeighbors(
+            projection_pushdown::PushProjectDownGetNeighborsRule::new(),
+        ));
+        registry.add(RewriteRule::PushProjectDownEdgeIndexScan(
+            projection_pushdown::PushProjectDownEdgeIndexScanRule::new(),
         ));
         registry.add(RewriteRule::PushLimitDownGetVertices(
             limit_pushdown::PushLimitDownGetVerticesRule::new(),
@@ -321,7 +337,7 @@ mod tests {
     #[test]
     fn test_rule_registry_default() {
         let registry = RuleRegistry::default();
-        assert_eq!(registry.len(), 35);
+        assert_eq!(registry.len(), 39);
     }
 
     #[test]

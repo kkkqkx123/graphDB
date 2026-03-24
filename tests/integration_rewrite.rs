@@ -9,9 +9,9 @@
 mod common;
 
 use graphdb::query::planner::rewrite::rule::RewriteRule;
-use graphdb::query::planner::rewrite::{
+use graphdb::query::planning::rewrite::{
     create_default_rewriter, CombineFilterRule, EliminateFilterRule, PlanRewriter,
-    ProjectionPushDownRule, PushFilterDownAggregateRule, PushFilterDownTraverseRule,
+    PushFilterDownAggregateRule, PushFilterDownTraverseRule,
     PushLimitDownGetVerticesRule, RemoveNoopProjectRule, RewriteRuleEnum, RuleRegistry,
 };
 
@@ -20,7 +20,7 @@ use graphdb::query::planner::rewrite::{
 #[test]
 fn test_rule_registry_default() {
     let registry = RuleRegistry::default();
-    assert_eq!(registry.len(), 35, "默认注册表应包含 35 个规则");
+    assert_eq!(registry.len(), 39, "默认注册表应包含 39 个规则");
     assert!(!registry.is_empty(), "注册表不应为空");
 }
 
@@ -36,7 +36,7 @@ fn test_rule_registry_iter() {
         assert!(name.ends_with("Rule"), "规则名称应以 'Rule' 结尾");
     }
 
-    assert_eq!(count, 35, "应迭代所有 35 个规则");
+    assert_eq!(count, 39, "应迭代所有 39 个规则");
 }
 
 #[test]
@@ -59,7 +59,7 @@ fn test_rule_registry_add() {
 #[test]
 fn test_rule_registry_clear() {
     let mut registry = RuleRegistry::default();
-    assert_eq!(registry.len(), 35, "默认注册表应有 35 个规则");
+    assert_eq!(registry.len(), 39, "默认注册表应有 39 个规则");
 
     registry.clear();
     assert_eq!(registry.len(), 0, "清空后长度应为 0");
@@ -71,7 +71,7 @@ fn test_rule_registry_into_vec() {
     let registry = RuleRegistry::default();
     let rules = registry.into_vec();
 
-    assert_eq!(rules.len(), 35, "转换后的 Vec 应包含 35 个规则");
+    assert_eq!(rules.len(), 39, "转换后的 Vec 应包含 39 个规则");
 }
 
 // ==================== RewriteRule 集成测试 ====================
@@ -111,8 +111,12 @@ fn test_rewrite_rule_names() {
         "PushFilterDownGetNbrsRule",
         "PushFilterDownAllPathsRule",
         // 投影下推规则
-        "ProjectionPushDownRule",
-        "PushProjectDownRule",
+        "PushProjectDownScanVerticesRule",
+        "PushProjectDownScanEdgesRule",
+        "PushProjectDownGetVerticesRule",
+        "PushProjectDownGetEdgesRule",
+        "PushProjectDownGetNeighborsRule",
+        "PushProjectDownEdgeIndexScanRule",
         // LIMIT 下推规则
         "PushLimitDownGetVerticesRule",
         "PushLimitDownGetEdgesRule",
@@ -288,12 +292,17 @@ fn test_projection_pushdown_rules_count() {
         .filter(|rule| {
             matches!(
                 rule,
-                RewriteRuleEnum::ProjectionPushDown(_) | RewriteRuleEnum::PushProjectDown(_)
+                RewriteRuleEnum::PushProjectDownScanVertices(_)
+                    | RewriteRuleEnum::PushProjectDownScanEdges(_)
+                    | RewriteRuleEnum::PushProjectDownGetVertices(_)
+                    | RewriteRuleEnum::PushProjectDownGetEdges(_)
+                    | RewriteRuleEnum::PushProjectDownGetNeighbors(_)
+                    | RewriteRuleEnum::PushProjectDownEdgeIndexScan(_)
             )
         })
         .collect();
 
-    assert_eq!(projection_pushdown_rules.len(), 2, "应有 2 个投影下推规则");
+    assert_eq!(projection_pushdown_rules.len(), 6, "应有 6 个投影下推规则");
 }
 
 #[test]
@@ -341,7 +350,7 @@ fn test_rule_names_unique() {
     names.sort();
     names.dedup();
 
-    assert_eq!(names.len(), 35, "所有规则名称应唯一");
+    assert_eq!(names.len(), 39, "所有规则名称应唯一");
 }
 
 // ==================== 宏生成代码验证测试 ====================
@@ -353,7 +362,6 @@ fn test_macro_generated_enum() {
     let _ = RewriteRuleEnum::RemoveNoopProject(RemoveNoopProjectRule::new());
     let _ = RewriteRuleEnum::CombineFilter(CombineFilterRule::new());
     let _ = RewriteRuleEnum::PushFilterDownTraverse(PushFilterDownTraverseRule::new());
-    let _ = RewriteRuleEnum::ProjectionPushDown(ProjectionPushDownRule::new());
     let _ = RewriteRuleEnum::PushLimitDownGetVertices(PushLimitDownGetVerticesRule::new());
     let _ = RewriteRuleEnum::PushFilterDownAggregate(PushFilterDownAggregateRule::new());
 }
