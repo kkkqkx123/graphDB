@@ -62,6 +62,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     }
 
     /// 递归分析单个计划节点
+    #[allow(clippy::only_used_in_recursion)]
     fn analyze_plan_node(
         &mut self,
         node: &PlanNodeEnum,

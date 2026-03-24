@@ -31,23 +31,25 @@ pub enum EdgeDirection {
 }
 
 impl EdgeDirection {
-    /// 从字符串解析方向
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_uppercase().as_str() {
-            "OUT" | "OUTGOING" | "->" => Some(EdgeDirection::Outgoing),
-            "IN" | "INCOMING" | "<-" => Some(EdgeDirection::Incoming),
-            "BOTH" | "-" => Some(EdgeDirection::Both),
-            _ => None,
-        }
-    }
-
     /// 转换为字符串
     pub fn as_str(&self) -> &'static str {
         match self {
             EdgeDirection::Outgoing => "OUT",
             EdgeDirection::Incoming => "IN",
             EdgeDirection::Both => "BOTH",
+        }
+    }
+}
+
+impl std::str::FromStr for EdgeDirection {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "OUT" | "OUTGOING" | "->" => Ok(EdgeDirection::Outgoing),
+            "IN" | "INCOMING" | "<-" => Ok(EdgeDirection::Incoming),
+            "BOTH" | "-" => Ok(EdgeDirection::Both),
+            _ => Err(format!("Invalid edge direction: {}", s)),
         }
     }
 }
@@ -184,15 +186,15 @@ mod tests {
     #[test]
     fn test_edge_direction_from_str() {
         assert_eq!(
-            EdgeDirection::from_str("OUT"),
+            "OUT".parse::<EdgeDirection>().ok(),
             Some(EdgeDirection::Outgoing)
         );
-        assert_eq!(EdgeDirection::from_str("->"), Some(EdgeDirection::Outgoing));
-        assert_eq!(EdgeDirection::from_str("IN"), Some(EdgeDirection::Incoming));
-        assert_eq!(EdgeDirection::from_str("<-"), Some(EdgeDirection::Incoming));
-        assert_eq!(EdgeDirection::from_str("BOTH"), Some(EdgeDirection::Both));
-        assert_eq!(EdgeDirection::from_str("-"), Some(EdgeDirection::Both));
-        assert_eq!(EdgeDirection::from_str("unknown"), None);
+        assert_eq!("->".parse::<EdgeDirection>().ok(), Some(EdgeDirection::Outgoing));
+        assert_eq!("IN".parse::<EdgeDirection>().ok(), Some(EdgeDirection::Incoming));
+        assert_eq!("<-".parse::<EdgeDirection>().ok(), Some(EdgeDirection::Incoming));
+        assert_eq!("BOTH".parse::<EdgeDirection>().ok(), Some(EdgeDirection::Both));
+        assert_eq!("-".parse::<EdgeDirection>().ok(), Some(EdgeDirection::Both));
+        assert!("unknown".parse::<EdgeDirection>().is_err());
     }
 
     #[test]

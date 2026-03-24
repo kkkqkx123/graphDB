@@ -170,15 +170,18 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let hash_keys: Vec<crate::core::types::ContextualExpression> = node.hash_keys().to_vec();
         let probe_keys: Vec<crate::core::types::ContextualExpression> = node.probe_keys().to_vec();
 
-        let executor = FullOuterJoinExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
+        let config = crate::query::executor::data_processing::join::full_outer_join::FullOuterJoinConfig {
             hash_keys,
             probe_keys,
             left_var,
             right_var,
-            node.col_names().to_vec(),
+            output_columns: node.col_names().to_vec(),
+        };
+        let executor = FullOuterJoinExecutor::new(
+            node.id(),
+            storage,
+            context.expression_context().clone(),
+            config,
         );
         Ok(ExecutorEnum::FullOuterJoin(executor))
     }

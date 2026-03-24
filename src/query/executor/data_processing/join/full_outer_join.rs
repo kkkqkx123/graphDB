@@ -14,6 +14,16 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use ExpressionAnalysisContext as ExpressionContextStruct;
 
+/// 全外连接配置
+#[derive(Debug, Clone)]
+pub struct FullOuterJoinConfig {
+    pub hash_keys: Vec<ContextualExpression>,
+    pub probe_keys: Vec<ContextualExpression>,
+    pub left_var: String,
+    pub right_var: String,
+    pub output_columns: Vec<String>,
+}
+
 /// 全外连接执行器
 /// 实现全外连接操作：保留左右表的所有记录，没有匹配的部分用NULL填充
 pub struct FullOuterJoinExecutor<S: StorageClient + Send + 'static> {
@@ -21,32 +31,26 @@ pub struct FullOuterJoinExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<ExpressionContextStruct>,
-        hash_keys: Vec<ContextualExpression>,
-        probe_keys: Vec<ContextualExpression>,
-        left_var: String,
-        right_var: String,
-        output_columns: Vec<String>,
+        config: FullOuterJoinConfig,
     ) -> Self {
-        // 从 ContextualExpression 列表提取 Expression 列表
-        let hash_exprs = Self::extract_expressions(&hash_keys);
-        let probe_exprs = Self::extract_expressions(&probe_keys);
+        let hash_exprs = Self::extract_expressions(&config.hash_keys);
+        let probe_exprs = Self::extract_expressions(&config.probe_keys);
 
-        let config = JoinConfigWithDesc {
-            left_var,
-            right_var,
+        let join_config = JoinConfigWithDesc {
+            left_var: config.left_var,
+            right_var: config.right_var,
             hash_keys: hash_exprs,
             probe_keys: probe_exprs,
-            col_names: output_columns,
+            col_names: config.output_columns,
             description: "Full outer join executor - performs full outer join".to_string(),
         };
 
         Self {
-            base: BaseJoinExecutor::with_description(id, storage, expr_context, config),
+            base: BaseJoinExecutor::with_description(id, storage, expr_context, join_config),
         }
     }
 

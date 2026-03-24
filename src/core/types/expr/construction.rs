@@ -221,30 +221,6 @@ impl Expression {
         Expression::Literal(Value::Null(NullType::Null))
     }
 
-    /// 创建加法表达式
-    #[allow(clippy::should_implement_trait)]
-    pub fn add(left: Expression, right: Expression) -> Self {
-        Self::binary(left, BinaryOperator::Add, right)
-    }
-
-    /// 创建减法表达式
-    #[allow(clippy::should_implement_trait)]
-    pub fn sub(left: Expression, right: Expression) -> Self {
-        Self::binary(left, BinaryOperator::Subtract, right)
-    }
-
-    /// 创建乘法表达式
-    #[allow(clippy::should_implement_trait)]
-    pub fn mul(left: Expression, right: Expression) -> Self {
-        Self::binary(left, BinaryOperator::Multiply, right)
-    }
-
-    /// 创建除法表达式
-    #[allow(clippy::should_implement_trait)]
-    pub fn div(left: Expression, right: Expression) -> Self {
-        Self::binary(left, BinaryOperator::Divide, right)
-    }
-
     /// 创建取模表达式
     pub fn modulo(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::Modulo, right)
@@ -290,18 +266,6 @@ impl Expression {
         Self::binary(left, BinaryOperator::Or, right)
     }
 
-    /// 创建逻辑非表达式
-    #[allow(clippy::should_implement_trait)]
-    pub fn not(operand: Expression) -> Self {
-        Self::unary(UnaryOperator::Not, operand)
-    }
-
-    /// 创建负号表达式
-    #[allow(clippy::should_implement_trait)]
-    pub fn neg(operand: Expression) -> Self {
-        Self::unary(UnaryOperator::Minus, operand)
-    }
-
     /// 创建 IS NULL 表达式
     pub fn is_null(operand: Expression) -> Self {
         Self::unary(UnaryOperator::IsNull, operand)
@@ -310,5 +274,53 @@ impl Expression {
     /// 创建 IS NOT NULL 表达式
     pub fn is_not_null(operand: Expression) -> Self {
         Self::unary(UnaryOperator::IsNotNull, operand)
+    }
+}
+
+impl std::ops::Add for Expression {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::binary(self, BinaryOperator::Add, rhs)
+    }
+}
+
+impl std::ops::Sub for Expression {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::binary(self, BinaryOperator::Subtract, rhs)
+    }
+}
+
+impl std::ops::Mul for Expression {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::binary(self, BinaryOperator::Multiply, rhs)
+    }
+}
+
+impl std::ops::Div for Expression {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::binary(self, BinaryOperator::Divide, rhs)
+    }
+}
+
+impl std::ops::Not for Expression {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Self::unary(UnaryOperator::Not, self)
+    }
+}
+
+impl std::ops::Neg for Expression {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self::unary(UnaryOperator::Minus, self)
     }
 }

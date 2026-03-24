@@ -11,6 +11,15 @@ use crate::storage::StorageClient;
 
 pub type PlannerError = StorageError;
 
+#[derive(Debug, Clone)]
+pub struct VariableLengthPathPattern<'a> {
+    pub start: &'a NodePattern,
+    pub edge: &'a EdgePattern,
+    pub end: &'a NodePattern,
+    pub lower: Option<usize>,
+    pub upper: Option<usize>,
+}
+
 #[derive(Debug)]
 pub struct MatchPathPlanner;
 
@@ -41,8 +50,16 @@ impl MatchPathPlanner {
                 end,
                 lower,
                 upper,
-            } => self
-                .plan_variable_length_pattern(storage, start, edge, end, *lower, *upper, space_id),
+            } => {
+                let pattern = VariableLengthPathPattern {
+                    start,
+                    edge,
+                    end,
+                    lower: *lower,
+                    upper: *upper,
+                };
+                self.plan_variable_length_pattern(storage, &pattern, space_id)
+            }
             PathPatternKind::Named { name, inner } => {
                 let inner_plan = self.plan_path_pattern(storage, inner, space_id)?;
                 Ok(PathPlan::Named {
@@ -75,25 +92,21 @@ impl MatchPathPlanner {
     fn plan_variable_length_pattern<S: StorageClient>(
         &self,
         storage: &S,
-        start: &NodePattern,
-        edge: &EdgePattern,
-        end: &NodePattern,
-        lower: Option<usize>,
-        upper: Option<usize>,
+        pattern: &VariableLengthPathPattern,
         space_id: u64,
     ) -> Result<PathPlan, PlannerError> {
-        let start_finder = self.plan_start_finder(storage, start, space_id)?;
-        let edge_types = self.extract_edge_types(edge)?;
-        let direction = self.extract_direction(edge)?;
-        let end_finder = self.plan_end_finder(end)?;
+        let start_finder = self.plan_start_finder(storage, pattern.start, space_id)?;
+        let edge_types = self.extract_edge_types(pattern.edge)?;
+        let direction = self.extract_direction(pattern.edge)?;
+        let end_finder = self.plan_end_finder(pattern.end)?;
 
         Ok(PathPlan::VariableLength {
             start: Box::new(start_finder),
             edge_types,
             direction,
             end: end_finder,
-            lower,
-            upper,
+            lower: pattern.lower,
+            upper: pattern.upper,
         })
     }
 

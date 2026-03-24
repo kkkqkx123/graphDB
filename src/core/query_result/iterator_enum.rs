@@ -44,64 +44,9 @@ impl ResultIteratorEnum {
         ResultIteratorEnum::Empty
     }
 
-    /// 获取下一行
-    #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> DBResult<Option<Vec<Value>>> {
-        match self {
-            ResultIteratorEnum::Default(iter) => iter.next(),
-            ResultIteratorEnum::GetNeighbors(iter) => iter.next(),
-            ResultIteratorEnum::Prop(iter) => iter.next(),
-            ResultIteratorEnum::Empty => Ok(None),
-        }
-    }
-
-    /// 偷看下一行（不移动迭代器）
-    pub fn peek(&self) -> DBResult<Option<&Vec<Value>>> {
-        match self {
-            ResultIteratorEnum::Default(iter) => iter.peek(),
-            ResultIteratorEnum::GetNeighbors(iter) => iter.peek(),
-            ResultIteratorEnum::Prop(iter) => iter.peek(),
-            ResultIteratorEnum::Empty => Ok(None),
-        }
-    }
-
-    /// 获取大小提示
-    pub fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            ResultIteratorEnum::Default(iter) => iter.size_hint(),
-            ResultIteratorEnum::GetNeighbors(iter) => iter.size_hint(),
-            ResultIteratorEnum::Prop(iter) => iter.size_hint(),
-            ResultIteratorEnum::Empty => (0, Some(0)),
-        }
-    }
-
-    /// 跳过 n 个元素
-    pub fn nth(&mut self, n: usize) -> DBResult<Option<Vec<Value>>> {
-        match self {
-            ResultIteratorEnum::Default(iter) => iter.nth(n),
-            ResultIteratorEnum::GetNeighbors(iter) => iter.nth(n),
-            ResultIteratorEnum::Prop(iter) => iter.nth(n),
-            ResultIteratorEnum::Empty => Ok(None),
-        }
-    }
-
-    /// 获取最后一个元素
-    pub fn last(&mut self) -> DBResult<Option<Vec<Value>>> {
-        match self {
-            ResultIteratorEnum::Default(iter) => iter.last(),
-            ResultIteratorEnum::GetNeighbors(iter) => iter.last(),
-            ResultIteratorEnum::Prop(iter) => iter.last(),
-            ResultIteratorEnum::Empty => Ok(None),
-        }
-    }
-
     /// 收集所有元素
     pub fn collect(&mut self) -> DBResult<Vec<Vec<Value>>> {
-        let mut results = Vec::new();
-        while let Some(row) = self.next()? {
-            results.push(row);
-        }
-        Ok(results)
+        Iterator::collect(self)
     }
 
     /// 检查是否为空
@@ -157,6 +102,19 @@ impl Clone for ResultIteratorEnum {
     }
 }
 
+impl Iterator for ResultIteratorEnum {
+    type Item = DBResult<Vec<Value>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ResultIteratorEnum::Default(iter) => iter.next().transpose(),
+            ResultIteratorEnum::GetNeighbors(iter) => iter.next().transpose(),
+            ResultIteratorEnum::Prop(iter) => iter.next().transpose(),
+            ResultIteratorEnum::Empty => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,7 +142,7 @@ mod tests {
             .expect("第二行不应为空");
         assert_eq!(row2[0], Value::Int(2));
 
-        assert!(iter.next().expect("获取第三行失败").is_none());
+        assert!(iter.next().is_none());
     }
 
     #[test]
@@ -192,7 +150,7 @@ mod tests {
         let mut iter = ResultIteratorEnum::empty();
         assert!(iter.is_empty());
         assert_eq!(iter.size(), 0);
-        assert!(iter.next().expect("获取空迭代器结果失败").is_none());
+        assert!(iter.next().is_none());
     }
 
     #[test]
@@ -260,5 +218,46 @@ mod tests {
             .expect("克隆后迭代不应失败")
             .expect("克隆后第一行不应为空");
         assert_eq!(row[0], Value::Int(1));
+    }
+
+    #[test]
+    fn test_iterator_trait_impl() {
+        let rows = vec![
+            vec![Value::Int(1), Value::String("Alice".to_string())],
+            vec![Value::Int(2), Value::String("Bob".to_string())],
+        ];
+
+        let mut iter = ResultIteratorEnum::default_iterator(rows);
+
+        // 测试标准的 Iterator trait
+        let collected: Vec<_> = iter.by_ref().collect();
+        assert_eq!(collected.len(), 2);
+
+        // 验证收集到的结果
+        assert!(collected[0].is_ok());
+        assert!(collected[1].is_ok());
+
+        let row1 = collected[0].as_ref().expect("第一行不应出错");
+        assert_eq!(row1[0], Value::Int(1));
+
+        let row2 = collected[1].as_ref().expect("第二行不应出错");
+        assert_eq!(row2[0], Value::Int(2));
+    }
+
+    #[test]
+    fn test_iterator_trait_empty() {
+        let mut iter = ResultIteratorEnum::empty();
+
+        // 测试空迭代器
+        let item = iter.next();
+        assert!(item.is_none());
+    }
+
+    #[test]
+    fn test_iterator_trait_error_handling() {
+        let mut iter = ResultIteratorEnum::empty();
+
+        // 使用 next() 应该返回 None
+        assert!(iter.next().is_none());
     }
 }

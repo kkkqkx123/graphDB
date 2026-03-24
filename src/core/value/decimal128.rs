@@ -39,8 +39,8 @@ use bincode::de::Decode;
 /// ```rust
 /// use graphdb::core::value::decimal128::Decimal128Value;
 ///
-/// let d1 = Decimal128Value::from_str("123.456").expect("解析失败");
-/// let d2 = Decimal128Value::from_str("789.012").expect("解析失败");
+/// let d1 = "123.456".parse::<Decimal128Value>().expect("解析失败");
+/// let d2 = "789.012".parse::<Decimal128Value>().expect("解析失败");
 /// let sum = &d1 + &d2;
 /// assert_eq!(sum.to_string(), "912.468");
 /// ```
@@ -100,14 +100,6 @@ impl Decimal128Value {
     /// 创建一个新的 Decimal128 值
     pub fn new(inner: Decimal128) -> Self {
         Self { inner }
-    }
-
-    /// 从字符串解析 Decimal128
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Result<Self, String> {
-        Decimal128::from_str(s)
-            .map(|inner| Self { inner })
-            .map_err(|e| format!("Decimal128 解析失败: {}", e))
     }
 
     /// 从 i64 创建 Decimal128
@@ -388,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_from_str() {
-        let d = Decimal128Value::from_str("123.456").expect("解析失败");
+        let d = "123.456".parse::<Decimal128Value>().expect("解析失败");
         assert_eq!(d.to_string(), "123.456");
     }
 
@@ -400,40 +392,40 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let d1 = Decimal128Value::from_str("123.456").expect("解析失败");
-        let d2 = Decimal128Value::from_str("789.012").expect("解析失败");
+        let d1 = "123.456".parse::<Decimal128Value>().expect("解析失败");
+        let d2 = "789.012".parse::<Decimal128Value>().expect("解析失败");
         let sum = &d1 + &d2;
         assert_eq!(sum.to_string(), "912.468");
     }
 
     #[test]
     fn test_sub() {
-        let d1 = Decimal128Value::from_str("789.012").expect("解析失败");
-        let d2 = Decimal128Value::from_str("123.456").expect("解析失败");
+        let d1 = "789.012".parse::<Decimal128Value>().expect("解析失败");
+        let d2 = "123.456".parse::<Decimal128Value>().expect("解析失败");
         let diff = &d1 - &d2;
         assert_eq!(diff.to_string(), "665.556");
     }
 
     #[test]
     fn test_mul() {
-        let d1 = Decimal128Value::from_str("12.34").expect("解析失败");
-        let d2 = Decimal128Value::from_str("5.6").expect("解析失败");
+        let d1 = "12.34".parse::<Decimal128Value>().expect("解析失败");
+        let d2 = "5.6".parse::<Decimal128Value>().expect("解析失败");
         let product = &d1 * &d2;
         assert_eq!(product.to_string(), "69.104");
     }
 
     #[test]
     fn test_div() {
-        let d1 = Decimal128Value::from_str("100.0").expect("解析失败");
-        let d2 = Decimal128Value::from_str("4.0").expect("解析失败");
+        let d1 = "100.0".parse::<Decimal128Value>().expect("解析失败");
+        let d2 = "4.0".parse::<Decimal128Value>().expect("解析失败");
         let quotient = &d1 / &d2;
         assert_eq!(quotient.to_string(), "25");
     }
 
     #[test]
     fn test_div_by_zero() {
-        let d1 = Decimal128Value::from_str("100.0").expect("解析失败");
-        let d2 = Decimal128Value::from_str("0.0").expect("解析失败");
+        let d1 = "100.0".parse::<Decimal128Value>().expect("解析失败");
+        let d2 = "0.0".parse::<Decimal128Value>().expect("解析失败");
         let result = d1.div(&d2);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "除零错误");
@@ -441,63 +433,63 @@ mod tests {
 
     #[test]
     fn test_neg() {
-        let d = Decimal128Value::from_str("123.456").expect("解析失败");
+        let d = "123.456".parse::<Decimal128Value>().expect("解析失败");
         let neg = -d.clone();
         assert_eq!(neg.to_string(), "-123.456");
     }
 
     #[test]
     fn test_abs() {
-        let d1 = Decimal128Value::from_str("-123.456").expect("解析失败");
-        let d2 = Decimal128Value::from_str("123.456").expect("解析失败");
+        let d1 = "-123.456".parse::<Decimal128Value>().expect("解析失败");
+        let d2 = "123.456".parse::<Decimal128Value>().expect("解析失败");
         assert_eq!(d1.abs().to_string(), "123.456");
         assert_eq!(d2.abs().to_string(), "123.456");
     }
 
     #[test]
     fn test_round_dp() {
-        let d = Decimal128Value::from_str("123.456789").expect("解析失败");
+        let d = "123.456789".parse::<Decimal128Value>().expect("解析失败");
         let rounded = d.round_dp(2);
         assert_eq!(rounded.to_string(), "123.45");
     }
 
     #[test]
     fn test_floor() {
-        let d = Decimal128Value::from_str("123.789").expect("解析失败");
+        let d = "123.789".parse::<Decimal128Value>().expect("解析失败");
         let floored = d.floor();
         assert_eq!(floored.to_string(), "123");
     }
 
     #[test]
     fn test_ceil() {
-        let d = Decimal128Value::from_str("123.789").expect("解析失败");
+        let d = "123.789".parse::<Decimal128Value>().expect("解析失败");
         let ceiled = d.ceil();
         assert_eq!(ceiled.to_string(), "124");
     }
 
     #[test]
     fn test_is_zero() {
-        let d = Decimal128Value::from_str("0.0").expect("解析失败");
+        let d = "0.0".parse::<Decimal128Value>().expect("解析失败");
         assert!(d.is_zero());
     }
 
     #[test]
     fn test_is_negative() {
-        let d = Decimal128Value::from_str("-123.456").expect("解析失败");
+        let d = "-123.456".parse::<Decimal128Value>().expect("解析失败");
         assert!(d.is_negative());
     }
 
     #[test]
     fn test_is_positive() {
-        let d = Decimal128Value::from_str("123.456").expect("解析失败");
+        let d = "123.456".parse::<Decimal128Value>().expect("解析失败");
         assert!(d.is_positive());
     }
 
     #[test]
     fn test_finance_calculation() {
-        let price = Decimal128Value::from_str("19.99").expect("解析失败");
-        let quantity = Decimal128Value::from_str("3").expect("解析失败");
-        let tax_rate = Decimal128Value::from_str("0.08").expect("解析失败");
+        let price = "19.99".parse::<Decimal128Value>().expect("解析失败");
+        let quantity = "3".parse::<Decimal128Value>().expect("解析失败");
+        let tax_rate = "0.08".parse::<Decimal128Value>().expect("解析失败");
 
         let subtotal = &price * &quantity;
         let tax = &subtotal * &tax_rate;

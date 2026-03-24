@@ -465,42 +465,48 @@ pub struct ForLoopExecutor<S: StorageClient + Send + 'static> {
     loop_var: String,
 }
 
+/// For 循环配置
+#[derive(Debug)]
+pub struct ForLoopConfig<S: StorageClient + Send + 'static> {
+    pub loop_var: String,
+    pub start: i64,
+    pub end: i64,
+    pub step: i64,
+    pub body_executor: ExecutorEnum<S>,
+}
+
 impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<ExpressionAnalysisContext>,
-        loop_var: String,
-        start: i64,
-        end: i64,
-        step: i64,
-        body_executor: ExecutorEnum<S>,
+        config: ForLoopConfig<S>,
     ) -> Self {
         let base_config = ExecutorConfig::new(id, storage, expr_context);
         let _loop_config = LoopConfig {
-            loop_var: loop_var.clone(),
+            loop_var: config.loop_var.clone(),
             loop_condition: crate::core::Expression::Literal(crate::core::Value::Bool(true)),
         };
 
-        let max_iterations = Some(((end - start).abs() / step.abs() + 1) as usize);
+        let max_iterations = Some(((config.end - config.start).abs() / config.step.abs() + 1) as usize);
 
         let mut executor = LoopExecutor::new(
             base_config.id,
             base_config.storage,
             None,
-            body_executor,
+            config.body_executor,
             max_iterations,
             base_config.expr_context,
         );
 
-        executor.set_loop_variable(loop_var.clone(), Value::Int(start));
+        executor.set_loop_variable(config.loop_var.clone(), Value::Int(config.start));
 
         Self {
             inner: executor,
-            start,
-            end,
-            step,
-            loop_var,
+            start: config.start,
+            end: config.end,
+            step: config.step,
+            loop_var: config.loop_var,
         }
     }
 }
@@ -747,15 +753,18 @@ mod tests {
             expr_context.clone(),
         ));
 
+        let config = ForLoopConfig {
+            loop_var: "i".to_string(),
+            start: 1,
+            end: 3,
+            step: 1,
+            body_executor,
+        };
         let mut executor = ForLoopExecutor::new(
             1,
             storage,
             expr_context,
-            "i".to_string(),
-            1,
-            3,
-            1,
-            body_executor,
+            config,
         );
 
         let result = executor.execute().expect("Failed to execute");

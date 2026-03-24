@@ -276,24 +276,23 @@ impl VariableChecker {
         var: &str,
     ) -> bool {
         match expression {
-            crate::core::types::expr::Expression::Binary { op, left, right } => match op {
-                crate::core::types::operators::BinaryOperator::Add
+            crate::core::types::expr::Expression::Binary {
+                op: crate::core::types::operators::BinaryOperator::Add
                 | crate::core::types::operators::BinaryOperator::Subtract
                 | crate::core::types::operators::BinaryOperator::Multiply
                 | crate::core::types::operators::BinaryOperator::Divide
-                | crate::core::types::operators::BinaryOperator::Modulo => {
-                    self.contains_variable_internal(left, var)
-                        || self.contains_variable_internal(right, var)
-                }
-                _ => false,
-            },
-            crate::core::types::expr::Expression::Unary { op, operand } => match op {
-                crate::core::types::operators::UnaryOperator::Minus
-                | crate::core::types::operators::UnaryOperator::Plus => {
-                    self.contains_variable_internal(operand, var)
-                }
-                _ => false,
-            },
+                | crate::core::types::operators::BinaryOperator::Modulo,
+                left,
+                right,
+            } => {
+                self.contains_variable_internal(left, var)
+                    || self.contains_variable_internal(right, var)
+            }
+            crate::core::types::expr::Expression::Unary {
+                op: crate::core::types::operators::UnaryOperator::Minus
+                | crate::core::types::operators::UnaryOperator::Plus,
+                operand,
+            } => self.contains_variable_internal(operand, var),
             _ => false,
         }
     }

@@ -233,8 +233,13 @@ impl ParseErrors {
     pub fn iter(&self) -> impl Iterator<Item = &ParseError> {
         self.errors.iter()
     }
+}
 
-    pub fn into_iter(self) -> impl Iterator<Item = ParseError> {
+impl IntoIterator for ParseErrors {
+    type Item = ParseError;
+    type IntoIter = std::vec::IntoIter<ParseError>;
+
+    fn into_iter(self) -> Self::IntoIter {
         self.errors.into_iter()
     }
 }

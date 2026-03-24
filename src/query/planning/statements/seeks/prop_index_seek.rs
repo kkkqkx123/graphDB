@@ -36,21 +36,6 @@ pub enum PredicateOp {
 }
 
 impl PredicateOp {
-    /// 从字符串解析操作符
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "=" | "==" => Some(PredicateOp::Eq),
-            "!=" | "<>" => Some(PredicateOp::Ne),
-            "<" => Some(PredicateOp::Lt),
-            "<=" => Some(PredicateOp::Le),
-            ">" => Some(PredicateOp::Gt),
-            ">=" => Some(PredicateOp::Ge),
-            "IN" | "in" => Some(PredicateOp::In),
-            "STARTS WITH" | "starts with" => Some(PredicateOp::StartsWith),
-            _ => None,
-        }
-    }
-
     /// 检查是否为范围操作
     pub fn is_range(&self) -> bool {
         matches!(
@@ -62,6 +47,24 @@ impl PredicateOp {
     /// 检查是否为等值操作
     pub fn is_equality(&self) -> bool {
         matches!(self, PredicateOp::Eq | PredicateOp::In)
+    }
+}
+
+impl std::str::FromStr for PredicateOp {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "=" | "==" => Ok(PredicateOp::Eq),
+            "!=" | "<>" => Ok(PredicateOp::Ne),
+            "<" => Ok(PredicateOp::Lt),
+            "<=" => Ok(PredicateOp::Le),
+            ">" => Ok(PredicateOp::Gt),
+            ">=" => Ok(PredicateOp::Ge),
+            "IN" | "in" => Ok(PredicateOp::In),
+            "STARTS WITH" | "starts with" => Ok(PredicateOp::StartsWith),
+            _ => Err(format!("Invalid predicate operator: {}", s)),
+        }
     }
 }
 
@@ -139,7 +142,7 @@ impl PropIndexSeek {
                 if let (Some(prop), Some(val)) =
                     (Self::extract_property(left), Self::extract_value(right))
                 {
-                    if let Some(pred_op) = PredicateOp::from_str(op_str) {
+                    if let Ok(pred_op) = op_str.parse::<PredicateOp>() {
                         return Some(PropertyPredicate {
                             property: prop,
                             op: pred_op,
@@ -157,7 +160,7 @@ impl PropIndexSeek {
                         "<=" => PredicateOp::Ge,
                         ">" => PredicateOp::Lt,
                         ">=" => PredicateOp::Le,
-                        _ => PredicateOp::from_str(op_str)?,
+                        _ => op_str.parse::<PredicateOp>().ok()?,
                     };
                     return Some(PropertyPredicate {
                         property: prop,
@@ -324,15 +327,15 @@ mod tests {
 
     #[test]
     fn test_predicate_op_from_str() {
-        assert_eq!(PredicateOp::from_str("="), Some(PredicateOp::Eq));
-        assert_eq!(PredicateOp::from_str("<"), Some(PredicateOp::Lt));
-        assert_eq!(PredicateOp::from_str(">="), Some(PredicateOp::Ge));
-        assert_eq!(PredicateOp::from_str("IN"), Some(PredicateOp::In));
+        assert_eq!("=".parse::<PredicateOp>().ok(), Some(PredicateOp::Eq));
+        assert_eq!("<".parse::<PredicateOp>().ok(), Some(PredicateOp::Lt));
+        assert_eq!(">=".parse::<PredicateOp>().ok(), Some(PredicateOp::Ge));
+        assert_eq!("IN".parse::<PredicateOp>().ok(), Some(PredicateOp::In));
         assert_eq!(
-            PredicateOp::from_str("STARTS WITH"),
+            "STARTS WITH".parse::<PredicateOp>().ok(),
             Some(PredicateOp::StartsWith)
         );
-        assert_eq!(PredicateOp::from_str("unknown"), None);
+        assert!("unknown".parse::<PredicateOp>().is_err());
     }
 
     #[test]

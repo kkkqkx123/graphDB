@@ -638,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_deduce_binary_type() {
-        let expr = Expression::add(Expression::int(1), Expression::int(2));
+        let expr = Expression::int(1) + Expression::int(2);
         let validator = TypeDeduceValidator::new();
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);

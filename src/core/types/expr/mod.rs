@@ -45,7 +45,7 @@
 //! let expression = Expression::literal(Value::Int(42));
 //!
 //! // 二元运算
-//! let sum = Expression::add(Expression::variable("a"), Expression::variable("b"));
+//! let sum = Expression::variable("a") + Expression::variable("b");
 //!
 //! // 聚合函数
 //! let count = Expression::aggregate(

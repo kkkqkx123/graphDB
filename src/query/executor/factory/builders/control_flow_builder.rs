@@ -16,6 +16,13 @@ use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+/// Create executor function type alias
+type CreateExecutorFn<S> = dyn FnMut(
+    &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+    Arc<Mutex<S>>,
+    &ExecutionContext,
+) -> Result<ExecutorEnum<S>, QueryError>;
+
 /// 控制流执行器构建器
 pub struct ControlFlowBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
@@ -35,11 +42,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         node: &LoopNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
-        create_executor_fn: &mut dyn FnMut(
-            &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
-            Arc<Mutex<S>>,
-            &ExecutionContext,
-        ) -> Result<ExecutorEnum<S>, QueryError>,
+        create_executor_fn: &mut CreateExecutorFn<S>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let body = node
             .body()
@@ -70,11 +73,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         node: &SelectNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
-        create_executor_fn: &mut dyn FnMut(
-            &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
-            Arc<Mutex<S>>,
-            &ExecutionContext,
-        ) -> Result<ExecutorEnum<S>, QueryError>,
+        create_executor_fn: &mut CreateExecutorFn<S>,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let condition = node
             .condition()

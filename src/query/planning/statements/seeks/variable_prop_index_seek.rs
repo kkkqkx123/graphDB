@@ -33,20 +33,6 @@ pub enum VariablePredicateOp {
 }
 
 impl VariablePredicateOp {
-    /// 从字符串解析操作符
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_uppercase().as_str() {
-            "=" | "==" => Some(VariablePredicateOp::Eq),
-            "!=" | "<>" => Some(VariablePredicateOp::Ne),
-            "<" => Some(VariablePredicateOp::Lt),
-            "<=" => Some(VariablePredicateOp::Le),
-            ">" => Some(VariablePredicateOp::Gt),
-            ">=" => Some(VariablePredicateOp::Ge),
-            "IN" => Some(VariablePredicateOp::In),
-            _ => None,
-        }
-    }
-
     /// 转换为普通谓词操作
     pub fn to_predicate_op(&self) -> super::prop_index_seek::PredicateOp {
         match self {
@@ -57,6 +43,23 @@ impl VariablePredicateOp {
             VariablePredicateOp::Gt => super::prop_index_seek::PredicateOp::Gt,
             VariablePredicateOp::Ge => super::prop_index_seek::PredicateOp::Ge,
             VariablePredicateOp::In => super::prop_index_seek::PredicateOp::In,
+        }
+    }
+}
+
+impl std::str::FromStr for VariablePredicateOp {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "=" | "==" => Ok(VariablePredicateOp::Eq),
+            "!=" | "<>" => Ok(VariablePredicateOp::Ne),
+            "<" => Ok(VariablePredicateOp::Lt),
+            "<=" => Ok(VariablePredicateOp::Le),
+            ">" => Ok(VariablePredicateOp::Gt),
+            ">=" => Ok(VariablePredicateOp::Ge),
+            "IN" => Ok(VariablePredicateOp::In),
+            _ => Err(format!("Invalid predicate operator: {}", s)),
         }
     }
 }
@@ -128,7 +131,7 @@ impl VariablePropIndexSeek {
                 if let (Some(prop), Some(var_name)) =
                     (Self::extract_property(left), Self::extract_variable(right))
                 {
-                    if let Some(pred_op) = VariablePredicateOp::from_str(op_str) {
+                    if let Ok(pred_op) = op_str.parse::<VariablePredicateOp>() {
                         return Some(VariablePropertyPredicate {
                             property: prop,
                             op: pred_op,
@@ -146,7 +149,7 @@ impl VariablePropIndexSeek {
                         "<=" => VariablePredicateOp::Ge,
                         ">" => VariablePredicateOp::Lt,
                         ">=" => VariablePredicateOp::Le,
-                        _ => VariablePredicateOp::from_str(op_str)?,
+                        _ => op_str.parse::<VariablePredicateOp>().ok()?,
                     };
                     return Some(VariablePropertyPredicate {
                         property: prop,
@@ -323,22 +326,22 @@ mod tests {
     #[test]
     fn test_variable_predicate_op_from_str() {
         assert_eq!(
-            VariablePredicateOp::from_str("="),
+            "=".parse::<VariablePredicateOp>().ok(),
             Some(VariablePredicateOp::Eq)
         );
         assert_eq!(
-            VariablePredicateOp::from_str("<"),
+            "<".parse::<VariablePredicateOp>().ok(),
             Some(VariablePredicateOp::Lt)
         );
         assert_eq!(
-            VariablePredicateOp::from_str(">="),
+            ">=".parse::<VariablePredicateOp>().ok(),
             Some(VariablePredicateOp::Ge)
         );
         assert_eq!(
-            VariablePredicateOp::from_str("IN"),
+            "IN".parse::<VariablePredicateOp>().ok(),
             Some(VariablePredicateOp::In)
         );
-        assert_eq!(VariablePredicateOp::from_str("unknown"), None);
+        assert!("unknown".parse::<VariablePredicateOp>().is_err());
     }
 
     #[test]

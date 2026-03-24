@@ -86,6 +86,25 @@ pub struct ValidatedPathCreate {
     pub edges: Vec<ValidatedEdgeCreate>,
 }
 
+/// 边验证上下文
+#[derive(Debug)]
+pub struct EdgeValidationContext<'a> {
+    pub space_name: &'a str,
+    pub schema_manager: &'a RedbSchemaManager,
+    pub missing_edge_types: &'a mut Vec<String>,
+}
+
+/// 边定义
+#[derive(Debug)]
+pub struct EdgeDefinition<'a> {
+    pub variable: &'a Option<String>,
+    pub edge_type: &'a str,
+    pub src: &'a ContextualExpression,
+    pub dst: &'a ContextualExpression,
+    pub properties: &'a Option<ContextualExpression>,
+    pub direction: &'a EdgeDirection,
+}
+
 /// CREATE 语句验证器 - 新体系实现
 ///
 /// 功能完整性保证：
@@ -235,17 +254,20 @@ impl CreateValidator {
                 properties,
                 direction,
             } => {
-                vec![self.validate_single_edge(
+                let edge_def = EdgeDefinition {
                     variable,
                     edge_type,
                     src,
                     dst,
                     properties,
                     direction,
+                };
+                let mut context = EdgeValidationContext {
                     space_name,
-                    schema_manager.as_ref(),
-                    &mut missing_edge_types,
-                )?]
+                    schema_manager: schema_manager.as_ref(),
+                    missing_edge_types: &mut missing_edge_types,
+                };
+                vec![self.validate_single_edge(&edge_def, &mut context)?]
             }
             _ => {
                 return Err(ValidationError::new(
@@ -490,21 +512,26 @@ impl CreateValidator {
         }))
     }
 
-    /// 验证单个边创建（简化版）
-    #[allow(clippy::too_many_arguments)]
     fn validate_single_edge(
         &self,
-        variable: &Option<String>,
-        edge_type: &str,
-        _src: &ContextualExpression,
-        _dst: &ContextualExpression,
-        properties: &Option<ContextualExpression>,
-        direction: &EdgeDirection,
-        space_name: &str,
-        schema_manager: &RedbSchemaManager,
-        missing_edge_types: &mut Vec<String>,
+        edge_def: &EdgeDefinition,
+        context: &mut EdgeValidationContext,
     ) -> Result<ValidatedPattern, ValidationError> {
-        // 验证边类型
+        let EdgeDefinition {
+            variable,
+            edge_type,
+            src,
+            dst,
+            properties,
+            direction,
+        } = edge_def;
+
+        let EdgeValidationContext {
+            space_name,
+            schema_manager,
+            missing_edge_types,
+        } = context;
+
         if let Ok(None) = schema_manager.get_edge_type(space_name, edge_type) {
             if !self.auto_create_schema {
                 return Err(ValidationError::new(
@@ -517,20 +544,31 @@ impl CreateValidator {
             }
         }
 
-        // 提取属性
         let props = if let Some(ref props_expr) = properties {
             self.extract_properties(props_expr)?
         } else {
             Vec::new()
         };
 
+        let src_value = if let Some(expr) = src.get_expression() {
+            self.evaluate_expression_internal(&expr)?
+        } else {
+            Value::Null(crate::core::NullType::Null)
+        };
+
+        let dst_value = if let Some(expr) = dst.get_expression() {
+            self.evaluate_expression_internal(&expr)?
+        } else {
+            Value::Null(crate::core::NullType::Null)
+        };
+
         Ok(ValidatedPattern::Edge(Box::new(ValidatedEdgeCreate {
-            variable: variable.clone(),
+            variable: variable.as_ref().cloned(),
             edge_type: edge_type.to_string(),
-            src: Value::Null(crate::core::NullType::Null),
-            dst: Value::Null(crate::core::NullType::Null),
+            src: src_value,
+            dst: dst_value,
             properties: props,
-            direction: *direction,
+            direction: **direction,
         })))
     }
 

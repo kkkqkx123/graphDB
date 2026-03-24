@@ -13,6 +13,9 @@ use crate::storage::operations::rollback::RollbackExecutor;
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::*;
 
+/// Rollback executor factory type alias
+type RollbackExecutorFactory = Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>;
+
 /// 事务管理器
 pub struct TransactionManager {
     /// 数据库实例
@@ -28,8 +31,7 @@ pub struct TransactionManager {
     /// 是否已关闭
     shutdown_flag: AtomicU64,
     /// 回滚执行器工厂（用于为每个事务创建回滚执行器）
-    rollback_executor_factory:
-        Mutex<Option<Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>>>,
+    rollback_executor_factory: Mutex<Option<RollbackExecutorFactory>>,
 }
 
 impl TransactionManager {
