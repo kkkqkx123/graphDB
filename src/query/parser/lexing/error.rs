@@ -1,19 +1,21 @@
 pub use super::lexer::Lexer;
 pub use crate::query::parser::{Token, TokenKind};
 
+use std::fmt;
+
 use crate::core::types::Position;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LexError {
-    pub message: String,
+    pub message: Box<str>,
     pub position: Position,
     pub offset: Option<usize>,
 }
 
 impl LexError {
-    pub fn new(message: String, position: Position) -> Self {
+    pub fn new(message: impl Into<Box<str>>, position: Position) -> Self {
         LexError {
-            message,
+            message: message.into(),
             position,
             offset: None,
         }
@@ -25,18 +27,18 @@ impl LexError {
     }
 
     pub fn unterminated_string(position: Position) -> Self {
-        LexError::new("Unterminated string literal".to_string(), position)
+        LexError::new("Unterminated string literal", position)
     }
 
     pub fn unterminated_comment(position: Position) -> Self {
-        LexError::new("Unterminated multi-line comment".to_string(), position)
+        LexError::new("Unterminated multi-line comment", position)
     }
 
-    pub fn invalid_number(message: String, position: Position) -> Self {
+    pub fn invalid_number<T: fmt::Display>(message: T, position: Position) -> Self {
         LexError::new(format!("Invalid number: {}", message), position)
     }
 
-    pub fn invalid_escape_sequence(sequence: String, position: Position) -> Self {
+    pub fn invalid_escape_sequence<T: fmt::Display>(sequence: T, position: Position) -> Self {
         LexError::new(format!("Invalid escape sequence: \\{}", sequence), position)
     }
 
@@ -45,7 +47,7 @@ impl LexError {
     }
 
     pub fn unexpected_end_of_input(position: Position) -> Self {
-        LexError::new("Unexpected end of input".to_string(), position)
+        LexError::new("Unexpected end of input", position)
     }
 }
 

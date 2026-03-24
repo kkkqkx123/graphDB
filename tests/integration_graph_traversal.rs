@@ -17,14 +17,8 @@ use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
     AlgorithmContext, AlgorithmStats, MultiShortestPathExecutor, SubgraphConfig, SubgraphExecutor,
 };
 use graphdb::query::validator::context::ExpressionAnalysisContext;
-use graphdb::storage::RedbStorage;
-use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-
-fn get_storage(storage: &Arc<Mutex<RedbStorage>>) -> parking_lot::MutexGuard<'_, RedbStorage> {
-    storage.lock()
-}
 
 // ==================== 算法上下文测试 ====================
 

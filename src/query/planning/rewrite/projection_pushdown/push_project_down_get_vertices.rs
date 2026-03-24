@@ -92,7 +92,7 @@ impl RewriteRule for PushProjectDownGetVerticesRule {
         };
 
         let columns = project_node.columns();
-        let new_get_vertices_node = self.create_get_vertices_with_projection(&get_vertices_node, columns);
+        let new_get_vertices_node = self.create_get_vertices_with_projection(get_vertices_node, columns);
         let new_node = PlanNodeEnum::GetVertices(new_get_vertices_node);
 
         let mut result = TransformResult::new();

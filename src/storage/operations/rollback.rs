@@ -112,8 +112,8 @@ impl<'a> StorageRollbackExecutor<'a> {
             .map_err(|e| StorageError::DbError(format!("无效的边键编码: {}", e)))?;
 
         let (src_str, rest) = self.parse_value_str(&key_str)?;
-        let rest = if rest.starts_with('_') {
-            &rest[1..]
+        let rest = if let Some(stripped) = rest.strip_prefix('_') {
+            stripped
         } else {
             return Err(StorageError::DbError(format!(
                 "无效的边键格式，缺少分隔符: {}",
@@ -122,8 +122,8 @@ impl<'a> StorageRollbackExecutor<'a> {
         };
 
         let (dst_str, edge_type) = self.parse_value_str(rest)?;
-        let edge_type = if edge_type.starts_with('_') {
-            edge_type[1..].to_string()
+        let edge_type = if let Some(stripped) = edge_type.strip_prefix('_') {
+            stripped.to_string()
         } else {
             edge_type.to_string()
         };

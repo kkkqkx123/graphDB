@@ -169,7 +169,7 @@ impl SeekStrategySelector {
                 idx.properties.iter().any(|prop| {
                     predicates
                         .iter()
-                        .any(|pred| PropertyContainsChecker::check(pred, &[prop.clone()]))
+                        .any(|pred| PropertyContainsChecker::check(pred, std::slice::from_ref(prop)))
                 })
             })
             .collect();

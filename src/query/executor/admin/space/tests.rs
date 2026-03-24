@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use crate::query::executor::admin::space::create_space::ExecutorSpaceInfo;
     use crate::query::executor::admin::space::{

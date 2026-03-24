@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn test_graph_type_inference_creation() {
         let _inference = GraphTypeInference::new();
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 
     #[test]

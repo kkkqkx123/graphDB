@@ -14,7 +14,7 @@ mod expression_strategy_tests {
     #[test]
     fn test_expression_validation_strategy_creation() {
         let _strategy = ExpressionValidationStrategy::new();
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 
     #[test]

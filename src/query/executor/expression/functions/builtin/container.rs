@@ -380,25 +380,25 @@ mod tests {
 
         assert_eq!(
             ContainerFunction::Head
-                .execute(&[null_value.clone()])
+                .execute(std::slice::from_ref(&null_value))
                 .expect("head函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             ContainerFunction::Last
-                .execute(&[null_value.clone()])
+                .execute(std::slice::from_ref(&null_value))
                 .expect("last函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             ContainerFunction::Tail
-                .execute(&[null_value.clone()])
+                .execute(std::slice::from_ref(&null_value))
                 .expect("tail函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             ContainerFunction::Size
-                .execute(&[null_value.clone()])
+                .execute(std::slice::from_ref(&null_value))
                 .expect("size函数应该处理NULL"),
             Value::Null(NullType::Null)
         );

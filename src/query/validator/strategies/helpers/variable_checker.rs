@@ -318,7 +318,7 @@ mod tests {
     #[test]
     fn test_variable_checker_creation() {
         let _checker = VariableChecker::new();
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 
     #[test]

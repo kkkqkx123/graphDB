@@ -926,7 +926,7 @@ fn test_ddl_if_not_exists_if_exists() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = vec![
+    let queries = [
         "CREATE TAG IF NOT EXISTS Person(name: STRING)",
         "CREATE TAG IF NOT EXISTS Person(name: STRING)", // 重复创建
         "DROP TAG IF EXISTS Person",

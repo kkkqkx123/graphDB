@@ -92,7 +92,7 @@ impl RewriteRule for PushProjectDownGetEdgesRule {
         };
 
         let columns = project_node.columns();
-        let new_get_edges_node = self.create_get_edges_with_projection(&get_edges_node, columns);
+        let new_get_edges_node = self.create_get_edges_with_projection(get_edges_node, columns);
         let new_node = PlanNodeEnum::GetEdges(new_get_edges_node);
 
         let mut result = TransformResult::new();

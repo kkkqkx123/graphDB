@@ -537,7 +537,7 @@ mod tests {
     fn test_schema_api_new() {
         let storage = create_mock_storage();
         let _schema_api = SchemaApi::new(storage);
-        assert!(true); // 创建成功
+        // 创建成功，测试通过到达此处即表示成功
     }
 
     #[test]
@@ -545,7 +545,7 @@ mod tests {
         let storage = create_mock_storage();
         let schema_api = SchemaApi::new(storage);
         let _cloned = schema_api.clone();
-        assert!(true); // 克隆成功
+        // 克隆成功，测试通过到达此处即表示成功
     }
 
     #[test]

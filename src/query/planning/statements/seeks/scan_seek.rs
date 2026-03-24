@@ -138,7 +138,7 @@ mod tests {
     #[test]
     fn test_scan_seek_new() {
         let _seek = ScanSeek::new();
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 
     #[test]

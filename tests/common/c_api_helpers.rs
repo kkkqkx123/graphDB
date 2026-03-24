@@ -2,14 +2,12 @@
 //!
 //! 提供 C API 测试的公共函数和结构体
 
+#![allow(dead_code)]
+
 use std::ffi::CString;
 use std::ptr;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use graphdb::api::embedded::c_api::error::graphdb_error_code_t;
-
-/// 测试计数器，用于生成唯一的测试数据库路径
-static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// C API 测试数据库包装器
 ///
@@ -24,11 +22,10 @@ impl CApiTestDatabase {
     ///
     /// 使用临时目录创建独立的数据库文件，确保测试隔离
     pub fn new() -> Self {
-        let counter = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
         let temp_dir = std::env::temp_dir().join("graphdb_c_api_integration_test");
         std::fs::create_dir_all(&temp_dir).expect("创建临时目录失败");
 
-        let db_path = temp_dir.join(format!("test_{}_{}.db", std::process::id(), counter));
+        let db_path = temp_dir.join(format!("test_{}.db", std::process::id()));
 
         // 确保数据库文件不存在
         if db_path.exists() {
@@ -64,11 +61,6 @@ impl CApiTestDatabase {
     pub fn handle(&self) -> *mut graphdb::api::embedded::c_api::types::graphdb_t {
         self.db
     }
-
-    /// 获取数据库文件路径
-    pub fn path(&self) -> &std::path::Path {
-        &self.temp_path
-    }
 }
 
 impl Drop for CApiTestDatabase {
@@ -91,7 +83,6 @@ impl Drop for CApiTestDatabase {
 /// 使用 RAII 模式管理会话生命周期
 pub struct CApiTestSession {
     session: *mut graphdb::api::embedded::c_api::types::graphdb_session_t,
-    db: *mut graphdb::api::embedded::c_api::types::graphdb_t,
 }
 
 impl CApiTestSession {
@@ -110,20 +101,12 @@ impl CApiTestSession {
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "创建会话失败");
         assert!(!session.is_null(), "会话句柄不应为空");
 
-        Self {
-            session,
-            db: db.handle(),
-        }
+        Self { session }
     }
 
     /// 获取会话句柄
     pub fn handle(&self) -> *mut graphdb::api::embedded::c_api::types::graphdb_session_t {
         self.session
-    }
-
-    /// 获取数据库句柄
-    pub fn db_handle(&self) -> *mut graphdb::api::embedded::c_api::types::graphdb_t {
-        self.db
     }
 }
 
@@ -142,7 +125,6 @@ impl Drop for CApiTestSession {
 /// 使用 RAII 模式管理事务生命周期
 pub struct CApiTestTransaction {
     txn: *mut graphdb::api::embedded::c_api::types::graphdb_txn_t,
-    session: *mut graphdb::api::embedded::c_api::types::graphdb_session_t,
 }
 
 impl CApiTestTransaction {
@@ -160,10 +142,7 @@ impl CApiTestTransaction {
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "开始事务失败");
         assert!(!txn.is_null(), "事务句柄不应为空");
 
-        Self {
-            txn,
-            session: session.handle(),
-        }
+        Self { txn }
     }
 
     /// 获取事务句柄
@@ -226,11 +205,6 @@ impl CApiTestResult {
         assert!(!result.is_null(), "结果句柄不应为空");
 
         Self { result }
-    }
-
-    /// 获取结果句柄
-    pub fn handle(&self) -> *mut graphdb::api::embedded::c_api::types::graphdb_result_t {
-        self.result
     }
 
     /// 获取列数
@@ -331,16 +305,6 @@ impl CApiTestBatch {
     pub fn handle(&self) -> *mut graphdb::api::embedded::c_api::types::graphdb_batch_t {
         self.batch
     }
-
-    /// 执行批量操作
-    pub fn flush(&self) {
-        let rc = unsafe { graphdb::api::embedded::c_api::batch::graphdb_batch_flush(self.batch) };
-        assert_eq!(
-            rc,
-            graphdb_error_code_t::GRAPHDB_OK as i32,
-            "执行批量操作失败"
-        );
-    }
 }
 
 impl Drop for CApiTestBatch {
@@ -352,3 +316,4 @@ impl Drop for CApiTestBatch {
         }
     }
 }
+

@@ -224,7 +224,7 @@ fn test_planner_match_statement() {
     let _query_context = create_test_query_context();
 
     // 计划生成测试 - 简化版本，只验证创建成功
-    assert!(true);
+    // 测试通过到达此处即表示成功
 }
 
 // ==================== QueryPipelineManager 集成测试 ====================

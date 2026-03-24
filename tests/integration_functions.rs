@@ -606,7 +606,7 @@ fn test_empty_list_operations() {
     let empty_list = Value::List(List { values: vec![] });
 
     // head(空列表) 应该返回 NULL
-    let result = registry.execute("head", &[empty_list.clone()]);
+    let result = registry.execute("head", std::slice::from_ref(&empty_list));
     assert!(result.is_ok());
     assert_eq!(
         result.expect("head函数应该成功"),
@@ -614,7 +614,7 @@ fn test_empty_list_operations() {
     );
 
     // last(空列表) 应该返回 NULL
-    let result = registry.execute("last", &[empty_list.clone()]);
+    let result = registry.execute("last", std::slice::from_ref(&empty_list));
     assert!(result.is_ok());
     assert_eq!(
         result.expect("last函数应该成功"),
@@ -622,7 +622,7 @@ fn test_empty_list_operations() {
     );
 
     // tail(空列表) 应该返回空列表
-    let result = registry.execute("tail", &[empty_list.clone()]);
+    let result = registry.execute("tail", std::slice::from_ref(&empty_list));
     assert!(result.is_ok());
 
     if let Value::List(list) = result.expect("tail函数应该成功") {
@@ -671,11 +671,11 @@ fn test_single_element_list() {
         values: vec![Value::Int(42)],
     });
 
-    let result = registry.execute("head", &[single_list.clone()]);
+    let result = registry.execute("head", std::slice::from_ref(&single_list));
     assert!(result.is_ok());
     assert_eq!(result.expect("head函数应该成功"), Value::Int(42));
 
-    let result = registry.execute("last", &[single_list.clone()]);
+    let result = registry.execute("last", std::slice::from_ref(&single_list));
     assert!(result.is_ok());
     assert_eq!(result.expect("last函数应该成功"), Value::Int(42));
 

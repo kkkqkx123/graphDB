@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn test_vertex_seek_new() {
         let _ = VertexSeek::new();
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 
     #[test]

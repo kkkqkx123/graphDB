@@ -30,30 +30,30 @@ pub enum ParseErrorKind {
 #[derive(Debug)]
 pub struct ParseError {
     pub kind: ParseErrorKind,
-    pub message: String,
+    pub message: Box<str>,
     pub position: Position,
     pub offset: Option<usize>,
-    pub unexpected_token: Option<String>,
-    pub expected_tokens: Vec<String>,
+    pub unexpected_token: Option<Box<str>>,
+    pub expected_tokens: Box<[String]>,
     pub context: Option<Box<dyn Error + Send + Sync>>,
-    pub hints: Vec<String>,
+    pub hints: Box<[String]>,
 }
 
 impl ParseError {
-    pub fn new(kind: ParseErrorKind, message: String, position: Position) -> Self {
+    pub fn new(kind: ParseErrorKind, message: impl Into<Box<str>>, position: Position) -> Self {
         ParseError {
             kind,
-            message,
+            message: message.into(),
             position,
             offset: None,
             unexpected_token: None,
-            expected_tokens: Vec::new(),
+            expected_tokens: Box::new([]),
             context: None,
-            hints: Vec::new(),
+            hints: Box::new([]),
         }
     }
 
-    pub fn new_simple(message: String, position: Position) -> Self {
+    pub fn new_simple(message: impl Into<Box<str>>, position: Position) -> Self {
         ParseError::new(ParseErrorKind::SyntaxError, message, position)
     }
 
@@ -76,7 +76,7 @@ impl ParseError {
     pub fn unterminated_string(position: Position) -> ParseError {
         ParseError::new(
             ParseErrorKind::UnterminatedString,
-            "Unterminated string literal".to_string(),
+            "Unterminated string literal",
             position,
         )
     }
@@ -84,7 +84,7 @@ impl ParseError {
     pub fn unterminated_comment(position: Position) -> ParseError {
         ParseError::new(
             ParseErrorKind::UnterminatedComment,
-            "Unterminated multi-line comment".to_string(),
+            "Unterminated multi-line comment",
             position,
         )
     }
@@ -95,12 +95,12 @@ impl ParseError {
     }
 
     pub fn with_unexpected_token<T: fmt::Display>(mut self, token: T) -> Self {
-        self.unexpected_token = Some(token.to_string());
+        self.unexpected_token = Some(token.to_string().into_boxed_str());
         self
     }
 
     pub fn with_expected_tokens(mut self, tokens: Vec<String>) -> Self {
-        self.expected_tokens = tokens;
+        self.expected_tokens = tokens.into_boxed_slice();
         self
     }
 
@@ -109,18 +109,20 @@ impl ParseError {
         self
     }
 
-    pub fn with_hint(mut self, hint: String) -> Self {
-        self.hints.push(hint);
+    pub fn with_hint(mut self, hint: impl Into<String>) -> Self {
+        self.hints = std::iter::once(hint.into()).collect::<Vec<String>>().into_boxed_slice();
         self
     }
 
-    pub fn with_hints(mut self, hints: Vec<String>) -> Self {
-        self.hints.extend(hints);
+    pub fn with_hints(mut self, hints: Vec<impl Into<String>>) -> Self {
+        self.hints = hints.into_iter().map(|h| h.into()).collect::<Vec<String>>().into_boxed_slice();
         self
     }
 
-    pub fn add_hint(&mut self, hint: String) {
-        self.hints.push(hint);
+    pub fn add_hint(&mut self, hint: impl Into<String>) {
+        let mut new_hints = self.hints.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+        new_hints.push(hint.into());
+        self.hints = new_hints.into_boxed_slice();
     }
 }
 
@@ -184,14 +186,12 @@ impl From<super::super::lexing::LexError> for ParseError {
 
 impl From<ParseError> for QueryError {
     fn from(parse_error: ParseError) -> Self {
+        let message: String = parse_error.message.into();
         // 如果有 offset 信息，保留它
         if let Some(offset) = parse_error.offset {
-            QueryError::ParseErrorWithOffset {
-                message: parse_error.message,
-                offset,
-            }
+            QueryError::ParseErrorWithOffset { message, offset }
         } else {
-            QueryError::ParseError(parse_error.to_string())
+            QueryError::ParseError(message)
         }
     }
 }

@@ -564,7 +564,7 @@ mod tests {
     #[test]
     fn test_expression_checker_creation() {
         let _checker = ExpressionChecker::new();
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 
     #[test]

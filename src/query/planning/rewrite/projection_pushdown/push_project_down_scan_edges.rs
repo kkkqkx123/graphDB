@@ -92,7 +92,7 @@ impl RewriteRule for PushProjectDownScanEdgesRule {
         };
 
         let columns = project_node.columns();
-        let new_scan_node = self.create_scan_edges_with_projection(&scan_node, columns);
+        let new_scan_node = self.create_scan_edges_with_projection(scan_node, columns);
         let new_node = PlanNodeEnum::ScanEdges(new_scan_node);
 
         let mut result = TransformResult::new();

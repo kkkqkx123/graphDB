@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use crate::core::types::{Index, IndexType};
     use crate::query::executor::admin::index::{

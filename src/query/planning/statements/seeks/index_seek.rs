@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn test_index_seek_new() {
         let _ = IndexSeek::new();
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 
     #[test]

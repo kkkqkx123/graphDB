@@ -2,6 +2,8 @@
 //!
 //! 提供测试基础设施和辅助函数，供所有集成测试使用
 
+#![allow(dead_code)]
+
 pub mod assertions;
 pub mod c_api_helpers;
 pub mod data_fixtures;
@@ -45,19 +47,5 @@ impl Drop for TestStorage {
     fn drop(&mut self) {
         // 尝试清理临时目录，忽略错误
         let _ = std::fs::remove_dir_all(&self.temp_path);
-    }
-}
-
-/// 测试上下文，包含常用测试资源
-pub struct TestContext {
-    pub storage: TestStorage,
-}
-
-impl TestContext {
-    /// 创建新的测试上下文
-    pub fn new() -> DBResult<Self> {
-        Ok(Self {
-            storage: TestStorage::new()?,
-        })
     }
 }

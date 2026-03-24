@@ -330,19 +330,19 @@ mod tests {
 
         assert_eq!(
             GraphFunction::Id
-                .execute(&[null_value.clone()])
+                .execute(std::slice::from_ref(&null_value))
                 .expect("id函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             GraphFunction::Tags
-                .execute(&[null_value.clone()])
+                .execute(std::slice::from_ref(&null_value))
                 .expect("tags函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             GraphFunction::Properties
-                .execute(&[null_value.clone()])
+                .execute(std::slice::from_ref(&null_value))
                 .expect("properties函数应该处理NULL"),
             Value::Null(NullType::Null)
         );

@@ -218,13 +218,13 @@ mod tests {
 
         assert_eq!(
             PathFunction::Nodes
-                .execute(&[null_value.clone()])
+                .execute(std::slice::from_ref(&null_value))
                 .expect("nodes函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
             PathFunction::Relationships
-                .execute(&[null_value.clone()])
+                .execute(std::slice::from_ref(&null_value))
                 .expect("relationships函数应该处理NULL"),
             Value::Null(NullType::Null)
         );

@@ -92,7 +92,7 @@ impl RewriteRule for PushProjectDownScanVerticesRule {
         };
 
         let columns = project_node.columns();
-        let new_scan_node = self.create_scan_vertices_with_projection(&scan_node, columns);
+        let new_scan_node = self.create_scan_vertices_with_projection(scan_node, columns);
         let new_node = PlanNodeEnum::ScanVertices(new_scan_node);
 
         let mut result = TransformResult::new();

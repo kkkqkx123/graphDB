@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use crate::core::{Edge, Value, Vertex};
     use crate::query::executor::base::EdgeDirection;

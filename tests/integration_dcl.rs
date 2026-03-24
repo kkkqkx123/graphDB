@@ -518,7 +518,7 @@ fn test_dcl_if_not_exists_if_exists() {
         Arc::new(OptimizerEngine::default()),
     );
 
-    let queries = vec![
+    let queries = [
         "CREATE USER IF NOT EXISTS testuser WITH PASSWORD 'password'",
         "CREATE USER IF NOT EXISTS testuser WITH PASSWORD 'password'", // 重复创建
         "DROP USER IF EXISTS testuser",

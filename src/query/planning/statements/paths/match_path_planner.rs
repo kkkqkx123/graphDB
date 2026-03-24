@@ -763,7 +763,7 @@ mod tests {
     #[test]
     fn test_match_path_planner_new() {
         let _planner = MatchPathPlanner::new();
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 
     #[test]
@@ -785,7 +785,7 @@ mod tests {
                 properties: vec![],
             },
         );
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 
     #[test]
@@ -809,6 +809,6 @@ mod tests {
             Some(1),
             Some(5),
         );
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 }

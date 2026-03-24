@@ -141,8 +141,7 @@ fn test_c_api_execute_simple_query() {
 
     // 打印错误信息用于调试
     if rc != graphdb_error_code_t::GRAPHDB_OK as i32 {
-        let error_msg =
-            unsafe { graphdb::api::embedded::c_api::error::graphdb_get_last_error_message() };
+        let error_msg = graphdb::api::embedded::c_api::error::graphdb_get_last_error_message();
         if !error_msg.is_null() {
             let msg = unsafe {
                 std::ffi::CStr::from_ptr(error_msg)
@@ -250,7 +249,7 @@ fn test_c_api_result_column_name() {
 
             // 释放列名字符串
             unsafe {
-                graphdb::api::embedded::c_api::database::graphdb_free_string(col_name as *mut i8);
+                graphdb::api::embedded::c_api::database::graphdb_free_string(col_name);
             }
         }
     }
@@ -300,8 +299,7 @@ fn test_c_api_transaction_begin_commit() {
 
     // 打印错误信息用于调试
     if rc != graphdb_error_code_t::GRAPHDB_OK as i32 {
-        let error_msg =
-            unsafe { graphdb::api::embedded::c_api::error::graphdb_get_last_error_message() };
+        let error_msg = graphdb::api::embedded::c_api::error::graphdb_get_last_error_message();
         if !error_msg.is_null() {
             let msg = unsafe {
                 std::ffi::CStr::from_ptr(error_msg)

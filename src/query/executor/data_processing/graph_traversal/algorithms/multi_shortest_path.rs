@@ -77,7 +77,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         base_config: crate::query::executor::base::ExecutorConfig<S>,
         config: MultiShortestPathConfig,
     ) -> Self {
-        let termination_map = create_termination_map(&config.start_vids, &vec![]);
+        let termination_map = create_termination_map(&config.start_vids, &[]);
 
         Self {
             base: BaseExecutor::new(

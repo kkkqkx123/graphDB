@@ -817,7 +817,7 @@ mod tests {
     #[test]
     fn test_shortest_path_planner_new() {
         let _planner = ShortestPathPlanner::new();
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 
     #[test]
@@ -827,6 +827,6 @@ mod tests {
             direction: Some(EdgeDirection::Out),
             properties: vec![],
         };
-        assert!(true);
+        // 测试通过到达此处即表示成功
     }
 }

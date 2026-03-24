@@ -92,7 +92,7 @@ impl RewriteRule for PushProjectDownGetNeighborsRule {
         };
 
         let columns = project_node.columns();
-        let new_get_neighbors_node = self.create_get_neighbors_with_projection(&get_neighbors_node, columns);
+        let new_get_neighbors_node = self.create_get_neighbors_with_projection(get_neighbors_node, columns);
         let new_node = PlanNodeEnum::GetNeighbors(new_get_neighbors_node);
 
         let mut result = TransformResult::new();

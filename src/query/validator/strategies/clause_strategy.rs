@@ -47,7 +47,7 @@ impl ClauseValidationStrategy {
 
         for col in &context.yield_clause.yield_columns {
             alias_validator
-                .validate_aliases(&[col.expression.clone()], &context.aliases_available)?;
+                .validate_aliases(std::slice::from_ref(&col.expression), &context.aliases_available)?;
         }
 
         // 验证分页
@@ -231,7 +231,7 @@ impl ClauseValidationStrategy {
         let alias_validator = AliasValidationStrategy::new();
         for col in &context.yield_columns {
             alias_validator
-                .validate_aliases(&[col.expression.clone()], &context.aliases_available)?;
+                .validate_aliases(std::slice::from_ref(&col.expression), &context.aliases_available)?;
         }
 
         Ok(())

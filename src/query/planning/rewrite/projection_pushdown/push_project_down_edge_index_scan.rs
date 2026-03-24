@@ -99,7 +99,7 @@ impl RewriteRule for PushProjectDownEdgeIndexScanRule {
 
         let columns = project_node.columns();
         let new_edge_index_scan_node =
-            self.create_edge_index_scan_with_projection(&edge_index_scan_node, columns);
+            self.create_edge_index_scan_with_projection(edge_index_scan_node, columns);
         let new_node = PlanNodeEnum::EdgeIndexScan(new_edge_index_scan_node);
 
         let mut result = TransformResult::new();
