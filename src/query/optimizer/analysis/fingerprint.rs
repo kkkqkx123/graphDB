@@ -12,7 +12,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use crate::query::planner::plan::core::nodes::{BinaryInputNode, PlanNodeEnum, SingleInputNode};
+use crate::query::planning::plan::core::nodes::{BinaryInputNode, PlanNodeEnum, SingleInputNode};
 
 /// 计划节点指纹
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -82,7 +82,7 @@ impl FingerprintCalculator {
 
     /// 哈希子节点
     fn hash_children(&self, node: &PlanNodeEnum, hasher: &mut DefaultHasher) {
-        use crate::query::planner::plan::core::nodes::*;
+        use crate::query::planning::plan::core::nodes::*;
 
         match node {
             // 单输入节点

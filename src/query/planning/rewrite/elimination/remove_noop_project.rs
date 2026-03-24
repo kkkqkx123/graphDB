@@ -24,13 +24,13 @@
 //! - 子节点在允许列表中（某些节点类型不允许移除 Project）
 
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 use std::collections::HashSet;
 
 /// 移除无操作投影的规则
@@ -210,7 +210,7 @@ impl EliminationRule for RemoveNoopProjectRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::rewrite::rule::RewriteRule;
+    use crate::query::planning::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_remove_noop_project_rule_name() {
@@ -231,7 +231,7 @@ mod tests {
 
         // 测试允许的子节点类型
         let start_node =
-            crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
+            crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode::new();
         // Start 不在允许列表中
         assert!(!rule.is_allowed_child_type(&PlanNodeEnum::Start(start_node.clone())));
     }

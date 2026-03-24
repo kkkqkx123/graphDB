@@ -5,10 +5,10 @@
 //!
 //! 这是从 optimizer 层独立出来的版本，专注于 planner 层的需求。
 
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{MatchedResult, RewriteResult, TransformResult};
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{MatchedResult, RewriteResult, TransformResult};
 
 /// 重写规则 trait
 ///
@@ -17,7 +17,7 @@ use crate::query::planner::rewrite::result::{MatchedResult, RewriteResult, Trans
 ///
 /// # 示例
 /// ```rust
-/// use crate::query::planner::rewrite::rule::RewriteRule;
+/// use crate::query::planning::rewrite::rule::RewriteRule;
 ///
 /// #[derive(Debug)]
 /// struct MyRule;
@@ -190,7 +190,7 @@ impl<T: RewriteRule + Sized> IntoRuleWrapper for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
 
     #[derive(Debug)]
     struct TestRule;

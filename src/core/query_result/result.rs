@@ -1,4 +1,4 @@
-use crate::core::result::iterator_enum::ResultIteratorEnum;
+use crate::core::query_result::iterator_enum::ResultIteratorEnum;
 use crate::core::value::Value;
 
 /// Result 状态

@@ -21,9 +21,9 @@ define_plan_node_with_deps! {
 impl ProjectNode {
     /// 创建新的投影节点
     pub fn new(
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         columns: Vec<YieldColumn>,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names: Vec<String> = columns.iter().map(|col| col.alias.clone()).collect();
 
         Ok(Self {
@@ -79,7 +79,7 @@ impl ProjectNode {
 mod tests {
     use super::*;
     use crate::core::types::ContextualExpression;
-    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expr::ExpressionMeta;
     use crate::core::Expression;
     use std::sync::Arc;
     use ExpressionAnalysisContext;
@@ -87,8 +87,8 @@ mod tests {
     #[test]
     fn test_project_node_creation() {
         let start_node =
-            crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
-                crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new(
+            crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+                crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode::new(
                 ),
             );
 
@@ -115,8 +115,8 @@ mod tests {
     #[test]
     fn test_project_node_columns() {
         let start_node =
-            crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
-                crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new(
+            crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+                crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode::new(
                 ),
             );
 

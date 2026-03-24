@@ -454,7 +454,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::variable("id");
-        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_meta1 = crate::core::types::expr::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
         let ctx_expr1 =
             crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
@@ -508,13 +508,13 @@ mod tests {
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::variable("a");
-        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_meta1 = crate::core::types::expr::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
         let ctx_expr1 =
             crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         let expr2 = Expression::variable("b");
-        let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(expr2);
+        let expr_meta2 = crate::core::types::expr::ExpressionMeta::new(expr2);
         let expr_id2 = expr_context.register_expression(expr_meta2);
         let ctx_expr2 =
             crate::core::types::ContextualExpression::new(expr_id2, expr_context.clone());
@@ -594,7 +594,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::variable("id");
-        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_meta1 = crate::core::types::expr::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
         let ctx_expr1 =
             crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
@@ -650,7 +650,7 @@ mod tests {
         let expr_context = Arc::new(ExpressionContextStruct::new());
 
         let expr1 = Expression::Variable("id".to_string());
-        let expr_meta1 = crate::core::types::expression::ExpressionMeta::new(expr1);
+        let expr_meta1 = crate::core::types::expr::ExpressionMeta::new(expr1);
         let expr_id1 = expr_context.register_expression(expr_meta1);
         let ctx_expr1 =
             crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());

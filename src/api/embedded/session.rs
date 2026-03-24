@@ -5,7 +5,7 @@
 use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi};
 use crate::api::embedded::batch::BatchInserter;
 use crate::api::embedded::result::QueryResult;
-use crate::api::embedded::statement::PreparedStatement;
+use crate::api::embedded::precompiled::PreparedStatement;
 use crate::api::embedded::statistics::SessionStatistics;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
 use crate::core::Value;

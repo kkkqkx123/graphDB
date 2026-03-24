@@ -22,7 +22,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::core::error::{DBError, DBResult};
-use crate::query::planner::plan::ExecutionPlan;
+use crate::query::planning::plan::ExecutionPlan;
 
 /// 查询计划缓存配置
 #[derive(Debug, Clone)]

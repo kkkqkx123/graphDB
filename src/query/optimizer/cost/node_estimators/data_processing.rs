@@ -16,8 +16,8 @@ use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::expression_parser::ExpressionParser;
 use crate::query::optimizer::cost::selectivity::SelectivityEstimator;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::query::planner::plan::core::nodes::data_processing::UnwindNode;
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::data_processing::UnwindNode;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// 数据处理节点估算器
 pub struct DataProcessingEstimator<'a> {
@@ -136,14 +136,14 @@ impl<'a> NodeEstimator for DataProcessingEstimator<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expr::ExpressionMeta;
     use crate::core::YieldColumn;
     use crate::core::{Expression, Value};
     use crate::query::optimizer::cost::config::CostModelConfig;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::*;
-    use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
-    use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::*;
+    use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
+    use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
@@ -273,7 +273,7 @@ mod tests {
         let config = CostModelConfig::default();
         let estimator = DataProcessingEstimator::new(&calculator, &selectivity_estimator, config);
 
-        let node = PlanNodeEnum::ScanVertices(crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode::new(1));
+        let node = PlanNodeEnum::ScanVertices(crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode::new(1));
         let child_estimates = vec![];
         let result = estimator.estimate(&node, &child_estimates);
 

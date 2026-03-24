@@ -3,7 +3,7 @@
 //! 合并原expression_validator和clause_validator的功能
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::{ContextualExpression, ExpressionMeta};
+use crate::core::types::expr::{ContextualExpression, ExpressionMeta};
 use crate::core::Expression;
 use crate::core::YieldColumn;
 use crate::query::validator::context::ExpressionAnalysisContext;

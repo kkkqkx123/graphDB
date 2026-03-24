@@ -1,11 +1,11 @@
 //! 索引扫描相关的计划节点
 //! 包含索引扫描等搜索相关操作
 
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::graph_schema::OrderDirection;
 use crate::define_plan_node;
-use crate::query::planner::plan::core::node_id_generator::next_node_id;
-use crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
+use crate::query::planning::plan::core::node_id_generator::next_node_id;
+use crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 
 /// 排序项定义
 #[derive(Debug, Clone, PartialEq)]

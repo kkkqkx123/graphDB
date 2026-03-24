@@ -17,8 +17,8 @@
 //! ```
 
 use crate::core::YieldColumn;
-use crate::query::planner::plan::core::nodes::EdgeIndexScanNode;
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::EdgeIndexScanNode;
+use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::planning::rewrite::context::RewriteContext;
 use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
@@ -35,7 +35,7 @@ impl PushProjectDownEdgeIndexScanRule {
         Self
     }
 
-    fn can_push_down_project(project_node: &crate::query::planner::plan::core::nodes::ProjectNode) -> bool {
+    fn can_push_down_project(project_node: &crate::query::planning::plan::core::nodes::ProjectNode) -> bool {
         !project_node.columns().is_empty()
     }
 
@@ -137,13 +137,13 @@ mod tests {
     use super::*;
     use crate::core::types::ContextualExpression;
     use crate::core::{Expression, YieldColumn};
-    use crate::query::planner::plan::core::nodes::{EdgeIndexScanNode, ProjectNode};
+    use crate::query::planning::plan::core::nodes::{EdgeIndexScanNode, ProjectNode};
     use std::sync::Arc;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 
     fn create_yield_column(expr: Expression, alias: &str) -> YieldColumn {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
         YieldColumn {

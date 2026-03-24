@@ -4,7 +4,7 @@
 
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::{Edge, StorageError, Value, Vertex};
-use crate::query::planner::statements::seeks::seek_strategy_base::{
+use crate::query::planning::statements::seeks::seek_strategy_base::{
     NodePattern, SeekStrategyContext, SeekStrategySelector, SeekStrategyType,
 };
 use crate::storage::StorageClient;

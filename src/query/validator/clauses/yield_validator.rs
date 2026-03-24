@@ -233,7 +233,7 @@ impl YieldValidator {
     /// 推导表达式类型
     fn deduce_expr_type(
         &self,
-        expression: &crate::core::types::expression::contextual::ContextualExpression,
+        expression: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> Result<ValueType, ValidationError> {
         if let Some(e) = expression.get_expression() {
             self.deduce_expr_type_internal(&e)
@@ -245,7 +245,7 @@ impl YieldValidator {
     /// 内部方法：推导表达式类型
     fn deduce_expr_type_internal(
         &self,
-        _expression: &crate::core::types::expression::Expression,
+        _expression: &crate::core::types::expr::Expression,
     ) -> Result<ValueType, ValidationError> {
         // 简化实现，实际应该根据表达式推导类型
         Ok(ValueType::Unknown)
@@ -351,8 +351,8 @@ impl StatementValidator for YieldValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
-    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expr::contextual::ContextualExpression;
+    use crate::core::types::expr::ExpressionMeta;
     use crate::core::{Expression, Value};
     use std::sync::Arc;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
@@ -452,7 +452,7 @@ mod tests {
 
     #[test]
     fn test_yield_with_distinct() {
-        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
+        use crate::core::types::expr::{ContextualExpression, Expression, ExpressionMeta};
         use std::sync::Arc;
 
         let mut validator = YieldValidator::new();

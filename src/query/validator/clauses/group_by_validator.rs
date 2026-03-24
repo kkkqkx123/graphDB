@@ -8,7 +8,7 @@
 //! 3. 支持 HAVING 子句验证
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::query::parser::ast::stmt::{Ast, GroupByStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
@@ -112,7 +112,7 @@ impl GroupByValidator {
     /// 内部方法：验证分组键
     fn validate_group_key_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> Result<(), ValidationError> {
         // 分组键可以是：
         // 1. 列引用
@@ -176,7 +176,7 @@ impl GroupByValidator {
     /// 内部方法：验证 HAVING 表达式
     fn validate_having_expr_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> Result<(), ValidationError> {
         match expr {
             Expression::Binary { op, left, right } => {
@@ -267,7 +267,7 @@ impl GroupByValidator {
     }
 
     /// 内部方法：检查表达式是否包含聚合函数
-    fn contains_aggregate_internal(expr: &crate::core::types::expression::Expression) -> bool {
+    fn contains_aggregate_internal(expr: &crate::core::types::expr::Expression) -> bool {
         match expr {
             Expression::Function { name, .. } => {
                 if Self::is_aggregate_function(name) {

@@ -2,14 +2,14 @@
 //!
 //! 负责解析各种共享子句，包括 RETURN、YIELD、SET、OVER、WHERE 等。
 
-use crate::core::types::expression::ContextualExpression;
-use crate::core::types::expression::Expression as CoreExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::Expression as CoreExpression;
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::{LimitClause, OrderDirection, SkipClause};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
-use crate::query::parser::parser::parse_context::ParseContext;
-use crate::query::parser::parser::ExprParser;
+use crate::query::parser::parsing::parse_context::ParseContext;
+use crate::query::parser::parsing::ExprParser;
 use crate::query::parser::TokenKind;
 
 /// 子句解析器
@@ -34,7 +34,7 @@ impl ClauseParser {
         // 检查是否是 *
         if ctx.match_token(TokenKind::Star) {
             let expr = CoreExpression::variable("*");
-            let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+            let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
             let id = ctx.expression_context().register_expression(expr_meta);
             let ctx_expr = ContextualExpression::new(id, ctx.expression_context_clone());
             items.push(ReturnItem::Expression {

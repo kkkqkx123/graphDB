@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 重写上下文
@@ -126,7 +126,7 @@ impl RewriteContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
 
     #[test]
     fn test_context_creation() {

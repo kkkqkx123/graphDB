@@ -10,7 +10,7 @@ use crate::query::executor::result_processing::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
     UnwindExecutor,
 };
-use crate::query::planner::plan::core::nodes::{
+use crate::query::planning::plan::core::nodes::{
     AppendVerticesNode, AssignNode, MaterializeNode, PatternApplyNode, RollUpApplyNode, UnwindNode,
 };
 use crate::storage::StorageClient;

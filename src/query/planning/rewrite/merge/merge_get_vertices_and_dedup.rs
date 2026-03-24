@@ -1,11 +1,11 @@
 //! 合并获取顶点和去重操作的规则
 
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 
 /// 合并获取顶点和去重操作的规则
 ///
@@ -121,9 +121,9 @@ impl MergeRule for MergeGetVerticesAndDedupRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetVerticesNode;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::DedupNode;
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::GetVerticesNode;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::DedupNode;
 
     #[test]
     fn test_rule_name() {

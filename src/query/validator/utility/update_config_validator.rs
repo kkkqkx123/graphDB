@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, UpdateConfigsStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::validator_trait::{
@@ -90,9 +90,9 @@ impl UpdateConfigsValidator {
     /// 内部方法：验证配置值
     fn validate_config_value_internal(
         &self,
-        value: &crate::core::types::expression::Expression,
+        value: &crate::core::types::expr::Expression,
     ) -> Result<(), ValidationError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         // 配置值必须是常量表达式
         match value {
@@ -209,9 +209,9 @@ impl StatementValidator for UpdateConfigsValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
-    use crate::core::types::expression::Expression;
-    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expr::contextual::ContextualExpression;
+    use crate::core::types::expr::Expression;
+    use crate::core::types::expr::ExpressionMeta;
     use crate::core::Value;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;

@@ -3,13 +3,13 @@
 //! 该规则识别 Traverse 节点中的 vFilter，
 //! 并将其重写为具体的顶点属性表达式。
 
-use crate::core::types::expression::visitor_checkers::WildcardReplacer;
+use crate::core::types::expr::visitor_checkers::WildcardReplacer;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将顶点过滤条件下推到ScanVertices节点的规则
 ///

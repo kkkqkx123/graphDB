@@ -2,9 +2,9 @@
 //! 处理用户管理相关的查询规划（CREATE USER、ALTER USER、DROP USER、CHANGE PASSWORD）
 
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum};
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::core::{ArgumentNode, PlanNodeEnum};
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;
 
@@ -29,7 +29,7 @@ impl Planner for UserManagementPlanner {
 
         let final_node = match validated.stmt() {
             Stmt::CreateUser(create_stmt) => {
-                let mut node = crate::query::planner::plan::core::nodes::CreateUserNode::new(
+                let mut node = crate::query::planning::plan::core::nodes::CreateUserNode::new(
                     1,
                     create_stmt.username.clone(),
                     create_stmt.password.clone(),
@@ -40,7 +40,7 @@ impl Planner for UserManagementPlanner {
                 PlanNodeEnum::CreateUser(node)
             }
             Stmt::AlterUser(alter_stmt) => {
-                let mut node = crate::query::planner::plan::core::nodes::AlterUserNode::new(
+                let mut node = crate::query::planning::plan::core::nodes::AlterUserNode::new(
                     2,
                     alter_stmt.username.clone(),
                 );
@@ -53,7 +53,7 @@ impl Planner for UserManagementPlanner {
                 PlanNodeEnum::AlterUser(node)
             }
             Stmt::DropUser(drop_stmt) => {
-                let node = crate::query::planner::plan::core::nodes::DropUserNode::new(
+                let node = crate::query::planning::plan::core::nodes::DropUserNode::new(
                     3,
                     drop_stmt.username.clone(),
                 );
@@ -66,14 +66,14 @@ impl Planner for UserManagementPlanner {
                     new_password: change_stmt.new_password.clone(),
                 };
 
-                let node = crate::query::planner::plan::core::nodes::ChangePasswordNode::new(
+                let node = crate::query::planning::plan::core::nodes::ChangePasswordNode::new(
                     4,
                     password_info,
                 );
                 PlanNodeEnum::ChangePassword(node)
             }
             Stmt::Grant(grant_stmt) => {
-                let node = crate::query::planner::plan::core::nodes::GrantRoleNode::new(
+                let node = crate::query::planning::plan::core::nodes::GrantRoleNode::new(
                     5,
                     grant_stmt.username.clone(),
                     grant_stmt.space_name.clone(),
@@ -82,7 +82,7 @@ impl Planner for UserManagementPlanner {
                 PlanNodeEnum::GrantRole(node)
             }
             Stmt::Revoke(revoke_stmt) => {
-                let node = crate::query::planner::plan::core::nodes::RevokeRoleNode::new(
+                let node = crate::query::planning::plan::core::nodes::RevokeRoleNode::new(
                     6,
                     revoke_stmt.username.clone(),
                     revoke_stmt.space_name.clone(),

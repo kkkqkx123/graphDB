@@ -12,7 +12,7 @@
 //! 3. 使用 QueryContext 统一管理上下文
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::OrderDirection;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::structs::validation_info::ValidationInfo;
@@ -189,9 +189,9 @@ impl OrderByValidator {
     /// 内部方法：检查表达式是否为空
     fn expression_is_empty_internal(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
     ) -> bool {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match expression {
             Expression::Literal(value) => match value {
@@ -233,9 +233,9 @@ impl OrderByValidator {
     /// 内部方法：推导表达式类型
     fn deduce_expr_type_internal(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
     ) -> Result<ValueType, ValidationError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match expression {
             Expression::Literal(value) => match value {
@@ -419,10 +419,10 @@ impl OrderByValidator {
     // 辅助函数：递归收集表达式中的列引用
     fn collect_refs_internal(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
         refs: &mut Vec<String>,
     ) {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match expression {
             Expression::Variable(name) => {
@@ -610,7 +610,7 @@ mod tests {
 
     #[test]
     fn test_add_order_column() {
-        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
+        use crate::core::types::expr::{ContextualExpression, Expression, ExpressionMeta};
         use std::sync::Arc;
 
         let mut validator = OrderByValidator::new();
@@ -637,7 +637,7 @@ mod tests {
 
     #[test]
     fn test_validate_valid_column() {
-        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
+        use crate::core::types::expr::{ContextualExpression, Expression, ExpressionMeta};
         use std::sync::Arc;
 
         let mut validator = OrderByValidator::new();

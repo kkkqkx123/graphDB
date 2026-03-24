@@ -22,7 +22,7 @@ use crate::query::executor::admin::{
 };
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::planner::plan::core::nodes::{
+use crate::query::planning::plan::core::nodes::{
     AlterEdgeNode, AlterSpaceNode, AlterTagNode, AlterUserNode, ChangePasswordNode, ClearSpaceNode,
     CreateEdgeIndexNode, CreateEdgeNode, CreateSpaceNode, CreateTagIndexNode, CreateTagNode,
     CreateUserNode, DescEdgeIndexNode, DescEdgeNode, DescSpaceNode, DescTagIndexNode, DescTagNode,
@@ -668,7 +668,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
             .options()
             .iter()
             .map(|opt| match opt {
-                crate::query::planner::plan::core::nodes::SpaceAlterOption::Comment(c) => {
+                crate::query::planning::plan::core::nodes::SpaceAlterOption::Comment(c) => {
                     ExecutorSpaceAlterOption::Comment(c.clone())
                 }
             })
@@ -707,10 +707,10 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let stats_type = match node.stats_type() {
-            crate::query::planner::plan::core::nodes::ShowStatsType::Storage => {
+            crate::query::planning::plan::core::nodes::ShowStatsType::Storage => {
                 ExecutorShowStatsType::Storage
             }
-            crate::query::planner::plan::core::nodes::ShowStatsType::Space => {
+            crate::query::planning::plan::core::nodes::ShowStatsType::Space => {
                 ExecutorShowStatsType::Space
             }
         };

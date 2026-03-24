@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, RemoveStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
@@ -51,9 +51,9 @@ impl RemoveValidator {
     /// 内部方法：验证移除项
     fn validate_remove_item_internal(
         &self,
-        item: &crate::core::types::expression::Expression,
+        item: &crate::core::types::expr::Expression,
     ) -> Result<(), ValidationError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match item {
             // 移除属性: REMOVE n.property
@@ -89,10 +89,10 @@ impl RemoveValidator {
     /// 内部方法：验证属性访问移除
     fn validate_property_access_internal(
         &self,
-        object: &crate::core::types::expression::Expression,
+        object: &crate::core::types::expr::Expression,
         property: &str,
     ) -> Result<(), ValidationError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         // 对象必须是变量
         if let Expression::Variable(var_name) = object {
@@ -207,17 +207,17 @@ impl StatementValidator for RemoveValidator {
             if let Some(expr_meta) = item.expression() {
                 let expr = expr_meta.inner();
                 match expr {
-                    crate::core::types::expression::Expression::Property {
+                    crate::core::types::expr::Expression::Property {
                         object,
                         property: _,
                     } => {
-                        if let crate::core::types::expression::Expression::Variable(var_name) =
+                        if let crate::core::types::expr::Expression::Variable(var_name) =
                             object.as_ref()
                         {
                             info.add_alias(var_name.clone(), AliasType::Node);
                         }
                     }
-                    crate::core::types::expression::Expression::Variable(var_name) => {
+                    crate::core::types::expr::Expression::Variable(var_name) => {
                         info.add_alias(var_name.clone(), AliasType::Node);
                     }
                     _ => {}
@@ -257,13 +257,13 @@ impl StatementValidator for RemoveValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expr::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
     }

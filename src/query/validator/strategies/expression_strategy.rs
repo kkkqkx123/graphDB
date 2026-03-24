@@ -1,5 +1,5 @@
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::DataType;
 use crate::core::YieldColumn;
 use crate::query::validator::structs::{

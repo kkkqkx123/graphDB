@@ -12,10 +12,10 @@ use crate::query::optimizer::cost::config::CostModelConfig;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::expression_parser::ExpressionParser;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::query::planner::plan::core::nodes::control_flow::control_flow_node::{
+use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::{
     LoopNode, SelectNode,
 };
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// 控制流节点估算器
 pub struct ControlFlowEstimator<'a> {
@@ -115,8 +115,8 @@ impl<'a> NodeEstimator for ControlFlowEstimator<'a> {
 mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
-    use crate::query::planner::plan::core::nodes::control_flow::control_flow_node::*;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::*;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
     use std::sync::Arc;
 
     fn create_test_calculator() -> CostCalculator {
@@ -126,7 +126,7 @@ mod tests {
     }
 
     fn create_test_expression() -> crate::core::types::ContextualExpression {
-        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expr::ExpressionMeta;
         use crate::core::Expression;
         use crate::query::validator::context::ExpressionAnalysisContext;
 

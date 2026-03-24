@@ -3,7 +3,7 @@
 //! 专门用于Join操作的键求值，支持表达式求值到可哈希的Value类型
 
 use crate::core::error::ExpressionError;
-use crate::core::types::expression::Expression;
+use crate::core::types::expr::Expression;
 use crate::core::Value;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
@@ -60,7 +60,7 @@ impl JoinKeyEvaluator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::Expression;
+    use crate::core::types::expr::Expression;
 
     #[test]
     fn test_is_simple_variable() {

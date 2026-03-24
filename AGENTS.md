@@ -67,7 +67,7 @@ The graphDB project utilises Cargo as its build system. To build the project:
 3. **Lint check**
 
 ```shell
-cargo clippy --all-targets --all-features
+analyze_cargo --full  # (run clippy check and generate report docs)
 cargo fmt
 ```
 

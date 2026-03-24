@@ -31,7 +31,7 @@
 
 use crate::query::optimizer::analysis::{ExpressionAnalyzer, ReferenceCountAnalyzer};
 use crate::query::optimizer::stats::StatisticsManager;
-use crate::query::planner::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
+use crate::query::planning::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
 
 /// CTE 物化决策
 #[derive(Debug, Clone, PartialEq)]
@@ -219,35 +219,35 @@ impl MaterializationOptimizer {
                 if !analysis.is_deterministic {
                     return false;
                 }
-                self.is_deterministic(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
+                self.is_deterministic(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
             }
             PlanNodeEnum::Project(n) => self.is_deterministic(
-                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
+                crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
             PlanNodeEnum::Aggregate(n) => {
                 // 聚合函数通常是确定性的，除非它们的输入是非确定性的
                 // 我们通过递归检查输入节点来确保确定性
-                self.is_deterministic(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
+                self.is_deterministic(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
             }
             PlanNodeEnum::Sort(n) => self.is_deterministic(
-                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
+                crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
             PlanNodeEnum::Limit(n) => self.is_deterministic(
-                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
+                crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
             PlanNodeEnum::TopN(n) => self.is_deterministic(
-                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
+                crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
             PlanNodeEnum::Union(n) => self.is_deterministic(
-                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
+                crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
@@ -345,14 +345,14 @@ impl MaterializationOptimizer {
                 let condition = n.condition();
                 let analysis = self.expression_analyzer.analyze(condition);
                 max_complexity = max_complexity.max(analysis.complexity_score);
-                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
+                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
             }
             PlanNodeEnum::Project(n) => {
-                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
+                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
             }
             PlanNodeEnum::Aggregate(n) => {
                 // 聚合函数的复杂度由输入决定
-                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
+                max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
             }
             _ => {}
         }
@@ -375,7 +375,7 @@ impl MaterializationOptimizer {
                 }
             }
             PlanNodeEnum::Filter(n) => (self.estimate_result_rows(
-                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
+                crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ) as f64
@@ -411,7 +411,7 @@ impl MaterializationOptimizer {
                 (left_rows as f64 * right_rows as f64 * 0.3) as u64
             }
             PlanNodeEnum::Aggregate(n) => {
-                let input_rows = self.estimate_result_rows(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n));
+                let input_rows = self.estimate_result_rows(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n));
                 let group_keys = n.group_keys().len();
                 if group_keys == 0 {
                     1
@@ -449,7 +449,7 @@ impl MaterializationOptimizer {
     pub fn materialize(
         &self,
         cte_node: PlanNodeEnum,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let materialize_node = MaterializeNode::new(cte_node)?;
         Ok(PlanNodeEnum::Materialize(materialize_node))
     }
@@ -506,7 +506,7 @@ mod tests {
         // 简单表达式是确定性的
         let simple_expr = Expression::Literal(crate::core::Value::Int(42));
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
-        let meta = crate::core::types::expression::ExpressionMeta::new(simple_expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(simple_expr);
         let id = ctx.register_expression(meta);
         let simple_ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
         let analysis = expression_analyzer.analyze(&simple_ctx_expr);
@@ -518,7 +518,7 @@ mod tests {
             args: vec![],
         };
         let ctx2 = std::sync::Arc::new(ExpressionAnalysisContext::new());
-        let meta2 = crate::core::types::expression::ExpressionMeta::new(nondet_expr);
+        let meta2 = crate::core::types::expr::ExpressionMeta::new(nondet_expr);
         let id2 = ctx2.register_expression(meta2);
         let nondet_ctx_expr = crate::core::types::ContextualExpression::new(id2, ctx2);
         let analysis = expression_analyzer.analyze(&nondet_ctx_expr);

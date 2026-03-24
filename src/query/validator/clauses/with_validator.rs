@@ -3,7 +3,7 @@
 //! 参考 nebula-graph MatchValidator.cpp 中的 With 子句验证
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, ReturnItem, WithStmt};
 use crate::query::validator::structs::validation_info::ValidationInfo;
 use crate::query::validator::structs::AliasType;
@@ -81,9 +81,9 @@ impl WithValidator {
     /// 内部方法：验证表达式
     fn validate_expression_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> Result<(), ValidationError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match expr {
             Expression::Literal(_) => Ok(()),
@@ -123,7 +123,7 @@ impl WithValidator {
     fn validate_function_call_internal(
         &self,
         name: &str,
-        args: &[crate::core::types::expression::Expression],
+        args: &[crate::core::types::expr::Expression],
     ) -> Result<(), ValidationError> {
         if name.is_empty() {
             return Err(ValidationError::new(
@@ -148,7 +148,7 @@ impl WithValidator {
 
         // WHERE 子句必须是布尔类型或可转换为布尔类型
         if let Some(e) = where_clause.get_expression() {
-            use crate::core::types::expression::Expression;
+            use crate::core::types::expr::Expression;
             match e {
                 Expression::Literal(_)
                 | Expression::Variable(_)
@@ -180,9 +180,9 @@ impl WithValidator {
     /// 内部方法：推断列名
     fn infer_column_name_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> Option<String> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match expr {
             Expression::Variable(name) => Some(name.clone()),
@@ -204,9 +204,9 @@ impl WithValidator {
     /// 内部方法：推断表达式类型
     fn infer_expression_type_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> ValueType {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
         use crate::core::Value;
 
         match expr {
@@ -405,7 +405,7 @@ mod tests {
 
     #[test]
     fn test_validate_where_clause() {
-        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
+        use crate::core::types::expr::{ContextualExpression, Expression, ExpressionMeta};
         use std::sync::Arc;
 
         let validator = WithValidator::new();

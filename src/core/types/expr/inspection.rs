@@ -2,7 +2,7 @@
 //!
 //! 提供检查表达式属性和状态的方法。
 
-use crate::core::types::expression::Expression;
+use crate::core::types::expr::Expression;
 use crate::core::Value;
 
 impl Expression {

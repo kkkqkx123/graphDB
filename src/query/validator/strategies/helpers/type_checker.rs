@@ -29,7 +29,7 @@ impl TypeDeduceValidator {
 
     pub fn deduce_type(
         &self,
-        expression: &crate::core::types::expression::contextual::ContextualExpression,
+        expression: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> DataType {
         if let Some(expr) = expression.get_expression() {
             expr.deduce_type()
@@ -618,9 +618,9 @@ pub fn deduce_expression_type(expression: &Expression) -> DataType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
-    use crate::core::types::expression::Expression;
-    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expr::contextual::ContextualExpression;
+    use crate::core::types::expr::Expression;
+    use crate::core::types::expr::ExpressionMeta;
     use std::sync::Arc;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 

@@ -10,12 +10,12 @@
 //! - 更好的缓存局部性
 //! - 编译器可以内联优化
 
-use crate::query::planner::plan::ExecutionPlan;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::result::RewriteResult;
-use crate::query::planner::rewrite::rule_enum::{RewriteRule as RewriteRuleEnum, RuleRegistry};
-use crate::query::planner::rewrite::visitor::ChildRewriteVisitor;
+use crate::query::planning::plan::ExecutionPlan;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::result::RewriteResult;
+use crate::query::planning::rewrite::rule_enum::{RewriteRule as RewriteRuleEnum, RuleRegistry};
+use crate::query::planning::rewrite::visitor::ChildRewriteVisitor;
 
 /// 计划重写器
 ///
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_plan_rewriter_add_rule() {
-        use crate::query::planner::rewrite::elimination::EliminateFilterRule;
+        use crate::query::planning::rewrite::elimination::EliminateFilterRule;
 
         let mut rewriter = PlanRewriter::new();
         assert_eq!(rewriter.rule_count(), 0);

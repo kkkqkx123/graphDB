@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::core::types::expression::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};

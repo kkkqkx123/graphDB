@@ -14,16 +14,16 @@ use crate::core::YieldColumn;
 use crate::query::parser::ast::pattern::{PathElement, Pattern, RepetitionType};
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::OrderByItem;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
-use crate::query::planner::plan::core::nodes::ExpandAllNode;
-use crate::query::planner::plan::core::nodes::{
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
+use crate::query::planning::plan::core::nodes::ExpandAllNode;
+use crate::query::planning::plan::core::nodes::{
     ArgumentNode, LeftJoinNode, LimitNode, LoopNode, ProjectNode, ScanVerticesNode, SortItem,
     SortNode, UnionNode,
 };
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
-use crate::query::planner::statements::statement_planner::StatementPlanner;
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::statements::statement_planner::StatementPlanner;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::validator::ValidationInfo;
@@ -425,7 +425,7 @@ impl MatchStatementPlanner {
 
     /// 交叉连接两个计划
     fn cross_join_plans(&self, left: SubPlan, right: SubPlan) -> Result<SubPlan, PlannerError> {
-        use crate::query::planner::plan::core::nodes::CrossJoinNode;
+        use crate::query::planning::plan::core::nodes::CrossJoinNode;
 
         let left_root = match left.root {
             Some(ref r) => r,
@@ -458,7 +458,7 @@ impl MatchStatementPlanner {
         right_alias: &Option<String>,
         expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<SubPlan, PlannerError> {
-        use crate::query::planner::plan::core::nodes::HashInnerJoinNode;
+        use crate::query::planning::plan::core::nodes::HashInnerJoinNode;
 
         let left_root = match left.root {
             Some(ref r) => r,
@@ -475,14 +475,14 @@ impl MatchStatementPlanner {
         // 构建哈希键和探测键表达式
         // 左表使用已存在的别名作为哈希键
         let hash_key_expr = crate::core::Expression::variable(left_alias);
-        let hash_key_meta = crate::core::types::expression::ExpressionMeta::new(hash_key_expr);
+        let hash_key_meta = crate::core::types::expr::ExpressionMeta::new(hash_key_expr);
         let hash_key_id = ctx.register_expression(hash_key_meta);
         let hash_keys = vec![ContextualExpression::new(hash_key_id, ctx.clone())];
 
         // 右表使用新节点的变量名或默认名称作为探测键
         let probe_alias = right_alias.as_deref().unwrap_or("n");
         let probe_key_expr = crate::core::Expression::variable(probe_alias);
-        let probe_key_meta = crate::core::types::expression::ExpressionMeta::new(probe_key_expr);
+        let probe_key_meta = crate::core::types::expr::ExpressionMeta::new(probe_key_expr);
         let probe_key_id = ctx.register_expression(probe_key_meta);
         let probe_keys = vec![ContextualExpression::new(probe_key_id, ctx)];
 
@@ -862,7 +862,7 @@ impl MatchStatementPlanner {
         };
 
         // 创建循环条件表达式
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(
             crate::core::Expression::Variable(condition_str),
         );
         let id = expr_context.register_expression(expr_meta);
@@ -925,7 +925,7 @@ impl MatchStatementPlanner {
             })
         };
 
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         ContextualExpression::new(id, ctx)
     }

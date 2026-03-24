@@ -5,12 +5,12 @@
 use crate::core::types::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::{DeleteStmt, DeleteTarget, Stmt};
-use crate::query::planner::plan::core::{
+use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{ArgumentNode, ProjectNode},
 };
-use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;
 
@@ -67,7 +67,7 @@ impl Planner for DeletePlanner {
         // 根据删除目标类型构建不同的计划
         let yield_columns = match &delete_stmt.target {
             DeleteTarget::Vertices(..) => {
-                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                     crate::core::Expression::Variable("deleted_vertices".to_string()),
                 );
                 let id = validated.expr_context().register_expression(expr_meta);
@@ -79,7 +79,7 @@ impl Planner for DeletePlanner {
                 }]
             }
             DeleteTarget::Edges { .. } => {
-                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                     crate::core::Expression::Variable("deleted_edges".to_string()),
                 );
                 let id = validated.expr_context().register_expression(expr_meta);
@@ -91,7 +91,7 @@ impl Planner for DeletePlanner {
                 }]
             }
             DeleteTarget::Tags { .. } => {
-                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                     crate::core::Expression::Variable("deleted_tags".to_string()),
                 );
                 let id = validated.expr_context().register_expression(expr_meta);
@@ -103,7 +103,7 @@ impl Planner for DeletePlanner {
                 }]
             }
             DeleteTarget::Index(..) => {
-                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                     crate::core::Expression::Variable("deleted_index".to_string()),
                 );
                 let id = validated.expr_context().register_expression(expr_meta);

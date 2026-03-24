@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use crate::core::types::expression::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::{Ast, Stmt};
-use crate::query::parser::parser::expr_parser::ExprParser;
-use crate::query::parser::parser::parse_context::ParseContext;
-use crate::query::parser::parser::stmt_parser::StmtParser;
+use crate::query::parser::parsing::expr_parser::ExprParser;
+use crate::query::parser::parsing::parse_context::ParseContext;
+use crate::query::parser::parsing::stmt_parser::StmtParser;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// Parser 解析结果，包含 AST（语句 + 表达式上下文）

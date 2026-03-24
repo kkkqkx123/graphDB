@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::stmt::{Ast, MatchStmt, OrderByClause, ReturnClause, ReturnItem};
 use crate::query::parser::ast::{Pattern, Stmt};
@@ -546,7 +546,7 @@ impl MatchValidator {
         for part in query_parts {
             for alias in part.aliases_generated.keys() {
                 let ctx = ContextualExpression::new(
-                    crate::core::types::expression::ExpressionId::new(0),
+                    crate::core::types::expr::ExpressionId::new(0),
                     std::sync::Arc::new(ExpressionAnalysisContext::new()),
                 );
                 let col = YieldColumn::new(ctx, alias.clone());
@@ -818,14 +818,14 @@ impl MatchValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expr::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;
     use ExpressionAnalysisContext;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
     }

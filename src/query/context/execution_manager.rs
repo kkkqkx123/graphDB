@@ -2,7 +2,7 @@
 //!
 //! 管理查询执行过程中的执行计划和终止信号。
 
-use crate::query::planner::plan::ExecutionPlan;
+use crate::query::planning::plan::ExecutionPlan;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// 查询执行管理器

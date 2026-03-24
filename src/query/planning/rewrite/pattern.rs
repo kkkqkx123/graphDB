@@ -3,7 +3,7 @@
 //! 提供计划节点的模式匹配功能，用于重写规则识别特定计划结构。
 //! 这是从 optimizer 层独立出来的简化版本，专注于启发式重写规则的需求。
 
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// 生成节点匹配方法的宏
 ///
@@ -295,9 +295,9 @@ mod tests {
     use crate::core::types::ContextualExpression;
     use crate::core::Value;
     use crate::query::validator::context::ExpressionAnalysisContext;
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
-    use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
-    use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
+    use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
+    use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
     use std::sync::Arc;
 
     #[test]
@@ -308,7 +308,7 @@ mod tests {
             ProjectNode::new(input_node.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
         );
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(Expression::Literal(
             Value::Bool(true),
         ));
         let id = ctx.register_expression(expr_meta);
@@ -353,7 +353,7 @@ mod tests {
             ProjectNode::new(scan.clone(), Vec::new()).expect("创建ProjectNode应该成功"),
         );
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(Expression::Literal(
             Value::Bool(true),
         ));
         let id = ctx.register_expression(expr_meta);
@@ -365,7 +365,7 @@ mod tests {
         assert!(pattern.matches(&filter));
 
         // Filter -> Scan 不应该匹配
-        let expr_meta2 = crate::core::types::expression::ExpressionMeta::new(Expression::Literal(
+        let expr_meta2 = crate::core::types::expr::ExpressionMeta::new(Expression::Literal(
             Value::Bool(true),
         ));
         let id2 = ctx.register_expression(expr_meta2);

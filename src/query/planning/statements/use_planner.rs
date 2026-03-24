@@ -3,12 +3,12 @@
 //! 处理 USE <space> 语句的查询规划
 
 use crate::query::parser::ast::{Stmt, UseStmt};
-use crate::query::planner::plan::core::{
+use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{ArgumentNode, SwitchSpaceNode},
 };
-use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;
 

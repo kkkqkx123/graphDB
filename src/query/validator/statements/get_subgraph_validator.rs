@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::{
     Ast, FromClause, OverClause, Steps, SubgraphStmt, YieldClause,
 };

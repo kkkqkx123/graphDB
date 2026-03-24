@@ -3,11 +3,11 @@
 //! 负责解析各种语句，包括 MATCH、GO、CREATE、DELETE、UPDATE 等。
 //! 本模块作为入口，将具体解析逻辑委托给各个子模块。
 
-use crate::core::types::expression::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
-use crate::query::parser::parser::parse_context::ParseContext;
-use crate::query::parser::parser::{
+use crate::query::parser::parsing::parse_context::ParseContext;
+use crate::query::parser::parsing::{
     ddl_parser::DdlParser, dml_parser::DmlParser, traversal_parser::TraversalParser,
     user_parser::UserParser, util_stmt_parser::UtilStmtParser,
 };
@@ -181,9 +181,9 @@ impl StmtParser {
 
     /// 解析 GROUP BY 语句
     fn parse_group_by_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
         use crate::query::parser::ast::stmt::{GroupByStmt, YieldItem};
-        use crate::query::parser::parser::clause_parser::ClauseParser;
+        use crate::query::parser::parsing::clause_parser::ClauseParser;
 
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Group)?;
@@ -194,9 +194,9 @@ impl StmtParser {
         loop {
             let ident = ctx.expect_identifier()?;
             let expr = Expression::Variable(ident);
-            let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+            let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
             let expr_id = ctx.expression_context().register_expression(expr_meta);
-            let contextual_expr = crate::core::types::expression::ContextualExpression::new(
+            let contextual_expr = crate::core::types::expr::ContextualExpression::new(
                 expr_id,
                 ctx.expression_context_clone(),
             );
@@ -253,7 +253,7 @@ impl StmtParser {
         &mut self,
         ctx: &mut ParseContext,
     ) -> Result<ContextualExpression, ParseError> {
-        let mut expr_parser = crate::query::parser::parser::ExprParser::new(ctx);
+        let mut expr_parser = crate::query::parser::parsing::ExprParser::new(ctx);
         expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 
@@ -394,7 +394,7 @@ impl StmtParser {
         ctx: &mut ParseContext,
     ) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::UpdateConfigsStmt;
-        use crate::query::parser::parser::dml_parser::DmlParser;
+        use crate::query::parser::parsing::dml_parser::DmlParser;
 
         // 检查是否是 UPDATE CONFIGS
         // 先消费 UPDATE token
@@ -470,8 +470,8 @@ impl StmtParser {
         &mut self,
         ctx: &mut ParseContext,
     ) -> Result<Stmt, ParseError> {
-        use crate::query::parser::parser::ddl_parser::DdlParser;
-        use crate::query::parser::parser::dml_parser::DmlParser;
+        use crate::query::parser::parsing::ddl_parser::DdlParser;
+        use crate::query::parser::parsing::dml_parser::DmlParser;
 
         // 预读下一个 token 来判断 CREATE 类型
         let start_span = ctx.current_span();
@@ -558,7 +558,7 @@ impl Default for StmtParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::parser::parse_context::ParseContext;
+    use crate::query::parser::parsing::parse_context::ParseContext;
 
     fn create_parser_context<'a>(input: &'a str) -> ParseContext<'a> {
         ParseContext::new(input)

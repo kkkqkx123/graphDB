@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod expression_strategy_tests {
-    use crate::core::types::expression::utils::test_helpers::create_test_contextual_expression;
+    use crate::core::types::expr::utils::test_helpers::create_test_contextual_expression;
     use crate::core::types::YieldColumn;
     use crate::core::Expression;
     use crate::core::Value;

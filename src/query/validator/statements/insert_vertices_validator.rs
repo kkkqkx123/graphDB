@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::query::parser::ast::stmt::{Ast, InsertTarget, TagInsertSpec, VertexRow};
@@ -194,9 +194,9 @@ impl InsertVerticesValidator {
     /// 内部方法：评估表达式为值
     fn evaluate_expression_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> Result<Value, ValidationError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match expr {
             Expression::Literal(val) => Ok(val.clone()),
@@ -366,7 +366,7 @@ impl StatementValidator for InsertVerticesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expr::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;
     use crate::query::parser::ast::stmt::InsertStmt;
@@ -377,7 +377,7 @@ mod tests {
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
     }

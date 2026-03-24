@@ -37,7 +37,7 @@
 //! ## 使用示例
 //!
 //! ```rust
-//! use crate::core::types::expression::Expression;
+//! use crate::core::types::expr::Expression;
 //! use crate::core::types::operators::{BinaryOperator, AggregateFunction};
 //! use crate::core::Value;
 //!

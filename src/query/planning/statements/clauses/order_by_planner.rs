@@ -5,11 +5,11 @@
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::OrderByItem;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::operation::sort_node::{SortItem, SortNode};
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::PlannerError;
-use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planning::plan::core::nodes::operation::sort_node::{SortItem, SortNode};
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::PlannerError;
+use crate::query::planning::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -92,8 +92,8 @@ mod tests {
     use crate::core::types::OrderDirection;
     use crate::core::Expression;
     use crate::query::parser::ast::{OrderByItem, Span};
-    use crate::query::planner::plan::core::nodes::StartNode;
-    use crate::query::planner::plan::core::PlanNodeEnum;
+    use crate::query::planning::plan::core::nodes::StartNode;
+    use crate::query::planning::plan::core::PlanNodeEnum;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
@@ -107,7 +107,7 @@ mod tests {
     fn test_extract_order_by_items() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
@@ -154,7 +154,7 @@ mod tests {
     fn test_expression_to_string() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
@@ -169,7 +169,7 @@ mod tests {
             object: Box::new(Expression::Variable("n".to_string())),
             property: "name".to_string(),
         };
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
@@ -181,7 +181,7 @@ mod tests {
     fn test_transform_clause() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
@@ -274,7 +274,7 @@ mod tests {
     fn test_transform_clause_empty_input_plan() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 

@@ -10,8 +10,8 @@ use crate::query::executor::data_access::{
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::factory::parsers::{parse_edge_direction, parse_vertex_ids};
-use crate::query::planner::plan::core::nodes::access::IndexScanNode;
-use crate::query::planner::plan::core::nodes::{
+use crate::query::planning::plan::core::nodes::access::IndexScanNode;
+use crate::query::planning::plan::core::nodes::{
     EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode,
     ScanVerticesNode,
 };

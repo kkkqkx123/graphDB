@@ -2,7 +2,7 @@
 //!
 //! 提供表达式到字符串的转换方法。
 
-use crate::core::types::expression::Expression;
+use crate::core::types::expr::Expression;
 use std::fmt;
 
 impl Expression {

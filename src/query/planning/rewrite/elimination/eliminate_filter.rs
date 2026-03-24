@@ -25,12 +25,12 @@
 
 use crate::core::types::operators::BinaryOperator;
 use crate::core::{Expression, Value};
-use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 
 /// 消除永假式过滤操作的规则
 ///
@@ -161,7 +161,7 @@ impl EliminationRule for EliminateFilterRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::rewrite::rule::RewriteRule;
+    use crate::query::planning::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_eliminate_filter_rule_name() {

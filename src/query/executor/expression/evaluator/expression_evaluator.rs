@@ -3,8 +3,8 @@
 //! 提供具体的表达式求值功能，使用直接递归匹配实现，避免不必要的抽象开销。
 
 use crate::core::error::ExpressionError;
-use crate::core::types::expression::utils::is_evaluable;
-use crate::core::types::expression::Expression;
+use crate::core::types::expr::utils::is_evaluable;
+use crate::core::types::expr::Expression;
 use crate::core::value::dataset::List;
 use crate::core::value::NullType;
 use crate::core::Value;

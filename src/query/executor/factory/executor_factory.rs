@@ -8,7 +8,7 @@ use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::factory::builders::Builders;
 use crate::query::executor::factory::validators::{RecursionDetector, SafetyValidator};
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -482,7 +482,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     /// 构建 Loop 执行器（辅助方法，解决借用检查问题）
     fn build_loop_executor(
         &mut self,
-        node: &crate::query::planner::plan::core::nodes::LoopNode,
+        node: &crate::query::planning::plan::core::nodes::LoopNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
@@ -535,7 +535,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
     /// 构建 Select 执行器（辅助方法，解决借用检查问题）
     fn build_select_executor(
         &mut self,
-        node: &crate::query::planner::plan::core::nodes::SelectNode,
+        node: &crate::query::planning::plan::core::nodes::SelectNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {

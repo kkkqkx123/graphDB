@@ -10,7 +10,7 @@ use super::NodeEstimator;
 use crate::core::error::optimize::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// 图算法节点估算器
 pub struct GraphAlgorithmEstimator<'a> {
@@ -74,8 +74,8 @@ impl<'a> NodeEstimator for GraphAlgorithmEstimator<'a> {
 mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::traversal::{
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::traversal::{
         AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
     };
     use std::sync::Arc;

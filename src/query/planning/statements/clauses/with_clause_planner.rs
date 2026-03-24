@@ -9,13 +9,13 @@
 //! 4. 分页：通过 SKIP/LIMIT 限制结果数量
 //! 5. 作用域重置：只保留输出的变量，其他变量不可见
 
-use crate::core::types::expression::common_utils::extract_group_info;
+use crate::core::types::expr::common_utils::extract_group_info;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::PlannerError;
-use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::planning::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::PlannerError;
+use crate::query::planning::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::{
     AliasType, CypherClauseKind, OrderByClauseContext, PaginationContext, WithClauseContext,
 };
@@ -102,7 +102,7 @@ impl WithClausePlanner {
     fn create_filter_node(
         &self,
         input_plan: &SubPlan,
-        condition: &crate::core::types::expression::ContextualExpression,
+        condition: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> Result<PlanNodeEnum, PlannerError> {
         let input_node = input_plan
             .root()
@@ -133,7 +133,7 @@ impl WithClausePlanner {
         // 将索引排序因子转换为排序项（包含列名和方向）
         // 注意：这里假设索引对应于列名列表中的位置
         // 如果索引超出范围，使用占位符名称
-        let sort_items: Vec<crate::query::planner::plan::core::nodes::SortItem> = order_by_ctx
+        let sort_items: Vec<crate::query::planning::plan::core::nodes::SortItem> = order_by_ctx
             .indexed_order_factors
             .iter()
             .map(|(idx, dir)| {
@@ -141,7 +141,7 @@ impl WithClausePlanner {
                     .get(*idx)
                     .cloned()
                     .unwrap_or_else(|| format!("col_{}", idx));
-                crate::query::planner::plan::core::nodes::SortItem::new(column.clone(), *dir)
+                crate::query::planning::plan::core::nodes::SortItem::new(column.clone(), *dir)
             })
             .collect();
 
@@ -152,7 +152,7 @@ impl WithClausePlanner {
 
         // 创建排序节点
         let sort_node =
-            crate::query::planner::plan::core::nodes::SortNode::new(input_node.clone(), sort_items)
+            crate::query::planning::plan::core::nodes::SortNode::new(input_node.clone(), sort_items)
                 .map_err(|e| {
                     PlannerError::PlanGenerationFailed(format!("创建排序节点失败: {}", e))
                 })?;
@@ -191,7 +191,7 @@ impl WithClausePlanner {
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
         // 创建去重节点（使用 AggregateNode 的简化版本）
-        let dedup_node = crate::query::planner::plan::core::nodes::DedupNode::new(
+        let dedup_node = crate::query::planning::plan::core::nodes::DedupNode::new(
             input_node.clone(),
         )
         .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建去重节点失败: {}", e)))?;
@@ -353,14 +353,14 @@ impl WithClausePlanner {
     /// 根据表达式推断别名类型
     /// 参考 NebulaGraph 的 DeduceAliasTypeVisitor 实现
     fn deduce_alias_type(
-        expression: &crate::core::types::expression::contextual::ContextualExpression,
+        expression: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> AliasType {
         Self::deduce_alias_type_from_contextual(expression)
     }
 
     /// 从 ContextualExpression 推断别名类型（辅助方法）
     fn deduce_alias_type_from_contextual(
-        expression: &crate::core::types::expression::contextual::ContextualExpression,
+        expression: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> AliasType {
         // 大多数表达式无法推断类型，默认返回 Runtime
         if expression.is_literal()
@@ -424,7 +424,7 @@ impl WithClausePlanner {
 
     /// 生成默认别名
     fn generate_default_alias(
-        expression: &crate::core::types::expression::contextual::ContextualExpression,
+        expression: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> String {
         use crate::core::Expression;
 

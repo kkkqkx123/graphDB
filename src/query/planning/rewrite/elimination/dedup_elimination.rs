@@ -21,12 +21,12 @@
 //! - Dedup 节点的子节点为 IndexScan、GetVertices 或 GetEdges
 //! - 这些操作本身就保证结果的唯一性
 
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 
 /// 消除重复操作的规则
 ///
@@ -131,7 +131,7 @@ impl EliminationRule for DedupEliminationRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::rewrite::rule::RewriteRule;
+    use crate::query::planning::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_dedup_elimination_rule_name() {
@@ -152,7 +152,7 @@ mod tests {
 
         // Start 节点保证唯一性
         let start_node =
-            crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
+            crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode::new();
         assert!(rule.child_guarantees_uniqueness(&PlanNodeEnum::Start(start_node)));
     }
 }

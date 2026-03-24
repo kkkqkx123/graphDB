@@ -5,14 +5,14 @@
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::expression_utils::{check_col_name, split_filter};
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::expression_utils::{check_col_name, split_filter};
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将过滤条件下推到内连接操作的规则
 ///
@@ -123,11 +123,11 @@ impl RewriteRule for PushFilterDownInnerJoinRule {
                 Some(meta) => meta.inner().clone(),
                 None => return Ok(None),
             };
-            let left_expr_meta = crate::core::types::expression::ExpressionMeta::new(left_expr);
+            let left_expr_meta = crate::core::types::expr::ExpressionMeta::new(left_expr);
             let left_id = ctx.register_expression(left_expr_meta);
             let left_ctx_expr = ContextualExpression::new(left_id, ctx.clone());
             let left_filter_node = FilterNode::new(new_left, left_ctx_expr).map_err(|e| {
-                crate::query::planner::rewrite::result::RewriteError::rewrite_failed(format!(
+                crate::query::planning::rewrite::result::RewriteError::rewrite_failed(format!(
                     "创建FilterNode失败: {:?}",
                     e
                 ))
@@ -142,11 +142,11 @@ impl RewriteRule for PushFilterDownInnerJoinRule {
                 Some(meta) => meta.inner().clone(),
                 None => return Ok(None),
             };
-            let right_expr_meta = crate::core::types::expression::ExpressionMeta::new(right_expr);
+            let right_expr_meta = crate::core::types::expr::ExpressionMeta::new(right_expr);
             let right_id = ctx.register_expression(right_expr_meta);
             let right_ctx_expr = ContextualExpression::new(right_id, ctx.clone());
             let right_filter_node = FilterNode::new(new_right, right_ctx_expr).map_err(|e| {
-                crate::query::planner::rewrite::result::RewriteError::rewrite_failed(format!(
+                crate::query::planning::rewrite::result::RewriteError::rewrite_failed(format!(
                     "创建FilterNode失败: {:?}",
                     e
                 ))
@@ -217,8 +217,8 @@ impl PushDownRule for PushFilterDownInnerJoinRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::join::join_node::InnerJoinNode;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::join::join_node::InnerJoinNode;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
@@ -244,7 +244,7 @@ mod tests {
 
         let condition = Expression::Variable("test".to_string());
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
         let filter = FilterNode::new(start_enum.clone(), ctx_expr).expect("创建FilterNode失败");

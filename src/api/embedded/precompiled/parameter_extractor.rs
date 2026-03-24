@@ -3,7 +3,7 @@
 //! 负责从查询语句中提取参数信息
 
 use crate::api::core::CoreError;
-use crate::core::types::expression::{ContextualExpression, Expression};
+use crate::core::types::expr::{ContextualExpression, Expression};
 use crate::core::DataType;
 use crate::query::parser::ast::pattern::{PathElement, Pattern};
 use crate::query::parser::ast::stmt::{
@@ -11,7 +11,7 @@ use crate::query::parser::ast::stmt::{
     MatchStmt, MergeStmt, PipeStmt, QueryStmt, RemoveStmt, ReturnStmt, SetStmt, Stmt, SubgraphStmt,
     UnwindStmt, UpdateStmt, WithStmt, YieldStmt,
 };
-use crate::query::parser::parser::Parser;
+use crate::query::parser::parsing::Parser;
 use std::collections::HashMap;
 
 /// 从查询中提取参数

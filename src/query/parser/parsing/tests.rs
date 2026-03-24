@@ -1,5 +1,5 @@
 use crate::query::parser::ast::stmt::*;
-use crate::query::parser::parser::Parser;
+use crate::query::parser::parsing::Parser;
 
 #[cfg(test)]
 mod tests {

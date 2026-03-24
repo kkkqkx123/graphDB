@@ -2,7 +2,7 @@
 //! 负责验证表达式中的别名引用和可用性
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 
@@ -70,59 +70,59 @@ impl AliasValidationStrategy {
     /// 内部方法：从表达式中提取别名名称
     fn extract_alias_name_internal(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
     ) -> Option<String> {
         match expression {
-            crate::core::types::expression::Expression::Variable(name) => Some(name.clone()),
-            crate::core::types::expression::Expression::Property { object, .. } => {
+            crate::core::types::expr::Expression::Variable(name) => Some(name.clone()),
+            crate::core::types::expr::Expression::Property { object, .. } => {
                 self.extract_alias_name_internal(object)
             }
-            crate::core::types::expression::Expression::Label(name) => Some(name.clone()),
-            crate::core::types::expression::Expression::TagProperty { tag_name, .. } => {
+            crate::core::types::expr::Expression::Label(name) => Some(name.clone()),
+            crate::core::types::expr::Expression::TagProperty { tag_name, .. } => {
                 Some(tag_name.clone())
             }
-            crate::core::types::expression::Expression::EdgeProperty { edge_name, .. } => {
+            crate::core::types::expr::Expression::EdgeProperty { edge_name, .. } => {
                 Some(edge_name.clone())
             }
-            crate::core::types::expression::Expression::LabelTagProperty { tag, .. } => {
+            crate::core::types::expr::Expression::LabelTagProperty { tag, .. } => {
                 self.extract_alias_name_internal(tag)
             }
-            crate::core::types::expression::Expression::Parameter(name) => Some(name.clone()),
-            crate::core::types::expression::Expression::ListComprehension { variable, .. } => {
+            crate::core::types::expr::Expression::Parameter(name) => Some(name.clone()),
+            crate::core::types::expr::Expression::ListComprehension { variable, .. } => {
                 Some(variable.clone())
             }
-            crate::core::types::expression::Expression::Reduce {
+            crate::core::types::expr::Expression::Reduce {
                 accumulator,
                 variable: _,
                 ..
             } => Some(accumulator.clone()),
-            crate::core::types::expression::Expression::PathBuild(items) => {
+            crate::core::types::expr::Expression::PathBuild(items) => {
                 if let Some(first) = items.first() {
                     self.extract_alias_name_internal(first)
                 } else {
                     None
                 }
             }
-            crate::core::types::expression::Expression::Path(items) => {
+            crate::core::types::expr::Expression::Path(items) => {
                 if let Some(first) = items.first() {
                     self.extract_alias_name_internal(first)
                 } else {
                     None
                 }
             }
-            crate::core::types::expression::Expression::Subscript { collection, .. } => {
+            crate::core::types::expr::Expression::Subscript { collection, .. } => {
                 self.extract_alias_name_internal(collection)
             }
-            crate::core::types::expression::Expression::Range { collection, .. } => {
+            crate::core::types::expr::Expression::Range { collection, .. } => {
                 self.extract_alias_name_internal(collection)
             }
-            crate::core::types::expression::Expression::TypeCast { expression, .. } => {
+            crate::core::types::expr::Expression::TypeCast { expression, .. } => {
                 self.extract_alias_name_internal(expression)
             }
-            crate::core::types::expression::Expression::Aggregate { arg, .. } => {
+            crate::core::types::expr::Expression::Aggregate { arg, .. } => {
                 self.extract_alias_name_internal(arg)
             }
-            crate::core::types::expression::Expression::Function { name, args } => {
+            crate::core::types::expr::Expression::Function { name, args } => {
                 match name.to_lowercase().as_str() {
                     "startnode" | "endnode" => {
                         if let Some(arg) = args.first() {
@@ -134,55 +134,55 @@ impl AliasValidationStrategy {
                     _ => None,
                 }
             }
-            crate::core::types::expression::Expression::Unary { operand, .. } => {
+            crate::core::types::expr::Expression::Unary { operand, .. } => {
                 self.extract_alias_name_internal(operand)
             }
-            crate::core::types::expression::Expression::Binary { left, .. } => {
+            crate::core::types::expr::Expression::Binary { left, .. } => {
                 self.extract_alias_name_internal(left)
             }
-            crate::core::types::expression::Expression::Case { test_expr, .. } => test_expr
+            crate::core::types::expr::Expression::Case { test_expr, .. } => test_expr
                 .as_ref()
                 .and_then(|e| self.extract_alias_name_internal(e)),
-            crate::core::types::expression::Expression::Literal(_)
-            | crate::core::types::expression::Expression::List(_)
-            | crate::core::types::expression::Expression::Map(_)
-            | crate::core::types::expression::Expression::Predicate { .. } => None,
+            crate::core::types::expr::Expression::Literal(_)
+            | crate::core::types::expr::Expression::List(_)
+            | crate::core::types::expr::Expression::Map(_)
+            | crate::core::types::expr::Expression::Predicate { .. } => None,
         }
     }
 
     /// 内部方法：递归验证子表达式中的别名
     fn validate_subexpressions_aliases_internal(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         match expression {
-            crate::core::types::expression::Expression::Unary { operand, .. } => {
+            crate::core::types::expr::Expression::Unary { operand, .. } => {
                 self.validate_expression_aliases_internal(operand, aliases)
             }
-            crate::core::types::expression::Expression::Binary { left, right, .. } => {
+            crate::core::types::expr::Expression::Binary { left, right, .. } => {
                 self.validate_expression_aliases_internal(left, aliases)?;
                 self.validate_expression_aliases_internal(right, aliases)
             }
-            crate::core::types::expression::Expression::Function { args, .. } => {
+            crate::core::types::expr::Expression::Function { args, .. } => {
                 for arg in args {
                     self.validate_expression_aliases_internal(arg, aliases)?;
                 }
                 Ok(())
             }
-            crate::core::types::expression::Expression::List(items) => {
+            crate::core::types::expr::Expression::List(items) => {
                 for item in items {
                     self.validate_expression_aliases_internal(item, aliases)?;
                 }
                 Ok(())
             }
-            crate::core::types::expression::Expression::Map(items) => {
+            crate::core::types::expr::Expression::Map(items) => {
                 for (_, value) in items {
                     self.validate_expression_aliases_internal(value, aliases)?;
                 }
                 Ok(())
             }
-            crate::core::types::expression::Expression::Case {
+            crate::core::types::expr::Expression::Case {
                 test_expr,
                 conditions,
                 default,
@@ -199,31 +199,31 @@ impl AliasValidationStrategy {
                 }
                 Ok(())
             }
-            crate::core::types::expression::Expression::Subscript { collection, index } => {
+            crate::core::types::expr::Expression::Subscript { collection, index } => {
                 self.validate_expression_aliases_internal(collection, aliases)?;
                 self.validate_expression_aliases_internal(index, aliases)
             }
-            crate::core::types::expression::Expression::Literal(_)
-            | crate::core::types::expression::Expression::Property { .. }
-            | crate::core::types::expression::Expression::Variable(_)
-            | crate::core::types::expression::Expression::Label(_)
-            | crate::core::types::expression::Expression::ListComprehension { .. }
-            | crate::core::types::expression::Expression::TagProperty { .. }
-            | crate::core::types::expression::Expression::EdgeProperty { .. }
-            | crate::core::types::expression::Expression::LabelTagProperty { .. }
-            | crate::core::types::expression::Expression::Predicate { .. }
-            | crate::core::types::expression::Expression::Reduce { .. }
-            | crate::core::types::expression::Expression::PathBuild(_)
-            | crate::core::types::expression::Expression::Parameter(_) => Ok(()),
-            crate::core::types::expression::Expression::TypeCast { expression, .. } => {
+            crate::core::types::expr::Expression::Literal(_)
+            | crate::core::types::expr::Expression::Property { .. }
+            | crate::core::types::expr::Expression::Variable(_)
+            | crate::core::types::expr::Expression::Label(_)
+            | crate::core::types::expr::Expression::ListComprehension { .. }
+            | crate::core::types::expr::Expression::TagProperty { .. }
+            | crate::core::types::expr::Expression::EdgeProperty { .. }
+            | crate::core::types::expr::Expression::LabelTagProperty { .. }
+            | crate::core::types::expr::Expression::Predicate { .. }
+            | crate::core::types::expr::Expression::Reduce { .. }
+            | crate::core::types::expr::Expression::PathBuild(_)
+            | crate::core::types::expr::Expression::Parameter(_) => Ok(()),
+            crate::core::types::expr::Expression::TypeCast { expression, .. } => {
                 // 类型转换表达式需要验证其子表达式
                 self.validate_expression_aliases_internal(expression, aliases)
             }
-            crate::core::types::expression::Expression::Aggregate { arg, .. } => {
+            crate::core::types::expr::Expression::Aggregate { arg, .. } => {
                 // 聚合函数表达式需要验证其参数表达式
                 self.validate_expression_aliases_internal(arg, aliases)
             }
-            crate::core::types::expression::Expression::Range {
+            crate::core::types::expr::Expression::Range {
                 collection,
                 start,
                 end,
@@ -238,7 +238,7 @@ impl AliasValidationStrategy {
                 }
                 Ok(())
             }
-            crate::core::types::expression::Expression::Path(items) => {
+            crate::core::types::expr::Expression::Path(items) => {
                 // 路径表达式需要验证其所有项
                 for item in items {
                     self.validate_expression_aliases_internal(item, aliases)?;
@@ -251,7 +251,7 @@ impl AliasValidationStrategy {
     /// 内部方法：验证单个表达式中的别名
     fn validate_expression_aliases_internal(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         // 首先检查表达式本身是否引用了一个别名
@@ -320,7 +320,7 @@ impl AliasValidationStrategy {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expr::ExpressionMeta;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 

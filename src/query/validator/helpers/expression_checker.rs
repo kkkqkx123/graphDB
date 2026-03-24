@@ -2,7 +2,7 @@
 //! 负责验证表达式的操作合法性和结构完整性
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::DataType;
 use std::collections::HashSet;
 
@@ -37,7 +37,7 @@ impl ExpressionChecker {
 
     fn validate_expression_operations_recursive(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
         depth: usize,
     ) -> Result<(), ValidationError> {
         if depth > 100 {
@@ -48,41 +48,41 @@ impl ExpressionChecker {
         }
 
         match expression {
-            crate::core::types::expression::Expression::Binary { op, left, right } => {
+            crate::core::types::expr::Expression::Binary { op, left, right } => {
                 self.validate_binary_operation(op, left, right, depth)?;
             }
-            crate::core::types::expression::Expression::Unary { op, operand } => {
+            crate::core::types::expr::Expression::Unary { op, operand } => {
                 self.validate_unary_operation(op, operand, depth)?;
             }
-            crate::core::types::expression::Expression::Function { name, args } => {
+            crate::core::types::expr::Expression::Function { name, args } => {
                 self.validate_function_call(name, args, depth)?;
             }
-            crate::core::types::expression::Expression::Aggregate {
+            crate::core::types::expr::Expression::Aggregate {
                 func,
                 arg,
                 distinct,
             } => {
                 self.validate_aggregate_operation(func, arg, *distinct, depth)?;
             }
-            crate::core::types::expression::Expression::Property {
+            crate::core::types::expr::Expression::Property {
                 object: prop_expression,
                 property: name,
             } => {
                 self.validate_property_access(prop_expression, name, depth)?;
             }
-            crate::core::types::expression::Expression::Subscript {
+            crate::core::types::expr::Expression::Subscript {
                 collection: index_expression,
                 index,
             } => {
                 self.validate_index_access(index_expression, index, depth)?;
             }
-            crate::core::types::expression::Expression::List(items) => {
+            crate::core::types::expr::Expression::List(items) => {
                 self.validate_list_expression(items, depth)?;
             }
-            crate::core::types::expression::Expression::Map(pairs) => {
+            crate::core::types::expr::Expression::Map(pairs) => {
                 self.validate_map_expression(pairs, depth)?;
             }
-            crate::core::types::expression::Expression::Case {
+            crate::core::types::expr::Expression::Case {
                 test_expr,
                 conditions: when_clauses,
                 default: else_clause,
@@ -98,8 +98,8 @@ impl ExpressionChecker {
     fn validate_binary_operation(
         &self,
         op: &crate::core::BinaryOperator,
-        left: &crate::core::types::expression::Expression,
-        right: &crate::core::types::expression::Expression,
+        left: &crate::core::types::expr::Expression,
+        right: &crate::core::types::expr::Expression,
         depth: usize,
     ) -> Result<(), ValidationError> {
         self.validate_expression_operations_recursive(left, depth + 1)?;
@@ -107,7 +107,7 @@ impl ExpressionChecker {
 
         match op {
             crate::core::BinaryOperator::Divide => {
-                if let crate::core::types::expression::Expression::Literal(
+                if let crate::core::types::expr::Expression::Literal(
                     crate::core::Value::Int(0),
                 ) = right
                 {
@@ -116,7 +116,7 @@ impl ExpressionChecker {
                         ValidationErrorType::DivisionByZero,
                     ));
                 }
-                if let crate::core::types::expression::Expression::Literal(
+                if let crate::core::types::expr::Expression::Literal(
                     crate::core::Value::Float(0.0),
                 ) = right
                 {
@@ -127,7 +127,7 @@ impl ExpressionChecker {
                 }
             }
             crate::core::BinaryOperator::Modulo => {
-                if let crate::core::types::expression::Expression::Literal(
+                if let crate::core::types::expr::Expression::Literal(
                     crate::core::Value::Int(0),
                 ) = right
                 {
@@ -146,7 +146,7 @@ impl ExpressionChecker {
     fn validate_unary_operation(
         &self,
         _op: &crate::core::UnaryOperator,
-        operand: &crate::core::types::expression::Expression,
+        operand: &crate::core::types::expr::Expression,
         depth: usize,
     ) -> Result<(), ValidationError> {
         self.validate_expression_operations_recursive(operand, depth + 1)
@@ -155,7 +155,7 @@ impl ExpressionChecker {
     fn validate_function_call(
         &self,
         name: &str,
-        args: &[crate::core::types::expression::Expression],
+        args: &[crate::core::types::expr::Expression],
         depth: usize,
     ) -> Result<(), ValidationError> {
         if name.is_empty() {
@@ -193,7 +193,7 @@ impl ExpressionChecker {
     fn validate_aggregate_operation(
         &self,
         func: &crate::core::AggregateFunction,
-        arg: &crate::core::types::expression::Expression,
+        arg: &crate::core::types::expr::Expression,
         distinct: bool,
         depth: usize,
     ) -> Result<(), ValidationError> {
@@ -220,7 +220,7 @@ impl ExpressionChecker {
 
     fn validate_property_access(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
         name: &str,
         depth: usize,
     ) -> Result<(), ValidationError> {
@@ -236,8 +236,8 @@ impl ExpressionChecker {
 
     fn validate_index_access(
         &self,
-        expression: &crate::core::types::expression::Expression,
-        index: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
+        index: &crate::core::types::expr::Expression,
         depth: usize,
     ) -> Result<(), ValidationError> {
         self.validate_expression_operations_recursive(expression, depth + 1)?;
@@ -277,7 +277,7 @@ impl ExpressionChecker {
 
     fn validate_list_expression(
         &self,
-        items: &[crate::core::types::expression::Expression],
+        items: &[crate::core::types::expr::Expression],
         depth: usize,
     ) -> Result<(), ValidationError> {
         if items.len() > 10000 {
@@ -302,7 +302,7 @@ impl ExpressionChecker {
 
     fn validate_map_expression(
         &self,
-        pairs: &[(String, crate::core::types::expression::Expression)],
+        pairs: &[(String, crate::core::types::expr::Expression)],
         depth: usize,
     ) -> Result<(), ValidationError> {
         if pairs.len() > 10000 {
@@ -337,12 +337,12 @@ impl ExpressionChecker {
 
     fn validate_case_expression(
         &self,
-        operand: &Option<Box<crate::core::types::expression::Expression>>,
+        operand: &Option<Box<crate::core::types::expr::Expression>>,
         when_clauses: &[(
-            crate::core::types::expression::Expression,
-            crate::core::types::expression::Expression,
+            crate::core::types::expr::Expression,
+            crate::core::types::expr::Expression,
         )],
-        else_clause: &Option<Box<crate::core::types::expression::Expression>>,
+        else_clause: &Option<Box<crate::core::types::expr::Expression>>,
         depth: usize,
     ) -> Result<(), ValidationError> {
         if when_clauses.is_empty() {
@@ -405,7 +405,7 @@ impl ExpressionChecker {
 
     fn check_expression_cycles(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
         visited: &mut HashSet<String>,
         depth: usize,
     ) -> Result<(), ValidationError> {
@@ -417,7 +417,7 @@ impl ExpressionChecker {
         }
 
         match expression {
-            crate::core::types::expression::Expression::Variable(name) => {
+            crate::core::types::expr::Expression::Variable(name) => {
                 if visited.contains(name) {
                     return Err(ValidationError::new(
                         format!("检测到变量循环依赖: {:?}", name),
@@ -426,19 +426,19 @@ impl ExpressionChecker {
                 }
                 visited.insert(name.clone());
             }
-            crate::core::types::expression::Expression::Binary { left, right, .. } => {
+            crate::core::types::expr::Expression::Binary { left, right, .. } => {
                 self.check_expression_cycles(left, visited, depth + 1)?;
                 self.check_expression_cycles(right, visited, depth + 1)?;
             }
-            crate::core::types::expression::Expression::Unary { operand, .. } => {
+            crate::core::types::expr::Expression::Unary { operand, .. } => {
                 self.check_expression_cycles(operand, visited, depth + 1)?;
             }
-            crate::core::types::expression::Expression::Function { args, .. } => {
+            crate::core::types::expr::Expression::Function { args, .. } => {
                 for arg in args {
                     self.check_expression_cycles(arg, visited, depth + 1)?;
                 }
             }
-            crate::core::types::expression::Expression::Aggregate { arg, .. } => {
+            crate::core::types::expr::Expression::Aggregate { arg, .. } => {
                 self.check_expression_cycles(arg, visited, depth + 1)?;
             }
             _ => {}
@@ -457,20 +457,20 @@ impl ExpressionChecker {
 
     fn calculate_expression_depth_internal(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
     ) -> usize {
         match expression {
-            crate::core::types::expression::Expression::Literal(_)
-            | crate::core::types::expression::Expression::Variable(_) => 1,
-            crate::core::types::expression::Expression::Binary { left, right, .. } => {
+            crate::core::types::expr::Expression::Literal(_)
+            | crate::core::types::expr::Expression::Variable(_) => 1,
+            crate::core::types::expr::Expression::Binary { left, right, .. } => {
                 let left_depth = self.calculate_expression_depth_internal(left);
                 let right_depth = self.calculate_expression_depth_internal(right);
                 1 + left_depth.max(right_depth)
             }
-            crate::core::types::expression::Expression::Unary { operand, .. } => {
+            crate::core::types::expr::Expression::Unary { operand, .. } => {
                 1 + self.calculate_expression_depth_internal(operand)
             }
-            crate::core::types::expression::Expression::Function { args, .. } => {
+            crate::core::types::expr::Expression::Function { args, .. } => {
                 let max_arg_depth = args
                     .iter()
                     .map(|arg| self.calculate_expression_depth_internal(arg))
@@ -478,14 +478,14 @@ impl ExpressionChecker {
                     .unwrap_or(0);
                 1 + max_arg_depth
             }
-            crate::core::types::expression::Expression::Aggregate { arg, .. } => {
+            crate::core::types::expr::Expression::Aggregate { arg, .. } => {
                 1 + self.calculate_expression_depth_internal(arg)
             }
-            crate::core::types::expression::Expression::Property {
+            crate::core::types::expr::Expression::Property {
                 object: prop_expression,
                 ..
             } => 1 + self.calculate_expression_depth_internal(prop_expression),
-            crate::core::types::expression::Expression::Subscript {
+            crate::core::types::expr::Expression::Subscript {
                 collection: index_expression,
                 index,
             } => {
@@ -493,7 +493,7 @@ impl ExpressionChecker {
                 let index_depth = self.calculate_expression_depth_internal(index);
                 1 + expr_depth.max(index_depth)
             }
-            crate::core::types::expression::Expression::List(items) => {
+            crate::core::types::expr::Expression::List(items) => {
                 let max_item_depth = items
                     .iter()
                     .map(|item| self.calculate_expression_depth_internal(item))
@@ -501,7 +501,7 @@ impl ExpressionChecker {
                     .unwrap_or(0);
                 1 + max_item_depth
             }
-            crate::core::types::expression::Expression::Map(pairs) => {
+            crate::core::types::expr::Expression::Map(pairs) => {
                 let max_value_depth = pairs
                     .iter()
                     .map(|(_, value)| self.calculate_expression_depth_internal(value))
@@ -509,7 +509,7 @@ impl ExpressionChecker {
                     .unwrap_or(0);
                 1 + max_value_depth
             }
-            crate::core::types::expression::Expression::Case {
+            crate::core::types::expr::Expression::Case {
                 test_expr,
                 conditions,
                 default,
@@ -555,8 +555,8 @@ impl ExpressionChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::Expression;
-    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expr::Expression;
+    use crate::core::types::expr::ExpressionMeta;
     use crate::core::Value;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;

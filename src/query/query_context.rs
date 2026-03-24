@@ -139,12 +139,12 @@ impl QueryContext {
     }
 
     /// 获取执行计划
-    pub fn plan(&self) -> Option<crate::query::planner::plan::ExecutionPlan> {
+    pub fn plan(&self) -> Option<crate::query::planning::plan::ExecutionPlan> {
         self.execution_manager.plan()
     }
 
     /// 设置执行计划
-    pub fn set_plan(&mut self, plan: crate::query::planner::plan::ExecutionPlan) {
+    pub fn set_plan(&mut self, plan: crate::query::planning::plan::ExecutionPlan) {
         self.execution_manager.set_plan(plan);
     }
 

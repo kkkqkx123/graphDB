@@ -2,7 +2,7 @@ pub mod charset;
 pub mod cluster;
 pub mod data_modification;
 pub mod edge;
-pub mod expression;
+pub mod expr;
 pub mod graph_schema;
 pub mod import_export;
 pub mod index;
@@ -80,7 +80,7 @@ pub use self::schema_change::{
 };
 pub use self::user::{PasswordInfo, UserAlterInfo, UserInfo};
 
-pub use self::expression::{
+pub use self::expr::{
     ContextualExpression, Expression, ExpressionMeta, SerializableExpression,
 };
 pub use self::graph_schema::{
@@ -97,14 +97,14 @@ pub use EdgeTypeInfo as EdgeTypeSchema;
 /// 表示YIELD子句中的一个输出列
 #[derive(Debug, Clone)]
 pub struct YieldColumn {
-    pub expression: crate::core::types::expression::contextual::ContextualExpression,
+    pub expression: crate::core::types::expr::contextual::ContextualExpression,
     pub alias: String,
     pub is_matched: bool,
 }
 
 impl YieldColumn {
     pub fn new(
-        expression: crate::core::types::expression::contextual::ContextualExpression,
+        expression: crate::core::types::expr::contextual::ContextualExpression,
         alias: String,
     ) -> Self {
         Self {

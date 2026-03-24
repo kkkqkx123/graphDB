@@ -64,7 +64,7 @@ pub struct TransformResult {
     /// 是否删除所有相关节点
     pub erase_all: bool,
     /// 新的计划节点列表
-    pub new_nodes: Vec<crate::query::planner::plan::PlanNodeEnum>,
+    pub new_nodes: Vec<crate::query::planning::plan::PlanNodeEnum>,
     /// 新的依赖关系
     pub new_dependencies: Vec<usize>,
 }
@@ -88,7 +88,7 @@ impl TransformResult {
     }
 
     /// 添加新的计划节点
-    pub fn add_new_node(&mut self, node: crate::query::planner::plan::PlanNodeEnum) {
+    pub fn add_new_node(&mut self, node: crate::query::planning::plan::PlanNodeEnum) {
         self.new_nodes.push(node);
     }
 
@@ -109,7 +109,7 @@ impl TransformResult {
     }
 
     /// 获取第一个新节点（如果存在）
-    pub fn first_new_node(&self) -> Option<&crate::query::planner::plan::PlanNodeEnum> {
+    pub fn first_new_node(&self) -> Option<&crate::query::planning::plan::PlanNodeEnum> {
         self.new_nodes.first()
     }
 }
@@ -120,11 +120,11 @@ impl TransformResult {
 #[derive(Debug, Default, Clone)]
 pub struct MatchedResult {
     /// 匹配的节点列表
-    pub nodes: Vec<crate::query::planner::plan::PlanNodeEnum>,
+    pub nodes: Vec<crate::query::planning::plan::PlanNodeEnum>,
     /// 依赖节点列表
-    pub dependencies: Vec<crate::query::planner::plan::PlanNodeEnum>,
+    pub dependencies: Vec<crate::query::planning::plan::PlanNodeEnum>,
     /// 根节点
-    pub root_node: Option<crate::query::planner::plan::PlanNodeEnum>,
+    pub root_node: Option<crate::query::planning::plan::PlanNodeEnum>,
 }
 
 impl MatchedResult {
@@ -134,17 +134,17 @@ impl MatchedResult {
     }
 
     /// 添加匹配的节点
-    pub fn add_node(&mut self, node: crate::query::planner::plan::PlanNodeEnum) {
+    pub fn add_node(&mut self, node: crate::query::planning::plan::PlanNodeEnum) {
         self.nodes.push(node);
     }
 
     /// 添加依赖节点
-    pub fn add_dependency(&mut self, node: crate::query::planner::plan::PlanNodeEnum) {
+    pub fn add_dependency(&mut self, node: crate::query::planning::plan::PlanNodeEnum) {
         self.dependencies.push(node);
     }
 
     /// 设置根节点
-    pub fn set_root_node(&mut self, node: crate::query::planner::plan::PlanNodeEnum) {
+    pub fn set_root_node(&mut self, node: crate::query::planning::plan::PlanNodeEnum) {
         self.root_node = Some(node);
     }
 
@@ -154,12 +154,12 @@ impl MatchedResult {
     }
 
     /// 获取第一个匹配的节点
-    pub fn first_node(&self) -> Option<&crate::query::planner::plan::PlanNodeEnum> {
+    pub fn first_node(&self) -> Option<&crate::query::planning::plan::PlanNodeEnum> {
         self.nodes.first()
     }
 
     /// 获取第一个依赖节点
-    pub fn first_dependency(&self) -> Option<&crate::query::planner::plan::PlanNodeEnum> {
+    pub fn first_dependency(&self) -> Option<&crate::query::planning::plan::PlanNodeEnum> {
         self.dependencies.first()
     }
 }
@@ -167,7 +167,7 @@ impl MatchedResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
 
     #[test]
     fn test_transform_result() {
@@ -175,7 +175,7 @@ mod tests {
         assert!(!result.has_new_nodes());
 
         let node =
-            crate::query::planner::plan::PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+            crate::query::planning::plan::PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
         result.add_new_node(node);
 
         assert!(result.has_new_nodes());
@@ -188,7 +188,7 @@ mod tests {
         assert!(!result.has_matches());
 
         let node =
-            crate::query::planner::plan::PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+            crate::query::planning::plan::PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
         result.add_node(node);
 
         assert!(result.has_matches());

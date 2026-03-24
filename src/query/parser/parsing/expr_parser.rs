@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
+use crate::core::types::expr::{ContextualExpression, Expression, ExpressionMeta};
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::core::types::{Position, Span};
 use crate::core::Value;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
-use crate::query::parser::parser::parse_context::ParseContext;
+use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
 use crate::query::validator::context::ExpressionAnalysisContext;
 

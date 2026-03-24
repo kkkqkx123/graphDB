@@ -12,7 +12,7 @@
 //! 3. 使用 QueryContext 统一管理上下文
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::DataType;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::structs::validation_info::ValidationInfo;

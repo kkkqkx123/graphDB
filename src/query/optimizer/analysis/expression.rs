@@ -5,8 +5,8 @@
 //! - 复杂度评分
 //! - 属性/变量/函数提取
 
-use crate::core::types::expression::visitor::ExpressionVisitor;
-use crate::core::types::expression::visitor_collectors::{
+use crate::core::types::expr::visitor::ExpressionVisitor;
+use crate::core::types::expr::visitor_collectors::{
     FunctionCollector, PropertyCollector, VariableCollector,
 };
 use crate::core::types::ContextualExpression;
@@ -557,7 +557,7 @@ mod tests {
         let analyzer = ExpressionAnalyzer::new();
         let expr = Expression::Literal(Value::Int(42));
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let expr_id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
         let analysis = analyzer.analyze(&ctx_expr);
@@ -570,7 +570,7 @@ mod tests {
         let analyzer = ExpressionAnalyzer::new();
         let expr = Expression::Variable("x".to_string());
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let expr_id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
         let analysis = analyzer.analyze(&ctx_expr);
@@ -585,7 +585,7 @@ mod tests {
             args: vec![],
         };
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let expr_id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
         let analysis = analyzer.analyze(&ctx_expr);
@@ -600,7 +600,7 @@ mod tests {
             args: vec![Expression::Literal(Value::Int(-5))],
         };
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let expr_id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
         let analysis = analyzer.analyze(&ctx_expr);
@@ -615,7 +615,7 @@ mod tests {
             property: "name".to_string(),
         };
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let expr_id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(expr_id, expr_ctx);
         let analysis = analyzer.analyze(&ctx_expr);
@@ -628,7 +628,7 @@ mod tests {
         // 简单表达式
         let simple = Expression::Literal(Value::Int(1));
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
-        let simple_meta = crate::core::types::expression::ExpressionMeta::new(simple);
+        let simple_meta = crate::core::types::expr::ExpressionMeta::new(simple);
         let simple_id = expr_ctx.register_expression(simple_meta);
         let simple_ctx_expr =
             crate::core::types::ContextualExpression::new(simple_id, expr_ctx.clone());
@@ -650,7 +650,7 @@ mod tests {
                 Expression::Literal(Value::Null(crate::core::value::types::NullType::Null)),
             ],
         };
-        let complex_meta = crate::core::types::expression::ExpressionMeta::new(complex);
+        let complex_meta = crate::core::types::expr::ExpressionMeta::new(complex);
         let complex_id = expr_ctx.register_expression(complex_meta);
         let complex_ctx_expr = crate::core::types::ContextualExpression::new(complex_id, expr_ctx);
         let complex_analysis = analyzer.analyze(&complex_ctx_expr);

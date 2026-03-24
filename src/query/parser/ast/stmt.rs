@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use super::pattern::*;
 use super::types::*;
-use crate::core::types::expression::utils::collect_variables_from_contextual;
-use crate::core::types::expression::ContextualExpression;
+use crate::core::types::expr::utils::collect_variables_from_contextual;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::PropertyDef;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
@@ -1489,11 +1489,11 @@ mod tests {
         use std::sync::Arc;
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let expr = crate::core::types::expression::Expression::Variable("target".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr = crate::core::types::expr::Expression::Variable("target".to_string());
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let expr_id = expr_context.register_expression(expr_meta);
         let to_expr =
-            crate::core::types::expression::ContextualExpression::new(expr_id, expr_context);
+            crate::core::types::expr::contextual::ContextualExpression::new(expr_id, expr_context);
 
         let stmt = Stmt::FindPath(FindPathStmt {
             span: Span::default(),

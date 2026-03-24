@@ -12,17 +12,17 @@ use crate::core::types::Index;
 use crate::core::value::types::NullType;
 use crate::core::Expression;
 use crate::query::parser::ast::{LookupStmt, Stmt};
-use crate::query::planner::plan::core::nodes::access::{IndexScanNode, ScanType};
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::core::nodes::access::{IndexScanNode, ScanType};
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-pub use crate::query::planner::plan::core::nodes::{
+pub use crate::query::planning::plan::core::nodes::{
     ArgumentNode, DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, HashInnerJoinNode,
     ProjectNode,
 };
-pub use crate::query::planner::plan::core::PlanNodeEnum;
+pub use crate::query::planning::plan::core::PlanNodeEnum;
 
 /// LOOKUP查询规划器
 /// 负责将LOOKUP语句转换为执行计划
@@ -69,7 +69,7 @@ impl Planner for LookupPlanner {
 
         // 2. 检查索引提示
         let mut selected_index: Option<Index> = None;
-        let mut scan_limits: Vec<crate::query::planner::plan::core::nodes::access::IndexLimit> =
+        let mut scan_limits: Vec<crate::query::planning::plan::core::nodes::access::IndexLimit> =
             Vec::new();
         let mut scan_type = ScanType::Full;
 
@@ -108,7 +108,7 @@ impl Planner for LookupPlanner {
             // 将列名转换为 IndexLimit
             for column in &hint.columns {
                 scan_limits.push(
-                    crate::query::planner::plan::core::nodes::access::IndexLimit::equal(
+                    crate::query::planning::plan::core::nodes::access::IndexLimit::equal(
                         column.clone(),
                         "",
                     ),
@@ -185,7 +185,7 @@ impl LookupPlanner {
 
         if columns.is_empty() {
             let expr = Expression::Variable("*".to_string());
-            let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+            let meta = crate::core::types::expr::ExpressionMeta::new(expr);
             let id = validated.expr_context().register_expression(meta);
             let ctx_expr =
                 crate::core::types::ContextualExpression::new(id, validated.expr_context().clone());

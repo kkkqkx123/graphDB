@@ -2,12 +2,12 @@
 //! 处理FETCH VERTICES查询的规划
 
 use crate::query::parser::ast::{FetchTarget, Stmt};
-use crate::query::planner::plan::core::common::TagProp;
-use crate::query::planner::plan::core::nodes::{
+use crate::query::planning::plan::core::common::TagProp;
+use crate::query::planning::plan::core::nodes::{
     ArgumentNode, GetVerticesNode, PlanNodeEnum, ProjectNode,
 };
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;
 

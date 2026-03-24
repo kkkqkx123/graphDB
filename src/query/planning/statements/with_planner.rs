@@ -4,12 +4,12 @@
 
 use crate::core::YieldColumn;
 use crate::query::parser::ast::{ReturnItem, Stmt, WithStmt};
-use crate::query::planner::plan::core::{
+use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{ArgumentNode, DedupNode, FilterNode, LimitNode, ProjectNode, SortNode},
 };
-use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;
 
@@ -120,7 +120,7 @@ impl Planner for WithPlanner {
 
         // 如果有 ORDER BY 子句，创建排序节点
         if let Some(order_by) = &with_stmt.order_by {
-            let sort_items: Vec<crate::query::planner::plan::core::nodes::SortItem> = order_by
+            let sort_items: Vec<crate::query::planning::plan::core::nodes::SortItem> = order_by
                 .items
                 .iter()
                 .map(|item| {
@@ -133,7 +133,7 @@ impl Planner for WithPlanner {
                         }
                     };
                     let column = item.expression.to_expression_string();
-                    crate::query::planner::plan::core::nodes::SortItem::new(column, direction)
+                    crate::query::planning::plan::core::nodes::SortItem::new(column, direction)
                 })
                 .collect();
             let sort_node = SortNode::new(current_node.clone(), sort_items).map_err(|e| {

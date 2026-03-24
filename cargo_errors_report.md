@@ -2,226 +2,240 @@
 
 ## Summary
 
-- **Total Errors**: 106
-- **Total Warnings**: 1
-- **Total Issues**: 107
-- **Unique Error Patterns**: 30
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 33
+- **Total Errors**: 118
+- **Total Warnings**: 0
+- **Total Issues**: 118
+- **Unique Error Patterns**: 17
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 25
 
 ## Error Statistics
 
-**Total Errors**: 106
+**Total Errors**: 118
 
 ### Error Type Breakdown
 
-- **error[E0433]**: 100 errors
-- **error[E0583]**: 6 errors
+- **error[E0425]**: 71 errors
+- **error[E0433]**: 18 errors
+- **error[E0432]**: 17 errors
+- **error[E0223]**: 12 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\optimizer\cost\node_estimators\sort_limit.rs`: 19 errors
-- `src\query\optimizer\cost\node_estimators\graph_traversal.rs`: 16 errors
-- `src\query\optimizer\cost\node_estimators\join.rs`: 13 errors
-- `src\query\optimizer\cost\node_estimators\scan.rs`: 8 errors
-- `src\query\optimizer\cost\node_estimators\control_flow.rs`: 7 errors
-- `src\query\optimizer\cost\node_estimators\data_processing.rs`: 7 errors
-- `src\query\parser\mod.rs`: 2 errors
-- `src\query\executor\factory\builders\traversal_builder.rs`: 2 errors
-- `src\query\optimizer\cost\child_accessor.rs`: 2 errors
-- `src\query\executor\factory\builders\join_builder.rs`: 2 errors
+- `src\query\parser\ast\stmt.rs`: 48 errors
+- `src\core\query_result\iterator.rs`: 15 errors
+- `src\query\parser\ast\pattern.rs`: 9 errors
+- `src\query\parser\parsing\traversal_parser.rs`: 7 errors
+- `src\core\types\expr\common_utils.rs`: 4 errors
+- `src\query\executor\data_modification\delete.rs`: 3 errors
+- `src\query\executor\data_modification\update.rs`: 3 errors
+- `src\query\parser\parsing\clause_parser.rs`: 3 errors
+- `src\query\parser\parsing\util_stmt_parser.rs`: 3 errors
+- `src\query\parser\core\error.rs`: 2 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 1
-
-### Warning Type Breakdown
-
-- **warning**: 1 warnings
-
-### Files with Warnings (Top 10)
-
-- `src\api\embedded\mod.rs`: 1 warnings
+**Total Warnings**: 0
 
 ## Detailed Error Categorization
 
-### error[E0433]: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+### error[E0425]: cannot find type `contextualExpression` in module `crate::core::types::expr`
 
-**Total Occurrences**: 100  
-**Unique Files**: 28
+**Total Occurrences**: 71  
+**Unique Files**: 12
 
-#### `src\query\optimizer\cost\node_estimators\sort_limit.rs`: 19 occurrences
+#### `src\query\parser\ast\stmt.rs`: 47 occurrences
 
-- Line 142: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 143: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 144: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- ... 16 more occurrences in this file
+- Line 496: cannot find type `ContextualExpression` in this scope: not found in this scope
+- Line 502: cannot find type `ContextualExpression` in this scope: not found in this scope
+- Line 503: cannot find type `ContextualExpression` in this scope: not found in this scope
+- ... 44 more occurrences in this file
 
-#### `src\query\optimizer\cost\node_estimators\graph_traversal.rs`: 16 occurrences
+#### `src\query\parser\ast\pattern.rs`: 8 occurrences
 
-- Line 230: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 231: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 234: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- ... 13 more occurrences in this file
-
-#### `src\query\optimizer\cost\node_estimators\join.rs`: 13 occurrences
-
-- Line 95: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 96: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 116: failed to resolve: use of undeclared type `HashInnerJoinNode`: use of undeclared type `HashInnerJoinNode`
-- ... 10 more occurrences in this file
-
-#### `src\query\optimizer\cost\node_estimators\scan.rs`: 8 occurrences
-
-- Line 13: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 14: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 165: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 36: cannot find type `ContextualExpression` in this scope: not found in this scope
+- Line 37: cannot find type `ContextualExpression` in this scope: not found in this scope
+- Line 44: cannot find type `ContextualExpression` in this scope: not found in this scope
 - ... 5 more occurrences in this file
 
-#### `src\query\optimizer\cost\node_estimators\control_flow.rs`: 7 occurrences
+#### `src\query\parser\parsing\traversal_parser.rs`: 4 occurrences
 
-- Line 15: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 118: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 119: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- ... 4 more occurrences in this file
+- Line 512: cannot find type `ContextualExpression` in this scope: not found in this scope
+- Line 529: cannot find type `ContextualExpression` in this scope: not found in this scope
+- Line 571: cannot find type `ContextualExpression` in this scope: not found in this scope
+- ... 1 more occurrences in this file
 
-#### `src\query\optimizer\cost\node_estimators\data_processing.rs`: 7 occurrences
+#### `src\query\executor\data_modification\delete.rs`: 2 occurrences
 
-- Line 19: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 143: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 144: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- ... 4 more occurrences in this file
+- Line 26: cannot find type `ContextualExpression` in this scope: not found in this scope
+- Line 37: cannot find type `ContextualExpression` in this scope: not found in this scope
 
-#### `src\query\executor\mod.rs`: 2 occurrences
+#### `src\query\executor\data_modification\update.rs`: 2 occurrences
 
-- Line 98: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 114: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 34: cannot find type `ContextualExpression` in this scope: not found in this scope
+- Line 76: cannot find type `ContextualExpression` in this scope: not found in this scope
 
-#### `src\query\executor\factory\builders\data_access_builder.rs`: 2 occurrences
+#### `src\query\parser\parsing\util_stmt_parser.rs`: 2 occurrences
 
-- Line 13: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 14: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 392: cannot find type `ContextualExpression` in this scope: not found in this scope
+- Line 409: cannot find type `ContextualExpression` in this scope: not found in this scope
 
-#### `src\query\optimizer\cost\node_estimators\graph_algorithm.rs`: 2 occurrences
+#### `src\query\optimizer\strategy\traversal_start.rs`: 1 occurrences
 
-- Line 77: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 78: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 331: cannot find type `contextualExpression` in module `crate::core::types::expr`
 
-#### `src\query\executor\factory\builders\join_builder.rs`: 2 occurrences
+#### `src\core\types\expr\common_utils.rs`: 1 occurrences
 
-- Line 11: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 12: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 25: cannot find type `PlannerError` in this scope: not found in this scope
 
-#### `src\query\executor\factory\builders\traversal_builder.rs`: 2 occurrences
+#### `src\query\planning\statements\clauses\with_clause_planner.rs`: 1 occurrences
 
-- Line 14: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 17: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 105: cannot find type `contextualExpression` in module `crate::core::types::expr`
 
-#### `src\query\optimizer\cost\child_accessor.rs`: 2 occurrences
+#### `src\query\executor\data_modification\remove.rs`: 1 occurrences
 
-- Line 5: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 193: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 26: cannot find type `ContextualExpression` in this scope: not found in this scope
 
-#### `src\query\optimizer\analysis\fingerprint.rs`: 2 occurrences
+#### `src\query\parser\parsing\clause_parser.rs`: 1 occurrences
 
-- Line 15: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 85: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 297: cannot find type `ContextualExpression` in this scope: not found in this scope
 
-#### `src\query\optimizer\strategy\subquery_unnesting.rs`: 2 occurrences
+#### `src\query\parser\parsing\parser.rs`: 1 occurrences
 
-- Line 36: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
-- Line 37: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 75: cannot find type `ContextualExpression` in this scope: not found in this scope
 
-#### `src\query\executor\factory\executor_factory.rs`: 1 occurrences
+### error[E0433]: failed to resolve: could not find `statement` in `embedded`: could not find `statement` in `embedded`
 
-- Line 11: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+**Total Occurrences**: 18  
+**Unique Files**: 10
 
-#### `src\query\executor\factory\parsers\vertex_parser.rs`: 1 occurrences
+#### `src\core\query_result\iterator.rs`: 3 occurrences
 
-- Line 6: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 154: failed to resolve: could not find `result` in `core`: could not find `result` in `core`
+- Line 191: failed to resolve: could not find `result` in `core`: could not find `result` in `core`
+- Line 241: failed to resolve: could not find `result` in `core`: could not find `result` in `core`
 
-#### `src\query\executor\factory\builders\transformation_builder.rs`: 1 occurrences
+#### `src\api\embedded\precompiled\statement.rs`: 2 occurrences
 
-- Line 13: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 7: failed to resolve: could not find `statement` in `embedded`: could not find `statement` in `embedded`
+- Line 8: failed to resolve: could not find `statement` in `embedded`: could not find `statement` in `embedded`
 
-#### `src\query\optimizer\analysis\integration_test.rs`: 1 occurrences
+#### `src\core\types\expr\common_utils.rs`: 2 occurrences
 
-- Line 13: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 37: failed to resolve: use of undeclared type `PlannerError`: use of undeclared type `PlannerError`
+- Line 45: failed to resolve: use of undeclared type `PlannerError`: use of undeclared type `PlannerError`
 
-#### `src\query\executor\factory\builders\data_processing_builder.rs`: 1 occurrences
+#### `src\core\error\mod.rs`: 2 occurrences
 
-- Line 13: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 160: failed to resolve: could not find `lexer` in `parser`: could not find `lexer` in `parser`
+- Line 161: failed to resolve: could not find `lexer` in `parser`: could not find `lexer` in `parser`
 
-#### `src\query\executor\factory\validators\plan_validator.rs`: 1 occurrences
+#### `src\query\parser\parsing\traversal_parser.rs`: 2 occurrences
 
-- Line 6: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 561: failed to resolve: use of undeclared type `ContextualExpression`: use of undeclared type `ContextualExpression`
+- Line 575: failed to resolve: use of undeclared type `ContextualExpression`: use of undeclared type `ContextualExpression`
 
-#### `src\query\executor\factory\builders\admin_builder.rs`: 1 occurrences
+#### `src\core\query_result\iterator_enum.rs`: 2 occurrences
 
-- Line 25: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 6: failed to resolve: could not find `result` in `core`: could not find `result` in `core`
+- Line 7: failed to resolve: could not find `result` in `core`: could not find `result` in `core`
 
-#### `src\query\executor\factory\builders\data_modification_builder.rs`: 1 occurrences
+#### `src\query\parser\core\error.rs`: 2 occurrences
 
-- Line 11: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 170: failed to resolve: could not find `lexer` in `super`: could not find `lexer` in `super`
+- Line 171: failed to resolve: could not find `lexer` in `super`: could not find `lexer` in `super`
 
-#### `src\query\optimizer\analysis\reference_count.rs`: 1 occurrences
+#### `src\query\parser\parsing\clause_parser.rs`: 1 occurrences
 
-- Line 7: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 39: failed to resolve: use of undeclared type `ContextualExpression`: use of undeclared type `ContextualExpression`
 
-#### `src\query\optimizer\strategy\topn_optimization.rs`: 1 occurrences
+#### `src\core\query_result\result.rs`: 1 occurrences
 
-- Line 32: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 1: failed to resolve: could not find `result` in `core`: could not find `result` in `core`
 
-#### `src\query\validator\strategies\expression_strategy_test.rs`: 1 occurrences
+#### `src\query\parser\parsing\stmt_parser.rs`: 1 occurrences
 
-- Line 6: failed to resolve: could not find `utils` in `expression`: could not find `utils` in `expression`
+- Line 199: failed to resolve: could not find `contextualExpression` in `expr`: could not find `contextualExpression` in `expr`
 
-#### `src\query\executor\factory\builders\control_flow_builder.rs`: 1 occurrences
+### error[E0432]: unresolved import `crate::core::types::expr::contextualExpression`: no `contextualExpression` in `core::types::expr`
 
-- Line 12: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+**Total Occurrences**: 17  
+**Unique Files**: 16
 
-#### `src\query\executor\factory\builders\set_operation_builder.rs`: 1 occurrences
+#### `src\query\parser\parsing\parse_context.rs`: 2 occurrences
 
-- Line 11: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 5: unresolved import `crate::query::parser::lexer`: could not find `lexer` in `parser`
+- Line 6: unresolved import `crate::query::parser::lexer`: could not find `lexer` in `parser`
 
-#### `src\query\optimizer\strategy\materialization.rs`: 1 occurrences
+#### `src\query\parser\ast\stmt.rs`: 1 occurrences
 
-- Line 34: failed to resolve: could not find `plan` in `planner`: could not find `plan` in `planner`
+- Line 10: unresolved import `crate::core::types::expr::contextualExpression`: no `contextualExpression` in `core::types::expr`
 
-### error[E0583]: file not found for module `expression`
+#### `src\query\parser\parsing\traversal_parser.rs`: 1 occurrences
 
-**Total Occurrences**: 6  
-**Unique Files**: 5
+- Line 5: unresolved import `crate::core::types::expr::contextualExpression`: no `contextualExpression` in `core::types::expr`
 
-#### `src\query\parser\mod.rs`: 2 occurrences
+#### `src\api\embedded\session.rs`: 1 occurrences
 
-- Line 8: file not found for module `lexer`
-- Line 9: file not found for module `parser`
+- Line 8: unresolved import `crate::api::embedded::statement`: could not find `statement` in `embedded`
 
-#### `src\core\types\mod.rs`: 1 occurrences
+#### `src\query\parser\lexing\lexer.rs`: 1 occurrences
 
-- Line 5: file not found for module `expression`
+- Line 6: unresolved import `crate::query::parser::lexer`: could not find `lexer` in `parser`
 
-#### `src\query\mod.rs`: 1 occurrences
+#### `src\core\types\expr\common_utils.rs`: 1 occurrences
 
-- Line 16: file not found for module `planner`
+- Line 12: unresolved import `crate::query::planning::plannerError`: no `plannerError` in `query::planning`
 
-#### `src\api\embedded\mod.rs`: 1 occurrences
+#### `src\query\executor\data_modification\remove.rs`: 1 occurrences
 
-- Line 40: file not found for module `statement`
+- Line 9: unresolved import `crate::core::types::expr::contextualExpression`: no `contextualExpression` in `core::types::expr`
 
 #### `src\core\mod.rs`: 1 occurrences
 
-- Line 3: file not found for module `result`
+- Line 34: unresolved import `types::expression`: could not find `expression` in `types`
 
-## Detailed Warning Categorization
+#### `src\query\parser\ast\pattern.rs`: 1 occurrences
 
-### warning: file is loaded as a module multiple times: `src\lib.rs`: first loaded here
+- Line 7: unresolved import `crate::core::types::expr::contextualExpression`: no `contextualExpression` in `core::types::expr`
 
-**Total Occurrences**: 1  
+#### `src\query\parser\parsing\clause_parser.rs`: 1 occurrences
+
+- Line 5: unresolved import `crate::core::types::expr::contextualExpression`: no `contextualExpression` in `core::types::expr`
+
+#### `src\query\parser\parsing\parser.rs`: 1 occurrences
+
+- Line 3: unresolved import `crate::core::types::expr::contextualExpression`: no `contextualExpression` in `core::types::expr`
+
+#### `src\query\parser\parsing\util_stmt_parser.rs`: 1 occurrences
+
+- Line 5: unresolved import `crate::core::types::expr::contextualExpression`: no `contextualExpression` in `core::types::expr`
+
+#### `src\api\embedded\c_api\statement.rs`: 1 occurrences
+
+- Line 11: unresolved import `crate::api::embedded::statement`: could not find `statement` in `embedded`
+
+#### `src\query\executor\base\execution_result.rs`: 1 occurrences
+
+- Line 6: unresolved import `crate::core::result`: could not find `result` in `core`
+
+#### `src\query\executor\data_modification\update.rs`: 1 occurrences
+
+- Line 16: unresolved import `crate::core::types::expr::contextualExpression`: no `contextualExpression` in `core::types::expr`
+
+#### `src\query\executor\data_modification\delete.rs`: 1 occurrences
+
+- Line 8: unresolved import `crate::core::types::expr::contextualExpression`: no `contextualExpression` in `core::types::expr`
+
+### error[E0223]: ambiguous associated type
+
+**Total Occurrences**: 12  
 **Unique Files**: 1
 
-#### `src\api\embedded\mod.rs`: 1 occurrences
+#### `src\core\query_result\iterator.rs`: 12 occurrences
 
-- Line 40: file is loaded as a module multiple times: `src\lib.rs`: first loaded here
+- Line 157: ambiguous associated type
+- Line 167: ambiguous associated type
+- Line 176: ambiguous associated type
+- ... 9 more occurrences in this file
 

@@ -2,10 +2,10 @@
 //!
 //! 提供统一的方式来访问各种计划节点的子节点
 
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, SingleInputNode,
 };
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// 子节点访问器 trait
 ///
@@ -190,7 +190,7 @@ impl ChildAccessor for PlanNodeEnum {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
 
     #[test]
     fn test_scan_vertices_child_count() {

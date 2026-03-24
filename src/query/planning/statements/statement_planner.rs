@@ -10,8 +10,8 @@
 //! - **ClausePlanner**：子句级 trait，处理单个子句的规划
 
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::Planner;
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::Planner;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -41,15 +41,15 @@ pub trait ClausePlanner: std::fmt::Debug {
         qctx: Arc<QueryContext>,
         stmt: &Stmt,
         input_plan: SubPlan,
-    ) -> Result<SubPlan, crate::query::planner::planner::PlannerError>;
+    ) -> Result<SubPlan, crate::query::planning::planner::PlannerError>;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::query::parser::ast::{Ast, Span};
-    use crate::query::planner::plan::core::nodes::StartNode;
-    use crate::query::planner::plan::core::PlanNodeEnum;
+    use crate::query::planning::plan::core::nodes::StartNode;
+    use crate::query::planning::plan::core::PlanNodeEnum;
     use crate::query::query_request_context::QueryRequestContext;
     use crate::query::validator::ValidatedStatement;
     use crate::query::validator::context::ExpressionAnalysisContext;
@@ -75,7 +75,7 @@ mod tests {
             &mut self,
             _validated: &ValidatedStatement,
             _qctx: Arc<QueryContext>,
-        ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
+        ) -> Result<SubPlan, crate::query::planning::planner::PlannerError> {
             let start_node = StartNode::new();
             let start_node_enum = PlanNodeEnum::Start(start_node);
             Ok(SubPlan {
@@ -120,7 +120,7 @@ mod tests {
             _qctx: Arc<QueryContext>,
             _stmt: &Stmt,
             input_plan: SubPlan,
-        ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
+        ) -> Result<SubPlan, crate::query::planning::planner::PlannerError> {
             Ok(input_plan)
         }
     }

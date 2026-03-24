@@ -3,7 +3,7 @@
 //! 定义执行器执行结果的数据结构，支持多种结果类型。
 
 use crate::core::error::DBError;
-use crate::core::result::Result as CoreResult;
+use crate::core::query_result::Result as CoreResult;
 
 /// 执行结果类型
 ///

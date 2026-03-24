@@ -30,13 +30,13 @@
 //!   Start (空集)
 //! ```
 
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 
 /// 空集操作优化规则
 ///
@@ -155,7 +155,7 @@ impl EliminationRule for EliminateEmptySetOperationRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::rewrite::rule::RewriteRule;
+    use crate::query::planning::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_eliminate_empty_set_operation_rule_name() {

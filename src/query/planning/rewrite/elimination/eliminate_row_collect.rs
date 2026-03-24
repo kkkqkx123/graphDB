@@ -26,13 +26,13 @@
 //! - DataCollect 节点的 kind 为 kRowBasedMove
 //! - DataCollect 的子节点为 Project
 
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::DataCollectNode;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::DataCollectNode;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 
 /// 消除冗余数据收集操作的规则
 ///
@@ -123,7 +123,7 @@ impl EliminationRule for EliminateRowCollectRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::rewrite::rule::RewriteRule;
+    use crate::query::planning::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_eliminate_row_collect_rule_name() {
@@ -144,7 +144,7 @@ mod tests {
 
         // 创建测试用的 DataCollectNode
         let start_node =
-            crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
+            crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode::new();
         let start_enum = PlanNodeEnum::Start(start_node);
 
         let data_collect = DataCollectNode::new(start_enum.clone(), "kRowBasedMove")

@@ -44,20 +44,20 @@ macro_rules! define_rewrite_rule {
             }
         }
 
-        impl $crate::query::planner::rewrite::rule::RewriteRule for $name {
+        impl $crate::query::planning::rewrite::rule::RewriteRule for $name {
             fn name(&self) -> &'static str {
                 stringify!($name)
             }
 
-            fn pattern(&self) -> $crate::query::planner::rewrite::pattern::Pattern {
+            fn pattern(&self) -> $crate::query::planning::rewrite::pattern::Pattern {
                 $pattern
             }
 
             fn apply(
                 &self,
-                ctx: &mut $crate::query::planner::rewrite::context::RewriteContext,
-                node: &$crate::query::planner::plan::PlanNodeEnum,
-            ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
+                ctx: &mut $crate::query::planning::rewrite::context::RewriteContext,
+                node: &$crate::query::planning::plan::PlanNodeEnum,
+            ) -> $crate::query::planning::rewrite::result::RewriteResult<Option<$crate::query::planning::rewrite::result::TransformResult>> {
                 let apply_fn: fn(&mut _, &_) -> _ = $apply_closure;
                 apply_fn(ctx, node)
             }
@@ -107,22 +107,22 @@ macro_rules! define_typed_rewrite_rule {
             }
         }
 
-        impl $crate::query::planner::rewrite::rule::RewriteRule for $name {
+        impl $crate::query::planning::rewrite::rule::RewriteRule for $name {
             fn name(&self) -> &'static str {
                 stringify!($name)
             }
 
-            fn pattern(&self) -> $crate::query::planner::rewrite::pattern::Pattern {
+            fn pattern(&self) -> $crate::query::planning::rewrite::pattern::Pattern {
                 $pattern
             }
 
             fn apply(
                 &self,
-                ctx: &mut $crate::query::planner::rewrite::context::RewriteContext,
-                node: &$crate::query::planner::plan::PlanNodeEnum,
-            ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
-                use $crate::query::planner::plan::PlanNodeEnum;
-                use $crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+                ctx: &mut $crate::query::planning::rewrite::context::RewriteContext,
+                node: &$crate::query::planning::plan::PlanNodeEnum,
+            ) -> $crate::query::planning::rewrite::result::RewriteResult<Option<$crate::query::planning::rewrite::result::TransformResult>> {
+                use $crate::query::planning::plan::PlanNodeEnum;
+                use $crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 
                 let typed_node = match node {
                     PlanNodeEnum::$node_type(n) => n,
@@ -180,23 +180,23 @@ macro_rules! define_rewrite_pushdown_rule {
             }
         }
 
-        impl $crate::query::planner::rewrite::rule::RewriteRule for $name {
+        impl $crate::query::planning::rewrite::rule::RewriteRule for $name {
             fn name(&self) -> &'static str {
                 stringify!($name)
             }
 
-            fn pattern(&self) -> $crate::query::planner::rewrite::pattern::Pattern {
-                $crate::query::planner::rewrite::pattern::Pattern::new_with_name(stringify!($parent_type))
+            fn pattern(&self) -> $crate::query::planning::rewrite::pattern::Pattern {
+                $crate::query::planning::rewrite::pattern::Pattern::new_with_name(stringify!($parent_type))
                     .with_dependency_name(stringify!($child_type))
             }
 
             fn apply(
                 &self,
-                ctx: &mut $crate::query::planner::rewrite::context::RewriteContext,
-                node: &$crate::query::planner::plan::PlanNodeEnum,
-            ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
-                use $crate::query::planner::plan::PlanNodeEnum;
-                use $crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+                ctx: &mut $crate::query::planning::rewrite::context::RewriteContext,
+                node: &$crate::query::planning::plan::PlanNodeEnum,
+            ) -> $crate::query::planning::rewrite::result::RewriteResult<Option<$crate::query::planning::rewrite::result::TransformResult>> {
+                use $crate::query::planning::plan::PlanNodeEnum;
+                use $crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 
                 let parent_node = match node {
                     PlanNodeEnum::$parent_type(n) => n,
@@ -214,13 +214,13 @@ macro_rules! define_rewrite_pushdown_rule {
             }
         }
 
-        impl $crate::query::planner::rewrite::rule::PushDownRule for $name {
+        impl $crate::query::planning::rewrite::rule::PushDownRule for $name {
             fn can_push_down(
                 &self,
-                node: &$crate::query::planner::plan::PlanNodeEnum,
-                target: &$crate::query::planner::plan::PlanNodeEnum,
+                node: &$crate::query::planning::plan::PlanNodeEnum,
+                target: &$crate::query::planning::plan::PlanNodeEnum,
             ) -> bool {
-                use $crate::query::planner::plan::PlanNodeEnum;
+                use $crate::query::planning::plan::PlanNodeEnum;
                 matches!(
                     (node, target),
                     (PlanNodeEnum::$parent_type(_), PlanNodeEnum::$child_type(_))
@@ -229,11 +229,11 @@ macro_rules! define_rewrite_pushdown_rule {
 
             fn push_down(
                 &self,
-                ctx: &mut $crate::query::planner::rewrite::context::RewriteContext,
-                node: &$crate::query::planner::plan::PlanNodeEnum,
-                _target: &$crate::query::planner::plan::PlanNodeEnum,
-            ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
-                use $crate::query::planner::rewrite::rule::RewriteRule;
+                ctx: &mut $crate::query::planning::rewrite::context::RewriteContext,
+                node: &$crate::query::planning::plan::PlanNodeEnum,
+                _target: &$crate::query::planning::plan::PlanNodeEnum,
+            ) -> $crate::query::planning::rewrite::result::RewriteResult<Option<$crate::query::planning::rewrite::result::TransformResult>> {
+                use $crate::query::planning::rewrite::rule::RewriteRule;
                 self.apply(ctx, node)
             }
         }
@@ -288,21 +288,21 @@ macro_rules! define_rewrite_elimination_rule {
             }
         }
 
-        impl $crate::query::planner::rewrite::rule::RewriteRule for $name {
+        impl $crate::query::planning::rewrite::rule::RewriteRule for $name {
             fn name(&self) -> &'static str {
                 stringify!($name)
             }
 
-            fn pattern(&self) -> $crate::query::planner::rewrite::pattern::Pattern {
-                $crate::query::planner::rewrite::pattern::Pattern::new_with_name(stringify!($node_type))
+            fn pattern(&self) -> $crate::query::planning::rewrite::pattern::Pattern {
+                $crate::query::planning::rewrite::pattern::Pattern::new_with_name(stringify!($node_type))
             }
 
             fn apply(
                 &self,
-                ctx: &mut $crate::query::planner::rewrite::context::RewriteContext,
-                node: &$crate::query::planner::plan::PlanNodeEnum,
-            ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
-                use $crate::query::planner::plan::PlanNodeEnum;
+                ctx: &mut $crate::query::planning::rewrite::context::RewriteContext,
+                node: &$crate::query::planning::plan::PlanNodeEnum,
+            ) -> $crate::query::planning::rewrite::result::RewriteResult<Option<$crate::query::planning::rewrite::result::TransformResult>> {
+                use $crate::query::planning::plan::PlanNodeEnum;
 
                 let typed_node = match node {
                     PlanNodeEnum::$node_type(n) => n,
@@ -319,9 +319,9 @@ macro_rules! define_rewrite_elimination_rule {
             }
         }
 
-        impl $crate::query::planner::rewrite::rule::EliminationRule for $name {
-            fn can_eliminate(&self, node: &$crate::query::planner::plan::PlanNodeEnum) -> bool {
-                use $crate::query::planner::plan::PlanNodeEnum;
+        impl $crate::query::planning::rewrite::rule::EliminationRule for $name {
+            fn can_eliminate(&self, node: &$crate::query::planning::plan::PlanNodeEnum) -> bool {
+                use $crate::query::planning::plan::PlanNodeEnum;
 
                 let typed_node = match node {
                     PlanNodeEnum::$node_type(n) => n,
@@ -334,9 +334,9 @@ macro_rules! define_rewrite_elimination_rule {
 
             fn eliminate(
                 &self,
-                ctx: &mut $crate::query::planner::rewrite::context::RewriteContext,
-                node: &$crate::query::planner::plan::PlanNodeEnum,
-            ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
+                ctx: &mut $crate::query::planning::rewrite::context::RewriteContext,
+                node: &$crate::query::planning::plan::PlanNodeEnum,
+            ) -> $crate::query::planning::rewrite::result::RewriteResult<Option<$crate::query::planning::rewrite::result::TransformResult>> {
                 self.apply(ctx, node)
             }
         }
@@ -378,22 +378,22 @@ macro_rules! define_simple_rewrite_elimination_rule {
             }
         }
 
-        impl $crate::query::planner::rewrite::rule::RewriteRule for $name {
+        impl $crate::query::planning::rewrite::rule::RewriteRule for $name {
             fn name(&self) -> &'static str {
                 stringify!($name)
             }
 
-            fn pattern(&self) -> $crate::query::planner::rewrite::pattern::Pattern {
-                $crate::query::planner::rewrite::pattern::Pattern::new_with_name(stringify!($node_type))
+            fn pattern(&self) -> $crate::query::planning::rewrite::pattern::Pattern {
+                $crate::query::planning::rewrite::pattern::Pattern::new_with_name(stringify!($node_type))
             }
 
             fn apply(
                 &self,
-                _ctx: &mut $crate::query::planner::rewrite::context::RewriteContext,
-                node: &$crate::query::planner::plan::PlanNodeEnum,
-            ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
-                use $crate::query::planner::plan::PlanNodeEnum;
-                use $crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+                _ctx: &mut $crate::query::planning::rewrite::context::RewriteContext,
+                node: &$crate::query::planning::plan::PlanNodeEnum,
+            ) -> $crate::query::planning::rewrite::result::RewriteResult<Option<$crate::query::planning::rewrite::result::TransformResult>> {
+                use $crate::query::planning::plan::PlanNodeEnum;
+                use $crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 
                 let typed_node = match node {
                     PlanNodeEnum::$node_type(n) => n,
@@ -405,16 +405,16 @@ macro_rules! define_simple_rewrite_elimination_rule {
                     return Ok(None);
                 }
 
-                let mut result = $crate::query::planner::rewrite::result::TransformResult::new();
+                let mut result = $crate::query::planning::rewrite::result::TransformResult::new();
                 result.erase_curr = true;
                 result.add_new_node(typed_node.input().clone());
                 Ok(Some(result))
             }
         }
 
-        impl $crate::query::planner::rewrite::rule::EliminationRule for $name {
-            fn can_eliminate(&self, node: &$crate::query::planner::plan::PlanNodeEnum) -> bool {
-                use $crate::query::planner::plan::PlanNodeEnum;
+        impl $crate::query::planning::rewrite::rule::EliminationRule for $name {
+            fn can_eliminate(&self, node: &$crate::query::planning::plan::PlanNodeEnum) -> bool {
+                use $crate::query::planning::plan::PlanNodeEnum;
 
                 let typed_node = match node {
                     PlanNodeEnum::$node_type(n) => n,
@@ -427,10 +427,10 @@ macro_rules! define_simple_rewrite_elimination_rule {
 
             fn eliminate(
                 &self,
-                ctx: &mut $crate::query::planner::rewrite::context::RewriteContext,
-                node: &$crate::query::planner::plan::PlanNodeEnum,
-            ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
-                use $crate::query::planner::rewrite::rule::RewriteRule;
+                ctx: &mut $crate::query::planning::rewrite::context::RewriteContext,
+                node: &$crate::query::planning::plan::PlanNodeEnum,
+            ) -> $crate::query::planning::rewrite::result::RewriteResult<Option<$crate::query::planning::rewrite::result::TransformResult>> {
+                use $crate::query::planning::rewrite::rule::RewriteRule;
                 self.apply(ctx, node)
             }
         }
@@ -483,23 +483,23 @@ macro_rules! define_rewrite_merge_rule {
             }
         }
 
-        impl $crate::query::planner::rewrite::rule::RewriteRule for $name {
+        impl $crate::query::planning::rewrite::rule::RewriteRule for $name {
             fn name(&self) -> &'static str {
                 stringify!($name)
             }
 
-            fn pattern(&self) -> $crate::query::planner::rewrite::pattern::Pattern {
-                $crate::query::planner::rewrite::pattern::Pattern::new_with_name(stringify!($parent_type))
+            fn pattern(&self) -> $crate::query::planning::rewrite::pattern::Pattern {
+                $crate::query::planning::rewrite::pattern::Pattern::new_with_name(stringify!($parent_type))
                     .with_dependency_name(stringify!($child_type))
             }
 
             fn apply(
                 &self,
-                ctx: &mut $crate::query::planner::rewrite::context::RewriteContext,
-                node: &$crate::query::planner::plan::PlanNodeEnum,
-            ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
-                use $crate::query::planner::plan::PlanNodeEnum;
-                use $crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+                ctx: &mut $crate::query::planning::rewrite::context::RewriteContext,
+                node: &$crate::query::planning::plan::PlanNodeEnum,
+            ) -> $crate::query::planning::rewrite::result::RewriteResult<Option<$crate::query::planning::rewrite::result::TransformResult>> {
+                use $crate::query::planning::plan::PlanNodeEnum;
+                use $crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 
                 let parent_node = match node {
                     PlanNodeEnum::$parent_type(n) => n,
@@ -522,13 +522,13 @@ macro_rules! define_rewrite_merge_rule {
             }
         }
 
-        impl $crate::query::planner::rewrite::rule::MergeRule for $name {
+        impl $crate::query::planning::rewrite::rule::MergeRule for $name {
             fn can_merge(
                 &self,
-                parent: &$crate::query::planner::plan::PlanNodeEnum,
-                child: &$crate::query::planner::plan::PlanNodeEnum,
+                parent: &$crate::query::planning::plan::PlanNodeEnum,
+                child: &$crate::query::planning::plan::PlanNodeEnum,
             ) -> bool {
-                use $crate::query::planner::plan::PlanNodeEnum;
+                use $crate::query::planning::plan::PlanNodeEnum;
 
                 let parent_node = match parent {
                     PlanNodeEnum::$parent_type(n) => n,
@@ -546,11 +546,11 @@ macro_rules! define_rewrite_merge_rule {
 
             fn create_merged_node(
                 &self,
-                ctx: &mut $crate::query::planner::rewrite::context::RewriteContext,
-                parent: &$crate::query::planner::plan::PlanNodeEnum,
-                child: &$crate::query::planner::plan::PlanNodeEnum,
-            ) -> $crate::query::planner::rewrite::result::RewriteResult<Option<$crate::query::planner::rewrite::result::TransformResult>> {
-                use $crate::query::planner::plan::PlanNodeEnum;
+                ctx: &mut $crate::query::planning::rewrite::context::RewriteContext,
+                parent: &$crate::query::planning::plan::PlanNodeEnum,
+                child: &$crate::query::planning::plan::PlanNodeEnum,
+            ) -> $crate::query::planning::rewrite::result::RewriteResult<Option<$crate::query::planning::rewrite::result::TransformResult>> {
+                use $crate::query::planning::plan::PlanNodeEnum;
 
                 let parent_node = match parent {
                     PlanNodeEnum::$parent_type(n) => n,
@@ -603,7 +603,7 @@ macro_rules! define_rewrite_rule_registry {
                 $(
                     $(
                         registry.add(RewriteRule::$rule_name(
-                            $crate::query::planner::rewrite::$category::paste! {[<$rule_name Rule>]}::new()
+                            $crate::query::planning::rewrite::$category::paste! {[<$rule_name Rule>]}::new()
                         ));
                     )*
                 )*

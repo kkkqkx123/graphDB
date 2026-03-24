@@ -2,17 +2,17 @@
 //!
 //! 负责解析图遍历相关语句，包括 MATCH、GO、FIND PATH、GET SUBGRAPH 等。
 
-use crate::core::types::expression::ContextualExpression;
-use crate::core::types::expression::Expression as CoreExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::Expression as CoreExpression;
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::query::parser::ast::pattern::{
     EdgePattern, EdgeRange, NodePattern, PathElement, PathPattern, Pattern, VariablePattern,
 };
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
-use crate::query::parser::parser::clause_parser::ClauseParser;
-use crate::query::parser::parser::parse_context::ParseContext;
-use crate::query::parser::parser::ExprParser;
+use crate::query::parser::parsing::clause_parser::ClauseParser;
+use crate::query::parser::parsing::parse_context::ParseContext;
+use crate::query::parser::parsing::ExprParser;
 use crate::query::parser::TokenKind;
 
 /// 图遍历解析器
@@ -556,7 +556,7 @@ impl TraversalParser {
 
         let expr = CoreExpression::map(mapped_properties);
 
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.expression_context().register_expression(expr_meta);
         Ok(ContextualExpression::new(
             id,
@@ -570,7 +570,7 @@ impl TraversalParser {
         ctx: &mut ParseContext,
     ) -> Result<ContextualExpression, ParseError> {
         let expr = CoreExpression::variable("true");
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.expression_context().register_expression(expr_meta);
         Ok(ContextualExpression::new(
             id,

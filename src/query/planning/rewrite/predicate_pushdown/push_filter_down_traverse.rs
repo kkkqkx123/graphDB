@@ -3,15 +3,15 @@
 //! 该规则识别 Filter -> Traverse 模式，
 //! 并将边属性过滤条件下推到 Traverse 节点中。
 
-use crate::core::types::expression::{ExpressionVisitor, VariableCollector};
+use crate::core::types::expr::{ExpressionVisitor, VariableCollector};
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::expression_utils::split_filter;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::expression_utils::split_filter;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将过滤条件下推到遍历操作的规则
 ///

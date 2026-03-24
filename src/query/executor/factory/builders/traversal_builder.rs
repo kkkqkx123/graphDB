@@ -11,10 +11,10 @@ use crate::query::executor::data_processing::graph_traversal::{
     AllPathsExecutor, ExpandAllExecutor, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::planner::plan::core::nodes::traversal::{
+use crate::query::planning::plan::core::nodes::traversal::{
     AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
-use crate::query::planner::plan::core::nodes::{ExpandAllNode, ExpandNode, TraverseNode};
+use crate::query::planning::plan::core::nodes::{ExpandAllNode, ExpandNode, TraverseNode};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;

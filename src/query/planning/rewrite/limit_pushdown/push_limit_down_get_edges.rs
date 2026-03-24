@@ -3,10 +3,10 @@
 //! 该规则识别 Limit -> GetEdges 模式，
 //! 并将LIMIT值集成到GetEdges操作中。
 
-use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetEdgesNode;
-use crate::query::planner::plan::core::nodes::operation::sort_node::LimitNode;
-use crate::query::planner::rewrite::macros::define_rewrite_pushdown_rule;
-use crate::query::planner::rewrite::result::TransformResult;
+use crate::query::planning::plan::core::nodes::access::graph_scan_node::GetEdgesNode;
+use crate::query::planning::plan::core::nodes::operation::sort_node::LimitNode;
+use crate::query::planning::rewrite::macros::define_rewrite_pushdown_rule;
+use crate::query::planning::rewrite::result::TransformResult;
 
 define_rewrite_pushdown_rule! {
     /// 将LIMIT下推到获取边操作的规则
@@ -64,7 +64,7 @@ define_rewrite_pushdown_rule! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::rewrite::rule::RewriteRule;
+    use crate::query::planning::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_rule_name() {

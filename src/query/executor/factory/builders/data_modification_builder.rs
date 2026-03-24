@@ -8,7 +8,7 @@ use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::data_modification::{InsertExecutor, RemoveExecutor, RemoveItem};
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::planner::plan::core::nodes::{InsertEdgesNode, InsertVerticesNode, RemoveNode};
+use crate::query::planning::plan::core::nodes::{InsertEdgesNode, InsertVerticesNode, RemoveNode};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::collections::HashMap;

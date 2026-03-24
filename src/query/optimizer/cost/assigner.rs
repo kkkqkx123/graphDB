@@ -27,7 +27,7 @@ use std::sync::Arc;
 
 use crate::core::error::optimize::CostResult;
 use crate::query::optimizer::stats::StatisticsManager;
-use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
+use crate::query::planning::plan::{ExecutionPlan, PlanNodeEnum};
 
 use super::{
     child_accessor::ChildAccessor,

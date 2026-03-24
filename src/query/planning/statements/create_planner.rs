@@ -7,15 +7,15 @@ use crate::core::types::ContextualExpression;
 use crate::core::Value;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::{CreateStmt, CreateTarget, Stmt};
-use crate::query::planner::plan::core::{
+use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
         ArgumentNode, EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, PassThroughNode,
         ProjectNode, TagInsertSpec, VertexInsertInfo,
     },
 };
-use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -75,7 +75,7 @@ impl CreatePlanner {
             properties.iter().map(|(_, v)| v.clone()).collect();
 
         let vid_expr = {
-            let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                 crate::core::Expression::literal(Value::Null(crate::core::NullType::default())),
             );
             let id = expr_context.register_expression(expr_meta);
@@ -116,7 +116,7 @@ impl CreatePlanner {
         count: usize,
         expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Vec<YieldColumn> {
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(
             crate::core::Expression::literal(Value::Int(count as i64)),
         );
         let id = expr_context.register_expression(expr_meta);
@@ -327,7 +327,7 @@ impl CreatePlanner {
                 let mut result = Vec::new();
                 for (key, value_expr) in map {
                     let value_meta =
-                        crate::core::types::expression::ExpressionMeta::new(value_expr.clone());
+                        crate::core::types::expr::ExpressionMeta::new(value_expr.clone());
                     let id = expr_context.register_expression(value_meta);
                     let ctx_expr = ContextualExpression::new(id, expr_context.clone());
                     result.push((key.clone(), ctx_expr));
@@ -399,7 +399,7 @@ impl CreatePlanner {
                     let edge_type = edge.edge_types[0].clone();
 
                     let src_vid = {
-                        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                        let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                             crate::core::Expression::literal(Value::Null(
                                 crate::core::NullType::default(),
                             )),
@@ -408,7 +408,7 @@ impl CreatePlanner {
                         ContextualExpression::new(id, expr_context.clone())
                     };
                     let dst_vid = {
-                        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                        let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                             crate::core::Expression::literal(Value::Null(
                                 crate::core::NullType::default(),
                             )),
@@ -466,8 +466,8 @@ impl Default for CreatePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::parser::Parser;
-    use crate::query::planner::planner::{Planner, ValidatedStatement};
+    use crate::query::parser::parsing::Parser;
+    use crate::query::planning::planner::{Planner, ValidatedStatement};
     use crate::query::validator::ValidationInfo;
     use crate::query::QueryContext;
     use std::sync::Arc;

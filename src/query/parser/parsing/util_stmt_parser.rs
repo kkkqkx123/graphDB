@@ -2,13 +2,13 @@
 //!
 //! 负责解析工具类语句，包括 USE、SHOW、EXPLAIN、FETCH、LOOKUP、UNWIND、RETURN、WITH、YIELD、SET、REMOVE 等。
 
-use crate::core::types::expression::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::OrderDirection;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
-use crate::query::parser::parser::clause_parser::ClauseParser;
-use crate::query::parser::parser::parse_context::ParseContext;
-use crate::query::parser::parser::ExprParser;
+use crate::query::parser::parsing::clause_parser::ClauseParser;
+use crate::query::parser::parsing::parse_context::ParseContext;
+use crate::query::parser::parsing::ExprParser;
 use crate::query::parser::TokenKind;
 
 /// 工具语句解析器

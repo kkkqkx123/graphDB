@@ -6,7 +6,7 @@ use crate::core::types::PropertyDef;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::DataType;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
-use crate::query::parser::parser::parse_context::ParseContext;
+use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
 
 /// DDL 解析器

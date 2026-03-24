@@ -167,8 +167,8 @@ impl From<String> for ParseError {
     }
 }
 
-impl From<super::super::lexer::LexError> for ParseError {
-    fn from(lex_error: super::super::lexer::LexError) -> Self {
+impl From<super::super::lexing::LexError> for ParseError {
+    fn from(lex_error: super::super::lexing::LexError) -> Self {
         let mut parse_error = ParseError::new(
             ParseErrorKind::LexicalError,
             lex_error.message,

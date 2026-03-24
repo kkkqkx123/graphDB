@@ -151,14 +151,14 @@ impl From<serde_json::Error> for DBError {
     }
 }
 
-impl From<crate::query::planner::planner::PlannerError> for DBError {
-    fn from(err: crate::query::planner::planner::PlannerError) -> Self {
+impl From<crate::query::planning::planner::PlannerError> for DBError {
+    fn from(err: crate::query::planning::planner::PlannerError) -> Self {
         DBError::Query(QueryError::ExecutionError(err.to_string()))
     }
 }
 
-impl From<crate::query::parser::lexer::LexError> for DBError {
-    fn from(err: crate::query::parser::lexer::LexError) -> Self {
+impl From<crate::query::parser::lexing::LexError> for DBError {
+    fn from(err: crate::query::parser::lexing::LexError) -> Self {
         DBError::Query(QueryError::ParseError(err.to_string()))
     }
 }

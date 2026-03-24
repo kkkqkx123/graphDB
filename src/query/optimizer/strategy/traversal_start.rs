@@ -328,7 +328,7 @@ impl TraversalStartSelector {
     /// - {id: value}
     fn has_vid_condition_ctx(
         &self,
-        expr: &crate::core::types::expression::ContextualExpression,
+        expr: &crate::core::types::expr::ContextualExpression,
     ) -> bool {
         match expr.expression() {
             Some(meta) => self.has_vid_condition(meta.inner()),

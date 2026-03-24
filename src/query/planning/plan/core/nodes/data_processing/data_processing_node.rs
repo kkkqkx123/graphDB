@@ -2,7 +2,7 @@
 //!
 //! 包含Union、Unwind、Dedup等数据处理相关的计划节点
 
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::define_plan_node_with_deps;
 
 define_plan_node_with_deps! {
@@ -15,9 +15,9 @@ define_plan_node_with_deps! {
 
 impl UnionNode {
     pub fn new(
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         distinct: bool,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
         Ok(Self {
@@ -46,10 +46,10 @@ define_plan_node_with_deps! {
 
 impl UnwindNode {
     pub fn new(
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         alias: &str,
         list_expression: ContextualExpression,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let mut col_names = input.col_names().to_vec();
         col_names.push(alias.to_string());
 
@@ -82,8 +82,8 @@ define_plan_node_with_deps! {
 
 impl DedupNode {
     pub fn new(
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
         Ok(Self {
@@ -106,9 +106,9 @@ define_plan_node_with_deps! {
 
 impl DataCollectNode {
     pub fn new(
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         collect_kind: &str,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
         Ok(Self {
@@ -136,9 +136,9 @@ define_plan_node_with_deps! {
 
 impl AssignNode {
     pub fn new(
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         assignments: Vec<(String, ContextualExpression)>,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
         Ok(Self {
@@ -163,9 +163,9 @@ impl AssignNode {
 #[derive(Debug, Clone)]
 pub struct RollUpApplyNode {
     id: i64,
-    left_input: Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-    right_input: Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-    deps: Vec<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+    left_input: Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+    right_input: Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
     left_input_var: Option<String>,
     right_input_var: Option<String>,
     compare_cols: Vec<String>,
@@ -176,11 +176,11 @@ pub struct RollUpApplyNode {
 
 impl RollUpApplyNode {
     pub fn new(
-        left_input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
-        right_input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        left_input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        right_input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         compare_cols: Vec<String>,
         collect_col: Option<String>,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = left_input.col_names().to_vec();
         let deps = vec![
             Box::new(left_input.clone()),
@@ -203,13 +203,13 @@ impl RollUpApplyNode {
 
     pub fn left_input(
         &self,
-    ) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.left_input
     }
 
     pub fn right_input(
         &self,
-    ) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.right_input
     }
 
@@ -247,13 +247,13 @@ impl RollUpApplyNode {
 
     pub fn dependencies(
         &self,
-    ) -> &[Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+    ) -> &[Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(
         &mut self,
-        dep: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        dep: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
         *self.left_input = dep.clone();
         self.deps.clear();
@@ -282,8 +282,8 @@ impl RollUpApplyNode {
 
     pub fn clone_plan_node(
         &self,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::RollUpApply(
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::RollUpApply(
             Self {
                 id: self.id,
                 left_input: self.left_input.clone(),
@@ -302,17 +302,17 @@ impl RollUpApplyNode {
     pub fn clone_with_new_id(
         &self,
         new_id: i64,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::RollUpApply(
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::RollUpApply(
             cloned,
         )
     }
 }
 
 // 为 RollUpApplyNode 实现 PlanNode trait
-impl crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
     for RollUpApplyNode
 {
     fn id(&self) -> i64 {
@@ -341,50 +341,50 @@ impl crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode
 
     fn into_enum(
         self,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::RollUpApply(
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::RollUpApply(
             self,
         )
     }
 }
 
 // 为 RollUpApplyNode 实现 PlanNodeClonable trait
-impl crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNodeClonable
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable
     for RollUpApplyNode
 {
     fn clone_plan_node(
         &self,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         self.clone_plan_node()
     }
 
     fn clone_with_new_id(
         &self,
         new_id: i64,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         self.clone_with_new_id(new_id)
     }
 }
 
 // 为 RollUpApplyNode 实现 SingleInputNode trait
-impl crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode
     for RollUpApplyNode
 {
     fn input(
         &self,
-    ) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.left_input
     }
 
     fn input_mut(
         &mut self,
-    ) -> &mut crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> &mut crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &mut self.left_input
     }
 
     fn set_input(
         &mut self,
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
         *self.left_input = input.clone();
         self.deps.clear();
@@ -399,9 +399,9 @@ impl crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInp
 #[derive(Debug, Clone)]
 pub struct PatternApplyNode {
     id: i64,
-    left_input: Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-    right_input: Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-    deps: Vec<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+    left_input: Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+    right_input: Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
     left_input_var: Option<String>,
     right_input_var: Option<String>,
     key_cols: Vec<crate::core::types::ContextualExpression>,
@@ -412,11 +412,11 @@ pub struct PatternApplyNode {
 
 impl PatternApplyNode {
     pub fn new(
-        left_input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
-        right_input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        left_input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        right_input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         key_cols: Vec<crate::core::types::ContextualExpression>,
         is_anti_predicate: bool,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = left_input.col_names().to_vec();
         let deps = vec![
             Box::new(left_input.clone()),
@@ -439,13 +439,13 @@ impl PatternApplyNode {
 
     pub fn left_input(
         &self,
-    ) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.left_input
     }
 
     pub fn right_input(
         &self,
-    ) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.right_input
     }
 
@@ -483,13 +483,13 @@ impl PatternApplyNode {
 
     pub fn dependencies(
         &self,
-    ) -> &[Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+    ) -> &[Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(
         &mut self,
-        dep: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        dep: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
         *self.left_input = dep.clone();
         self.deps.clear();
@@ -518,8 +518,8 @@ impl PatternApplyNode {
 
     pub fn clone_plan_node(
         &self,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::PatternApply(
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::PatternApply(
             Self {
                 id: self.id,
                 left_input: self.left_input.clone(),
@@ -538,17 +538,17 @@ impl PatternApplyNode {
     pub fn clone_with_new_id(
         &self,
         new_id: i64,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::PatternApply(
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::PatternApply(
             cloned,
         )
     }
 }
 
 // 为 PatternApplyNode 实现 PlanNode trait
-impl crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
     for PatternApplyNode
 {
     fn id(&self) -> i64 {
@@ -577,50 +577,50 @@ impl crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode
 
     fn into_enum(
         self,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::PatternApply(
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::PatternApply(
             self,
         )
     }
 }
 
 // 为 PatternApplyNode 实现 PlanNodeClonable trait
-impl crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNodeClonable
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable
     for PatternApplyNode
 {
     fn clone_plan_node(
         &self,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         self.clone_plan_node()
     }
 
     fn clone_with_new_id(
         &self,
         new_id: i64,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         self.clone_with_new_id(new_id)
     }
 }
 
 // 为 PatternApplyNode 实现 SingleInputNode trait
-impl crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode
     for PatternApplyNode
 {
     fn input(
         &self,
-    ) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.left_input
     }
 
     fn input_mut(
         &mut self,
-    ) -> &mut crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> &mut crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &mut self.left_input
     }
 
     fn set_input(
         &mut self,
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
         *self.left_input = input.clone();
         self.deps.clear();
@@ -637,8 +637,8 @@ define_plan_node_with_deps! {
 
 impl MaterializeNode {
     pub fn new(
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
         Ok(Self {
@@ -654,12 +654,12 @@ impl MaterializeNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
 
     #[test]
     fn test_union_node_creation() {
         let start_node =
-            crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+            crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
                 StartNode::new(),
             );
 
@@ -674,11 +674,11 @@ mod tests {
     #[test]
     fn test_unwind_node_creation() {
         let start_node =
-            crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+            crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
                 StartNode::new(),
             );
 
-        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
+        use crate::core::types::expr::{ContextualExpression, Expression, ExpressionMeta};
         use crate::query::validator::context::ExpressionAnalysisContext;
         use std::sync::Arc;
 
@@ -699,7 +699,7 @@ mod tests {
     #[test]
     fn test_dedup_node_creation() {
         let start_node =
-            crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+            crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
                 StartNode::new(),
             );
 
@@ -717,8 +717,8 @@ mod tests {
 #[derive(Debug, Clone)]
 pub struct RemoveNode {
     id: i64,
-    input: Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-    deps: Vec<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+    input: Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+    deps: Vec<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
     remove_items: Vec<(String, ContextualExpression)>,
     output_var: Option<String>,
     col_names: Vec<String>,
@@ -726,9 +726,9 @@ pub struct RemoveNode {
 
 impl RemoveNode {
     pub fn new(
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         remove_items: Vec<(String, ContextualExpression)>,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
         Ok(Self {
@@ -747,13 +747,13 @@ impl RemoveNode {
 
     pub fn dependencies(
         &self,
-    ) -> &[Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+    ) -> &[Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
         &self.deps
     }
 
     pub fn add_dependency(
         &mut self,
-        dep: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        dep: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
         *self.input = dep.clone();
         self.deps.clear();
@@ -773,30 +773,30 @@ impl RemoveNode {
     }
 }
 
-impl crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode
     for RemoveNode
 {
     fn input(
         &self,
-    ) -> &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &self.input
     }
 
     fn input_mut(
         &mut self,
-    ) -> &mut crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> &mut crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         &mut self.input
     }
 
     fn set_input(
         &mut self,
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
         *self.input = input;
     }
 }
 
-impl crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode for RemoveNode {
+impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode for RemoveNode {
     fn id(&self) -> i64 {
         self.id
     }
@@ -823,7 +823,7 @@ impl crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode 
 
     fn into_enum(
         self,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Remove(self)
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Remove(self)
     }
 }

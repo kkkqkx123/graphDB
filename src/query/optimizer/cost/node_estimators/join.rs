@@ -12,7 +12,7 @@ use super::{get_input_rows, NodeEstimator};
 use crate::core::error::optimize::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// 连接操作估算器
 pub struct JoinEstimator<'a> {
@@ -92,8 +92,8 @@ impl<'a> NodeEstimator for JoinEstimator<'a> {
 mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::join::join_node::*;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::join::join_node::*;
     use std::sync::Arc;
 
     fn create_test_calculator() -> CostCalculator {

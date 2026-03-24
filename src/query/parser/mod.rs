@@ -5,8 +5,8 @@
 
 pub mod ast;
 pub mod core;
-pub mod lexer;
-pub mod parser;
+pub mod lexing;
+pub mod parsing;
 
 // 重新导出 core 模块的常用类型
 pub use crate::core::types::{Position, Span};
@@ -19,7 +19,7 @@ pub use ast::{
 };
 
 // 重新导出解析器
-pub use parser::ExprParser;
-pub use parser::Parser;
-pub use parser::ParserResult;
-pub use parser::StmtParser;
+pub use parsing::ExprParser;
+pub use parsing::Parser;
+pub use parsing::ParserResult;
+pub use parsing::StmtParser;

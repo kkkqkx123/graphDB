@@ -2,14 +2,14 @@
 //!
 //! 提供统一的节点创建接口
 
-use crate::query::planner::plan::core::nodes::access::graph_scan_node::{
+use crate::query::planning::plan::core::nodes::access::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
-use crate::query::planner::plan::core::nodes::control_flow::control_flow_node::{
+use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::{
     ArgumentNode, LoopNode, PassThroughNode, SelectNode,
 };
-use crate::query::planner::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
-use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::{
+use crate::query::planning::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
+use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::{
     DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
 
@@ -17,14 +17,14 @@ use crate::core::types::operators::AggregateFunction;
 use crate::core::types::ContextualExpression;
 use crate::core::types::EdgeDirection;
 use crate::core::YieldColumn;
-use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-use crate::query::planner::plan::core::nodes::operation::sort_node::{
+use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+use crate::query::planning::plan::core::nodes::operation::sort_node::{
     LimitNode, SortItem, SortNode,
 };
-use crate::query::planner::plan::core::nodes::traversal::traversal_node::{
+use crate::query::planning::plan::core::nodes::traversal::traversal_node::{
     AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode,
 };
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// 节点工厂
 ///
@@ -36,8 +36,8 @@ impl PlanNodeFactory {
     pub fn create_filter(
         input: PlanNodeEnum,
         condition: ContextualExpression,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
+        use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
         let filter_node = FilterNode::new(input, condition)?;
         Ok(PlanNodeEnum::Filter(filter_node))
     }
@@ -46,8 +46,8 @@ impl PlanNodeFactory {
     pub fn create_project(
         input: PlanNodeEnum,
         columns: Vec<YieldColumn>,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
+        use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
         let project_node = ProjectNode::new(input, columns)?;
         Ok(PlanNodeEnum::Project(project_node))
     }
@@ -58,22 +58,22 @@ impl PlanNodeFactory {
         right: PlanNodeEnum,
         hash_keys: Vec<ContextualExpression>,
         probe_keys: Vec<ContextualExpression>,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use crate::query::planner::plan::core::nodes::join::join_node::InnerJoinNode;
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
+        use crate::query::planning::plan::core::nodes::join::join_node::InnerJoinNode;
 
         let inner_join_node = InnerJoinNode::new(left, right, hash_keys, probe_keys)?;
         Ok(PlanNodeEnum::InnerJoin(inner_join_node))
     }
 
     /// 创建起始节点
-    pub fn create_start_node() -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError>
+    pub fn create_start_node() -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError>
     {
         Ok(PlanNodeEnum::Start(StartNode::new()))
     }
 
     /// 创建占位符节点（使用ArgumentNode作为占位符）
     pub fn create_placeholder_node(
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "placeholder")))
     }
 
@@ -82,7 +82,7 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         group_keys: Vec<String>,
         aggregation_functions: Vec<AggregateFunction>,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let aggregate_node = AggregateNode::new(input, group_keys, aggregation_functions)?;
         Ok(PlanNodeEnum::Aggregate(aggregate_node))
     }
@@ -91,7 +91,7 @@ impl PlanNodeFactory {
     pub fn create_sort(
         input: PlanNodeEnum,
         sort_items: Vec<SortItem>,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let sort_node = SortNode::new(input, sort_items)?;
         Ok(PlanNodeEnum::Sort(sort_node))
     }
@@ -101,7 +101,7 @@ impl PlanNodeFactory {
         input: PlanNodeEnum,
         offset: i64,
         count: i64,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let limit_node = LimitNode::new(input, offset, count)?;
         Ok(PlanNodeEnum::Limit(limit_node))
     }
@@ -110,7 +110,7 @@ impl PlanNodeFactory {
     pub fn create_get_vertices(
         space_id: u64,
         src_vids: &str,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::GetVertices(GetVerticesNode::new(
             space_id, src_vids,
         )))
@@ -123,7 +123,7 @@ impl PlanNodeFactory {
         edge_type: &str,
         rank: &str,
         dst: &str,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::GetEdges(GetEdgesNode::new(
             space_id, src, edge_type, rank, dst,
         )))
@@ -133,7 +133,7 @@ impl PlanNodeFactory {
     pub fn create_get_neighbors(
         space_id: u64,
         src_vids: &str,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::GetNeighbors(GetNeighborsNode::new(
             space_id, src_vids,
         )))
@@ -142,7 +142,7 @@ impl PlanNodeFactory {
     /// 创建扫描顶点节点
     pub fn create_scan_vertices(
         space_id: u64,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::ScanVertices(ScanVerticesNode::new(space_id)))
     }
 
@@ -150,7 +150,7 @@ impl PlanNodeFactory {
     pub fn create_scan_edges(
         space_id: u64,
         edge_type: &str,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::ScanEdges(ScanEdgesNode::new(
             space_id, edge_type,
         )))
@@ -161,7 +161,7 @@ impl PlanNodeFactory {
         space_id: u64,
         edge_types: Vec<String>,
         direction: EdgeDirection,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::Expand(ExpandNode::new(
             space_id, edge_types, direction,
         )))
@@ -172,7 +172,7 @@ impl PlanNodeFactory {
         space_id: u64,
         edge_types: Vec<String>,
         direction: &str,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::ExpandAll(ExpandAllNode::new(
             space_id, edge_types, direction,
         )))
@@ -184,7 +184,7 @@ impl PlanNodeFactory {
         start_vids: &str,
         min_steps: u32,
         max_steps: u32,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::Traverse(TraverseNode::new(
             space_id, start_vids, min_steps, max_steps,
         )))
@@ -194,7 +194,7 @@ impl PlanNodeFactory {
     pub fn create_append_vertices(
         space_id: u64,
         vertex_tag: &str,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::AppendVertices(AppendVerticesNode::new(
             space_id, vertex_tag,
         )))
@@ -204,7 +204,7 @@ impl PlanNodeFactory {
     pub fn create_argument(
         id: i64,
         var: &str,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::Argument(ArgumentNode::new(id, var)))
     }
 
@@ -212,7 +212,7 @@ impl PlanNodeFactory {
     pub fn create_select(
         id: i64,
         condition: ContextualExpression,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::Select(SelectNode::new(id, condition)))
     }
 
@@ -220,14 +220,14 @@ impl PlanNodeFactory {
     pub fn create_loop(
         id: i64,
         condition: ContextualExpression,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::Loop(LoopNode::new(id, condition)))
     }
 
     /// 创建透传节点
     pub fn create_pass_through(
         id: i64,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::PassThrough(PassThroughNode::new(id)))
     }
 
@@ -235,7 +235,7 @@ impl PlanNodeFactory {
     pub fn create_union(
         input: PlanNodeEnum,
         distinct: bool,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let union_node = UnionNode::new(input, distinct)?;
         Ok(PlanNodeEnum::Union(union_node))
     }
@@ -244,8 +244,8 @@ impl PlanNodeFactory {
     pub fn create_minus(
         input: PlanNodeEnum,
         minus_input: PlanNodeEnum,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use crate::query::planner::plan::core::nodes::data_processing::set_operations_node::MinusNode;
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
+        use crate::query::planning::plan::core::nodes::data_processing::set_operations_node::MinusNode;
         let minus_node = MinusNode::new(input, minus_input)?;
         Ok(PlanNodeEnum::Minus(minus_node))
     }
@@ -254,8 +254,8 @@ impl PlanNodeFactory {
     pub fn create_intersect(
         input: PlanNodeEnum,
         intersect_input: PlanNodeEnum,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use crate::query::planner::plan::core::nodes::data_processing::set_operations_node::IntersectNode;
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
+        use crate::query::planning::plan::core::nodes::data_processing::set_operations_node::IntersectNode;
         let intersect_node = IntersectNode::new(input, intersect_input)?;
         Ok(PlanNodeEnum::Intersect(intersect_node))
     }
@@ -264,8 +264,8 @@ impl PlanNodeFactory {
     pub fn create_unwind(
         input: PlanNodeEnum,
         alias: &str,
-        list_expression: crate::core::types::expression::contextual::ContextualExpression,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        list_expression: crate::core::types::expr::contextual::ContextualExpression,
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let unwind_node = UnwindNode::new(input, alias, list_expression)?;
         Ok(PlanNodeEnum::Unwind(unwind_node))
     }
@@ -273,7 +273,7 @@ impl PlanNodeFactory {
     /// 创建去重节点
     pub fn create_dedup(
         input: PlanNodeEnum,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let dedup_node = DedupNode::new(input)?;
         Ok(PlanNodeEnum::Dedup(dedup_node))
     }
@@ -284,7 +284,7 @@ impl PlanNodeFactory {
         right_input: PlanNodeEnum,
         compare_cols: Vec<String>,
         collect_col: Option<String>,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let roll_up_apply_node =
             RollUpApplyNode::new(left_input, right_input, compare_cols, collect_col)?;
         Ok(PlanNodeEnum::RollUpApply(roll_up_apply_node))
@@ -296,7 +296,7 @@ impl PlanNodeFactory {
         right_input: PlanNodeEnum,
         key_cols: Vec<crate::core::types::ContextualExpression>,
         is_anti_predicate: bool,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let pattern_apply_node =
             PatternApplyNode::new(left_input, right_input, key_cols, is_anti_predicate)?;
         Ok(PlanNodeEnum::PatternApply(pattern_apply_node))
@@ -306,7 +306,7 @@ impl PlanNodeFactory {
     pub fn create_data_collect(
         input: PlanNodeEnum,
         collect_kind: &str,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         let data_collect_node = DataCollectNode::new(input, collect_kind)?;
         Ok(PlanNodeEnum::DataCollect(data_collect_node))
     }
@@ -317,8 +317,8 @@ impl PlanNodeFactory {
         tag_id: i32,
         index_id: i32,
         scan_type: &str,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use crate::query::planner::plan::core::nodes::access::{IndexScanNode, ScanType};
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
+        use crate::query::planning::plan::core::nodes::access::{IndexScanNode, ScanType};
 
         // 创建 IndexScan 节点
         let index_scan_node =
@@ -331,8 +331,8 @@ impl PlanNodeFactory {
         space_id: u64,
         edge_type: &str,
         index_name: &str,
-    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use crate::query::planner::plan::core::nodes::access::graph_scan_node::EdgeIndexScanNode;
+    ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
+        use crate::query::planning::plan::core::nodes::access::graph_scan_node::EdgeIndexScanNode;
         let edge_index_scan_node = EdgeIndexScanNode::new(space_id, edge_type, index_name);
         Ok(PlanNodeEnum::EdgeIndexScan(edge_index_scan_node))
     }

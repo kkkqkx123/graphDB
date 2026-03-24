@@ -1,17 +1,17 @@
 //! 折叠多个投影操作的规则
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::Expression;
-use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::Expression;
+use crate::core::types::expr::ExpressionMeta;
 use crate::core::YieldColumn;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::expression_utils::rewrite_contextual_expression;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::expression_utils::rewrite_contextual_expression;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
@@ -279,9 +279,9 @@ impl MergeRule for CollapseProjectRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expr::ExpressionMeta;
     use crate::core::YieldColumn;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
     use std::sync::Arc;
     use ExpressionAnalysisContext;
 

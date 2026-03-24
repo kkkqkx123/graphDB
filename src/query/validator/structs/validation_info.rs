@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::Span;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::context::ExpressionAnalysisContext;

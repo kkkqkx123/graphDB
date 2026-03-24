@@ -2,8 +2,8 @@
 //!
 //! 提供计划节点之间的连接功能，包括内连接、左连接和输入添加
 
-use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::PlannerError;
+use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
+use crate::query::planning::planner::PlannerError;
 use crate::query::QueryContext;
 use std::collections::HashSet;
 
@@ -34,7 +34,7 @@ impl SegmentsConnector {
 
         let _col_names = left_root.col_names().to_vec();
         let join_node = PlanNodeEnum::InnerJoin(
-            crate::query::planner::plan::core::nodes::InnerJoinNode::new(
+            crate::query::planning::plan::core::nodes::InnerJoinNode::new(
                 left_root.clone(),
                 right_root.clone(),
                 vec![],
@@ -69,7 +69,7 @@ impl SegmentsConnector {
         };
 
         let join_node = PlanNodeEnum::LeftJoin(
-            crate::query::planner::plan::core::nodes::LeftJoinNode::new(
+            crate::query::planning::plan::core::nodes::LeftJoinNode::new(
                 left_root.clone(),
                 right_root.clone(),
                 vec![],
@@ -109,7 +109,7 @@ impl SegmentsConnector {
         };
 
         let join_node = PlanNodeEnum::CrossJoin(
-            crate::query::planner::plan::core::nodes::CrossJoinNode::new(
+            crate::query::planning::plan::core::nodes::CrossJoinNode::new(
                 left_root.clone(),
                 right_root.clone(),
             )
@@ -137,10 +137,10 @@ mod tests {
     #[test]
     fn test_inner_join() {
         let left = SubPlan::from_single_node(PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
+            crate::query::planning::plan::core::nodes::StartNode::new(),
         ));
         let right = SubPlan::from_single_node(PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
+            crate::query::planning::plan::core::nodes::StartNode::new(),
         ));
 
         let result = SegmentsConnector::inner_join(
@@ -159,10 +159,10 @@ mod tests {
     #[test]
     fn test_left_join() {
         let left = SubPlan::from_single_node(PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
+            crate::query::planning::plan::core::nodes::StartNode::new(),
         ));
         let right = SubPlan::from_single_node(PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
+            crate::query::planning::plan::core::nodes::StartNode::new(),
         ));
 
         let result =
@@ -177,10 +177,10 @@ mod tests {
     #[test]
     fn test_cross_join() {
         let left = SubPlan::from_single_node(PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
+            crate::query::planning::plan::core::nodes::StartNode::new(),
         ));
         let right = SubPlan::from_single_node(PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
+            crate::query::planning::plan::core::nodes::StartNode::new(),
         ));
 
         let result = SegmentsConnector::cross_join(left, right);
@@ -194,10 +194,10 @@ mod tests {
     #[test]
     fn test_add_input() {
         let input_plan = SubPlan::from_single_node(PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
+            crate::query::planning::plan::core::nodes::StartNode::new(),
         ));
         let dependent_plan = SubPlan::from_single_node(PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
+            crate::query::planning::plan::core::nodes::StartNode::new(),
         ));
 
         let result = SegmentsConnector::add_input(input_plan, dependent_plan, true);
@@ -208,7 +208,7 @@ mod tests {
     fn test_inner_join_with_empty_left() {
         let left = SubPlan::new(None, None);
         let right = SubPlan::from_single_node(PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
+            crate::query::planning::plan::core::nodes::StartNode::new(),
         ));
 
         let result = SegmentsConnector::inner_join(
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn test_cross_join_with_empty_right() {
         let left = SubPlan::from_single_node(PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::StartNode::new(),
+            crate::query::planning::plan::core::nodes::StartNode::new(),
         ));
         let right = SubPlan::new(None, None);
 

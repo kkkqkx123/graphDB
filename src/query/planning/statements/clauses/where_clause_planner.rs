@@ -5,11 +5,11 @@
 
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::PlannerError;
-use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::PlannerError;
+use crate::query::planning::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -70,8 +70,8 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::query::parser::ast::Span;
-    use crate::query::planner::plan::core::nodes::StartNode;
-    use crate::query::planner::plan::core::PlanNodeEnum;
+    use crate::query::planning::plan::core::nodes::StartNode;
+    use crate::query::planning::plan::core::PlanNodeEnum;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
@@ -85,7 +85,7 @@ mod tests {
     fn test_extract_where_condition() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
 
@@ -125,7 +125,7 @@ mod tests {
     fn test_transform_clause() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("age".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
 

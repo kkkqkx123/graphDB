@@ -2,7 +2,7 @@
 //!
 //! 提供高效的哈希表用于join操作
 
-use crate::core::types::expression::Expression;
+use crate::core::types::expr::Expression;
 use crate::core::{DBError, DBResult, DataSet, Value};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;

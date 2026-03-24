@@ -2,19 +2,19 @@
 //!
 //! 处理 INSERT VERTEX 和 INSERT EDGE 语句的查询规划
 
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::utils::ExprFactory;
 use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
-use crate::query::planner::plan::core::{
+use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
         ArgumentNode, EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, ProjectNode,
         TagInsertSpec, VertexInsertInfo,
     },
 };
-use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -207,14 +207,14 @@ impl Default for InsertPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expr::contextual::ContextualExpression;
     use crate::core::Value;
     use crate::query::parser::ast::{Ast, Span, Stmt};
     use crate::query::parser::ast::utils::ExprFactory;
     use crate::query::parser::ast::{
         InsertStmt, InsertTarget, TagInsertSpec, VertexRow,
     };
-    use crate::query::planner::planner::{Planner, ValidatedStatement};
+    use crate::query::planning::planner::{Planner, ValidatedStatement};
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::query::validator::ValidationInfo;
     use crate::query::QueryContext;

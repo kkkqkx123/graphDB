@@ -4,11 +4,11 @@
 
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::UnwindNode;
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::PlannerError;
-use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::UnwindNode;
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::PlannerError;
+use crate::query::planning::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
@@ -83,7 +83,7 @@ mod tests {
 
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::List(vec![]);
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
 

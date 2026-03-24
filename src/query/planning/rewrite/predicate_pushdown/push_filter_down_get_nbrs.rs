@@ -3,16 +3,16 @@
 //! 该规则识别 Filter -> GetNeighbors 模式，
 //! 并将过滤条件下推到 GetNeighbors 节点中。
 
-use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expr::ExpressionMeta;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将过滤条件下推到GetNeighbors操作的规则
 ///
@@ -150,9 +150,9 @@ impl PushDownRule for PushFilterDownGetNbrsRule {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetNeighborsNode;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::GetNeighborsNode;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
 
     #[test]
     fn test_rule_name() {
@@ -178,7 +178,7 @@ mod tests {
 
         let condition = Expression::Variable("test".to_string());
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
         let filter = FilterNode::new(start_enum.clone(), ctx_expr).expect("创建FilterNode失败");

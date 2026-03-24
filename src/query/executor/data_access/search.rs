@@ -21,7 +21,7 @@ pub struct IndexScanExecutor<S: StorageClient + Send + 'static> {
     tag_id: i32,
     index_id: i32,
     scan_type: String,
-    scan_limits: Vec<crate::query::planner::plan::core::nodes::access::IndexLimit>,
+    scan_limits: Vec<crate::query::planning::plan::core::nodes::access::IndexLimit>,
     filter: Option<crate::core::Expression>,
     return_columns: Vec<String>,
     limit: Option<usize>,
@@ -65,7 +65,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         &self.scan_type
     }
 
-    pub fn scan_limits(&self) -> &[crate::query::planner::plan::core::nodes::access::IndexLimit] {
+    pub fn scan_limits(&self) -> &[crate::query::planning::plan::core::nodes::access::IndexLimit] {
         &self.scan_limits
     }
 

@@ -20,9 +20,9 @@
 //! 通用的表达式工具函数（如 extract_property_refs、is_constant）已移至
 //! `core::types::expression::common_utils`，本模块仅保留重写专用的函数。
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::ExpressionMeta;
-use crate::core::types::expression::PropertyContainsChecker;
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::ExpressionMeta;
+use crate::core::types::expr::PropertyContainsChecker;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::Expression;
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -448,8 +448,8 @@ mod tests {
 
         let picker = |expr: &Expression| -> bool {
             let mut collector =
-                crate::core::types::expression::visitor_collectors::PropertyCollector::new();
-            crate::core::types::expression::ExpressionVisitor::visit(&mut collector, expr);
+                crate::core::types::expr::visitor_collectors::PropertyCollector::new();
+            crate::core::types::expr::ExpressionVisitor::visit(&mut collector, expr);
             collector.properties.contains(&"a".to_string())
                 || collector.properties.contains(&"b".to_string())
         };
@@ -457,14 +457,14 @@ mod tests {
         let (picked, remained) = split_filter(&ctx_condition, picker);
 
         assert!(picked.is_some());
-        let picked_props = crate::core::types::expression::common_utils::extract_property_refs(
+        let picked_props = crate::core::types::expr::common_utils::extract_property_refs(
             picked.as_ref().expect("Failed to get picked expression"),
         );
         assert!(picked_props.contains(&"a".to_string()));
         assert!(picked_props.contains(&"b".to_string()));
 
         assert!(remained.is_some());
-        let remained_props = crate::core::types::expression::common_utils::extract_property_refs(
+        let remained_props = crate::core::types::expr::common_utils::extract_property_refs(
             remained
                 .as_ref()
                 .expect("Failed to get remained expression"),

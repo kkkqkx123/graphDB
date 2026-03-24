@@ -6,7 +6,7 @@
 //! # 使用示例
 //!
 //! ```rust
-//! use crate::core::types::expression::visitor::{ExpressionVisitor, PropertyCollector};
+//! use crate::core::types::expr::visitor::{ExpressionVisitor, PropertyCollector};
 //!
 //! let expr = Expression::property("a", "name");
 //! let mut collector = PropertyCollector::new();
@@ -27,7 +27,7 @@ use crate::core::Value;
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::ExpressionVisitor;
+/// use crate::core::types::expr::visitor::ExpressionVisitor;
 ///
 /// struct MyVisitor {
 ///     count: usize,

@@ -1,6 +1,6 @@
 //! 路径相关数据结构
 
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 
 /// 路径信息

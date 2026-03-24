@@ -58,8 +58,8 @@
 //! # 使用示例
 //!
 //! ```rust
-//! use crate::query::planner::rewrite::{PlanRewriter, create_default_rewriter, rewrite_plan};
-//! use crate::query::planner::plan::ExecutionPlan;
+//! use crate::query::planning::rewrite::{PlanRewriter, create_default_rewriter, rewrite_plan};
+//! use crate::query::planning::plan::ExecutionPlan;
 //!
 //! // 使用默认重写器
 //! let plan = ExecutionPlan::new(...);

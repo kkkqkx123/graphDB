@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::define_plan_node_with_deps;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 define_plan_node_with_deps! {
@@ -23,7 +23,7 @@ impl FilterNode {
     pub fn new(
         input: PlanNodeEnum,
         condition: ContextualExpression,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
         Ok(Self {
@@ -63,7 +63,7 @@ impl FilterNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expr::ExpressionMeta;
     use crate::core::Expression;
     use std::sync::Arc;
     use ExpressionAnalysisContext;
@@ -71,9 +71,9 @@ mod tests {
     #[test]
     fn test_filter_node_creation() {
         let start_node =
-            crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new();
+            crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode::new();
         let start_node_enum =
-            crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+            crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
                 start_node,
             );
 

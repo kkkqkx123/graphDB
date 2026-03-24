@@ -9,8 +9,8 @@
 
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{IndexInfo, SeekResult, SeekStrategyContext, SeekStrategyType};
-use crate::core::types::expression::visitor::ExpressionVisitor;
-use crate::core::types::expression::visitor_collectors::OrConditionCollector;
+use crate::core::types::expr::visitor::ExpressionVisitor;
+use crate::core::types::expr::visitor_collectors::OrConditionCollector;
 use crate::core::{StorageError, Value};
 use crate::storage::StorageClient;
 

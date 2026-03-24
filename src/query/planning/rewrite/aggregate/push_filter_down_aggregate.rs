@@ -28,18 +28,18 @@
 //! - Filter 条件不涉及聚合函数（只涉及聚合的输入列）
 
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::visitor_checkers::AggregateFunctionChecker;
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::visitor_checkers::AggregateFunctionChecker;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
-use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::data_processing::aggregate_node::AggregateNode;
+use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将过滤下推到聚合之前的规则
 #[derive(Debug)]
@@ -217,13 +217,13 @@ impl RewriteRule for PushFilterDownAggregateRule {
         let rewritten_condition = Self::rewrite_filter_condition(&filter_expr, group_keys);
 
         // 创建合并后的表达式元数据
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(rewritten_condition);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(rewritten_condition);
         let id = ctx.register_expression(expr_meta);
         let rewritten_ctx_expr = ContextualExpression::new(id, ctx);
 
         // 创建新的 Filter 节点，放在 Aggregate 之前
         let new_filter = FilterNode::new(agg_input.clone(), rewritten_ctx_expr).map_err(|e| {
-            crate::query::planner::rewrite::result::RewriteError::rewrite_failed(format!(
+            crate::query::planning::rewrite::result::RewriteError::rewrite_failed(format!(
                 "创建 FilterNode 失败: {:?}",
                 e
             ))
@@ -236,7 +236,7 @@ impl RewriteRule for PushFilterDownAggregateRule {
             agg_funcs.to_vec(),
         )
         .map_err(|e| {
-            crate::query::planner::rewrite::result::RewriteError::rewrite_failed(format!(
+            crate::query::planning::rewrite::result::RewriteError::rewrite_failed(format!(
                 "创建 AggregateNode 失败: {:?}",
                 e
             ))
@@ -273,7 +273,7 @@ impl PushDownRule for PushFilterDownAggregateRule {
 mod tests {
     use super::*;
     use crate::query::validator::context::ExpressionAnalysisContext;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
     use std::sync::Arc;
 
     #[test]
@@ -381,7 +381,7 @@ mod tests {
             ))),
         };
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
         let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("创建 FilterNode 失败");
@@ -419,7 +419,7 @@ mod tests {
             right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
         };
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
         let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("创建 FilterNode 失败");
@@ -449,7 +449,7 @@ mod tests {
             ))),
         };
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(condition);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(condition);
         let id = expr_ctx.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_ctx);
         let filter = FilterNode::new(start_enum, ctx_expr).expect("创建 FilterNode 失败");

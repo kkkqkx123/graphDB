@@ -2,20 +2,20 @@
 //!
 //! 负责规划 RETURN 子句的执行，实现结果投影。
 
-use crate::core::types::expression::common_utils::generate_default_alias_from_contextual;
+use crate::core::types::expr::common_utils::generate_default_alias_from_contextual;
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::data_processing::data_processing_node::DedupNode;
-use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::PlannerError;
-use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
+use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::DedupNode;
+use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::PlannerError;
+use crate::query::planning::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-pub use crate::query::planner::plan::core::PlanNodeEnum;
+pub use crate::query::planning::plan::core::PlanNodeEnum;
 
 /// RETURN 子句规划器
 ///
@@ -125,10 +125,10 @@ impl ClausePlanner for ReturnClausePlanner {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expr::contextual::ContextualExpression;
     use crate::query::parser::ast::Span;
-    use crate::query::planner::plan::core::nodes::StartNode;
-    use crate::query::planner::plan::core::PlanNodeEnum;
+    use crate::query::planning::plan::core::nodes::StartNode;
+    use crate::query::planning::plan::core::PlanNodeEnum;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
@@ -173,7 +173,7 @@ mod tests {
     fn test_extract_return_columns() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
@@ -233,7 +233,7 @@ mod tests {
     fn test_generate_default_alias() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let contextual = ContextualExpression::new(id, ctx.clone());
         let alias = generate_default_alias_from_contextual(&contextual);
@@ -243,7 +243,7 @@ mod tests {
             object: Box::new(Expression::Variable("n".to_string())),
             property: "name".to_string(),
         };
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let contextual = ContextualExpression::new(id, ctx.clone());
         let alias = generate_default_alias_from_contextual(&contextual);
@@ -253,7 +253,7 @@ mod tests {
             name: "count".to_string(),
             args: vec![],
         };
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let contextual = ContextualExpression::new(id, ctx.clone());
         let alias = generate_default_alias_from_contextual(&contextual);
@@ -264,7 +264,7 @@ mod tests {
     fn test_transform_clause() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
@@ -325,7 +325,7 @@ mod tests {
     fn test_transform_clause_with_distinct() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 
@@ -385,7 +385,7 @@ mod tests {
     fn test_transform_clause_empty_input_plan() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("n".to_string());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(expr_meta);
         let ctx_expr = crate::core::types::ContextualExpression::new(id, ctx);
 

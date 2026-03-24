@@ -32,25 +32,25 @@
 //! - AppendVertices 的 nodeAlias 只被引用一次
 //! - Join 的 hash keys 匹配 id() 或 _joinkey() 模式
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::visitor::ExpressionVisitor;
-use crate::core::types::expression::visitor_checkers::VariableContainsChecker;
-use crate::core::types::expression::visitor_collectors::PropertyCollector;
-use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::visitor::ExpressionVisitor;
+use crate::core::types::expr::visitor_checkers::VariableContainsChecker;
+use crate::core::types::expr::visitor_collectors::PropertyCollector;
+use crate::core::types::expr::ExpressionMeta;
 use crate::core::types::YieldColumn;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, SingleInputNode,
 };
-use crate::query::planner::plan::core::nodes::join::join_node::{
+use crate::query::planning::plan::core::nodes::join::join_node::{
     HashInnerJoinNode, HashLeftJoinNode,
 };
-use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteError, RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::RewriteRule;
+use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteError, RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::RewriteRule;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
@@ -362,7 +362,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::rewrite::rule::RewriteRule;
+    use crate::query::planning::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_remove_append_vertices_below_join_rule_name() {

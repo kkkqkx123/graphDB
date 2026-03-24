@@ -17,10 +17,10 @@ define_plan_node_with_deps! {
 impl AggregateNode {
     /// 创建新的聚合节点
     pub fn new(
-        input: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         group_keys: Vec<String>,
         aggregation_functions: Vec<AggregateFunction>,
-    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+    ) -> Result<Self, crate::query::planning::planner::PlannerError> {
         let mut col_names: Vec<String> = group_keys.clone();
         for agg_func in &aggregation_functions {
             col_names.push(agg_func.name().to_string());
@@ -60,8 +60,8 @@ mod tests {
     #[test]
     fn test_aggregate_node_creation() {
         let start_node =
-            crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
-                crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new(
+            crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Start(
+                crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode::new(
                 ),
             );
 

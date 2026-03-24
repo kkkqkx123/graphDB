@@ -1,15 +1,15 @@
 //! 合并多个过滤操作的规则
 
 
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::operation::filter_node::FilterNode;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::operation::filter_node::FilterNode;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 
 /// 合并多个过滤操作的规则
 ///
@@ -112,7 +112,7 @@ impl RewriteRule for CombineFilterRule {
         let ctx = top_condition.context().clone();
 
         // 创建合并后的表达式元数据
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(combined_condition);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(combined_condition);
         let id = ctx.register_expression(expr_meta);
         let combined_ctx_expr = ContextualExpression::new(id, ctx);
 
@@ -154,7 +154,7 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::query::validator::context::ExpressionAnalysisContext;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
     use std::sync::Arc;
 
     #[test]
@@ -181,7 +181,7 @@ mod tests {
             op: crate::core::types::operators::BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(crate::core::Value::Int(100))),
         };
-        let child_expr_meta = crate::core::types::expression::ExpressionMeta::new(child_condition);
+        let child_expr_meta = crate::core::types::expr::ExpressionMeta::new(child_condition);
         let child_id = expr_ctx.register_expression(child_expr_meta);
         let child_ctx_expr = ContextualExpression::new(child_id, expr_ctx.clone());
         let child_filter = FilterNode::new(start, child_ctx_expr).expect("创建FilterNode失败");
@@ -193,7 +193,7 @@ mod tests {
             op: crate::core::types::operators::BinaryOperator::GreaterThan,
             right: Box::new(Expression::Literal(crate::core::Value::Int(200))),
         };
-        let top_expr_meta = crate::core::types::expression::ExpressionMeta::new(top_condition);
+        let top_expr_meta = crate::core::types::expr::ExpressionMeta::new(top_condition);
         let top_id = expr_ctx.register_expression(top_expr_meta);
         let top_ctx_expr = ContextualExpression::new(top_id, expr_ctx);
         let top_filter =

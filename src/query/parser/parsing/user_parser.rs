@@ -6,7 +6,7 @@ use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::Span;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::core::token::TokenKindExt;
-use crate::query::parser::parser::parse_context::ParseContext;
+use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
 
 /// 用户管理解析器

@@ -2,12 +2,12 @@
 //!
 //! 包含获取顶点、边和邻居节点的计划节点
 
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::define_plan_node;
-use crate::query::planner::plan::core::common::{EdgeProp, TagProp};
-use crate::query::planner::plan::core::node_id_generator::next_node_id;
-use crate::query::planner::plan::core::nodes::access::index_scan::{IndexLimit, ScanType};
-use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+use crate::query::planning::plan::core::common::{EdgeProp, TagProp};
+use crate::query::planning::plan::core::node_id_generator::next_node_id;
+use crate::query::planning::plan::core::nodes::access::index_scan::{IndexLimit, ScanType};
+use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 define_plan_node! {
@@ -26,7 +26,7 @@ define_plan_node! {
 
 impl GetVerticesNode {
     pub fn new(space_id: u64, src_vids: &str) -> Self {
-        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expr::ExpressionMeta;
         use crate::core::Expression;
         use std::sync::Arc;
         use ExpressionAnalysisContext;
@@ -93,7 +93,7 @@ impl GetVerticesNode {
     }
 
     pub fn set_src_vids(&mut self, src_vids: String) {
-        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expr::ExpressionMeta;
         use crate::core::Expression;
         use std::sync::Arc;
         use ExpressionAnalysisContext;
@@ -233,7 +233,7 @@ define_plan_node! {
 
 impl GetEdgesNode {
     pub fn new(space_id: u64, src: &str, edge_type: &str, rank: &str, dst: &str) -> Self {
-        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expr::ExpressionMeta;
         use crate::core::Expression;
         use std::sync::Arc;
         use ExpressionAnalysisContext;

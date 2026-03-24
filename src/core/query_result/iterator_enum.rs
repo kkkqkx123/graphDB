@@ -3,8 +3,8 @@
 //! 提供 ResultIteratorEnum 枚举，包含所有具体迭代器类型
 //! 避免动态分发的性能开销
 
-use crate::core::result::iterator::{DefaultIterator, GetNeighborsIterator, PropIterator};
-use crate::core::result::result_iterator::ResultIterator;
+use crate::core::query_result::iterator::{DefaultIterator, GetNeighborsIterator, PropIterator};
+use crate::core::query_result::result_iterator::ResultIterator;
 use crate::core::value::Value;
 use crate::core::DBResult;
 

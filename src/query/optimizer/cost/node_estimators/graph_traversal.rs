@@ -15,7 +15,7 @@ use crate::core::types::EdgeDirection;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::stats::{EdgeTypeStatistics, SkewnessLevel};
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// 图遍历操作估算器
 pub struct GraphTraversalEstimator<'a> {
@@ -227,12 +227,12 @@ mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
     use crate::query::optimizer::stats::{EdgeTypeStatistics, TagStatistics};
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::*;
-    use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::*;
+    use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
         MultipleInputNode, SingleInputNode,
     };
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::traversal::traversal_node::*;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::traversal::traversal_node::*;
     use std::sync::Arc;
 
     fn create_test_calculator() -> CostCalculator {

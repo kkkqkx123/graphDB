@@ -4,13 +4,13 @@
 
 use std::sync::Arc;
 
-use crate::core::types::expression::{Expression, ExpressionMeta};
+use crate::core::types::expr::{Expression, ExpressionMeta};
 use crate::core::Value;
 use crate::query::optimizer::analysis::{
     ExpressionAnalysis, ExpressionAnalyzer, FingerprintCalculator, PlanFingerprint,
     ReferenceCountAnalysis, ReferenceCountAnalyzer,
 };
-use crate::query::planner::plan::core::nodes::{
+use crate::query::planning::plan::core::nodes::{
     FilterNode, GetVerticesNode, PlanNodeEnum, ProjectNode,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -104,7 +104,7 @@ fn test_fingerprint_calculator_integration() {
     assert_eq!(fp1, fp2);
 
     // 创建不同结构的节点
-    let node3 = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
+    let node3 = PlanNodeEnum::Start(crate::query::planning::plan::core::nodes::StartNode::new());
     let fp3 = calculator.calculate_fingerprint(&node3);
 
     // 不同结构的节点应该产生不同的指纹
@@ -132,7 +132,7 @@ fn test_reference_count_analyzer_integration() {
 
     // 创建一个简单的计划树
     let start_node =
-        PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
+        PlanNodeEnum::Start(crate::query::planning::plan::core::nodes::StartNode::new());
 
     let analysis = analyzer.analyze(&start_node);
 
@@ -667,7 +667,7 @@ fn test_expression_analyzer_default() {
 fn test_fingerprint_calculator_default() {
     let calculator = FingerprintCalculator::new();
 
-    let node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
+    let node = PlanNodeEnum::Start(crate::query::planning::plan::core::nodes::StartNode::new());
     let fp = calculator.calculate_fingerprint(&node);
 
     assert!(fp.value() != 0);
@@ -677,7 +677,7 @@ fn test_fingerprint_calculator_default() {
 fn test_reference_count_analyzer_default() {
     let analyzer = ReferenceCountAnalyzer::default();
 
-    let node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
+    let node = PlanNodeEnum::Start(crate::query::planning::plan::core::nodes::StartNode::new());
     let analysis = analyzer.analyze(&node);
 
     assert_eq!(analysis.repeated_count(), 0);

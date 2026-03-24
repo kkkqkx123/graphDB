@@ -8,7 +8,7 @@ use crate::query::executor::data_processing::set_operations::{
     IntersectExecutor, MinusExecutor, UnionExecutor,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::planner::plan::core::nodes::{IntersectNode, MinusNode, UnionNode};
+use crate::query::planning::plan::core::nodes::{IntersectNode, MinusNode, UnionNode};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;

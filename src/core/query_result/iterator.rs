@@ -151,7 +151,7 @@ impl PropIterator {
     }
 }
 
-impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>> for DefaultIterator {
+impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Value>> for DefaultIterator {
     type Row = Vec<Value>;
 
     fn next(&mut self) -> crate::core::DBResult<Option<Self::Row>> {
@@ -188,7 +188,7 @@ impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>> fo
     }
 }
 
-impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>>
+impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Value>>
     for GetNeighborsIterator
 {
     type Row = Vec<Value>;
@@ -238,7 +238,7 @@ impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>>
     }
 }
 
-impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>> for PropIterator {
+impl<'a> crate::core::query_result::result_iterator::ResultIterator<'a, Vec<Value>> for PropIterator {
     type Row = Vec<Value>;
 
     fn next(&mut self) -> crate::core::DBResult<Option<Self::Row>> {
@@ -278,7 +278,7 @@ impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>> fo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::result::result_iterator::ResultIterator;
+    use crate::core::query_result::result_iterator::ResultIterator;
 
     #[test]
     fn test_default_iterator() {

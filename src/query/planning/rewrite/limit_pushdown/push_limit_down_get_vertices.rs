@@ -3,10 +3,10 @@
 //! 该规则识别 Limit -> GetVertices 模式，
 //! 并将LIMIT值集成到GetVertices操作中。
 
-use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetVerticesNode;
-use crate::query::planner::plan::core::nodes::operation::sort_node::LimitNode;
-use crate::query::planner::rewrite::macros::define_rewrite_pushdown_rule;
-use crate::query::planner::rewrite::result::TransformResult;
+use crate::query::planning::plan::core::nodes::access::graph_scan_node::GetVerticesNode;
+use crate::query::planning::plan::core::nodes::operation::sort_node::LimitNode;
+use crate::query::planning::rewrite::macros::define_rewrite_pushdown_rule;
+use crate::query::planning::rewrite::result::TransformResult;
 
 define_rewrite_pushdown_rule! {
     /// 将LIMIT下推到获取顶点操作的规则
@@ -64,7 +64,7 @@ define_rewrite_pushdown_rule! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::rewrite::rule::RewriteRule;
+    use crate::query::planning::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_rule_name() {

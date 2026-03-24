@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::EdgeDirection;
 use crate::core::Expression;
 use crate::core::Value;
@@ -544,9 +544,9 @@ impl CreateValidator {
     /// 内部方法：从表达式中提取属性键值对
     fn extract_properties_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> Result<Vec<(String, Value)>, ValidationError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match expr {
             Expression::Map(entries) => {

@@ -27,7 +27,7 @@ use crate::query::executor::base::ExecutionResult;
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::optimizer::OptimizerEngine;
 use crate::query::parser::Parser;
-use crate::query::planner::{ParameterizedQueryHandler, PlanCacheConfig, QueryPlanCache};
+use crate::query::planning::{ParameterizedQueryHandler, PlanCacheConfig, QueryPlanCache};
 use crate::query::query_request_context::QueryRequestContext;
 use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::query::QueryContext;
@@ -118,7 +118,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     }
 
     /// 获取查询计划缓存统计
-    pub fn plan_cache_stats(&self) -> crate::query::planner::PlanCacheStats {
+    pub fn plan_cache_stats(&self) -> crate::query::planning::PlanCacheStats {
         self.plan_cache.stats()
     }
 
@@ -427,18 +427,18 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         &mut self,
         query_context: Arc<QueryContext>,
         validated: &ValidatedStatement,
-    ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
+    ) -> DBResult<crate::query::planning::plan::ExecutionPlan> {
         // 直接使用 Arc<Ast> 创建规划器，消除 SentenceKind 字符串匹配
         let plan = if let Some(mut planner_enum) =
-            crate::query::planner::planner::PlannerEnum::from_ast(&validated.ast)
+            crate::query::planning::planner::PlannerEnum::from_ast(&validated.ast)
         {
             let sub_plan = planner_enum
                 .transform(validated, query_context)
                 .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
-            crate::query::planner::plan::ExecutionPlan::new(sub_plan.root().clone())
+            crate::query::planning::plan::ExecutionPlan::new(sub_plan.root().clone())
         } else {
             return Err(DBError::from(QueryError::pipeline_planning_error(
-                crate::query::planner::planner::PlannerError::NoSuitablePlanner(
+                crate::query::planning::planner::PlannerError::NoSuitablePlanner(
                     "No suitable planner found".to_string(),
                 ),
             )));
@@ -449,10 +449,10 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
     fn optimize_execution_plan(
         &mut self,
-        plan: crate::query::planner::plan::ExecutionPlan,
-    ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
+        plan: crate::query::planning::plan::ExecutionPlan,
+    ) -> DBResult<crate::query::planning::plan::ExecutionPlan> {
         // 使用 planner rewrite 规则进行优化
-        use crate::query::planner::rewrite::rewrite_plan;
+        use crate::query::planning::rewrite::rewrite_plan;
 
         let rewritten_plan = rewrite_plan(plan)
             .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
@@ -478,7 +478,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     fn execute_plan(
         &mut self,
         query_context: Arc<QueryContext>,
-        plan: crate::query::planner::plan::ExecutionPlan,
+        plan: crate::query::planning::plan::ExecutionPlan,
     ) -> DBResult<ExecutionResult> {
         use crate::query::executor::factory::executors::plan_executor::PlanExecutor;
         let mut plan_executor = PlanExecutor::new(self.executor_factory.clone());

@@ -2,7 +2,7 @@
 //!
 //! 提供创建各类表达式的方法。
 
-use crate::core::types::expression::Expression;
+use crate::core::types::expr::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::types::DataType;
 use crate::core::{NullType, Value};

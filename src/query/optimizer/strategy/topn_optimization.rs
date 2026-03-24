@@ -29,7 +29,7 @@
 use std::sync::Arc;
 
 use crate::query::optimizer::cost::CostCalculator;
-use crate::query::planner::plan::core::nodes::{SortItem, SortNode};
+use crate::query::planning::plan::core::nodes::{SortItem, SortNode};
 
 /// 排序消除决策
 #[derive(Debug, Clone, PartialEq)]
@@ -328,9 +328,9 @@ mod tests {
 
     #[test]
     fn test_context_creation() {
-        let start_node = crate::query::planner::plan::core::nodes::StartNode::new();
+        let start_node = crate::query::planning::plan::core::nodes::StartNode::new();
         let sort_node = SortNode::new(
-            crate::query::planner::plan::PlanNodeEnum::Start(start_node),
+            crate::query::planning::plan::PlanNodeEnum::Start(start_node),
             vec![SortItem::asc("name".to_string())],
         )
         .expect("Failed to create SortNode");
@@ -343,9 +343,9 @@ mod tests {
 
     #[test]
     fn test_context_with_limit() {
-        let start_node = crate::query::planner::plan::core::nodes::StartNode::new();
+        let start_node = crate::query::planning::plan::core::nodes::StartNode::new();
         let sort_node = SortNode::new(
-            crate::query::planner::plan::PlanNodeEnum::Start(start_node),
+            crate::query::planning::plan::PlanNodeEnum::Start(start_node),
             vec![SortItem::asc("name".to_string())],
         )
         .expect("Failed to create SortNode");

@@ -131,8 +131,8 @@ macro_rules! define_enum_type_name {
 macro_rules! define_enum_category {
     ($enum_type:ident, $(($variant:ident, $category:expr)),* $(,)?) => {
         impl $enum_type {
-            pub fn category(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_category::PlanNodeCategory {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
+            pub fn category(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_category::PlanNodeCategory;
                 match self {
                     $($enum_type::$variant(_) => $category,)*
                 }
@@ -156,8 +156,8 @@ macro_rules! define_enum_category {
 macro_rules! define_enum_describe {
     ($enum_type:ident, $(($variant:ident, $name:expr)),* $(,)?) => {
         impl $enum_type {
-            pub fn describe(&self) -> $crate::query::planner::plan::core::explain::PlanNodeDescription {
-                use $crate::query::planner::plan::core::explain::PlanNodeDescription;
+            pub fn describe(&self) -> $crate::query::planning::plan::core::explain::PlanNodeDescription {
+                use $crate::query::planning::plan::core::explain::PlanNodeDescription;
                 match self {
                     $($enum_type::$variant(node) => {
                         let mut desc = PlanNodeDescription::new($name, node.id());
@@ -197,7 +197,7 @@ macro_rules! define_plan_node {
 
         impl Clone for $name {
             fn clone(&self) -> Self {
-                use $crate::query::planner::plan::core::node_id_generator::next_node_id;
+                use $crate::query::planning::plan::core::node_id_generator::next_node_id;
                 Self {
                     id: next_node_id(),
                     $($field: self.$field.clone(),)*
@@ -232,20 +232,20 @@ macro_rules! define_plan_node {
                 self.col_names = names;
             }
 
-            pub fn clone_plan_node(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+            pub fn clone_plan_node(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self.clone())
             }
 
-            pub fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 let mut cloned = self.clone();
                 cloned.id = new_id;
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(cloned)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
             fn id(&self) -> i64 {
                 self.id()
             }
@@ -270,23 +270,23 @@ macro_rules! define_plan_node {
                 self.set_col_names(names);
             }
 
-            fn into_enum(self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+            fn into_enum(self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for $name {
-            fn clone_plan_node(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for $name {
+            fn clone_plan_node(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_plan_node()
             }
 
-            fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_with_new_id(new_id)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::ZeroInputNode for $name {}
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::ZeroInputNode for $name {}
     };
 
     // MultipleInputNode 分支
@@ -302,7 +302,7 @@ macro_rules! define_plan_node {
         #[derive(Debug)]
         pub struct $name {
             id: i64,
-            deps: Vec<Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+            deps: Vec<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
@@ -310,7 +310,7 @@ macro_rules! define_plan_node {
 
         impl Clone for $name {
             fn clone(&self) -> Self {
-                use $crate::query::planner::plan::core::node_id_generator::next_node_id;
+                use $crate::query::planning::plan::core::node_id_generator::next_node_id;
                 Self {
                     id: next_node_id(),
                     deps: self.deps.clone(),
@@ -346,11 +346,11 @@ macro_rules! define_plan_node {
                 self.col_names = names;
             }
 
-            pub fn dependencies(&self) -> &[Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+            pub fn dependencies(&self) -> &[Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
                 &self.deps
             }
 
-            pub fn add_dependency(&mut self, dep: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            pub fn add_dependency(&mut self, dep: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.deps.push(Box::new(dep));
             }
 
@@ -360,20 +360,20 @@ macro_rules! define_plan_node {
                 self.deps.len() != initial_len
             }
 
-            pub fn clone_plan_node(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+            pub fn clone_plan_node(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self.clone())
             }
 
-            pub fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 let mut cloned = self.clone();
                 cloned.id = new_id;
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(cloned)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
             fn id(&self) -> i64 {
                 self.id()
             }
@@ -395,22 +395,22 @@ macro_rules! define_plan_node {
             }
 
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
-            fn into_enum(self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+            fn into_enum(self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::MultipleInputNode for $name {
-            fn inputs(&self) -> &[Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::MultipleInputNode for $name {
+            fn inputs(&self) -> &[Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
                 &self.deps
             }
 
-            fn inputs_mut(&mut self) -> &mut Vec<Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>> {
+            fn inputs_mut(&mut self) -> &mut Vec<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>> {
                 &mut self.deps
             }
 
-            fn add_input(&mut self, input: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            fn add_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.deps.push(Box::new(input));
             }
 
@@ -424,11 +424,11 @@ macro_rules! define_plan_node {
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for $name {
-            fn clone_plan_node(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for $name {
+            fn clone_plan_node(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_plan_node()
             }
-            fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_with_new_id(new_id)
             }
         }
@@ -450,9 +450,9 @@ macro_rules! define_binary_input_node {
         #[derive(Debug)]
         pub struct $name {
             id: i64,
-            left: Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-            right: Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-            deps: Vec<Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+            left: Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+            right: Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+            deps: Vec<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
@@ -460,7 +460,7 @@ macro_rules! define_binary_input_node {
 
         impl Clone for $name {
             fn clone(&self) -> Self {
-                use $crate::query::planner::plan::core::node_id_generator::next_node_id;
+                use $crate::query::planning::plan::core::node_id_generator::next_node_id;
                 Self {
                     id: next_node_id(),
                     left: self.left.clone(),
@@ -498,91 +498,91 @@ macro_rules! define_binary_input_node {
                 self.col_names = names;
             }
 
-            pub fn dependencies(&self) -> &[Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+            pub fn dependencies(&self) -> &[Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
                 &self.deps
             }
 
-            pub fn left_input(&self) -> &$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn left_input(&self) -> &$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &self.left
             }
 
-            pub fn right_input(&self) -> &$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn right_input(&self) -> &$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &self.right
             }
 
-            pub fn left_input_mut(&mut self) -> &mut $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn left_input_mut(&mut self) -> &mut $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &mut self.left
             }
 
-            pub fn right_input_mut(&mut self) -> &mut $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn right_input_mut(&mut self) -> &mut $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &mut self.right
             }
 
-            pub fn set_left_input(&mut self, input: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            pub fn set_left_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.left = Box::new(input.clone());
                 if self.deps.len() > 0 {
                     self.deps[0] = self.left.clone();
                 }
             }
 
-            pub fn set_right_input(&mut self, input: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            pub fn set_right_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.right = Box::new(input.clone());
                 if self.deps.len() > 1 {
                     self.deps[1] = self.right.clone();
                 }
             }
 
-            pub fn clone_plan_node(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+            pub fn clone_plan_node(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self.clone())
             }
 
-            pub fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 let mut cloned = self.clone();
                 cloned.id = new_id;
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(cloned)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
             fn id(&self) -> i64 { self.id() }
             fn name(&self) -> &'static str { self.type_name() }
             fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
             fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
-            fn into_enum(self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+            fn into_enum(self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::BinaryInputNode for $name {
-            fn left_input(&self) -> &$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::BinaryInputNode for $name {
+            fn left_input(&self) -> &$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &self.left
             }
 
-            fn right_input(&self) -> &$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn right_input(&self) -> &$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &self.right
             }
 
-            fn left_input_mut(&mut self) -> &mut $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn left_input_mut(&mut self) -> &mut $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &mut self.left
             }
 
-            fn right_input_mut(&mut self) -> &mut $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn right_input_mut(&mut self) -> &mut $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &mut self.right
             }
 
-            fn set_left_input(&mut self, input: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            fn set_left_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.left = Box::new(input.clone());
                 if self.deps.len() > 0 {
                     self.deps[0] = self.left.clone();
                 }
             }
 
-            fn set_right_input(&mut self, input: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            fn set_right_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.right = Box::new(input.clone());
                 if self.deps.len() > 1 {
                     self.deps[1] = self.right.clone();
@@ -590,11 +590,11 @@ macro_rules! define_binary_input_node {
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for $name {
-            fn clone_plan_node(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for $name {
+            fn clone_plan_node(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_plan_node()
             }
-            fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_with_new_id(new_id)
             }
         }
@@ -616,8 +616,8 @@ macro_rules! define_plan_node_with_deps {
         #[derive(Debug)]
         pub struct $name {
             id: i64,
-            input: Option<Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
-            deps: Vec<Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+            input: Option<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+            deps: Vec<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
@@ -625,7 +625,7 @@ macro_rules! define_plan_node_with_deps {
 
         impl Clone for $name {
             fn clone(&self) -> Self {
-                use $crate::query::planner::plan::core::node_id_generator::next_node_id;
+                use $crate::query::planning::plan::core::node_id_generator::next_node_id;
                 Self {
                     id: next_node_id(),
                     input: self.input.clone(),
@@ -662,65 +662,65 @@ macro_rules! define_plan_node_with_deps {
                 self.col_names = names;
             }
 
-            pub fn dependencies(&self) -> &[Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+            pub fn dependencies(&self) -> &[Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
                 &self.deps
             }
 
-            pub fn dependencies_mut(&mut self) -> &mut Vec<Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>> {
+            pub fn dependencies_mut(&mut self) -> &mut Vec<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>> {
                 &mut self.deps
             }
 
-            pub fn set_dependencies(&mut self, deps: Vec<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>) {
+            pub fn set_dependencies(&mut self, deps: Vec<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>) {
                 self.deps = deps.into_iter().map(Box::new).collect();
             }
 
-            pub fn clone_plan_node(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+            pub fn clone_plan_node(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self.clone())
             }
 
-            pub fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 let mut cloned = self.clone();
                 cloned.id = new_id;
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(cloned)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
             fn id(&self) -> i64 { self.id() }
             fn name(&self) -> &'static str { self.type_name() }
             fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
             fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
-            fn into_enum(self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+            fn into_enum(self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode for $name {
-            fn input(&self) -> &$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode for $name {
+            fn input(&self) -> &$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.input.as_ref().expect("输入节点不存在")
             }
 
-            fn input_mut(&mut self) -> &mut $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn input_mut(&mut self) -> &mut $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.input.as_mut().expect("输入节点不存在")
             }
 
-            fn set_input(&mut self, input: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            fn set_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.input = Some(Box::new(input.clone()));
                 self.deps.clear();
                 self.deps.push(Box::new(input));
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for $name {
-            fn clone_plan_node(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for $name {
+            fn clone_plan_node(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_plan_node()
             }
-            fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_with_new_id(new_id)
             }
         }
@@ -741,11 +741,11 @@ macro_rules! define_join_node {
         #[derive(Debug)]
         pub struct $name {
             id: i64,
-            left: Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-            right: Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
-            hash_keys: Vec<$crate::core::types::expression::contextual::ContextualExpression>,
-            probe_keys: Vec<$crate::core::types::expression::contextual::ContextualExpression>,
-            deps: Vec<Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+            left: Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+            right: Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+            hash_keys: Vec<$crate::core::types::expr::contextual::ContextualExpression>,
+            probe_keys: Vec<$crate::core::types::expr::contextual::ContextualExpression>,
+            deps: Vec<Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
@@ -753,7 +753,7 @@ macro_rules! define_join_node {
 
         impl Clone for $name {
             fn clone(&self) -> Self {
-                use $crate::query::planner::plan::core::node_id_generator::next_node_id;
+                use $crate::query::planning::plan::core::node_id_generator::next_node_id;
                 Self {
                     id: next_node_id(),
                     left: self.left.clone(),
@@ -793,50 +793,50 @@ macro_rules! define_join_node {
                 self.col_names = names;
             }
 
-            pub fn dependencies(&self) -> &[Box<$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
+            pub fn dependencies(&self) -> &[Box<$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>] {
                 &self.deps
             }
 
-            pub fn hash_keys(&self) -> &[$crate::core::types::expression::contextual::ContextualExpression] {
+            pub fn hash_keys(&self) -> &[$crate::core::types::expr::contextual::ContextualExpression] {
                 &self.hash_keys
             }
 
-            pub fn probe_keys(&self) -> &[$crate::core::types::expression::contextual::ContextualExpression] {
+            pub fn probe_keys(&self) -> &[$crate::core::types::expr::contextual::ContextualExpression] {
                 &self.probe_keys
             }
 
-            pub fn left_input(&self) -> &$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn left_input(&self) -> &$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &self.left
             }
 
-            pub fn right_input(&self) -> &$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn right_input(&self) -> &$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &self.right
             }
 
-            pub fn left_input_mut(&mut self) -> &mut $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn left_input_mut(&mut self) -> &mut $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &mut self.left
             }
 
-            pub fn right_input_mut(&mut self) -> &mut $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn right_input_mut(&mut self) -> &mut $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &mut self.right
             }
 
-            pub fn set_left_input(&mut self, input: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            pub fn set_left_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.left = Box::new(input.clone());
                 if self.deps.len() > 0 {
                     self.deps[0] = self.left.clone();
                 }
             }
 
-            pub fn set_right_input(&mut self, input: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            pub fn set_right_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.right = Box::new(input.clone());
                 if self.deps.len() > 1 {
                     self.deps[1] = self.right.clone();
                 }
             }
 
-            pub fn add_dependency(&mut self, _dep: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) -> Result<(), $crate::query::planner::planner::PlannerError> {
-                Err($crate::query::planner::planner::PlannerError::InvalidOperation(
+            pub fn add_dependency(&mut self, _dep: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) -> Result<(), $crate::query::planning::planner::PlannerError> {
+                Err($crate::query::planning::planner::PlannerError::InvalidOperation(
                     format!("{}节点不支持添加依赖，它需要恰好两个输入", stringify!($name))
                 ))
             }
@@ -863,57 +863,57 @@ macro_rules! define_join_node {
                 }
             }
 
-            pub fn clone_plan_node(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+            pub fn clone_plan_node(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self.clone())
             }
 
-            pub fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            pub fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 let mut cloned = self.clone();
                 cloned.id = new_id;
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(cloned)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode for $name {
             fn id(&self) -> i64 { self.id() }
             fn name(&self) -> &'static str { self.type_name() }
             fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
             fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
-            fn into_enum(self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-                use $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+            fn into_enum(self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+                use $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self)
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::BinaryInputNode for $name {
-            fn left_input(&self) -> &$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::BinaryInputNode for $name {
+            fn left_input(&self) -> &$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &self.left
             }
 
-            fn right_input(&self) -> &$crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn right_input(&self) -> &$crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &self.right
             }
 
-            fn left_input_mut(&mut self) -> &mut $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn left_input_mut(&mut self) -> &mut $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &mut self.left
             }
 
-            fn right_input_mut(&mut self) -> &mut $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn right_input_mut(&mut self) -> &mut $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 &mut self.right
             }
 
-            fn set_left_input(&mut self, input: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            fn set_left_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.left = Box::new(input.clone());
                 if self.deps.len() > 0 {
                     self.deps[0] = self.left.clone();
                 }
             }
 
-            fn set_right_input(&mut self, input: $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
+            fn set_right_input(&mut self, input: $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum) {
                 self.right = Box::new(input.clone());
                 if self.deps.len() > 1 {
                     self.deps[1] = self.right.clone();
@@ -921,21 +921,21 @@ macro_rules! define_join_node {
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::JoinNode for $name {
-            fn hash_keys(&self) -> &[$crate::core::types::expression::contextual::ContextualExpression] {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::JoinNode for $name {
+            fn hash_keys(&self) -> &[$crate::core::types::expr::contextual::ContextualExpression] {
                 &self.hash_keys
             }
 
-            fn probe_keys(&self) -> &[$crate::core::types::expression::contextual::ContextualExpression] {
+            fn probe_keys(&self) -> &[$crate::core::types::expr::contextual::ContextualExpression] {
                 &self.probe_keys
             }
         }
 
-        impl $crate::query::planner::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for $name {
-            fn clone_plan_node(&self) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable for $name {
+            fn clone_plan_node(&self) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_plan_node()
             }
-            fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+            fn clone_with_new_id(&self, new_id: i64) -> $crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
                 self.clone_with_new_id(new_id)
             }
         }

@@ -10,7 +10,7 @@ use crate::query::executor::result_processing::{
     ProjectExecutor, ProjectionColumn, SampleExecutor, SampleMethod, SortExecutor, SortKey,
     TopNExecutor,
 };
-use crate::query::planner::plan::core::nodes::{
+use crate::query::planning::plan::core::nodes::{
     AggregateNode, DedupNode, FilterNode, LimitNode, ProjectNode, SampleNode, SortNode, TopNNode,
 };
 use crate::storage::StorageClient;

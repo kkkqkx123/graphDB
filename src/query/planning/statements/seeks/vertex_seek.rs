@@ -86,9 +86,9 @@ impl VertexSeek {
 
     fn extract_vid_from_predicate(
         &self,
-        predicate: &crate::core::types::expression::Expression,
+        predicate: &crate::core::types::expr::Expression,
     ) -> Option<Value> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match predicate {
             Expression::Literal(value) => Some(value.clone()),

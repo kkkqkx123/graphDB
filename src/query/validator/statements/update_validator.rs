@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::core::error::{
     DBResult, ValidationError, ValidationError as CoreValidationError, ValidationErrorType,
 };
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::query::parser::ast::stmt::{Ast, SetClause, UpdateStmt, UpdateTarget};
@@ -673,22 +673,22 @@ impl UpdateValidator {
     /// 内部方法：验证表达式
     fn validate_expression_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> Result<(), CoreValidationError> {
         match expr {
-            crate::core::types::expression::Expression::Literal(_) => Ok(()),
-            crate::core::types::expression::Expression::Variable(_) => Ok(()),
-            crate::core::types::expression::Expression::Property { .. } => Ok(()),
-            crate::core::types::expression::Expression::Function { args, .. } => {
+            crate::core::types::expr::Expression::Literal(_) => Ok(()),
+            crate::core::types::expr::Expression::Variable(_) => Ok(()),
+            crate::core::types::expr::Expression::Property { .. } => Ok(()),
+            crate::core::types::expr::Expression::Function { args, .. } => {
                 for arg in args {
                     self.validate_expression_internal(arg)?;
                 }
                 Ok(())
             }
-            crate::core::types::expression::Expression::Unary { operand, .. } => {
+            crate::core::types::expr::Expression::Unary { operand, .. } => {
                 self.validate_expression_internal(operand)
             }
-            crate::core::types::expression::Expression::Binary { left, right, .. } => {
+            crate::core::types::expr::Expression::Binary { left, right, .. } => {
                 self.validate_expression_internal(left)?;
                 self.validate_expression_internal(right)?;
                 Ok(())
@@ -829,7 +829,7 @@ impl Default for UpdateValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expr::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{Assignment, SetClause, UpdateTarget};
     use crate::query::parser::ast::Span;
@@ -837,7 +837,7 @@ mod tests {
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
     }

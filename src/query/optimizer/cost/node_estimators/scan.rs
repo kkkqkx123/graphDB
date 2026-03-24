@@ -10,9 +10,9 @@ use super::NodeEstimator;
 use crate::core::error::optimize::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
-use crate::query::planner::plan::core::nodes::access::EdgeIndexScanNode;
-use crate::query::planner::plan::core::nodes::access::{IndexScanNode, ScanType};
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::access::EdgeIndexScanNode;
+use crate::query::planning::plan::core::nodes::access::{IndexScanNode, ScanType};
+use crate::query::planning::plan::PlanNodeEnum;
 
 /// 扫描操作估算器
 pub struct ScanEstimator<'a> {
@@ -162,8 +162,8 @@ mod tests {
     use super::*;
     use crate::query::optimizer::cost::config::CostModelConfig;
     use crate::query::optimizer::stats::{EdgeTypeStatistics, TagStatistics};
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::*;
-    use crate::query::planner::plan::core::nodes::access::{IndexLimit, ScanType};
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::*;
+    use crate::query::planning::plan::core::nodes::access::{IndexLimit, ScanType};
     use std::sync::Arc;
 
     fn create_test_calculator() -> CostCalculator {
@@ -279,7 +279,7 @@ mod tests {
         let estimator = ScanEstimator::new(&calculator);
 
         let node = PlanNodeEnum::Start(
-            crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode::new(),
+            crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode::new(),
         );
         let child_estimates = vec![];
         let result = estimator.estimate(&node, &child_estimates);

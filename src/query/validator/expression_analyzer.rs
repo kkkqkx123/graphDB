@@ -12,7 +12,7 @@
 
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::{ContextualExpression, Expression};
+use crate::core::types::expr::{ContextualExpression, Expression};
 use crate::core::types::DataType;
 use crate::core::Value;
 
@@ -719,7 +719,7 @@ impl Default for ExpressionAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::ExpressionMeta;
+    use crate::core::types::expr::ExpressionMeta;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 

@@ -5,7 +5,7 @@
 use crate::core::error::QueryError;
 use crate::query::executor::base::{ExecutionContext, ExecutionResult, Executor};
 use crate::query::executor::factory::ExecutorFactory;
-use crate::query::planner::plan::ExecutionPlan;
+use crate::query::planning::plan::ExecutionPlan;
 use crate::query::QueryContext;
 use crate::storage::StorageClient;
 use std::sync::Arc;

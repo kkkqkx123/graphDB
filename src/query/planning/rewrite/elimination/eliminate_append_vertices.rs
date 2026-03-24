@@ -28,18 +28,18 @@
 //! - AppendVertices 的输出列为匿名变量
 //! - Project 的列表达式中不包含 PathBuild 表达式
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::visitor_checkers::PathBuildContainsChecker;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::visitor_checkers::PathBuildContainsChecker;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, SingleInputNode,
 };
-use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
-use crate::query::planner::plan::core::nodes::traversal::traversal_node::AppendVerticesNode;
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::RewriteRule;
+use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
+use crate::query::planning::plan::core::nodes::traversal::traversal_node::AppendVerticesNode;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::RewriteRule;
 
 /// 消除冗余添加顶点操作的规则
 ///
@@ -158,7 +158,7 @@ impl RewriteRule for EliminateAppendVerticesRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::rewrite::rule::RewriteRule;
+    use crate::query::planning::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_eliminate_append_vertices_rule_name() {

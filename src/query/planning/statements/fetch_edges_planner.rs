@@ -1,14 +1,14 @@
 //! FETCH EDGES查询规划器
 //! 处理FETCH EDGES查询的规划
 
-use crate::core::types::expression::common_utils::extract_string_from_expr;
+use crate::core::types::expr::common_utils::extract_string_from_expr;
 use crate::query::parser::ast::{FetchTarget, Stmt};
-use crate::query::planner::plan::core::nodes::{
+use crate::query::planning::plan::core::nodes::{
     ArgumentNode, FilterNode, GetEdgesNode, ProjectNode,
 };
-use crate::query::planner::plan::core::PlanNodeEnum;
-use crate::query::planner::plan::execution_plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::core::PlanNodeEnum;
+use crate::query::planning::plan::execution_plan::SubPlan;
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;
 
@@ -78,7 +78,7 @@ impl Planner for FetchEdgesPlanner {
         ));
 
         // 3. 创建过滤空边的节点
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(
             crate::core::Expression::Variable(format!("{} IS NOT EMPTY", var_name)),
         );
         let id = validated.expr_context().register_expression(expr_meta);

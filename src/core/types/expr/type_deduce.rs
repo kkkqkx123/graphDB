@@ -2,7 +2,7 @@
 //!
 //! 提供表达式类型推导功能。
 
-use crate::core::types::expression::Expression;
+use crate::core::types::expr::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::types::DataType;
 use crate::core::Value;

@@ -9,17 +9,17 @@
 
 use crate::core::types::{ContextualExpression, EdgeDirection};
 use crate::query::parser::ast::{GoStmt, Stmt};
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-pub use crate::query::planner::plan::core::nodes::{
+pub use crate::query::planning::plan::core::nodes::{
     ArgumentNode, DedupNode, ExpandAllNode, FilterNode, GetNeighborsNode, HashInnerJoinNode,
     ProjectNode,
 };
-pub use crate::query::planner::plan::core::PlanNodeEnum;
+pub use crate::query::planning::plan::core::PlanNodeEnum;
 
 /// GO查询规划器
 /// 负责将GO语句转换为执行计划
@@ -148,7 +148,7 @@ impl GoPlanner {
                 });
             }
         } else {
-            let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                 crate::core::Expression::Variable("_expandall_dst".to_string()),
             );
             let id = expr_context.register_expression(expr_meta);
@@ -159,7 +159,7 @@ impl GoPlanner {
                 is_matched: false,
             });
 
-            let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                 crate::core::Expression::Variable("_expandall_props".to_string()),
             );
             let id = expr_context.register_expression(expr_meta);
@@ -172,7 +172,7 @@ impl GoPlanner {
         }
 
         if columns.is_empty() {
-            let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+            let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                 crate::core::Expression::Variable("*".to_string()),
             );
             let id = expr_context.register_expression(expr_meta);

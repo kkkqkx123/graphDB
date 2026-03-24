@@ -37,7 +37,7 @@ pub mod config;
 pub mod database;
 pub mod result;
 pub mod session;
-pub mod statement;
+pub mod precompiled;
 pub mod statistics;
 pub mod transaction;
 
@@ -52,7 +52,7 @@ pub use config::{DatabaseConfig, SyncMode};
 pub use database::GraphDatabase;
 pub use result::{QueryResult, ResultMetadata, Row};
 pub use session::Session;
-pub use statement::PreparedStatement;
+pub use precompiled::PreparedStatement;
 pub use statistics::{QueryStatistics, SessionStatistics};
 pub use transaction::{Transaction, TransactionConfig, TransactionInfo};
 

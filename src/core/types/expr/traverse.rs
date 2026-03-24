@@ -2,7 +2,7 @@
 //!
 //! 提供表达式树的遍历和访问方法。
 
-use crate::core::types::expression::Expression;
+use crate::core::types::expr::Expression;
 
 impl Expression {
     /// 获取表达式的所有子表达式

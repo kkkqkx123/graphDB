@@ -11,7 +11,7 @@
 //! - [`VariableContainsChecker`] - 检查表达式是否包含指定变量
 //! - [`PathBuildContainsChecker`] - 检查表达式是否包含PathBuild
 
-use crate::core::types::expression::visitor::ExpressionVisitor;
+use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Expression;
 
@@ -22,7 +22,7 @@ use crate::core::Expression;
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::ConstantChecker;
+/// use crate::core::types::expr::visitor::ConstantChecker;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::literal(42);
@@ -294,7 +294,7 @@ impl ExpressionVisitor for ConstantChecker {
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::PropertyContainsChecker;
+/// use crate::core::types::expr::visitor::PropertyContainsChecker;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::property("a", "name");
@@ -578,7 +578,7 @@ impl ExpressionVisitor for PropertyContainsChecker {
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::WildcardReplacer;
+/// use crate::core::types::expr::visitor::WildcardReplacer;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::property("*", "name");
@@ -763,7 +763,7 @@ impl WildcardReplacer {
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::AggregateFunctionChecker;
+/// use crate::core::types::expr::visitor::AggregateFunctionChecker;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::aggregate("count", Expression::variable("v"), false);
@@ -1031,7 +1031,7 @@ impl ExpressionVisitor for AggregateFunctionChecker {
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::VariableContainsChecker;
+/// use crate::core::types::expr::visitor::VariableContainsChecker;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::property("a", "name");
@@ -1311,7 +1311,7 @@ impl ExpressionVisitor for VariableContainsChecker {
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::PathBuildContainsChecker;
+/// use crate::core::types::expr::visitor::PathBuildContainsChecker;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::path_build(vec![Expression::variable("a")]);

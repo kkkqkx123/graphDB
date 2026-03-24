@@ -5,11 +5,11 @@
 //!
 //! 注意：当前实现使用 planner 层独立的类型，不再依赖 optimizer 模块。
 
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::RewriteRule;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::RewriteRule;
 
 /// 启发式重写规则 trait（兼容层）
 ///
@@ -99,7 +99,7 @@ impl<T: HeuristicRule + Sized> IntoOptRule for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::ScanVerticesNode;
 
     #[derive(Debug)]
     struct TestHeuristicRule;

@@ -2,8 +2,8 @@
 //! 负责验证SKIP、LIMIT和分页相关的表达式
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::utils::is_evaluable;
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::utils::is_evaluable;
 use crate::core::YieldColumn;
 use crate::query::validator::structs::{MatchStepRange, OrderByClauseContext, PaginationContext};
 
@@ -78,7 +78,7 @@ impl PaginationValidationStrategy {
     /// 内部方法：验证分页表达式
     fn validate_pagination_expression_internal(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
         clause_name: &str,
     ) -> Result<(), ValidationError> {
         if !is_evaluable(expression) {
@@ -89,7 +89,7 @@ impl PaginationValidationStrategy {
         }
 
         match expression {
-            crate::core::types::expression::Expression::Literal(crate::core::Value::Int(n)) => {
+            crate::core::types::expr::Expression::Literal(crate::core::Value::Int(n)) => {
                 if *n >= 0 {
                     Ok(())
                 } else {
@@ -99,7 +99,7 @@ impl PaginationValidationStrategy {
                     ))
                 }
             }
-            crate::core::types::expression::Expression::Literal(_) => Err(ValidationError::new(
+            crate::core::types::expr::Expression::Literal(_) => Err(ValidationError::new(
                 format!("{}表达式必须求值为整数类型", clause_name),
                 ValidationErrorType::PaginationError,
             )),
@@ -177,7 +177,7 @@ impl PaginationValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::{ContextualExpression, ExpressionMeta};
+    use crate::core::types::expr::{ContextualExpression, ExpressionMeta};
     use crate::core::Expression;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;

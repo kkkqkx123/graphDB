@@ -34,7 +34,7 @@ pub struct IndexScanConfig {
     pub tag_id: i32,
     pub index_id: i32,
     pub scan_type: String,
-    pub scan_limits: Vec<crate::query::planner::plan::core::nodes::access::IndexLimit>,
+    pub scan_limits: Vec<crate::query::planning::plan::core::nodes::access::IndexLimit>,
     pub filter: Option<Expression>,
     pub return_columns: Vec<String>,
     pub limit: Option<usize>,

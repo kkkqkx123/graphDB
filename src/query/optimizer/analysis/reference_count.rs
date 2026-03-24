@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 
 use super::fingerprint::FingerprintCalculator;
 

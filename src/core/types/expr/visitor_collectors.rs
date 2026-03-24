@@ -8,7 +8,7 @@
 //! - [`VariableCollector`] - 收集表达式中所有使用的变量名
 //! - [`FunctionCollector`] - 收集表达式中所有使用的函数名
 
-use crate::core::types::expression::visitor::ExpressionVisitor;
+use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::types::DataType;
 use crate::core::{Expression, Value};
@@ -20,7 +20,7 @@ use crate::core::{Expression, Value};
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::PropertyCollector;
+/// use crate::core::types::expr::visitor::PropertyCollector;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::property("a", "name");
@@ -199,7 +199,7 @@ impl ExpressionVisitor for PropertyCollector {
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::OrConditionCollector;
+/// use crate::core::types::expr::visitor::OrConditionCollector;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::Binary {
@@ -447,7 +447,7 @@ impl ExpressionVisitor for OrConditionCollector {
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::PropertyPredicateCollector;
+/// use crate::core::types::expr::visitor::PropertyPredicateCollector;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::Binary {
@@ -670,7 +670,7 @@ impl ExpressionVisitor for PropertyPredicateCollector {
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::VariableCollector;
+/// use crate::core::types::expr::visitor::VariableCollector;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::variable("a");
@@ -851,7 +851,7 @@ impl ExpressionVisitor for VariableCollector {
 /// # 示例
 ///
 /// ```rust
-/// use crate::core::types::expression::visitor::FunctionCollector;
+/// use crate::core::types::expr::visitor::FunctionCollector;
 /// use crate::core::Expression;
 ///
 /// let expr = Expression::function("count", vec![Expression::variable("a")]);

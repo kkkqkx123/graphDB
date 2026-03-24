@@ -8,7 +8,7 @@ use crate::api::embedded::c_api::error::{
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::graphdb_value_type_t;
 use crate::api::embedded::c_api::types::{graphdb_session_t, graphdb_stmt_t, graphdb_value_t};
-use crate::api::embedded::statement::PreparedStatement;
+use crate::api::embedded::precompiled::PreparedStatement;
 use crate::core::Value;
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::ptr;

@@ -1,12 +1,12 @@
 //! 合并获取邻居和投影操作的规则
 
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 
 /// 合并获取邻居和投影操作的规则
 ///
@@ -133,9 +133,9 @@ mod tests {
     use super::*;
     use crate::core::{Expression, YieldColumn};
     use crate::core::types::ContextualExpression;
-    use crate::query::planner::plan::core::nodes::access::graph_scan_node::GetNeighborsNode;
-    use crate::query::planner::plan::core::nodes::control_flow::start_node::StartNode;
-    use crate::query::planner::plan::core::nodes::operation::project_node::ProjectNode;
+    use crate::query::planning::plan::core::nodes::access::graph_scan_node::GetNeighborsNode;
+    use crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode;
+    use crate::query::planning::plan::core::nodes::operation::project_node::ProjectNode;
 
     #[test]
     fn test_rule_name() {
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_merge_get_nbrs_and_project() {
-        use crate::core::types::expression::ExpressionMeta;
+        use crate::core::types::expr::ExpressionMeta;
         use crate::query::validator::context::ExpressionAnalysisContext;
         use std::sync::Arc;
 

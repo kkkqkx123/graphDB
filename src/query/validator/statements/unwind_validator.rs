@@ -12,7 +12,7 @@
 //! 3. 使用 QueryContext 统一管理上下文
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::Ast;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::validation_info::ValidationInfo;
@@ -67,7 +67,7 @@ impl UnwindValidator {
         use std::sync::Arc;
         Self {
             unwind_expression: ContextualExpression::new(
-                crate::core::types::expression::ExpressionId::new(0),
+                crate::core::types::expr::ExpressionId::new(0),
                 Arc::new(ExpressionAnalysisContext::new()),
             ),
             variable_name: String::new(),
@@ -173,7 +173,7 @@ impl UnwindValidator {
     /// 内部方法：验证表达式
     fn validate_expression_internal(
         &self,
-        expression: &crate::core::types::expression::Expression,
+        expression: &crate::core::types::expr::Expression,
     ) -> Result<(), ValidationError> {
         if self.expression_is_empty(expression) {
             return Err(ValidationError::new(
@@ -335,7 +335,7 @@ impl UnwindValidator {
     /// 检查表达式是否为空
     fn expression_is_empty(
         &self,
-        _expression: &crate::core::types::expression::Expression,
+        _expression: &crate::core::types::expr::Expression,
     ) -> bool {
         // 简化实现，实际应该检查表达式是否为空
         false
@@ -344,7 +344,7 @@ impl UnwindValidator {
     /// 推导表达式类型
     fn deduce_expr_type(
         &self,
-        _expression: &crate::core::types::expression::Expression,
+        _expression: &crate::core::types::expr::Expression,
     ) -> Result<ValueType, ValidationError> {
         // 简化实现，实际应该根据表达式推导类型
         Ok(ValueType::List)
@@ -454,14 +454,14 @@ impl StatementValidator for UnwindValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expr::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::core::Value;
     use ExpressionAnalysisContext;
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
     }

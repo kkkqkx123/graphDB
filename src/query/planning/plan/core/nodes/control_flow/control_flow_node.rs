@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use crate::core::types::{ContextualExpression, SerializableExpression};
 use crate::define_plan_node;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::{
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     PlanNode, PlanNodeClonable,
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -59,9 +59,9 @@ pub struct SelectNode {
     condition: ContextualExpression,
     condition_serializable: Option<SerializableExpression>,
     if_branch:
-        Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+        Option<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
     else_branch:
-        Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+        Option<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<String>,
     col_names: Vec<String>,
 }
@@ -95,28 +95,28 @@ impl SelectNode {
 
     pub fn set_if_branch(
         &mut self,
-        branch: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        branch: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
         self.if_branch = Some(Box::new(branch));
     }
 
     pub fn set_else_branch(
         &mut self,
-        branch: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        branch: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
         self.else_branch = Some(Box::new(branch));
     }
 
     pub fn if_branch(
         &self,
-    ) -> &Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>
+    ) -> &Option<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>
     {
         &self.if_branch
     }
 
     pub fn else_branch(
         &self,
-    ) -> &Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>
+    ) -> &Option<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>
     {
         &self.else_branch
     }
@@ -124,7 +124,7 @@ impl SelectNode {
     pub fn if_branch_mut(
         &mut self,
     ) -> &mut Option<
-        Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+        Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
     > {
         &mut self.if_branch
     }
@@ -132,7 +132,7 @@ impl SelectNode {
     pub fn else_branch_mut(
         &mut self,
     ) -> &mut Option<
-        Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+        Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
     > {
         &mut self.else_branch
     }
@@ -183,8 +183,8 @@ impl SelectNode {
 
     pub fn clone_plan_node(
         &self,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Select(
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Select(
             self.clone(),
         )
     }
@@ -192,10 +192,10 @@ impl SelectNode {
     pub fn clone_with_new_id(
         &self,
         new_id: i64,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Select(cloned)
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Select(cloned)
     }
 }
 
@@ -245,7 +245,7 @@ pub struct LoopNode {
     id: i64,
     condition: ContextualExpression,
     condition_serializable: Option<SerializableExpression>,
-    body: Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
+    body: Option<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<String>,
     col_names: Vec<String>,
 }
@@ -277,14 +277,14 @@ impl LoopNode {
 
     pub fn set_body(
         &mut self,
-        body: crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+        body: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
     ) {
         self.body = Some(Box::new(body));
     }
 
     pub fn body(
         &self,
-    ) -> &Option<Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>
+    ) -> &Option<Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>>
     {
         &self.body
     }
@@ -292,7 +292,7 @@ impl LoopNode {
     pub fn body_mut(
         &mut self,
     ) -> &mut Option<
-        Box<crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
+        Box<crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum>,
     > {
         &mut self.body
     }
@@ -343,8 +343,8 @@ impl LoopNode {
 
     pub fn clone_plan_node(
         &self,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Loop(
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Loop(
             self.clone(),
         )
     }
@@ -352,10 +352,10 @@ impl LoopNode {
     pub fn clone_with_new_id(
         &self,
         new_id: i64,
-    ) -> crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
+    ) -> crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum {
         let mut cloned = self.clone();
         cloned.id = new_id;
-        crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Loop(cloned)
+        crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum::Loop(cloned)
     }
 }
 
@@ -414,7 +414,7 @@ mod tests {
     #[test]
     fn test_select_node_creation() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(
             crate::core::Expression::Variable("condition".to_string()),
         );
         let id = ctx.register_expression(expr_meta);
@@ -429,7 +429,7 @@ mod tests {
     #[test]
     fn test_loop_node_creation() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(
             crate::core::Expression::Variable("condition".to_string()),
         );
         let id = ctx.register_expression(expr_meta);

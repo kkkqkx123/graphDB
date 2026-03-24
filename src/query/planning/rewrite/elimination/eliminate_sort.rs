@@ -26,13 +26,13 @@
 //! 只要检测到输入有序且与排序要求匹配，就直接消除排序。
 //! 基于代价的 TopN 转换决策保留在 strategy::sort_elimination 模块中。
 
-use crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::{SortItem, SortNode};
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{EliminationRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
+use crate::query::planning::plan::core::nodes::{SortItem, SortNode};
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 
 /// 排序消除规则
 ///
@@ -200,7 +200,7 @@ impl EliminationRule for EliminateSortRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::{SortItem, SortNode, StartNode};
+    use crate::query::planning::plan::core::nodes::{SortItem, SortNode, StartNode};
 
     #[test]
     fn test_eliminate_sort_rule_name() {

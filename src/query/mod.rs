@@ -13,7 +13,7 @@ pub mod core;
 pub mod executor;
 pub mod optimizer;
 pub mod parser;
-pub mod planner;
+pub mod planning;
 pub mod query_context;
 pub mod query_context_builder;
 pub mod query_manager;

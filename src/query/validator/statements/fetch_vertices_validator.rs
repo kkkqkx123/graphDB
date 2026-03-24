@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
 use crate::core::Value;
 use crate::query::parser::ast::stmt::{Ast, FetchStmt, FetchTarget};
@@ -298,12 +298,12 @@ impl StatementValidator for FetchVerticesValidator {
         if let Some(props) = properties {
             for prop in props {
                 // 创建 ContextualExpression 表示属性名
-                let expr_meta = crate::core::types::expression::ExpressionMeta::new(
+                let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                     crate::core::Expression::Variable(prop.clone()),
                 );
                 let id = ast.expr_context.register_expression(expr_meta);
                 let ctx_expr =
-                    crate::core::types::expression::contextual::ContextualExpression::new(
+                    crate::core::types::expr::contextual::ContextualExpression::new(
                         id,
                         ast.expr_context.clone(),
                     );
@@ -383,7 +383,7 @@ impl StatementValidator for FetchVerticesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::contextual::ContextualExpression;
+    use crate::core::types::expr::contextual::ContextualExpression;
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
     use crate::query::parser::ast::Span;
@@ -391,7 +391,7 @@ mod tests {
 
     fn create_contextual_expr(expr: Expression) -> ContextualExpression {
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         ContextualExpression::new(id, ctx)
     }

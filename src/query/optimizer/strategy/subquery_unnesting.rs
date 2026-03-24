@@ -27,14 +27,14 @@
 //! let decision = optimizer.should_unnest(&pattern_apply);
 //! ```
 
-use crate::core::types::expression::ExpressionMeta;
+use crate::core::types::expr::ExpressionMeta;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 use crate::query::optimizer::analysis::ExpressionAnalyzer;
 use crate::query::optimizer::stats::StatisticsManager;
-use crate::query::planner::plan::core::nodes::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::{HashInnerJoinNode, PatternApplyNode};
+use crate::query::planning::plan::core::nodes::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::{HashInnerJoinNode, PatternApplyNode};
 use crate::query::validator::context::ExpressionAnalysisContext;
 
 /// 子查询去关联化决策
@@ -214,12 +214,12 @@ impl SubqueryUnnestingOptimizer {
                     }
                 }
                 // 递归检查输入
-                self.is_simple_subquery(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
+                self.is_simple_subquery(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
             }
 
             // 简单投影
             PlanNodeEnum::Project(n) => self.is_simple_subquery(
-                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
+                crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
@@ -276,10 +276,10 @@ impl SubqueryUnnestingOptimizer {
             }
             PlanNodeEnum::Filter(n) => {
                 // 过滤后估算为原始行数的 30%
-                (self.estimate_subquery_rows(crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)) as f64 * 0.3) as u64
+                (self.estimate_subquery_rows(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)) as f64 * 0.3) as u64
             }
             PlanNodeEnum::Project(n) => self.estimate_subquery_rows(
-                crate::query::planner::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
+                crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
                 ),
             ),
@@ -327,8 +327,8 @@ impl SubqueryUnnestingOptimizer {
         &self,
         pattern_apply: PatternApplyNode,
     ) -> Result<
-        crate::query::planner::plan::core::nodes::PlanNodeEnum,
-        crate::query::planner::planner::PlannerError,
+        crate::query::planning::plan::core::nodes::PlanNodeEnum,
+        crate::query::planning::planner::PlannerError,
     > {
         // 获取连接键（已经是 ContextualExpression 类型）
         let key_cols = pattern_apply.key_cols().to_vec();
@@ -381,7 +381,7 @@ impl SubqueryUnnestingOptimizer {
         let hash_join_node =
             HashInnerJoinNode::new(left_input, right_input, hash_keys, probe_keys)?;
 
-        Ok(crate::query::planner::plan::core::nodes::PlanNodeEnum::HashInnerJoin(hash_join_node))
+        Ok(crate::query::planning::plan::core::nodes::PlanNodeEnum::HashInnerJoin(hash_join_node))
     }
 
     /// 替换表达式中的所有变量引用为指定变量

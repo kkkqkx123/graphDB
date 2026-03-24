@@ -9,7 +9,7 @@ use crate::query::executor::logic::{LoopExecutor, SelectExecutor};
 use crate::query::executor::pipeline_executors::{
     ArgumentExecutor, DataCollectExecutor, PassThroughExecutor,
 };
-use crate::query::planner::plan::core::nodes::{
+use crate::query::planning::plan::core::nodes::{
     ArgumentNode, DataCollectNode, LoopNode, PassThroughNode, SelectNode,
 };
 use crate::storage::StorageClient;
@@ -36,7 +36,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
         create_executor_fn: &mut dyn FnMut(
-            &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+            &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
             Arc<Mutex<S>>,
             &ExecutionContext,
         ) -> Result<ExecutorEnum<S>, QueryError>,
@@ -71,7 +71,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
         create_executor_fn: &mut dyn FnMut(
-            &crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
+            &crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
             Arc<Mutex<S>>,
             &ExecutionContext,
         ) -> Result<ExecutorEnum<S>, QueryError>,

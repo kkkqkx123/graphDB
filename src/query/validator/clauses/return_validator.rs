@@ -66,7 +66,7 @@ impl ReturnValidator {
     /// 验证表达式
     fn validate_expression(
         &self,
-        expr: &crate::core::types::expression::contextual::ContextualExpression,
+        expr: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> Result<(), ValidationError> {
         if let Some(e) = expr.get_expression() {
             self.validate_expression_internal(&e)
@@ -81,9 +81,9 @@ impl ReturnValidator {
     /// 内部方法：验证表达式
     fn validate_expression_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> Result<(), ValidationError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match expr {
             Expression::Literal(_) => Ok(()),
@@ -121,7 +121,7 @@ impl ReturnValidator {
     fn validate_function_call_internal(
         &self,
         name: &str,
-        args: &[crate::core::types::expression::Expression],
+        args: &[crate::core::types::expr::Expression],
     ) -> Result<(), ValidationError> {
         // 验证函数名
         if name.is_empty() {
@@ -142,7 +142,7 @@ impl ReturnValidator {
     /// 推断列名
     fn infer_column_name(
         &self,
-        expr: &crate::core::types::expression::contextual::ContextualExpression,
+        expr: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> Option<String> {
         if let Some(e) = expr.get_expression() {
             self.infer_column_name_internal(&e)
@@ -154,9 +154,9 @@ impl ReturnValidator {
     /// 内部方法：推断列名
     fn infer_column_name_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> Option<String> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match expr {
             Expression::Variable(name) => Some(name.clone()),
@@ -169,7 +169,7 @@ impl ReturnValidator {
     /// 推断表达式类型
     fn infer_expression_type(
         &self,
-        expr: &crate::core::types::expression::contextual::ContextualExpression,
+        expr: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> ValueType {
         if let Some(e) = expr.get_expression() {
             self.infer_expression_type_internal(&e)
@@ -181,9 +181,9 @@ impl ReturnValidator {
     /// 内部方法：推断表达式类型
     fn infer_expression_type_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> ValueType {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
         use crate::core::Value;
 
         match expr {
@@ -371,7 +371,7 @@ mod tests {
 
     #[test]
     fn test_validate_return_item_expression() {
-        use crate::core::types::expression::{ContextualExpression, Expression, ExpressionMeta};
+        use crate::core::types::expr::{ContextualExpression, Expression, ExpressionMeta};
         use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
         use std::sync::Arc;
 

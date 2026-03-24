@@ -2,16 +2,16 @@
 //!
 //! 处理 GROUP BY 语句的查询规划
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::Expression;
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::Expression;
 use crate::core::types::operators::AggregateFunction;
 use crate::query::parser::ast::Stmt;
-use crate::query::planner::plan::core::{
+use crate::query::planning::plan::core::{
     node_id_generator::next_node_id,
     nodes::{AggregateNode, ArgumentNode, FilterNode},
 };
-use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;
 

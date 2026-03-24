@@ -13,7 +13,7 @@
 //! # 使用示例
 //!
 //! ```rust
-//! use crate::query::planner::rewrite::rule_enum::{RewriteRule, RuleRegistry};
+//! use crate::query::planning::rewrite::rule_enum::{RewriteRule, RuleRegistry};
 //!
 //! // 创建规则注册表
 //! let registry = RuleRegistry::default();
@@ -26,17 +26,17 @@
 //! }
 //! ```
 
-use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::rewrite::aggregate;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::elimination;
-use crate::query::planner::rewrite::limit_pushdown;
-use crate::query::planner::rewrite::merge;
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::predicate_pushdown;
-use crate::query::planner::rewrite::projection_pushdown;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::RewriteRule as RewriteRuleTrait;
+use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::rewrite::aggregate;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::elimination;
+use crate::query::planning::rewrite::limit_pushdown;
+use crate::query::planning::rewrite::merge;
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::predicate_pushdown;
+use crate::query::planning::rewrite::projection_pushdown;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::RewriteRule as RewriteRuleTrait;
 
 macro_rules! define_rewrite_rules {
     (

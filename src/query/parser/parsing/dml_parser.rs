@@ -2,16 +2,16 @@
 //!
 //! 负责解析数据修改相关语句，包括 INSERT、DELETE、UPDATE、MERGE 等。
 
-use crate::core::types::expression::ContextualExpression;
-use crate::core::types::expression::Expression as CoreExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::Expression as CoreExpression;
 use crate::core::types::EdgeDirection;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::core::error::ParseError;
 use crate::query::parser::core::token::TokenKindExt;
-use crate::query::parser::parser::clause_parser::ClauseParser;
-use crate::query::parser::parser::parse_context::ParseContext;
-use crate::query::parser::parser::traversal_parser::TraversalParser;
-use crate::query::parser::parser::ExprParser;
+use crate::query::parser::parsing::clause_parser::ClauseParser;
+use crate::query::parser::parsing::parse_context::ParseContext;
+use crate::query::parser::parsing::traversal_parser::TraversalParser;
+use crate::query::parser::parsing::ExprParser;
 use crate::query::parser::TokenKind;
 
 /// 数据修改解析器
@@ -46,7 +46,7 @@ impl DmlParser {
         start_span: crate::query::parser::ast::types::Span,
     ) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::{SetClause, UpdateStmt, UpdateTarget};
-        use crate::query::parser::parser::clause_parser::ClauseParser;
+        use crate::query::parser::parsing::clause_parser::ClauseParser;
 
         // 检查是否是 UPSERT 语法
         let is_upsert = ctx.is_upsert_mode();
@@ -731,7 +731,7 @@ impl DmlParser {
 
         // 创建 Map 表达式并注册到上下文
         let expr = CoreExpression::Map(properties);
-        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.expression_context().register_expression(expr_meta);
         Ok(ContextualExpression::new(
             id,

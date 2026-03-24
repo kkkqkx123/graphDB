@@ -2,13 +2,13 @@
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
 use crate::query::parser::ast::{AlterTarget, CreateTarget, IndexType, ShowTarget, Stmt};
-use crate::query::planner::plan::core::nodes::management::index_nodes::IndexManageInfo;
-use crate::query::planner::plan::core::{
+use crate::query::planning::plan::core::nodes::management::index_nodes::IndexManageInfo;
+use crate::query::planning::plan::core::{
     node_id_generator::next_node_id, AlterSpaceNode, ArgumentNode, ClearSpaceNode, PlanNodeEnum,
     ProjectNode, ShowStatsNode, ShowStatsType,
 };
-use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
+use crate::query::planning::plan::SubPlan;
+use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::QueryContext;
 use std::sync::Arc;
 
@@ -57,11 +57,11 @@ impl Planner for MaintainPlanner {
                 } else {
                     // 其他 SHOW 语句使用 PassThrough 节点
                     PlanNodeEnum::PassThrough(
-                        crate::query::planner::plan::core::PassThroughNode::new(1),
+                        crate::query::planning::plan::core::PassThroughNode::new(1),
                     )
                 }
             } else {
-                PlanNodeEnum::PassThrough(crate::query::planner::plan::core::PassThroughNode::new(
+                PlanNodeEnum::PassThrough(crate::query::planning::plan::core::PassThroughNode::new(
                     1,
                 ))
             }
@@ -99,7 +99,7 @@ impl Planner for MaintainPlanner {
                     let plan_node = match index_type {
                         IndexType::Tag => {
                             let create_tag_index_node =
-                                crate::query::planner::plan::core::nodes::CreateTagIndexNode::new(
+                                crate::query::planning::plan::core::nodes::CreateTagIndexNode::new(
                                     next_node_id(),
                                     index_info,
                                 );
@@ -107,7 +107,7 @@ impl Planner for MaintainPlanner {
                         }
                         IndexType::Edge => {
                             let create_edge_index_node =
-                                crate::query::planner::plan::core::nodes::CreateEdgeIndexNode::new(
+                                crate::query::planning::plan::core::nodes::CreateEdgeIndexNode::new(
                                     next_node_id(),
                                     index_info,
                                 );
@@ -134,7 +134,7 @@ impl Planner for MaintainPlanner {
                         .as_ref()
                         .map(|c| {
                             vec![
-                                crate::query::planner::plan::core::nodes::SpaceAlterOption::Comment(
+                                crate::query::planning::plan::core::nodes::SpaceAlterOption::Comment(
                                     c.clone(),
                                 ),
                             ]

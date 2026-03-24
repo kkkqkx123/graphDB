@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError as CoreValidationError, ValidationErrorType};
-use crate::core::types::expression::contextual::ContextualExpression;
+use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::{DataType, EdgeTypeInfo, PropertyDef, TagInfo};
 use crate::core::Value;
 use crate::query::validator::validator_trait::ValueType;
@@ -339,11 +339,11 @@ impl SchemaValidator {
     /// 内部方法：验证 VID 表达式
     fn validate_vid_expr_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
         vid_type: &DataType,
         role: &str,
     ) -> Result<(), CoreValidationError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
 
         match expr {
             Expression::Literal(value) => {
@@ -448,9 +448,9 @@ impl SchemaValidator {
     /// 内部方法：验证表达式是否为可计算的值
     fn is_evaluable_expr_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> bool {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
         match expr {
             Expression::Literal(_) => true,
             Expression::Variable(_) => true,
@@ -481,9 +481,9 @@ impl SchemaValidator {
     /// 内部方法：评估表达式为值
     fn evaluate_expression_internal(
         &self,
-        expr: &crate::core::types::expression::Expression,
+        expr: &crate::core::types::expr::Expression,
     ) -> Result<Value, CoreValidationError> {
-        use crate::core::types::expression::Expression;
+        use crate::core::types::expr::Expression;
         match expr {
             Expression::Literal(value) => Ok(value.clone()),
             Expression::Variable(name) => {

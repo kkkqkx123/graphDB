@@ -95,7 +95,7 @@ const _: () = assert!(
 #[cfg(test)]
 mod consistency_tests {
     use crate::query::core::NodeTypeMapping;
-    use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+    use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 
     /// 测试 PlanNodeEnum 和 ExecutorEnum 的节点类型 ID 是否一致
     #[test]
@@ -111,7 +111,7 @@ mod consistency_tests {
     /// 验证节点类型映射
     #[test]
     fn test_node_type_mapping() {
-        use crate::query::planner::plan::core::nodes::{
+        use crate::query::planning::plan::core::nodes::{
             ArgumentNode, CrossJoinNode, PlanNodeEnum as NodeEnum,
         };
 

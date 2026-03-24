@@ -3,13 +3,13 @@
 //! 提供跨层使用的通用表达式处理工具函数。
 //! 这些函数不依赖于特定的验证、重写或规划逻辑，可以在多个层中使用。
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::visitor_checkers::ConstantChecker;
-use crate::core::types::expression::visitor_collectors::PropertyCollector;
-use crate::core::types::expression::Expression;
-use crate::core::types::expression::ExpressionVisitor;
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::visitor_checkers::ConstantChecker;
+use crate::core::types::expr::visitor_collectors::PropertyCollector;
+use crate::core::types::expr::Expression;
+use crate::core::types::expr::ExpressionVisitor;
 use crate::core::Value;
-use crate::query::planner::PlannerError;
+use crate::query::planning::planner::PlannerError;
 
 /// 从表达式中提取字符串值
 ///
@@ -174,7 +174,7 @@ mod tests {
     fn test_extract_string_from_expr_variable() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("test_var".to_string());
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
 
@@ -187,7 +187,7 @@ mod tests {
     fn test_extract_string_from_expr_literal_string() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Literal(Value::String("hello".to_string()));
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
 
@@ -200,7 +200,7 @@ mod tests {
     fn test_extract_string_from_expr_literal_int() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Literal(Value::Int(42));
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
 
@@ -213,7 +213,7 @@ mod tests {
     fn test_generate_default_alias_from_contextual_variable() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Variable("my_var".to_string());
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
 
@@ -245,7 +245,7 @@ mod tests {
             }),
         };
 
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
 
@@ -260,7 +260,7 @@ mod tests {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
 
         let expr = Expression::Literal(Value::Int(1));
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, ctx.clone());
         assert!(is_constant(&ctx_expr));
@@ -269,7 +269,7 @@ mod tests {
             object: Box::new(Expression::Variable("v".to_string())),
             property: "a".to_string(),
         };
-        let meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, ctx);
         assert!(!is_constant(&ctx_expr));

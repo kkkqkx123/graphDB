@@ -4,8 +4,8 @@
 
 use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest};
 use crate::api::embedded::result::QueryResult;
-use crate::api::embedded::statement::config::{ExecutionStats, ParameterInfo, StatementConfig};
-use crate::api::embedded::statement::parameter_extractor::{extract_parameters, type_matches};
+use crate::api::embedded::precompiled::config::{ExecutionStats, ParameterInfo, StatementConfig};
+use crate::api::embedded::precompiled::parameter_extractor::{extract_parameters, type_matches};
 use crate::core::{DataType, Value};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;

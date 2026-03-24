@@ -5,8 +5,8 @@
 
 use crate::core::types::ContextualExpression;
 use crate::define_binary_input_node;
-use crate::query::planner::plan::core::node_id_generator::next_node_id;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::node_id_generator::next_node_id;
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 
 define_binary_input_node! {
     /// 多源最短路径计划节点
@@ -70,7 +70,7 @@ impl MultiShortestPathNode {
 
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
+        V: crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_multi_shortest_path(self)
     }
@@ -147,7 +147,7 @@ impl BFSShortestNode {
 
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
+        V: crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_bfs_shortest(self)
     }
@@ -247,7 +247,7 @@ impl AllPathsNode {
 
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
+        V: crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_all_paths(self)
     }
@@ -324,7 +324,7 @@ impl ShortestPathNode {
 
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
+        V: crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_shortest_path(self)
     }

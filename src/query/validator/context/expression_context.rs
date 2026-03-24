@@ -9,8 +9,8 @@
 use dashmap::DashMap;
 use std::sync::Arc;
 
-use crate::core::types::expression::contextual::ContextualExpression;
-use crate::core::types::expression::{Expression, ExpressionId, ExpressionMeta};
+use crate::core::types::expr::contextual::ContextualExpression;
+use crate::core::types::expr::{Expression, ExpressionId, ExpressionMeta};
 use crate::core::types::operators::BinaryOperator;
 use crate::core::types::operators::UnaryOperator;
 use crate::core::types::DataType;

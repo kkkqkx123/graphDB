@@ -5,14 +5,14 @@
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::traversal::traversal_node::TraverseNode;
-use crate::query::planner::plan::core::nodes::AppendVerticesNode;
-use crate::query::planner::rewrite::context::RewriteContext;
-use crate::query::planner::rewrite::expression_utils::{check_col_name, split_filter};
-use crate::query::planner::rewrite::pattern::Pattern;
-use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::traversal::traversal_node::TraverseNode;
+use crate::query::planning::plan::core::nodes::AppendVerticesNode;
+use crate::query::planning::rewrite::context::RewriteContext;
+use crate::query::planning::rewrite::expression_utils::{check_col_name, split_filter};
+use crate::query::planning::rewrite::pattern::Pattern;
+use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
 /// 将过滤条件下推到Traverse/AppendVertices节点的规则
 ///
@@ -121,7 +121,7 @@ impl PushFilterDownNodeRule {
             }
         } else {
             new_traverse.set_v_filter(ContextualExpression::new(
-                crate::core::types::expression::ExpressionId::new(0),
+                crate::core::types::expr::ExpressionId::new(0),
                 ctx,
             ));
         }

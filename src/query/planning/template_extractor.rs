@@ -3,7 +3,7 @@
 //! 本模块提供查询参数化和模板提取功能，用于计划缓存。
 //! 将具体参数值替换为占位符，使语义等价的查询共享缓存。
 
-use crate::core::types::expression::{ContextualExpression, Expression};
+use crate::core::types::expr::{ContextualExpression, Expression};
 use crate::core::{NullType, Value};
 use crate::query::parser::ast::{
     DeleteStmt, FetchStmt, FromClause, GoStmt, InsertStmt, LookupStmt, MatchStmt, Pattern,
