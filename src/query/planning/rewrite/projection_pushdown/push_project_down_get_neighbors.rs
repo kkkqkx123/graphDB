@@ -19,6 +19,7 @@
 use crate::core::YieldColumn;
 use crate::query::planning::plan::core::nodes::GetNeighborsNode;
 use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::rewrite::context::RewriteContext;
 use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
@@ -91,7 +92,7 @@ impl RewriteRule for PushProjectDownGetNeighborsRule {
         };
 
         let columns = project_node.columns();
-        let new_get_neighbors_node = self.create_get_neighbors_with_projection(get_neighbors_node, columns);
+        let new_get_neighbors_node = self.create_get_neighbors_with_projection(&get_neighbors_node, columns);
         let new_node = PlanNodeEnum::GetNeighbors(new_get_neighbors_node);
 
         let mut result = TransformResult::new();

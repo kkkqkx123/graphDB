@@ -9,7 +9,7 @@
 
 mod common;
 
-use graphdb::core::types::expression::Expression;
+use graphdb::core::types::expr::Expression;
 use graphdb::core::types::DataType;
 use graphdb::core::value::{
     DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,

@@ -634,7 +634,7 @@ fn extract_aggregate_functions_recursive(
 #[cfg(test)]
 pub mod test_helpers {
     use super::*;
-    use crate::core::types::expr::contextualExpression;
+    use crate::core::types::expr::ContextualExpression;
     use crate::core::types::expr::ExpressionMeta;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;

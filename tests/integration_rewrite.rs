@@ -8,7 +8,7 @@
 
 mod common;
 
-use graphdb::query::planner::rewrite::rule::RewriteRule;
+use graphdb::query::planning::rewrite::rule::RewriteRule;
 use graphdb::query::planning::rewrite::{
     create_default_rewriter, CombineFilterRule, EliminateFilterRule, PlanRewriter,
     PushFilterDownAggregateRule, PushFilterDownTraverseRule,

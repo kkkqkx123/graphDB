@@ -600,7 +600,7 @@ fn test_weighted_shortest_path_astar() {
 
 #[test]
 fn test_weighted_path_query_parser_integration() {
-    use graphdb::query::parser::parser::Parser;
+    use graphdb::query::parser::Parser;
 
     // 测试带权路径查询语句解析
     let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect WEIGHT weight";
@@ -619,7 +619,7 @@ fn test_weighted_path_query_parser_integration() {
 
 #[test]
 fn test_weighted_path_query_with_ranking_parser() {
-    use graphdb::query::parser::parser::Parser;
+    use graphdb::query::parser::Parser;
 
     // 测试使用ranking作为权重的查询语句解析
     let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect WEIGHT ranking";
@@ -635,7 +635,7 @@ fn test_weighted_path_query_with_ranking_parser() {
 
 #[test]
 fn test_unweighted_path_query_parser() {
-    use graphdb::query::parser::parser::Parser;
+    use graphdb::query::parser::Parser;
 
     // 测试无权路径查询语句解析
     let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect";

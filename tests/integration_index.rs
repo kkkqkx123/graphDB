@@ -16,7 +16,7 @@ use common::{
 };
 use graphdb::core::types::{Index, IndexField, IndexStatus, IndexType};
 use graphdb::core::{Edge, Value, Vertex};
-use graphdb::query::planner::plan::{IndexLimit, ScanType};
+use graphdb::query::planning::plan::{IndexLimit, ScanType};
 use graphdb::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;

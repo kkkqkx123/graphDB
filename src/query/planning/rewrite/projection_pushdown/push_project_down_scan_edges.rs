@@ -165,7 +165,7 @@ mod tests {
         let rule = PushProjectDownScanEdgesRule::new();
         let mut ctx = RewriteContext::new();
 
-        let scan_node = ScanEdgesNode::new(1);
+        let scan_node = ScanEdgesNode::new(1, "edge_type");
         let scan = PlanNodeEnum::ScanEdges(scan_node);
 
         let columns = vec![
@@ -194,7 +194,7 @@ mod tests {
     fn test_push_down_rule_trait() {
         let rule = PushProjectDownScanEdgesRule::new();
 
-        let scan = PlanNodeEnum::ScanEdges(ScanEdgesNode::new(1));
+        let scan = PlanNodeEnum::ScanEdges(ScanEdgesNode::new(1, "edge_type"));
         let columns = vec![create_yield_column(
             Expression::Variable("test".to_string()),
             "test",

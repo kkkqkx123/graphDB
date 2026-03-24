@@ -165,7 +165,7 @@ mod tests {
         let rule = PushProjectDownGetEdgesRule::new();
         let mut ctx = RewriteContext::new();
 
-        let get_edges = GetEdgesNode::new(1, "eids");
+        let get_edges = GetEdgesNode::new(1, "src", "edge_type", "rank", "dst");
         let get_edges_enum = PlanNodeEnum::GetEdges(get_edges);
 
         let columns = vec![create_yield_column(
@@ -194,7 +194,7 @@ mod tests {
     fn test_push_down_rule_trait() {
         let rule = PushProjectDownGetEdgesRule::new();
 
-        let get_edges = PlanNodeEnum::GetEdges(GetEdgesNode::new(1, "eids"));
+        let get_edges = PlanNodeEnum::GetEdges(GetEdgesNode::new(1, "src", "edge_type", "rank", "dst"));
         let columns = vec![create_yield_column(
             Expression::Variable("test".to_string()),
             "test",

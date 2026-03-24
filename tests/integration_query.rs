@@ -15,7 +15,7 @@ use common::{assertions::assert_ok, TestStorage};
 use graphdb::core::StatsManager;
 use graphdb::query::optimizer::OptimizerEngine;
 use graphdb::query::parser::Parser;
-use graphdb::query::planner::PlannerConfig;
+use graphdb::query::planning::PlannerConfig;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use graphdb::query::query_request_context::QueryRequestContext;
 use graphdb::query::validator::validator_trait::StatementType;

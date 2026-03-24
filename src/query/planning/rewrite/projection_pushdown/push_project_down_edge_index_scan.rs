@@ -19,6 +19,7 @@
 use crate::core::YieldColumn;
 use crate::query::planning::plan::core::nodes::EdgeIndexScanNode;
 use crate::query::planning::plan::PlanNodeEnum;
+use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::rewrite::context::RewriteContext;
 use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
@@ -98,7 +99,7 @@ impl RewriteRule for PushProjectDownEdgeIndexScanRule {
 
         let columns = project_node.columns();
         let new_edge_index_scan_node =
-            self.create_edge_index_scan_with_projection(edge_index_scan_node, columns);
+            self.create_edge_index_scan_with_projection(&edge_index_scan_node, columns);
         let new_node = PlanNodeEnum::EdgeIndexScan(new_edge_index_scan_node);
 
         let mut result = TransformResult::new();
@@ -171,7 +172,7 @@ mod tests {
         let rule = PushProjectDownEdgeIndexScanRule::new();
         let mut ctx = RewriteContext::new();
 
-        let edge_index_scan = EdgeIndexScanNode::new(1);
+        let edge_index_scan = EdgeIndexScanNode::new(1, "edge_type", "index_name");
         let edge_index_scan_enum = PlanNodeEnum::EdgeIndexScan(edge_index_scan);
 
         let columns = vec![
@@ -201,7 +202,7 @@ mod tests {
     fn test_push_down_rule_trait() {
         let rule = PushProjectDownEdgeIndexScanRule::new();
 
-        let edge_index_scan = PlanNodeEnum::EdgeIndexScan(EdgeIndexScanNode::new(1));
+        let edge_index_scan = PlanNodeEnum::EdgeIndexScan(EdgeIndexScanNode::new(1, "edge_type", "index_name"));
         let columns = vec![create_yield_column(
             Expression::Variable("test".to_string()),
             "test",
