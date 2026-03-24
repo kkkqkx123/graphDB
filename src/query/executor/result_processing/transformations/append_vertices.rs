@@ -11,7 +11,6 @@ use crate::core::{DataSet, Value, Vertex};
 use crate::query::executor::base::{AppendVerticesConfig, BaseExecutor, ExecutionResult, Executor, ExecutorConfig, HasStorage};
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::{DefaultExpressionContext, ExpressionContext};
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// AppendVertices执行器
@@ -351,6 +350,8 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::core::Value;
+    use crate::query::executor::base::ExecutorConfig;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::MockStorage;
     use parking_lot::Mutex;
     use std::sync::Arc;
@@ -367,21 +368,21 @@ mod tests {
         let input_result = ExecutionResult::Values(vids);
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context);
+        let mut context = crate::query::executor::base::ExecutionContext::new(expr_context.clone());
         context.set_result("input".to_string(), input_result);
 
         let src_expression = Expression::Variable("_".to_string());
-        let mut executor = AppendVerticesExecutor::with_context(
-            1,
-            storage,
-            "input".to_string(),
+        let config = AppendVerticesConfig {
+            input_var: "input".to_string(),
             src_expression,
-            None,
-            vec!["vertex".to_string()],
-            false,
-            false,
-            context,
-        );
+            v_filter: None,
+            col_names: vec!["vertex".to_string()],
+            dedup: false,
+            need_fetch_prop: false,
+        };
+
+        let base_config = ExecutorConfig::new(1, storage, expr_context);
+        let mut executor = AppendVerticesExecutor::new(base_config, config);
 
         let result = executor
             .execute()

@@ -10,7 +10,6 @@ use crate::core::{Path, Value};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, ExecutorConfig, InputExecutor, ShortestPathConfig};
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;

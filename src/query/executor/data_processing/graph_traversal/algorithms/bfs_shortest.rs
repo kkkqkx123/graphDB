@@ -9,7 +9,6 @@ use std::sync::Arc;
 use crate::core::{Edge, EdgeDirection, Path, Value, Vertex};
 use crate::query::executor::base::{BaseExecutor, ExecutorConfig};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 

@@ -306,7 +306,7 @@ impl EdgeIndexManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::{Index, IndexField, IndexType};
+    use crate::core::types::{Index, IndexConfig, IndexField, IndexType};
     use crate::core::Value;
     use tempfile::TempDir;
 
@@ -327,20 +327,20 @@ mod tests {
     }
 
     fn create_test_index(name: &str, schema_name: &str) -> Index {
-        Index::new(
-            1,
-            name.to_string(),
-            1,
-            schema_name.to_string(),
-            vec![IndexField::new(
+        Index::new(IndexConfig {
+            id: 1,
+            name: name.to_string(),
+            space_id: 1,
+            schema_name: schema_name.to_string(),
+            fields: vec![IndexField::new(
                 "name".to_string(),
                 Value::String("".to_string()),
                 false,
             )],
-            vec![],
-            IndexType::EdgeIndex,
-            false,
-        )
+            properties: vec![],
+            index_type: IndexType::EdgeIndex,
+            is_unique: false,
+        })
     }
 
     #[test]

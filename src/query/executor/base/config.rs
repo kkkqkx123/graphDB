@@ -62,6 +62,7 @@ pub struct MultiShortestPathConfig {
     pub start_vids: Vec<crate::core::Value>,
     pub direction: crate::core::types::EdgeDirection,
     pub edge_types: Option<Vec<String>>,
+    pub max_steps: usize,
 }
 
 /// 所有路径配置
@@ -102,7 +103,6 @@ pub struct JoinConfigWithDesc {
 /// 循环执行器配置
 pub struct LoopConfig {
     pub loop_var: String,
-    pub body_executor: Box<dyn crate::query::executor::base::Executor>,
     pub loop_condition: Expression,
 }
 

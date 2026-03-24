@@ -464,7 +464,7 @@ mod tests {
     fn test_validate_yield_clause() {
         let strategy = ClauseValidationStrategy::new();
 
-        let mut yield_context = YieldClauseContext {
+        let yield_context = YieldClauseContext {
             yield_columns: vec![YieldColumn::new(
                 strategy
                     .create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),

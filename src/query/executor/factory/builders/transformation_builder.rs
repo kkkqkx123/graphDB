@@ -3,7 +3,7 @@
 //! 负责创建数据转换类型的执行器（Unwind, Assign, Materialize, AppendVertices, RollUpApply, PatternApply）
 
 use crate::core::error::QueryError;
-use crate::query::executor::base::ExecutionContext;
+use crate::query::executor::base::{ExecutionContext, ExecutorConfig, AppendVerticesConfig, RollupApplyConfig, PatternApplyConfig};
 use crate::query::executor::data_processing::MaterializeExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::result_processing::{
@@ -116,15 +116,15 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
             .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
 
         let executor = AppendVerticesExecutor::new(
-            node.id(),
-            storage,
-            input_var,
-            src_expression,
-            None,
-            node.col_names().to_vec(),
-            node.dedup(),
-            node.need_fetch_prop(),
-            context.expression_context().clone(),
+            ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
+            AppendVerticesConfig {
+                input_var,
+                src_expression,
+                v_filter: None,
+                col_names: node.col_names().to_vec(),
+                dedup: node.dedup(),
+                need_fetch_prop: node.need_fetch_prop(),
+            },
         );
         Ok(ExecutorEnum::AppendVertices(executor))
     }
@@ -157,14 +157,14 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
             .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
 
         let executor = RollUpApplyExecutor::new(
-            node.id(),
-            storage,
-            left_input_var,
-            right_input_var,
-            compare_cols,
-            collect_col,
-            node.col_names().to_vec(),
-            context.expression_context().clone(),
+            ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
+            RollupApplyConfig {
+                left_input_var,
+                right_input_var,
+                compare_cols,
+                collect_col,
+                col_names: node.col_names().to_vec(),
+            },
         );
         Ok(ExecutorEnum::RollUpApply(executor))
     }
@@ -192,14 +192,14 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
             .collect();
 
         let executor = PatternApplyExecutor::new(
-            node.id(),
-            storage,
-            left_input_var,
-            right_input_var,
-            key_cols,
-            node.col_names().to_vec(),
-            node.is_anti_predicate(),
-            context.expression_context().clone(),
+            ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
+            PatternApplyConfig {
+                left_input_var,
+                right_input_var,
+                key_cols,
+                col_names: node.col_names().to_vec(),
+                is_anti_predicate: node.is_anti_predicate(),
+            },
         );
         Ok(ExecutorEnum::PatternApply(executor))
     }

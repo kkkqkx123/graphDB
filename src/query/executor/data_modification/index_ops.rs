@@ -5,7 +5,9 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::core::types::Index;
+use crate::core::types::{Index, IndexField};
+use crate::core::types::index::IndexConfig;
+use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -105,16 +107,20 @@ impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
             .unwrap_or_default();
 
         let index_type = self.index_type.clone();
-        let index = Index::new(
-            0,
-            self.index_name.clone(),
-            0,
-            target_name,
-            Vec::new(),
-            self.properties.clone(),
-            index_type.clone(),
-            false,
-        );
+        let fields = self.properties
+            .iter()
+            .map(|prop| IndexField::new(prop.clone(), Value::String("string".to_string()), false))
+            .collect();
+        let index = Index::new(IndexConfig {
+            id: 0,
+            name: self.index_name.clone(),
+            space_id: 0,
+            schema_name: target_name,
+            fields,
+            properties: self.properties.clone(),
+            index_type: index_type.clone(),
+            is_unique: false,
+        });
 
         match index_type {
             crate::core::types::IndexType::TagIndex => {

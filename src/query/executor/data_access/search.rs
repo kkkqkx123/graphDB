@@ -9,7 +9,6 @@ use crate::core::error::DBError;
 use crate::core::{NullType, Value};
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 

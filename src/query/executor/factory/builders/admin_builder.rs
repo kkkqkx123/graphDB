@@ -4,6 +4,9 @@
 
 use crate::core::error::QueryError;
 use crate::core::RoleType;
+use crate::core::types::IndexField;
+use crate::core::types::index::IndexConfig;
+use crate::core::Value;
 use crate::query::executor::admin::query_management::show_stats::ShowStatsType as ExecutorShowStatsType;
 use crate::query::executor::admin::space::alter_space::SpaceAlterOption as ExecutorSpaceAlterOption;
 use crate::query::executor::admin::{
@@ -323,16 +326,20 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::{Index, IndexType};
-        let index = Index::new(
-            0,
-            node.info().index_name.clone(),
-            0,
-            node.info().target_name.clone(),
-            Vec::new(),
-            node.info().properties.clone(),
-            IndexType::TagIndex,
-            false,
-        );
+        let fields = node.info().properties
+            .iter()
+            .map(|prop| IndexField::new(prop.clone(), Value::String("string".to_string()), false))
+            .collect();
+        let index = Index::new(IndexConfig {
+            id: 0,
+            name: node.info().index_name.clone(),
+            space_id: 0,
+            schema_name: node.info().target_name.clone(),
+            fields,
+            properties: node.info().properties.clone(),
+            index_type: IndexType::TagIndex,
+            is_unique: false,
+        });
         let executor = CreateTagIndexExecutor::new(
             node.id(),
             storage,
@@ -420,16 +427,20 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::{Index, IndexType};
-        let index = Index::new(
-            0,
-            node.info().index_name.clone(),
-            0,
-            node.info().target_name.clone(),
-            Vec::new(),
-            node.info().properties.clone(),
-            IndexType::EdgeIndex,
-            false,
-        );
+        let fields = node.info().properties
+            .iter()
+            .map(|prop| IndexField::new(prop.clone(), Value::String("string".to_string()), false))
+            .collect();
+        let index = Index::new(IndexConfig {
+            id: 0,
+            name: node.info().index_name.clone(),
+            space_id: 0,
+            schema_name: node.info().target_name.clone(),
+            fields,
+            properties: node.info().properties.clone(),
+            index_type: IndexType::EdgeIndex,
+            is_unique: false,
+        });
         let executor = CreateEdgeIndexExecutor::new(
             node.id(),
             storage,

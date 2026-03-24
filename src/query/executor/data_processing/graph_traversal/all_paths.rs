@@ -24,9 +24,7 @@ use crate::query::executor::base::{
     AllPathsConfig, BaseExecutor, EdgeDirection, ExecutionResult, Executor, ExecutorStats,
 };
 use crate::query::executor::recursion_detector::ParallelConfig;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
-use parking_lot::Mutex;
 
 /// 自环边去重辅助结构
 #[derive(Debug, Default)]

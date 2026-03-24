@@ -22,16 +22,17 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let index = Index::new(
-            0,
-            "person_name_index".to_string(),
-            0,
-            "person".to_string(),
-            Vec::new(),
-            vec!["name".to_string()],
-            IndexType::TagIndex,
-            false,
-        );
+        let index_config = crate::core::types::IndexConfig {
+            id: 0,
+            name: "person_name_index".to_string(),
+            space_id: 0,
+            schema_name: "person".to_string(),
+            fields: Vec::new(),
+            properties: vec!["name".to_string()],
+            index_type: IndexType::TagIndex,
+            is_unique: false,
+        };
+        let index = Index::new(index_config);
 
         let mut executor = CreateTagIndexExecutor::new(1, storage, index, create_test_context());
 
@@ -48,16 +49,17 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let index = Index::new(
-            0,
-            "person_name_index".to_string(),
-            0,
-            "person".to_string(),
-            Vec::new(),
-            vec!["name".to_string()],
-            IndexType::TagIndex,
-            false,
-        );
+        let index_config = crate::core::types::IndexConfig {
+            id: 0,
+            name: "person_name_index".to_string(),
+            space_id: 0,
+            schema_name: "person".to_string(),
+            fields: Vec::new(),
+            properties: vec!["name".to_string()],
+            index_type: IndexType::TagIndex,
+            is_unique: false,
+        };
+        let index = Index::new(index_config);
 
         let mut executor =
             CreateTagIndexExecutor::with_if_not_exists(2, storage, index, create_test_context());
@@ -163,16 +165,17 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let index = Index::new(
-            0,
-            "knows_weight_index".to_string(),
-            0,
-            "knows".to_string(),
-            Vec::new(),
-            vec!["weight".to_string()],
-            IndexType::EdgeIndex,
-            false,
-        );
+        let index_config = crate::core::types::IndexConfig {
+            id: 0,
+            name: "knows_weight_index".to_string(),
+            space_id: 0,
+            schema_name: "knows".to_string(),
+            fields: Vec::new(),
+            properties: vec!["weight".to_string()],
+            index_type: IndexType::EdgeIndex,
+            is_unique: false,
+        };
+        let index = Index::new(index_config);
 
         let mut executor = CreateEdgeIndexExecutor::new(8, storage, index, create_test_context());
 
@@ -189,16 +192,17 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let index = Index::new(
-            0,
-            "knows_weight_index".to_string(),
-            0,
-            "knows".to_string(),
-            Vec::new(),
-            vec!["weight".to_string()],
-            IndexType::EdgeIndex,
-            false,
-        );
+        let index_config = crate::core::types::IndexConfig {
+            id: 0,
+            name: "knows_weight_index".to_string(),
+            space_id: 0,
+            schema_name: "knows".to_string(),
+            fields: Vec::new(),
+            properties: vec!["weight".to_string()],
+            index_type: IndexType::EdgeIndex,
+            is_unique: false,
+        };
+        let index = Index::new(index_config);
 
         let mut executor =
             CreateEdgeIndexExecutor::with_if_not_exists(9, storage, index, create_test_context());
@@ -304,16 +308,17 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let index = Index::new(
-            0,
-            "test_index".to_string(),
-            0,
-            "person".to_string(),
-            Vec::new(),
-            vec!["name".to_string()],
-            IndexType::TagIndex,
-            false,
-        );
+        let index_config = crate::core::types::IndexConfig {
+            id: 0,
+            name: "test_index".to_string(),
+            space_id: 0,
+            schema_name: "person".to_string(),
+            fields: Vec::new(),
+            properties: vec!["name".to_string()],
+            index_type: IndexType::TagIndex,
+            is_unique: false,
+        };
+        let index = Index::new(index_config);
         let mut executor = CreateTagIndexExecutor::new(15, storage, index, create_test_context());
 
         assert!(!executor.is_open());
@@ -328,16 +333,17 @@ mod tests {
         let storage = Arc::new(Mutex::new(
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
-        let index = Index::new(
-            0,
-            "test_index".to_string(),
-            0,
-            "person".to_string(),
-            Vec::new(),
-            vec!["name".to_string()],
-            IndexType::TagIndex,
-            false,
-        );
+        let index_config = crate::core::types::IndexConfig {
+            id: 0,
+            name: "test_index".to_string(),
+            space_id: 0,
+            schema_name: "person".to_string(),
+            fields: Vec::new(),
+            properties: vec!["name".to_string()],
+            index_type: IndexType::TagIndex,
+            is_unique: false,
+        };
+        let index = Index::new(index_config);
         let executor = CreateTagIndexExecutor::new(16, storage, index, create_test_context());
 
         assert_eq!(executor.id(), 16);

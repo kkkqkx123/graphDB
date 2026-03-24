@@ -5,7 +5,8 @@
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-use crate::core::types::{Index, IndexType};
+use crate::core::types::{Index, IndexField, IndexType};
+use crate::core::types::index::IndexConfig;
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::query::validator::context::ExpressionAnalysisContext;
@@ -36,16 +37,21 @@ impl EdgeIndexDesc {
 
 impl From<&EdgeIndexDesc> for Index {
     fn from(desc: &EdgeIndexDesc) -> Self {
-        Index::new(
-            0,
-            desc.index_name.clone(),
-            0,
-            desc.edge_name.clone(),
-            Vec::new(),
-            desc.fields.clone(),
-            IndexType::EdgeIndex,
-            false,
-        )
+        let fields = desc.fields
+            .iter()
+            .map(|field_name| IndexField::new(field_name.clone(), Value::String("string".to_string()), false))
+            .collect();
+
+        Index::new(IndexConfig {
+            id: 0,
+            name: desc.index_name.clone(),
+            space_id: 0,
+            schema_name: desc.edge_name.clone(),
+            fields,
+            properties: desc.fields.clone(),
+            index_type: IndexType::EdgeIndex,
+            is_unique: false,
+        })
     }
 }
 

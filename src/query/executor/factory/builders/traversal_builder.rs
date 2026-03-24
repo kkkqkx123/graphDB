@@ -4,7 +4,8 @@
 
 use crate::core::error::QueryError;
 use crate::core::types::EdgeDirection;
-use crate::query::executor::base::ExecutionContext;
+use crate::query::executor::base::{ExecutionContext, ExecutorConfig, AllPathsConfig, ShortestPathConfig, MultiShortestPathConfig};
+use crate::query::executor::data_processing::graph_traversal::algorithms::bfs_shortest::BfsShortestPathConfig;
 use crate::query::executor::data_processing::graph_traversal::algorithms::MultiShortestPathExecutor;
 use crate::query::executor::data_processing::graph_traversal::{
     AllPathsExecutor, ExpandAllExecutor, ExpandExecutor, ShortestPathExecutor, TraverseExecutor,
@@ -100,16 +101,15 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // AllPathsExecutor::new 参数: id, storage, left_start_ids, right_start_ids, edge_direction, edge_types, max_steps, expr_context
         let executor = AllPathsExecutor::new(
-            node.id(),
-            storage,
-            Vec::new(), // left_start_ids - 需要从输入获取
-            Vec::new(), // right_start_ids - 需要从输入获取
-            EdgeDirection::Out,
-            Some(node.edge_types().to_vec()),
-            node.max_hop(),
-            context.expression_context().clone(),
+            ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
+            AllPathsConfig {
+                left_start_ids: Vec::new(), // 需要从输入获取
+                right_start_ids: Vec::new(), // 需要从输入获取
+                max_hops: node.max_hop(),
+                edge_types: Some(node.edge_types().to_vec()),
+                direction: EdgeDirection::Out,
+            },
         );
         Ok(ExecutorEnum::AllPaths(executor))
     }
@@ -124,19 +124,17 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 
         // 从输入获取起点和终点ID
-        let start_vertex_ids = Vec::new();
-        let end_vertex_ids = Vec::new();
+        let start_vertex_ids: Vec<crate::core::Value> = Vec::new();
+        let _end_vertex_ids: Vec<crate::core::Value> = Vec::new();
 
         let executor = ShortestPathExecutor::new(
-            node.id(),
-            storage,
-            start_vertex_ids,
-            end_vertex_ids,
-            EdgeDirection::Out, // 默认向外扩展
-            Some(node.edge_types().to_vec()),
-            Some(node.max_step()),
+            ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
+            ShortestPathConfig {
+                start_vertex_ids,
+                direction: EdgeDirection::Out,
+                edge_types: Some(node.edge_types().to_vec()),
+            },
             ShortestPathAlgorithmType::BFS,
-            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::ShortestPath(executor))
     }
@@ -153,17 +151,17 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
 
         // BFSShortestExecutor::new 参数: id, storage, steps, edge_types, with_cycle, max_depth, single_shortest, limit, start_vertex, end_vertex, expr_context
         let executor = BFSShortestExecutor::new(
-            node.id(),
-            storage,
-            node.steps(),
-            node.edge_types().to_vec(),
-            node.with_cycle(),
-            Some(node.steps()),
-            false,                                    // single_shortest
-            usize::MAX,                               // limit
-            Value::Null(crate::core::NullType::Null), // start_vertex - 需要从输入获取
-            Value::Null(crate::core::NullType::Null), // end_vertex - 需要从输入获取
-            context.expression_context().clone(),
+            ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
+            BfsShortestPathConfig {
+                steps: node.steps(),
+                edge_types: node.edge_types().to_vec(),
+                with_cycle: node.with_cycle(),
+                max_depth: Some(node.steps()),
+                single_shortest: false,
+                limit: usize::MAX,
+                start_vertex: Value::Null(crate::core::NullType::Null),
+                end_vertex: Value::Null(crate::core::NullType::Null),
+            },
         );
         Ok(ExecutorEnum::BFSShortest(executor))
     }
@@ -176,18 +174,17 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         // 从输入获取起点和终点ID
-        let start_vids = Vec::new();
-        let end_vids = Vec::new();
+        let start_vids: Vec<crate::core::Value> = Vec::new();
+        let _end_vids: Vec<crate::core::Value> = Vec::new();
 
         let executor = MultiShortestPathExecutor::new(
-            node.id(),
-            storage,
-            start_vids,
-            end_vids,
-            EdgeDirection::Out,
-            None, // edge_types
-            node.steps(),
-            context.expression_context().clone(),
+            ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
+            MultiShortestPathConfig {
+                start_vids,
+                direction: EdgeDirection::Out,
+                edge_types: None,
+                max_steps: node.steps(),
+            },
         );
         Ok(ExecutorEnum::MultiShortestPath(executor))
     }

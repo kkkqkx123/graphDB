@@ -329,12 +329,12 @@ impl<S: StorageClient> HashLeftJoinExecutor<S> {
             inner: LeftJoinExecutor::new(
                 id,
                 storage,
-                left_var,
-                right_var,
+                expr_context,
                 hash_keys,
                 probe_keys,
+                left_var,
+                right_var,
                 col_names,
-                expr_context,
             ),
         }
     }
@@ -405,12 +405,12 @@ mod tests {
         let mut executor = LeftJoinExecutor::new(
             1,
             storage,
-            "left".to_string(),
-            "right".to_string(),
+            expr_context.clone(),
             vec![ctx_expr1.clone()], // 左表id列作为键
             vec![ctx_expr1],         // 右表id列作为键
+            "left".to_string(),
+            "right".to_string(),
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
-            expr_context,
         );
 
         // 设置执行上下文
@@ -497,12 +497,12 @@ mod tests {
         let mut executor = LeftJoinExecutor::new(
             1,
             storage,
-            "left".to_string(),
-            "right".to_string(),
+            expr_context.clone(),
             vec![ctx_expr1.clone()],
             vec![ctx_expr1],
+            "left".to_string(),
+            "right".to_string(),
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
-            expr_context,
         );
 
         // 设置执行上下文

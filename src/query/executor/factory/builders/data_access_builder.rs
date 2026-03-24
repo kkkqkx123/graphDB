@@ -3,7 +3,7 @@
 //! 负责创建数据访问类型的执行器（ScanVertices, ScanEdges, GetVertices, GetNeighbors, IndexScan, GetEdges）
 
 use crate::core::error::QueryError;
-use crate::query::executor::base::ExecutionContext;
+use crate::query::executor::base::{ExecutionContext, ExecutorConfig, IndexScanConfig};
 use crate::query::executor::data_access::{
     GetEdgesExecutor, GetNeighborsExecutor, GetVerticesExecutor, IndexScanExecutor,
     ScanEdgesExecutor,
@@ -126,22 +126,22 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = IndexScanExecutor::new(
-            node.id(),
-            storage,
-            node.space_id(),
-            node.edge_type()
-                .chars()
-                .fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)),
-            node.index_name()
-                .chars()
-                .fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)),
-            node.scan_type().as_str(),
-            node.scan_limits().to_vec(),
-            node.filter().and_then(|f| f.get_expression()),
-            node.return_columns().to_vec(),
-            node.limit().map(|l| l as usize),
-            true,
-            context.expression_context().clone(),
+            ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
+            IndexScanConfig {
+                space_id: node.space_id(),
+                tag_id: node.edge_type()
+                    .chars()
+                    .fold(0i32, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)),
+                index_id: node.index_name()
+                    .chars()
+                    .fold(0i32, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)),
+                scan_type: node.scan_type().as_str().to_string(),
+                scan_limits: node.scan_limits().to_vec(),
+                filter: node.filter().and_then(|f| f.get_expression()),
+                return_columns: node.return_columns().to_vec(),
+                limit: node.limit().map(|l| l as usize),
+                is_edge: true,
+            },
         );
         Ok(ExecutorEnum::IndexScan(executor))
     }
@@ -176,18 +176,18 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         let executor = IndexScanExecutor::new(
-            node.id(),
-            storage,
-            node.space_id(),
-            node.tag_id(),
-            node.index_id(),
-            node.scan_type().as_str(),
-            node.scan_limits().to_vec(),
-            node.filter().and_then(|f| f.get_expression()),
-            node.return_columns().to_vec(),
-            node.limit().map(|l| l as usize),
-            false, // is_edge = false，这是标签索引扫描
-            context.expression_context().clone(),
+            ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
+            IndexScanConfig {
+                space_id: node.space_id(),
+                tag_id: node.tag_id(),
+                index_id: node.index_id(),
+                scan_type: node.scan_type().as_str().to_string(),
+                scan_limits: node.scan_limits().to_vec(),
+                filter: node.filter().and_then(|f| f.get_expression()),
+                return_columns: node.return_columns().to_vec(),
+                limit: node.limit().map(|l| l as usize),
+                is_edge: false, // is_edge = false，这是标签索引扫描
+            },
         );
         Ok(ExecutorEnum::IndexScan(executor))
     }

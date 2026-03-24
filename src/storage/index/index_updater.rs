@@ -425,8 +425,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::core::types::{IndexField, IndexType};
+    use crate::core::types::{Index, IndexConfig, IndexField, IndexType};
     use crate::core::Value;
 
     #[test]
@@ -439,20 +438,20 @@ mod tests {
 
     #[test]
     fn test_index_creation() {
-        let index = Index::new(
-            1,
-            "idx_person_name".to_string(),
-            1,
-            "person".to_string(),
-            vec![IndexField::new(
+        let index = Index::new(IndexConfig {
+            id: 1,
+            name: "idx_person_name".to_string(),
+            space_id: 1,
+            schema_name: "person".to_string(),
+            fields: vec![IndexField::new(
                 "name".to_string(),
                 Value::String("".to_string()),
                 false,
             )],
-            vec![],
-            IndexType::TagIndex,
-            false,
-        );
+            properties: vec![],
+            index_type: IndexType::TagIndex,
+            is_unique: false,
+        });
 
         assert_eq!(index.name, "idx_person_name");
         assert_eq!(index.schema_name, "person");

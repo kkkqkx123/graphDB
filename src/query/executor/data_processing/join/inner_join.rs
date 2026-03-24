@@ -366,12 +366,12 @@ impl<S: StorageClient> HashInnerJoinExecutor<S> {
             inner: InnerJoinExecutor::new(
                 id,
                 storage,
-                left_var,
-                right_var,
+                expr_context,
                 hash_keys,
                 probe_keys,
+                left_var,
+                right_var,
                 col_names,
-                expr_context,
             ),
         }
     }
@@ -462,12 +462,12 @@ mod tests {
         let mut executor = InnerJoinExecutor::new(
             1,
             storage,
-            "left".to_string(),
-            "right".to_string(),
+            expr_context.clone(),
             vec![ctx_expr1.clone()],
             vec![ctx_expr1],
+            "left".to_string(),
+            "right".to_string(),
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
-            expr_context,
         );
 
         let (left_dataset, right_dataset) = create_test_datasets();
@@ -547,17 +547,17 @@ mod tests {
         let mut executor = InnerJoinExecutor::new(
             2,
             storage,
-            "left".to_string(),
-            "right".to_string(),
+            expr_context.clone(),
             vec![ctx_expr1.clone(), ctx_expr2.clone()],
             vec![ctx_expr1, ctx_expr2],
+            "left".to_string(),
+            "right".to_string(),
             vec![
                 "a".to_string(),
                 "b".to_string(),
                 "name".to_string(),
                 "age".to_string(),
             ],
-            expr_context,
         );
 
         executor.base_executor.get_base_mut().context.set_result(
@@ -612,12 +612,12 @@ mod tests {
         let mut executor = InnerJoinExecutor::new(
             3,
             storage,
-            "left".to_string(),
-            "right".to_string(),
+            expr_context.clone(),
             vec![ctx_expr1.clone()],
             vec![ctx_expr1],
+            "left".to_string(),
+            "right".to_string(),
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
-            expr_context,
         );
 
         executor.base_executor.get_base_mut().context.set_result(
@@ -658,12 +658,12 @@ mod tests {
         let mut executor = InnerJoinExecutor::new(
             4,
             storage,
-            "left".to_string(),
-            "right".to_string(),
+            expr_context.clone(),
             vec![ctx_expr1.clone()],
             vec![ctx_expr1],
+            "left".to_string(),
+            "right".to_string(),
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
-            expr_context,
         );
 
         let (left_dataset, right_dataset) = create_test_datasets();

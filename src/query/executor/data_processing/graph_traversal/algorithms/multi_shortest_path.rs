@@ -13,7 +13,6 @@ use crate::query::executor::base::{
     Executor as BaseExecutorTrait, ExecutorStats, HasStorage, InputExecutor, MultiShortestPathConfig,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -92,7 +91,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             termination_map,
             edge_direction: config.direction,
             edge_types: config.edge_types,
-            max_steps,
+            max_steps: config.max_steps,
             single_shortest: false,
             limit: usize::MAX,
             step: 1,
@@ -582,6 +581,8 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for MultiShortestPathEx
 mod tests {
     use super::*;
     use crate::core::{Path, Value, Vertex};
+    use crate::query::executor::base::ExecutorConfig;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::MockStorage;
 
     #[test]
@@ -661,16 +662,16 @@ mod tests {
             MockStorage::new().expect("Failed to create MockStorage"),
         ));
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let executor = MultiShortestPathExecutor::new(
-            1,
-            storage,
-            vec![Value::from("a")],
-            vec![Value::from("d")],
-            EdgeDirection::Out,
-            None,
-            10,
-            expr_context,
-        );
+
+        let config = MultiShortestPathConfig {
+            start_vids: vec![Value::from("a")],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+            max_steps: 10,
+        };
+
+        let base_config = ExecutorConfig::new(1, storage, expr_context);
+        let executor = MultiShortestPathExecutor::new(base_config, config);
 
         // 创建路径
         let path = Path {

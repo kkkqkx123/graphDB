@@ -144,17 +144,23 @@ mod tests {
     fn test_shortest_path_executor() {
         let storage = create_test_graph("shortest_path");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
-        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+
+        let config = crate::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::String("A".to_string())],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+        };
+
+        let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             4,
             storage,
-            vec![Value::String("A".to_string())],
-            vec![Value::String("C".to_string())],
-            EdgeDirection::Out,
-            None,
-            Some(10), // 添加max_depth参数
-            ShortestPathAlgorithmType::BFS,
             expr_context,
+            config,
+            ShortestPathAlgorithmType::BFS,
         );
+
+        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 4);
@@ -256,19 +262,24 @@ mod tests {
         let storage = create_weighted_test_graph("weighted_shortest_path_prop");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
+        let config = crate::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::String("A".to_string())],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+        };
+
         // 使用属性权重创建执行器
-        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+        let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             5,
             storage.clone(),
-            vec![Value::String("A".to_string())],
-            vec![Value::String("C".to_string())],
-            EdgeDirection::Out,
-            None,
-            Some(10),
-            ShortestPathAlgorithmType::Dijkstra,
             expr_context,
+            config,
+            ShortestPathAlgorithmType::Dijkstra,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
+
+        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 5);
@@ -279,19 +290,24 @@ mod tests {
         let storage = create_weighted_test_graph("weighted_shortest_path_ranking");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
+        let config = crate::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::String("A".to_string())],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+        };
+
         // 使用ranking作为权重创建执行器
-        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+        let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             6,
             storage.clone(),
-            vec![Value::String("A".to_string())],
-            vec![Value::String("C".to_string())],
-            EdgeDirection::Out,
-            None,
-            Some(10),
-            ShortestPathAlgorithmType::Dijkstra,
             expr_context,
+            config,
+            ShortestPathAlgorithmType::Dijkstra,
         )
         .with_weight_config(EdgeWeightConfig::Ranking);
+
+        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 6);
@@ -303,18 +319,23 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
         // 使用无权图配置创建执行器
-        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+        let config = crate::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::String("A".to_string())],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+        };
+
+        let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             7,
             storage.clone(),
-            vec![Value::String("A".to_string())],
-            vec![Value::String("C".to_string())],
-            EdgeDirection::Out,
-            None,
-            Some(10),
-            ShortestPathAlgorithmType::BFS,
             expr_context,
+            config,
+            ShortestPathAlgorithmType::BFS,
         )
         .with_weight_config(EdgeWeightConfig::Unweighted);
+
+        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 7);
@@ -431,23 +452,28 @@ mod tests {
         let storage = create_spatial_test_graph("astar_spatial");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
+        let config = crate::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::String("A".to_string())],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+        };
+
         // 使用A*算法，带空间启发式
-        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+        let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             8,
             storage.clone(),
-            vec![Value::String("A".to_string())],
-            vec![Value::String("C".to_string())],
-            EdgeDirection::Out,
-            None,
-            Some(10),
-            ShortestPathAlgorithmType::AStar,
             expr_context,
+            config,
+            ShortestPathAlgorithmType::AStar,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
         .with_heuristic_config(HeuristicFunction::PropertyDistance(
             "lat".to_string(),
             "lon".to_string(),
         ));
+
+        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 8);
@@ -458,20 +484,25 @@ mod tests {
         let storage = create_spatial_test_graph("astar_no_heuristic");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
+        let config = crate::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::String("A".to_string())],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+        };
+
         // 使用A*算法，但无启发式（退化为Dijkstra）
-        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+        let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             9,
             storage.clone(),
-            vec![Value::String("A".to_string())],
-            vec![Value::String("C".to_string())],
-            EdgeDirection::Out,
-            None,
-            Some(10),
-            ShortestPathAlgorithmType::AStar,
             expr_context,
+            config,
+            ShortestPathAlgorithmType::AStar,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
         .with_heuristic_config(HeuristicFunction::Zero);
+
+        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 9);
@@ -482,20 +513,25 @@ mod tests {
         let storage = create_spatial_test_graph("astar_scale");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
+        let config = crate::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::String("A".to_string())],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+        };
+
         // 使用A*算法，带固定缩放因子启发式
-        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+        let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             10,
             storage.clone(),
-            vec![Value::String("A".to_string())],
-            vec![Value::String("C".to_string())],
-            EdgeDirection::Out,
-            None,
-            Some(10),
-            ShortestPathAlgorithmType::AStar,
             expr_context,
+            config,
+            ShortestPathAlgorithmType::AStar,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
         .with_heuristic_config(HeuristicFunction::ScaleFactor(0.5));
+
+        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 10);
@@ -507,19 +543,24 @@ mod tests {
         let storage = create_weighted_test_graph("weighted_integration");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
+        let config = crate::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::String("A".to_string())],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+        };
+
         // 测试使用属性权重的Dijkstra算法
-        let dijkstra_executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+        let mut dijkstra_executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             11,
             storage.clone(),
-            vec![Value::String("A".to_string())],
-            vec![Value::String("C".to_string())],
-            EdgeDirection::Out,
-            None,
-            Some(10),
-            ShortestPathAlgorithmType::Dijkstra,
             expr_context,
+            config,
+            ShortestPathAlgorithmType::Dijkstra,
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
+
+        dijkstra_executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        dijkstra_executor.max_depth = Some(10);
 
         assert_eq!(dijkstra_executor.name(), "ShortestPathExecutor");
         assert_eq!(dijkstra_executor.id(), 11);
@@ -536,19 +577,24 @@ mod tests {
         let storage = create_weighted_test_graph("auto_select_weighted");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
+        let config = crate::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::String("A".to_string())],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+        };
+
         // 创建带权重的执行器，验证自动选择Dijkstra算法
-        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+        let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             12,
             storage.clone(),
-            vec![Value::String("A".to_string())],
-            vec![Value::String("C".to_string())],
-            EdgeDirection::Out,
-            None,
-            Some(10),
-            ShortestPathAlgorithmType::Dijkstra, // 显式指定Dijkstra
             expr_context,
+            config,
+            ShortestPathAlgorithmType::Dijkstra, // 显式指定Dijkstra
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
+
+        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
 
@@ -568,19 +614,24 @@ mod tests {
         let storage = create_test_graph("auto_select_unweighted");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
+        let config = crate::query::executor::base::ShortestPathConfig {
+            start_vertex_ids: vec![Value::String("A".to_string())],
+            direction: EdgeDirection::Out,
+            edge_types: None,
+        };
+
         // 创建无权重的执行器，验证使用BFS算法
-        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+        let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             13,
             storage.clone(),
-            vec![Value::String("A".to_string())],
-            vec![Value::String("C".to_string())],
-            EdgeDirection::Out,
-            None,
-            Some(10),
-            ShortestPathAlgorithmType::BFS,
             expr_context,
+            config,
+            ShortestPathAlgorithmType::BFS,
         )
         .with_weight_config(EdgeWeightConfig::Unweighted);
+
+        executor.set_end_vertex_ids(vec![Value::String("C".to_string())]);
+        executor.max_depth = Some(10);
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
 

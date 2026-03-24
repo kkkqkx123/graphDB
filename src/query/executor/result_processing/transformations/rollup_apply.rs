@@ -13,7 +13,6 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, Exec
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
-use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
 /// RollUpApply执行器
@@ -544,6 +543,8 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::core::Value;
+    use crate::query::executor::base::ExecutorConfig;
+    use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::MockStorage;
     use parking_lot::Mutex;
     use std::sync::Arc;
@@ -569,16 +570,16 @@ mod tests {
         let compare_cols = vec![Expression::variable("_")];
         let collect_col = Expression::variable("_");
 
-        let mut executor = RollUpApplyExecutor::with_context(
-            1,
-            storage,
-            "left".to_string(),
-            "right".to_string(),
+        let config = RollupApplyConfig {
+            left_input_var: "left".to_string(),
+            right_input_var: "right".to_string(),
             compare_cols,
             collect_col,
-            vec!["key".to_string(), "collected".to_string()],
-            context,
-        );
+            col_names: vec!["key".to_string(), "collected".to_string()],
+        };
+
+        let base_config = ExecutorConfig::new(1, storage, expr_context);
+        let mut executor = RollUpApplyExecutor::new(base_config, config);
 
         let result = executor
             .execute()
@@ -612,16 +613,16 @@ mod tests {
         let compare_cols: Vec<Expression> = vec![];
         let collect_col = Expression::Variable("_".to_string());
 
-        let mut executor = RollUpApplyExecutor::with_context(
-            2,
-            storage,
-            "left".to_string(),
-            "right".to_string(),
+        let config = RollupApplyConfig {
+            left_input_var: "left".to_string(),
+            right_input_var: "right".to_string(),
             compare_cols,
             collect_col,
-            vec!["collected".to_string()],
-            context,
-        );
+            col_names: vec!["collected".to_string()],
+        };
+
+        let base_config = ExecutorConfig::new(2, storage, expr_context);
+        let mut executor = RollUpApplyExecutor::new(base_config, config);
 
         let result = executor
             .execute()
@@ -676,20 +677,20 @@ mod tests {
         ];
         let collect_col = Expression::Variable("_".to_string());
 
-        let mut executor = RollUpApplyExecutor::with_context(
-            3,
-            storage,
-            "left".to_string(),
-            "right".to_string(),
+        let config = RollupApplyConfig {
+            left_input_var: "left".to_string(),
+            right_input_var: "right".to_string(),
             compare_cols,
             collect_col,
-            vec![
+            col_names: vec![
                 "key0".to_string(),
                 "key1".to_string(),
                 "collected".to_string(),
             ],
-            context,
-        );
+        };
+
+        let base_config = ExecutorConfig::new(3, storage, expr_context);
+        let mut executor = RollUpApplyExecutor::new(base_config, config);
 
         let result = executor
             .execute()
@@ -723,16 +724,16 @@ mod tests {
         let compare_cols = vec![Expression::variable("_")];
         let collect_col = Expression::Variable("_".to_string());
 
-        let mut executor = RollUpApplyExecutor::with_context(
-            4,
-            storage,
-            "left".to_string(),
-            "right".to_string(),
+        let config = RollupApplyConfig {
+            left_input_var: "left".to_string(),
+            right_input_var: "right".to_string(),
             compare_cols,
             collect_col,
-            vec!["key".to_string(), "collected".to_string()],
-            context,
-        );
+            col_names: vec!["key".to_string(), "collected".to_string()],
+        };
+
+        let base_config = ExecutorConfig::new(4, storage, expr_context);
+        let mut executor = RollUpApplyExecutor::new(base_config, config);
 
         let result = executor
             .execute()
@@ -770,16 +771,16 @@ mod tests {
         let compare_cols = vec![Expression::literal(0i64)];
         let collect_col = Expression::Variable("_".to_string());
 
-        let mut executor = RollUpApplyExecutor::with_context(
-            5,
-            storage,
-            "left".to_string(),
-            "right".to_string(),
+        let config = RollupApplyConfig {
+            left_input_var: "left".to_string(),
+            right_input_var: "right".to_string(),
             compare_cols,
             collect_col,
-            vec!["key".to_string(), "collected".to_string()],
-            context,
-        );
+            col_names: vec!["key".to_string(), "collected".to_string()],
+        };
+
+        let base_config = ExecutorConfig::new(5, storage, expr_context);
+        let mut executor = RollUpApplyExecutor::new(base_config, config);
 
         let result = executor
             .execute()

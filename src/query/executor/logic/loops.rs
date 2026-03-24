@@ -477,9 +477,8 @@ impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
         body_executor: ExecutorEnum<S>,
     ) -> Self {
         let base_config = ExecutorConfig::new(id, storage, expr_context);
-        let loop_config = LoopConfig {
+        let _loop_config = LoopConfig {
             loop_var: loop_var.clone(),
-            body_executor: Box::new(body_executor),
             loop_condition: crate::core::Expression::Literal(crate::core::Value::Bool(true)),
         };
 
@@ -489,7 +488,7 @@ impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
             base_config.id,
             base_config.storage,
             None,
-            *loop_config.body_executor,
+            body_executor,
             max_iterations,
             base_config.expr_context,
         );
@@ -751,12 +750,12 @@ mod tests {
         let mut executor = ForLoopExecutor::new(
             1,
             storage,
+            expr_context,
             "i".to_string(),
             1,
             3,
             1,
             body_executor,
-            expr_context,
         );
 
         let result = executor.execute().expect("Failed to execute");

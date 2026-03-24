@@ -60,12 +60,12 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let executor = InnerJoinExecutor::new(
             node.id(),
             storage,
-            left_var,
-            right_var,
+            context.expression_context().clone(),
             hash_keys,
             probe_keys,
+            left_var,
+            right_var,
             node.col_names().to_vec(),
-            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::InnerJoin(executor))
     }
@@ -84,12 +84,12 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let executor = InnerJoinExecutor::new(
             node.id(),
             storage,
-            left_var,
-            right_var,
+            context.expression_context().clone(),
             hash_keys,
             probe_keys,
+            left_var,
+            right_var,
             node.col_names().to_vec(),
-            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::InnerJoin(executor))
     }
@@ -108,12 +108,12 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let executor = LeftJoinExecutor::new(
             node.id(),
             storage,
-            left_var,
-            right_var,
+            context.expression_context().clone(),
             hash_keys,
             probe_keys,
+            left_var,
+            right_var,
             node.col_names().to_vec(),
-            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::LeftJoin(executor))
     }
@@ -132,12 +132,12 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let executor = LeftJoinExecutor::new(
             node.id(),
             storage,
-            left_var,
-            right_var,
+            context.expression_context().clone(),
             hash_keys,
             probe_keys,
+            left_var,
+            right_var,
             node.col_names().to_vec(),
-            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::LeftJoin(executor))
     }
@@ -156,12 +156,12 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let executor = FullOuterJoinExecutor::new(
             node.id(),
             storage,
-            left_var,
-            right_var,
+            context.expression_context().clone(),
             hash_keys,
             probe_keys,
+            left_var,
+            right_var,
             node.col_names().to_vec(),
-            context.expression_context().clone(),
         );
         Ok(ExecutorEnum::FullOuterJoin(executor))
     }
