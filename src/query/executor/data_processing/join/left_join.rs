@@ -26,33 +26,39 @@ pub struct LeftJoinExecutor<S: StorageClient> {
     use_multi_key: bool,
 }
 
+/// 左外连接执行器配置
+#[derive(Debug, Clone)]
+pub struct LeftJoinConfig {
+    pub id: i64,
+    pub hash_keys: Vec<ContextualExpression>,
+    pub probe_keys: Vec<ContextualExpression>,
+    pub left_var: String,
+    pub right_var: String,
+    pub col_names: Vec<String>,
+}
+
 impl<S: StorageClient> LeftJoinExecutor<S> {
     pub fn new(
-        id: i64,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<ExpressionContextStruct>,
-        hash_keys: Vec<ContextualExpression>,
-        probe_keys: Vec<ContextualExpression>,
-        left_var: String,
-        right_var: String,
-        col_names: Vec<String>,
+        config: LeftJoinConfig,
     ) -> Self {
-        let use_multi_key = hash_keys.len() > 1;
+        let use_multi_key = config.hash_keys.len() > 1;
 
         // 从 ContextualExpression 列表提取 Expression 列表
-        let hash_exprs = Self::extract_expressions(&hash_keys);
-        let probe_exprs = Self::extract_expressions(&probe_keys);
+        let hash_exprs = Self::extract_expressions(&config.hash_keys);
+        let probe_exprs = Self::extract_expressions(&config.probe_keys);
 
-        let config = JoinConfig {
-            left_var,
-            right_var,
+        let join_config = JoinConfig {
+            left_var: config.left_var,
+            right_var: config.right_var,
             hash_keys: hash_exprs,
             probe_keys: probe_exprs,
-            col_names,
+            col_names: config.col_names,
         };
 
         Self {
-            base_executor: BaseJoinExecutor::new(id, storage, expr_context, config),
+            base_executor: BaseJoinExecutor::new(config.id, storage, expr_context, join_config),
             right_col_size: 0,
             use_multi_key,
         }
@@ -316,26 +322,12 @@ pub struct HashLeftJoinExecutor<S: StorageClient> {
 
 impl<S: StorageClient> HashLeftJoinExecutor<S> {
     pub fn new(
-        id: i64,
         storage: Arc<Mutex<S>>,
-        left_var: String,
-        right_var: String,
-        hash_keys: Vec<ContextualExpression>,
-        probe_keys: Vec<ContextualExpression>,
-        col_names: Vec<String>,
         expr_context: Arc<ExpressionContextStruct>,
+        config: LeftJoinConfig,
     ) -> Self {
         Self {
-            inner: LeftJoinExecutor::new(
-                id,
-                storage,
-                expr_context,
-                hash_keys,
-                probe_keys,
-                left_var,
-                right_var,
-                col_names,
-            ),
+            inner: LeftJoinExecutor::new(storage, expr_context, config),
         }
     }
 }
@@ -402,15 +394,19 @@ mod tests {
             crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         // 创建执行器
+        let config = LeftJoinConfig {
+            id: 1,
+            hash_keys: vec![ctx_expr1.clone()], // 左表id列作为键
+            probe_keys: vec![ctx_expr1],         // 右表id列作为键
+            left_var: "left".to_string(),
+            right_var: "right".to_string(),
+            col_names: vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        };
+
         let mut executor = LeftJoinExecutor::new(
-            1,
             storage,
             expr_context.clone(),
-            vec![ctx_expr1.clone()], // 左表id列作为键
-            vec![ctx_expr1],         // 右表id列作为键
-            "left".to_string(),
-            "right".to_string(),
-            vec!["id".to_string(), "name".to_string(), "age".to_string()],
+            config,
         );
 
         // 设置执行上下文
@@ -494,15 +490,19 @@ mod tests {
             crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
         // 创建执行器
+        let config = LeftJoinConfig {
+            id: 1,
+            hash_keys: vec![ctx_expr1.clone()],
+            probe_keys: vec![ctx_expr1],
+            left_var: "left".to_string(),
+            right_var: "right".to_string(),
+            col_names: vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        };
+
         let mut executor = LeftJoinExecutor::new(
-            1,
             storage,
             expr_context.clone(),
-            vec![ctx_expr1.clone()],
-            vec![ctx_expr1],
-            "left".to_string(),
-            "right".to_string(),
-            vec!["id".to_string(), "name".to_string(), "age".to_string()],
+            config,
         );
 
         // 设置执行上下文

@@ -21,6 +21,7 @@ pub struct FullOuterJoinExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,

@@ -49,8 +49,8 @@ pub struct ValidatedCreate {
 #[derive(Debug, Clone)]
 pub enum ValidatedPattern {
     Node(ValidatedNodeCreate),
-    Edge(ValidatedEdgeCreate),
-    Path(ValidatedPathCreate),
+    Edge(Box<ValidatedEdgeCreate>),
+    Path(Box<ValidatedPathCreate>),
 }
 
 /// 属性条目
@@ -289,19 +289,19 @@ impl CreateValidator {
                     schema_manager,
                     missing_tags,
                 )?),
-                Pattern::Edge(edge) => ValidatedPattern::Edge(self.validate_edge_pattern(
+                Pattern::Edge(edge) => ValidatedPattern::Edge(Box::new(self.validate_edge_pattern(
                     edge,
                     space_name,
                     schema_manager,
                     missing_edge_types,
-                )?),
-                Pattern::Path(path) => ValidatedPattern::Path(self.validate_path_pattern(
+                )?)),
+                Pattern::Path(path) => ValidatedPattern::Path(Box::new(self.validate_path_pattern(
                     path,
                     space_name,
                     schema_manager,
                     missing_tags,
                     missing_edge_types,
-                )?),
+                )?)),
                 Pattern::Variable(_) => {
                     return Err(ValidationError::new(
                         "Variable pattern is not supported in CREATE statement".to_string(),
@@ -524,21 +524,21 @@ impl CreateValidator {
             Vec::new()
         };
 
-        Ok(ValidatedPattern::Edge(ValidatedEdgeCreate {
+        Ok(ValidatedPattern::Edge(Box::new(ValidatedEdgeCreate {
             variable: variable.clone(),
             edge_type: edge_type.to_string(),
             src: Value::Null(crate::core::NullType::Null),
             dst: Value::Null(crate::core::NullType::Null),
             properties: props,
             direction: *direction,
-        }))
+        })))
     }
 
     /// 从表达式中提取属性键值对
     fn extract_properties(
         &self,
         expr: &ContextualExpression,
-    ) -> Result<Vec<(String, Value)>, ValidationError> {
+    ) -> Result<Vec<PropertyEntry>, ValidationError> {
         if let Some(e) = expr.get_expression() {
             self.extract_properties_internal(&e)
         } else {
@@ -553,7 +553,7 @@ impl CreateValidator {
     fn extract_properties_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
-    ) -> Result<Vec<(String, Value)>, ValidationError> {
+    ) -> Result<Vec<PropertyEntry>, ValidationError> {
         use crate::core::types::expr::Expression;
 
         match expr {
@@ -561,7 +561,10 @@ impl CreateValidator {
                 let mut props = Vec::new();
                 for (key, value_expr) in entries {
                     let value = self.evaluate_expression_internal(value_expr)?;
-                    props.push((key.clone(), value));
+                    props.push(PropertyEntry {
+                        name: key.clone(),
+                        value,
+                    });
                 }
                 Ok(props)
             }

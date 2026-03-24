@@ -26,6 +26,17 @@ pub struct InnerJoinExecutor<S: StorageClient> {
     use_multi_key: bool,
 }
 
+/// 内连接执行器配置
+#[derive(Debug, Clone)]
+pub struct InnerJoinConfig {
+    pub id: i64,
+    pub hash_keys: Vec<ContextualExpression>,
+    pub probe_keys: Vec<ContextualExpression>,
+    pub left_var: String,
+    pub right_var: String,
+    pub col_names: Vec<String>,
+}
+
 impl<S: StorageClient> std::fmt::Debug for InnerJoinExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InnerJoinExecutor")
@@ -42,31 +53,26 @@ impl<S: StorageClient> std::fmt::Debug for InnerJoinExecutor<S> {
 
 impl<S: StorageClient> InnerJoinExecutor<S> {
     pub fn new(
-        id: i64,
         storage: Arc<Mutex<S>>,
         expr_context: Arc<ExpressionContextStruct>,
-        hash_keys: Vec<ContextualExpression>,
-        probe_keys: Vec<ContextualExpression>,
-        left_var: String,
-        right_var: String,
-        col_names: Vec<String>,
+        config: InnerJoinConfig,
     ) -> Self {
-        let use_multi_key = hash_keys.len() > 1;
+        let use_multi_key = config.hash_keys.len() > 1;
 
         // 从 ContextualExpression 列表提取 Expression 列表
-        let hash_exprs = Self::extract_expressions(&hash_keys);
-        let probe_exprs = Self::extract_expressions(&probe_keys);
+        let hash_exprs = Self::extract_expressions(&config.hash_keys);
+        let probe_exprs = Self::extract_expressions(&config.probe_keys);
 
-        let config = JoinConfig {
-            left_var,
-            right_var,
+        let join_config = JoinConfig {
+            left_var: config.left_var,
+            right_var: config.right_var,
             hash_keys: hash_exprs,
             probe_keys: probe_exprs,
-            col_names,
+            col_names: config.col_names,
         };
 
         Self {
-            base_executor: BaseJoinExecutor::new(id, storage, expr_context, config),
+            base_executor: BaseJoinExecutor::new(config.id, storage, expr_context, join_config),
             single_key_hash_table: None,
             multi_key_hash_table: None,
             use_multi_key,
@@ -353,26 +359,12 @@ pub struct HashInnerJoinExecutor<S: StorageClient> {
 
 impl<S: StorageClient> HashInnerJoinExecutor<S> {
     pub fn new(
-        id: i64,
         storage: Arc<Mutex<S>>,
-        left_var: String,
-        right_var: String,
-        hash_keys: Vec<ContextualExpression>,
-        probe_keys: Vec<ContextualExpression>,
-        col_names: Vec<String>,
         expr_context: Arc<ExpressionContextStruct>,
+        config: InnerJoinConfig,
     ) -> Self {
         Self {
-            inner: InnerJoinExecutor::new(
-                id,
-                storage,
-                expr_context,
-                hash_keys,
-                probe_keys,
-                left_var,
-                right_var,
-                col_names,
-            ),
+            inner: InnerJoinExecutor::new(storage, expr_context, config),
         }
     }
 }
@@ -459,16 +451,16 @@ mod tests {
         let ctx_expr1 =
             crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
-        let mut executor = InnerJoinExecutor::new(
-            1,
-            storage,
-            expr_context.clone(),
-            vec![ctx_expr1.clone()],
-            vec![ctx_expr1],
-            "left".to_string(),
-            "right".to_string(),
-            vec!["id".to_string(), "name".to_string(), "age".to_string()],
-        );
+        let config = InnerJoinConfig {
+            id: 1,
+            hash_keys: vec![ctx_expr1.clone()],
+            probe_keys: vec![ctx_expr1],
+            left_var: "left".to_string(),
+            right_var: "right".to_string(),
+            col_names: vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        };
+
+        let mut executor = InnerJoinExecutor::new(storage, expr_context.clone(), config);
 
         let (left_dataset, right_dataset) = create_test_datasets();
 
@@ -544,21 +536,21 @@ mod tests {
             ],
         };
 
-        let mut executor = InnerJoinExecutor::new(
-            2,
-            storage,
-            expr_context.clone(),
-            vec![ctx_expr1.clone(), ctx_expr2.clone()],
-            vec![ctx_expr1, ctx_expr2],
-            "left".to_string(),
-            "right".to_string(),
-            vec![
+        let config = InnerJoinConfig {
+            id: 2,
+            hash_keys: vec![ctx_expr1.clone(), ctx_expr2.clone()],
+            probe_keys: vec![ctx_expr1, ctx_expr2],
+            left_var: "left".to_string(),
+            right_var: "right".to_string(),
+            col_names: vec![
                 "a".to_string(),
                 "b".to_string(),
                 "name".to_string(),
                 "age".to_string(),
             ],
-        );
+        };
+
+        let mut executor = InnerJoinExecutor::new(storage, expr_context.clone(), config);
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
@@ -609,16 +601,16 @@ mod tests {
             rows: vec![vec![Value::Int(1), Value::Int(25)]],
         };
 
-        let mut executor = InnerJoinExecutor::new(
-            3,
-            storage,
-            expr_context.clone(),
-            vec![ctx_expr1.clone()],
-            vec![ctx_expr1],
-            "left".to_string(),
-            "right".to_string(),
-            vec!["id".to_string(), "name".to_string(), "age".to_string()],
-        );
+        let config = InnerJoinConfig {
+            id: 3,
+            hash_keys: vec![ctx_expr1.clone()],
+            probe_keys: vec![ctx_expr1],
+            left_var: "left".to_string(),
+            right_var: "right".to_string(),
+            col_names: vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        };
+
+        let mut executor = InnerJoinExecutor::new(storage, expr_context.clone(), config);
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
@@ -655,16 +647,16 @@ mod tests {
         let ctx_expr1 =
             crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
-        let mut executor = InnerJoinExecutor::new(
-            4,
-            storage,
-            expr_context.clone(),
-            vec![ctx_expr1.clone()],
-            vec![ctx_expr1],
-            "left".to_string(),
-            "right".to_string(),
-            vec!["id".to_string(), "name".to_string(), "age".to_string()],
-        );
+        let config = InnerJoinConfig {
+            id: 4,
+            hash_keys: vec![ctx_expr1.clone()],
+            probe_keys: vec![ctx_expr1],
+            left_var: "left".to_string(),
+            right_var: "right".to_string(),
+            col_names: vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        };
+
+        let mut executor = InnerJoinExecutor::new(storage, expr_context.clone(), config);
 
         let (left_dataset, right_dataset) = create_test_datasets();
 

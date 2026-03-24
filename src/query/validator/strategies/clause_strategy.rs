@@ -7,10 +7,8 @@ use crate::core::types::expr::{ContextualExpression, ExpressionMeta};
 use crate::core::Expression;
 use crate::core::YieldColumn;
 use crate::query::validator::context::ExpressionAnalysisContext;
-use crate::query::validator::structs::alias_structs::AliasType;
-use crate::query::validator::structs::{
-    BoundaryClauseContext, MatchClauseContext, ReturnClauseContext, YieldClauseContext,
-};
+use crate::query::validator::structs::alias_structs::{AliasType, BoundaryClauseContext};
+use crate::query::validator::structs::{MatchClauseContext, ReturnClauseContext, YieldClauseContext};
 use crate::query::validator::{Path, QueryPart};
 use std::sync::Arc;
 
@@ -108,13 +106,13 @@ impl ClauseValidationStrategy {
             let prev_query_part = &query_parts[query_parts.len() - 2];
             if let Some(ref boundary) = prev_query_part.boundary {
                 match boundary {
-                    BoundaryClauseContext::Unwind(unwind_ctx) => {
+                    BoundaryClauseContext::Unwind(unwind_data) => {
                         // 添加Unwind子句的别名
                         columns.push(YieldColumn::new(
                             self.create_contextual_expression(Expression::Label(
-                                unwind_ctx.alias.clone(),
+                                unwind_data.alias.clone(),
                             )),
-                            unwind_ctx.alias.clone(),
+                            unwind_data.alias.clone(),
                         ));
 
                         // 添加之前可用的别名
@@ -133,9 +131,9 @@ impl ClauseValidationStrategy {
                             ));
                         }
                     }
-                    BoundaryClauseContext::With(with_ctx) => {
+                    BoundaryClauseContext::With(with_data) => {
                         // 添加With子句的列
-                        for col in &with_ctx.yield_clause.yield_columns {
+                        for col in &with_data.yield_clause.yield_columns {
                             if !col.alias.is_empty() {
                                 columns.push(YieldColumn::new(
                                     self.create_contextual_expression(Expression::Label(

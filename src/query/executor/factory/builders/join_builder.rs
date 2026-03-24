@@ -5,7 +5,8 @@
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
 use crate::query::executor::data_processing::{
-    CrossJoinExecutor, FullOuterJoinExecutor, InnerJoinExecutor, LeftJoinExecutor,
+    CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor,
+    InnerJoinConfig, InnerJoinExecutor, LeftJoinConfig, LeftJoinExecutor,
 };
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::JoinNode;
@@ -57,15 +58,19 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let hash_keys: Vec<crate::core::types::ContextualExpression> = node.hash_keys().to_vec();
         let probe_keys: Vec<crate::core::types::ContextualExpression> = node.probe_keys().to_vec();
 
-        let executor = InnerJoinExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
+        let config = InnerJoinConfig {
+            id: node.id(),
             hash_keys,
             probe_keys,
             left_var,
             right_var,
-            node.col_names().to_vec(),
+            col_names: node.col_names().to_vec(),
+        };
+
+        let executor = InnerJoinExecutor::new(
+            storage,
+            context.expression_context().clone(),
+            config,
         );
         Ok(ExecutorEnum::InnerJoin(executor))
     }
@@ -81,17 +86,21 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let hash_keys: Vec<crate::core::types::ContextualExpression> = node.hash_keys().to_vec();
         let probe_keys: Vec<crate::core::types::ContextualExpression> = node.probe_keys().to_vec();
 
-        let executor = InnerJoinExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
+        let config = InnerJoinConfig {
+            id: node.id(),
             hash_keys,
             probe_keys,
             left_var,
             right_var,
-            node.col_names().to_vec(),
+            col_names: node.col_names().to_vec(),
+        };
+
+        let executor = HashInnerJoinExecutor::new(
+            storage,
+            context.expression_context().clone(),
+            config,
         );
-        Ok(ExecutorEnum::InnerJoin(executor))
+        Ok(ExecutorEnum::HashInnerJoin(executor))
     }
 
     /// 构建 LeftJoin 执行器
@@ -105,15 +114,19 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let hash_keys: Vec<crate::core::types::ContextualExpression> = node.hash_keys().to_vec();
         let probe_keys: Vec<crate::core::types::ContextualExpression> = node.probe_keys().to_vec();
 
-        let executor = LeftJoinExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
+        let config = LeftJoinConfig {
+            id: node.id(),
             hash_keys,
             probe_keys,
             left_var,
             right_var,
-            node.col_names().to_vec(),
+            col_names: node.col_names().to_vec(),
+        };
+
+        let executor = LeftJoinExecutor::new(
+            storage,
+            context.expression_context().clone(),
+            config,
         );
         Ok(ExecutorEnum::LeftJoin(executor))
     }
@@ -129,17 +142,21 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         let hash_keys: Vec<crate::core::types::ContextualExpression> = node.hash_keys().to_vec();
         let probe_keys: Vec<crate::core::types::ContextualExpression> = node.probe_keys().to_vec();
 
-        let executor = LeftJoinExecutor::new(
-            node.id(),
-            storage,
-            context.expression_context().clone(),
+        let config = LeftJoinConfig {
+            id: node.id(),
             hash_keys,
             probe_keys,
             left_var,
             right_var,
-            node.col_names().to_vec(),
+            col_names: node.col_names().to_vec(),
+        };
+
+        let executor = HashLeftJoinExecutor::new(
+            storage,
+            context.expression_context().clone(),
+            config,
         );
-        Ok(ExecutorEnum::LeftJoin(executor))
+        Ok(ExecutorEnum::HashLeftJoin(executor))
     }
 
     /// 构建 FullOuterJoin 执行器

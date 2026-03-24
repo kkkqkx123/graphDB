@@ -26,8 +26,8 @@ pub use set_operations::{
 // JOIN 执行器
 pub mod join;
 pub use join::{
-    CrossJoinExecutor, FullOuterJoinExecutor, InnerJoinExecutor, JoinConfig, JoinType,
-    LeftJoinExecutor,
+    CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor,
+    InnerJoinConfig, InnerJoinExecutor, JoinConfig, JoinType, LeftJoinConfig, LeftJoinExecutor,
 };
 
 // 物化执行器

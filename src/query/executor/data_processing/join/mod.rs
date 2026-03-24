@@ -23,9 +23,9 @@ pub use base_join::BaseJoinExecutor;
 pub use cross_join::CrossJoinExecutor;
 pub use full_outer_join::FullOuterJoinExecutor;
 pub use hash_table::{HashTableBuilder, JoinKey};
-pub use inner_join::{HashInnerJoinExecutor, InnerJoinExecutor};
+pub use inner_join::{HashInnerJoinExecutor, InnerJoinConfig, InnerJoinExecutor};
 pub use join_key_evaluator::JoinKeyEvaluator;
-pub use left_join::{HashLeftJoinExecutor, LeftJoinExecutor};
+pub use left_join::{HashLeftJoinExecutor, LeftJoinConfig, LeftJoinExecutor};
 
 // 从 core 模块导入 JoinType
 pub use crate::core::types::JoinType;
