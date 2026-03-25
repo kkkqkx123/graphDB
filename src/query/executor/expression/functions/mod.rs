@@ -36,6 +36,7 @@ pub use builtin::regex::RegexFunction;
 pub use builtin::string::StringFunction;
 pub use builtin::utility::UtilityFunction;
 
+use crate::api::embedded::c_api::value::core_value_to_graphdb;
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
@@ -273,6 +274,10 @@ pub struct CFunctionContext {
     pub aggregate_state: Option<Box<dyn std::any::Any + Send>>,
     /// 用户数据指针
     pub user_data: usize,
+    /// 参数数量
+    pub argc: usize,
+    /// 参数数组（转换为 C API 格式）
+    pub argv: Vec<crate::api::embedded::c_api::types::graphdb_value_t>,
 }
 
 impl Default for CFunctionContext {
@@ -288,6 +293,8 @@ impl CFunctionContext {
             error: None,
             aggregate_state: None,
             user_data: 0,
+            argc: 0,
+            argv: Vec::new(),
         }
     }
 
@@ -297,6 +304,8 @@ impl CFunctionContext {
             error: None,
             aggregate_state: None,
             user_data,
+            argc: 0,
+            argv: Vec::new(),
         }
     }
 
@@ -325,10 +334,10 @@ impl CFunctionContext {
 }
 
 /// 标量函数回调类型
-pub type ScalarFunctionCallback = extern "C" fn(*mut CFunctionContext, i32, *const Value);
+pub type ScalarFunctionCallback = extern "C" fn(*mut CFunctionContext, i32, *mut crate::api::embedded::c_api::types::graphdb_value_t);
 
 /// 聚合步骤回调类型
-pub type AggregateStepCallback = extern "C" fn(*mut CFunctionContext, i32, *const Value);
+pub type AggregateStepCallback = extern "C" fn(*mut CFunctionContext, i32, *mut crate::api::embedded::c_api::types::graphdb_value_t);
 
 /// 聚合最终回调类型
 pub type AggregateFinalCallback = extern "C" fn(*mut CFunctionContext);
@@ -458,6 +467,8 @@ impl CustomFunction {
             } => {
                 // 创建 C 函数上下文
                 let mut ctx = CFunctionContext::new();
+                ctx.argc = args.len();
+                ctx.argv = args.iter().map(core_value_to_graphdb).collect();
                 let ctx_ptr = &mut ctx as *mut CFunctionContext;
 
                 // 将 usize 转换回函数指针
@@ -465,7 +476,12 @@ impl CustomFunction {
                     unsafe { std::mem::transmute(*scalar_callback) };
 
                 // 调用 C 回调
-                callback(ctx_ptr, args.len() as i32, args.as_ptr());
+                let argv_ptr = if ctx.argv.is_empty() {
+                    std::ptr::null_mut()
+                } else {
+                    ctx.argv.as_mut_ptr()
+                };
+                callback(ctx_ptr, args.len() as i32, argv_ptr);
 
                 // 检查错误
                 if let Some(error) = ctx.error {

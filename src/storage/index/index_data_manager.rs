@@ -5,6 +5,7 @@
 //! 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
 
 use crate::core::types::Index;
+use crate::core::vertex_edge_path::Tag;
 use crate::core::Edge;
 use crate::core::{StorageError, Value};
 use crate::storage::index::edge_index_manager::EdgeIndexManager;
@@ -81,6 +82,16 @@ pub trait IndexDataManager {
         space_id: u64,
         vertex_id: &Value,
         tag_name: &str,
+    ) -> Result<(), StorageError>;
+    /// 清空标签索引
+    fn clear_tag_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError>;
+    /// 构建顶点索引条目
+    fn build_vertex_index_entry(
+        &self,
+        space_id: u64,
+        index: &Index,
+        vertex_id: &Value,
+        tag: &Tag,
     ) -> Result<(), StorageError>;
 }
 
@@ -310,6 +321,61 @@ impl IndexDataManager for RedbIndexDataManager {
     ) -> Result<(), StorageError> {
         self.vertex_manager
             .delete_tag_indexes(space_id, vertex_id, tag_name)
+    }
+
+    fn clear_tag_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
+        self.vertex_manager.clear_tag_index(space_id, index_name)
+    }
+
+    fn build_vertex_index_entry(
+        &self,
+        space_id: u64,
+        index: &Index,
+        vertex_id: &Value,
+        tag: &Tag,
+    ) -> Result<(), StorageError> {
+        let txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
+
+        {
+            let mut table = txn
+                .open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+
+            for field in &index.fields {
+                if let Some(prop_value) = tag.properties.get(&field.name) {
+                    let index_key = IndexKeyCodec::build_vertex_index_key(
+                        space_id,
+                        &index.name,
+                        prop_value,
+                        vertex_id,
+                    )?;
+
+                    table
+                        .insert(&index_key, ByteKey(field.name.as_bytes().to_vec()))
+                        .map_err(|e| {
+                            StorageError::DbError(format!("插入顶点索引数据失败: {}", e))
+                        })?;
+
+                    let reverse_key =
+                        IndexKeyCodec::build_vertex_reverse_key(space_id, &index.name, vertex_id)?;
+                    let prop_value_bytes = IndexKeyCodec::serialize_value(prop_value)?;
+                    let value_key = format!("{}:{}", field.name, prop_value_bytes.len());
+                    table
+                        .insert(&reverse_key, ByteKey(value_key.into_bytes()))
+                        .map_err(|e| {
+                            StorageError::DbError(format!("插入顶点反向索引失败: {}", e))
+                        })?;
+                }
+            }
+        }
+
+        txn.commit()
+            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+
+        Ok(())
     }
 }
 

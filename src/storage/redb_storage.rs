@@ -399,17 +399,62 @@ impl StorageClient for RedbStorage {
         matches!(self.schema_manager.get_space(space_name), Ok(Some(_)))
     }
 
-    fn clear_space(&mut self, _space: &str) -> Result<bool, StorageError> {
-        // TODO: 实现清空空间功能
+    fn clear_space(&mut self, space: &str) -> Result<bool, StorageError> {
+        let space_id = self.get_space_id_internal(space)?;
+
+        // Delete all vertices in the space
+        let vertices = self.vertex_storage.scan_vertices(space)?;
+        for vertex in vertices {
+            self.vertex_storage
+                .delete_vertex(space, space_id, &vertex.vid)?;
+        }
+
+        // Delete all edges in the space
+        let edges = self.edge_storage.scan_all_edges(space)?;
+        for edge in edges {
+            self.edge_storage.delete_edge(
+                space,
+                space_id,
+                &edge.src,
+                &edge.dst,
+                &edge.edge_type,
+            )?;
+        }
+
+        // Clear all tag indexes for this space
+        let tag_indexes = self.index_metadata_manager.list_tag_indexes(space_id)?;
+        for index in tag_indexes {
+            self.index_data_manager
+                .clear_tag_index(space_id, &index.name)?;
+        }
+
+        // Clear all edge indexes for this space
+        let edge_indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+        for index in edge_indexes {
+            self.index_data_manager
+                .clear_edge_index(space_id, &index.name)?;
+        }
+
         Ok(true)
     }
 
     fn alter_space_comment(
         &mut self,
-        _space_id: u64,
-        _comment: String,
+        space_id: u64,
+        comment: String,
     ) -> Result<bool, StorageError> {
-        // TODO: 实现修改空间注释功能
+        // Get existing space info
+        let mut space_info = self
+            .schema_manager
+            .get_space_by_id(space_id)?
+            .ok_or_else(|| StorageError::DbError(format!("Space ID '{}' not found", space_id)))?;
+
+        // Update comment
+        space_info.comment = Some(comment);
+
+        // Save updated space info
+        self.schema_manager.update_space(&space_info)?;
+
         Ok(true)
     }
 
@@ -420,12 +465,30 @@ impl StorageClient for RedbStorage {
 
     fn alter_tag(
         &mut self,
-        _space: &str,
-        _tag: &str,
-        _additions: Vec<PropertyDef>,
-        _deletions: Vec<String>,
+        space: &str,
+        tag: &str,
+        additions: Vec<PropertyDef>,
+        deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
-        // TODO: 实现修改标签功能
+        // Get existing tag info
+        let mut tag_info = self.schema_manager.get_tag(space, tag)?.ok_or_else(|| {
+            StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))
+        })?;
+
+        // Remove specified properties
+        tag_info.properties.retain(|p| !deletions.contains(&p.name));
+
+        // Add new properties
+        for prop in additions {
+            // Check if property name already exists
+            if !tag_info.properties.iter().any(|p| p.name == prop.name) {
+                tag_info.properties.push(prop);
+            }
+        }
+
+        // Update tag
+        self.schema_manager.update_tag(space, &tag_info)?;
+
         Ok(true)
     }
 
@@ -448,12 +511,38 @@ impl StorageClient for RedbStorage {
 
     fn alter_edge_type(
         &mut self,
-        _space: &str,
-        _edge_type: &str,
-        _additions: Vec<PropertyDef>,
-        _deletions: Vec<String>,
+        space: &str,
+        edge_type: &str,
+        additions: Vec<PropertyDef>,
+        deletions: Vec<String>,
     ) -> Result<bool, StorageError> {
-        // TODO: 实现修改边类型功能
+        // Get existing edge type info
+        let mut edge_info = self
+            .schema_manager
+            .get_edge_type(space, edge_type)?
+            .ok_or_else(|| {
+                StorageError::DbError(format!(
+                    "Edge type '{}' not found in space '{}'",
+                    edge_type, space
+                ))
+            })?;
+
+        // Remove specified properties
+        edge_info
+            .properties
+            .retain(|p| !deletions.contains(&p.name));
+
+        // Add new properties
+        for prop in additions {
+            // Check if property name already exists
+            if !edge_info.properties.iter().any(|p| p.name == prop.name) {
+                edge_info.properties.push(prop);
+            }
+        }
+
+        // Update edge type
+        self.schema_manager.update_edge_type(space, &edge_info)?;
+
         Ok(true)
     }
 
@@ -494,9 +583,39 @@ impl StorageClient for RedbStorage {
         self.index_metadata_manager.list_tag_indexes(space_id)
     }
 
-    fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
-        // TODO: 实现重建标签索引功能
-        // 需要实现 clear_tag_index 和 build_vertex_index_entry 方法
+    fn rebuild_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
+        let space_id = self.get_space_id_internal(space)?;
+
+        // Get index info
+        let index_info = self
+            .index_metadata_manager
+            .get_tag_index(space_id, index)?
+            .ok_or_else(|| StorageError::DbError(format!("Index '{}' does not exist", index)))?;
+
+        // Clear old index data
+        self.index_data_manager
+            .clear_tag_index(space_id, &index_info.name)?;
+
+        // Rebuild index - scan all vertices with this tag
+        let vertices = self
+            .vertex_storage
+            .scan_vertices_by_tag(space, &index_info.schema_name)?;
+        for vertex in vertices {
+            // Find the corresponding tag data
+            if let Some(tag) = vertex
+                .tags
+                .iter()
+                .find(|t| t.name == index_info.schema_name)
+            {
+                self.index_data_manager.build_vertex_index_entry(
+                    space_id,
+                    &index_info,
+                    &vertex.vid,
+                    tag,
+                )?;
+            }
+        }
+
         Ok(true)
     }
 

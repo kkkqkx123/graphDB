@@ -221,6 +221,45 @@ impl VertexIndexManager {
         Ok(())
     }
 
+    /// 清空标签索引
+    pub fn clear_tag_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
+        let txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
+
+        {
+            let mut table = txn
+                .open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+
+            let prefix = IndexKeyCodec::build_vertex_index_prefix(space_id, index_name);
+            let end = IndexKeyCodec::build_range_end(&prefix);
+
+            let mut keys_to_delete: Vec<ByteKey> = Vec::new();
+
+            for (key, _) in table
+                .range::<ByteKey>(&prefix..&end)
+                .map_err(|e| StorageError::DbError(format!("范围查询失败: {}", e)))?
+                .flatten()
+            {
+                let key_bytes: Vec<u8> = key.value().0.clone();
+                keys_to_delete.push(ByteKey(key_bytes));
+            }
+
+            for key in &keys_to_delete {
+                table
+                    .remove(key)
+                    .map_err(|e| StorageError::DbError(format!("删除索引失败: {}", e)))?;
+            }
+        }
+
+        txn.commit()
+            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+
+        Ok(())
+    }
+
     /// 查找标签索引
     pub fn lookup_tag_index(
         &self,

@@ -292,6 +292,32 @@ impl super::SchemaManager for RedbSchemaManager {
         Ok(spaces)
     }
 
+    fn update_space(&self, space: &SpaceInfo) -> Result<bool, StorageError> {
+        let write_txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+
+        {
+            let mut spaces_table = write_txn
+                .open_table(SPACES_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
+
+            let space_key = ByteKey(space.space_id.to_be_bytes().to_vec());
+            let space_value = ByteKey(encode_to_vec(space, standard())?);
+
+            spaces_table
+                .insert(space_key, space_value)
+                .map_err(|e| StorageError::DbError(format!("更新空间失败: {}", e)))?;
+        }
+
+        write_txn
+            .commit()
+            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+
+        Ok(true)
+    }
+
     fn create_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
         let space_info = self
             .get_space(space_name)?
@@ -495,6 +521,78 @@ impl super::SchemaManager for RedbSchemaManager {
         }
 
         Ok(tags)
+    }
+
+    fn update_tag(&self, space_name: &str, tag: &TagInfo) -> Result<bool, StorageError> {
+        let space_info = self
+            .get_space(space_name)?
+            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+
+        let write_txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+
+        let mut tag_id: Option<i32> = None;
+
+        // Find the tag ID by name
+        {
+            let tags_table = write_txn
+                .open_table(TAGS_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+
+            let iter = tags_table
+                .iter()
+                .map_err(|e| StorageError::DbError(format!("遍历标签失败: {}", e)))?;
+
+            for result in iter {
+                let (key, value) =
+                    result.map_err(|e| StorageError::DbError(format!("迭代标签失败: {}", e)))?;
+                let key_bytes = &key.value().0;
+                if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
+                    let existing_tag: TagInfo = decode_from_slice(&value.value().0, standard())?.0;
+                    if existing_tag.tag_name == tag.tag_name {
+                        let id_bytes = &key_bytes[8..12];
+                        tag_id = Some(i32::from_be_bytes([
+                            id_bytes[0],
+                            id_bytes[1],
+                            id_bytes[2],
+                            id_bytes[3],
+                        ]));
+                        break;
+                    }
+                }
+            }
+        }
+
+        if let Some(id) = tag_id {
+            {
+                let mut tags_table = write_txn
+                    .open_table(TAGS_TABLE)
+                    .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+
+                let key = ByteKey(
+                    [
+                        space_info.space_id.to_be_bytes().to_vec(),
+                        id.to_be_bytes().to_vec(),
+                    ]
+                    .concat(),
+                );
+                let value = ByteKey(encode_to_vec(tag, standard())?);
+
+                tags_table
+                    .insert(key, value)
+                    .map_err(|e| StorageError::DbError(format!("更新标签失败: {}", e)))?;
+            }
+
+            write_txn
+                .commit()
+                .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn create_edge_type(
@@ -712,6 +810,83 @@ impl super::SchemaManager for RedbSchemaManager {
         }
 
         Ok(edge_types)
+    }
+
+    fn update_edge_type(
+        &self,
+        space_name: &str,
+        edge: &EdgeTypeInfo,
+    ) -> Result<bool, StorageError> {
+        let space_info = self
+            .get_space(space_name)?
+            .ok_or_else(|| StorageError::DbError(format!("空间 '{}' 不存在", space_name)))?;
+
+        let write_txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+
+        let mut edge_type_id: Option<i32> = None;
+
+        // Find the edge type ID by name
+        {
+            let edge_types_table = write_txn
+                .open_table(EDGE_TYPES_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
+
+            let iter = edge_types_table
+                .iter()
+                .map_err(|e| StorageError::DbError(format!("遍历边类型失败: {}", e)))?;
+
+            for result in iter {
+                let (key, value) =
+                    result.map_err(|e| StorageError::DbError(format!("迭代边类型失败: {}", e)))?;
+                let key_bytes = &key.value().0;
+                if key_bytes.starts_with(space_info.space_id.to_be_bytes().as_ref()) {
+                    let existing_edge: EdgeTypeInfo =
+                        decode_from_slice(&value.value().0, standard())?.0;
+                    if existing_edge.edge_type_name == edge.edge_type_name {
+                        let id_bytes = &key_bytes[8..12];
+                        edge_type_id = Some(i32::from_be_bytes([
+                            id_bytes[0],
+                            id_bytes[1],
+                            id_bytes[2],
+                            id_bytes[3],
+                        ]));
+                        break;
+                    }
+                }
+            }
+        }
+
+        if let Some(id) = edge_type_id {
+            {
+                let mut edge_types_table = write_txn.open_table(EDGE_TYPES_TABLE).map_err(|e| {
+                    StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e))
+                })?;
+
+                let key = ByteKey(
+                    [
+                        space_info.space_id.to_be_bytes().to_vec(),
+                        id.to_be_bytes().to_vec(),
+                    ]
+                    .concat(),
+                );
+                let value = ByteKey(encode_to_vec(edge, standard())?);
+
+                edge_types_table
+                    .insert(key, value)
+                    .map_err(|e| StorageError::DbError(format!("更新边类型失败: {}", e)))?;
+            }
+
+            write_txn
+                .commit()
+                .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn get_tag_schema(&self, space_name: &str, tag: &str) -> Result<Schema, StorageError> {

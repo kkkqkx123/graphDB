@@ -4,14 +4,14 @@
 #include <stdlib.h>
 
 /**
- * God角色的Space ID标记（全局角色，不绑定特定Space）
+ * The Space ID identifier for the God character (a global character, not bound to a specific Space)
  */
 #define GOD_SPACE_ID -1
 
 #define DEFAULT_MAX_ALLOWED_CONNECTIONS 100
 
 /**
- * 数据库打开标志
+ * Database open flag
  */
 #define GRAPHDB_OPEN_READONLY 1
 
@@ -28,7 +28,7 @@
 #define GRAPHDB_OPEN_PRIVATECACHE 262144
 
 /**
- * 钩子类型常量
+ * Hook type constants
  */
 #define GRAPHDB_HOOK_INSERT 1
 
@@ -98,51 +98,51 @@
 #define KEY_TYPE_EDGE_FORWARD 4
 
 /**
- * 值类型
+ * value type
  */
 typedef enum graphdb_value_type_t {
   /**
-   * 空值
+   * empty value
    */
   GRAPHDB_NULL = 0,
   /**
-   * 布尔值
+   * boolean
    */
   GRAPHDB_BOOL = 1,
   /**
-   * 整数
+   * integer (math.)
    */
   GRAPHDB_INT = 2,
   /**
-   * 浮点数
+   * floating point
    */
   GRAPHDB_FLOAT = 3,
   /**
-   * 字符串
+   * string (computer science)
    */
   GRAPHDB_STRING = 4,
   /**
-   * 列表
+   * listings
    */
   GRAPHDB_LIST = 5,
   /**
-   * 映射
+   * map (math.)
    */
   GRAPHDB_MAP = 6,
   /**
-   * 顶点
+   * vertice
    */
   GRAPHDB_VERTEX = 7,
   /**
-   * 边
+   * suffix of a noun of locality
    */
   GRAPHDB_EDGE = 8,
   /**
-   * 路径
+   * trails
    */
   GRAPHDB_PATH = 9,
   /**
-   * 二进制数据
+   * binary data
    */
   GRAPHDB_BLOB = 10,
 } graphdb_value_type_t;
@@ -153,49 +153,49 @@ typedef enum graphdb_value_type_t {
 typedef struct CFunctionContext CFunctionContext;
 
 /**
- * 会话句柄（不透明指针）
+ * Session handles (opaque pointers)
  */
 typedef struct graphdb_session_t {
 
 } graphdb_session_t;
 
 /**
- * 批量操作句柄（不透明指针）
+ * Batch operation handles (opaque pointers)
  */
 typedef struct graphdb_batch_t {
 
 } graphdb_batch_t;
 
 /**
- * 字符串结构
+ * string structure
  */
 typedef struct graphdb_string_t {
   /**
-   * 字符串数据
+   * string data
    */
   const char *data;
   /**
-   * 字符串长度
+   * String length
    */
   uintptr_t len;
 } graphdb_string_t;
 
 /**
- * 二进制数据结构
+ * binary data structure
  */
 typedef struct graphdb_blob_t {
   /**
-   * 数据指针
+   * data pointer
    */
   const uint8_t *data;
   /**
-   * 数据长度
+   * data length
    */
   uintptr_t len;
 } graphdb_blob_t;
 
 /**
- * 值数据联合体
+ * Value Data Consortium
  */
 typedef union graphdb_value_data_t {
   /**
@@ -219,13 +219,13 @@ typedef union graphdb_value_data_t {
    */
   struct graphdb_blob_t blob;
   /**
-   * 指针
+   * pointer on a gauge
    */
   void *ptr;
 } graphdb_value_data_t;
 
 /**
- * 值结构
+ * value structure
  */
 typedef struct graphdb_value_t {
   /**
@@ -233,66 +233,66 @@ typedef struct graphdb_value_t {
    */
   enum graphdb_value_type_t type_;
   /**
-   * 值数据
+   * value data
    */
   union graphdb_value_data_t data;
 } graphdb_value_t;
 
 /**
- * 数据库句柄（不透明指针）
+ * Database handle (opaque pointer)
  */
 typedef struct graphdb_t {
 
 } graphdb_t;
 
 /**
- * 函数执行上下文（不透明指针）
+ * Function execution context (opaque pointers)
  */
 typedef struct graphdb_context_t {
   /**
-   * 内部上下文
+   * Internal context
    */
   struct CFunctionContext inner;
 } graphdb_context_t;
 
 /**
- * 标量函数回调类型
+ * Scalar function callback type
  */
 typedef void (*graphdb_scalar_function_callback)(struct graphdb_context_t *context,
                                                  int argc,
                                                  struct graphdb_value_t *argv);
 
 /**
- * 函数析构回调类型
+ * Function destruction callback type
  */
 typedef void (*graphdb_function_destroy_callback)(void *user_data);
 
 /**
- * 聚合函数步骤回调类型
+ * Aggregation function step callback type
  */
 typedef void (*graphdb_aggregate_step_callback)(struct graphdb_context_t *context,
                                                 int argc,
                                                 struct graphdb_value_t *argv);
 
 /**
- * 聚合函数最终回调类型
+ * The final callback type of the aggregate function
  */
 typedef void (*graphdb_aggregate_final_callback)(struct graphdb_context_t *context);
 
 /**
- * 结果集句柄（不透明指针）
+ * Result set handle (opaque pointer)
  */
 typedef struct graphdb_result_t {
 
 } graphdb_result_t;
 
 /**
- * SQL 追踪回调类型
+ * SQL Trace Callback Types
  */
 typedef void (*graphdb_trace_callback)(const char *sql, void *user_data);
 
 /**
- * 钩子回调类型
+ * Hook Callback Types
  */
 typedef int (*graphdb_commit_hook_callback)(void *user_data);
 
@@ -305,23 +305,23 @@ typedef void (*graphdb_update_hook_callback)(void *user_data,
                                              int64_t rowid);
 
 /**
- * 事务句柄（不透明指针）
+ * Transaction handles (opaque pointers)
  */
 typedef struct graphdb_txn_t {
 
 } graphdb_txn_t;
 
 /**
- * 创建批量插入器
+ * Creating a Batch Inserter
  *
- * # 参数
- * - `session`: 会话句柄
- * - `batch_size`: 批次大小
- * - `batch`: 输出参数，批量操作句柄
+ * # Parameters
+ * - `session`: session handle
+ * - `batch_size`: batch size
+ * - `batch`: output parameter, batch operation handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Return
+ * Success: GRAPHDB_OK
+ * Failure: Error code
  *
  * # Safety
  * - `session` must be a valid session handle created by `graphdb_session_create`
@@ -336,24 +336,24 @@ int graphdb_batch_inserter_create(struct graphdb_session_t *session,
                                   struct graphdb_batch_t **batch);
 
 /**
- * 添加顶点
+ * Adding Vertices
  *
  * # 参数
- * - `batch`: 批量操作句柄
- * - `vid`: 顶点 ID
- * - `tag_name`: 标签名称（UTF-8 编码）
- * - `properties`: 属性数组
- * - `prop_count`: 属性数量
+ * `batch`: A handle for batch operations
+ * - `vid`: vertex ID
+ * - `tag_name`: tag name (UTF-8 encoding)
+ * “properties”: An array of properties.
+ * `prop_count`: The number of properties
  *
  * # 返回
  * - 成功: GRAPHDB_OK
  * - 失败: 错误码
  *
  * # Safety
- * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
- * - `tag_name` 必须是指向以 null 结尾的 UTF-8 字符串的有效指针
- * - 如果 `properties` 不为 null,则必须指向至少 `prop_count` 个有效的 `graphdb_value_t` 元素
- * - 调用者必须确保在调用此函数时,关联的会话仍然有效
+ * The `batch` must be a valid batch operation handle created using the `graphdb_batch_inserter_create` function.
+ * - `tag_name` must be a valid pointer to a UTF-8 string ending in null
+ * If `properties` is not `null`, it must point to at least `prop_count` valid `graphdb_value_t` elements.
+ * The caller must ensure that the associated session is still valid when calling this function.
  */
 int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
                              int64_t vid,
@@ -362,14 +362,14 @@ int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
                              uintptr_t prop_count);
 
 /**
- * 添加边
+ * Add borders
  *
  * # 参数
  * - `batch`: 批量操作句柄
- * - `src_vid`: 源顶点 ID
- * - `dst_vid`: 目标顶点 ID
- * - `edge_type`: 边类型名称（UTF-8 编码）
- * - `rank`: 排名
+ * `src_vid`: ID of the source vertex
+ * `dst_vid`: ID of the target vertex
+ * `edge_type`: The name of the edge type (encoded in UTF-8)
+ * rank: Ranking
  * - `properties`: 属性数组
  * - `prop_count`: 属性数量
  *
@@ -379,7 +379,7 @@ int graphdb_batch_add_vertex(struct graphdb_batch_t *batch,
  *
  * # Safety
  * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
- * - `edge_type` 必须是指向以 null 结尾的 UTF-8 字符串的有效指针
+ * The `edge_type` must be a valid pointer to a UTF-8 string that ends with `null`.
  * - 如果 `properties` 不为 null,则必须指向至少 `prop_count` 个有效的 `graphdb_value_t` 元素
  * - 调用者必须确保在调用此函数时,关联的会话仍然有效
  */
@@ -392,7 +392,7 @@ int graphdb_batch_add_edge(struct graphdb_batch_t *batch,
                            uintptr_t prop_count);
 
 /**
- * 执行批量插入
+ * Perform batch insert operations.
  *
  * # 参数
  * - `batch`: 批量操作句柄
@@ -404,18 +404,18 @@ int graphdb_batch_add_edge(struct graphdb_batch_t *batch,
  * # Safety
  * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
  * - 调用者必须确保在调用此函数时,关联的会话仍然有效
- * - 此函数会触发实际的数据库写入操作,可能涉及 I/O 操作
+ * This function triggers the actual database write operations, which may involve I/O (Input/Output) operations.
  */
 int graphdb_batch_flush(struct graphdb_batch_t *batch);
 
 /**
- * 获取缓冲的顶点数量
+ * Get the number of buffered vertices.
  *
  * # 参数
  * - `batch`: 批量操作句柄
  *
  * # 返回
- * - 缓冲的顶点数量
+ * Number of buffered vertices
  *
  * # Safety
  * - `batch` 必须是通过 `graphdb_batch_inserter_create` 创建的有效批量操作句柄
@@ -424,7 +424,7 @@ int graphdb_batch_flush(struct graphdb_batch_t *batch);
 int graphdb_batch_buffered_vertices(struct graphdb_batch_t *batch);
 
 /**
- * 获取缓冲的边数量
+ * Get the number of buffered edges.
  *
  * # Arguments
  * - `batch`: Batch operation handle
@@ -439,7 +439,7 @@ int graphdb_batch_buffered_vertices(struct graphdb_batch_t *batch);
 int graphdb_batch_buffered_edges(struct graphdb_batch_t *batch);
 
 /**
- * 释放批量操作句柄
+ * Release the batch operation handle
  *
  * # Arguments
  * - `batch`: Batch operation handle
@@ -456,7 +456,7 @@ int graphdb_batch_buffered_edges(struct graphdb_batch_t *batch);
 int graphdb_batch_free(struct graphdb_batch_t *batch);
 
 /**
- * 打开数据库
+ * Open database
  *
  * # Arguments
  * - `path`: Database file path (UTF-8 encoded)
@@ -475,7 +475,7 @@ int graphdb_batch_free(struct graphdb_batch_t *batch);
 int graphdb_open(const char *path, struct graphdb_t **db);
 
 /**
- * 使用标志打开数据库
+ * Open the database using the flag
  *
  * # Arguments
  * - `path`: Database file path (UTF-8 encoded)
@@ -501,7 +501,7 @@ int graphdb_open(const char *path, struct graphdb_t **db);
 int graphdb_open_v2(const char *path, struct graphdb_t **db, int flags, const char *_vfs);
 
 /**
- * 关闭数据库
+ * Closing the database
  *
  * # Arguments
  * - `db`: Database handle
@@ -518,7 +518,7 @@ int graphdb_open_v2(const char *path, struct graphdb_t **db, int flags, const ch
 int graphdb_close(struct graphdb_t *db);
 
 /**
- * 获取错误码
+ * Get Error Code
  *
  * # Arguments
  * - `db`: Database handle
@@ -532,15 +532,15 @@ int graphdb_close(struct graphdb_t *db);
 int graphdb_errcode(struct graphdb_t *db);
 
 /**
- * 获取库版本
+ * Getting the library version
  *
- * # 返回
- * - 版本字符串
+ * # Back
+ * - revision string (computing)
  */
 const char *graphdb_libversion(void);
 
 /**
- * 释放字符串（由 GraphDB 分配的字符串）
+ * Release strings (strings allocated by GraphDB)
  *
  * # Arguments
  * - `str`: String pointer
@@ -553,7 +553,7 @@ const char *graphdb_libversion(void);
 void graphdb_free_string(char *str);
 
 /**
- * 释放内存（由 GraphDB 分配的内存）
+ * Freeing memory (memory allocated by GraphDB)
  *
  * # Arguments
  * - `ptr`: Memory pointer
@@ -566,7 +566,7 @@ void graphdb_free_string(char *str);
 void graphdb_free(void *ptr);
 
 /**
- * 获取最后一个错误消息（线程安全）
+ * Retrieve the last error message (thread-safe).
  *
  * # Arguments
  * - `msg`: Output buffer
@@ -583,59 +583,59 @@ void graphdb_free(void *ptr);
 int32_t graphdb_errmsg(char *msg, uintptr_t len);
 
 /**
- * 获取错误码描述
+ * Obtain the description of the error code.
  *
- * # 参数
- * - `code`: 错误码
+ * # Parameters
+ * `code`: Error code
  *
- * # 返回
- * - 错误描述字符串（静态生命周期）
+ * # Back
+ * Error description string (static lifecycle)
  */
 const char *graphdb_error_string(int32_t code);
 
 /**
- * 获取错误码对应的字符串描述（类似 SQLite 的 sqlite3_errstr）
+ * Retrieve the string description corresponding to the error code (similar to sqlite3_errstr in SQLite).
  *
  * # 参数
  * - `code`: 错误码
  *
  * # 返回
- * - 错误描述字符串（静态生命周期，不需要释放）
+ * Error description string (static lifecycle; no need for release)
  */
 const char *graphdb_errstr(int32_t code);
 
 /**
- * 获取最后的错误消息
+ * Retrieve the last error message.
  *
  * # 返回
- * - 错误消息字符串指针（线程局部存储，不需要释放）
+ * Pointer to the error message string (thread-local storage; does not need to be freed)
  */
 const char *graphdb_get_last_error_message(void);
 
 /**
- * 获取 SQL 错误位置（字符偏移量）
+ * Get the location of the SQL error (in terms of character offset).
  *
  * # 参数
- * - `session`: 会话句柄
+ * - `session`: session handle
  *
  * # 返回
- * - 错误位置的字符偏移量，如果没有错误或无效会话返回 -1
+ * - Character offset of the error location, if there is no error or invalid session return -1
  */
 int graphdb_error_offset(struct graphdb_session_t *session);
 
 /**
- * 获取扩展错误码
+ * Get Extended Error Code
  *
  * # 参数
  * - `session`: 会话句柄
  *
  * # 返回
- * - 扩展错误码，如果没有错误或无效会话返回 0 (GRAPHDB_EXTENDED_NONE)
+ * - Extended error code, returns 0 if no error or invalid session (GRAPHDB_EXTENDED_NONE)
  */
 int graphdb_extended_errcode(struct graphdb_session_t *session);
 
 /**
- * 创建自定义标量函数
+ * Create a custom scalar function
  *
  * # Arguments
  * - `session`: Session handle
@@ -672,7 +672,7 @@ int graphdb_create_function(struct graphdb_session_t *session,
                             graphdb_function_destroy_callback _x_destroy);
 
 /**
- * 创建自定义聚合函数
+ * Creating custom aggregate functions
  *
  * # Arguments
  * - `session`: Session handle
@@ -702,7 +702,7 @@ int graphdb_create_aggregate(struct graphdb_session_t *session,
                              graphdb_function_destroy_callback _x_destroy);
 
 /**
- * 删除自定义函数
+ * Delete the custom function.
  *
  * # Arguments
  * - `session`: Session handle
@@ -719,7 +719,7 @@ int graphdb_create_aggregate(struct graphdb_session_t *session,
 int graphdb_delete_function(struct graphdb_session_t *session, const char *name);
 
 /**
- * 设置函数返回值
+ * Setting the return value of a function
  *
  * # Arguments
  * - `context`: Function execution context
@@ -737,7 +737,7 @@ int graphdb_context_set_result(struct graphdb_context_t *context,
                                const struct graphdb_value_t *value);
 
 /**
- * 获取函数返回值的类型
+ * Obtaining the type of the value returned by a function
  *
  * # Arguments
  * - `context`: Function execution context
@@ -752,7 +752,7 @@ int graphdb_context_set_result(struct graphdb_context_t *context,
 enum graphdb_value_type_t graphdb_context_result_type(struct graphdb_context_t *context);
 
 /**
- * 设置错误消息
+ * Setting error messages
  *
  * # Arguments
  * - `context`: Function execution context
@@ -769,7 +769,7 @@ enum graphdb_value_type_t graphdb_context_result_type(struct graphdb_context_t *
 int graphdb_context_set_error(struct graphdb_context_t *context, const char *error_msg);
 
 /**
- * 从上下文获取参数值（辅助函数）
+ * Obtain parameter values from the context (auxiliary function)
  *
  * # Arguments
  * - `context`: Function execution context
@@ -784,11 +784,10 @@ int graphdb_context_set_error(struct graphdb_context_t *context, const char *err
  * - The returned pointer is only valid for the duration of the callback
  * - This function should only be called from within a registered function callback
  */
-const struct graphdb_value_t *graphdb_context_get_arg(struct graphdb_context_t *_context,
-                                                      int _index);
+const struct graphdb_value_t *graphdb_context_get_arg(struct graphdb_context_t *context, int index);
 
 /**
- * 获取参数数量
+ * Get the number of parameters
  *
  * # Arguments
  * - `context`: Function execution context
@@ -800,10 +799,10 @@ const struct graphdb_value_t *graphdb_context_get_arg(struct graphdb_context_t *
  * - `context` must be a valid function context pointer passed to the callback
  * - This function should only be called from within a registered function callback
  */
-int graphdb_context_arg_count(struct graphdb_context_t *_context);
+int graphdb_context_arg_count(struct graphdb_context_t *context);
 
 /**
- * 执行简单查询
+ * Perform a simple query
  *
  * # Arguments
  * - `session`: Session handle
@@ -825,7 +824,7 @@ int graphdb_execute(struct graphdb_session_t *session,
                     struct graphdb_result_t **result);
 
 /**
- * 执行参数化查询
+ * Execute a parameterized query
  *
  * # Arguments
  * - `session`: Session handle
@@ -852,7 +851,7 @@ int graphdb_execute_params(struct graphdb_session_t *session,
                            struct graphdb_result_t **result);
 
 /**
- * 释放结果集
+ * Releasing the result set
  *
  * # Arguments
  * - `result`: Result set handle
@@ -869,7 +868,7 @@ int graphdb_execute_params(struct graphdb_session_t *session,
 int graphdb_result_free(struct graphdb_result_t *result);
 
 /**
- * 获取结果集列数
+ * Get the number of columns in the result set
  *
  * # Arguments
  * - `result`: Result set handle
@@ -883,7 +882,7 @@ int graphdb_result_free(struct graphdb_result_t *result);
 int graphdb_column_count(struct graphdb_result_t *result);
 
 /**
- * 获取结果集行数
+ * Get the number of rows in the result set
  *
  * # Arguments
  * - `result`: Result set handle
@@ -897,7 +896,7 @@ int graphdb_column_count(struct graphdb_result_t *result);
 int graphdb_row_count(struct graphdb_result_t *result);
 
 /**
- * 获取列名
+ * Getting Column Names
  *
  * # Arguments
  * - `result`: Result set handle
@@ -919,7 +918,7 @@ char *graphdb_column_name(struct graphdb_result_t *result,
                           int index);
 
 /**
- * 获取整数值
+ * Get integer value
  *
  * # Arguments
  * - `result`: Result set handle
@@ -940,7 +939,7 @@ char *graphdb_column_name(struct graphdb_result_t *result,
 int graphdb_get_int(struct graphdb_result_t *result, int row, const char *col, int64_t *value);
 
 /**
- * 获取字符串值
+ * Getting String Values
  *
  * # Arguments
  * - `result`: Result set handle
@@ -968,7 +967,7 @@ char *graphdb_get_string(struct graphdb_result_t *result,
                          int *len);
 
 /**
- * 获取二进制数据
+ * Get Binary Data
  *
  * # Arguments
  * - `result`: Result set handle
@@ -995,7 +994,7 @@ const uint8_t *graphdb_get_blob(struct graphdb_result_t *result,
                                 int *len);
 
 /**
- * 获取整数值（按列索引）
+ * Get integer values (indexed by column)
  *
  * # Arguments
  * - `result`: Result set handle
@@ -1016,7 +1015,7 @@ const uint8_t *graphdb_get_blob(struct graphdb_result_t *result,
 int graphdb_get_int_by_index(struct graphdb_result_t *result, int row, int col, int64_t *value);
 
 /**
- * 获取字符串值（按列索引）
+ * Get string value (indexed by column)
  *
  * # Arguments
  * - `result`: Result set handle
@@ -1044,7 +1043,7 @@ char *graphdb_get_string_by_index(struct graphdb_result_t *result,
                                   int *len);
 
 /**
- * 获取布尔值（按列索引）
+ * Get Boolean value (indexed by column)
  *
  * # Arguments
  * - `result`: Result set handle
@@ -1065,7 +1064,7 @@ char *graphdb_get_string_by_index(struct graphdb_result_t *result,
 int graphdb_get_bool_by_index(struct graphdb_result_t *result, int row, int col, bool *value);
 
 /**
- * 获取浮点值（按列索引）
+ * Get floating point values (indexed by column)
  *
  * # Arguments
  * - `result`: Result set handle
@@ -1086,7 +1085,7 @@ int graphdb_get_bool_by_index(struct graphdb_result_t *result, int row, int col,
 int graphdb_get_float_by_index(struct graphdb_result_t *result, int row, int col, double *value);
 
 /**
- * 获取二进制数据（按列索引）
+ * Get binary data (indexed by column)
  *
  * # Arguments
  * - `result`: Result set handle
@@ -1113,7 +1112,7 @@ const uint8_t *graphdb_get_blob_by_index(struct graphdb_result_t *result,
                                          int *len);
 
 /**
- * 获取列类型
+ * Get column type
  *
  * # Arguments
  * - `result`: Result set handle
@@ -1129,7 +1128,7 @@ const uint8_t *graphdb_get_blob_by_index(struct graphdb_result_t *result,
 enum graphdb_value_type_t graphdb_column_type(struct graphdb_result_t *result, int col);
 
 /**
- * 创建会话
+ * Create a session
  *
  * # Arguments
  * - `db`: Database handle
@@ -1148,7 +1147,7 @@ enum graphdb_value_type_t graphdb_column_type(struct graphdb_result_t *result, i
 int graphdb_session_create(struct graphdb_t *db, struct graphdb_session_t **session);
 
 /**
- * 关闭会话
+ * Close the session.
  *
  * # Arguments
  * - `session`: Session handle
@@ -1165,7 +1164,7 @@ int graphdb_session_create(struct graphdb_t *db, struct graphdb_session_t **sess
 int graphdb_session_close(struct graphdb_session_t *session);
 
 /**
- * 切换图空间
+ * Switch to the image space
  *
  * # Arguments
  * - `session`: Session handle
@@ -1182,7 +1181,7 @@ int graphdb_session_close(struct graphdb_session_t *session);
 int graphdb_session_use_space(struct graphdb_session_t *session, const char *space_name);
 
 /**
- * 获取当前图空间
+ * Obtain the current image space
  *
  * # Arguments
  * - `session`: Session handle
@@ -1210,7 +1209,7 @@ int graphdb_session_use_space(struct graphdb_session_t *session, const char *spa
 char *graphdb_session_current_space(struct graphdb_session_t *session);
 
 /**
- * 设置自动提交模式
+ * Enable the automatic submission mode.
  *
  * # Arguments
  * - `session`: Session handle
@@ -1226,7 +1225,7 @@ char *graphdb_session_current_space(struct graphdb_session_t *session);
 int graphdb_session_set_autocommit(struct graphdb_session_t *session, bool autocommit);
 
 /**
- * 获取自动提交模式
+ * Enable the automatic submission mode.
  *
  * # Arguments
  * - `session`: Session handle
@@ -1240,7 +1239,7 @@ int graphdb_session_set_autocommit(struct graphdb_session_t *session, bool autoc
 bool graphdb_session_get_autocommit(struct graphdb_session_t *session);
 
 /**
- * 获取上次操作影响的行数
+ * Get the number of rows affected by the last operation
  *
  * # Arguments
  * - `session`: Session handle
@@ -1254,7 +1253,7 @@ bool graphdb_session_get_autocommit(struct graphdb_session_t *session);
 int graphdb_changes(struct graphdb_session_t *session);
 
 /**
- * 获取自数据库打开以来的总变更数量
+ * The total number of changes since the database was opened has been retrieved.
  *
  * # Arguments
  * - `session`: Session handle
@@ -1268,7 +1267,7 @@ int graphdb_changes(struct graphdb_session_t *session);
 int64_t graphdb_total_changes(struct graphdb_session_t *session);
 
 /**
- * 获取最后插入的顶点 ID
+ * Obtain the ID of the last vertex that was inserted.
  *
  * # Arguments
  * - `session`: Session handle
@@ -1282,7 +1281,7 @@ int64_t graphdb_total_changes(struct graphdb_session_t *session);
 int64_t graphdb_last_insert_vertex_id(struct graphdb_session_t *session);
 
 /**
- * 获取最后插入的边 ID
+ * Obtain the ID of the last inserted edge.
  *
  * # Arguments
  * - `session`: Session handle
@@ -1296,7 +1295,7 @@ int64_t graphdb_last_insert_vertex_id(struct graphdb_session_t *session);
 int64_t graphdb_last_insert_edge_id(struct graphdb_session_t *session);
 
 /**
- * 设置忙等待超时
+ * Setting the busy wait timeout
  *
  * # Arguments
  * - `session`: Session handle
@@ -1312,7 +1311,7 @@ int64_t graphdb_last_insert_edge_id(struct graphdb_session_t *session);
 int graphdb_busy_timeout(struct graphdb_session_t *session, int timeout_ms);
 
 /**
- * 获取忙等待超时
+ * Busy wait timeout has occurred.
  *
  * # Arguments
  * - `session`: Session handle
@@ -1326,7 +1325,7 @@ int graphdb_busy_timeout(struct graphdb_session_t *session, int timeout_ms);
 int graphdb_busy_timeout_get(struct graphdb_session_t *session);
 
 /**
- * 设置 SQL 追踪回调
+ * Setting up an SQL tracing callback
  *
  * # Arguments
  * - `session`: Session handle
@@ -1356,7 +1355,7 @@ int graphdb_trace(struct graphdb_session_t *session,
                   void *user_data);
 
 /**
- * 设置提交钩子
+ * Setting up the commit hook
  *
  * # Arguments
  * - `session`: Session handle
@@ -1380,7 +1379,7 @@ void *graphdb_commit_hook(struct graphdb_session_t *session,
                           void *user_data);
 
 /**
- * 设置回滚钩子
+ * Setting up a rollback hook
  *
  * # Arguments
  * - `session`: Session handle
@@ -1400,7 +1399,7 @@ void *graphdb_rollback_hook(struct graphdb_session_t *session,
                             void *user_data);
 
 /**
- * 设置更新钩子
+ * Set up the update hook
  *
  * When data in the database changes, the callback function is called
  *
@@ -1428,15 +1427,15 @@ void *graphdb_update_hook(struct graphdb_session_t *session,
                           void *user_data);
 
 /**
- * 开始事务
+ * Commencement of business
  *
- * # 参数
- * - `session`: 会话句柄
- * - `txn`: 输出参数，事务句柄
+ * # Parameters
+ * - `session`: session handle
+ * - `txn`: output parameter, transaction handle
  *
- * # 返回
- * - 成功: GRAPHDB_OK
- * - 失败: 错误码
+ * # Return
+ * Success: GRAPHDB_OK
+ * Failure: Error code
  *
  * # Safety
  * - `session` must be a valid session handle created by `graphdb_session_create`
@@ -1447,7 +1446,7 @@ void *graphdb_update_hook(struct graphdb_session_t *session,
 int graphdb_txn_begin(struct graphdb_session_t *session, struct graphdb_txn_t **txn);
 
 /**
- * 开始只读事务
+ * Starting a read-only transaction
  *
  * # 参数
  * - `session`: 会话句柄
@@ -1466,12 +1465,12 @@ int graphdb_txn_begin(struct graphdb_session_t *session, struct graphdb_txn_t **
 int graphdb_txn_begin_readonly(struct graphdb_session_t *session, struct graphdb_txn_t **txn);
 
 /**
- * 在事务中执行查询
+ * Executing queries in a transaction
  *
  * # 参数
- * - `txn`: 事务句柄
- * - `query`: 查询语句（UTF-8 编码）
- * - `result`: 输出参数，结果集句柄
+ * `txn`: Transaction handle
+ * - `query`: query statement (UTF-8 encoding)
+ * - `result`: output parameter, result set handle
  *
  * # 返回
  * - 成功: GRAPHDB_OK
@@ -1489,7 +1488,7 @@ int graphdb_txn_execute(struct graphdb_txn_t *txn,
                         struct graphdb_result_t **result);
 
 /**
- * 提交事务
+ * Submission of transactions
  *
  * # 参数
  * - `txn`: 事务句柄
@@ -1507,7 +1506,7 @@ int graphdb_txn_execute(struct graphdb_txn_t *txn,
 int graphdb_txn_commit(struct graphdb_txn_t *txn);
 
 /**
- * 回滚事务
+ * Rolling back transactions
  *
  * # 参数
  * - `txn`: 事务句柄
@@ -1525,15 +1524,15 @@ int graphdb_txn_commit(struct graphdb_txn_t *txn);
 int graphdb_txn_rollback(struct graphdb_txn_t *txn);
 
 /**
- * 创建保存点
+ * Creating a save point
  *
  * # 参数
  * - `txn`: 事务句柄
- * - `name`: 保存点名称（UTF-8 编码）
+ * - `name`: name of the repository (UTF-8 encoding)
  *
  * # 返回
- * - 成功: 保存点 ID
- * - 失败: -1
+ * - Success: Savepoint ID
+ * Failure: -1
  *
  * # Safety
  * - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -1544,11 +1543,11 @@ int64_t graphdb_txn_savepoint(struct graphdb_txn_t *txn,
                               const char *name);
 
 /**
- * 释放保存点
+ * Release the save point.
  *
  * # 参数
  * - `txn`: 事务句柄
- * - `savepoint_id`: 保存点 ID
+ * `savepoint_id`: ID of the savepoint
  *
  * # 返回
  * - 成功: GRAPHDB_OK
@@ -1563,7 +1562,7 @@ int graphdb_txn_release_savepoint(struct graphdb_txn_t *txn,
                                   int64_t savepoint_id);
 
 /**
- * 回滚到保存点
+ * Roll back to the saved point.
  *
  * # 参数
  * - `txn`: 事务句柄
@@ -1582,7 +1581,7 @@ int graphdb_txn_rollback_to_savepoint(struct graphdb_txn_t *txn,
                                       int64_t savepoint_id);
 
 /**
- * 释放事务句柄
+ * Release the transaction handle
  *
  * # 参数
  * - `txn`: 事务句柄
