@@ -4,7 +4,6 @@
 
 use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi};
 use crate::api::embedded::batch::BatchInserter;
-use crate::api::embedded::precompiled::PreparedStatement;
 use crate::api::embedded::result::QueryResult;
 use crate::api::embedded::statistics::SessionStatistics;
 use crate::api::embedded::transaction::{Transaction, TransactionConfig};
@@ -390,38 +389,6 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// ```
     pub fn batch_inserter(&self, batch_size: usize) -> BatchInserter<'_, S> {
         BatchInserter::new(self, batch_size)
-    }
-
-    /// 预编译查询语句
-    ///
-    /// # 参数
-    /// - `query` - 查询语句字符串
-    ///
-    /// # 返回
-    /// - 成功时返回 PreparedStatement 实例
-    /// - 失败时返回错误
-    ///
-    /// # 示例
-    ///
-    /// ```rust
-    /// use graphdb::api::embedded::GraphDatabase;
-    /// use graphdb::core::Value;
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let db = GraphDatabase::open("my_db")?;
-    /// let session = db.session()?;
-    ///
-    /// // 预编译查询
-    /// let mut stmt = session.prepare("MATCH (n:User {id: $id}) RETURN n")?;
-    ///
-    /// // 绑定参数并执行
-    /// stmt.bind("id", Value::Int(1))?;
-    /// let result = stmt.execute()?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn prepare(&self, query: &str) -> CoreResult<PreparedStatement<S>> {
-        PreparedStatement::new(self.db.query_api.clone(), query.to_string(), self.space_id)
     }
 }
 

@@ -8,7 +8,6 @@ pub mod graph_service;
 pub mod http;
 pub mod permission;
 pub mod session;
-pub mod statement;
 
 pub use auth::{Authenticator, PasswordAuthenticator};
 pub use batch::BatchManager;
@@ -16,4 +15,3 @@ pub use graph_service::GraphService;
 pub use http::HttpServer;
 pub use permission::{Permission, PermissionChecker, PermissionManager, RoleType};
 pub use session::{ClientSession, GraphSessionManager, Session, SpaceInfo};
-pub use statement::StatementManager;

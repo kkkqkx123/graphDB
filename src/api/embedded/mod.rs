@@ -35,7 +35,6 @@ pub mod batch;
 pub mod busy_handler;
 pub mod config;
 pub mod database;
-pub mod precompiled;
 pub mod result;
 pub mod session;
 pub mod statistics;
@@ -50,7 +49,6 @@ pub use batch::{BatchConfig, BatchError, BatchInserter, BatchItemType, BatchResu
 pub use busy_handler::{BusyConfig, BusyHandler, BusyResult};
 pub use config::{DatabaseConfig, SyncMode};
 pub use database::GraphDatabase;
-pub use precompiled::PreparedStatement;
 pub use result::{QueryResult, ResultMetadata, Row};
 pub use session::Session;
 pub use statistics::{QueryStatistics, SessionStatistics};
@@ -61,9 +59,8 @@ pub use transaction::{Transaction, TransactionConfig, TransactionInfo};
 pub use c_api::{
     error::graphdb_error_code_t,
     types::{
-        graphdb_batch_t, graphdb_config_t, graphdb_result_t, graphdb_session_t, graphdb_stmt_t,
-        graphdb_string_t, graphdb_t, graphdb_txn_t, graphdb_value_data_t, graphdb_value_t,
-        graphdb_value_type_t,
+        graphdb_batch_t, graphdb_config_t, graphdb_result_t, graphdb_session_t, graphdb_string_t,
+        graphdb_t, graphdb_txn_t, graphdb_value_data_t, graphdb_value_t, graphdb_value_type_t,
     },
 };
 

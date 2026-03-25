@@ -25,10 +25,6 @@ use super::{
         function::{info as function_info, list, register, unregister},
         health, query, schema,
         session::{create as create_session, delete_session, get_session},
-        statement::{
-            batch_execute, create as create_statement, drop as drop_statement,
-            execute as execute_statement, info as statement_info,
-        },
         statistics::{database, queries, session, system},
         stream::execute_stream,
         transaction,
@@ -70,14 +66,6 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
         .route("/batch/:id/items", post(add_items))
         .route("/batch/:id/execute", post(execute_batch))
         .route("/batch/:id/cancel", post(cancel_batch))
-        // 预编译语句路由
-        .route("/statements", post(create_statement))
-        .route(
-            "/statements/:id",
-            get(statement_info).delete(drop_statement),
-        )
-        .route("/statements/:id/execute", post(execute_statement))
-        .route("/statements/:id/batch", post(batch_execute))
         // 统计信息路由
         .route("/statistics/sessions/:id", get(session))
         .route("/statistics/queries", get(queries))

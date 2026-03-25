@@ -7,7 +7,6 @@ pub mod query;
 pub mod query_types;
 pub mod schema;
 pub mod session;
-pub mod statement;
 pub mod statistics;
 pub mod stream;
 pub mod transaction;
@@ -29,10 +28,6 @@ pub use schema::{
     list_spaces, list_tags,
 };
 pub use session::{create as create_session, delete_session, get_session};
-pub use statement::{
-    batch_execute, create as create_statement, drop as drop_statement,
-    execute as execute_statement, info as statement_info,
-};
 pub use statistics::{database, queries, session, system};
 pub use stream::{execute_stream, StreamQueryRequest};
 pub use transaction::{begin, commit, rollback};
