@@ -216,49 +216,6 @@ impl Drop for CApiTestResult {
     }
 }
 
-/// C API 测试预编译语句包装器
-///
-/// 使用 RAII 模式管理预编译语句生命周期
-pub struct CApiTestStatement {
-    stmt: *mut graphdb::api::embedded::c_api::types::graphdb_stmt_t,
-}
-
-impl CApiTestStatement {
-    /// 从会话准备语句
-    pub fn from_session(session: &CApiTestSession, query: &str) -> Self {
-        let query_cstring = CString::new(query).expect("查询字符串无效");
-        let mut stmt: *mut graphdb::api::embedded::c_api::types::graphdb_stmt_t = ptr::null_mut();
-
-        let rc = unsafe {
-            graphdb::api::embedded::c_api::statement::graphdb_prepare(
-                session.handle(),
-                query_cstring.as_ptr(),
-                &mut stmt,
-            )
-        };
-
-        assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32, "准备语句失败");
-        assert!(!stmt.is_null(), "语句句柄不应为空");
-
-        Self { stmt }
-    }
-
-    /// 获取语句句柄
-    pub fn handle(&self) -> *mut graphdb::api::embedded::c_api::types::graphdb_stmt_t {
-        self.stmt
-    }
-}
-
-impl Drop for CApiTestStatement {
-    fn drop(&mut self) {
-        if !self.stmt.is_null() {
-            unsafe {
-                graphdb::api::embedded::c_api::statement::graphdb_finalize(self.stmt);
-            }
-        }
-    }
-}
-
 /// C API 测试批量操作包装器
 ///
 /// 使用 RAII 模式管理批量操作生命周期

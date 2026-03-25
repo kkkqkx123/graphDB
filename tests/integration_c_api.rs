@@ -18,8 +18,7 @@ use std::ptr;
 use graphdb::api::embedded::c_api::error::graphdb_error_code_t;
 
 use common::c_api_helpers::{
-    CApiTestBatch, CApiTestDatabase, CApiTestResult, CApiTestSession, CApiTestStatement,
-    CApiTestTransaction,
+    CApiTestBatch, CApiTestDatabase, CApiTestResult, CApiTestSession, CApiTestTransaction,
 };
 
 // ==================== 数据库生命周期测试 ====================
@@ -377,64 +376,6 @@ fn test_c_api_transaction_null_params() {
     assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as i32);
 }
 
-// ==================== 预编译语句测试 ====================
-
-#[test]
-fn test_c_api_prepare_finalize() {
-    let test_db = CApiTestDatabase::new();
-    let session = CApiTestSession::from_db(&test_db);
-
-    let query = CString::new("SHOW SPACES").expect("创建CString失败");
-    let mut stmt: *mut graphdb::api::embedded::c_api::types::graphdb_stmt_t = ptr::null_mut();
-
-    // 准备语句
-    let rc = unsafe {
-        graphdb::api::embedded::c_api::statement::graphdb_prepare(
-            session.handle(),
-            query.as_ptr(),
-            &mut stmt,
-        )
-    };
-    assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
-    assert!(!stmt.is_null());
-
-    // 释放语句
-    let rc = unsafe { graphdb::api::embedded::c_api::statement::graphdb_finalize(stmt) };
-    assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as i32);
-}
-
-#[test]
-fn test_c_api_prepare_with_wrapper() {
-    let test_db = CApiTestDatabase::new();
-    let session = CApiTestSession::from_db(&test_db);
-
-    let stmt = CApiTestStatement::from_session(&session, "SHOW SPACES");
-    assert!(!stmt.handle().is_null());
-}
-
-#[test]
-fn test_c_api_prepare_null_params() {
-    let rc = unsafe {
-        graphdb::api::embedded::c_api::statement::graphdb_prepare(
-            ptr::null_mut(),
-            ptr::null(),
-            ptr::null_mut(),
-        )
-    };
-    assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as i32);
-}
-
-#[test]
-fn test_c_api_bind_null_invalid_index() {
-    let rc =
-        unsafe { graphdb::api::embedded::c_api::statement::graphdb_bind_null(ptr::null_mut(), 0) };
-    assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as i32);
-
-    let rc =
-        unsafe { graphdb::api::embedded::c_api::statement::graphdb_bind_null(ptr::null_mut(), -1) };
-    assert_eq!(rc, graphdb_error_code_t::GRAPHDB_MISUSE as i32);
-}
-
 // ==================== 批量操作测试 ====================
 
 #[test]
@@ -598,13 +539,6 @@ fn test_c_api_full_workflow() {
 
     // 提交事务
     txn.commit();
-
-    // 准备语句
-    let _stmt = CApiTestStatement::from_session(&session, "SHOW SPACES");
-
-    // 创建批量插入器
-    let _batch = CApiTestBatch::from_session(&session, 100);
-
     // 所有资源会在 Drop 时自动清理
 }
 

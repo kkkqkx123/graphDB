@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use super::query_context::QueryContext;
 use super::role_context::RoleContext;
-use super::session::{Session, SpaceInfo};
+use super::session::Session;
 use super::space_context::SpaceContext;
 use super::statistics::StatisticsContext;
 use super::transaction_context::TransactionContext;
@@ -198,6 +198,7 @@ impl ClientSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::server::client::session::SpaceInfo;
 
     #[test]
     fn test_client_session_creation() {

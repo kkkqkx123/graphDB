@@ -8,6 +8,12 @@ pub struct SpaceContext {
     space: Arc<RwLock<Option<SpaceInfo>>>,
 }
 
+impl Default for SpaceContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SpaceContext {
     pub fn new() -> Self {
         Self {

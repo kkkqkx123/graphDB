@@ -8,6 +8,12 @@ pub struct RoleContext {
     roles: Arc<RwLock<HashMap<i64, RoleType>>>,
 }
 
+impl Default for RoleContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RoleContext {
     pub fn new() -> Self {
         Self {

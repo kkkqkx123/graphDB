@@ -9,6 +9,12 @@ pub struct QueryContext {
     contexts: Arc<RwLock<HashMap<u32, String>>>,
 }
 
+impl Default for QueryContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QueryContext {
     pub fn new() -> Self {
         Self {

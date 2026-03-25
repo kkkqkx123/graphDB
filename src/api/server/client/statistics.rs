@@ -5,6 +5,12 @@ pub struct StatisticsContext {
     statistics: SessionStatistics,
 }
 
+impl Default for StatisticsContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StatisticsContext {
     pub fn new() -> Self {
         Self {
