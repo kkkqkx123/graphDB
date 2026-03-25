@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn test_contextual_expression_with_registered() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr = Expression::literal(42);
+        let expr = Expression::int(42);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
 
@@ -322,7 +322,7 @@ mod tests {
     #[test]
     fn test_contextual_expression_with_type() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr = Expression::literal(42);
+        let expr = Expression::int(42);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
 

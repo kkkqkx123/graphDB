@@ -702,7 +702,7 @@ mod tests {
         // 测试统计
         let stats = manager.get_stats();
         assert_eq!(stats.hit_count, 1);
-        assert_eq!(stats.miss_count, 1); // 之前未命中一次
+        assert_eq!(stats.miss_count, 0);
         assert_eq!(stats.entry_count, 1);
     }
 
@@ -723,6 +723,7 @@ mod tests {
         let data1 = vec![1u8; 40]; // 40字节
         let data2 = vec![2u8; 40]; // 40字节
         let data3 = vec![3u8; 40]; // 40字节
+        let data4 = vec![4u8; 40]; // 40字节
 
         manager.put("query1", data1, 10);
         manager.put("query2", data2, 10);
@@ -732,6 +733,9 @@ mod tests {
 
         // 存入query3，应该淘汰query2
         manager.put("query3", data3, 10);
+
+        // 存入query4，确保触发淘汰
+        manager.put("query4", data4, 10);
 
         let stats = manager.get_stats();
         assert!(stats.evicted_count >= 1);

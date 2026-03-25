@@ -542,7 +542,6 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::query::executor::base::ExecutorConfig;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::MockStorage;
     use parking_lot::Mutex;
@@ -577,8 +576,7 @@ mod tests {
             col_names: vec!["key".to_string(), "collected".to_string()],
         };
 
-        let base_config = ExecutorConfig::new(1, storage, expr_context);
-        let mut executor = RollUpApplyExecutor::new(base_config, config);
+        let mut executor = RollUpApplyExecutor::with_context(1, storage, context, config);
 
         let result = executor
             .execute()
@@ -620,8 +618,7 @@ mod tests {
             col_names: vec!["collected".to_string()],
         };
 
-        let base_config = ExecutorConfig::new(2, storage, expr_context);
-        let mut executor = RollUpApplyExecutor::new(base_config, config);
+        let mut executor = RollUpApplyExecutor::with_context(2, storage, context, config);
 
         let result = executor
             .execute()
@@ -688,8 +685,7 @@ mod tests {
             ],
         };
 
-        let base_config = ExecutorConfig::new(3, storage, expr_context);
-        let mut executor = RollUpApplyExecutor::new(base_config, config);
+        let mut executor = RollUpApplyExecutor::with_context(3, storage, context, config);
 
         let result = executor
             .execute()
@@ -731,8 +727,7 @@ mod tests {
             col_names: vec!["key".to_string(), "collected".to_string()],
         };
 
-        let base_config = ExecutorConfig::new(4, storage, expr_context);
-        let mut executor = RollUpApplyExecutor::new(base_config, config);
+        let mut executor = RollUpApplyExecutor::with_context(4, storage, context, config);
 
         let result = executor
             .execute()
@@ -778,8 +773,7 @@ mod tests {
             col_names: vec!["key".to_string(), "collected".to_string()],
         };
 
-        let base_config = ExecutorConfig::new(5, storage, expr_context);
-        let mut executor = RollUpApplyExecutor::new(base_config, config);
+        let mut executor = RollUpApplyExecutor::with_context(5, storage, context, config);
 
         let result = executor
             .execute()

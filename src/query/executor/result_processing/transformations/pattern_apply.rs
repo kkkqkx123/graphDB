@@ -347,7 +347,8 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::executor::base::ExecutorConfig;
+    use crate::core::Expression;
+    use crate::core::Value;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::MockStorage;
     use parking_lot::Mutex;
@@ -374,8 +375,7 @@ mod tests {
             is_anti_predicate: false,
         };
 
-        let base_config = ExecutorConfig::new(1, storage, expr_context);
-        let mut executor = PatternApplyExecutor::new(base_config, config);
+        let mut executor = PatternApplyExecutor::with_context(1, storage, context, config);
 
         let result = executor.execute().expect("Failed to execute pattern apply");
         if let ExecutionResult::Values(values) = result {
@@ -407,8 +407,7 @@ mod tests {
             is_anti_predicate: true,
         };
 
-        let base_config = ExecutorConfig::new(1, storage, expr_context);
-        let mut executor = PatternApplyExecutor::new(base_config, config);
+        let mut executor = PatternApplyExecutor::with_context(1, storage, context, config);
 
         let result = executor.execute().expect("Failed to execute pattern apply");
         if let ExecutionResult::Values(values) = result {
@@ -440,8 +439,7 @@ mod tests {
             is_anti_predicate: false,
         };
 
-        let base_config = ExecutorConfig::new(1, storage, expr_context);
-        let mut executor = PatternApplyExecutor::new(base_config, config);
+        let mut executor = PatternApplyExecutor::with_context(1, storage, context, config);
 
         let result = executor.execute().expect("Failed to execute pattern apply");
         if let ExecutionResult::Values(values) = result {
@@ -471,8 +469,7 @@ mod tests {
             is_anti_predicate: false,
         };
 
-        let base_config = ExecutorConfig::new(1, storage, expr_context);
-        let mut executor = PatternApplyExecutor::new(base_config, config);
+        let mut executor = PatternApplyExecutor::with_context(1, storage, context, config);
 
         let result = executor.execute().expect("Failed to execute pattern apply");
         if let ExecutionResult::Values(values) = result {

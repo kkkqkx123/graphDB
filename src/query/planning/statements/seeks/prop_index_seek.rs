@@ -343,7 +343,7 @@ mod tests {
         let expr = Expression::binary(
             Expression::property(Expression::variable("v"), "age"),
             crate::core::BinaryOperator::Equal,
-            Expression::literal(18),
+            Expression::int(18),
         );
 
         let pred = PropIndexSeek::extract_predicate(&expr);
@@ -376,13 +376,13 @@ mod tests {
             Expression::binary(
                 Expression::property(Expression::variable("v"), "age"),
                 crate::core::BinaryOperator::Equal,
-                Expression::literal(10),
+                Expression::int(10),
             ),
             crate::core::BinaryOperator::Or,
             Expression::binary(
                 Expression::property(Expression::variable("v"), "age"),
                 crate::core::BinaryOperator::Equal,
-                Expression::literal(20),
+                Expression::int(20),
             ),
         );
 

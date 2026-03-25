@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_serializable_expression_creation() {
-        let expr = Expression::literal(42);
+        let expr = Expression::int(42);
         let ser_expr = SerializableExpression {
             id: ExpressionId::new(1),
             expression: expr,

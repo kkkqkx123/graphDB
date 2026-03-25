@@ -496,3 +496,180 @@ fn test_transaction_context_with_write_txn_invalid_state() {
         TransactionError::InvalidStateForCommit(_)
     ));
 }
+
+#[test]
+fn test_savepoint_creation() {
+    let (db, _temp) = create_test_db();
+    let txn_id: TransactionId = 1;
+    let timeout = Duration::from_secs(30);
+
+    let write_txn = db.begin_write().expect("创建写事务失败");
+
+    let ctx =
+        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+
+    // 创建保存点
+    let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
+    assert_eq!(savepoint_id, 1);
+
+    // 获取保存点信息
+    let savepoint_info = ctx.get_savepoint(savepoint_id);
+    assert!(savepoint_info.is_some());
+    let info = savepoint_info.unwrap();
+    assert_eq!(info.name, Some("sp1".to_string()));
+    assert_eq!(info.operation_log_index, 0);
+}
+
+#[test]
+fn test_multiple_savepoints() {
+    let (db, _temp) = create_test_db();
+    let txn_id: TransactionId = 1;
+    let timeout = Duration::from_secs(30);
+
+    let write_txn = db.begin_write().expect("创建写事务失败");
+
+    let ctx =
+        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+
+    // 创建多个保存点
+    let sp1 = ctx.create_savepoint(Some("sp1".to_string()));
+    let sp2 = ctx.create_savepoint(Some("sp2".to_string()));
+    let sp3 = ctx.create_savepoint(Some("sp3".to_string()));
+
+    assert_eq!(sp1, 1);
+    assert_eq!(sp2, 2);
+    assert_eq!(sp3, 3);
+
+    // 验证保存点信息
+    assert!(ctx.get_savepoint(sp1).is_some());
+    assert!(ctx.get_savepoint(sp2).is_some());
+    assert!(ctx.get_savepoint(sp3).is_some());
+}
+
+#[test]
+fn test_rollback_to_savepoint() {
+    let (db, _temp) = create_test_db();
+    let txn_id: TransactionId = 1;
+    let timeout = Duration::from_secs(30);
+
+    let write_txn = db.begin_write().expect("创建写事务失败");
+
+    let ctx =
+        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+
+    // 创建保存点
+    let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
+
+    // 回滚到保存点
+    let result = ctx.rollback_to_savepoint(savepoint_id);
+    assert!(result.is_ok());
+
+    // 验证操作日志已被截断
+    assert_eq!(ctx.operation_log_len(), 0);
+}
+
+#[test]
+fn test_rollback_to_nonexistent_savepoint() {
+    let (db, _temp) = create_test_db();
+    let txn_id: TransactionId = 1;
+    let timeout = Duration::from_secs(30);
+
+    let write_txn = db.begin_write().expect("创建写事务失败");
+
+    let ctx =
+        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+
+    // 尝试回滚到不存在的保存点
+    let result = ctx.rollback_to_savepoint(999);
+    assert!(result.is_err());
+    assert!(matches!(
+        result.unwrap_err(),
+        TransactionError::SavepointNotFound(_)
+    ));
+}
+
+#[test]
+fn test_release_savepoint() {
+    let (db, _temp) = create_test_db();
+    let txn_id: TransactionId = 1;
+    let timeout = Duration::from_secs(30);
+
+    let write_txn = db.begin_write().expect("创建写事务失败");
+
+    let ctx =
+        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+
+    // 创建保存点
+    let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
+
+    // 释放保存点
+    let result = ctx.release_savepoint(savepoint_id);
+    assert!(result.is_ok());
+
+    // 验证保存点已被释放
+    let savepoint_info = ctx.get_savepoint(savepoint_id);
+    assert!(savepoint_info.is_none());
+}
+
+#[test]
+fn test_release_nonexistent_savepoint() {
+    let (db, _temp) = create_test_db();
+    let txn_id: TransactionId = 1;
+    let timeout = Duration::from_secs(30);
+
+    let write_txn = db.begin_write().expect("创建写事务失败");
+
+    let ctx =
+        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+
+    // 尝试释放不存在的保存点
+    let result = ctx.release_savepoint(999);
+    assert!(result.is_err());
+    assert!(matches!(
+        result.unwrap_err(),
+        TransactionError::SavepointNotFound(_)
+    ));
+}
+
+#[test]
+fn test_savepoint_with_operations() {
+    let (db, _temp) = create_test_db();
+    let txn_id: TransactionId = 1;
+    let timeout = Duration::from_secs(30);
+
+    let write_txn = db.begin_write().expect("创建写事务失败");
+
+    let ctx =
+        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+
+    // 创建第一个保存点
+    let sp1 = ctx.create_savepoint(Some("sp1".to_string()));
+
+    // 添加一些操作日志
+    let log1 = OperationLog::InsertVertex {
+        space: "test".to_string(),
+        vertex_id: vec![1u8, 2u8, 3u8],
+        previous_state: None,
+    };
+    ctx.add_operation_log(log1);
+
+    let log2 = OperationLog::InsertVertex {
+        space: "test".to_string(),
+        vertex_id: vec![4u8, 5u8, 6u8],
+        previous_state: None,
+    };
+    ctx.add_operation_log(log2);
+
+    // 创建第二个保存点
+    let _sp2 = ctx.create_savepoint(Some("sp2".to_string()));
+
+    // 验证操作日志数量
+    assert_eq!(ctx.operation_log_len(), 2);
+
+    // 回滚到第一个保存点
+    let result = ctx.rollback_to_savepoint(sp1);
+    assert!(result.is_ok());
+
+    // 验证操作日志已被截断到第一个保存点
+    assert_eq!(ctx.operation_log_len(), 0);
+}

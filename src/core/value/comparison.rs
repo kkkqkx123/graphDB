@@ -38,6 +38,29 @@ impl PartialEq for Value {
             (Value::Set(a), Value::Set(b)) => a == b,
             (Value::Geography(a), Value::Geography(b)) => a == b,
             (Value::Duration(a), Value::Duration(b)) => a == b,
+
+            // 整数类型之间的比较：转换为i64后比较
+            (Value::Int(a), Value::Int8(b)) => *a as i64 == *b as i64,
+            (Value::Int(a), Value::Int16(b)) => *a as i64 == *b as i64,
+            (Value::Int(a), Value::Int32(b)) => *a as i64 == *b as i64,
+            (Value::Int(a), Value::Int64(b)) => *a as i64 == *b,
+            (Value::Int8(a), Value::Int(b)) => *a as i64 == *b as i64,
+            (Value::Int16(a), Value::Int(b)) => *a as i64 == *b as i64,
+            (Value::Int32(a), Value::Int(b)) => *a as i64 == *b as i64,
+            (Value::Int64(a), Value::Int(b)) => *a == *b as i64,
+            (Value::Int8(a), Value::Int16(b)) => *a as i64 == *b as i64,
+            (Value::Int8(a), Value::Int32(b)) => *a as i64 == *b as i64,
+            (Value::Int8(a), Value::Int64(b)) => *a as i64 == *b,
+            (Value::Int16(a), Value::Int8(b)) => *a as i64 == *b as i64,
+            (Value::Int16(a), Value::Int32(b)) => *a as i64 == *b as i64,
+            (Value::Int16(a), Value::Int64(b)) => *a as i64 == *b,
+            (Value::Int32(a), Value::Int8(b)) => *a as i64 == *b as i64,
+            (Value::Int32(a), Value::Int16(b)) => *a as i64 == *b as i64,
+            (Value::Int32(a), Value::Int64(b)) => *a as i64 == *b,
+            (Value::Int64(a), Value::Int8(b)) => *a == *b as i64,
+            (Value::Int64(a), Value::Int16(b)) => *a == *b as i64,
+            (Value::Int64(a), Value::Int32(b)) => *a == *b as i64,
+
             _ => false,
         }
     }
@@ -85,6 +108,28 @@ impl Ord for Value {
             (Value::Geography(a), Value::Geography(b)) => Self::cmp_geography(a, b),
             (Value::Duration(a), Value::Duration(b)) => Self::cmp_duration(a, b),
             (Value::DataSet(a), Value::DataSet(b)) => Self::cmp_dataset(a, b),
+
+            // 整数类型之间的比较：转换为i64后比较
+            (Value::Int(a), Value::Int8(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int(a), Value::Int16(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int(a), Value::Int32(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int(a), Value::Int64(b)) => (*a as i64).cmp(b),
+            (Value::Int8(a), Value::Int(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int16(a), Value::Int(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int32(a), Value::Int(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int64(a), Value::Int(b)) => a.cmp(&(*b as i64)),
+            (Value::Int8(a), Value::Int16(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int8(a), Value::Int32(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int8(a), Value::Int64(b)) => (*a as i64).cmp(b),
+            (Value::Int16(a), Value::Int8(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int16(a), Value::Int32(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int16(a), Value::Int64(b)) => (*a as i64).cmp(b),
+            (Value::Int32(a), Value::Int8(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int32(a), Value::Int16(b)) => (*a as i64).cmp(&(*b as i64)),
+            (Value::Int32(a), Value::Int64(b)) => (*a as i64).cmp(b),
+            (Value::Int64(a), Value::Int8(b)) => a.cmp(&(*b as i64)),
+            (Value::Int64(a), Value::Int16(b)) => a.cmp(&(*b as i64)),
+            (Value::Int64(a), Value::Int32(b)) => a.cmp(&(*b as i64)),
 
             // 不同类型之间的比较：基于类型优先级
             (a, b) => Self::cmp_by_type_priority(a, b),

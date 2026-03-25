@@ -685,4 +685,121 @@ mod tests {
         // 我们主要测试调用不会panic
         let _ = result;
     }
+
+    #[tokio::test]
+    async fn test_savepoint_creation() {
+        let config = create_test_config();
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
+
+        let session = graph_service
+            .authenticate("root", "root")
+            .await
+            .expect("创建会话失败");
+
+        // 测试创建保存点（需要先开始事务）
+        let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
+        let result = graph_service.execute(session.id(), "SAVEPOINT sp1");
+
+        // 注意：这里可能会失败，因为 GraphService 可能没有配置事务管理器
+        // 我们主要测试调用不会panic
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_savepoint_empty_name() {
+        let config = create_test_config();
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
+
+        let session = graph_service
+            .authenticate("root", "root")
+            .await
+            .expect("创建会话失败");
+
+        // 测试空保存点名称
+        let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
+        let result = graph_service.execute(session.id(), "SAVEPOINT");
+
+        // 应该返回错误
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_rollback_to_savepoint() {
+        let config = create_test_config();
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
+
+        let session = graph_service
+            .authenticate("root", "root")
+            .await
+            .expect("创建会话失败");
+
+        // 测试回滚到保存点
+        let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
+        let _ = graph_service.execute(session.id(), "SAVEPOINT sp1");
+        let result = graph_service.execute(session.id(), "ROLLBACK TO SAVEPOINT sp1");
+
+        // 注意：这里可能会失败，因为 GraphService 可能没有配置事务管理器
+        // 我们主要测试调用不会panic
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_rollback_to_savepoint_without_transaction() {
+        let config = create_test_config();
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
+
+        let session = graph_service
+            .authenticate("root", "root")
+            .await
+            .expect("创建会话失败");
+
+        // 测试在没有事务的情况下回滚到保存点
+        let result = graph_service.execute(session.id(), "ROLLBACK TO SAVEPOINT sp1");
+
+        // 应该返回错误
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_release_savepoint() {
+        let config = create_test_config();
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
+
+        let session = graph_service
+            .authenticate("root", "root")
+            .await
+            .expect("创建会话失败");
+
+        // 测试释放保存点
+        let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
+        let _ = graph_service.execute(session.id(), "SAVEPOINT sp1");
+        let result = graph_service.execute(session.id(), "RELEASE SAVEPOINT sp1");
+
+        // 注意：这里可能会失败，因为 GraphService 可能没有配置事务管理器
+        // 我们主要测试调用不会panic
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_release_savepoint_without_transaction() {
+        let config = create_test_config();
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
+
+        let session = graph_service
+            .authenticate("root", "root")
+            .await
+            .expect("创建会话失败");
+
+        // 测试在没有事务的情况下释放保存点
+        let result = graph_service.execute(session.id(), "RELEASE SAVEPOINT sp1");
+
+        // 应该返回错误
+        assert!(result.is_err());
+    }
 }

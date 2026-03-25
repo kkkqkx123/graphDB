@@ -167,7 +167,7 @@ mod tests {
 
         // 创建赋值项
         let assign_items = vec![
-            ("var1".to_string(), Expression::literal(42i64)),
+            ("var1".to_string(), Expression::int(42)),
             ("var2".to_string(), Expression::literal("hello")),
         ];
 

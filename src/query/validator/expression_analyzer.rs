@@ -725,7 +725,7 @@ mod tests {
     #[test]
     fn test_analyze_literal() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let expr = Expression::literal(42);
+        let expr = Expression::int(42);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, ctx.clone());
@@ -741,8 +741,8 @@ mod tests {
     #[test]
     fn test_analyze_binary_constant_fold() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
-        let left = Expression::literal(10);
-        let right = Expression::literal(20);
+        let left = Expression::int(10);
+        let right = Expression::int(20);
         let expr = Expression::binary(left, crate::core::BinaryOperator::Add, right);
         let meta = ExpressionMeta::new(expr);
         let id = ctx.register_expression(meta);

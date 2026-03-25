@@ -10,6 +10,18 @@ use crate::core::Value;
 pub struct CollectionOperationEvaluator;
 
 impl CollectionOperationEvaluator {
+    /// 尝试将 Value 转换为 i64 索引
+    fn value_to_i64(index: &Value) -> Option<i64> {
+        match index {
+            Value::Int(i) => Some(*i),
+            Value::Int8(i) => Some(*i as i64),
+            Value::Int16(i) => Some(*i as i64),
+            Value::Int32(i) => Some(*i as i64),
+            Value::Int64(i) => Some(*i),
+            _ => None,
+        }
+    }
+
     /// 求值下标访问
     pub fn eval_subscript_access(
         collection: &Value,
@@ -21,8 +33,8 @@ impl CollectionOperationEvaluator {
 
         match collection {
             Value::List(list) => {
-                if let Value::Int(i) = index {
-                    let adjusted_index = if *i < 0 { list.len() as i64 + i } else { *i };
+                if let Some(i) = Self::value_to_i64(index) {
+                    let adjusted_index = if i < 0 { list.len() as i64 + i } else { i };
 
                     if adjusted_index >= 0 && (adjusted_index as usize) < list.len() {
                         Ok(list[adjusted_index as usize].clone())
@@ -37,9 +49,9 @@ impl CollectionOperationEvaluator {
                 }
             }
             Value::String(s) => {
-                if let Value::Int(i) = index {
+                if let Some(i) = Self::value_to_i64(index) {
                     let chars: Vec<char> = s.chars().collect();
-                    let adjusted_index = if *i < 0 { chars.len() as i64 + i } else { *i };
+                    let adjusted_index = if i < 0 { chars.len() as i64 + i } else { i };
 
                     if adjusted_index >= 0 && (adjusted_index as usize) < chars.len() {
                         Ok(Value::String(chars[adjusted_index as usize].to_string()))

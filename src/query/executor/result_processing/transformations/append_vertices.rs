@@ -347,7 +347,6 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::core::Value;
-    use crate::query::executor::base::ExecutorConfig;
     use crate::query::validator::context::ExpressionAnalysisContext;
     use crate::storage::MockStorage;
     use parking_lot::Mutex;
@@ -378,8 +377,7 @@ mod tests {
             need_fetch_prop: false,
         };
 
-        let base_config = ExecutorConfig::new(1, storage, expr_context);
-        let mut executor = AppendVerticesExecutor::new(base_config, config);
+        let mut executor = AppendVerticesExecutor::with_context(1, storage, context, config);
 
         let result = executor
             .execute()

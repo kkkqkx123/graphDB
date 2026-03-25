@@ -51,10 +51,8 @@ impl TagFilterProcessor {
         context.set_variable("tags".to_string(), Value::List(List::from(tag_names)));
 
         // 添加标签数量
-        context.set_variable(
-            "tag_count".to_string(),
-            Value::Int(vertex.tags.len() as i64),
-        );
+        let tag_count = vertex.tags.len() as i64;
+        context.set_variable("tag_count".to_string(), Value::Int(tag_count));
 
         // 将每个标签作为单独的变量添加
         for (i, tag) in vertex.tags.iter().enumerate() {
@@ -119,7 +117,6 @@ mod tests {
 
     #[test]
     fn test_process_tag_filter_with_count() {
-        // 创建测试顶点
         let vertex = Vertex::new(
             Value::Int(1),
             vec![
@@ -128,7 +125,6 @@ mod tests {
             ],
         );
 
-        // 测试标签数量表达式
         let expression = Expression::binary(
             Expression::variable("tag_count".to_string()),
             BinaryOperator::GreaterThan,

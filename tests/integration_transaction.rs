@@ -141,6 +141,162 @@ fn test_read_only_transaction() {
         .expect("提交事务失败");
 }
 
+/// 测试保存点回滚与数据恢复
+#[test]
+fn test_savepoint_rollback_with_data_recovery() {
+    use tempfile::TempDir;
+    use graphdb::core::Vertex;
+    use graphdb::core::Value;
+    use std::collections::HashMap;
+
+    let temp_dir = TempDir::new().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("test_rollback_data.db");
+
+    // 创建存储
+    let storage = RedbStorage::new_with_path(db_path).expect("创建存储失败");
+    let db = storage.get_db().clone();
+
+    // 创建事务管理器
+    let config = TransactionManagerConfig::default();
+    let txn_manager = Arc::new(TransactionManager::new(db, config));
+
+    // 设置回滚执行器工厂
+    txn_manager.set_rollback_executor_factory(Box::new(|| Box::new(MockRollbackExecutor)));
+
+    // 开始事务
+    let options = TransactionOptions::default();
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
+
+    // 获取事务上下文
+    let context = txn_manager.get_context(txn_id).expect("获取事务上下文失败");
+
+    // 创建第一个顶点
+    let _vertex1 = Vertex {
+        vid: Box::new(Value::Int(1)),
+        id: 1,
+        tags: vec![],
+        properties: HashMap::new(),
+    };
+    
+    context.add_operation_log(graphdb::transaction::types::OperationLog::InsertVertex {
+        space: "test".to_string(),
+        vertex_id: vec![1u8],
+        previous_state: None,
+    });
+
+    // 创建第一个保存点
+    let savepoint_id1 = txn_manager
+        .create_savepoint(txn_id, Some("checkpoint1".to_string()))
+        .expect("创建保存点失败");
+
+    // 创建第二个顶点
+    let _vertex2 = Vertex {
+        vid: Box::new(Value::Int(2)),
+        id: 2,
+        tags: vec![],
+        properties: HashMap::new(),
+    };
+    
+    context.add_operation_log(graphdb::transaction::types::OperationLog::InsertVertex {
+        space: "test".to_string(),
+        vertex_id: vec![2u8],
+        previous_state: None,
+    });
+
+    // 创建第二个保存点
+    let _savepoint_id2 = txn_manager
+        .create_savepoint(txn_id, Some("checkpoint2".to_string()))
+        .expect("创建保存点失败");
+
+    // 验证操作日志数量
+    let logs = context.get_operation_logs();
+    assert_eq!(logs.len(), 2);
+
+    // 回滚到第一个保存点
+    txn_manager
+        .rollback_to_savepoint(txn_id, savepoint_id1)
+        .expect("回滚到保存点失败");
+
+    // 验证操作日志已被截断到第一个保存点位置（应该有1个日志）
+    let logs = context.get_operation_logs();
+    assert_eq!(logs.len(), 1);
+
+    // 验证第二个保存点已被移除
+    let savepoints = txn_manager.get_active_savepoints(txn_id);
+    assert_eq!(savepoints.len(), 1);
+    assert_eq!(savepoints[0].id, savepoint_id1);
+
+    // 提交事务
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
+}
+
+/// 测试保存点回滚后继续操作
+#[test]
+fn test_continue_operations_after_savepoint_rollback() {
+    let txn_manager = create_test_transaction_manager();
+
+    // 设置回滚执行器工厂
+    txn_manager.set_rollback_executor_factory(Box::new(|| Box::new(MockRollbackExecutor)));
+
+    // 开始事务
+    let options = TransactionOptions::default();
+    let txn_id = txn_manager
+        .begin_transaction(options)
+        .expect("开始事务失败");
+
+    // 获取事务上下文
+    let context = txn_manager.get_context(txn_id).expect("获取事务上下文失败");
+
+    // 添加一些操作日志
+    use graphdb::transaction::types::OperationLog;
+    context.add_operation_log(OperationLog::InsertVertex {
+        space: "test".to_string(),
+        vertex_id: vec![1u8],
+        previous_state: None,
+    });
+
+    // 创建保存点（此时有1个操作日志）
+    let savepoint_id = txn_manager
+        .create_savepoint(txn_id, Some("sp1".to_string()))
+        .expect("创建保存点失败");
+
+    // 添加更多操作日志
+    context.add_operation_log(OperationLog::InsertVertex {
+        space: "test".to_string(),
+        vertex_id: vec![2u8],
+        previous_state: None,
+    });
+
+    // 回滚到保存点
+    txn_manager
+        .rollback_to_savepoint(txn_id, savepoint_id)
+        .expect("回滚到保存点失败");
+
+    // 验证操作日志已被截断到保存点位置（应该有1个日志）
+    let logs = context.get_operation_logs();
+    assert_eq!(logs.len(), 1);
+
+    // 回滚后继续添加操作日志
+    context.add_operation_log(OperationLog::InsertVertex {
+        space: "test".to_string(),
+        vertex_id: vec![3u8],
+        previous_state: None,
+    });
+
+    // 验证操作日志数量（应该有2个日志）
+    let logs = context.get_operation_logs();
+    assert_eq!(logs.len(), 2);
+
+    // 提交事务
+    txn_manager
+        .commit_transaction(txn_id)
+        .expect("提交事务失败");
+}
+
 /// 测试事务超时
 #[test]
 fn test_transaction_timeout() {
@@ -941,16 +1097,15 @@ fn test_rollback_failure_error_handling() {
         previous_state: None,
     });
 
-    // 尝试回滚到保存点（因为没有设置回滚执行器，应该返回错误）
+    // 回滚到保存点（应该成功，因为TransactionContext内部处理回滚）
     let result = txn_manager.rollback_to_savepoint(txn_id, savepoint_id);
 
-    // 验证回滚结果（应该失败，因为没有回滚执行器）
-    assert!(result.is_err());
-    assert!(matches!(result, Err(TransactionError::RollbackFailed(_))));
+    // 验证回滚结果（应该成功）
+    assert!(result.is_ok());
 
-    // 验证操作日志没有被截断
+    // 验证操作日志已被截断到保存点位置（应该有1个日志）
     let logs = context.get_operation_logs();
-    assert_eq!(logs.len(), 2);
+    assert_eq!(logs.len(), 1);
 
     // 提交事务
     txn_manager

@@ -172,7 +172,7 @@ impl fmt::Display for Span {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "[{}:{} - {}:{}]",
+            "{}:{} - {}:{}",
             self.start.line, self.start.column, self.end.line, self.end.column
         )
     }
