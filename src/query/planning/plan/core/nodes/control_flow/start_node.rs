@@ -1,6 +1,6 @@
-//! 起始节点实现
+//! Implementation of the starting node
 //!
-//! StartNode 用于表示执行计划的起始点
+//! StartNode is used to represent the starting point of the execution plan.
 
 use crate::define_plan_node;
 

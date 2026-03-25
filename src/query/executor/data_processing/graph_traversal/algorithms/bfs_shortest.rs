@@ -1,7 +1,7 @@
-//! BFS最短路径执行器
+//! BFS Shortest Path Executor
 //!
-//! 使用双向广度优先搜索算法查找最短路径
-//! 参考nebula-graph实现，支持双向BFS和路径拼接
+//! Use a bidirectional breadth-first search algorithm to find the shortest path.
+//! Referencing the Nebula-Graph implementation, it supports bidirectional BFS (Breadth-First Search) and path concatenation.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -12,7 +12,7 @@ use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStora
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// BFS最短路径配置
+/// BFS (Broadest First Search) shortest path configuration
 pub struct BfsShortestPathConfig {
     pub steps: usize,
     pub edge_types: Vec<String>,
@@ -24,23 +24,23 @@ pub struct BfsShortestPathConfig {
     pub end_vertex: Value,
 }
 
-/// BFSShortestExecutor - BFS最短路径执行器
+/// BFSShortestExecutor – The BFS shortest path executor
 ///
-/// 使用双向广度优先搜索算法查找最短路径
-/// 参考nebula-graph实现，支持双向BFS和路径拼接
+/// Use a bidirectional breadth-first search algorithm to find the shortest path.
+/// Referencing the Nebula-Graph implementation, it supports bidirectional BFS (Breadth-First Search) and path concatenation.
 pub struct BFSShortestExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
     steps: usize,
     max_depth: Option<usize>,
     edge_types: Vec<String>,
-    with_cycle: bool, // 是否允许回路（路径中重复访问顶点）
-    with_loop: bool,  // 是否允许自环边
+    with_cycle: bool, // Is it allowed to have loops (repeated visits to the same vertex within the path)?
+    with_loop: bool,  // Are self-loop edges allowed?
     single_shortest: bool,
     limit: usize,
     start_vertex: Value,
     end_vertex: Value,
 
-    // 执行状态
+    // Status of translation:
     step: usize,
     left_visited_vids: HashSet<Value>,
     right_visited_vids: HashSet<Value>,
@@ -49,7 +49,7 @@ pub struct BFSShortestExecutor<S: StorageClient + 'static> {
     current_paths: Vec<Path>,
     terminate_early: bool,
 
-    // 统计信息
+    // Statistical information
     nodes_visited: usize,
     edges_traversed: usize,
     execution_time_ms: u64,
@@ -86,7 +86,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         }
     }
 
-    /// 设置是否允许自环边
+    /// Set whether to allow self-loop edges.
     pub fn with_loop(mut self, with_loop: bool) -> Self {
         self.with_loop = with_loop;
         self
@@ -132,7 +132,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         &self.current_paths
     }
 
-    /// 构建路径 - 从输入中提取边并构建下一步的顶点集合
+    /// Building paths: Extracting edges from the input and constructing the set of vertices for the next step.
     fn build_path(
         &mut self,
         storage: &S,
@@ -141,10 +141,10 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
     ) -> DBResult<Vec<Value>> {
         let mut current_edges: HashMap<Value, Edge> = HashMap::new();
         let mut unique_dst: HashSet<Value> = HashSet::new();
-        // 自环边去重跟踪
+        // Deduplication tracking from self-loop edges
         let mut seen_self_loops: HashSet<(String, i64)> = HashSet::new();
 
-        // 预留容量以提高性能
+        // Reserving capacity to improve performance
         if reverse {
             self.right_visited_vids.reserve(start_vids.len());
         } else {
@@ -152,7 +152,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         }
 
         for start_vid in start_vids {
-            // 获取当前顶点的出边或入边
+            // Obtain the outgoing or incoming edges of the current vertex.
             let edges = if self.edge_types.is_empty() {
                 if reverse {
                     storage.get_node_edges("default", start_vid, EdgeDirection::In)?
@@ -160,13 +160,13 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
                     storage.get_node_edges("default", start_vid, EdgeDirection::Out)?
                 }
             } else {
-                // 根据边类型过滤
+                // Filter by edge type
                 let all_edges = if reverse {
                     storage.get_node_edges("default", start_vid, EdgeDirection::In)?
                 } else {
                     storage.get_node_edges("default", start_vid, EdgeDirection::Out)?
                 };
-                // 过滤出指定类型的边
+                // Filter out edges of the specified type.
                 all_edges
                     .into_iter()
                     .filter(|edge| self.edge_types.contains(&edge.edge_type))
@@ -181,17 +181,17 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
                     (*edge.dst).clone()
                 };
 
-                // 检查是否是自环边
+                // Check whether it is a self-loop edge.
                 let is_self_loop = *edge.src == *edge.dst;
-                // 如果不允许自环边，进行去重
+                // If self-loop edges are not allowed, duplicates should be removed.
                 if is_self_loop && !self.with_loop {
                     let key = (edge.edge_type.clone(), edge.ranking);
                     if !seen_self_loops.insert(key) {
-                        continue; // 重复的自环边，跳过
+                        continue; // Duplicate self-loop edges should be skipped.
                     }
                 }
 
-                // 检查是否已访问
+                // Check whether the page has been visited.
                 let already_visited = if reverse {
                     self.right_visited_vids.contains(&dst)
                 } else {
@@ -202,7 +202,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
                     continue;
                 }
 
-                // 检查无环约束（路径中顶点唯一）
+                // Check for acyclic constraints (unique vertices in the path).
                 if !self.with_cycle {
                     let in_path = self.left_visited_vids.contains(&dst)
                         || self.right_visited_vids.contains(&dst);
@@ -217,14 +217,14 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             }
         }
 
-        // 保存当前层的边
+        // Save the edges of the current layer.
         if reverse {
             self.all_right_edges.push(current_edges);
         } else {
             self.all_left_edges.push(current_edges);
         }
 
-        // 将新发现的顶点标记为已访问
+        // Mark the newly discovered vertex as having been visited.
         let new_vids: Vec<Value> = unique_dst.iter().cloned().collect();
         if reverse {
             self.right_visited_vids.extend(new_vids.clone());
@@ -237,8 +237,8 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         Ok(new_vids)
     }
 
-    /// 拼接路径 - 找到左右路径的交汇点并拼接成完整路径
-    /// 返回是否应该提前终止搜索
+    /// Concatenate paths: Find the intersection point of the left and right paths and combine them into a complete path.
+    /// Return a decision on whether the search should be terminated prematurely.
     fn conjunct_paths(&mut self, current_step: usize) -> DBResult<bool> {
         if self.all_left_edges.is_empty() || self.all_right_edges.is_empty() {
             return Ok(false);
@@ -249,11 +249,11 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             .last()
             .expect("Left edges should not be empty");
 
-        // 查找交汇点
+        // Find the intersection point.
         let mut meet_vids: HashSet<Value> = HashSet::new();
         let mut odd_step = true;
 
-        // 首先尝试与上一步的右边缘匹配
+        // First, try to match the right edge of the previous step.
         if current_step > 1 && current_step - 2 < self.all_right_edges.len() {
             let prev_right_edges = &self.all_right_edges[current_step - 2];
             for vid in left_edges.keys() {
@@ -263,7 +263,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             }
         }
 
-        // 如果没有找到，尝试与当前步的右边缘匹配
+        // If it is not found, try to match it with the right edge of the current step.
         if meet_vids.is_empty() && !self.all_right_edges.is_empty() {
             odd_step = false;
             let right_edges = self
@@ -281,23 +281,23 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             return Ok(false);
         }
 
-        // 为每个交汇点构建完整路径
+        // Construct a complete path for each intersection point.
         for meet_vid in meet_vids {
             if let Some(path) = self.create_path(&meet_vid, odd_step) {
-                // 检查路径是否有重复边（路径中顶点唯一）
+                // Check whether there are any duplicate edges in the path (the vertices in the path are unique).
                 if !self.with_cycle && path.has_duplicate_edges() {
                     continue;
                 }
 
                 self.current_paths.push(path);
 
-                // 如果只找单条最短路径，找到后即可终止
+                // If we are only looking for the shortest path, the search can be terminated once it is found.
                 if self.single_shortest {
                     self.terminate_early = true;
                     return Ok(true);
                 }
 
-                // 检查是否达到限制
+                // Check whether the limits have been reached.
                 if self.current_paths.len() >= self.limit {
                     self.terminate_early = true;
                     return Ok(true);
@@ -308,33 +308,33 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         Ok(false)
     }
 
-    /// 创建从起点到终点的完整路径
+    /// Create a complete path from the starting point to the ending point.
     fn create_path(&self, meet_vid: &Value, _odd_step: bool) -> Option<Path> {
-        // 构建左半部分路径（从起点到交汇点）
+        // Construct the path for the left half (from the starting point to the intersection point).
         let left_path = self.build_half_path(meet_vid, false)?;
 
-        // 构建右半部分路径（从终点到交汇点）
+        // Construct the path for the right half (from the endpoint to the intersection point).
         let right_path = self.build_half_path(meet_vid, true)?;
 
-        // 拼接路径：反转右半部分路径并追加到左半部分
+        // Concatenation path: Reverse the right half of the path and append it to the left half.
         let mut full_path = left_path;
 
-        // 反转右半部分路径的步骤
+        // Steps to reverse the right half of the path
         let mut reversed_steps: Vec<crate::core::vertex_edge_path::Step> =
             right_path.steps.into_iter().rev().collect();
 
-        // 反转每条边的方向
+        // Reverse the direction of each edge.
         for step in &mut reversed_steps {
             std::mem::swap(&mut step.edge.src, &mut step.edge.dst);
         }
 
-        // 追加到完整路径
+        // Append to the full path
         full_path.steps.extend(reversed_steps);
 
         Some(full_path)
     }
 
-    /// 构建半条路径
+    /// Constructing a half-path
     fn build_half_path(&self, meet_vid: &Value, reverse: bool) -> Option<Path> {
         let all_edges = if reverse {
             &self.all_right_edges
@@ -346,11 +346,11 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             return Some(Path::new(Vertex::new(meet_vid.clone(), vec![])));
         }
 
-        // 从交汇点回溯到起点/终点
+        // Tracing back from the intersection to the starting point/ending point
         let mut current_vid = meet_vid.clone();
         let mut steps: Vec<(Vertex, Edge)> = Vec::new();
 
-        // 逆序遍历边层
+        // Traverse the edge layer in reverse order.
         for edge_layer in all_edges.iter().rev() {
             if let Some(edge) = edge_layer.get(&current_vid) {
                 // 反向搜索时，使用 edge.dst 作为下一个顶点
@@ -366,7 +366,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             }
         }
 
-        // 构建路径
+        // Constructing a path
         if steps.is_empty() {
             return Some(Path::new(Vertex::new(meet_vid.clone(), vec![])));
         }
@@ -387,7 +387,7 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start_time = std::time::Instant::now();
 
-        // 重置状态
+        // Reset the status
         self.step = 1;
         self.left_visited_vids.clear();
         self.right_visited_vids.clear();
@@ -396,11 +396,11 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
         self.current_paths.clear();
         self.terminate_early = false;
 
-        // 初始化：将起点和终点加入已访问集合
+        // Initialization: Add the starting point and the ending point to the set of visited locations.
         self.left_visited_vids.insert(self.start_vertex.clone());
         self.right_visited_vids.insert(self.end_vertex.clone());
 
-        // 双向BFS主循环
+        // Bidirectional BFS main loop
         let max_steps = self.steps;
         let start_vertex = self.start_vertex.clone();
         let end_vertex = self.end_vertex.clone();
@@ -411,7 +411,7 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
                 break;
             }
 
-            // 从起点方向扩展
+            // Expand from the starting direction.
             let left_vids: Vec<Value> = if current_step == 1 {
                 vec![start_vertex.clone()]
             } else {
@@ -435,21 +435,21 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
             let left_has_vids = !left_vids.is_empty();
             let right_has_vids = !right_vids.is_empty();
 
-            // 从起点方向扩展
+            // Expand from the starting direction.
             if left_has_vids {
                 let storage = self.get_storage().clone();
                 let storage_guard = storage.lock();
                 self.build_path(&storage_guard, &left_vids, false)?;
             }
 
-            // 从终点方向扩展
+            // away
             if right_has_vids {
                 let storage = self.get_storage().clone();
                 let storage_guard = storage.lock();
                 self.build_path(&storage_guard, &right_vids, true)?;
             }
 
-            // 检查是否有交汇点并拼接路径
+            // Check for intersections and splice paths
             let should_terminate = self.conjunct_paths(current_step)?;
             if should_terminate {
                 terminate_early = true;

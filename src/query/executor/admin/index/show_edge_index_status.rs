@@ -1,6 +1,6 @@
-//! ShowEdgeIndexStatusExecutor - 显示边索引状态执行器
+//! ShowEdgeIndexStatusExecutor – Executor for displaying the status of the edge index
 //!
-//! 负责显示边索引的状态信息。
+//! Responsible for displaying the status information of the side index.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -10,9 +10,9 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 显示边索引状态执行器
+/// Display the status of the edge index executor.
 ///
-/// 该执行器负责显示边索引的状态信息。
+/// This actuator is responsible for displaying the status information of the edge index.
 #[derive(Debug)]
 pub struct ShowEdgeIndexStatusExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

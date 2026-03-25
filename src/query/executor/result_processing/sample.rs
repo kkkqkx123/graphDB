@@ -1,6 +1,6 @@
-//! 采样执行器
+//! Sampling Executor
 //!
-//! 实现对查询结果的随机采样功能，支持多种采样方法
+//! Implement the functionality of random sampling of query results, supporting various sampling methods.
 
 use parking_lot::Mutex;
 use rand::rngs::StdRng;
@@ -16,30 +16,30 @@ use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
 
-/// 采样方法
+/// Sampling method
 #[derive(Debug, Clone, PartialEq)]
 pub enum SampleMethod {
-    /// 随机采样
+    /// Random sampling
     Random,
-    /// 蓄水池采样（适用于流式数据）
+    /// Reservoir sampling (applicable to streaming data)
     Reservoir,
-    /// 系统采样（固定间隔）
+    /// System sampling (at fixed intervals)
     System,
 }
 
-/// SampleExecutor - 采样执行器
+/// SampleExecutor – A sampling executor
 ///
-/// 实现对查询结果的随机采样功能
+/// Implementation of a random sampling function for query results
 pub struct SampleExecutor<S: StorageClient + Send + 'static> {
-    /// 基础处理器
+    /// Basic processor
     base: BaseResultProcessor<S>,
     /// 采样方法
     method: SampleMethod,
-    /// 采样数量
+    /// Number of samples
     count: usize,
-    /// 随机种子
+    /// Random seed
     seed: Option<u64>,
-    /// 输入执行器
+    /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
@@ -82,7 +82,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         }
     }
 
-    /// 对输入执行采样
+    /// Perform sampling on the input data.
     fn sample_input(&self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         match input {
             ExecutionResult::DataSet(dataset) => {
@@ -105,7 +105,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         }
     }
 
-    /// 对数据集执行采样
+    /// Perform sampling on the dataset.
     fn sample_dataset(&self, dataset: DataSet) -> DBResult<DataSet> {
         match self.method {
             SampleMethod::Random => self.random_sample_dataset(dataset),
@@ -114,7 +114,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         }
     }
 
-    /// 随机采样数据集
+    /// Randomly sampled dataset
     fn random_sample_dataset(&self, mut dataset: DataSet) -> DBResult<DataSet> {
         if dataset.rows.len() <= self.count {
             return Ok(dataset);
@@ -123,13 +123,13 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         let mut rng = self.create_rng();
         let mut sampled_indices = HashSet::new();
 
-        // 随机选择不重复的索引
+        // Randomly select non-repeating indices.
         while sampled_indices.len() < self.count {
             let index = rng.gen_range(0..dataset.rows.len());
             sampled_indices.insert(index);
         }
 
-        // 提取采样的行
+        // Extract the rows of the sampling data.
         let sampled_rows: Vec<_> = sampled_indices
             .into_iter()
             .map(|i| dataset.rows[i].clone())
@@ -139,7 +139,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(dataset)
     }
 
-    /// 蓄水池采样数据集
+    /// Reservoir sampling dataset
     fn reservoir_sample_dataset(&self, mut dataset: DataSet) -> DBResult<DataSet> {
         if dataset.rows.len() <= self.count {
             return Ok(dataset);
@@ -148,7 +148,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         let mut rng = self.create_rng();
         let mut reservoir: Vec<_> = dataset.rows.iter().take(self.count).cloned().collect();
 
-        // 处理剩余元素
+        // Process the remaining elements.
         for (i, row) in dataset.rows.iter().enumerate().skip(self.count) {
             let j = rng.gen_range(0..=i);
             if j < self.count {
@@ -160,7 +160,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(dataset)
     }
 
-    /// 系统采样数据集
+    /// System-sampled dataset
     fn system_sample_dataset(&self, mut dataset: DataSet) -> DBResult<DataSet> {
         if dataset.rows.len() <= self.count {
             return Ok(dataset);
@@ -179,7 +179,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(dataset)
     }
 
-    /// 对值列表执行采样
+    /// Perform sampling on a list of values.
     fn sample_values(&self, values: Vec<crate::core::Value>) -> DBResult<Vec<crate::core::Value>> {
         if values.len() <= self.count {
             return Ok(values);
@@ -192,7 +192,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         }
     }
 
-    /// 随机采样值列表
+    /// List of randomly sampled values
     fn random_sample_values(
         &self,
         values: Vec<crate::core::Value>,
@@ -213,7 +213,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(sampled_values)
     }
 
-    /// 蓄水池采样值列表
+    /// List of sample values from the reservoir
     fn reservoir_sample_values(
         &self,
         values: Vec<crate::core::Value>,
@@ -231,7 +231,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(reservoir)
     }
 
-    /// 系统采样值列表
+    /// List of system sample values
     fn system_sample_values(
         &self,
         values: Vec<crate::core::Value>,
@@ -248,7 +248,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(sampled_values)
     }
 
-    /// 对顶点列表执行采样
+    /// Perform sampling on the list of vertices.
     fn sample_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
@@ -264,7 +264,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         }
     }
 
-    /// 随机采样顶点列表
+    /// Randomly sampled list of vertices
     fn random_sample_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
@@ -285,7 +285,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(sampled_vertices)
     }
 
-    /// 蓄水池采样顶点列表
+    /// List of sampling vertices for the reservoir
     fn reservoir_sample_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
@@ -303,7 +303,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(reservoir)
     }
 
-    /// 系统采样顶点列表
+    /// System-sampled vertex list
     fn system_sample_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
@@ -320,7 +320,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(sampled_vertices)
     }
 
-    /// 对边列表执行采样
+    /// Perform sampling on the list of opposite sides.
     fn sample_edges(&self, edges: Vec<crate::core::Edge>) -> DBResult<Vec<crate::core::Edge>> {
         if edges.len() <= self.count {
             return Ok(edges);
@@ -333,7 +333,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         }
     }
 
-    /// 随机采样边列表
+    /// Randomly sampled edge list
     fn random_sample_edges(
         &self,
         edges: Vec<crate::core::Edge>,
@@ -354,7 +354,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(sampled_edges)
     }
 
-    /// 蓄水池采样边列表
+    /// List of reservoir sampling sites
     fn reservoir_sample_edges(
         &self,
         edges: Vec<crate::core::Edge>,
@@ -372,7 +372,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(reservoir)
     }
 
-    /// 系统采样边列表
+    /// System sampling edge list
     fn system_sample_edges(
         &self,
         edges: Vec<crate::core::Edge>,
@@ -389,7 +389,7 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         Ok(sampled_edges)
     }
 
-    /// 创建随机数生成器
+    /// Create a random number generator
     fn create_rng(&self) -> StdRng {
         match self.seed {
             Some(seed) => StdRng::seed_from_u64(seed),
@@ -503,28 +503,28 @@ mod tests {
     fn test_sample_executor_random() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
-        // 创建测试数据
+        // Create test data
         let values: Vec<crate::core::Value> = (1..=100).map(crate::core::Value::Int).collect();
 
-        // 创建采样执行器 (随机采样10个值，使用固定种子保证可重现)
+        // Create a sampling executor that randomly selects 10 values, using a fixed seed to ensure reproducibility.
         let mut executor = SampleExecutor::new(1, storage, SampleMethod::Random, 10, Some(42));
 
-        // 设置输入数据
+        // Setting the input data
         <SampleExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(
             &mut executor,
             ExecutionResult::Values(values),
         );
 
-        // 执行采样
+        // Perform sampling
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .expect("Failed to process sample");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::Values(sampled_values) => {
                 assert_eq!(sampled_values.len(), 10);
-                // 验证所有值都是有效的
+                // Verify that all values are valid.
                 for value in &sampled_values {
                     match value {
                         crate::core::Value::Int(i) => {
@@ -542,24 +542,24 @@ mod tests {
     fn test_sample_executor_reservoir() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
-        // 创建测试数据
+        // Create test data
         let values: Vec<crate::core::Value> = (1..=100).map(crate::core::Value::Int).collect();
 
-        // 创建采样执行器 (蓄水池采样5个值)
+        // Create a sampling executor (sampling 5 values from a reservoir).
         let mut executor = SampleExecutor::new(1, storage, SampleMethod::Reservoir, 5, Some(123));
 
-        // 设置输入数据
+        // Set the input data
         <SampleExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(
             &mut executor,
             ExecutionResult::Values(values),
         );
 
-        // 执行采样
+        // Perform sampling
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .expect("Failed to process sample");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::Values(sampled_values) => {
                 assert_eq!(sampled_values.len(), 5);

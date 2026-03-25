@@ -1,31 +1,31 @@
-//! 数据转换执行器模块
+//! Data Conversion Executor Module
 //!
-//! 包含所有数据转换相关的执行器，包括：
-//! - Assign（变量赋值）
-//! - AppendVertices（追加顶点）
-//! - Unwind（列表展开）
-//! - PatternApply（模式匹配）
-//! - RollUpApply（聚合操作）
+//! Include all executors related to data conversion, including:
+//! Assign (variable assignment)
+//! AppendVertices (Adding Vertices)
+//! “Unwind” (list expansion) – This phrase refers to the process of expanding or displaying all the items in a list in detail. For example, if you have a list with only a few items visible at the top of the screen, clicking on the “Unwind” button or option will show all the items in the list.
+//! PatternApply (Pattern Matching)
+//! RollUpApply (aggregation operation)
 //!
-//! 对应 NebulaGraph 实现：
+//! Corresponding NebulaGraph implementation:
 //! nebula-3.8.0/src/graph/executor/query/
 
-// 变量赋值执行器
+// Variable Assignment Executor
 pub mod assign;
 pub use assign::AssignExecutor;
 
-// 列表展开执行器
+// List Expansion Executor
 pub mod unwind;
 pub use unwind::UnwindExecutor;
 
-// 追加顶点执行器
+// Additional vertex executor
 pub mod append_vertices;
 pub use append_vertices::AppendVerticesExecutor;
 
-// 模式匹配执行器
+// Pattern matching executor
 pub mod pattern_apply;
 pub use pattern_apply::PatternApplyExecutor;
 
-// 聚合操作执行器
+// Aggregation Operation Executor
 pub mod rollup_apply;
 pub use rollup_apply::RollUpApplyExecutor;

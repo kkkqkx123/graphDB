@@ -1,5 +1,5 @@
-//! 表达式验证策略测试
-//! 测试表达式验证策略的各种功能
+//! Expression Validation Strategy Testing
+//! Testing the various functions of the expression validation strategy
 
 #[cfg(test)]
 mod expression_strategy_tests {
@@ -14,7 +14,7 @@ mod expression_strategy_tests {
     #[test]
     fn test_expression_validation_strategy_creation() {
         let _strategy = ExpressionValidationStrategy::new();
-        // 测试通过到达此处即表示成功
+        // If the test is successful and you have reached this point, it means that everything has gone as planned.
     }
 
     #[test]
@@ -29,13 +29,13 @@ mod expression_strategy_tests {
             errors: vec![],
         };
 
-        // 有效的布尔表达式
+        // Valid Boolean expressions
         let bool_expr = Expression::Literal(Value::Bool(true));
         let bool_expression = create_test_contextual_expression(bool_expr);
         let result = strategy.validate_filter(&bool_expression, &context);
         assert!(result.is_ok());
 
-        // 无效的非布尔表达式
+        // Invalid non-Boolean expression
         let int_expr = Expression::Literal(Value::Int(42));
         let int_expression = create_test_contextual_expression(int_expr);
         let result = strategy.validate_filter(&int_expression, &context);
@@ -57,7 +57,7 @@ mod expression_strategy_tests {
             errors: vec![],
         };
 
-        // 测试有效的路径表达式
+        // Testing valid path expressions
         let path_expr = Expression::Path(vec![
             Expression::Label("Person".to_string()),
             Expression::Label("KNOWS".to_string()),
@@ -67,13 +67,13 @@ mod expression_strategy_tests {
         let result = strategy.validate_path(&path_expression, &context);
         assert!(result.is_ok());
 
-        // 测试标签表达式（应该返回 Empty 类型，也被接受）
+        // Testing the tag expression (it should return the Empty type, which is also acceptable).
         let label_expr = Expression::Label("Person".to_string());
         let label_expression = create_test_contextual_expression(label_expr);
         let result = strategy.validate_path(&label_expression, &context);
         assert!(result.is_ok());
 
-        // 测试无效的类型（非路径类型）
+        // Testing invalid types (types that are not path types).
         let int_expr = Expression::Literal(Value::Int(42));
         let int_expression = create_test_contextual_expression(int_expr);
         let result = strategy.validate_path(&int_expression, &context);
@@ -125,13 +125,13 @@ mod expression_strategy_tests {
             errors: vec![],
         };
 
-        // 测试有效的变量引用
+        // Testing the validity of variable references
         let var_expr = Expression::Variable("n".to_string());
         let var_expression = create_test_contextual_expression(var_expr);
         let result = strategy.validate_return(&var_expression, &yield_columns_clone, &context);
         assert!(result.is_ok());
 
-        // 测试有效的属性访问
+        // Testing the effective access to properties
         let prop_expr = Expression::Property {
             object: Box::new(Expression::Variable("n".to_string())),
             property: "name".to_string(),
@@ -156,7 +156,7 @@ mod expression_strategy_tests {
             errors: vec![],
         };
 
-        // 测试有效的布尔表达式
+        // Testing valid boolean expressions
         let bool_expr = Expression::Binary {
             left: Box::new(Expression::Variable("n".to_string())),
             op: crate::core::types::operators::BinaryOperator::Equal,

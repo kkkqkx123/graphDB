@@ -1,6 +1,6 @@
-//! 数据转换执行器构建器
+//! Data Conversion Executor Builder
 //!
-//! 负责创建数据转换类型的执行器（Unwind, Assign, Materialize, AppendVertices, RollUpApply, PatternApply）
+//! Responsible for creating executors for various data transformation types (Unwind, Assign, Materialize, AppendVertices, RollUpApply, PatternApply).
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::{
@@ -19,20 +19,20 @@ use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// 数据转换执行器构建器
+/// Data Conversion Executor Builder
 pub struct TransformationBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
-    /// 创建新的数据转换构建器
+    /// Create a new data transformation builder.
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
     }
 
-    /// 构建 Unwind 执行器
+    /// Building the Unwind executor
     pub fn build_unwind(
         &self,
         node: &UnwindNode,
@@ -57,7 +57,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
         Ok(ExecutorEnum::Unwind(executor))
     }
 
-    /// 构建 Assign 执行器
+    /// Constructing the Assign executor
     pub fn build_assign(
         &self,
         node: &AssignNode,
@@ -82,24 +82,24 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
         Ok(ExecutorEnum::Assign(executor))
     }
 
-    /// 构建 Materialize 执行器
+    /// Building the Materialize executor
     pub fn build_materialize(
         &self,
         node: &MaterializeNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // 创建物化执行器，使用默认内存限制（100MB）
+        // Create a materialized executor, using the default memory limit (100MB).
         let executor = MaterializeExecutor::new(
             node.id(),
             storage,
-            None, // 使用默认内存限制
+            None, // Use the default memory limit.
             context.expression_context().clone(),
         );
         Ok(ExecutorEnum::Materialize(executor))
     }
 
-    /// 构建 AppendVertices 执行器
+    /// Constructing the AppendVertices executor
     pub fn build_append_vertices(
         &self,
         node: &AppendVerticesNode,
@@ -131,7 +131,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
         Ok(ExecutorEnum::AppendVertices(executor))
     }
 
-    /// 构建 RollUpApply 执行器
+    /// Constructing the RollUpApply executor
     pub fn build_rollup_apply(
         &self,
         node: &RollUpApplyNode,
@@ -171,7 +171,7 @@ impl<S: StorageClient + Send + 'static> TransformationBuilder<S> {
         Ok(ExecutorEnum::RollUpApply(executor))
     }
 
-    /// 构建 PatternApply 执行器
+    /// Constructing the PatternApply executor
     pub fn build_pattern_apply(
         &self,
         node: &PatternApplyNode,

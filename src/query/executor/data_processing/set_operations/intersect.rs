@@ -1,6 +1,6 @@
-//! Intersect执行器实现
+//! Implementation of the Intersect executor
 //!
-//! 实现INTERSECT操作，返回两个数据集的交集（只存在于两个数据集中的行）
+//! Implement the INTERSECT operation to return the intersection of the two datasets (rows that exist only in both datasets).
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -13,17 +13,17 @@ use crate::storage::StorageClient;
 
 use super::base::SetExecutor;
 
-/// Intersect执行器
+/// Intersect executor
 ///
-/// 实现INTERSECT操作，返回两个数据集的交集
-/// 只返回同时存在于左右两个数据集中的行
+/// Implement the INTERSECT operation to return the intersection of the two datasets.
+/// Return only the rows that exist in both the left and right datasets.
 #[derive(Debug)]
 pub struct IntersectExecutor<S: StorageClient> {
     pub set_executor: SetExecutor<S>,
 }
 
 impl<S: StorageClient> IntersectExecutor<S> {
-    /// 创建新的Intersect执行器
+    /// Create a new Intersect executor.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -43,22 +43,22 @@ impl<S: StorageClient> IntersectExecutor<S> {
         }
     }
 
-    /// 执行INTERSECT操作
+    /// Perform the INTERSECT operation
     ///
-    /// 算法步骤：
-    /// 1. 获取左右两个输入数据集
-    /// 2. 验证列名是否一致
-    /// 3. 创建右数据集的行哈希集合
+    /// Algorithm steps:
+    /// 1. Obtain the two input datasets on the left and right.
+    /// 2. Verify whether the column names are consistent.
+    /// 3. Create a set of row hashes for the right dataset.
     fn execute_intersect(&mut self) -> Result<DataSet, QueryError> {
-        // 获取左右输入数据集
+        // Obtain the left and right input datasets
         let left_dataset = self.set_executor.get_left_input_data()?;
         let right_dataset = self.set_executor.get_right_input_data()?;
 
-        // 检查输入数据集的有效性
+        // Check the validity of the input dataset.
         self.set_executor
             .check_input_data_sets(&left_dataset, &right_dataset)?;
 
-        // 如果任一数据集为空，直接返回空结果
+        // If either dataset is empty, return an empty result directly.
         if left_dataset.rows.is_empty() || right_dataset.rows.is_empty() {
             return Ok(DataSet {
                 col_names: self.set_executor.get_col_names().clone(),
@@ -66,10 +66,10 @@ impl<S: StorageClient> IntersectExecutor<S> {
             });
         }
 
-        // 创建右数据集的行哈希集合用于快速查找
+        // Creating a set of row hashes for the right dataset is used for quick searches.
         let right_row_set = SetExecutor::<S>::create_row_set(&right_dataset.rows);
 
-        // 找出同时在左右数据集中存在的行
+        // Identify the rows that exist in both the left and the right datasets.
         let mut intersect_rows = Vec::new();
 
         for left_row in &left_dataset.rows {
@@ -78,7 +78,7 @@ impl<S: StorageClient> IntersectExecutor<S> {
             }
         }
 
-        // 构建结果数据集
+        // Constructing the resulting dataset
         let result_dataset = DataSet {
             col_names: self.set_executor.get_col_names().clone(),
             rows: intersect_rows,
@@ -143,7 +143,7 @@ mod tests {
     use super::*;
     use crate::core::Value;
 
-    // 创建测试用的存储引擎
+    // Create a storage engine for testing purposes.
     fn create_test_storage() -> Arc<Mutex<crate::storage::test_mock::MockStorage>> {
         let storage =
             crate::storage::test_mock::MockStorage::new().expect("Failed to create test storage");
@@ -166,7 +166,7 @@ mod tests {
             context,
         );
 
-        // 设置测试数据
+        // Set up the test data
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -179,13 +179,13 @@ mod tests {
         let right_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
-                vec![Value::Int(2), Value::String("Bob".to_string())], // 共同行
-                vec![Value::Int(3), Value::String("Charlie".to_string())], // 共同行
+                vec![Value::Int(2), Value::String("Bob".to_string())], // Act together
+                vec![Value::Int(3), Value::String("Charlie".to_string())], // Act together
                 vec![Value::Int(4), Value::String("David".to_string())],
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -195,18 +195,18 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行INTERSECT操作
+        // Perform the INTERSECT operation
         let result = executor.execute();
 
-        // 验证结果
+        // Verification results
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该有2个共同的行：Bob和Charlie
-            // 2行 × 2列 = 4个值
+            // There should be 2 common lines: Bob and Charlie.
+            // 2 rows × 2 columns = 4 values
             assert_eq!(values.len(), 4);
         } else {
-            panic!("期望Values结果");
+            panic!("Expected Values results");
         }
     }
 
@@ -222,7 +222,7 @@ mod tests {
             context,
         );
 
-        // 设置没有共同行的数据集
+        // Setting a dataset for which there are no common rows
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -239,7 +239,7 @@ mod tests {
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_no_common".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -249,12 +249,12 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行INTERSECT操作
+        // Perform the INTERSECT operation
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该没有共同的行
+            // There shouldn’t be any common lines (or elements) between them.
             assert_eq!(values.len(), 0);
         }
     }
@@ -271,7 +271,7 @@ mod tests {
             context,
         );
 
-        // 设置空的左数据集和非空的右数据集
+        // Set an empty left dataset and a non-empty right dataset.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![],
@@ -285,7 +285,7 @@ mod tests {
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -295,12 +295,12 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 测试左数据集为空的INTERSECT
+        // The INTERSECT operation with the left dataset being empty results in no output (i.e., no results are returned).
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 左数据集为空，交集应该为空
+            // The left dataset is empty; therefore, the intersection should also be empty.
             assert_eq!(values.len(), 0);
         }
     }
@@ -317,7 +317,7 @@ mod tests {
             context,
         );
 
-        // 设置非空的左数据集和空的右数据集
+        // Set a non-empty left dataset and an empty right dataset.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -331,7 +331,7 @@ mod tests {
             rows: vec![],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -341,12 +341,12 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 测试右数据集为空的INTERSECT
+        // The INTERSECT operation with the right dataset being empty results in no output (i.e., no results are returned).
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 右数据集为空，交集应该为空
+            // The right dataset is empty; therefore, the intersection should also be empty.
             assert_eq!(values.len(), 0);
         }
     }
@@ -363,7 +363,7 @@ mod tests {
             context,
         );
 
-        // 设置两个空数据集
+        // Create two empty datasets.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![],
@@ -374,7 +374,7 @@ mod tests {
             rows: vec![],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -384,7 +384,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 测试两个数据集都为空的INTERSECT
+        // Test the INTERSECT operation for two datasets that are both empty.
         let result = executor.execute();
         assert!(result.is_ok());
 
@@ -405,12 +405,12 @@ mod tests {
             context,
         );
 
-        // 设置包含重复行的数据集
+        // Setting up a dataset that contains duplicate rows
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "value".to_string()],
             rows: vec![
                 vec![Value::Int(1), Value::String("common".to_string())],
-                vec![Value::Int(1), Value::String("common".to_string())], // 左数据集中的重复行
+                vec![Value::Int(1), Value::String("common".to_string())], // Duplicate rows in the left dataset
                 vec![Value::Int(2), Value::String("unique".to_string())],
             ],
         };
@@ -423,7 +423,7 @@ mod tests {
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_dup".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -433,16 +433,16 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行INTERSECT操作
+        // Perform the INTERSECT operation
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该包含共同的行，左数据集中的重复行应该被保留
-            // 2行 × 2列 = 4个值
+            // The common rows should be included, and the duplicate rows from the left dataset should be retained.
+            // 2 rows × 2 columns = 4 values
             assert_eq!(values.len(), 4);
         } else {
-            panic!("期望Values结果");
+            panic!("Expected Values results");
         }
     }
 
@@ -458,18 +458,18 @@ mod tests {
             expr_context,
         );
 
-        // 设置列名不匹配的数据集
+        // A dataset with column names that do not match the specified values
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![vec![Value::Int(1), Value::String("Alice".to_string())]],
         };
 
         let right_dataset = DataSet {
-            col_names: vec!["id".to_string(), "title".to_string()], // 不同的列名
+            col_names: vec!["id".to_string(), "title".to_string()], // Different column names
             rows: vec![vec![Value::Int(1), Value::String("Ms".to_string())]],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_mismatch".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -479,7 +479,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行应该失败
+        // The execution should fail.
         let result = executor.execute();
         assert!(result.is_err());
 
@@ -489,7 +489,7 @@ mod tests {
         {
             assert!(msg.contains("列名不匹配"));
         } else {
-            panic!("期望列名不匹配错误");
+            panic!("Error: The expected column names do not match.");
         }
     }
 }

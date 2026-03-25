@@ -1,6 +1,6 @@
-//! 数据处理节点实现
+//! Implementation of data processing nodes
 //!
-//! 包含Union、Unwind、Dedup等数据处理相关的计划节点
+//! Plan nodes related to data processing, including Union, Unwind, Dedup, etc.
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::define_plan_node_with_deps;
@@ -156,10 +156,10 @@ impl AssignNode {
     }
 }
 
-/// RollUpApply节点 - 分组聚合收集
+/// RollUpApply node – Grouped aggregation and data collection
 ///
-/// 接收左右两个输入，将右侧数据按比较列分组后收集为列表，
-/// 为左侧每行返回对应的聚合结果
+/// Receive two inputs from the left and right. Group the data from the right according to the comparison column and collect it in a list.
+/// Return the corresponding aggregate results for each row on the left side.
 #[derive(Debug, Clone)]
 pub struct RollUpApplyNode {
     id: i64,
@@ -308,7 +308,7 @@ impl RollUpApplyNode {
     }
 }
 
-// 为 RollUpApplyNode 实现 PlanNode trait
+// Implement the PlanNode trait for RollUpApplyNode
 impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
     for RollUpApplyNode
 {
@@ -345,7 +345,7 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
     }
 }
 
-// 为 RollUpApplyNode 实现 PlanNodeClonable trait
+// Implement the PlanNodeClonable trait for RollUpApplyNode
 impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable
     for RollUpApplyNode
 {
@@ -363,7 +363,7 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
     }
 }
 
-// 为 RollUpApplyNode 实现 SingleInputNode trait
+// Implement the SingleInputNode trait for RollUpApplyNode
 impl crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode
     for RollUpApplyNode
 {
@@ -389,10 +389,10 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleIn
     }
 }
 
-/// PatternApply节点 - 模式匹配应用
+/// PatternApply node – Pattern matching application
 ///
-/// 接收左右两个输入，根据键列判断左侧数据是否匹配右侧模式
-/// 支持正向匹配（EXISTS）和反向匹配（NOT EXISTS）
+/// Receive two inputs from the left and right sides. Determine whether the data on the left side matches the pattern on the right side based on the key columns.
+/// Supports both forward matching (EXISTS) and reverse matching (NOT EXISTS).
 #[derive(Debug, Clone)]
 pub struct PatternApplyNode {
     id: i64,
@@ -541,7 +541,7 @@ impl PatternApplyNode {
     }
 }
 
-// 为 PatternApplyNode 实现 PlanNode trait
+// Implement the PlanNode trait for PatternApplyNode
 impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
     for PatternApplyNode
 {
@@ -578,7 +578,7 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
     }
 }
 
-// 为 PatternApplyNode 实现 PlanNodeClonable trait
+// Implement the PlanNodeClonable trait for PatternApplyNode.
 impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNodeClonable
     for PatternApplyNode
 {
@@ -596,7 +596,7 @@ impl crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode
     }
 }
 
-// 为 PatternApplyNode 实现 SingleInputNode trait
+// Implement the SingleInputNode trait for PatternApplyNode
 impl crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode
     for PatternApplyNode
 {
@@ -705,9 +705,9 @@ mod tests {
     }
 }
 
-/// Remove节点 - 删除属性或标签
+/// Remove a node: Delete an attribute or a tag.
 ///
-/// 用于删除顶点或边的属性、标签
+/// Attributes and labels used for deleting vertices or edges
 #[derive(Debug, Clone)]
 pub struct RemoveNode {
     id: i64,

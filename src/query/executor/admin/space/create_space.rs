@@ -1,6 +1,6 @@
-//! CreateSpaceExecutor - 创建图空间执行器
+//! CreateSpaceExecutor – Creates an executor for working with graph spaces.
 //!
-//! 负责创建新的图空间（单节点）。
+//! Responsible for creating new graph spaces (single node).
 
 use std::sync::Arc;
 
@@ -21,7 +21,7 @@ impl SpaceInfo {
             _ => DataType::String,
         };
 
-        // 使用自动生成的Space ID
+        // Use the automatically generated Space ID.
         let space_id = crate::core::types::generate_space_id();
 
         Self {
@@ -36,7 +36,7 @@ impl SpaceInfo {
     }
 }
 
-/// 图空间信息（执行器内部使用）
+/// Graph space information (used internally by the actuator)
 #[derive(Debug, Clone)]
 pub struct ExecutorSpaceInfo {
     pub space_name: String,
@@ -57,9 +57,9 @@ impl ExecutorSpaceInfo {
     }
 }
 
-/// 创建图空间执行器
+/// Create a graph space executor
 ///
-/// 该执行器负责在存储层创建新的图空间。
+/// This executor is responsible for creating new graph spaces in the storage layer.
 #[derive(Debug)]
 pub struct CreateSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -68,7 +68,7 @@ pub struct CreateSpaceExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> CreateSpaceExecutor<S> {
-    /// 创建新的 CreateSpaceExecutor
+    /// Create a new instance of the CreateSpaceExecutor class.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -82,7 +82,7 @@ impl<S: StorageClient> CreateSpaceExecutor<S> {
         }
     }
 
-    /// 创建带 IF NOT EXISTS 选项的 CreateSpaceExecutor
+    /// Create a CreateSpaceExecutor with the IF NOT EXISTS option
     pub fn with_if_not_exists(
         id: i64,
         storage: Arc<Mutex<S>>,

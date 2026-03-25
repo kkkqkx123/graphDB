@@ -1,6 +1,6 @@
-//! CREATE 数据语句规划器
+//! CREATE Data Statement Planner
 //!
-//! 处理 Cypher 风格 CREATE 语句的查询规划
+//! Query planning for handling Cypher-style CREATE statements
 //! 支持 CREATE (n:Label {props}) 和 CREATE (a)-[:Type]->(b) 语法
 
 use crate::core::types::ContextualExpression;
@@ -20,18 +20,18 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// CREATE 数据语句规划器
-/// 负责将 Cypher 风格的 CREATE 语句转换为执行计划
+/// CREATE Data Statement Planner
+/// Responsible for converting CREATE statements in the Cypher style into execution plans.
 #[derive(Debug, Clone)]
 pub struct CreatePlanner;
 
 impl CreatePlanner {
-    /// 创建新的 CREATE 规划器
+    /// Create a new CREATE planner.
     pub fn new() -> Self {
         Self
     }
 
-    /// 判断是否为数据创建语句（而非 Schema 创建）
+    /// Determine whether it is a data creation statement (as opposed to a Schema creation statement).
     fn is_data_create(stmt: &CreateStmt) -> bool {
         matches!(
             &stmt.target,
@@ -39,7 +39,7 @@ impl CreatePlanner {
         )
     }
 
-    /// 从 Stmt 提取 CreateStmt
+    /// Extract the CreateStmt from the Stmt.
     fn extract_create_stmt(&self, stmt: &Stmt) -> Result<CreateStmt, PlannerError> {
         match stmt {
             Stmt::Create(create_stmt) => Ok(create_stmt.clone()),
@@ -49,7 +49,7 @@ impl CreatePlanner {
         }
     }
 
-    /// 构建顶点插入信息
+    /// Constructing vertex insertion information
     fn build_vertex_insert_info(
         &self,
         space_name: String,
@@ -89,7 +89,7 @@ impl CreatePlanner {
         })
     }
 
-    /// 构建边插入信息
+    /// Constructing edge insertion information
     fn build_edge_insert_info(
         &self,
         space_name: String,
@@ -110,7 +110,7 @@ impl CreatePlanner {
         }
     }
 
-    /// 创建结果投影列
+    /// Create result projection columns
     fn create_yield_columns(
         &self,
         count: usize,
@@ -136,10 +136,10 @@ impl Planner for CreatePlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        // 使用验证信息进行优化规划
+        // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;
 
-        // 检查语义信息
+        // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
             log::debug!("CREATE 引用的标签: {:?}", referenced_tags);
@@ -150,27 +150,27 @@ impl Planner for CreatePlanner {
             log::debug!("CREATE 引用的边类型: {:?}", referenced_edges);
         }
 
-        // 获取空间名称
+        // Obtain the space name
         let space_name = qctx
             .rctx()
             .space_name
             .clone()
             .unwrap_or_else(|| "default".to_string());
 
-        // 提取 CREATE 语句
+        // Extract the CREATE statement.
         let create_stmt = self.extract_create_stmt(validated.stmt())?;
 
-        // 创建参数节点
+        // Create a Parameter Node
         let arg_node = ArgumentNode::new(next_node_id(), "create_args");
 
-        // 根据 CREATE 目标类型创建相应的插入节点
+        // Create the corresponding insertion nodes based on the type of the CREATE target.
         let (insert_node, created_count) = match &create_stmt.target {
             CreateTarget::Node {
                 variable: _,
                 labels,
                 properties,
             } => {
-                // 解析属性
+                // Analyzing attributes
                 let props = if let Some(expr) = properties {
                     Self::extract_properties(expr, validated.expr_context())?
                 } else {
@@ -197,7 +197,7 @@ impl Planner for CreatePlanner {
                 properties,
                 direction: _,
             } => {
-                // 解析属性
+                // Analyzing attributes
                 let props = if let Some(expr) = properties {
                     Self::extract_properties(expr, validated.expr_context())?
                 } else {
@@ -293,7 +293,7 @@ impl Planner for CreatePlanner {
             }
         };
 
-        // 创建投影节点来返回创建结果
+        // Create a projection node to return the creation results.
         let yield_columns = self.create_yield_columns(created_count, validated.expr_context());
 
         let project_node = ProjectNode::new(insert_node, yield_columns).map_err(|e| {
@@ -302,7 +302,7 @@ impl Planner for CreatePlanner {
 
         let final_node = PlanNodeEnum::Project(project_node);
 
-        // 创建 SubPlan
+        // Create a SubPlan
         let sub_plan = SubPlan::new(Some(final_node), Some(PlanNodeEnum::Argument(arg_node)));
 
         Ok(sub_plan)
@@ -317,7 +317,7 @@ impl Planner for CreatePlanner {
 }
 
 impl CreatePlanner {
-    /// 从表达式中提取属性键值对
+    /// Extract attribute key-value pairs from the expression.
     fn extract_properties(
         expr: &ContextualExpression,
         expr_context: &Arc<ExpressionAnalysisContext>,
@@ -343,7 +343,7 @@ impl CreatePlanner {
         }
     }
 
-    /// 处理节点模式
+    /// Processing node mode
     fn process_node_pattern(
         &self,
         node: &crate::query::parser::ast::pattern::NodePattern,
@@ -359,7 +359,7 @@ impl CreatePlanner {
         self.build_vertex_insert_info(space_name.to_string(), &node.labels, &props, expr_context)
     }
 
-    /// 处理路径模式
+    /// Handle path patterns
     fn process_path_pattern(
         &self,
         path: &crate::query::parser::ast::pattern::PathPattern,
@@ -442,7 +442,7 @@ impl CreatePlanner {
         Ok((vertex_infos, edge_infos))
     }
 
-    /// 组合多个插入节点
+    /// Combining multiple insertion nodes
     fn combine_insert_nodes(
         &self,
         nodes: Vec<PlanNodeEnum>,
@@ -481,7 +481,7 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        // 创建验证后的语句
+        // Create a verified statement.
         let validation_info = ValidationInfo::new();
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
@@ -502,12 +502,12 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        // 创建验证后的语句
+        // Create a verified statement.
         let validation_info = ValidationInfo::new();
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
-        assert!(result.is_ok(), "带属性的 CREATE PATH 应该成功");
+        assert!(result.is_ok(), "The CREATE PATH command with attributes should succeed.");
     }
 
     #[test]
@@ -519,12 +519,12 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        // 创建验证后的语句
+        // Create a verified statement.
         let validation_info = ValidationInfo::new();
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
-        assert!(result.is_ok(), "多边 CREATE PATH 应该成功");
+        assert!(result.is_ok(), "The多边al CREATE PATH operation should succeed.");
     }
 
     #[test]
@@ -536,12 +536,12 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        // 创建验证后的语句
+        // Create a verified statement.
         let validation_info = ValidationInfo::new();
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
-        assert!(result.is_ok(), "单节点 CREATE 应该成功");
+        assert!(result.is_ok(), "The single-node CREATE operation should succeed.");
     }
 
     #[test]
@@ -553,12 +553,12 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        // 创建验证后的语句
+        // Create a verified statement.
         let validation_info = ValidationInfo::new();
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
-        assert!(result.is_err(), "没有标签的 CREATE PATH 应该失败");
+        assert!(result.is_err(), "A CREATE PATH command without any tags should fail.");
     }
 
     #[test]
@@ -570,11 +570,11 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        // 创建验证后的语句
+        // Create a verified statement.
         let validation_info = ValidationInfo::new();
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let result = planner.transform(&validated, qctx);
-        assert!(result.is_ok(), "双向边 CREATE PATH 应该成功");
+        assert!(result.is_ok(), "The creation of a bidirectional edge using the “CREATE PATH” command should succeed.");
     }
 }

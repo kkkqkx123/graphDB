@@ -1,6 +1,6 @@
-//! CreateUserExecutor - 创建用户执行器
+//! CreateUserExecutor – Creates a user executor.
 //!
-//! 负责创建新的数据库用户。
+//! Responsible for creating new database users.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -10,9 +10,9 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 创建用户执行器
+/// Create a user executor.
 ///
-/// 该执行器负责在存储层创建新用户。
+/// This executor is responsible for creating new users in the storage layer.
 #[derive(Debug)]
 pub struct CreateUserExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

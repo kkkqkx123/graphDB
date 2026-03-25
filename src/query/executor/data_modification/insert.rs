@@ -1,6 +1,6 @@
-//! 插入执行器
+//! Insert the actuator.
 //!
-//! 负责插入顶点和边数据到存储层
+//! Responsible for inserting vertex and edge data into the storage layer.
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -12,9 +12,9 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 插入执行器
+/// Insert the actuator.
 ///
-/// 负责插入新的顶点和边数据
+/// Responsible for inserting new vertex and edge data
 pub struct InsertExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_data: Option<Vec<Vertex>>,
@@ -66,7 +66,7 @@ impl<S: StorageClient> InsertExecutor<S> {
         }
     }
 
-    /// 创建带 IF NOT EXISTS 选项的 InsertExecutor
+    /// Create an InsertExecutor with the IF NOT EXISTS option
     pub fn with_vertices_if_not_exists(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -81,7 +81,7 @@ impl<S: StorageClient> InsertExecutor<S> {
         }
     }
 
-    /// 创建带 IF NOT EXISTS 选项的 InsertExecutor（用于边）
+    /// Create an InsertExecutor with the IF NOT EXISTS option (for edges)
     pub fn with_edges_if_not_exists(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -155,9 +155,9 @@ impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
         if let Some(vertices) = &self.vertex_data {
             let mut storage = self.get_storage().lock();
             for vertex in vertices {
-                // 如果启用了 IF NOT EXISTS，检查顶点是否已存在
+                // If IF NOT EXISTS is enabled, check whether the vertex already exists.
                 if self.if_not_exists && storage.get_vertex("default", &vertex.vid)?.is_some() {
-                    // 顶点已存在，跳过插入
+                    // The vertex already exists; the insertion step will be skipped.
                     continue;
                 }
                 storage.insert_vertex("default", vertex.clone())?;

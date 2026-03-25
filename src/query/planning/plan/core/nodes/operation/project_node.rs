@@ -1,6 +1,6 @@
-//! 投影节点实现
+//! Implementation of the projection node
 //!
-//! ProjectNode 用于根据指定的列表达式投影输入数据流
+//! ProjectNode is used to project the input data stream based on a specified list expression.
 
 use std::sync::Arc;
 
@@ -19,7 +19,7 @@ define_plan_node_with_deps! {
 }
 
 impl ProjectNode {
-    /// 创建新的投影节点
+    /// Create a new projection node.
     pub fn new(
         input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         columns: Vec<YieldColumn>,
@@ -37,12 +37,12 @@ impl ProjectNode {
         })
     }
 
-    /// 获取投影列
+    /// Obtain the projection column
     pub fn columns(&self) -> &[YieldColumn] {
         &self.columns
     }
 
-    /// 设置投影列
+    /// Set the projection column
     pub fn set_columns(&mut self, columns: Vec<YieldColumn>) {
         self.columns = columns;
         self.col_names = self.columns.iter().map(|col| col.alias.clone()).collect();

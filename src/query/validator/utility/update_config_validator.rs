@@ -1,5 +1,5 @@
-//! Update Configs 语句验证器
-//! 用于验证 UPDATE CONFIGS 语句
+//! Update Configs Statement Validator
+//! Used to verify the UPDATE CONFIGS statement
 //! 参考 nebula-graph AdminValidator.cpp 中的 SetConfigValidator 实现
 
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 
-/// Update Configs 语句验证器
+/// Update Configs Statement Validator
 #[derive(Debug)]
 pub struct UpdateConfigsValidator {
     module: Option<String>,
@@ -25,7 +25,7 @@ pub struct UpdateConfigsValidator {
 }
 
 impl UpdateConfigsValidator {
-    /// 创建新的 UpdateConfigs 验证器
+    /// Create a new UpdateConfigs validator.
     pub fn new() -> Self {
         Self {
             module: None,
@@ -37,7 +37,7 @@ impl UpdateConfigsValidator {
         }
     }
 
-    /// 验证配置模块名
+    /// Verify the configuration module name.
     fn validate_module(&self, module: &Option<String>) -> Result<(), ValidationError> {
         if let Some(ref m) = module {
             let valid_modules = ["GRAPH", "META", "STORAGE", "ALL"];
@@ -55,7 +55,7 @@ impl UpdateConfigsValidator {
         Ok(())
     }
 
-    /// 验证配置名
+    /// Verify the configuration name.
     fn validate_config_name(&self, name: &str) -> Result<(), ValidationError> {
         if name.is_empty() {
             return Err(ValidationError::new(
@@ -64,7 +64,7 @@ impl UpdateConfigsValidator {
             ));
         }
 
-        // 检查配置名格式（只允许字母、数字、下划线）
+        // Check the format of the configuration name (only letters, digits, and underscores are allowed).
         if !name.chars().all(|c| c.is_alphanumeric() || c == '_') {
             return Err(ValidationError::new(
                 format!("Invalid config name format: {}", name),
@@ -75,7 +75,7 @@ impl UpdateConfigsValidator {
         Ok(())
     }
 
-    /// 验证配置值
+    /// Verify the configuration values.
     fn validate_config_value(&self, value: &ContextualExpression) -> Result<(), ValidationError> {
         if let Some(e) = value.get_expression() {
             self.validate_config_value_internal(&e)
@@ -87,14 +87,14 @@ impl UpdateConfigsValidator {
         }
     }
 
-    /// 内部方法：验证配置值
+    /// Internal method: Verifying configuration values
     fn validate_config_value_internal(
         &self,
         value: &crate::core::types::expr::Expression,
     ) -> Result<(), ValidationError> {
         use crate::core::types::expr::Expression;
 
-        // 配置值必须是常量表达式
+        // The configuration values must be constant expressions.
         match value {
             Expression::Literal(_) => Ok(()),
             _ => Err(ValidationError::new(
@@ -105,27 +105,27 @@ impl UpdateConfigsValidator {
     }
 
     fn validate_impl(&mut self, stmt: &UpdateConfigsStmt) -> Result<(), ValidationError> {
-        // 验证模块名
+        // Verify the module name.
         self.validate_module(&stmt.module)?;
 
-        // 验证配置名
+        // Verify the configuration name.
         self.validate_config_name(&stmt.config_name)?;
 
-        // 验证配置值
+        // Verify the configuration values.
         self.validate_config_value(&stmt.config_value)?;
 
-        // 保存信息
+        // Save the information.
         self.module = stmt.module.clone();
         self.config_name = stmt.config_name.clone();
 
-        // 设置输出列
+        // Set the output columns
         self.setup_outputs();
 
         Ok(())
     }
 
     fn setup_outputs(&mut self) {
-        // UPDATE CONFIGS 输出更新结果
+        // The “UPDATE CONFIGS” command outputs the results of the configuration updates.
         self.outputs = vec![
             ColumnDef {
                 name: "module".to_string(),
@@ -149,10 +149,10 @@ impl Default for UpdateConfigsValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for UpdateConfigsValidator {
     fn validate(
         &mut self,
@@ -193,7 +193,7 @@ impl StatementValidator for UpdateConfigsValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // UPDATE CONFIGS 是全局语句
+        // “UPDATE CONFIGS” is a global statement.
         true
     }
 
@@ -227,7 +227,7 @@ mod tests {
     fn test_validate_module() {
         let validator = UpdateConfigsValidator::new();
 
-        // 有效模块
+        // Effective module
         assert!(validator
             .validate_module(&Some("GRAPH".to_string()))
             .is_ok());
@@ -238,7 +238,7 @@ mod tests {
         assert!(validator.validate_module(&Some("ALL".to_string())).is_ok());
         assert!(validator.validate_module(&None).is_ok());
 
-        // 无效模块
+        // Invalid module
         assert!(validator
             .validate_module(&Some("INVALID".to_string()))
             .is_err());
@@ -248,11 +248,11 @@ mod tests {
     fn test_validate_config_name() {
         let validator = UpdateConfigsValidator::new();
 
-        // 有效配置名
+        // Valid configuration name
         assert!(validator.validate_config_name("max_connections").is_ok());
         assert!(validator.validate_config_name("timeout_ms").is_ok());
 
-        // 无效配置名
+        // Invalid configuration name
         assert!(validator.validate_config_name("").is_err());
         assert!(validator.validate_config_name("invalid-name").is_err());
         assert!(validator.validate_config_name("invalid.name").is_err());
@@ -263,7 +263,7 @@ mod tests {
         let validator = UpdateConfigsValidator::new();
         let expr_context = ExpressionAnalysisContext::new();
 
-        // 有效配置值
+        // Valid configuration values
         let int_meta = ExpressionMeta::new(Expression::Literal(Value::Int(100)));
         let int_expr_id = expr_context.register_expression(int_meta);
         let int_expr = ContextualExpression::new(int_expr_id, Arc::new(expr_context.clone()));
@@ -274,7 +274,7 @@ mod tests {
         let bool_expr = ContextualExpression::new(bool_expr_id, Arc::new(expr_context.clone()));
         assert!(validator.validate_config_value(&bool_expr).is_ok());
 
-        // 无效配置值（非常量）
+        // Invalid configuration value (non-constant).
         let var_meta = ExpressionMeta::new(Expression::Variable("var".to_string()));
         let var_expr_id = expr_context.register_expression(var_meta);
         let var_expr = ContextualExpression::new(var_expr_id, Arc::new(expr_context));

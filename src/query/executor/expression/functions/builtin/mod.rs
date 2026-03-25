@@ -1,11 +1,11 @@
-//! 内置函数实现模块
+//! Module for implementing built-in functions
 //!
-//! 提供所有内置函数的具体实现，按功能分类组织
+//! Provide the specific implementations of all built-in functions, organized by function category.
 //!
-//! 注意：函数注册现在通过 FunctionRegistry::register_all_builtin_functions 直接完成
-//! 使用静态分发机制，通过 BuiltinFunction 枚举直接调用函数
+//! Function registration is now performed directly through FunctionRegistry::register_all_builtin_functions.
+//! Using a static distribution mechanism, the function is directly called via the BuiltinFunction enumeration.
 
-// 宏模块必须先加载，供其他模块使用
+// The macro module must be loaded first so that it can be used by other modules.
 #[macro_use]
 pub mod macros;
 

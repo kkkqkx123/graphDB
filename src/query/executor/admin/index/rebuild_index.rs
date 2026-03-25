@@ -1,6 +1,6 @@
-//! 重建索引执行器
+//! Rebuild Index Executor
 //!
-//! 提供标签索引和边索引的重建功能。
+//! Provides reconstruction of tab indexes and side indexes.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -9,9 +9,9 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 重建标签索引执行器
+/// Rebuild Tag Indexing Actuator
 ///
-/// 该执行器负责重建指定的标签索引。
+/// This executor is responsible for rebuilding the specified tag index.
 #[derive(Debug)]
 pub struct RebuildTagIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -20,7 +20,7 @@ pub struct RebuildTagIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> RebuildTagIndexExecutor<S> {
-    /// 创建新的 RebuildTagIndexExecutor
+    /// Creating a new RebuildTagIndexExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -100,9 +100,9 @@ impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for RebuildTa
     }
 }
 
-/// 重建边索引执行器
+/// Rebuild Edge Indexing Actuator
 ///
-/// 该执行器负责重建指定的边索引。
+/// This executor is responsible for rebuilding the specified edge index.
 #[derive(Debug)]
 pub struct RebuildEdgeIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -111,7 +111,7 @@ pub struct RebuildEdgeIndexExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> RebuildEdgeIndexExecutor<S> {
-    /// 创建新的 RebuildEdgeIndexExecutor
+    /// Creating a new RebuildEdgeIndexExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,

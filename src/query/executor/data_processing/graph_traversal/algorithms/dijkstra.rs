@@ -1,6 +1,6 @@
-//! Dijkstra最短路径算法
+//! Dijkstra's Shortest Path Algorithm
 //!
-//! 使用二叉堆优化的Dijkstra算法查找带权最短路径
+//! Finding weighted shortest paths using Dijkstra's algorithm for binary heap optimization
 
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -16,7 +16,7 @@ use super::types::{
     has_duplicate_edges, AlgorithmStats, DistanceNode, EdgeWeightConfig, SelfLoopDedup,
 };
 
-/// Dijkstra最短路径算法
+/// Dijkstra's Shortest Path Algorithm
 pub struct Dijkstra<S: StorageClient> {
     storage: Arc<Mutex<S>>,
     stats: AlgorithmStats,
@@ -44,7 +44,7 @@ impl<S: StorageClient> Dijkstra<S> {
         self
     }
 
-    /// 获取边的权重
+    /// Getting the weight of an edge
     fn get_edge_weight(&self, edge: &Edge) -> f64 {
         match &self.weight_config {
             EdgeWeightConfig::Unweighted => 1.0,
@@ -60,7 +60,7 @@ impl<S: StorageClient> Dijkstra<S> {
         }
     }
 
-    /// 获取邻居节点和边
+    /// Get neighbor nodes and edges
     fn get_neighbors_with_edges(
         &self,
         node_id: &Value,
@@ -81,7 +81,7 @@ impl<S: StorageClient> Dijkstra<S> {
             edges
         };
 
-        // 自环边去重
+        // (math.) self-loop edge de-weighting
         let mut dedup = SelfLoopDedup::new();
 
         let neighbors_with_edges: Vec<(Value, Edge, f64)> = filtered_edges
@@ -121,7 +121,7 @@ impl<S: StorageClient> Dijkstra<S> {
         Ok(neighbors_with_edges)
     }
 
-    /// 获取顶点
+    /// Get Vertex
     fn get_vertex(&self, vid: &Value) -> Result<Option<Vertex>, QueryError> {
         let storage = self.storage.lock();
         storage
@@ -129,7 +129,7 @@ impl<S: StorageClient> Dijkstra<S> {
             .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
-    /// 根据前驱映射重建路径
+    /// Reconstructing paths based on precursor mapping
     fn reconstruct_path(
         &self,
         end_id: &Value,
@@ -144,7 +144,7 @@ impl<S: StorageClient> Dijkstra<S> {
             current = prev_id.clone();
 
             if start_ids.contains(&current) {
-                // 找到起点，构建路径
+                // Finding the Starting Point, Building the Path
                 let start_vertex = match self.get_vertex(&current)? {
                     Some(v) => v,
                     None => return Ok(None),
@@ -155,7 +155,7 @@ impl<S: StorageClient> Dijkstra<S> {
                     steps: Vec::new(),
                 };
 
-                // 反向遍历构建路径
+                // Reverse traversal build path
                 path_edges.reverse();
                 for (dst_id, edge) in path_edges {
                     let dst_vertex = match self.get_vertex(&dst_id)? {

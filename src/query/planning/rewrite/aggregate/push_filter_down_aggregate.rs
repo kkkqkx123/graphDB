@@ -1,8 +1,8 @@
-//! 过滤下推到聚合节点的优化规则
+//! Optimization rules that are filtered and pushed down to the aggregation nodes
 //!
-//! 此规则将过滤操作下推到聚合节点之前执行，以减少进入聚合的数据量。
+//! This rule pushes the filtering operations to be executed before the aggregation nodes, in order to reduce the amount of data that enters the aggregation process.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before:
 //! ```text
@@ -22,10 +22,10 @@
 //!           Input
 //! ```
 //!
-//! # 适用条件
+//! # Applicable Conditions
 //!
-//! - Filter 节点的子节点是 Aggregate 节点
-//! - Filter 条件不涉及聚合函数（只涉及聚合的输入列）
+//! The child nodes of the Filter node are Aggregate nodes.
+//! The Filter criteria do not involve aggregate functions (they only relate to the input columns that are being aggregated).
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor_checkers::AggregateFunctionChecker;
@@ -40,20 +40,20 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// 将过滤下推到聚合之前的规则
+/// Rules that filter the data before it is aggregated
 #[derive(Debug)]
 pub struct PushFilterDownAggregateRule;
 
 impl PushFilterDownAggregateRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         Self
     }
 
-    /// 检查条件是否包含聚合函数引用
+    /// Check whether the condition contains references to aggregate functions.
     ///
     /// 如果条件引用了聚合函数的结果（如 COUNT(*), SUM(amount) 等），
-    /// 则不能将 Filter 下推，因为聚合结果在聚合之前不存在。
+    /// Therefore, the Filter cannot be applied “downstream” (to subsequent processing steps), because the aggregated results do not exist before the aggregation process is completed.
     fn has_aggregate_function_reference(
         condition: &Expression,
         group_keys: &[String],
@@ -64,18 +64,18 @@ impl PushFilterDownAggregateRule {
             group_keys: &[String],
             agg_funcs: &[AggregateFunction],
         ) -> bool {
-            // 首先检查是否包含聚合函数表达式
+            // First, check whether there are any expressions containing aggregate function statements.
             if AggregateFunctionChecker::check(expr) {
                 return true;
             }
 
-            // 检查变量是否是聚合函数的输出列名
+            // Check whether the variable is the name of an output column of an aggregate function.
             if let Expression::Variable(name) = expr {
-                // 如果是分组键，可以下推
+                // If it is a grouping key, it can be pushed down (i.e., used for grouping data).
                 if group_keys.contains(name) {
                     return false;
                 }
-                // 检查是否是聚合函数的输出列名
+                // Check whether it is the name of the output column of an aggregate function.
                 for agg_func in agg_funcs {
                     if agg_func.name() == name
                         || agg_func.field_name().map(|f| f == name).unwrap_or(false)
@@ -83,14 +83,14 @@ impl PushFilterDownAggregateRule {
                         return true;
                     }
                 }
-                // 其他变量，假设可以下推（是输入列）
+                // For the other variables, it is assumed that they can be determined based on the input data (i.e., they are dependent on the columns of input data).
                 return false;
             }
 
-            // 检查函数调用是否是聚合函数
+            // Check whether the function call is an aggregate function.
             if let Expression::Function { name, .. } = expr {
                 let func_name = name.to_lowercase();
-                // 检查是否是聚合函数名称
+                // Check whether it is the name of an aggregate function.
                 if matches!(
                     func_name.as_str(),
                     "sum"
@@ -107,7 +107,7 @@ impl PushFilterDownAggregateRule {
                 }
             }
 
-            // 递归检查 Binary 表达式的子表达式
+            // Recursively checking the subexpressions of a binary expression
             if let Expression::Binary { left, right, .. } = expr {
                 if check_expr(left, group_keys, agg_funcs) {
                     return true;
@@ -117,7 +117,7 @@ impl PushFilterDownAggregateRule {
                 }
             }
 
-            // 递归检查其他复合表达式
+            // Recursively check other composite expressions.
             if let Expression::Unary { operand, .. } = expr {
                 return check_expr(operand, group_keys, agg_funcs);
             }
@@ -128,25 +128,25 @@ impl PushFilterDownAggregateRule {
         check_expr(condition, group_keys, agg_funcs)
     }
 
-    /// 重写过滤条件中的变量引用
+    /// Rewrite the variable references in the filter conditions.
     ///
-    /// 将 Filter 中的变量引用转换为聚合输入的列引用。
+    /// Convert the variable references in the Filter to column references that represent the aggregated input data.
     ///
-    /// # 为什么不需要重写
+    /// # Why there's no need to rewrite
     ///
-    /// 当前实现直接返回原条件，这是正确的，因为：
+    /// The current implementation directly returns the original condition, which is correct, because:
     ///
-    /// 1. **分组键**：分组键在聚合前后名称相同，不需要重写
-    /// 2. **聚合函数输出列**：已被 `has_aggregate_function_reference` 阻止，不会下推
-    /// 3. **其他输入列**：输入列在聚合前后名称相同，不需要重写
+    /// 1. **Grouping key**: The name of the grouping key remains the same before and after the aggregation, so there is no need to rewrite it.
+    /// 2. **Columns output by aggregate functions**: These are blocked by the `has_aggregate_function_reference` check and will not be pushed down (i.e., their computation will not be performed at the lower levels of the data processing pipeline).
+    /// 3. **Other input columns**: The names of the input columns remain the same before and after the aggregation, so there is no need to rewrite them.
     ///
-    /// # 何时需要重写
+    /// # When it’s necessary to rewrite
     ///
-    /// 如果未来需要支持以下场景，可以使用 `expression_utils::rewrite_expression`：
+    /// If support for the following scenarios is needed in the future, `expression_utils::rewrite_expression` can be used:
     ///
-    /// - 聚合输出列名与输入列名不同
-    /// - 需要将聚合输出列映射回输入列
-    /// - 需要处理复杂的列名转换
+    /// The names of the output columns in the aggregated result are different from the names of the input columns.
+    /// It is necessary to map the aggregated output columns back to the input columns.
+    /// It is necessary to handle the conversion of complex column names.
     fn rewrite_filter_condition(condition: &Expression, _group_keys: &[String]) -> Expression {
         condition.clone()
     }
@@ -172,55 +172,55 @@ impl RewriteRule for PushFilterDownAggregateRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 Filter 节点
+        // Check whether it is a Filter node.
         let filter_node = match node {
             PlanNodeEnum::Filter(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取过滤条件
+        // Obtain the filtering criteria
         let filter_condition = filter_node.condition();
 
-        // 获取表达式用于处理
+        // The obtained expression is used for processing.
         let filter_expr = match filter_condition.expression() {
             Some(meta) => meta.inner().clone(),
             None => return Ok(None),
         };
 
-        // 获取上下文用于创建 ContextualExpression
+        // Obtaining the context is necessary for creating a ContextualExpression.
         let ctx = filter_condition.context().clone();
 
-        // 获取输入节点
+        // Obtain the input node
         let input = filter_node.input();
 
-        // 检查输入节点是否为 Aggregate
+        // Check whether the input node is an Aggregate.
         let agg_node = match input {
             PlanNodeEnum::Aggregate(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取聚合的分组键和聚合函数
+        // Obtain the aggregated group keys and the aggregate functions.
         let group_keys = agg_node.group_keys();
         let agg_funcs = agg_node.aggregation_functions();
 
-        // 检查过滤条件是否包含聚合函数引用
+        // Check whether the filter conditions contain references to aggregate functions.
         // 如果条件引用了聚合结果（如 HAVING COUNT(*) > 10），则不能下推
         if Self::has_aggregate_function_reference(&filter_expr, group_keys, agg_funcs) {
             return Ok(None);
         }
 
-        // 获取聚合的输入节点
+        // Obtain the aggregated input nodes.
         let agg_input = agg_node.input();
 
-        // 重写过滤条件（将输出列引用转换为输入列引用）
+        // Rewrite the filter conditions (convert the references to the output columns into references to the input columns).
         let rewritten_condition = Self::rewrite_filter_condition(&filter_expr, group_keys);
 
-        // 创建合并后的表达式元数据
+        // Create metadata for the merged expression.
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(rewritten_condition);
         let id = ctx.register_expression(expr_meta);
         let rewritten_ctx_expr = ContextualExpression::new(id, ctx);
 
-        // 创建新的 Filter 节点，放在 Aggregate 之前
+        // Create a new Filter node and place it before the Aggregate node.
         let new_filter = FilterNode::new(agg_input.clone(), rewritten_ctx_expr).map_err(|e| {
             crate::query::planning::rewrite::result::RewriteError::rewrite_failed(format!(
                 "创建 FilterNode 失败: {:?}",
@@ -228,7 +228,7 @@ impl RewriteRule for PushFilterDownAggregateRule {
             ))
         })?;
 
-        // 创建新的 Aggregate 节点，输入为新的 Filter 节点
+        // Create a new Aggregate node; the input for this new node will be the new Filter node.
         let new_aggregate = AggregateNode::new(
             PlanNodeEnum::Filter(new_filter),
             group_keys.to_vec(),
@@ -241,9 +241,9 @@ impl RewriteRule for PushFilterDownAggregateRule {
             ))
         })?;
 
-        // 构建转换结果
+        // Construct the translation result.
         let mut result = TransformResult::new();
-        result.erase_curr = true; // 删除原来的 Filter 节点
+        result.erase_curr = true; // Delete the original Filter node.
         result.add_new_node(PlanNodeEnum::Aggregate(new_aggregate));
 
         Ok(Some(result))
@@ -360,18 +360,18 @@ mod tests {
 
     #[test]
     fn test_apply_with_group_key_filter() {
-        // 创建 Start 节点
+        // Create the Start node.
         let start_node = StartNode::new();
         let start_enum = PlanNodeEnum::Start(start_node);
 
-        // 创建 Aggregate 节点
+        // Create an Aggregate node.
         let group_keys = vec!["category".to_string()];
         let agg_funcs = vec![AggregateFunction::Count(None)];
         let aggregate = AggregateNode::new(start_enum.clone(), group_keys, agg_funcs)
             .expect("创建 AggregateNode 失败");
         let aggregate_enum = PlanNodeEnum::Aggregate(aggregate);
 
-        // 创建 Filter 节点（条件只涉及分组键）
+        // Create a Filter node (the condition only involves the grouping key).
         let condition = Expression::Binary {
             op: crate::core::types::operators::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("category".to_string())),
@@ -386,12 +386,12 @@ mod tests {
         let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
-        // 应用规则
+        // Application rules
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
         let result = rule.apply(&mut ctx, &filter_enum).expect("应用规则失败");
 
-        // 验证转换成功
+        // Verify that the conversion was successful.
         assert!(result.is_some());
         let transform_result = result.expect("Failed to apply rewrite rule");
         assert!(transform_result.erase_curr);
@@ -400,11 +400,11 @@ mod tests {
 
     #[test]
     fn test_apply_with_aggregate_filter() {
-        // 创建 Start 节点
+        // Create the Start node.
         let start_node = StartNode::new();
         let start_enum = PlanNodeEnum::Start(start_node);
 
-        // 创建 Aggregate 节点
+        // Create an Aggregate node.
         let group_keys = vec!["category".to_string()];
         let agg_funcs = vec![AggregateFunction::Count(None)];
         let aggregate = AggregateNode::new(start_enum.clone(), group_keys, agg_funcs)
@@ -424,22 +424,22 @@ mod tests {
         let filter = FilterNode::new(aggregate_enum, ctx_expr).expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
-        // 应用规则
+        // Application rules
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
         let result = rule.apply(&mut ctx, &filter_enum).expect("应用规则失败");
 
-        // 验证转换未执行（因为条件涉及聚合结果）
+        // The conversion was not executed (because the conditions involved aggregated results).
         assert!(result.is_none());
     }
 
     #[test]
     fn test_apply_with_non_aggregate_input() {
-        // 创建 Start 节点
+        // Create the Start node.
         let start_node = StartNode::new();
         let start_enum = PlanNodeEnum::Start(start_node);
 
-        // 创建 Filter 节点，但输入不是 Aggregate
+        // Create a Filter node, but the input is not of the Aggregate type.
         let condition = Expression::Binary {
             op: crate::core::types::operators::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("name".to_string())),
@@ -454,12 +454,12 @@ mod tests {
         let filter = FilterNode::new(start_enum, ctx_expr).expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
-        // 应用规则
+        // Apply the rules
         let rule = PushFilterDownAggregateRule::new();
         let mut ctx = RewriteContext::new();
         let result = rule.apply(&mut ctx, &filter_enum).expect("应用规则失败");
 
-        // 验证转换未执行（因为输入不是 Aggregate）
+        // The conversion was not performed (because the input is not of the “Aggregate” type).
         assert!(result.is_none());
     }
 }

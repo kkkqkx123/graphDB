@@ -1,6 +1,6 @@
-//! 集合操作规划器
+//! Set Operation Planner
 //!
-//! 处理 UNION, UNION ALL, INTERSECT, MINUS 等集合操作语句的查询规划
+//! Query planning for set operation statements such as UNION, UNION ALL, INTERSECT, and MINUS
 
 use crate::query::parser::ast::{SetOperationType, Stmt};
 use crate::query::planning::plan::core::{
@@ -12,13 +12,13 @@ use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement}
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 集合操作规划器
-/// 负责将集合操作语句转换为执行计划
+/// Set Operation Planner
+/// Responsible for converting set operation statements into execution plans
 #[derive(Debug, Clone)]
 pub struct SetOperationPlanner;
 
 impl SetOperationPlanner {
-    /// 创建新的集合操作规划器
+    /// Create a new set of operation planners.
     pub fn new() -> Self {
         Self
     }
@@ -39,18 +39,18 @@ impl Planner for SetOperationPlanner {
             }
         };
 
-        // 创建左右子计划的参数节点
+        // Parameter nodes for creating left and right sub-plans
         let left_arg = ArgumentNode::new(next_node_id(), "left_input");
         let right_arg = ArgumentNode::new(next_node_id(), "right_input");
 
         let left_enum = PlanNodeEnum::Argument(left_arg.clone());
         let right_enum = PlanNodeEnum::Argument(right_arg.clone());
 
-        // 根据集合操作类型创建相应的计划节点
+        // Create the corresponding planning nodes based on the type of set operation.
         let final_node = match set_op_stmt.op_type {
             SetOperationType::Union => {
-                // UNION (去重) - UnionNode 只接受单个输入，需要特殊处理
-                // 这里我们使用 left_enum 作为主输入，distinct=true
+                // UNION (Deduplication) – The UnionNode only accepts a single input and requires special processing.
+                // Here, we use `left_enum` as the main input, with `distinct=true`.
                 let union_node = UnionNode::new(
                     left_enum, true, // distinct = true
                 )
@@ -60,7 +60,7 @@ impl Planner for SetOperationPlanner {
                 PlanNodeEnum::Union(union_node)
             }
             SetOperationType::UnionAll => {
-                // UNION ALL (不去重)
+                // UNION ALL (without duplicates)
                 let union_node = UnionNode::new(
                     left_enum, false, // distinct = false
                 )
@@ -88,7 +88,7 @@ impl Planner for SetOperationPlanner {
             }
         };
 
-        // 创建 SubPlan，使用左输入作为主输入
+        // Create a SubPlan, using the left input as the main input.
         let sub_plan = SubPlan::new(Some(final_node), Some(PlanNodeEnum::Argument(left_arg)));
 
         Ok(sub_plan)

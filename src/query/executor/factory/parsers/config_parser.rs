@@ -1,17 +1,17 @@
-//! 配置解析器
+//! Configure the parser.
 //!
-//! 负责解析权重配置和启发式配置
+//! Responsible for parsing weight configurations and heuristic configurations.
 
 use crate::query::executor::data_processing::graph_traversal::algorithms::{
     EdgeWeightConfig, HeuristicFunction,
 };
 
-/// 解析权重表达式为权重配置
+/// Analyzing the weight expression results in the weight configuration.
 ///
-/// 支持的权重表达式格式：
-/// - None: 无权图
-/// - "ranking": 使用边的ranking作为权重
-/// - 其他字符串: 使用指定属性名作为权重
+/// Supported weight expression formats:
+/// “No authority diagram”
+/// “ranking”: Use the ranking of the edges as the weight.
+/// Use the specified attribute name as the weight.
 pub fn parse_weight_config(weight_expr: &Option<String>) -> EdgeWeightConfig {
     match weight_expr {
         None => EdgeWeightConfig::Unweighted,
@@ -26,10 +26,10 @@ pub fn parse_weight_config(weight_expr: &Option<String>) -> EdgeWeightConfig {
     }
 }
 
-/// 解析启发式表达式为启发式配置
+/// Parsing heuristic expressions into heuristic configurations
 ///
-/// 支持的启发式表达式格式：
-/// - None: 零启发式（退化为Dijkstra）
+/// Supported heuristic expression formats:
+/// Zero heuristics (degrades to Dijkstra’s algorithm).
 /// - "distance(lat,lon)": 使用顶点的经纬度属性计算欧几里得距离
 /// - "scale(factor)": 使用固定缩放因子
 pub fn parse_heuristic_config(heuristic_expr: &Option<String>) -> HeuristicFunction {
@@ -58,7 +58,7 @@ pub fn parse_heuristic_config(heuristic_expr: &Option<String>) -> HeuristicFunct
                 }
             }
 
-            // 默认使用零启发式
+            // The default option uses zero heuristics.
             HeuristicFunction::Zero
         }
     }

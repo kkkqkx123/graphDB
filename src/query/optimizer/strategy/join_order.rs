@@ -1,15 +1,15 @@
-//! 连接顺序优化器模块
+//! Connection Order Optimizer Module
 //!
-//! 基于代价的连接顺序优化，为多表连接选择最优的连接顺序
+//! Cost-based optimization of the join order to select the optimal sequence of joins for multiple tables
 //!
-//! ## 算法支持
+//! ## Algorithm Support
 //!
-//! - 动态规划（DP）：精确求解最优连接顺序，适用于少量表（<=8）
-//! - 贪心算法：快速求解近似最优解，适用于大量表
-//! - 左深树（Left-Deep Tree）：经典的连接树形状
-//! - 浓密树（Bushy Tree）：更灵活的连接树形状
+//! Dynamic Programming (DP): Provides an accurate solution for determining the optimal order of connections, suitable for a small number of tables (<=8).
+//! Greedy algorithm: A fast method for finding an approximate optimal solution, suitable for dealing with a large number of tables.
+//! Left-Deep Tree: A classic representation of a connected graph in the form of a tree structure.
+//! “Bushy Tree”: A more flexible version of the connected tree structure.
 //!
-//! ## 使用示例
+//! ## Usage Examples
 //!
 //! ```rust
 //! use graphdb::query::optimizer::strategy::JoinOrderOptimizer;
@@ -29,23 +29,23 @@ use crate::core::types::ContextualExpression;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::decision::{JoinAlgorithm, JoinOrderDecision};
 
-/// 表信息
+/// Table information
 #[derive(Debug, Clone)]
 pub struct TableInfo {
-    /// 表标识符（变量名）
+    /// Table identifier (variable name)
     pub id: String,
-    /// 估计行数
+    /// Estimated number of lines
     pub estimated_rows: u64,
     /// 选择性（0.0 ~ 1.0）
     pub selectivity: f64,
-    /// 是否有索引
+    /// Is there an index available?
     pub has_index: bool,
-    /// 表的唯一标识（用于位运算）
+    /// The unique identifier of the table (used for bit operations)
     pub bit_id: u32,
 }
 
 impl TableInfo {
-    /// 创建新的表信息
+    /// Create information for a new table.
     pub fn new(id: String, estimated_rows: u64) -> Self {
         Self {
             id,
@@ -56,45 +56,45 @@ impl TableInfo {
         }
     }
 
-    /// 设置选择性
+    /// Set the option to be selective.
     pub fn with_selectivity(mut self, selectivity: f64) -> Self {
         self.selectivity = selectivity.clamp(0.0, 1.0);
         self
     }
 
-    /// 设置是否有索引
+    /// Set whether an index is to be created.
     pub fn with_index(mut self, has_index: bool) -> Self {
         self.has_index = has_index;
         self
     }
 
-    /// 设置位ID
+    /// Set Bit ID
     pub fn with_bit_id(mut self, bit_id: u32) -> Self {
         self.bit_id = bit_id;
         self
     }
 }
 
-/// 连接条件
+/// Connection conditions
 #[derive(Debug, Clone)]
 pub struct JoinCondition {
-    /// 左表ID
+    /// Left table ID
     pub left_table: String,
-    /// 右表ID
+    /// Right table ID
     pub right_table: String,
-    /// 连接选择性（估计的连接结果比例）
+    /// Connection selectivity (estimated proportion of successful connection outcomes)
     pub selectivity: f64,
-    /// 连接表达式
+    /// Connection expression
     pub expression: Option<ContextualExpression>,
 }
 
 impl JoinCondition {
-    /// 创建新的连接条件
+    /// Create new connection conditions.
     pub fn new(left_table: String, right_table: String) -> Self {
         Self {
             left_table,
             right_table,
-            selectivity: 0.3, // 默认选择性 30%
+            selectivity: 0.3, // Default selection ratio: 30%
             expression: None,
         }
     }
@@ -105,84 +105,84 @@ impl JoinCondition {
         self
     }
 
-    /// 设置连接表达式
+    /// Setting the connection expression
     pub fn with_expression(mut self, expression: ContextualExpression) -> Self {
         self.expression = Some(expression);
         self
     }
 }
 
-/// 连接顺序优化器
+/// Connection Order Optimizer
 #[derive(Debug)]
 pub struct JoinOrderOptimizer {
     cost_calculator: Arc<CostCalculator>,
-    /// 动态规划表大小阈值（超过此值使用贪心算法）
+    /// Threshold for the size of the dynamic programming table (if this value is exceeded, the greedy algorithm is used)
     dp_threshold: usize,
 }
 
-/// 子问题解（用于动态规划）
+/// Subproblem solution (used in dynamic programming)
 #[derive(Debug, Clone)]
 struct SubproblemSolution {
-    /// 包含的表集合（位掩码）
+    /// The set of included tables (bitmask)
     pub table_set: u32,
-    /// 最后连接的表
+    /// The last table that was connected
     pub last_table: String,
-    /// 总代价
+    /// Total cost
     pub total_cost: f64,
-    /// 输出行数
+    /// Of course! Please provide the text you would like to have translated.
     pub output_rows: u64,
-    /// 连接树（以字符串表示）
+    /// Connected tree (represented as a string)
     pub join_tree: String,
 }
 
-/// 连接顺序优化结果
+/// Results of the optimization of the connection sequence
 #[derive(Debug, Clone)]
 pub struct JoinOrderResult {
-    /// 最优连接顺序（表ID列表）
+    /// Optimal connection order (list of table IDs)
     pub order: Vec<String>,
-    /// 每个连接的算法选择
+    /// The choice of algorithm for each connection
     pub algorithms: Vec<JoinAlgorithm>,
-    /// 总估计代价
+    /// Total estimated cost
     pub total_cost: f64,
-    /// 最终估计输出行数
+    /// Final estimated number of output lines
     pub final_output_rows: u64,
-    /// 使用的优化算法
+    /// The optimization algorithms used
     pub optimization_method: OptimizationMethod,
 }
 
-/// 优化方法
+/// Optimization methods
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OptimizationMethod {
-    /// 动态规划
+    /// Dynamic Programming
     DynamicProgramming,
-    /// 贪心算法
+    /// Greedy algorithm
     Greedy,
-    /// 启发式（表数量过少）
+    /// Heuristic approach (too few examples available)
     Heuristic,
 }
 
 impl JoinOrderOptimizer {
-    /// 创建新的连接顺序优化器
+    /// Create a new connection order optimizer.
     pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
         Self {
             cost_calculator,
-            dp_threshold: 8, // 默认8个表以下使用动态规划
+            dp_threshold: 8, // By default, dynamic programming is used for datasets with fewer than 8 tables.
         }
     }
 
-    /// 设置DP阈值
+    /// Setting the DP threshold
     pub fn with_dp_threshold(mut self, threshold: usize) -> Self {
         self.dp_threshold = threshold;
         self
     }
 
-    /// 优化连接顺序
+    /// Optimize the order of the connections.
     ///
-    /// # 参数
-    /// - `tables`: 参与连接的表列表
-    /// - `conditions`: 连接条件列表
+    /// # Parameters
+    /// “tables”: The list of tables involved in the connection.
+    /// “conditions”: A list of connection conditions.
     ///
-    /// # 返回
+    /// # Return
     /// 连接顺序优化结果
     pub fn optimize_join_order(
         &self,
@@ -206,7 +206,7 @@ impl JoinOrderOptimizer {
         }
     }
 
-    /// 使用动态规划优化连接顺序
+    /// Optimize the connection order using dynamic programming.
     fn optimize_with_dp(
         &self,
         tables: &[TableInfo],
@@ -214,13 +214,13 @@ impl JoinOrderOptimizer {
     ) -> JoinOrderResult {
         let n = tables.len();
 
-        // 构建连接条件查找表
+        // Construct a lookup table for connection conditions
         let condition_map = self.build_condition_map(conditions);
 
-        // DP表：key = 表集合位掩码，value = 最优解
+        // DP table: key = bit mask representing the set of tables; value = the optimal solution
         let mut dp: HashMap<u32, SubproblemSolution> = HashMap::new();
 
-        // 初始化：单表情况
+        // Initialization: The case of a single table
         for table in tables {
             let solution = SubproblemSolution {
                 table_set: 1 << table.bit_id,
@@ -232,12 +232,12 @@ impl JoinOrderOptimizer {
             dp.insert(solution.table_set, solution);
         }
 
-        // 动态规划：从小到大构建子集
+        // Dynamic Programming: Constructing subsets from smallest to largest
         for subset_size in 2..=n {
             for subset in self.generate_subsets(n, subset_size) {
                 let mut best_solution: Option<SubproblemSolution> = None;
 
-                // 尝试将subset分解为两个非空子集
+                // Try to decompose the subset into two non-empty subsets.
                 for table in tables {
                     let table_bit = 1 << table.bit_id;
                     if subset & table_bit == 0 {
@@ -249,9 +249,9 @@ impl JoinOrderOptimizer {
                         continue;
                     }
 
-                    // 查找剩余部分的最优解
+                    // Find the optimal solution for the remaining part.
                     if let Some(left_solution) = dp.get(&remaining) {
-                        // 计算连接代价
+                        // Calculating the connection cost
                         let (join_cost, output_rows) = self.calculate_join_cost(
                             left_solution.output_rows,
                             table.estimated_rows,
@@ -284,7 +284,7 @@ impl JoinOrderOptimizer {
             }
         }
 
-        // 获取最优解
+        // Obtaining the optimal solution
         let full_set = (1 << n) - 1;
         let best_solution = dp
             .get(&full_set)
@@ -297,7 +297,7 @@ impl JoinOrderOptimizer {
                 join_tree: "fallback".to_string(),
             });
 
-        // 重构连接顺序
+        // Reorganize the order of the connections.
         let order = self.reconstruct_order(&best_solution, &dp, tables);
         let algorithms = self.select_algorithms(&order, conditions, tables);
 
@@ -310,7 +310,7 @@ impl JoinOrderOptimizer {
         }
     }
 
-    /// 使用贪心算法优化连接顺序
+    /// Optimize the connection order using a greedy algorithm.
     fn optimize_with_greedy(
         &self,
         tables: &[TableInfo],
@@ -326,14 +326,14 @@ impl JoinOrderOptimizer {
         let mut total_cost = 0.0;
         let mut current_rows = 0u64;
 
-        // 选择起始表（行数最少的表）
+        // Select the starting table (the one with the fewest rows).
         if let Some(start_table) = tables.iter().min_by_key(|t| t.estimated_rows) {
             order.push(start_table.id.clone());
             remaining.remove(&start_table.id);
             current_rows = start_table.estimated_rows;
         }
 
-        // 贪心选择下一个表
+        // Greedyly choosing the next table…
         while !remaining.is_empty() {
             let mut best_next: Option<(String, f64, u64)> = None;
 
@@ -356,7 +356,7 @@ impl JoinOrderOptimizer {
             }
 
             if let Some((next_id, cost, output_rows)) = best_next {
-                // 获取当前表和下一个表的索引信息
+                // Retrieve the index information for the current table and the next table.
                 let current_has_index = order
                     .last()
                     .and_then(|id| table_map.get(id))
@@ -372,7 +372,7 @@ impl JoinOrderOptimizer {
                 remaining.remove(&next_id);
                 total_cost += cost;
 
-                // 选择连接算法
+                // Choosing a connection algorithm
                 let algorithm = self.select_algorithm(
                     current_rows,
                     output_rows,
@@ -398,7 +398,7 @@ impl JoinOrderOptimizer {
         }
     }
 
-    /// 构建连接条件查找表
+    /// Construct a lookup table for connection conditions
     fn build_condition_map(&self, conditions: &[JoinCondition]) -> HashMap<(String, String), f64> {
         let mut map = HashMap::new();
         for cond in conditions {
@@ -410,7 +410,7 @@ impl JoinOrderOptimizer {
         map
     }
 
-    /// 生成指定大小的子集
+    /// Generate a subset of the specified size.
     fn generate_subsets(&self, n: usize, k: usize) -> Vec<u32> {
         let mut result = Vec::new();
         self.generate_subsets_recursive(0, n, k, 0, &mut result);
@@ -437,7 +437,7 @@ impl JoinOrderOptimizer {
         }
     }
 
-    /// 计算连接代价
+    /// Calculating the connection cost
     fn calculate_join_cost(
         &self,
         left_rows: u64,
@@ -445,17 +445,17 @@ impl JoinOrderOptimizer {
         right_table: &str,
         condition_map: &HashMap<(String, String), f64>,
     ) -> (f64, u64) {
-        // 查找连接选择性
+        // Finding the connection for selectivity
         let selectivity = condition_map
             .iter()
             .find(|((l, _), _)| l == right_table)
             .map(|(_, s)| *s)
             .unwrap_or(0.3);
 
-        // 计算输出行数
+        // Count the number of output lines.
         let output_rows = ((left_rows as f64 * right_rows as f64 * selectivity) as u64).max(1);
 
-        // 计算连接代价（使用哈希连接）
+        // Calculate the connection cost (using a hash join).
         let cost = self
             .cost_calculator
             .calculate_hash_join_cost(left_rows, right_rows);
@@ -463,12 +463,12 @@ impl JoinOrderOptimizer {
         (cost, output_rows)
     }
 
-    /// 选择连接算法
+    /// Choosing a connection algorithm
     ///
-    /// 基于代价模型选择最优的连接算法：
-    /// 1. 如果一侧有索引且数据量适中，优先选择索引连接
-    /// 2. 比较哈希连接和嵌套循环连接的代价，选择代价较低的
-    /// 3. 哈希连接时，选择较小的表作为构建侧
+    /// Selecting the optimal connection algorithm based on a cost model:
+    /// 1. If an index is available on one side and the amount of data is moderate, prefer an index-based join.
+    /// 2. Compare the costs of hash join and nested loop join, and choose the one with the lower cost.
+    /// 3. When using hash joins, it is advisable to choose the smaller table as the building side.
     fn select_algorithm(
         &self,
         left_rows: u64,
@@ -478,11 +478,11 @@ impl JoinOrderOptimizer {
         left_id: &str,
         right_id: &str,
     ) -> JoinAlgorithm {
-        // 阈值定义
-        const NESTED_LOOP_MAX_ROWS: u64 = 100; // 嵌套循环连接适用的最大行数
-        const INDEX_JOIN_MAX_ROWS: u64 = 10000; // 索引连接适用的最大行数
+        // Threshold definition
+        const NESTED_LOOP_MAX_ROWS: u64 = 100; // The maximum number of rows that can be connected using nested loops
+        const INDEX_JOIN_MAX_ROWS: u64 = 10000; // The maximum number of rows applicable for index joins
 
-        // 策略1：如果一侧有索引且另一侧数据量适中，使用索引连接
+        // Strategy 1: If an index is available on one side and the amount of data on the other side is moderate, use the index to perform the join operation.
         if left_has_index && right_rows <= INDEX_JOIN_MAX_ROWS {
             return JoinAlgorithm::IndexJoin {
                 indexed_side: left_id.to_string(),
@@ -494,7 +494,7 @@ impl JoinOrderOptimizer {
             };
         }
 
-        // 策略2：如果数据量都很小，使用嵌套循环连接（避免哈希表构建开销）
+        // Strategy 2: If the amount of data is small in each case, use nested loops for joining the data (to avoid the overhead associated with building hash tables).
         if left_rows <= NESTED_LOOP_MAX_ROWS && right_rows <= NESTED_LOOP_MAX_ROWS {
             return JoinAlgorithm::NestedLoopJoin {
                 outer: left_id.to_string(),
@@ -502,7 +502,7 @@ impl JoinOrderOptimizer {
             };
         }
 
-        // 策略3：默认使用哈希连接，选择较小的表作为构建侧
+        // Strategy 3: Use hash joins by default, and select smaller tables for the construction side.
         if left_rows <= right_rows {
             JoinAlgorithm::HashJoin {
                 build_side: left_id.to_string(),
@@ -516,7 +516,7 @@ impl JoinOrderOptimizer {
         }
     }
 
-    /// 重构连接顺序
+    /// Reorganize the order of the connections.
     fn reconstruct_order(
         &self,
         solution: &SubproblemSolution,
@@ -526,12 +526,12 @@ impl JoinOrderOptimizer {
         let mut order = Vec::new();
         let mut current_set = solution.table_set;
 
-        // 从后向前重构
+        // Reconstruct from the back to the front
         while current_set != 0 {
             if let Some(sol) = dp.get(&current_set) {
                 order.push(sol.last_table.clone());
 
-                // 找到对应的表并清除位
+                // Find the corresponding table and clear the bit.
                 if let Some(table) = tables.iter().find(|t| t.id == sol.last_table) {
                     current_set &= !(1 << table.bit_id);
                 } else {
@@ -546,7 +546,7 @@ impl JoinOrderOptimizer {
         order
     }
 
-    /// 为连接顺序选择算法
+    /// Select an algorithm for the determination of the connection order.
     fn select_algorithms(
         &self,
         order: &[String],
@@ -561,7 +561,7 @@ impl JoinOrderOptimizer {
             let left = &order[i - 1];
             let right = &order[i];
 
-            // 获取表的索引信息
+            // Obtain index information for the table
             let left_info = table_map.get(left);
             let right_info = table_map.get(right);
 
@@ -570,7 +570,7 @@ impl JoinOrderOptimizer {
             let left_has_index = left_info.map(|t| t.has_index).unwrap_or(false);
             let right_has_index = right_info.map(|t| t.has_index).unwrap_or(false);
 
-            // 使用基于代价的算法选择
+            // Select using a cost-based algorithm
             let algorithm = self.select_algorithm(
                 left_rows,
                 right_rows,
@@ -586,7 +586,7 @@ impl JoinOrderOptimizer {
         algorithms
     }
 
-    /// 生成 JoinOrderDecision
+    /// Generate a `JoinOrderDecision`
     pub fn to_decision(&self, result: &JoinOrderResult) -> JoinOrderDecision {
         let mut decision = JoinOrderDecision::empty();
 
@@ -662,7 +662,7 @@ mod tests {
             JoinCondition::new("B".to_string(), "C".to_string()).with_selectivity(0.2),
         ];
 
-        // 使用DP（表数量 <= 8）
+        // Use DP (number of tables <= 8).
         let result = optimizer.optimize_join_order(&tables, &conditions);
         assert_eq!(
             result.optimization_method,

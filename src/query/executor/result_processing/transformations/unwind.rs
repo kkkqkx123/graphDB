@@ -1,6 +1,6 @@
-//! UnwindExecutor实现
+//! Implementation of UnwindExecutor
 //!
-//! 负责处理列表展开操作，将列表中的每个元素展开为单独的行
+//! Responsible for handling the list expansion process, expanding each element in the list into a separate row.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -16,22 +16,22 @@ use crate::query::executor::expression::{
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// Unwind执行器
-/// 用于将列表中的每个元素展开为单独的行
+/// Unwind Actuator
+/// Used to expand each element in the list into a separate row.
 pub struct UnwindExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
-    /// 输入变量名
+    /// Input variable name
     input_var: String,
-    /// 要展开的表达式
+    /// The expression to be expanded
     unwind_expression: Expression,
-    /// 输出列名
+    /// Column names
     col_names: Vec<String>,
-    /// 是否来自管道
+    /// Does it come from a pipeline?
     from_pipe: bool,
 }
 
 impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
-    /// 创建新的UnwindExecutor
+    /// Create a new UnwindExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -50,7 +50,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
         }
     }
 
-    /// 带上下文创建UnwindExecutor
+    /// Create an UnwindExecutor with context information
     pub fn with_context(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -69,7 +69,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
         }
     }
 
-    /// 从值中提取列表
+    /// Extract a list from a value.
     fn extract_list(&self, val: &Value) -> Vec<Value> {
         match val {
             Value::List(list) => list.clone().into_vec(),
@@ -78,9 +78,9 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
         }
     }
 
-    /// 执行展开操作
+    /// Please provide the text you would like to have translated. I will then perform the translation and provide the translated version.
     fn execute_unwind(&mut self) -> DBResult<DataSet> {
-        // 获取输入结果
+        // Obtain the input result.
         let input_result = self
             .base
             .context
@@ -92,24 +92,24 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 )))
             })?;
 
-        // 创建表达式上下文
+        // Create the context for the expression.
         let mut expr_context = DefaultExpressionContext::new();
 
-        // 创建输出数据集
+        // Create an output dataset
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
             rows: Vec::new(),
         };
 
-        // 根据输入结果类型处理
+        // Please provide the text you would like to have translated. I will then process it according to the specified type of translation required.
         match input_result {
             ExecutionResult::Values(values) => {
-                // 处理值列表
+                // Processing a list of values
                 for value in values {
-                    // 设置当前行到表达式上下文
+                    // Set the current line to the context of the expression.
                     expr_context.set_variable("_".to_string(), value.clone());
 
-                    // 计算展开表达式
+                    // Calculate the expanded expression.
                     let unwind_value =
                         ExpressionEvaluator::evaluate(&self.unwind_expression, &mut expr_context)
                             .map_err(|e| {
@@ -118,19 +118,19 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                             ))
                         })?;
 
-                    // 提取列表
+                    // Extract the list.
                     let list_values = self.extract_list(&unwind_value);
 
-                    // 为每个列表元素创建一行
+                    // Create a row for each list element.
                     for list_item in list_values {
                         let mut row = Vec::new();
 
-                        // 如果不是来自管道且输入不为空，保留原始值
+                        // If it does not originate from a pipeline and the input is not empty, retain the original value.
                         if !self.from_pipe {
                             row.push(value.clone());
                         }
 
-                        // 添加展开的值
+                        // Add the expanded values.
                         row.push(list_item);
 
                         dataset.rows.push(row);
@@ -138,7 +138,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 }
             }
             ExecutionResult::Vertices(vertices) => {
-                // 处理顶点列表
+                // Processing the list of vertices
                 for vertex in vertices {
                     let vertex_value = Value::Vertex(Box::new(vertex.clone()));
                     expr_context.set_variable("_".to_string(), vertex_value.clone());
@@ -167,7 +167,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 }
             }
             ExecutionResult::Edges(edges) => {
-                // 处理边列表
+                // Processing the edge list
                 for edge in edges {
                     let edge_value = Value::Edge(edge.clone());
                     expr_context.set_variable("_".to_string(), edge_value.clone());
@@ -196,7 +196,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 }
             }
             ExecutionResult::Success => {
-                // 处理空输入
+                // Handle empty inputs.
                 let empty_value = Value::Empty;
                 expr_context.set_variable("_".to_string(), empty_value.clone());
 
@@ -216,7 +216,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
             }
             ExecutionResult::Empty => {}
             ExecutionResult::Paths(paths) => {
-                // 处理路径列表
+                // List of processing paths
                 for path in paths {
                     let path_value = Value::Path(path.clone());
                     expr_context.set_variable("_".to_string(), path_value.clone());
@@ -245,7 +245,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                 }
             }
             ExecutionResult::DataSet(ds) => {
-                // 处理数据集
+                // Processing a dataset
                 for row in &ds.rows {
                     for value in row {
                         expr_context.set_variable("_".to_string(), value.clone());
@@ -368,7 +368,7 @@ mod tests {
     fn test_unwind_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
-        // 创建输入数据
+        // Create the input data
         let list_value = Value::List(List::from(vec![
             Value::Int(1),
             Value::Int(2),
@@ -377,12 +377,12 @@ mod tests {
 
         let input_result = ExecutionResult::Values(vec![list_value]);
 
-        // 创建执行上下文
+        // Create an execution context.
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut context = crate::query::executor::base::ExecutionContext::new(expr_context);
         context.set_result("input".to_string(), input_result);
 
-        // 创建UnwindExecutor
+        // Create the UnwindExecutor
         let unwind_expression = Expression::Variable("_".to_string());
         let mut executor = UnwindExecutor::with_context(
             1,
@@ -394,12 +394,12 @@ mod tests {
             context,
         );
 
-        // 执行展开
+        // Of course! Please provide the text you would like to have translated.
         let result = executor
             .execute()
             .expect("Executor should execute successfully");
 
-        // 检查结果
+        // Test results
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 6);
             assert_eq!(

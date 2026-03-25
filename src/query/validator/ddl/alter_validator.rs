@@ -1,11 +1,11 @@
-//! Alter 语句验证器
-//! 对应 NebulaGraph 中 Alter 相关验证器的功能
-//! 验证 ALTER TAG, ALTER EDGE, ALTER SPACE 等语句
+//! Alter Statement Validator
+//! Corresponding to the functionality of the Alter-related validator in NebulaGraph
+//! Verify statements such as ALTER TAG, ALTER EDGE, and ALTER SPACE.
 //!
-//! 设计原则：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. ALTER SPACE 是全局语句，其他 ALTER 需要选择空间
-//! 3. 验证属性修改的合法性（添加、删除、修改）
+//! Design principles:
+//! The StatementValidator trait has been implemented, unifying the interface.
+//! 2. The `ALTER SPACE` statement is a global statement; other `ALTER` statements require you to specify a specific space.
+//! 3. Verify the legitimacy of attribute modifications (adding, deleting, modifying)
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::PropertyDef;
@@ -17,7 +17,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 验证后的 Alter 信息
+/// Verified Alter information
 #[derive(Debug, Clone)]
 pub struct ValidatedAlter {
     pub target_type: AlterTargetType,
@@ -28,7 +28,7 @@ pub struct ValidatedAlter {
     pub changes: Vec<PropertyChange>,
 }
 
-/// Alter 目标类型
+/// Alter target type
 #[derive(Debug, Clone)]
 pub enum AlterTargetType {
     Tag,
@@ -36,7 +36,7 @@ pub enum AlterTargetType {
     Space,
 }
 
-/// Alter 语句验证器
+/// Alter Statement Validator
 #[derive(Debug)]
 pub struct AlterValidator {
     target_type: AlterTargetType,
@@ -84,7 +84,7 @@ impl AlterValidator {
                 self.deletions = deletions.clone();
                 self.changes = changes.clone();
 
-                // 验证 tag 名非空
+                // Verify that the tag name is not empty.
                 if self.target_name.is_empty() {
                     return Err(ValidationError::new(
                         "Tag name cannot be empty".to_string(),
@@ -92,7 +92,7 @@ impl AlterValidator {
                     ));
                 }
 
-                // 验证至少有一个修改操作
+                // Verify that at least one modification has been made.
                 if additions.is_empty() && deletions.is_empty() && changes.is_empty() {
                     return Err(ValidationError::new(
                         "At least one alter operation is required".to_string(),
@@ -100,7 +100,7 @@ impl AlterValidator {
                     ));
                 }
 
-                // 验证属性修改
+                // Verify attribute modification
                 self.validate_property_changes(additions, deletions, changes)?;
             }
             AlterTarget::Edge {
@@ -115,7 +115,7 @@ impl AlterValidator {
                 self.deletions = deletions.clone();
                 self.changes = changes.clone();
 
-                // 验证 edge 名非空
+                // Verify that the "edge" name is not empty.
                 if self.target_name.is_empty() {
                     return Err(ValidationError::new(
                         "Edge name cannot be empty".to_string(),
@@ -123,7 +123,7 @@ impl AlterValidator {
                     ));
                 }
 
-                // 验证至少有一个修改操作
+                // Verify that at least one modification has been made.
                 if additions.is_empty() && deletions.is_empty() && changes.is_empty() {
                     return Err(ValidationError::new(
                         "At least one alter operation is required".to_string(),
@@ -131,7 +131,7 @@ impl AlterValidator {
                     ));
                 }
 
-                // 验证属性修改
+                // Verify the modification of the attribute.
                 self.validate_property_changes(additions, deletions, changes)?;
             }
             AlterTarget::Space {
@@ -142,7 +142,7 @@ impl AlterValidator {
                 self.target_name = space_name.clone();
                 self.space_name = Some(space_name.clone());
 
-                // 验证 space 名非空
+                // Verify that the value of the `space` variable is not empty.
                 if self.target_name.is_empty() {
                     return Err(ValidationError::new(
                         "Space name cannot be empty".to_string(),
@@ -150,7 +150,7 @@ impl AlterValidator {
                     ));
                 }
 
-                // 验证至少有一个修改参数
+                // Verify that at least one modification parameter is present.
                 if comment.is_none() {
                     return Err(ValidationError::new(
                         "At least one alter parameter is required".to_string(),
@@ -169,22 +169,22 @@ impl AlterValidator {
         deletions: &[String],
         changes: &[PropertyChange],
     ) -> Result<(), ValidationError> {
-        // 验证添加的属性
+        // Verify the added attributes.
         for prop in additions {
             self.validate_property_name(&prop.name)?;
         }
 
-        // 验证删除的属性名
+        // Verify the names of the attributes that were deleted.
         for name in deletions {
             self.validate_property_name(name)?;
         }
 
-        // 验证修改的属性
+        // Verify the modified properties.
         for change in changes {
             self.validate_property_name(&change.old_name)?;
             self.validate_property_name(&change.new_name)?;
 
-            // 新旧名称不能相同
+            // The new and old names cannot be the same.
             if change.old_name == change.new_name {
                 return Err(ValidationError::new(
                     format!(
@@ -196,7 +196,7 @@ impl AlterValidator {
             }
         }
 
-        // 检查冲突：不能同时添加和删除同一个属性
+        // Check for conflicts: The same attribute cannot be added and deleted at the same time.
         for added in additions {
             if deletions.contains(&added.name) {
                 return Err(ValidationError::new(
@@ -209,7 +209,7 @@ impl AlterValidator {
             }
         }
 
-        // 检查冲突：不能同时删除和修改同一个属性
+        // Check for conflicts: It is not possible to delete and modify the same attribute at the same time.
         for deleted in deletions {
             for changed in changes {
                 if deleted == &changed.old_name {
@@ -235,7 +235,7 @@ impl AlterValidator {
             ));
         }
 
-        // 属性名必须以字母或下划线开头
+        // The attribute name must start with a letter or an underscore (_).
         let first_char = name.chars().next().expect("属性名已验证非空");
         if !first_char.is_ascii_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
@@ -247,7 +247,7 @@ impl AlterValidator {
             ));
         }
 
-        // 属性名只能包含字母、数字和下划线
+        // Property names can only contain letters, digits, and underscores (_).
         for (i, c) in name.chars().enumerate() {
             if i > 0 && !c.is_ascii_alphanumeric() && c != '_' {
                 return Err(ValidationError::new(
@@ -263,32 +263,32 @@ impl AlterValidator {
         Ok(())
     }
 
-    /// 获取目标类型
+    /// Obtain the target type
     pub fn target_type(&self) -> &AlterTargetType {
         &self.target_type
     }
 
-    /// 获取目标名称
+    /// Obtain the target name
     pub fn target_name(&self) -> &str {
         &self.target_name
     }
 
-    /// 获取空间名
+    /// Obtain the space name
     pub fn space_name(&self) -> Option<&String> {
         self.space_name.as_ref()
     }
 
-    /// 获取添加的属性
+    /// Obtain the added attributes
     pub fn additions(&self) -> &[PropertyDef] {
         &self.additions
     }
 
-    /// 获取删除的属性
+    /// Retrieve the deleted attributes
     pub fn deletions(&self) -> &[String] {
         &self.deletions
     }
 
-    /// 获取修改的属性
+    /// Obtain the modified properties.
     pub fn changes(&self) -> &[PropertyChange] {
         &self.changes
     }
@@ -305,10 +305,10 @@ impl AlterValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for AlterValidator {
     fn validate(
         &mut self,
@@ -345,7 +345,7 @@ impl StatementValidator for AlterValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // ALTER SPACE 是全局语句，其他 ALTER 不是
+        // The `ALTER SPACE` statement is a global statement; the other `ALTER` statements are not.
         matches!(self.target_type, AlterTargetType::Space)
     }
 

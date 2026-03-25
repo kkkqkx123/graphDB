@@ -1,27 +1,27 @@
-//! 重写规则枚举 - 静态分发实现
+//! Rewrite rule enumeration – Implementation of static distribution
 //!
-//! 该模块使用枚举实现静态分发，避免动态分发的开销。
-//! 所有规则都作为枚举变体，通过 match 进行分发。
+//! This module uses enumerations to implement static distribution, thereby avoiding the overhead associated with dynamic distribution.
+//! All rules are distributed in the form of enumeration variants, using the `match` mechanism.
 //!
-//! # 优势
+//! # Advantages
 //!
-//! - 无动态分发开销（无虚函数表查找）
-//! - 无堆分配（规则存储在栈上）
-//! - 更好的缓存局部性
-//! - 编译器可以内联优化
+//! No dynamic distribution overhead (no lookup in virtual function tables).
+//! No heap allocation (the rules are stored on the stack).
+//! Better cache locality
+//! Compilers can perform inlining optimizations.
 //!
-//! # 使用示例
+//! # Usage Examples
 //!
 //! ```rust
 //! use crate::query::planning::rewrite::rule_enum::{RewriteRule, RuleRegistry};
 //!
-//! // 创建规则注册表
+// Create the rule registry
 //! let registry = RuleRegistry::default();
 //!
-//! // 应用规则
+// Application rules
 //! for rule in registry.iter() {
 //!     if let Some(result) = rule.apply(ctx, node)? {
-//!         // 处理结果
+// Processing the results
 //!     }
 //! }
 //! ```
@@ -120,7 +120,7 @@ macro_rules! define_rewrite_rules {
 
 define_rewrite_rules! {
     pub enum RewriteRule {
-        // ==================== 消除规则 ====================
+        // ==================== Remove Rules ====================
         EliminateFilter(elimination::EliminateFilterRule),
         RemoveNoopProject(elimination::RemoveNoopProjectRule),
         EliminateAppendVertices(elimination::EliminateAppendVerticesRule),
@@ -130,7 +130,7 @@ define_rewrite_rules! {
         DedupElimination(elimination::DedupEliminationRule),
         EliminateSort(elimination::EliminateSortRule),
 
-        // ==================== 合并规则 ====================
+        // ==================== Merging Rules ====================
         CombineFilter(merge::CombineFilterRule),
         CollapseProject(merge::CollapseProjectRule),
         CollapseConsecutiveProject(merge::CollapseConsecutiveProjectRule),
@@ -139,7 +139,7 @@ define_rewrite_rules! {
         MergeGetNbrsAndProject(merge::MergeGetNbrsAndProjectRule),
         MergeGetNbrsAndDedup(merge::MergeGetNbrsAndDedupRule),
 
-        // ==================== 谓词下推规则 ====================
+        // ==================== Predicate Pushdown Rules ====================
         PushFilterDownTraverse(predicate_pushdown::PushFilterDownTraverseRule),
         PushFilterDownExpandAll(predicate_pushdown::PushFilterDownExpandAllRule),
         PushFilterDownNode(predicate_pushdown::PushFilterDownNodeRule),
@@ -152,7 +152,7 @@ define_rewrite_rules! {
         PushFilterDownGetNbrs(predicate_pushdown::PushFilterDownGetNbrsRule),
         PushFilterDownAllPaths(predicate_pushdown::PushFilterDownAllPathsRule),
 
-        // ==================== 投影下推规则 ====================
+        // ==================== Projection Pushdown Rules ====================
         PushProjectDownScanVertices(projection_pushdown::PushProjectDownScanVerticesRule),
         PushProjectDownScanEdges(projection_pushdown::PushProjectDownScanEdgesRule),
         PushProjectDownGetVertices(projection_pushdown::PushProjectDownGetVerticesRule),
@@ -160,7 +160,7 @@ define_rewrite_rules! {
         PushProjectDownGetNeighbors(projection_pushdown::PushProjectDownGetNeighborsRule),
         PushProjectDownEdgeIndexScan(projection_pushdown::PushProjectDownEdgeIndexScanRule),
 
-        // ==================== LIMIT下推规则 ====================
+        // ==================== Rules for Pushing Limits Down ====================
         PushLimitDownGetVertices(limit_pushdown::PushLimitDownGetVerticesRule),
         PushLimitDownGetEdges(limit_pushdown::PushLimitDownGetEdgesRule),
         PushLimitDownScanVertices(limit_pushdown::PushLimitDownScanVerticesRule),
@@ -168,7 +168,7 @@ define_rewrite_rules! {
         PushLimitDownIndexScan(limit_pushdown::PushLimitDownIndexScanRule),
         PushTopNDownIndexScan(limit_pushdown::PushTopNDownIndexScanRule),
 
-        // ==================== 聚合优化规则 ====================
+        // ==================== Aggregation Optimization Rules ====================
         PushFilterDownAggregate(aggregate::PushFilterDownAggregateRule),
     }
 }

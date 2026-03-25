@@ -1,5 +1,5 @@
-//! Match语句验证器（新体系）
-//! 使用trait+枚举架构，替代原有的策略模式
+//! Match Statement Validator (New System)
+//! Use the trait+enumeration architecture to replace the existing Strategy pattern.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -22,7 +22,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 
-/// 验证后的MATCH信息
+/// Verified MATCH information
 #[derive(Debug, Clone)]
 pub struct ValidatedMatch {
     pub space_id: u64,
@@ -36,31 +36,32 @@ pub struct ValidatedMatch {
     pub aliases: HashMap<String, AliasType>,
 }
 
-/// Match语句验证器
+/// Match Statement Validator
 #[derive(Debug)]
 pub struct MatchValidator {
-    /// 输入列
+    /// Input column
     inputs: Vec<ColumnDef>,
-    /// 输出列
+    /// Translate the following text into English:
+**Translate the following text into English:**
     outputs: Vec<ColumnDef>,
-    /// 验证后的结果
+    /// Verified result
     validated_result: Option<ValidatedMatch>,
-    /// 别名映射
+    /// Alias mapping
     aliases: HashMap<String, AliasType>,
-    /// 路径列表
+    /// List of paths
     paths: Vec<Path>,
-    /// 分页上下文
+    /// Pagination context
     pagination: Option<PaginationContext>,
-    /// 是否为可选匹配
+    /// Is it an optional match?
     optional: bool,
-    /// 表达式属性
+    /// Expression properties
     expression_props: ExpressionProps,
-    /// 用户定义变量
+    /// User-defined variables
     user_defined_vars: Vec<String>,
 }
 
 impl MatchValidator {
-    /// 创建新的Match验证器
+    /// Create a new Match validator.
     pub fn new() -> Self {
         Self {
             inputs: Vec::new(),
@@ -75,43 +76,43 @@ impl MatchValidator {
         }
     }
 
-    /// 创建带分页上下文的验证器
+    /// Creating a validator with pagination context
     pub fn with_pagination(skip: i64, limit: i64) -> Self {
         let mut validator = Self::new();
         validator.pagination = Some(PaginationContext { skip, limit });
         validator
     }
 
-    /// 获取验证后的结果
+    /// Obtain the verified results.
     pub fn validated_result(&self) -> Option<&ValidatedMatch> {
         self.validated_result.as_ref()
     }
 
-    /// 获取别名映射
+    /// Obtain the alias mapping.
     pub fn aliases(&self) -> &HashMap<String, AliasType> {
         &self.aliases
     }
 
-    /// 获取路径列表
+    /// Obtain a list of paths
     pub fn paths(&self) -> &[Path] {
         &self.paths
     }
 
-    /// 是否需要选择图空间
+    /// Is it necessary to select a graph space?
     pub fn requires_space(&self) -> bool {
         true
     }
 
-    /// 是否需要写权限
+    /// Is it necessary to grant write permissions?
     pub fn requires_write_permission(&self) -> bool {
         false
     }
 
-    /// 验证完整的 MATCH 语句
+    /// Verify the complete MATCH statement.
     pub fn validate_match_statement(
         &mut self,
         match_stmt: &MatchStmt,
-    ) -> Result<(), ValidationError> {
+    ) ->// 1. The verification mode is not empty.> {
         // 1. 验证模式不为空
         if match_stmt.patterns.is_empty() {
             return Err(ValidationError::new(
@@ -164,10 +165,10 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 验证单个模式
+    /// Verify a single pattern
     fn validate_pattern(&mut self, pattern: &Pattern, idx: usize) -> Result<(), ValidationError> {
         match pattern {
-            Pattern::Node(node_pattern) => {
+            Patt// Verification node mode: Anonymous nodes must have a specified tag.
                 // 验证节点模式：匿名节点必须指定标签
                 if node_pattern.variable.is_none() && node_pattern.labels.is_empty() {
                     return Err(ValidationError::new(
@@ -176,11 +177,11 @@ impl MatchValidator {
                     ));
                 }
             }
-            Pattern::Edge(_edge_pattern) => {
-                // 边模式验证：匿名边是允许的，会自动匹配所有边类型
+            Patt// Edge pattern validation: Anonymous edges are allowed, and all edge types will be automatically matched.
+                // Refer to the implementation of nebula-graph; it is not mandatory to specify the type of edges.有边类型
                 // 参考 nebula-graph 实现，不强制要求指定边类型
             }
-            Pattern::Path(path_pattern) => {
+            Patt// Verify path pattern: The path cannot be empty.
                 // 验证路径模式：路径不能为空
                 if path_pattern.elements.is_empty() {
                     return Err(ValidationError::new(
@@ -189,7 +190,7 @@ impl MatchValidator {
                     ));
                 }
             }
-            Pattern::Variable(var_pattern) => {
+            Patt// Variable pattern: Check whether a variable has been defined.
                 // 变量模式：检查变量是否已定义
                 if !self.aliases.contains_key(&var_pattern.name) {
                     return Err(ValidationError::new(
@@ -203,7 +204,7 @@ impl MatchValidator {
                 }
 
                 // 获取变量类型信息
-                if let Some(alias_type) = self.aliases.get(&var_pattern.name) {
+                if l// Verify whether the variable type is valid (it must not be a runtime variable).
                     // 验证变量类型是否有效（不能是运行时变量）
                     if matches!(alias_type, AliasType::Runtime) {
                         return Err(ValidationError::new(
@@ -221,7 +222,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 从模式中收集别名（第一遍扫描）
+    /// Collect aliases from the pattern (during the first scan)
     fn collect_aliases_from_patterns(
         &mut self,
         patterns: &[Pattern],
@@ -238,10 +239,10 @@ impl MatchValidator {
                         self.aliases.insert(var.clone(), AliasType::Edge);
                     }
                 }
-                Pattern::Path(_path) => {
+                Patt// PathPattern does not support the binding of variable names.
                     // PathPattern 不支持变量名绑定
                 }
-                Pattern::Variable(_var) => {
+                Patt// VariablePattern is a reference to a variable, not its definition; it is therefore skipped during the first scan.
                     // VariablePattern 是变量引用，不是定义，在第一遍扫描中跳过
                 }
             }
@@ -249,11 +250,11 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 验证 WHERE 子句
+    /// Verify the WHERE clause
     fn validate_where_clause(
         &mut self,
         where_expr: &ContextualExpression,
-    ) -> Result<(), ValidationError> {
+    ) ->// Verify using the expression validation strategy.
         // 使用表达式验证策略进行验证
         let strategy = ExpressionValidationStrategy::new();
         let context = WhereClauseContext {
@@ -267,11 +268,11 @@ impl MatchValidator {
         strategy.validate_filter(where_expr, &context)
     }
 
-    /// 验证 RETURN 子句
+    /// Verify the RETURN statement
     fn validate_return_clause(
         &mut self,
         return_clause: &ReturnClause,
-    ) -> Result<(), ValidationError> {
+    ) ->// Check whether it is empty (unless it is RETURN *).
         // 检查是否为空（除非是 RETURN *）
         if return_clause.items.is_empty() {
             return Err(ValidationError::new(
@@ -283,7 +284,7 @@ impl MatchValidator {
         // 验证每个返回项
         for (idx, item) in return_clause.items.iter().enumerate() {
             match item {
-                ReturnItem::Expression { expression, alias } => {
+                Retu// Verify the expression { expression, alias } => {
                     // 验证表达式
                     self.validate_return_expression(expression, idx)?;
 
@@ -294,7 +295,7 @@ impl MatchValidator {
                                 format!("第 {} 个返回项的别名不能为空", idx + 1),
                                 ValidationErrorType::SemanticError,
                             ));
-                        }
+                        // Add the aliases to the mapping.
                         // 将别名添加到映射
                         self.aliases.insert(alias_name.clone(), AliasType::Runtime);
                     }
@@ -305,7 +306,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 验证返回表达式
+    /// Verify the returned expression.
     fn validate_return_expression(
         &mut self,
         expr: &ContextualExpression,
@@ -329,14 +330,14 @@ impl MatchValidator {
             }
         }
 
-        // 验证函数调用
-        // 注意：这里需要访问函数名，但 ContextualExpression 没有提供此方法
+        // Note: The function name needs to be accessed, but the `ContextualExpression` class does not provide such a method.
+        // Skip function validation for now and wait for further improvements.ntextualExpression 没有提供此方法
         // 暂时跳过函数验证，等待后续完善
 
         Ok(())
     }
 
-    /// 验证 ORDER BY 子句
+    /// Verify the ORDER BY clause
     fn validate_order_by(&mut self, order_by: &OrderByClause) -> Result<(), ValidationError> {
         if order_by.items.is_empty() {
             return Err(ValidationError::new(
@@ -345,7 +346,7 @@ impl MatchValidator {
             ));
         }
 
-        for (idx, item) in order_by.items.iter().enumerate() {
+        for // Verify the sorting expressionitems.iter().enumerate() {
             // 验证排序表达式
             if item.expression.expression().is_none() {
                 return Err(ValidationError::new(
@@ -369,7 +370,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 验证别名
+    /// Verify the alias
     pub fn validate_aliases(
         &mut self,
         exprs: &[ContextualExpression],
@@ -397,18 +398,18 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 检查表达式是否包含聚合函数
+    /// Check whether the expression contains aggregate functions.
     pub fn has_aggregate_expression(&self, expression: &ContextualExpression) -> bool {
         expression.contains_aggregate()
     }
 
-    /// 验证分页
+    /// Verify pagination
     pub fn validate_pagination(
         &mut self,
         _skip_expression: Option<&ContextualExpression>,
         _limit_expression: Option<&ContextualExpression>,
         context: &PaginationContext,
-    ) -> Result<(), ValidationError> {
+    ) ->// Verify the value of “skip”.tionError> {
         // 验证 skip 值
         if context.skip < 0 {
             return Err(ValidationError::new(
@@ -440,7 +441,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 验证步数范围
+    /// Verify the range of steps
     pub fn validate_step_range(&self, range: &MatchStepRange) -> Result<(), ValidationError> {
         if range.min() > range.max() {
             return Err(ValidationError::new(
@@ -455,7 +456,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 验证过滤条件
+    /// Verify the filtering criteria.
     pub fn validate_filter(
         &mut self,
         filter: &ContextualExpression,
@@ -464,7 +465,7 @@ impl MatchValidator {
         self.validate_where_clause(filter)
     }
 
-    /// 验证Return子句（完整上下文版本）
+    /// Verify the “Return” clause (full context version)
     pub fn validate_return(
         &mut self,
         _return_expression: &ContextualExpression,
@@ -480,7 +481,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 验证With子句
+    /// Verify the “With” clause
     pub fn validate_with(
         &mut self,
         _with_expression: &ContextualExpression,
@@ -496,7 +497,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 验证Unwind子句
+    /// Verify the Unwind clause
     pub fn validate_unwind(
         &mut self,
         unwind_expression: &ContextualExpression,
@@ -526,7 +527,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 验证Yield子句
+    /// Verify the Yield clause
     pub fn validate_yield(&mut self, context: &YieldClauseContext) -> Result<(), ValidationError> {
         if context.yield_columns.is_empty() {
             return Err(ValidationError::new(
@@ -537,7 +538,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 构建所有命名别名的列
+    /// Create all columns with their corresponding aliases.
     pub fn build_columns_for_all_named_aliases(
         &mut self,
         query_parts: &[QueryPart],
@@ -556,14 +557,14 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 结合别名
+    /// Taking into account the aliases…
     pub fn combine_aliases(
         &mut self,
         cur_aliases: &mut HashMap<String, AliasType>,
         last_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         for (alias, alias_type) in last_aliases {
-            if cur_aliases.contains_key(alias) {
+            if c// Check whether the types of inspection are consistent.as) {
                 // 检查类型是否一致
                 if cur_aliases.get(alias) != Some(alias_type) {
                     return Err(ValidationError::new(
@@ -578,8 +579,8 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 构建输出
-    pub fn build_outputs(&mut self, paths: &[Path]) -> Result<(), ValidationError> {
+    /// Build the output.
+    pub // Construct the output columnmut self, paths: &[Path]) -> Result<(), ValidationError> {
         // 构建输出列
         for path in paths.iter() {
             for node_info in &path.node_infos {
@@ -604,7 +605,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 检查别名
+    /// Check the aliases.
     pub fn check_alias(
         &mut self,
         ref_expression: &ContextualExpression,
@@ -631,7 +632,7 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 生成输出列
+    /// Generate a column of outputs.
     fn generate_output_columns(&mut self, match_stmt: &MatchStmt) {
         self.outputs.clear();
 
@@ -656,17 +657,17 @@ impl MatchValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
-/// - validate 返回包含 ValidationInfo 的完整验证结果
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
+/// The `validate` function returns a complete validation result that contains the `ValidationInfo`.
 impl StatementValidator for MatchValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
-    ) -> Result<ValidationResult, ValidationError> {
+    ) ->// 1. Check whether additional space is needed.dationError> {
         // 1. 检查是否需要空间
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
@@ -767,7 +768,7 @@ impl StatementValidator for MatchValidator {
         &self.outputs
     }
 
-    fn is_global_statement(&self) -> bool {
+    fn i// “MATCH” is not a global statement; it is necessary to select a domain (a specific “space”) in advance.
         // MATCH 不是全局语句，需要预先选择空间
         false
     }
@@ -788,7 +789,7 @@ impl Default for MatchValidator {
 }
 
 impl MatchValidator {
-    /// 获取引用的标签列表
+    /// Obtain the list of tags used in the citation.
     fn get_referenced_tags(&self) -> Vec<String> {
         let mut tags = Vec::new();
         if let Some(ref validated) = self.validated_result {
@@ -801,7 +802,7 @@ impl MatchValidator {
         tags
     }
 
-    /// 获取引用的边类型列表
+    /// Obtain the list of edge types that are referenced.
     fn get_referenced_edges(&self) -> Vec<String> {
         let mut edges = Vec::new();
         if let Some(ref validated) = self.validated_result {

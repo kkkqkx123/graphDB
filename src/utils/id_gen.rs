@@ -1,40 +1,40 @@
-//! ID生成器模块 - 提供唯一ID生成功能
+//! ID Generator Module - Provides unique ID generation functionality
 //!
-//! 提供两种ID生成策略：
-//! - IdGenerator: 基于原子计数器的顺序ID生成，用于会话级ID生成
-//! - generate_id: 基于时间戳的唯一ID生成
+//! Provides two ID generation strategies:
+//! - IdGenerator: Sequential ID generation based on atomic counter, for session-level ID generation
+//! - generate_id: Unique ID generation based on timestamp
 
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// 基于原子计数器的ID生成器
+/// ID Generator based on atomic counter
 ///
-/// 线程安全的顺序ID生成器，适用于需要递增ID的场景
-/// 用于会话级别的ID生成（如执行计划ID），不需要全局唯一
+/// Thread-safe sequential ID generator, suitable for scenarios requiring incrementing IDs
+/// Used for session-level ID generation (e.g., execution plan ID), does not require global uniqueness
 #[derive(Debug)]
 pub struct IdGenerator {
     counter: AtomicI64,
 }
 
 impl IdGenerator {
-    /// 创建新的ID生成器，使用指定的初始值
+    /// Create a new ID generator with specified initial value
     pub fn new(init: i64) -> Self {
         Self {
             counter: AtomicI64::new(init),
         }
     }
 
-    /// 生成下一个ID
+    /// Generate next ID
     pub fn id(&self) -> i64 {
         self.counter.fetch_add(1, Ordering::SeqCst)
     }
 
-    /// 重置计数器到指定值
+    /// Reset counter to specified value
     pub fn reset(&self, value: i64) {
         self.counter.store(value, Ordering::SeqCst);
     }
 
-    /// 获取当前计数值
+    /// Get current counter value
     pub fn current_value(&self) -> i64 {
         self.counter.load(Ordering::SeqCst)
     }
@@ -54,9 +54,9 @@ impl Default for IdGenerator {
     }
 }
 
-/// 基于时间戳的唯一ID生成
+/// Unique ID generation based on timestamp
 ///
-/// 使用纳秒级时间戳生成唯一ID，适用于分布式场景或需要全局唯一的ID
+/// Generates unique IDs using nanosecond timestamp, suitable for distributed scenarios or requiring global uniqueness
 pub fn generate_id() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

@@ -1,10 +1,10 @@
-//! SUBGRAPH查询规划器
-//! 处理Nebula SUBGRAPH查询的规划
+//! SUBGRAPH Query Planner
+//! Planning for handling Nebula SUBGRAPH queries
 //!
-//! ## 改进说明
-//! - 支持零步扩展（0 STEPS）
-//! - 支持 M TO N STEPS 范围
-//! - 优化起始点查找策略
+//! ## Explanation of the improvements
+//! Supports zero-step expansion (0 STEPS).
+//! Support for the range of M to N steps.
+//! Optimize the starting point search strategy
 
 use std::sync::Arc;
 
@@ -21,13 +21,13 @@ use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement}
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 
-/// SUBGRAPH查询规划器
-/// 负责将SUBGRAPH查询转换为执行计划
+/// SUBGRAPH Query Planner
+/// Responsible for converting SUBGRAPH queries into execution plans.
 #[derive(Debug, Clone)]
 pub struct SubgraphPlanner;
 
 impl SubgraphPlanner {
-    /// 创建新的SUBGRAPH规划器
+    /// Create a new SUBGRAPH planner.
     pub fn new() -> Self {
         Self
     }
@@ -149,7 +149,7 @@ impl Planner for SubgraphPlanner {
 }
 
 impl SubgraphPlanner {
-    /// 创建扩展节点
+    /// Create an extended node.
     fn create_expand_node(
         &self,
         _input: PlanNodeEnum,
@@ -164,7 +164,7 @@ impl SubgraphPlanner {
         Ok(PlanNodeEnum::ExpandAll(expand_node))
     }
 
-    /// 应用所有过滤器
+    /// Apply all filters
     fn apply_filters(
         &self,
         input: PlanNodeEnum,

@@ -1,6 +1,6 @@
-//! 标签管理节点实现
+//! Implementation of the Tag Management Node
 //!
-//! 提供标签管理相关的计划节点定义
+//! Provide definitions for the planning nodes related to label management.
 
 use crate::core::types::PropertyDef;
 use crate::define_plan_node;
@@ -142,7 +142,7 @@ impl ShowTagsNode {
     }
 }
 
-/// 标签管理信息
+/// Tag management information
 #[derive(Debug, Clone)]
 pub struct TagManageInfo {
     pub space_name: String,
@@ -165,7 +165,7 @@ impl TagManageInfo {
     }
 }
 
-/// 标签修改信息
+/// Tag modification information
 #[derive(Debug, Clone)]
 pub struct TagAlterInfo {
     pub space_name: String,

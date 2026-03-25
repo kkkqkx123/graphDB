@@ -1,35 +1,35 @@
 //! Planner module for generating execution plans from AST
 //! Contains the Planner trait, ExecutionPlan structure, and various specific planners
 
-// 核心模块
+// Core modules
 pub mod connector;
 pub mod plan;
 pub mod planner;
 pub mod template_extractor;
 
-// 按功能组织的模块
+// Modules organized by function
 pub mod statements;
 
-// 计划重写模块（启发式优化规则）
+// Plan to rewrite the module (heuristic optimization rules)
 pub mod rewrite;
 
-// 重新导出主要的类型
+// Re-export the main types.
 pub use connector::SegmentsConnector;
 pub use plan::execution_plan::{ExecutionPlan, SubPlan};
 pub use planner::{Planner, PlannerConfig, PlannerError};
 pub use template_extractor::{ParameterizedResult, ParameterizingTransformer, TemplateExtractor};
 
-// 从cache模块重新导出计划缓存类型（向后兼容）
+// Re-export the planned cache types from the cache module (for backward compatibility)
 pub use crate::query::cache::{
     CachedPlan, ParamPosition, ParameterizedQueryHandler, PlanCacheConfig, PlanCacheKey,
     PlanCacheStats, QueryPlanCache,
 };
 
-// 从 core 模块重新导出 JoinType
+// Re-export the JoinType from the core module.
 pub use crate::core::types::JoinType;
 pub use statements::MatchStatementPlanner;
 
-// 静态注册相关导出
+// Export related to static registration
 pub use planner::PlannerEnum;
 
 use std::sync::atomic::{AtomicI64, Ordering};

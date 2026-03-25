@@ -1,6 +1,6 @@
-//! RETURN 子句规划器
+//! RETURN Statement Planner
 //!
-//! 负责规划 RETURN 子句的执行，实现结果投影。
+//! Responsible for planning the execution of the RETURN statement and implementing the projection of the results.
 
 use crate::core::types::expr::common_utils::generate_default_alias_from_contextual;
 use crate::core::YieldColumn;
@@ -17,9 +17,9 @@ use std::sync::Arc;
 
 pub use crate::query::planning::plan::core::PlanNodeEnum;
 
-/// RETURN 子句规划器
+/// RETURN Statement Planner
 ///
-/// 负责规划 RETURN 子句的执行，实现结果投影。
+/// Responsible for planning the execution of the RETURN statement and implementing the projection of the results.
 #[derive(Debug)]
 pub struct ReturnClausePlanner {
     distinct: bool,

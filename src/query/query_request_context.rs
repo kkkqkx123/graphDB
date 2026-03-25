@@ -1,33 +1,33 @@
-//! 查询请求上下文 - query层专用简化版
+//! Query Request Context – A Simplified Version Dedicated to the Query Layer
 //!
-//! 此模块提供查询执行所需的最小上下文信息，避免query层依赖api层。
+//! This module provides the minimum amount of contextual information required to execute the query, thereby avoiding the need for the query layer to rely on the API layer.
 
 use crate::core::Value;
 use std::collections::HashMap;
 
-/// 查询请求上下文 - 简化版
+/// Query request context – Simplified version
 ///
-/// 仅包含查询执行所需的最小信息：
-/// - 会话ID
-/// - 图空间名称
-/// - 查询字符串
-/// - 查询参数
+/// Of course! Please provide the text you would like to have translated.
+/// Session ID
+/// Graph Space Name
+/// Query string
+/// Query parameters
 #[derive(Debug, Clone, Default)]
 pub struct QueryRequestContext {
-    /// 会话ID
+    /// Session ID
     pub session_id: Option<i64>,
-    /// 用户名
+    /// Username
     pub user_name: Option<String>,
-    /// 图空间名称
+    /// Name of the image space
     pub space_name: Option<String>,
-    /// 查询字符串
+    /// Query string
     pub query: String,
-    /// 查询参数
+    /// Query parameters
     pub parameters: HashMap<String, Value>,
 }
 
 impl QueryRequestContext {
-    /// 创建新的查询请求上下文
+    /// Create a new query request context.
     pub fn new(query: String) -> Self {
         Self {
             session_id: None,
@@ -38,36 +38,36 @@ impl QueryRequestContext {
         }
     }
 
-    /// 创建带参数的查询请求上下文
+    /// Create a query request context with parameters
     pub fn with_parameters(mut self, parameters: HashMap<String, Value>) -> Self {
         self.parameters = parameters;
         self
     }
 
-    /// 设置会话ID
+    /// Setting the session ID
     pub fn with_session_id(mut self, session_id: i64) -> Self {
         self.session_id = Some(session_id);
         self
     }
 
-    /// 设置用户名
+    /// Set the username
     pub fn with_user_name(mut self, user_name: String) -> Self {
         self.user_name = Some(user_name);
         self
     }
 
-    /// 设置图空间名称
+    /// Set the name of the image space.
     pub fn with_space_name(mut self, space_name: String) -> Self {
         self.space_name = Some(space_name);
         self
     }
 
-    /// 获取参数
+    /// Obtain parameters
     pub fn get_parameter(&self, param: &str) -> Option<Value> {
         self.parameters.get(param).cloned()
     }
 
-    /// 检查参数是否存在
+    /// Check whether the parameters exist.
     pub fn has_parameter(&self, param: &str) -> bool {
         self.parameters.contains_key(param)
     }

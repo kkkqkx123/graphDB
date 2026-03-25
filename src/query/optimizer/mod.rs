@@ -1,25 +1,25 @@
-//! 查询优化器模块
+//! Query Optimization Module
 //!
-//! 提供查询优化功能，包括统计信息管理、代价计算和优化策略
+//! Provide query optimization capabilities, including the management of statistical information, cost calculation, and optimization strategies.
 //!
-//! ## 模块结构
+//! ## Module Structure
 //!
-//! - `engine` - 优化器引擎，全局唯一的优化器实例，整合所有优化组件
-//! - `stats` - 统计信息模块，管理标签、边类型和属性的统计信息
-//! - `cost` - 代价计算模块，计算查询操作的代价
-//! - `analysis` - 计划分析模块，提供引用计数和表达式分析
-//! - `strategy` - 优化策略模块，提供遍历起点选择和索引选择
-//! - `decision` - 优化决策模块，提供基于决策的缓存机制
+//! “Engine” refers to the optimizer engine, which is a globally unique instance of the optimizer that integrates all optimization components.
+//! The “stats” module is responsible for managing statistical data related to tags, edge types, and their attributes.
+//! `cost` – A module for calculating costs, which determines the cost of query operations.
+//! “Analysis” module: This module is responsible for plan analysis, providing information on reference counts as well as an analysis of expressions.
+//! “Strategy” module: an optimization strategy module that provides options for selecting the starting point and the index for traversal.
+//! Optimization of the decision-making module: Implementation of a cache mechanism based on the decision-making process.
 //!
-//! ## 使用示例
+//! ## Usage Examples
 //!
 //! ```rust
 //! use graphdb::query::optimizer::OptimizerEngine;
 //!
-//! // 创建优化器引擎（全局实例）
+// Create the optimizer engine (global instance)
 //! let optimizer = OptimizerEngine::default();
 //!
-//! // 计算优化决策
+// Calculate the optimization decision
 //! let decision = optimizer.compute_decision(&stmt, sentence_kind);
 //! ```
 
@@ -30,7 +30,7 @@ pub mod engine;
 pub mod stats;
 pub mod strategy;
 
-// 重新导出主要类型
+// Re-export the main types
 pub use engine::OptimizerEngine;
 
 pub use stats::{
@@ -42,7 +42,7 @@ pub use stats::{
 pub use crate::core::error::optimize::CostError;
 pub use cost::{CostAssigner, CostCalculator, CostModelConfig, SelectivityEstimator};
 
-// 重新导出分析模块类型
+// Reexport the analysis module type.
 pub use analysis::{
     AnalysisOptions, ExpressionAnalysis, ExpressionAnalyzer, ReferenceCountAnalysis,
     ReferenceCountAnalyzer,

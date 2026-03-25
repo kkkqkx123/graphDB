@@ -1,8 +1,8 @@
-//! 内置函数宏定义模块
+//! Module for defining built-in function macros
 //!
-//! 提供用于减少样板代码的宏，用于定义函数枚举和执行函数
+//! Provide macros for reducing the amount of样板 code, used for defining function enumerations and for executing functions.
 
-/// 定义内置函数枚举的宏
+/// Macro for defining an enumeration of built-in functions
 ///
 /// 自动生成 name(), arity(), is_variadic(), description(), execute() 方法
 #[macro_export]
@@ -32,35 +32,35 @@ macro_rules! define_function_enum {
         }
 
         impl $name {
-            /// 获取函数名称
+            /// Obtain the function name
             $vis fn name(&self) -> &str {
                 match self {
                     $(Self::$variant => $func_name,)*
                 }
             }
 
-            /// 获取参数数量
+            /// Determine the number of parameters
             $vis fn arity(&self) -> usize {
                 match self {
                     $(Self::$variant => $arity,)*
                 }
             }
 
-            /// 是否为可变参数函数
+            /// Is it a function with variable parameters?
             $vis fn is_variadic(&self) -> bool {
                 match self {
                     $(Self::$variant => $variadic,)*
                 }
             }
 
-            /// 获取函数描述
+            /// Obtain the function description
             $vis fn description(&self) -> &str {
                 match self {
                     $(Self::$variant => $desc,)*
                 }
             }
 
-            /// 执行函数
+            /// Execute the function
             $vis fn execute(&self, args: &[$crate::core::Value]) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> {
                 let handler: fn(&[$crate::core::Value]) -> Result<$crate::core::Value, $crate::core::error::ExpressionError> = match self {
                     $(Self::$variant => $handler,)*
@@ -71,7 +71,7 @@ macro_rules! define_function_enum {
     };
 }
 
-/// 定义单参数数值函数（返回Float）
+/// Define a single-parameter numerical function that returns a Float value.
 #[macro_export]
 macro_rules! define_unary_float_fn {
     ($name:ident, $op:expr, $desc:literal) => {
@@ -99,7 +99,7 @@ macro_rules! define_unary_float_fn {
     };
 }
 
-/// 定义单参数整数/浮点函数（保留类型）
+/// Define a single-parameter integer/float function (while preserving the data type)
 #[macro_export]
 macro_rules! define_unary_numeric_fn {
     ($name:ident, int: $int_op:expr, float: $float_op:expr, $desc:literal) => {
@@ -126,7 +126,7 @@ macro_rules! define_unary_numeric_fn {
     };
 }
 
-/// 定义单参数字符串函数
+/// Define a single-parameter string function
 #[macro_export]
 macro_rules! define_unary_string_fn {
     ($name:ident, $op:expr, $desc:literal) => {
@@ -153,7 +153,7 @@ macro_rules! define_unary_string_fn {
     };
 }
 
-/// 定义日期时间字段提取函数
+/// Define a function for extracting date and time fields
 #[macro_export]
 macro_rules! define_datetime_extractor {
     ($name:ident, Date => $date_field:ident, DateTime => $datetime_field:ident) => {
@@ -202,7 +202,7 @@ macro_rules! define_datetime_extractor {
     };
 }
 
-/// 定义带参数数量检查的包装函数
+/// Define a wrapper function that performs a check on the number of parameters
 #[macro_export]
 macro_rules! define_arg_checked_fn {
     ($name:ident, $arity:expr, $handler:expr, $type_desc:literal) => {
@@ -222,7 +222,7 @@ macro_rules! define_arg_checked_fn {
     };
 }
 
-/// 定义二元数值运算函数
+/// Define a binary numeric operation function
 #[macro_export]
 macro_rules! define_binary_numeric_fn {
     ($name:ident, $op:expr, $desc:literal) => {
@@ -252,7 +252,7 @@ macro_rules! define_binary_numeric_fn {
     };
 }
 
-/// 定义二元字符串比较函数
+/// Define a binary string comparison function
 #[macro_export]
 macro_rules! define_binary_string_bool_fn {
     ($name:ident, $op:expr, $desc:literal) => {
@@ -279,7 +279,7 @@ macro_rules! define_binary_string_bool_fn {
     };
 }
 
-/// 定义地理空间二元函数
+/// Define a geospatial binary function
 #[macro_export]
 macro_rules! define_binary_geography_fn {
     ($name:ident, $op:expr, $desc:literal) => {

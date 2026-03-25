@@ -374,7 +374,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         &self,
         session: &Arc<ClientSession>,
     ) -> Result<ExecutionResult, String> {
-        let txn_id = session.current_transaction().ok_or("No active transaction to commit")?;
+        let txn_id = session
+            .current_transaction()
+            .ok_or("No active transaction to commit")?;
 
         let txn_manager = self
             .transaction_manager
@@ -404,7 +406,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         if trimmed.starts_with("ROLLBACK TO ") {
             let savepoint_name = stmt[trimmed.find("ROLLBACK TO ").unwrap() + 12..].trim();
 
-            let txn_id = session.current_transaction().ok_or("No active transaction to rollback")?;
+            let txn_id = session
+                .current_transaction()
+                .ok_or("No active transaction to rollback")?;
 
             let txn_manager = self
                 .transaction_manager
@@ -435,7 +439,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             }
         } else {
             // Full transaction rollback
-            let txn_id = session.current_transaction().ok_or("No active transaction to rollback")?;
+            let txn_id = session
+                .current_transaction()
+                .ok_or("No active transaction to rollback")?;
 
             let txn_manager = self
                 .transaction_manager
@@ -446,7 +452,11 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 Ok(()) => {
                     session.unbind_transaction();
                     session.set_auto_commit(true);
-                    info!("Session {} rolled back transaction {}", session.id(), txn_id);
+                    info!(
+                        "Session {} rolled back transaction {}",
+                        session.id(),
+                        txn_id
+                    );
                     Ok(ExecutionResult::Success)
                 }
                 Err(e) => Err(format!("Failed to rollback transaction: {}", e)),
@@ -504,7 +514,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return Err("Savepoint name cannot be empty".to_string());
         }
 
-        let txn_id = session.current_transaction().ok_or("No active transaction")?;
+        let txn_id = session
+            .current_transaction()
+            .ok_or("No active transaction")?;
 
         let txn_manager = self
             .transaction_manager
@@ -600,7 +612,10 @@ mod tests {
 
         // Testing the default user authentication mechanism
         let result = graph_service.authenticate("root", "root").await;
-        assert!(result.is_ok(), "The default user authentication should succeed.");
+        assert!(
+            result.is_ok(),
+            "The default user authentication should succeed."
+        );
 
         let session = result.expect("Failed to get session");
         assert_eq!(session.user(), "root");
@@ -614,14 +629,23 @@ mod tests {
 
         // Test incorrect password.
         let result = graph_service.authenticate("root", "wrong_password").await;
-        assert!(result.is_err(), "An incorrect password should result in a authentication failure.");
+        assert!(
+            result.is_err(),
+            "An incorrect password should result in a authentication failure."
+        );
 
         // Test an empty username or password.
         let result = graph_service.authenticate("", "root").await;
-        assert!(result.is_err(), "An empty username should result in an authentication failure.");
+        assert!(
+            result.is_err(),
+            "An empty username should result in an authentication failure."
+        );
 
         let result = graph_service.authenticate("root", "").await;
-        assert!(result.is_err(), "An empty password should result in a failed authentication attempt.");
+        assert!(
+            result.is_err(),
+            "An empty password should result in a failed authentication attempt."
+        );
     }
 
     #[tokio::test]
@@ -640,14 +664,20 @@ mod tests {
 
         // Search for the conversation
         let found_session = graph_service.get_session_manager().find_session(session_id);
-        assert!(found_session.is_some(), "We should be able to find the session that was just created.");
+        assert!(
+            found_session.is_some(),
+            "We should be able to find the session that was just created."
+        );
 
         // Log out of the session.
         graph_service.signout(session_id).await;
 
         // The verification session has been removed.
         let found_session = graph_service.get_session_manager().find_session(session_id);
-        assert!(found_session.is_none(), "After signing out, the session should no longer be available.");
+        assert!(
+            found_session.is_none(),
+            "After signing out, the session should no longer be available."
+        );
     }
 
     #[tokio::test]

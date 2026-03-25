@@ -1,4 +1,4 @@
-//! PlanNode 访问者模式实现
+//! Implementation of the PlanNode visitor pattern
 
 use super::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::management::edge_nodes::{
@@ -55,7 +55,7 @@ pub use crate::query::planning::plan::core::nodes::traversal::traversal_node::{
     AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode,
 };
 
-/// 生成 PlanNode 访问者默认方法的宏
+/// Macro for generating the default method of the PlanNode visitor
 macro_rules! impl_visitor_methods {
     ($($name:ident, $node_type:ty, $visit_method:ident);* $(;)?) => {
         $(
@@ -67,11 +67,11 @@ macro_rules! impl_visitor_methods {
     };
 }
 
-/// PlanNode 访问者trait - 使用泛型避免动态分发
+/// The PlanNode visitor trait – Using generics to avoid dynamic distribution
 pub trait PlanNodeVisitor {
     type Result;
 
-    /// 默认访问方法
+    /// Default access method
     fn visit_default(&mut self) -> Self::Result;
 
     impl_visitor_methods!(
@@ -194,7 +194,7 @@ pub trait PlanNodeVisitor {
         ChangePassword, ChangePasswordNode, visit_change_password;
     );
 
-    // 新增管理节点 visitor 方法
+    // Added a new method named `visitor` for managing nodes.
     impl_visitor_methods!(
         GrantRole, GrantRoleNode, visit_grant_role;
         RevokeRole, RevokeRoleNode, visit_revoke_role;
@@ -206,7 +206,7 @@ pub trait PlanNodeVisitor {
 }
 
 impl PlanNodeEnum {
-    /// 零成本访问者模式
+    /// Zero-Cost Visitor Pattern
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
         V: PlanNodeVisitor,
@@ -285,7 +285,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::AlterUser(node) => visitor.visit_alter_user(node),
             PlanNodeEnum::DropUser(node) => visitor.visit_drop_user(node),
             PlanNodeEnum::ChangePassword(node) => visitor.visit_change_password(node),
-            // 新增管理节点
+            // Add a new management node.
             PlanNodeEnum::GrantRole(node) => visitor.visit_grant_role(node),
             PlanNodeEnum::RevokeRole(node) => visitor.visit_revoke_role(node),
             PlanNodeEnum::SwitchSpace(node) => visitor.visit_switch_space(node),

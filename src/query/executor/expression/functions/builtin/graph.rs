@@ -1,6 +1,6 @@
-//! 图相关函数实现
+//! Implementation of image-related functions
 //!
-//! 提供顶点和边的操作函数，包括 id, tags, labels, properties, type, src, dst, rank
+//! Provide functions for manipulating vertices and edges, including id, tags, labels, properties, type, src, dst, and rank.
 
 use crate::core::error::ExpressionError;
 use crate::core::value::dataset::List;
@@ -8,7 +8,7 @@ use crate::core::value::NullType;
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Value;
 
-/// 图函数枚举
+/// Graph function enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphFunction {
     Id,
@@ -24,7 +24,7 @@ pub enum GraphFunction {
 }
 
 impl GraphFunction {
-    /// 获取函数名称
+    /// Obtain the function name
     pub fn name(&self) -> &str {
         match self {
             Self::Id => "id",
@@ -40,7 +40,7 @@ impl GraphFunction {
         }
     }
 
-    /// 获取参数数量
+    /// Determine the number of parameters
     pub fn arity(&self) -> usize {
         match self {
             Self::Id => 1,
@@ -56,12 +56,12 @@ impl GraphFunction {
         }
     }
 
-    /// 是否为可变参数函数
+    /// Is it a function with variable parameters?
     pub fn is_variadic(&self) -> bool {
         false
     }
 
-    /// 获取函数描述
+    /// Obtain the function description
     pub fn description(&self) -> &str {
         match self {
             Self::Id => "获取顶点的ID",
@@ -269,7 +269,7 @@ mod tests {
         if let Value::List(tags) = result {
             assert_eq!(tags.values.len(), 2);
         } else {
-            panic!("tags函数应该返回列表");
+            panic!("The `tags` function should return a list.");
         }
     }
 
@@ -284,7 +284,7 @@ mod tests {
             assert!(props.contains_key("age"));
             assert!(props.contains_key("dept"));
         } else {
-            panic!("properties函数应该返回映射");
+            panic!("The `properties` function should return a map.");
         }
     }
 

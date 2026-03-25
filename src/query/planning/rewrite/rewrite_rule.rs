@@ -1,9 +1,9 @@
-//! 重写规则 trait 定义
+//! Rewriting the definition of a trait
 //!
-//! 该模块提供启发式重写规则的 trait 定义。
-//! 启发式规则不依赖代价计算，总是产生更优或等价的计划。
+//! This module provides the definition of a trait that encompasses heuristic rules for rewriting code.
+//! Heuristic rules do not rely on cost calculations and always produce either better or equivalent plans.
 //!
-//! 注意：当前实现使用 planner 层独立的类型，不再依赖 optimizer 模块。
+//! The current implementation uses types that are independent of the planner layer and no longer relies on the optimizer module.
 
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::planning::rewrite::context::RewriteContext;
@@ -11,26 +11,26 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::RewriteRule;
 
-/// 启发式重写规则 trait（兼容层）
+/// Heuristic rewriting rule trait (compatibility layer)
 ///
-/// 为不需要完整优化器上下文的简单重写规则提供的简化接口。
-/// 这些规则总是产生更优或等价的计划，不需要代价计算。
+/// A simplified interface provided for simple rewriting rules that do not require the full context of the optimizer.
+/// These rules always generate better or equivalent plans, without the need for cost calculations.
 ///
-/// 对于需要访问优化器状态或代价信息的规则，请使用 `RewriteRule` trait。
+/// For rules that require access to the optimizer’s status or cost information, please use the `RewriteRule` trait.
 pub trait HeuristicRule: std::fmt::Debug + Send + Sync {
-    /// 规则名称
+    /// Rule Name
     fn name(&self) -> &'static str;
 
-    /// 检查是否匹配当前计划节点
+    /// Check whether it matches the current planned node.
     fn matches(&self, node: &PlanNodeEnum) -> bool;
 
-    /// 应用重写规则
+    /// Apply the rule for rewriting the text.
     ///
-    /// # 参数
-    /// - `ctx`: 重写上下文
-    /// - `node`: 当前计划节点
+    /// # Parameters
+    /// `ctx`: Rewrite the context.
+    /// `node`: The current planned node
     ///
-    /// # 返回
+    /// # Return
     /// - `Ok(Some(node))`: 重写成功，返回新节点
     /// - `Ok(None)`: 不匹配，保持原节点
     /// - `Err(e)`: 重写失败
@@ -41,7 +41,7 @@ pub trait HeuristicRule: std::fmt::Debug + Send + Sync {
     ) -> RewriteResult<Option<PlanNodeEnum>>;
 }
 
-/// 将 HeuristicRule 适配为 RewriteRule 的包装器
+/// Create a wrapper that adapts `HeuristicRule` to `RewriteRule`.
 #[derive(Debug)]
 pub struct HeuristicRuleAdapter<T: HeuristicRule> {
     inner: T,
@@ -63,7 +63,7 @@ impl<T: HeuristicRule> RewriteRule for HeuristicRuleAdapter<T> {
     }
 
     fn pattern(&self) -> Pattern {
-        // 启发式规则使用通配模式，由 matches 方法进行精确匹配
+        // Heuristic rules use wildcard patterns, and precise matching is performed by the matches method.
         Pattern::new()
     }
 
@@ -87,7 +87,7 @@ impl<T: HeuristicRule> RewriteRule for HeuristicRuleAdapter<T> {
     }
 }
 
-/// 为 HeuristicRule 提供适配器构造函数的 trait
+/// Provide a trait for the adapter constructor of HeuristicRule
 pub trait IntoOptRule: HeuristicRule + Sized {
     fn into_opt_rule(self) -> HeuristicRuleAdapter<Self> {
         HeuristicRuleAdapter::new(self)
@@ -119,7 +119,7 @@ mod tests {
             node: &PlanNodeEnum,
         ) -> RewriteResult<Option<PlanNodeEnum>> {
             if self.matches(node) {
-                // 返回原节点（实际规则会有更复杂的逻辑）
+                // Return to the original node (the actual rule would involve more complex logic.)
                 Ok(Some(node.clone()))
             } else {
                 Ok(None)

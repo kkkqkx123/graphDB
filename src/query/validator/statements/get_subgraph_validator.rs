@@ -1,18 +1,18 @@
-//! GET SUBGRAPH 语句验证器 - 新体系版本
+//! GET SUBGRAPH statement validator – New system version
 //! 对应 NebulaGraph GetSubgraphValidator.h/.cpp 的功能
-//! 验证 GET SUBGRAPH 语句的合法性
+//! Verify the validity of the GET SUBGRAPH statement.
 //!
-//! 本文件已按照新的 trait + 枚举 验证器体系重构：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 保留了完整功能：
-//!    - 验证生命周期管理
-//!    - 输入/输出列管理
-//!    - 表达式属性追踪
-//!    - 用户定义变量管理
-//!    - 权限检查
-//!    - 执行计划生成
-//! 3. 移除了生命周期参数，使用 Arc 管理 SchemaManager
-//! 4. 使用 AstContext 统一管理上下文
+//! This document has been restructured in accordance with the new trait + enumeration validator framework.
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. All functions are retained.
+//! Verify Lifecycle Management
+//! Management of input/output columns
+//! Expression property tracking
+//! User-defined variable management
+//! Permission check
+//! Execution plan generation
+//! 3. The lifecycle parameters have been removed, and the SchemaManager is now managed using Arc.
+//! 4. Use AstContext to manage the context in a unified manner.
 
 use std::sync::Arc;
 
@@ -29,7 +29,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
-/// 验证后的子图获取信息
+/// Information obtained from the verified sub-image
 #[derive(Debug, Clone)]
 pub struct ValidatedGetSubgraph {
     pub space_id: u64,
@@ -40,28 +40,28 @@ pub struct ValidatedGetSubgraph {
     pub yield_clause: Option<YieldClause>,
 }
 
-/// GET SUBGRAPH 验证器 - 新体系实现
+/// GET SUBGRAPH Validator – New System Implementation
 ///
-/// 功能完整性保证：
-/// 1. 完整的验证生命周期
-/// 2. 输入/输出列管理
-/// 3. 表达式属性追踪
-/// 4. 用户定义变量管理
-/// 5. 权限检查（可扩展）
-/// 6. 执行计划生成（可扩展）
+/// Functionality integrity assurance:
+/// 1. Complete validation lifecycle
+/// 2. Management of input/output columns
+/// 3. Expression property tracing
+/// 4. Management of user-defined variables
+/// 5. Permission checking (scalable)
+/// 6. Generation of execution plans (scalable)
 #[derive(Debug)]
 pub struct GetSubgraphValidator {
-    // Schema 管理
+    // Schema management
     schema_manager: Option<Arc<RedbSchemaManager>>,
-    // 输入列定义
+    // Input column definition
     inputs: Vec<ColumnDef>,
-    // 输出列定义
+    // Column definition
     outputs: Vec<ColumnDef>,
-    // 表达式属性
+    // Expression properties
     expr_props: ExpressionProps,
-    // 用户定义变量
+    // User-defined variables
     user_defined_vars: Vec<String>,
-    // 缓存验证结果
+    // Cache validation results
     validated_result: Option<ValidatedGetSubgraph>,
 }
 
@@ -82,12 +82,12 @@ impl GetSubgraphValidator {
         self
     }
 
-    /// 获取验证结果
+    /// Obtain the verification results.
     pub fn validated_result(&self) -> Option<&ValidatedGetSubgraph> {
         self.validated_result.as_ref()
     }
 
-    /// 基础验证
+    /// Basic validation
     fn validate_get_subgraph(&self, stmt: &SubgraphStmt) -> Result<(), ValidationError> {
         self.validate_steps(&stmt.steps)?;
         self.validate_from_clause(&stmt.from)?;
@@ -97,7 +97,7 @@ impl GetSubgraphValidator {
         Ok(())
     }
 
-    /// 验证步数
+    /// Verification steps
     fn validate_steps(&self, steps: &Steps) -> Result<(), ValidationError> {
         match steps {
             Steps::Fixed(n) => {
@@ -127,14 +127,14 @@ impl GetSubgraphValidator {
         Ok(())
     }
 
-    /// 验证 FROM 子句
+    /// Verify the FROM clause
     fn validate_from_clause(&self, from: &FromClause) -> Result<(), ValidationError> {
-        // 简化处理：假设 FROM 子句有效
+        // Assume that the FROM clause is valid.
         let _ = from;
         Ok(())
     }
 
-    /// 验证 OVER 子句
+    /// Verify the OVER clause
     fn validate_over_clause(&self, over: &OverClause) -> Result<(), ValidationError> {
         for edge_type in &over.edge_types {
             if edge_type.is_empty() {
@@ -147,7 +147,7 @@ impl GetSubgraphValidator {
         Ok(())
     }
 
-    /// 验证 YIELD 子句
+    /// Verify the YIELD clause
     fn validate_yield_clause(
         &self,
         yield_clause: &Option<YieldClause>,
@@ -180,17 +180,17 @@ impl Default for GetSubgraphValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for GetSubgraphValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
@@ -198,7 +198,7 @@ impl StatementValidator for GetSubgraphValidator {
             ));
         }
 
-        // 2. 获取 GET SUBGRAPH 语句（拥有所有权）
+        // 2. Obtain the GET SUBGRAPH statement (with ownership rights)
         let get_subgraph_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Subgraph(s) => s,
             _ => {
@@ -209,16 +209,16 @@ impl StatementValidator for GetSubgraphValidator {
             }
         };
 
-        // 3. 执行基础验证
+        // 3. Perform basic validation.
         self.validate_get_subgraph(get_subgraph_stmt)?;
 
-        // 4. 验证 YIELD 子句
+        // 4. Verify the YIELD clause
         self.validate_yield_clause(&get_subgraph_stmt.yield_clause)?;
 
-        // 5. 获取 space_id
+        // 5. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 6. 创建验证结果（直接移动所有权，无需 clone）
+        // 6. Create verification results (directly transfer ownership without cloning).
         let validated = ValidatedGetSubgraph {
             space_id,
             steps: get_subgraph_stmt.steps.clone(),
@@ -228,7 +228,7 @@ impl StatementValidator for GetSubgraphValidator {
             yield_clause: get_subgraph_stmt.yield_clause.clone(),
         };
 
-        // 7. 设置输出列
+        // 7. Set the output columns
         self.outputs.clear();
         if let Some(ref yc) = validated.yield_clause {
             for item in &yc.items {
@@ -243,7 +243,7 @@ impl StatementValidator for GetSubgraphValidator {
             }
         }
 
-        // 8. 构建 ValidationInfo
+        // 8. Constructing ValidationInfo
         let mut info = ValidationInfo::new();
 
         if let Some(ref over_clause) = validated.over {
@@ -257,7 +257,7 @@ impl StatementValidator for GetSubgraphValidator {
 
         self.validated_result = Some(validated);
 
-        // 9. 返回验证结果
+        // 9. Return the verification results.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -274,7 +274,7 @@ impl StatementValidator for GetSubgraphValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // GET SUBGRAPH 不是全局语句，需要预先选择空间
+        // The `GET SUBGRAPH` command is not a global statement; it requires that a space (i.e., a specific subset of the data) be selected in advance.
         false
     }
 
@@ -354,14 +354,14 @@ mod tests {
     fn test_statement_validator_trait() {
         let validator = GetSubgraphValidator::new();
 
-        // 测试 statement_type
+        // Testing the `statement_type`
         assert_eq!(validator.statement_type(), StatementType::GetSubgraph);
 
-        // 测试 inputs/outputs
+        // Testing inputs/outputs
         assert!(validator.inputs().is_empty());
         assert!(validator.outputs().is_empty());
 
-        // 测试 user_defined_vars
+        // Testing user_defined_vars
         assert!(validator.user_defined_vars().is_empty());
     }
 }

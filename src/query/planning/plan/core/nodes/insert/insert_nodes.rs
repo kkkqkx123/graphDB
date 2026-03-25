@@ -1,19 +1,19 @@
-//! 插入操作节点实现
+//! Implementation of the Insert Operation Node
 //!
-//! 提供顶点插入和边插入的计划节点定义
+//! Provide the definition of the planning nodes for vertex insertion and edge insertion.
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::define_plan_node;
 
-/// 标签插入规范
+/// Tag insertion guidelines
 #[derive(Debug, Clone)]
 pub struct TagInsertSpec {
     pub tag_name: String,
     pub prop_names: Vec<String>,
 }
 
-/// 顶点插入信息
-/// 支持多标签插入
+/// Vertex insertion information
+/// Supports the insertion of multiple tags.
 #[derive(Debug, Clone)]
 pub struct VertexInsertInfo {
     pub space_name: String,
@@ -21,7 +21,7 @@ pub struct VertexInsertInfo {
     pub values: Vec<(ContextualExpression, Vec<Vec<ContextualExpression>>)>,
 }
 
-/// 边插入信息
+/// Insert information as needed.
 #[derive(Debug, Clone)]
 pub struct EdgeInsertInfo {
     pub space_name: String,
@@ -61,22 +61,22 @@ impl InsertVerticesNode {
         &self.info.space_name
     }
 
-    /// 获取所有标签名称
+    /// Retrieve all tag names.
     pub fn tag_names(&self) -> Vec<String> {
         self.info.tags.iter().map(|t| t.tag_name.clone()).collect()
     }
 
-    /// 获取第一个标签名称（向后兼容）
+    /// Retrieve the name of the first tag (for backward compatibility).
     pub fn tag_name(&self) -> Option<&str> {
         self.info.tags.first().map(|t| t.tag_name.as_str())
     }
 
-    /// 获取所有标签的属性名列表
+    /// Get a list of the attribute names for all tags.
     pub fn tags(&self) -> &[TagInsertSpec] {
         &self.info.tags
     }
 
-    /// 获取第一个标签的属性名（向后兼容）
+    /// Get the attribute name of the first tag (for backward compatibility)
     pub fn prop_names(&self) -> Option<&[String]> {
         self.info.tags.first().map(|t| t.prop_names.as_slice())
     }
@@ -140,7 +140,7 @@ mod tests {
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
-    // 辅助函数：创建常量表达式
+    // Auxiliary function: Creating constant expressions
     fn lit(val: Value) -> ContextualExpression {
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::literal(val);

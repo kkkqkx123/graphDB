@@ -1,10 +1,10 @@
-//! 正则表达式函数实现
+//! Implementation of regular expression functions
 
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::value::NullType;
 use crate::core::Value;
 
-/// 正则表达式函数枚举
+/// Enumeration of regular expression functions
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RegexFunction {
     RegexMatch,
@@ -95,9 +95,9 @@ impl RegexFunction {
         }
     }
 
-    /// 执行函数（带缓存）
+    /// Execute a function (with caching)
     ///
-    /// 注意：缓存功能已移除，直接调用execute
+    /// The caching function has been removed; the `execute` method is called directly.
     pub fn execute_with_cache(
         &self,
         args: &[Value],

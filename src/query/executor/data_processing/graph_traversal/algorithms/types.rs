@@ -1,21 +1,21 @@
-//! 图算法共享类型定义
+//! Definition of graph algorithm sharing types
 //!
-//! 包含各种图遍历和路径查找算法使用的共享数据结构
+//! Shared data structures used by various graph traversal and pathfinding algorithms
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use crate::core::{Edge, NPath, Path, Value};
 
-/// 多源最短路径请求
-/// 表示一对起点和终点的路径查找请求
+/// Multi-source shortest path request
+/// A pathfinding request that specifies a pair of starting and ending points.
 #[derive(Debug, Clone)]
 pub struct MultiPathRequest {
-    /// 起点顶点ID
+    /// Source vertex ID
     pub src: Value,
-    /// 终点顶点ID
+    /// Destination vertex ID
     pub dst: Value,
-    /// 是否已找到路径
+    /// Has the path been found?
     pub found: bool,
 }
 
@@ -33,18 +33,18 @@ impl MultiPathRequest {
     }
 }
 
-/// 多源最短路径终止映射表
+/// Multi-source shortest path termination mapping table
 /// 用于跟踪所有(src, dst)对的完成状态
 pub type TerminationMap = HashMap<Value, Vec<(Value, bool)>>;
 
-/// 中间路径映射
-/// 第一层key: 目标顶点ID
-/// 第二层key: 源顶点ID
-/// value: 从源到目标的所有路径
+/// Intermediate path mapping
+/// First layer key: Target vertex ID
+/// Second layer key: Source vertex ID
+/// Value: All paths from the source to the target.
 pub type Interims = HashMap<Value, HashMap<Value, Vec<Path>>>;
 
-/// 创建终止映射表
-/// 从起点集合和终点集合创建笛卡尔积映射
+/// Create a termination mapping table
+/// Create a Cartesian product mapping from the source set and the target set.
 pub fn create_termination_map(start_vids: &[Value], end_vids: &[Value]) -> TerminationMap {
     let mut map = HashMap::new();
     for src in start_vids {
@@ -54,13 +54,13 @@ pub fn create_termination_map(start_vids: &[Value], end_vids: &[Value]) -> Termi
     map
 }
 
-/// 检查终止映射表是否全部完成
+/// Check whether the termination of the mapping table has been completed in its entirety.
 pub fn is_termination_complete(map: &TerminationMap) -> bool {
     map.is_empty()
 }
 
-/// 标记路径对已找到
-/// 返回true表示该对存在并被标记
+/// The marked path has been found.
+/// Returning `true` indicates that the pair exists and has been marked.
 pub fn mark_path_found(map: &mut TerminationMap, src: &Value, dst: &Value) -> bool {
     if let Some(pairs) = map.get_mut(src) {
         for (d, found) in pairs.iter_mut() {
@@ -73,8 +73,8 @@ pub fn mark_path_found(map: &mut TerminationMap, src: &Value, dst: &Value) -> bo
     false
 }
 
-/// 清理已找到的路径对
-/// 移除所有found=false的条目
+/// Clean up the found path pairs.
+/// Remove all entries where the value of `found` is `false`.
 pub fn cleanup_termination_map(map: &mut TerminationMap) {
     map.retain(|_, pairs| {
         pairs.retain(|(_, found)| *found);
@@ -82,8 +82,8 @@ pub fn cleanup_termination_map(map: &mut TerminationMap) {
     });
 }
 
-/// 自环边去重辅助结构
-/// 用于在遍历过程中跟踪已处理的自环边
+/// Auxiliary structure for removing duplicates from self-loop edges
+/// Used to track the processed self-loop edges during the traversal process.
 #[derive(Debug, Default)]
 pub struct SelfLoopDedup {
     seen: HashSet<(String, i64)>,
@@ -98,7 +98,7 @@ impl SelfLoopDedup {
         }
     }
 
-    /// 创建允许自环边的去重结构
+    /// Create a structure that allows for the removal of duplicates, including self-looping edges.
     pub fn with_loop(with_loop: bool) -> Self {
         Self {
             seen: HashSet::new(),
@@ -106,17 +106,17 @@ impl SelfLoopDedup {
         }
     }
 
-    /// 检查并记录自环边
-    /// 返回 true 表示该边应该被包含（首次出现或允许自环）
-    /// 返回 false 表示该边应该被跳过（重复的自环边）
+    /// Check and record the self-loop edges.
+    /// Returning `true` indicates that the edge should be included (either as it appears for the first time or because self-loops are allowed).
+    /// Returning `false` indicates that this edge should be skipped (it represents a duplicate, self-looping edge).
     pub fn should_include(&mut self, edge: &Edge) -> bool {
         let is_self_loop = *edge.src == *edge.dst;
         if is_self_loop {
-            // 如果允许自环边，直接返回 true
+            // If self-loop edges are allowed, return true directly.
             if self.with_loop {
                 return true;
             }
-            // 否则进行去重
+            // Otherwise, perform deduplication.
             let key = (edge.edge_type.clone(), edge.ranking);
             self.seen.insert(key)
         } else {
@@ -125,7 +125,7 @@ impl SelfLoopDedup {
     }
 }
 
-/// Dijkstra距离节点
+/// Dijkstra's algorithm for calculating distances between nodes
 #[derive(Debug, Clone)]
 pub struct DistanceNode {
     pub distance: f64,
@@ -155,13 +155,13 @@ impl PartialOrd for DistanceNode {
     }
 }
 
-/// 双向BFS状态
+/// Bidirectional BFS state
 #[derive(Debug, Clone)]
 pub struct BidirectionalBFSState {
-    /// 使用 NPath 替代 Path 存储中间结果，减少内存复制
+    /// Use NPath instead of Path to store intermediate results, thereby reducing memory copying.
     pub left_queue: VecDeque<(Value, Arc<NPath>)>,
     pub right_queue: VecDeque<(Value, Arc<NPath>)>,
-    /// 使用 NPath 缓存访问过的路径
+    /// Use the NPath cache to store the paths that have been accessed.
     pub left_visited: HashMap<Value, (Arc<NPath>, f64)>,
     pub right_visited: HashMap<Value, (Arc<NPath>, f64)>,
     pub left_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>>,
@@ -187,7 +187,7 @@ impl Default for BidirectionalBFSState {
     }
 }
 
-/// 算法统计信息
+/// Algorithm statistics information
 #[derive(Debug, Clone, Default)]
 pub struct AlgorithmStats {
     pub nodes_visited: usize,
@@ -213,7 +213,7 @@ impl AlgorithmStats {
     }
 }
 
-/// 最短路径算法类型
+/// Types of shortest path algorithms
 #[derive(Debug, Clone)]
 pub enum ShortestPathAlgorithmType {
     BFS,
@@ -221,43 +221,43 @@ pub enum ShortestPathAlgorithmType {
     AStar,
 }
 
-/// 边权重配置
+/// Edge weight configuration
 #[derive(Debug, Clone, Default)]
 pub enum EdgeWeightConfig {
-    /// 无权图，使用步数作为距离
+    /// For the “No Permission Map” scenario, the number of steps taken is used as a measure of distance.
     #[default]
     Unweighted,
-    /// 使用边的ranking作为权重
+    /// Use the ranking of the edges as a weight.
     Ranking,
-    /// 使用指定属性作为权重
+    /// Use the specified attributes as weights.
     Property(String),
 }
 
-/// 启发式函数类型
-/// 用于A*算法估计从当前节点到目标节点的代价
+/// Heuristic function type
+/// Used in the A* algorithm to estimate the cost from the current node to the target node.
 #[derive(Debug, Clone, Default)]
 pub enum HeuristicFunction {
-    /// 零启发式，退化为Dijkstra算法
+    /// Zero-heuristics approach; degenerates into the Dijkstra algorithm.
     #[default]
     Zero,
-    /// 使用顶点属性计算启发式（如坐标）
-    /// 参数为属性名，用于获取空间坐标
+    /// Using vertex attributes to calculate heuristics (such as coordinates)
+    /// The parameter is the name of an attribute, which is used to obtain the spatial coordinates.
     PropertyDistance(String, String), // (lat_prop, lon_prop)
-    /// 使用固定权重因子
+    /// Use fixed weight factors
     ScaleFactor(f64),
 }
 
 impl HeuristicFunction {
-    /// 计算启发式值
+    /// Calculate the heuristic value.
     ///
     /// # Arguments
-    /// * `current` - 当前节点值
-    /// * `target` - 目标节点值
-    /// * `current_props` - 当前节点属性
-    /// * `target_props` - 目标节点属性
+    /// * `current` – The value of the current node.
+    /// * `target` – The value of the target node.
+    /// `current_props` – Properties of the current node.
+    /// `target_props` – Properties of the target node
     ///
     /// # Returns
-    /// 启发式估计值（必须满足可采纳性：不高估实际代价）
+    /// Heuristic estimates (which must meet the requirement of admissibility: not overestimating the actual cost)
     pub fn evaluate(
         &self,
         _current: &Value,
@@ -312,19 +312,19 @@ impl HeuristicFunction {
         }
     }
 
-    /// 是否为零启发式
+    /// Is it a zero-heuristic approach?
     pub fn is_zero(&self) -> bool {
         matches!(self, HeuristicFunction::Zero)
     }
 }
 
 impl EdgeWeightConfig {
-    /// 是否为带权图
+    /// Is it a weighted graph?
     pub fn is_weighted(&self) -> bool {
         !matches!(self, EdgeWeightConfig::Unweighted)
     }
 
-    /// 获取权重属性名
+    /// Obtain the name of the weight attribute.
     pub fn property_name(&self) -> Option<&str> {
         match self {
             EdgeWeightConfig::Property(name) => Some(name.as_str()),
@@ -333,29 +333,29 @@ impl EdgeWeightConfig {
     }
 }
 
-/// 路径拼接工具函数
-/// 左路径从起点到中间，右路径从终点到中间
+/// Path concatenation tool function
+/// The left path goes from the starting point to the middle point, while the right path goes from the ending point to the middle point.
 pub fn combine_npaths(left: &Arc<NPath>, right: &Arc<NPath>) -> Option<Path> {
-    // 检查两条路径是否在同一个顶点交汇
+    // Check whether the two paths intersect at the same vertex.
     if left.vertex().vid.as_ref() != right.vertex().vid.as_ref() {
         return None;
     }
 
-    // 构建从左起点到交汇点的路径
+    // Construct a path from the starting point on the left to the intersection point.
     let left_path = left.to_path();
 
-    // 构建从右起点到交汇点的路径，然后反转
+    // Construct a path from the starting point on the right to the intersection point, and then reverse it.
     let mut right_path = right.to_path();
     right_path.reverse();
 
-    // 合并两条路径
+    // Merge the two paths
     let mut combined = left_path;
     combined.steps.extend(right_path.steps);
 
     Some(combined)
 }
 
-/// 检查路径是否有重复边
+/// Check whether there are any duplicate edges in the path.
 pub fn has_duplicate_edges(path: &Path) -> bool {
     let mut edge_set = HashSet::new();
 

@@ -1,37 +1,37 @@
-//! 表达式分析器
+//! Expression Analyzer
 //!
-//! 统一的表达式分析接口，负责：
-//! 1. 类型推导 - 将结果存储到 ExpressionContext
-//! 2. 常量折叠 - 将结果存储到 ExpressionContext
-//! 3. 表达式验证 - 验证表达式合法性
+//! A unified expression analysis interface, responsible for:
+//! Type inference – Store the results in the ExpressionContext
+//! 2. Constant folding – Store the result in the ExpressionContext
+//! 3. Expression validation – Checking the validity of an expression
 //!
-//! 设计原则：
-//! - 所有分析结果存储到 ExpressionContext，避免分散存储
-//! - 利用缓存避免重复分析
-//! - 支持增量分析
+//! Design Principles:
+//! All analysis results are stored in the ExpressionContext to avoid scattered storage.
+//! Utilize caching to avoid duplicate analyses.
+//! Incremental analysis is supported.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::{ContextualExpression, Expression};
 use crate::core::types::DataType;
 use crate::core::Value;
 
-/// 表达式分析结果
+/// Expression analysis results
 #[derive(Debug, Clone)]
 pub struct ExpressionAnalysisResult {
-    /// 推导出的类型
+    /// Derived type
     pub data_type: DataType,
-    /// 是否为常量
+    /// Is it a constant?
     pub is_constant: bool,
-    /// 常量值（如果是常量）
+    /// Constant values (if they are constants)
     pub constant_value: Option<Value>,
-    /// 包含的变量列表
+    /// List of included variables
     pub variables: Vec<String>,
-    /// 是否包含聚合函数
+    /// Does it contain aggregate functions?
     pub has_aggregate: bool,
 }
 
 impl ExpressionAnalysisResult {
-    /// 创建新的分析结果
+    /// Create new analysis results.
     pub fn new(data_type: DataType) -> Self {
         Self {
             data_type,
@@ -42,7 +42,7 @@ impl ExpressionAnalysisResult {
         }
     }
 
-    /// 创建常量分析结果
+    /// Create constant analysis results
     pub fn constant(data_type: DataType, value: Value) -> Self {
         Self {
             data_type,
@@ -54,41 +54,41 @@ impl ExpressionAnalysisResult {
     }
 }
 
-/// 表达式分析器
+/// Expression Analyzer
 ///
-/// 统一的表达式分析接口，整合类型推导、常量折叠和验证功能。
-/// 所有分析结果存储到 ExpressionContext，确保数据一致性。
+/// A unified expression analysis interface that integrates type inference, constant folding, and validation capabilities.
+/// All analysis results are stored in the ExpressionContext to ensure data consistency.
 pub struct ExpressionAnalyzer;
 
 impl ExpressionAnalyzer {
-    /// 创建新的表达式分析器
+    /// Create a new expression analyzer.
     pub fn new() -> Self {
         Self
     }
 
-    /// 分析表达式
+    /// Analyze the expression
     ///
-    /// 执行完整的表达式分析：
-    /// 1. 检查缓存，如果已分析则直接返回
-    /// 2. 进行类型推导
-    /// 3. 进行常量折叠
-    /// 4. 收集变量信息
-    /// 5. 存储结果到 ExpressionContext
+    /// Perform a complete analysis of the expression:
+    /// 1. Check the cache; if the data has already been analyzed, return it directly.
+    /// 2. Perform type inference
+    /// 3. Perform constant folding.
+    /// 4. Collecting variable information
+    /// 5. Store the results in the ExpressionContext
     ///
-    /// # 参数
-    /// - `expr`: 要分析的上下文表达式
-    /// - `variable_types`: 变量类型映射（用于类型推导）
+    /// # Parameters
+    /// `expr`: The context expression to be analyzed.
+    /// `variable_types`: A mapping of variable types (used for type inference)
     ///
-    /// # 返回
-    /// 分析结果，包含类型、常量信息等
+    /// # Return
+    /// Analysis results, including information on the type and constants.
     pub fn analyze(
         &self,
         expr: &ContextualExpression,
         variable_types: Option<&std::collections::HashMap<String, DataType>>,
     ) -> Result<ExpressionAnalysisResult, ValidationError> {
-        // 检查是否已分析
+        // Check whether the analysis has been performed.
         if let Some(data_type) = expr.data_type() {
-            // 已分析过，直接返回缓存结果
+            // The analysis has been completed; the cached result will be returned directly.
             let constant_value = expr.constant_value();
             let is_constant = constant_value.is_some();
 
@@ -101,7 +101,7 @@ impl ExpressionAnalyzer {
             });
         }
 
-        // 获取表达式
+        // Obtain the expression
         let inner_expr = match expr.get_expression() {
             Some(e) => e,
             None => {
@@ -112,16 +112,16 @@ impl ExpressionAnalyzer {
             }
         };
 
-        // 执行分析
+        // Perform analysis
         let result = self.analyze_expression(&inner_expr, variable_types)?;
 
-        // 存储结果到 ExpressionContext
+        // Store the results in the ExpressionContext.
         self.store_result(expr, &result)?;
 
         Ok(result)
     }
 
-    /// 分析表达式（内部方法）
+    /// Analyzing expressions (internal methods)
     fn analyze_expression(
         &self,
         expr: &Expression,
@@ -169,7 +169,7 @@ impl ExpressionAnalyzer {
                 object,
                 property: _,
             } => {
-                // 属性访问表达式，类型取决于对象
+                // Attribute access expressions; the type depends on the object.
                 let obj_result = self.analyze_expression(object, variable_types)?;
                 let mut result = ExpressionAnalysisResult::new(DataType::Empty);
                 result.variables = obj_result.variables;
@@ -199,7 +199,7 @@ impl ExpressionAnalyzer {
         }
     }
 
-    /// 分析二元表达式
+    /// Analyzing binary expressions
     fn analyze_binary_expression(
         &self,
         op: &crate::core::BinaryOperator,
@@ -212,7 +212,7 @@ impl ExpressionAnalyzer {
         let left_result = self.analyze_expression(left, variable_types)?;
         let right_result = self.analyze_expression(right, variable_types)?;
 
-        // 推导结果类型
+        // Type of the derived result
         let data_type = match op {
             BinaryOperator::Equal
             | BinaryOperator::NotEqual
@@ -237,7 +237,7 @@ impl ExpressionAnalyzer {
             _ => DataType::Empty,
         };
 
-        // 尝试常量折叠
+        // Try constant folding.
         let constant_value = if left_result.is_constant && right_result.is_constant {
             self.fold_binary_constant(
                 op,
@@ -254,7 +254,7 @@ impl ExpressionAnalyzer {
             ExpressionAnalysisResult::new(data_type)
         };
 
-        // 合并变量列表
+        // List of merged variables
         result.variables = left_result.variables;
         result.variables.extend(right_result.variables);
         result.has_aggregate = left_result.has_aggregate || right_result.has_aggregate;
@@ -262,7 +262,7 @@ impl ExpressionAnalyzer {
         Ok(result)
     }
 
-    /// 分析一元表达式
+    /// Analyzing a univariate expression
     fn analyze_unary_expression(
         &self,
         op: &crate::core::UnaryOperator,
@@ -282,7 +282,7 @@ impl ExpressionAnalyzer {
             UnaryOperator::Minus | UnaryOperator::Plus => operand_result.data_type.clone(),
         };
 
-        // 尝试常量折叠
+        // Try constant folding.
         let constant_value = if operand_result.is_constant {
             self.fold_unary_constant(op, operand_result.constant_value.as_ref())
         } else {
@@ -301,14 +301,14 @@ impl ExpressionAnalyzer {
         Ok(result)
     }
 
-    /// 分析函数调用
+    /// Analyzing function calls
     fn analyze_function_call(
         &self,
         name: &str,
         args: &[Expression],
         variable_types: Option<&std::collections::HashMap<String, DataType>>,
     ) -> Result<ExpressionAnalysisResult, ValidationError> {
-        // 分析参数
+        // Analysis of parameters
         let mut all_constant = true;
         let mut variables = Vec::new();
 
@@ -320,17 +320,17 @@ impl ExpressionAnalyzer {
             variables.extend(arg_result.variables);
         }
 
-        // 推导返回类型
+        // Deriving the return type
         let data_type = self.deduce_function_return_type(name, args, variable_types);
 
         let mut result = ExpressionAnalysisResult::new(data_type);
         result.variables = variables;
-        result.is_constant = all_constant; // 函数调用通常不是常量，除非是内置纯函数
+        result.is_constant = all_constant; // Function calls are usually not constants, unless they are built-in, pure functions.
 
         Ok(result)
     }
 
-    /// 分析聚合表达式
+    /// Analyzing aggregate expressions
     fn analyze_aggregate_expression(
         &self,
         func: &crate::core::AggregateFunction,
@@ -348,7 +348,7 @@ impl ExpressionAnalyzer {
         Ok(result)
     }
 
-    /// 分析下标表达式
+    /// Analyze the subscript expression.
     fn analyze_subscript_expression(
         &self,
         collection: &Expression,
@@ -358,9 +358,9 @@ impl ExpressionAnalyzer {
         let coll_result = self.analyze_expression(collection, variable_types)?;
         let index_result = self.analyze_expression(index, variable_types)?;
 
-        // 下标表达式的类型取决于集合类型
+        // The type of the subscript expression depends on the type of the set.
         let data_type = match &coll_result.data_type {
-            DataType::List => DataType::Empty, // 无法确定元素类型
+            DataType::List => DataType::Empty, // It is not possible to determine the type of the element.
             DataType::Map => DataType::Empty,
             _ => DataType::Empty,
         };
@@ -372,7 +372,7 @@ impl ExpressionAnalyzer {
         Ok(result)
     }
 
-    /// 分析列表表达式
+    /// Analyzing list expressions
     fn analyze_list_expression(
         &self,
         elements: &[Expression],
@@ -396,7 +396,7 @@ impl ExpressionAnalyzer {
         Ok(result)
     }
 
-    /// 分析映射表达式
+    /// Analyzing mapping expressions
     fn analyze_map_expression(
         &self,
         pairs: &[(String, Expression)],
@@ -420,7 +420,7 @@ impl ExpressionAnalyzer {
         Ok(result)
     }
 
-    /// 分析 CASE 表达式
+    /// Analyzing CASE expressions
     fn analyze_case_expression(
         &self,
         test_expr: Option<&Expression>,
@@ -432,7 +432,7 @@ impl ExpressionAnalyzer {
         let mut variables = Vec::new();
         let mut result_type = DataType::Empty;
 
-        // 分析 test 表达式
+        // Analyze the test expression
         if let Some(test) = test_expr {
             let test_result = self.analyze_expression(test, variable_types)?;
             if !test_result.is_constant {
@@ -441,7 +441,7 @@ impl ExpressionAnalyzer {
             variables.extend(test_result.variables);
         }
 
-        // 分析条件和结果
+        // Analysis of conditions and results
         for (condition, value) in conditions {
             let cond_result = self.analyze_expression(condition, variable_types)?;
             let value_result = self.analyze_expression(value, variable_types)?;
@@ -453,13 +453,13 @@ impl ExpressionAnalyzer {
             variables.extend(cond_result.variables);
             variables.extend(value_result.variables);
 
-            // 合并结果类型
+            // Merge result type
             if result_type == DataType::Empty {
                 result_type = value_result.data_type;
             }
         }
 
-        // 分析 default
+        // Analysis of “default”
         if let Some(default_expr) = default {
             let default_result = self.analyze_expression(default_expr, variable_types)?;
             if !default_result.is_constant {
@@ -479,7 +479,7 @@ impl ExpressionAnalyzer {
         Ok(result)
     }
 
-    /// 存储分析结果到 ExpressionContext
+    /// Store the analysis results in the ExpressionContext.
     fn store_result(
         &self,
         expr: &ContextualExpression,
@@ -488,10 +488,10 @@ impl ExpressionAnalyzer {
         let context = expr.context();
         let id = expr.id();
 
-        // 存储类型信息
+        // Storage type information
         context.set_type(id, result.data_type.clone());
 
-        // 存储常量值
+        // Storing constant values
         if let Some(ref value) = result.constant_value {
             context.set_constant(id, value.clone());
         }
@@ -499,7 +499,7 @@ impl ExpressionAnalyzer {
         Ok(())
     }
 
-    /// 推导算术表达式类型
+    /// Derivation of arithmetic expression types
     fn deduce_arithmetic_type(&self, left: &DataType, right: &DataType) -> DataType {
         let left_is_numeric = matches!(
             left,
@@ -536,7 +536,7 @@ impl ExpressionAnalyzer {
         }
     }
 
-    /// 推导函数返回类型
+    /// Deriving the return type of a function
     fn deduce_function_return_type(
         &self,
         name: &str,
@@ -556,7 +556,7 @@ impl ExpressionAnalyzer {
         }
     }
 
-    /// 推导聚合函数返回类型
+    /// Determine the return type of the aggregate function
     fn deduce_aggregate_return_type(
         &self,
         func: &crate::core::AggregateFunction,
@@ -579,7 +579,7 @@ impl ExpressionAnalyzer {
         }
     }
 
-    /// 折叠二元常量表达式
+    /// Folded binary constant expressions
     fn fold_binary_constant(
         &self,
         op: &crate::core::BinaryOperator,
@@ -678,7 +678,7 @@ impl ExpressionAnalyzer {
         }
     }
 
-    /// 折叠一元常量表达式
+    /// Fold a constant expression with a value of 1
     fn fold_unary_constant(
         &self,
         op: &crate::core::UnaryOperator,
@@ -755,7 +755,7 @@ mod tests {
         assert!(result.is_constant);
         assert_eq!(result.constant_value, Some(Value::Int(30)));
 
-        // 验证存储到 ExpressionContext
+        // Verify that the data has been stored in the ExpressionContext.
         assert_eq!(ctx_expr.data_type(), Some(DataType::Int));
         assert_eq!(ctx_expr.constant_value(), Some(Value::Int(30)));
     }

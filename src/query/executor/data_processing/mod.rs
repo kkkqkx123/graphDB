@@ -1,35 +1,35 @@
-//! 数据处理执行器模块
+//! Data Processing Executor Module
 //!
-//! 包含所有与数据处理相关的执行器，这些执行器处理中间结果的转换和处理
+//! This includes all executors related to data processing, which are responsible for the conversion and manipulation of intermediate results.
 //!
-//! 模块组织：
-//! - `graph_traversal` - 图遍历相关（Expand、Traverse、ShortestPath 等）
-//! - `set_operations` - 集合运算（Union、Intersect、Minus）
-//! - `join` - 连接操作（InnerJoin、LeftJoin、FullOuterJoin）
-//! - `materialize` - 物化操作（Materialize）
+//! Module organization:
+//! `graph_traversal` – Related to graph traversal (functions such as Expand, Traverse, ShortestPath, etc.)
+//! `set_operations` – Set operations (Union, Intersect, Difference)
+//! `join` – Operations for connecting data (InnerJoin, LeftJoin, FullOuterJoin)
+//! “Materialize” refers to a process in computing or data processing where data is transformed from a virtual or abstract form into a physical, tangible form that can be stored, manipulated, or used by systems. This can involve converting data structures, algorithms, or calculations from a theoretical or conceptual state into a practical, executable format. The goal of materialization is often to improve the efficiency of data retrieval, processing, or analysis by making the data more accessible and readily available for use.
 //!
-//! 注意：RightJoin 已被移除，可用 LeftJoin 交换表顺序实现
+//! The RightJoin has been removed; the order of the tables can be swapped using a LeftJoin to achieve the same functionality.
 
-// 图遍历执行器
+// Graph Traversal Executor
 pub mod graph_traversal;
 pub use graph_traversal::{
     ExpandAllExecutor, ExpandExecutor, ShortestPathAlgorithm, ShortestPathExecutor,
     TraverseExecutor,
 };
 
-// 集合运算执行器
+// Set operation executor
 pub mod set_operations;
 pub use set_operations::{
     IntersectExecutor, MinusExecutor, SetExecutor, UnionAllExecutor, UnionExecutor,
 };
 
-// JOIN 执行器
+// JOIN Executor
 pub mod join;
 pub use join::{
     CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor,
     InnerJoinConfig, InnerJoinExecutor, JoinConfig, JoinType, LeftJoinConfig, LeftJoinExecutor,
 };
 
-// 物化执行器
+// Materialized Executor
 pub mod materialize;
 pub use materialize::{MaterializeExecutor, MaterializeState};

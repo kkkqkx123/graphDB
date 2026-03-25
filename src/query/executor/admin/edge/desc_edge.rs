@@ -1,6 +1,6 @@
-//! DescEdgeExecutor - 描述边类型执行器
+//! DescEdgeExecutor - describes the edge type executor
 //!
-//! 负责查看指定边类型的详细信息。
+//! Responsible for viewing the details of the specified edge type.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
-/// 边类型描述信息
+/// Edge type description information
 #[derive(Debug, Clone)]
 pub struct EdgeTypeDesc {
     pub space_name: String,
@@ -26,9 +26,9 @@ pub struct EdgeTypeDesc {
     pub comment: Option<String>,
 }
 
-/// 描述边类型执行器
+/// Description of the side type actuator
 ///
-/// 该执行器负责返回指定边类型的详细信息。
+/// This executor is responsible for returning detailed information about the specified edge type.
 #[derive(Debug)]
 pub struct DescEdgeExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -37,7 +37,7 @@ pub struct DescEdgeExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DescEdgeExecutor<S> {
-    /// 创建新的 DescEdgeExecutor
+    /// Creating a new DescEdgeExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,

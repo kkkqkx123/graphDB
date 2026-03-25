@@ -1,6 +1,6 @@
-//! A*最短路径算法
+//! A* shortest path algorithm
 //!
-//! 使用启发式函数的A*搜索算法，支持带权图和多终点查询
+//! A* search algorithm using heuristic functions with support for weighted graphs and multi-terminal queries
 
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -16,14 +16,14 @@ use super::types::{
     has_duplicate_edges, AlgorithmStats, EdgeWeightConfig, HeuristicFunction, SelfLoopDedup,
 };
 
-/// A*算法节点
+/// A* algorithm node
 #[derive(Debug, Clone)]
 pub struct AStarNode {
-    /// 从起点到当前节点的实际代价
+    /// Actual cost from the starting point to the current node
     pub g_cost: f64,
-    /// 启发式估计代价（到终点的估计）
+    /// Heuristic Estimated Costs (Estimates to Endpoints)
     pub h_cost: f64,
-    /// 总代价 = g_cost + h_cost
+    /// Total cost = g_cost + h_cost
     pub f_cost: f64,
     pub vertex_id: Value,
 }
@@ -51,14 +51,14 @@ impl PartialOrd for AStarNode {
     }
 }
 
-/// A*最短路径算法
+/// A* shortest path algorithm
 pub struct AStar<S: StorageClient> {
     storage: Arc<Mutex<S>>,
     stats: AlgorithmStats,
     edge_direction: crate::core::types::EdgeDirection,
-    /// 权重配置
+    /// weighting
     weight_config: EdgeWeightConfig,
-    /// 启发式函数配置
+    /// Heuristic function configuration
     heuristic_config: HeuristicFunction,
 }
 
@@ -88,7 +88,7 @@ impl<S: StorageClient> AStar<S> {
         self
     }
 
-    /// 获取边的权重
+    /// Getting the weight of an edge
     fn get_edge_weight(&self, edge: &Edge) -> f64 {
         match &self.weight_config {
             EdgeWeightConfig::Unweighted => 1.0,
@@ -104,8 +104,8 @@ impl<S: StorageClient> AStar<S> {
         }
     }
 
-    /// 计算启发式值
-    /// 对于多终点，使用到最近终点的启发式值
+    /// Calculating heuristic values
+    /// For multiple endpoints, the heuristic value to the nearest endpoint is used
     fn calculate_heuristic(
         &self,
         current_id: &Value,
@@ -115,10 +115,10 @@ impl<S: StorageClient> AStar<S> {
             return Ok(0.0);
         }
 
-        // 获取当前节点属性
+        // Get current node properties
         let current_props = self.get_vertex_props(current_id)?;
 
-        // 计算到所有终点的启发式值，取最小值
+        // Calculate the heuristic value to all endpoints and take the minimum value
         let min_h = end_ids
             .iter()
             .filter_map(|end_id| {
@@ -136,7 +136,7 @@ impl<S: StorageClient> AStar<S> {
         Ok(min_h)
     }
 
-    /// 获取顶点属性
+    /// Get vertex properties
     fn get_vertex_props(
         &self,
         vid: &Value,
@@ -148,7 +148,7 @@ impl<S: StorageClient> AStar<S> {
             .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
-    /// 获取邻居节点和边
+    /// Get neighbor nodes and edges
     fn get_neighbors_with_edges(
         &self,
         node_id: &Value,
@@ -169,7 +169,7 @@ impl<S: StorageClient> AStar<S> {
             edges
         };
 
-        // 自环边去重
+        // (math.) self-loop edge de-weighting
         let mut dedup = SelfLoopDedup::new();
 
         let neighbors_with_edges: Vec<(Value, Edge, f64)> = filtered_edges
@@ -209,7 +209,7 @@ impl<S: StorageClient> AStar<S> {
         Ok(neighbors_with_edges)
     }
 
-    /// 获取顶点
+    /// Get Vertex
     fn get_vertex(&self, vid: &Value) -> Result<Option<Vertex>, QueryError> {
         let storage = self.storage.lock();
         storage
@@ -217,7 +217,7 @@ impl<S: StorageClient> AStar<S> {
             .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
-    /// 根据前驱映射重建路径
+    /// Reconstructing paths based on precursor mapping
     fn reconstruct_path(
         &self,
         end_id: &Value,
@@ -232,7 +232,7 @@ impl<S: StorageClient> AStar<S> {
             current = prev_id.clone();
 
             if start_ids.contains(&current) {
-                // 找到起点，构建路径
+                // Finding the Starting Point, Building the Path
                 let start_vertex = match self.get_vertex(&current)? {
                     Some(v) => v,
                     None => return Ok(None),
@@ -243,7 +243,7 @@ impl<S: StorageClient> AStar<S> {
                     steps: Vec::new(),
                 };
 
-                // 反向遍历构建路径
+                // Reverse traversal build path
                 path_edges.reverse();
                 for (dst_id, edge) in path_edges {
                     let dst_vertex = match self.get_vertex(&dst_id)? {
@@ -281,7 +281,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
         let mut open_set: HashSet<Value> = HashSet::new();
         let mut priority_queue: BinaryHeap<Reverse<AStarNode>> = BinaryHeap::new();
 
-        // 初始化起点
+        // Initialization starting point
         for start_id in start_ids {
             let h_cost = self.calculate_heuristic(start_id, end_ids)?;
 
@@ -314,7 +314,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
             open_set.remove(&current.vertex_id);
             self.stats.increment_nodes_visited();
 
-            // 检查是否到达终点
+            // Check to see if you've reached the end of the line
             if end_ids.contains(&current.vertex_id) {
                 if let Some(path) =
                     self.reconstruct_path(&current.vertex_id, &previous_map, start_ids)?
@@ -326,14 +326,14 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
                 continue;
             }
 
-            // 检查深度限制
+            // Check Depth Limit
             if let Some(max_d) = max_depth {
                 if current.g_cost as usize >= max_d {
                     continue;
                 }
             }
 
-            // 扩展邻居
+            // Extended Neighborhood
             let neighbors = self.get_neighbors_with_edges(&current.vertex_id, edge_types)?;
             self.stats.increment_edges_traversed(neighbors.len());
 

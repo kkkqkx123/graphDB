@@ -1,6 +1,6 @@
-//! 容器操作函数实现
+//! Implementation of container operation functions
 //!
-//! 提供列表和映射的操作函数，包括 head, last, tail, size, range, keys
+//! Provide functions for operating on lists and maps, including head, last, tail, size, range, and keys.
 
 use crate::core::error::ExpressionError;
 use crate::core::value::dataset::List;
@@ -8,7 +8,7 @@ use crate::core::value::NullType;
 use crate::core::Value;
 use std::collections::BTreeSet;
 
-/// 容器函数枚举
+/// Container function enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContainerFunction {
     Head,
@@ -22,7 +22,7 @@ pub enum ContainerFunction {
 }
 
 impl ContainerFunction {
-    /// 获取函数名称
+    /// Obtain the function name
     pub fn name(&self) -> &str {
         match self {
             Self::Head => "head",
@@ -36,7 +36,7 @@ impl ContainerFunction {
         }
     }
 
-    /// 获取参数数量
+    /// Determine the number of parameters
     pub fn arity(&self) -> usize {
         match self {
             Self::Head => 1,
@@ -50,12 +50,12 @@ impl ContainerFunction {
         }
     }
 
-    /// 是否为可变参数函数
+    /// Is it a function with variable parameters?
     pub fn is_variadic(&self) -> bool {
         matches!(self, Self::Range)
     }
 
-    /// 获取函数描述
+    /// Obtain the function description
     pub fn description(&self) -> &str {
         match self {
             Self::Head => "获取列表的第一个元素",

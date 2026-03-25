@@ -1,16 +1,16 @@
-//! 聚合操作执行器模块
+//! Aggregation Operation Executor Module
 //!
-//! 包含聚合操作相关的执行器，包括：
-//! - GroupBy（分组聚合）
-//! - Aggregate（整体聚合）
-//! - Having（分组后过滤）
+//! Executors related to aggregate operations, including:
+//! `GroupBy` (Grouping and Aggregation)
+//! Aggregate (overall aggregation)
+//! Having (filtered after grouping)
 //!
-//! CPU 密集型操作，使用 Rayon 进行并行化
+//! CPU-intensive operations are parallelized using Rayon.
 //!
-//! 参考 nebula-graph 的 AggregateExecutor 实现：
-//! - 使用 AggData 管理聚合状态
-//! - 使用 AggFunctionManager 管理聚合函数
-//! - 统一处理 NULL 和空值
+//! Refer to the implementation of AggregateExecutor in nebula-graph:
+//! - Use AggData to manage the aggregation status.
+//! Use the AggFunctionManager to manage aggregate functions.
+//! Unified handling of NULL and empty values
 
 use parking_lot::Mutex;
 use rayon::prelude::*;
@@ -32,8 +32,8 @@ use crate::query::executor::result_processing::agg_data::AggData;
 use crate::query::executor::result_processing::agg_function_manager::AggFunctionManager;
 use crate::storage::StorageClient;
 
-/// 聚合函数规范
-/// 包含聚合函数类型和可选的字段名参数
+/// Aggregation function specifications
+/// Includes the type of aggregate function and optional field name parameters.
 #[derive(Debug, Clone)]
 pub struct AggregateFunctionSpec {
     pub function: AggregateFunction,
@@ -60,7 +60,7 @@ impl AggregateFunctionSpec {
         self
     }
 
-    // 便捷构造函数
+    // Convenient constructor
     pub fn count() -> Self {
         Self::new(AggregateFunction::Count(None))
     }
@@ -101,7 +101,7 @@ impl AggregateFunctionSpec {
         Self::new(AggregateFunction::CollectSet(field))
     }
 
-    /// 从 AggregateFunction 创建 AggregateFunctionSpec
+    /// Creating an AggregateFunctionSpec from an AggregateFunction
     pub fn from_agg_function(function: AggregateFunction) -> Self {
         let field = function.field_name().map(|s| s.to_string());
         Self {
@@ -111,11 +111,11 @@ impl AggregateFunctionSpec {
         }
     }
 
-    /// 获取聚合函数名称（用于 AggFunctionManager）
+    /// Obtain the names of the aggregate functions (for use with AggFunctionManager)
     pub fn agg_function_name(&self) -> String {
         let base_name = self.function.name().to_string();
         if self.distinct && matches!(self.function, AggregateFunction::Count(_)) {
-            // COUNT DISTINCT 使用 COLLECT_SET 去重后计数
+            // COUNT DISTINCT counts the unique values after using COLLECT_SET to remove duplicates.
             "COLLECT_SET".to_string()
         } else {
             base_name
@@ -123,13 +123,13 @@ impl AggregateFunctionSpec {
     }
 }
 
-/// 分组聚合状态（使用新的 AggData）
+/// Group aggregation status (using the new AggData)
 #[derive(Debug, Clone)]
 pub struct GroupAggregateState {
-    /// 每个分组键对应的聚合数据列表
-    /// 每个聚合函数对应一个 AggData
+    /// List of aggregated data corresponding to each group key
+    /// Each aggregate function corresponds to an AggData object.
     pub groups: HashMap<Vec<Value>, Vec<AggData>>,
-    /// 聚合函数数量
+    /// Number of aggregate functions
     pub agg_func_count: usize,
 }
 
@@ -141,14 +141,14 @@ impl GroupAggregateState {
         }
     }
 
-    /// 获取或创建分组的聚合数据
+    /// Obtaining or creating aggregated data for a group
     pub fn get_or_create_agg_data(&mut self, group_key: Vec<Value>) -> &mut Vec<AggData> {
         self.groups
             .entry(group_key)
             .or_insert_with(|| (0..self.agg_func_count).map(|_| AggData::new()).collect())
     }
 
-    /// 合并另一个 GroupAggregateState
+    /// Merge another GroupAggregateState
     pub fn merge(&mut self, other: GroupAggregateState) -> DBResult<()> {
         for (group_key, other_agg_data_list) in other.groups {
             let self_agg_data_list = self.get_or_create_agg_data(group_key);
@@ -161,9 +161,9 @@ impl GroupAggregateState {
         Ok(())
     }
 
-    /// 合并两个 AggData
+    /// Merge the two AggData datasets.
     fn merge_agg_data(target: &mut AggData, source: &AggData) -> DBResult<()> {
-        // 合并 COUNT
+        // Combine the COUNT functions
         if !source.cnt().is_null() && !source.cnt().is_empty() {
             if target.cnt().is_null() || target.cnt().is_empty() {
                 target.set_cnt(source.cnt().clone());
@@ -174,7 +174,7 @@ impl GroupAggregateState {
             }
         }
 
-        // 合并 SUM
+        // Merge the SUM functions
         if !source.sum().is_null() && !source.sum().is_empty() {
             if target.sum().is_null() || target.sum().is_empty() {
                 target.set_sum(source.sum().clone());
@@ -185,7 +185,7 @@ impl GroupAggregateState {
             }
         }
 
-        // 合并 MAX
+        // Merge the MAX values.
         if !source.result().is_null()
             && !source.result().is_empty()
             && (target.result().is_null()
@@ -195,7 +195,7 @@ impl GroupAggregateState {
             target.set_result(source.result().clone());
         }
 
-        // 合并去重集合
+        // Merge and remove duplicate sets
         if let Some(source_uniques) = source.uniques() {
             if target.uniques().is_none() {
                 target.set_uniques(source_uniques.clone());
@@ -210,22 +210,22 @@ impl GroupAggregateState {
     }
 }
 
-/// AggregateExecutor - 聚合执行器
+/// AggregateExecutor – The Aggregate Executor
 ///
-/// 执行聚合操作，支持 COUNT, SUM, AVG, MAX, MIN 等聚合函数
-/// CPU 密集型操作，使用 Rayon 进行并行化
+/// Aggregation operations are supported, including aggregate functions such as COUNT, SUM, AVG, MAX, and MIN.
+/// CPU-intensive operations are parallelized using Rayon.
 pub struct AggregateExecutor<S: StorageClient + Send + 'static> {
-    /// 基础处理器
+    /// Basic processor
     base: BaseResultProcessor<S>,
-    /// 聚合函数列表
+    /// List of aggregate functions
     aggregate_functions: Vec<AggregateFunctionSpec>,
-    /// 分组键列表
+    /// List of grouping keys
     group_keys: Vec<Expression>,
-    /// 输入执行器
+    /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    /// 并行计算配置
+    /// Parallel computing configuration
     parallel_config: ParallelConfig,
-    /// 聚合函数管理器
+    /// Aggregate Function Manager
     agg_function_manager: AggFunctionManager,
 }
 
@@ -253,7 +253,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
         }
     }
 
-    /// 设置并行计算配置
+    /// Setting up parallel computing configuration
     pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
         self.parallel_config = config;
         self
@@ -333,9 +333,9 @@ impl<S: StorageClient> AggregateExecutor<S> {
         let agg_func_count = self.aggregate_functions.len();
         let mut group_state = GroupAggregateState::new(agg_func_count);
 
-        // 处理每一行数据
+        // Process each row of data.
         for row in &dataset.rows {
-            // 构建表达式上下文
+            // Constructing the context for the expression
             let mut context = DefaultExpressionContext::new();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
@@ -343,7 +343,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
                 }
             }
 
-            // 计算分组键
+            // Calculate the grouping key
             let group_key: Vec<Value> = self
                 .group_keys
                 .iter()
@@ -353,10 +353,10 @@ impl<S: StorageClient> AggregateExecutor<S> {
                 })
                 .collect();
 
-            // 获取或创建聚合数据
+            // Obtaining or creating aggregated data
             let agg_data_list = group_state.get_or_create_agg_data(group_key);
 
-            // 对每个聚合函数进行求值
+            // Evaluate each aggregate function.
             for (i, agg_func) in self.aggregate_functions.iter().enumerate() {
                 if i >= agg_data_list.len() {
                     continue;
@@ -365,7 +365,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
                 let agg_data = &mut agg_data_list[i];
                 let value = self.get_value_for_agg(&mut context, agg_func, row, &dataset.col_names);
 
-                // 获取聚合函数并执行
+                // Obtain the aggregate functions and execute them.
                 let func_name = agg_func.agg_function_name();
                 if let Some(agg_fn) = self.agg_function_manager.get(&func_name) {
                     agg_fn(agg_data, &value)?;
@@ -373,11 +373,11 @@ impl<S: StorageClient> AggregateExecutor<S> {
             }
         }
 
-        // 构建结果数据集
+        // Constructing the resulting dataset
         self.build_result_dataset(group_state)
     }
 
-    /// 获取聚合函数需要的值
+    /// Obtaining the values required for the aggregate functions
     fn get_value_for_agg(
         &self,
         context: &mut DefaultExpressionContext,
@@ -401,7 +401,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
             | AggregateFunction::Std(field)
             | AggregateFunction::BitAnd(field)
             | AggregateFunction::BitOr(field) => {
-                // 从上下文中获取字段值
+                // Retrieve field values from the context.
                 if let Some(val) = context.get_variable(field) {
                     val.clone()
                 } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
@@ -443,7 +443,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
         }
     }
 
-    /// 并行聚合
+    /// Parallel aggregation
     fn aggregate_dataset_parallel(
         &mut self,
         dataset: crate::core::value::DataSet,
@@ -456,7 +456,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
         let col_names = dataset.col_names.clone();
         let agg_function_manager = self.agg_function_manager.clone();
 
-        // 使用 rayon 并行处理数据批次
+        // Use rayon to process data batches in parallel.
         let partial_results: Vec<GroupAggregateState> = dataset
             .rows
             .par_chunks(batch_size)
@@ -465,7 +465,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
                 let mut local_state = GroupAggregateState::new(agg_func_count);
 
                 for row in chunk {
-                    // 构建表达式上下文
+                    // Building the context for the expression
                     let mut context = DefaultExpressionContext::new();
                     for (i, col_name) in col_names.iter().enumerate() {
                         if i < row.len() {
@@ -473,7 +473,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
                         }
                     }
 
-                    // 计算分组键
+                    // Calculate the grouping key
                     let group_key: Vec<Value> = group_keys
                         .iter()
                         .map(|expr| {
@@ -482,10 +482,10 @@ impl<S: StorageClient> AggregateExecutor<S> {
                         })
                         .collect();
 
-                    // 获取或创建聚合数据
+                    // Obtaining or creating aggregated data
                     let agg_data_list = local_state.get_or_create_agg_data(group_key);
 
-                    // 对每个聚合函数进行求值
+                    // Evaluate each aggregate function.
                     for (i, agg_func) in aggregate_functions.iter().enumerate() {
                         if i >= agg_data_list.len() {
                             continue;
@@ -493,7 +493,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
 
                         let agg_data = &mut agg_data_list[i];
 
-                        // 获取值
+                        // Obtain the value
                         let value = match &agg_func.function {
                             AggregateFunction::Count(None) => Value::Int(1),
                             AggregateFunction::Count(Some(field))
@@ -522,7 +522,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
                             _ => Value::Null(NullType::Null),
                         };
 
-                        // 获取聚合函数并执行
+                        // Retrieve the aggregate functions and execute them.
                         let func_name = agg_func.agg_function_name();
                         if let Some(agg_fn) = agg_function_manager.get(&func_name) {
                             let _ = agg_fn(agg_data, &value);
@@ -534,14 +534,14 @@ impl<S: StorageClient> AggregateExecutor<S> {
             })
             .collect();
 
-        // Gather: 合并所有局部聚合结果
+        // Gather: Merge all the local aggregation results.
         let agg_func_count = self.aggregate_functions.len();
         let mut global_state = GroupAggregateState::new(agg_func_count);
         for partial_state in partial_results {
             global_state.merge(partial_state)?;
         }
 
-        // 构建结果数据集
+        // Constructing the resulting dataset
         self.build_result_dataset(global_state)
     }
 
@@ -551,7 +551,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
     ) -> DBResult<crate::core::value::DataSet> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
-        // 设置列名
+        // Set column names
         for _ in &self.group_keys {
             result_dataset
                 .col_names
@@ -661,23 +661,23 @@ impl<S: StorageClient> AggregateExecutor<S> {
             result_dataset.col_names.push(col_name);
         }
 
-        // 填充结果行
+        // Fill in the result rows
         for (group_key, agg_data_list) in &group_state.groups {
             let mut result_row = Vec::new();
 
-            // 添加分组键值
+            // Add group key-value pairs
             result_row.extend_from_slice(group_key);
 
-            // 添加聚合结果
+            // Add the aggregated results.
             for (i, agg_func) in self.aggregate_functions.iter().enumerate() {
                 if i < agg_data_list.len() {
                     let agg_data = &agg_data_list[i];
 
-                    // 处理 COUNT DISTINCT 特殊情况
+                    // Handling special cases of COUNT DISTINCT
                     let agg_value = if agg_func.distinct
                         && matches!(agg_func.function, AggregateFunction::Count(_))
                     {
-                        // 使用去重集合的大小作为 COUNT DISTINCT 结果
+                        // Use the size of the set of unique elements as the result of the COUNT DISTINCT function.
                         if let Some(uniques) = agg_data.uniques() {
                             Value::Int(uniques.len() as i64)
                         } else {
@@ -795,9 +795,9 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for AggregateExecutor<S
     }
 }
 
-/// GroupByExecutor - 分组聚合执行器
+/// GroupByExecutor – An executor for grouping and aggregating data
 ///
-/// 实现 GROUP BY 操作
+/// Implementing the GROUP BY operation
 pub struct GroupByExecutor<S: StorageClient + Send + 'static> {
     aggregate_executor: AggregateExecutor<S>,
 }
@@ -868,13 +868,13 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GroupByExecutor<S
     }
 }
 
-/// HavingExecutor - HAVING 子句执行器
+/// HavingExecutor – The executor for the HAVING clause
 ///
-/// 实现 HAVING 子句，对分组后的结果进行过滤
+/// Implementing the HAVING clause to filter the results after grouping
 pub struct HavingExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
-    /// HAVING 条件表达式
+    /// HAVING conditional expression
     condition: Expression,
     /// 输入执行器
     input_executor: Option<Box<ExecutorEnum<S>>>,
@@ -937,7 +937,7 @@ impl<S: StorageClient> HavingExecutor<S> {
         let mut filtered_rows = Vec::new();
 
         for row in &dataset.rows {
-            // 构建表达式上下文
+            // Constructing the context for the expression
             let mut context = DefaultExpressionContext::new();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
@@ -945,16 +945,16 @@ impl<S: StorageClient> HavingExecutor<S> {
                 }
             }
 
-            // 评估 HAVING 条件
+            // Evaluating the HAVING condition
             match ExpressionEvaluator::evaluate(&self.condition, &mut context) {
                 Ok(Value::Bool(true)) => {
                     filtered_rows.push(row.clone());
                 }
                 Ok(Value::Bool(false)) => {
-                    // 条件为 false，跳过该行
+                    // If the condition is “false”, skip that line.
                 }
                 Ok(_) => {
-                    // 非布尔值，视为 false
+                    // Non-boolean values are considered false.
                 }
                 Err(e) => {
                     return Err(crate::core::error::DBError::Expression(

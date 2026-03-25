@@ -1,11 +1,11 @@
-//! 变量赋值语句验证器
-//! 对应 NebulaGraph AssignmentValidator 的功能
-//! 验证变量赋值语句的合法性，如 $var = GO FROM ...
+//! Variable assignment statement validator
+//! Corresponding to the functionality of NebulaGraph AssignmentValidator
+//! Verify the validity of variable assignment statements, such as $var = GO FROM ...
 //!
-//! 设计原则：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 赋值语句包装其他语句，需要递归验证内部语句
-//! 3. 变量名验证（必须以$开头）
+//! Design Principles:
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. When an assignment statement wraps other statements, it is necessary to recursively verify the internal statements.
+//! 3. Variable name validation (must start with $)
 
 use std::sync::Arc;
 
@@ -18,14 +18,14 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 
-/// 验证后的赋值信息
+/// Verified assignment information
 #[derive(Debug, Clone)]
 pub struct ValidatedAssignment {
     pub variable: String,
     pub inner_statement_type: String,
 }
 
-/// 赋值语句验证器
+/// Assignment Statement Validator
 #[derive(Debug)]
 pub struct AssignmentValidator {
     variable: String,
@@ -49,11 +49,11 @@ impl AssignmentValidator {
     }
 
     fn validate_impl(&mut self, stmt: &AssignmentStmt) -> Result<(), ValidationError> {
-        // 验证变量名
+        // Verify the variable names.
         self.variable = stmt.variable.clone();
         self.validate_variable_name(&self.variable)?;
 
-        // 创建内部语句验证器
+        // Create an internal statement validator.
         self.inner_validator = Some(Box::new(
             Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
                 ValidationError::new(
@@ -67,7 +67,7 @@ impl AssignmentValidator {
     }
 
     fn validate_variable_name(&self, name: &str) -> Result<(), ValidationError> {
-        // 变量名不能为空
+        // The variable name cannot be empty.
         if name.is_empty() {
             return Err(ValidationError::new(
                 "Variable name cannot be empty".to_string(),
@@ -75,7 +75,7 @@ impl AssignmentValidator {
             ));
         }
 
-        // 变量名必须以字母或下划线开头
+        // Variable names must start with a letter or an underscore (_).
         let first_char = name.chars().next().expect("变量名已验证非空");
         if !first_char.is_ascii_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
@@ -87,7 +87,7 @@ impl AssignmentValidator {
             ));
         }
 
-        // 变量名只能包含字母、数字和下划线
+        // Variable names can only contain letters, digits, and underscores (_).
         for (i, c) in name.chars().enumerate() {
             if i > 0 && !c.is_ascii_alphanumeric() && c != '_' {
                 return Err(ValidationError::new(
@@ -103,12 +103,12 @@ impl AssignmentValidator {
         Ok(())
     }
 
-    /// 获取变量名
+    /// Obtain the variable name
     pub fn variable(&self) -> &str {
         &self.variable
     }
 
-    /// 获取内部验证器
+    /// Obtain the internal validator.
     pub fn inner_validator(&self) -> Option<&Validator> {
         self.inner_validator.as_deref()
     }
@@ -125,11 +125,11 @@ impl AssignmentValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
-/// - 内部语句验证直接调用 validate 方法，传入 stmt 和 qctx
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
+/// The internal statement validation directly calls the `validate` method, passing in `stmt` and `qctx` as parameters.
 impl StatementValidator for AssignmentValidator {
     fn validate(
         &mut self,
@@ -146,12 +146,12 @@ impl StatementValidator for AssignmentValidator {
             }
         };
 
-        // 提取内部语句（在移动之前）
+        // Extract the internal statements (before moving).
         let inner_stmt = *assignment_stmt.statement.clone();
 
         self.validate_impl(assignment_stmt)?;
 
-        // 验证内部语句
+        // Verify the internal statements.
         if let Some(ref mut inner) = self.inner_validator {
             let result = inner.validate(
                 Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())),
@@ -159,11 +159,11 @@ impl StatementValidator for AssignmentValidator {
             );
 
             if result.success {
-                // 赋值语句的输出与内部语句相同
+                // The output of the assignment statement is the same as the output of the statements inside it.
                 self.inputs = result.inputs.clone();
                 self.outputs = result.outputs.clone();
 
-                // 添加变量到用户定义变量列表
+                // Add a variable to the list of user-defined variables.
                 if !self.user_defined_vars.contains(&self.variable) {
                     self.user_defined_vars.push(self.variable.clone());
                 }

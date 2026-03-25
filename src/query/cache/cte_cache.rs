@@ -1,51 +1,51 @@
-//! CTE结果缓存管理器模块
+//! CTE Results Cache Manager Module
 //!
-//! 提供CTE（Common Table Expression）查询结果的缓存功能，
-//! 避免重复计算相同的CTE，提升查询性能。
+//! CTE (Common Table Expression) query result caching function.
+//! Avoid repeated calculation of the same CTE to improve query performance.
 //!
-//! ## 缓存策略
+//! ## Caching policy
 //!
-//! - LRU淘汰策略：当缓存满时淘汰最久未使用的条目
-//! - 内存预算管理：严格控制缓存使用的内存上限
-//! - 智能缓存决策：基于CTE特性决定是否缓存
+//! - LRU elimination policy: eliminate the longest unused entries when the cache is full
+//! - Memory budget management: tightly control the upper limit of memory used by the cache
+//! - Intelligent caching decision: decide whether to cache or not based on CTE characteristics
 //!
-//! ## 适用场景
+//! ## Applicable scenarios
 //!
-//! 1. 递归CTE被多次引用
-//! 2. 复杂子查询在单个查询中被多次使用
-//! 3. 结果集大小适中（100-10000行）
-//! 4. CTE是确定性的（不含随机函数等）
+//! 1. Recursive CTEs are referenced multiple times
+//! 2. Complex subqueries are used multiple times in a single query
+//! 3. Medium-sized result set (100-10,000 rows)
+//! 4. CTE is deterministic (no random functions, etc.)
 
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-/// CTE缓存条目
+/// CTE cache entries
 #[derive(Debug, Clone)]
 pub struct CteCacheEntry {
-    /// 结果数据（使用Arc共享）
+    /// Resulting data (shared using Arc)
     pub data: Arc<Vec<u8>>,
-    /// 结果行数
+    /// Number of result rows
     pub row_count: u64,
-    /// 结果大小（字节）
+    /// Result size (bytes)
     pub data_size: usize,
-    /// 创建时间
+    /// Creation time
     pub created_at: Instant,
-    /// 最后访问时间
+    /// Last access time
     pub last_accessed: Instant,
-    /// 访问次数
+    /// Number of visits
     pub access_count: u64,
-    /// 估计重用概率
+    /// Estimated probability of reuse
     pub reuse_probability: f64,
-    /// CTE定义哈希（用于识别相同的CTE）
+    /// CTE definition hash (used to identify identical CTEs)
     pub cte_hash: String,
-    /// CTE定义文本
+    /// CTE definition text
     pub cte_definition: String,
 }
 
 impl CteCacheEntry {
-    /// 创建新的缓存条目
+    /// Creating a new cache entry
     pub fn new(cte_hash: String, cte_definition: String, data: Vec<u8>, row_count: u64) -> Self {
         let data_size = data.len();
         Self {
@@ -61,58 +61,58 @@ impl CteCacheEntry {
         }
     }
 
-    /// 记录访问
+    /// Recorded visits
     pub fn record_access(&mut self) {
         self.last_accessed = Instant::now();
         self.access_count += 1;
-        // 更新重用概率：访问次数越多，重用概率越高
+        // Update reuse probability: the more visits, the higher the reuse probability
         self.reuse_probability = (self.reuse_probability * 0.7 + 0.3).min(0.95);
     }
 
-    /// 获取缓存年龄
+    /// Get Cache Age
     pub fn age(&self) -> Duration {
         self.created_at.elapsed()
     }
 
-    /// 获取空闲时间
+    /// Getting free time
     pub fn idle_time(&self) -> Duration {
         self.last_accessed.elapsed()
     }
 
-    /// 计算缓存得分（用于LRU淘汰决策）
-    /// 得分越低越容易被淘汰
+    /// Calculate cache score (for LRU elimination decisions)
+    /// The lower the score, the more likely you are to be eliminated
     pub fn cache_score(&self) -> f64 {
-        let _age_factor = self.age().as_secs_f64() / 3600.0; // 以小时为单位
-        let idle_factor = self.idle_time().as_secs_f64() / 60.0; // 以分钟为单位
-        let size_factor = (self.data_size as f64 / 1024.0 / 1024.0).max(0.1); // MB为单位
+        let _age_factor = self.age().as_secs_f64() / 3600.0; // hourly
+        let idle_factor = self.idle_time().as_secs_f64() / 60.0; // in minutes
+        let size_factor = (self.data_size as f64 / 1024.0 / 1024.0).max(0.1); // In MB
         let access_factor = (self.access_count as f64).sqrt().max(1.0);
 
-        // 综合得分：考虑空闲时间、大小、访问频率
+        // Combined score: considers idle time, size, frequency of visits
         (idle_factor * size_factor) / (access_factor * self.reuse_probability)
     }
 }
 
-/// CTE缓存统计信息
+/// CTE Cache Statistics
 #[derive(Debug, Clone, Default)]
 pub struct CteCacheStats {
-    /// 缓存命中次数
+    /// Cache hits
     pub hit_count: u64,
-    /// 缓存未命中次数
+    /// Number of cache misses
     pub miss_count: u64,
-    /// 缓存条目数量
+    /// Number of cache entries
     pub entry_count: usize,
-    /// 当前使用内存（字节）
+    /// Currently using memory (bytes)
     pub current_memory: usize,
-    /// 总内存上限（字节）
+    /// Total memory limit (bytes)
     pub max_memory: usize,
-    /// 淘汰的条目数量
+    /// Number of entries phased out
     pub evicted_count: u64,
-    /// 被拒绝缓存的条目数量
+    /// Number of entries rejected for caching
     pub rejected_count: u64,
 }
 
 impl CteCacheStats {
-    /// 获取命中率
+    /// Getting hits
     pub fn hit_rate(&self) -> f64 {
         let total = self.hit_count + self.miss_count;
         if total == 0 {
@@ -121,7 +121,7 @@ impl CteCacheStats {
         self.hit_count as f64 / total as f64
     }
 
-    /// 获取内存使用率
+    /// Getting Memory Usage
     pub fn memory_usage_ratio(&self) -> f64 {
         if self.max_memory == 0 {
             return 0.0;
@@ -129,7 +129,7 @@ impl CteCacheStats {
         self.current_memory as f64 / self.max_memory as f64
     }
 
-    /// 重置统计
+    /// Reset the statistics.
     pub fn reset(&mut self) {
         self.hit_count = 0;
         self.miss_count = 0;
@@ -138,20 +138,20 @@ impl CteCacheStats {
     }
 }
 
-/// CTE缓存配置
+/// CTE Cache Configuration
 #[derive(Debug, Clone)]
 pub struct CteCacheConfig {
-    /// 最大缓存大小（字节）
+    /// Maximum cache size (bytes)
     pub max_size: usize,
-    /// 单个条目最大大小（字节）
+    /// Maximum size of a single entry (bytes)
     pub max_entry_size: usize,
-    /// 最小缓存行数（小于此值不缓存）
+    /// Minimum number of lines to cache (less than this value is not cached)
     pub min_row_count: u64,
-    /// 最大缓存行数（大于此值不缓存）
+    /// Maximum number of lines to cache (greater than this value is not cached)
     pub max_row_count: u64,
-    /// 条目过期时间（秒）
+    /// Entry expiration time (seconds)
     pub entry_ttl_seconds: u64,
-    /// 启用缓存
+    /// Enable caching
     pub enabled: bool,
 }
 
@@ -160,40 +160,40 @@ impl Default for CteCacheConfig {
         Self {
             max_size: 64 * 1024 * 1024,       // 64MB
             max_entry_size: 10 * 1024 * 1024, // 10MB
-            min_row_count: 100,               // 至少100行
-            max_row_count: 100_000,           // 最多10万行
-            entry_ttl_seconds: 3600,          // 1小时
+            min_row_count: 100,               // At least 100 lines
+            max_row_count: 100_000,           // Up to 100,000 lines.
+            entry_ttl_seconds: 3600,          // 1 hour
             enabled: true,
         }
     }
 }
 
 impl CteCacheConfig {
-    /// 创建小内存配置
+    /// Create a small memory configuration.
     pub fn low_memory() -> Self {
         Self {
             max_size: 16 * 1024 * 1024,      // 16MB
             max_entry_size: 5 * 1024 * 1024, // 5MB
             min_row_count: 50,
             max_row_count: 50_000,
-            entry_ttl_seconds: 1800, // 30分钟
+            entry_ttl_seconds: 1800, // 30 minutes
             enabled: true,
         }
     }
 
-    /// 创建大内存配置
+    /// Creating a large memory configuration
     pub fn high_memory() -> Self {
         Self {
             max_size: 256 * 1024 * 1024,      // 256MB
             max_entry_size: 50 * 1024 * 1024, // 50MB
             min_row_count: 100,
             max_row_count: 500_000,
-            entry_ttl_seconds: 7200, // 2小时
+            entry_ttl_seconds: 7200, // 2 hours
             enabled: true,
         }
     }
 
-    /// 禁用缓存
+    /// Disable caching
     pub fn disabled() -> Self {
         Self {
             enabled: false,
@@ -202,28 +202,28 @@ impl CteCacheConfig {
     }
 }
 
-/// CTE缓存管理器
+/// CTE Cache Manager
 ///
-/// 管理CTE查询结果的缓存，提供线程安全的访问
+/// Managing the caching of CTE (Common Table Expression) query results and ensuring thread-safe access.
 #[derive(Debug)]
 pub struct CteCacheManager {
-    /// 缓存存储
+    /// Cache storage
     cache: RwLock<HashMap<String, CteCacheEntry>>,
-    /// 配置
+    /// Configuration
     config: RwLock<CteCacheConfig>,
-    /// 统计信息
+    /// Statistical information
     stats: RwLock<CteCacheStats>,
-    /// 当前使用内存
+    /// Memory currently in use
     current_memory: RwLock<usize>,
 }
 
 impl CteCacheManager {
-    /// 创建新的缓存管理器
+    /// Create a new cache manager.
     pub fn new() -> Self {
         Self::with_config(CteCacheConfig::default())
     }
 
-    /// 使用配置创建
+    /// Create using the configuration.
     pub fn with_config(config: CteCacheConfig) -> Self {
         let max_memory = config.max_size;
         Self {
@@ -237,32 +237,32 @@ impl CteCacheManager {
         }
     }
 
-    /// 获取配置
+    /// Obtain the configuration.
     pub fn config(&self) -> CteCacheConfig {
         self.config.read().clone()
     }
 
-    /// 更新配置
+    /// Update the configuration.
     pub fn set_config(&self, config: CteCacheConfig) {
         let mut stats = self.stats.write();
         stats.max_memory = config.max_size;
         *self.config.write() = config;
 
-        // 如果新配置更小，可能需要淘汰一些条目
+        // If the new configuration requires less space, it may be necessary to eliminate some entries.
         self.evict_if_needed();
     }
 
-    /// 判断是否启用缓存
+    /// Determine whether to enable caching.
     pub fn is_enabled(&self) -> bool {
         self.config.read().enabled
     }
 
-    /// 判断是否缓存CTE结果
+    /// Determine whether the results of the CTE (Common Table Expression) are cached.
     ///
-    /// # 参数
-    /// - `cte_definition`: CTE定义文本
-    /// - `estimated_rows`: 估计行数
-    /// - `is_deterministic`: 是否确定性CTE
+    /// # Parameters
+    /// `cte_definition`: Text defining the Common Table Expression (CTE).
+    /// estimated_rows: The estimated number of rows
+    /// `is_deterministic`: Whether the CTE (Common Table Expression) is deterministic.
     pub fn should_cache(
         &self,
         cte_definition: &str,
@@ -279,12 +279,12 @@ impl CteCacheManager {
             return false;
         }
 
-        // 检查行数范围
+        // Check the range of line numbers.
         if estimated_rows < config.min_row_count || estimated_rows > config.max_row_count {
             return false;
         }
 
-        // 检查历史重用模式
+        // Check the historical reuse patterns.
         let reuse_prob = self.predict_reuse_probability(cte_definition);
         if reuse_prob < 0.3 {
             return false;
@@ -293,18 +293,18 @@ impl CteCacheManager {
         true
     }
 
-    /// 预测重用概率
+    /// Predict the probability of reuse
     fn predict_reuse_probability(&self, cte_definition: &str) -> f64 {
         let cache = self.cache.read();
         let cte_hash = Self::compute_hash(cte_definition);
 
-        // 如果已经在缓存中，返回当前的重用概率
+        // If it is already in the cache, return the current reuse probability.
         if let Some(entry) = cache.get(&cte_hash) {
             return entry.reuse_probability;
         }
 
-        // 否则基于CTE特征进行预测
-        // 简单的启发式：复杂的CTE更可能被重用
+        // Otherwise, predictions will be made based on the characteristics of the CTE (Common Table Expression).
+        // A simple heuristic: More complex Common Table Expressions (CTEs) are more likely to be reused.
         let complexity = cte_definition.len() as f64 / 100.0;
         let base_prob = 0.5;
         let complexity_bonus = (complexity / 10.0).min(0.3);
@@ -312,7 +312,7 @@ impl CteCacheManager {
         base_prob + complexity_bonus
     }
 
-    /// 计算CTE定义的哈希值
+    /// Calculate the hash value defined by the CTE (Common Table Expression).
     fn compute_hash(cte_definition: &str) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -322,7 +322,7 @@ impl CteCacheManager {
         format!("{:016x}", hasher.finish())
     }
 
-    /// 将数据存入缓存
+    /// Store the data in the cache.
     pub fn put(&self, cte_definition: &str, data: Vec<u8>, row_count: u64) -> Option<String> {
         let config = self.config.read();
 
@@ -330,7 +330,7 @@ impl CteCacheManager {
             return None;
         }
 
-        // 检查数据大小
+        // Check the data size.
         if data.len() > config.max_entry_size {
             let mut stats = self.stats.write();
             stats.rejected_count += 1;
@@ -339,7 +339,7 @@ impl CteCacheManager {
 
         drop(config);
 
-        // 确保有足够空间
+        // Make sure there is enough space.
         self.evict_if_needed();
 
         let cte_hash = Self::compute_hash(cte_definition);
@@ -353,13 +353,13 @@ impl CteCacheManager {
         let entry_size = entry.data_size;
         let mut cache = self.cache.write();
 
-        // 更新内存使用
+        // Update memory usage
         *self.current_memory.write() += entry_size;
 
-        // 插入缓存
+        // Insert the cache
         cache.insert(cte_hash.clone(), entry);
 
-        // 更新统计
+        // Update the statistics.
         let mut stats = self.stats.write();
         stats.entry_count = cache.len();
         stats.current_memory = *self.current_memory.read();
@@ -367,7 +367,7 @@ impl CteCacheManager {
         Some(cte_hash)
     }
 
-    /// 从缓存获取数据
+    /// Retrieve data from the cache.
     pub fn get(&self, cte_definition: &str) -> Option<Arc<Vec<u8>>> {
         let config = self.config.read();
 
@@ -381,10 +381,10 @@ impl CteCacheManager {
         let mut cache = self.cache.write();
 
         if let Some(entry) = cache.get_mut(&cte_hash) {
-            // 检查是否过期
+            // Check whether it has expired.
             let config = self.config.read();
             if entry.age().as_secs() > config.entry_ttl_seconds {
-                // 过期，移除
+                // Expired; removed.
                 let size = entry.data_size;
                 cache.remove(&cte_hash);
                 *self.current_memory.write() -= size;
@@ -396,10 +396,10 @@ impl CteCacheManager {
                 return None;
             }
 
-            // 记录访问
+            // Record visits
             entry.record_access();
 
-            // 更新统计
+            // Update the statistics.
             let mut stats = self.stats.write();
             stats.hit_count += 1;
 
@@ -411,13 +411,13 @@ impl CteCacheManager {
         }
     }
 
-    /// 检查缓存中是否存在
+    /// Check whether it exists in the cache.
     pub fn contains(&self, cte_definition: &str) -> bool {
         let cte_hash = Self::compute_hash(cte_definition);
         self.cache.read().contains_key(&cte_hash)
     }
 
-    /// 使缓存条目失效
+    /// Invalidate the cache entry
     pub fn invalidate(&self, cte_definition: &str) -> bool {
         let cte_hash = Self::compute_hash(cte_definition);
         let mut cache = self.cache.write();
@@ -434,7 +434,7 @@ impl CteCacheManager {
         }
     }
 
-    /// 清空所有缓存
+    /// Clear all caches.
     pub fn clear(&self) {
         let mut cache = self.cache.write();
         cache.clear();
@@ -445,7 +445,7 @@ impl CteCacheManager {
         stats.current_memory = 0;
     }
 
-    /// 获取统计信息
+    /// Obtain statistical information
     pub fn get_stats(&self) -> CteCacheStats {
         let mut stats = self.stats.read().clone();
         stats.entry_count = self.cache.read().len();
@@ -458,17 +458,17 @@ impl CteCacheManager {
         self.stats.write().reset();
     }
 
-    /// 获取当前内存使用
+    /// Get the current memory usage
     pub fn current_memory(&self) -> usize {
         *self.current_memory.read()
     }
 
-    /// 获取缓存条目数量
+    /// Obtain the number of cached entries
     pub fn entry_count(&self) -> usize {
         self.cache.read().len()
     }
 
-    /// 如果需要，执行淘汰
+    /// Implementation of phase-out, if required
     fn evict_if_needed(&self) {
         let config = self.config.read();
         let max_size = config.max_size;
@@ -478,7 +478,7 @@ impl CteCacheManager {
         let mut evicted = 0u64;
 
         while current > max_size && current > 0 {
-            // 找到得分最低的条目进行淘汰
+            // Find the entry with the lowest score and eliminate it.
             let to_evict = {
                 let cache = self.cache.read();
                 cache
@@ -512,7 +512,7 @@ impl CteCacheManager {
         }
     }
 
-    /// 清理过期条目
+    /// Clearance of obsolete entries
     pub fn cleanup_expired(&self) -> usize {
         let config = self.config.read();
         let ttl = config.entry_ttl_seconds;
@@ -562,34 +562,34 @@ impl Clone for CteCacheManager {
     }
 }
 
-/// CTE缓存决策器
+/// CTE Cache Decisioner
 ///
-/// 基于查询特征决定是否使用缓存
+/// Decide whether to use caching based on query characteristics
 #[derive(Debug, Clone)]
 pub struct CteCacheDecision {
-    /// 是否使用缓存
+    /// Should the cache be used?
     pub should_cache: bool,
-    /// 决策原因
+    /// Reasons for decision-making
     pub reason: String,
     /// 估计重用概率
     pub reuse_probability: f64,
-    /// 估计缓存收益
+    /// Estimated caching gains
     pub estimated_benefit: f64,
 }
 
 /// CTE缓存决策器
 #[derive(Debug)]
 pub struct CteCacheDecisionMaker {
-    /// 缓存管理器
+    /// Cache Manager
     cache_manager: Arc<CteCacheManager>,
-    /// 最小重用概率阈值
+    /// Minimum Reuse Probability Threshold
     min_reuse_probability: f64,
-    /// 最小估计收益
+    /// Minimum estimated gain
     min_benefit: f64,
 }
 
 impl CteCacheDecisionMaker {
-    /// 创建新的决策器
+    /// Create a new decision maker.
     pub fn new(cache_manager: Arc<CteCacheManager>) -> Self {
         Self {
             cache_manager,
@@ -598,14 +598,14 @@ impl CteCacheDecisionMaker {
         }
     }
 
-    /// 设置参数
+    /// Setting parameters
     pub fn with_params(mut self, min_reuse_probability: f64, min_benefit: f64) -> Self {
         self.min_reuse_probability = min_reuse_probability;
         self.min_benefit = min_benefit;
         self
     }
 
-    /// 做出缓存决策
+    /// Making a decision regarding caching
     pub fn decide(
         &self,
         cte_definition: &str,
@@ -632,7 +632,7 @@ impl CteCacheDecisionMaker {
             };
         }
 
-        // 估计缓存收益 = 重用概率 * 计算代价 - 缓存开销
+        // Estimated Cache Benefit = Probability of Reuse * Computation Cost - Cache Overhead
         let cache_overhead = estimated_rows as f64 * 0.001; // 假设每行缓存开销0.001ms
         let estimated_benefit = reuse_prob * compute_cost - cache_overhead;
 
@@ -685,12 +685,12 @@ mod tests {
     fn test_cte_cache_manager() {
         let manager = CteCacheManager::new();
 
-        // 测试缓存决策
+        // Testing cache decision-making mechanisms
         assert!(manager.should_cache("SELECT * FROM t", 500, true));
-        assert!(!manager.should_cache("SELECT * FROM t", 10, true)); // 行数太少
-        assert!(!manager.should_cache("SELECT * FROM t", 500, false)); // 非确定性
+        assert!(!manager.should_cache("SELECT * FROM t", 10, true)); // Too few lines
+        assert!(!manager.should_cache("SELECT * FROM t", 500, false)); // Non-determinacy
 
-        // 测试存入和获取
+        // Test Deposit and Access
         let data = vec![1, 2, 3, 4, 5];
         let key = manager.put("SELECT * FROM t", data.clone(), 100);
         assert!(key.is_some());
@@ -699,7 +699,7 @@ mod tests {
         assert!(retrieved.is_some());
         assert_eq!(*retrieved.unwrap(), data);
 
-        // 测试统计
+        // Test statistics
         let stats = manager.get_stats();
         assert_eq!(stats.hit_count, 1);
         assert_eq!(stats.miss_count, 0);
@@ -709,7 +709,7 @@ mod tests {
     #[test]
     fn test_cte_cache_eviction() {
         let config = CteCacheConfig {
-            max_size: 100, // 很小的缓存
+            max_size: 100, // Very small cache
             max_entry_size: 50,
             min_row_count: 1,
             max_row_count: 1000,
@@ -719,22 +719,22 @@ mod tests {
 
         let manager = CteCacheManager::with_config(config);
 
-        // 存入多个条目，触发淘汰
-        let data1 = vec![1u8; 40]; // 40字节
-        let data2 = vec![2u8; 40]; // 40字节
-        let data3 = vec![3u8; 40]; // 40字节
-        let data4 = vec![4u8; 40]; // 40字节
+        // Entering multiple entries triggers the elimination process.
+        let data1 = vec![1u8; 40]; // 40 bytes
+        let data2 = vec![2u8; 40]; // 40 bytes
+        let data3 = vec![3u8; 40]; // 40 bytes
+        let data4 = vec![4u8; 40]; // 40 bytes
 
         manager.put("query1", data1, 10);
         manager.put("query2", data2, 10);
 
-        // 访问query1，提升其得分
+        // Visit query1 to boost its score
         manager.get("query1");
 
-        // 存入query3，应该淘汰query2
+        // Query3 should be stored, while query2 should be eliminated.
         manager.put("query3", data3, 10);
 
-        // 存入query4，确保触发淘汰
+        // Stored in query4 to ensure triggering of elimination
         manager.put("query4", data4, 10);
 
         let stats = manager.get_stats();
@@ -746,14 +746,14 @@ mod tests {
         let manager = Arc::new(CteCacheManager::new());
         let decision_maker = CteCacheDecisionMaker::new(manager);
 
-        // 测试决策
+        // Test decision-making
         let decision = decision_maker.decide("SELECT * FROM large_table", 1000, 100.0);
-        // 由于重用概率可能较低，结果可能是true或false
+        // Since the probability of reuse may be low, the result may be true or false
         assert!(decision.reuse_probability >= 0.0 && decision.reuse_probability <= 1.0);
 
-        // 测试低重用概率的情况
+        // Testing cases with low probability of reuse
         let decision = decision_maker.decide("SELECT 1", 100, 0.1);
-        assert!(!decision.should_cache); // 简单查询不应缓存
+        assert!(!decision.should_cache); // Simple queries should not be cached
     }
 
     #[test]

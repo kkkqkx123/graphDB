@@ -1,5 +1,5 @@
-//! 变量检查工具
-//! 负责验证变量的作用域、命名格式和使用
+//! Variable checking tool
+//! Responsible for verifying the scope of variables, the naming conventions, and their usage.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -308,7 +308,7 @@ mod tests {
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
-    /// 从 Expression 创建 ContextualExpression
+    /// Create a ContextualExpression from an Expression
     fn create_contextual_expression(expr: Expression) -> ContextualExpression {
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
@@ -319,19 +319,19 @@ mod tests {
     #[test]
     fn test_variable_checker_creation() {
         let _checker = VariableChecker::new();
-        // 测试通过到达此处即表示成功
+        // The test has been successful; reaching this point indicates that the goal has been achieved.
     }
 
     #[test]
     fn test_validate_variable_name_format() {
         let checker = VariableChecker::new();
 
-        // 有效的变量名
+        // Effective variable names
         assert!(checker.validate_variable_name_format("var").is_ok());
         assert!(checker.validate_variable_name_format("_var").is_ok());
         assert!(checker.validate_variable_name_format("var123").is_ok());
 
-        // 无效的变量名
+        // Invalid variable name
         assert!(checker.validate_variable_name_format("").is_err());
         assert!(checker.validate_variable_name_format("123var").is_err());
         assert!(checker.validate_variable_name_format("var-name").is_err());

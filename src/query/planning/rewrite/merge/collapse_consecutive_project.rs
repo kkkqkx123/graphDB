@@ -1,16 +1,16 @@
-//! 合并连续投影规则
+//! Merge consecutive projection rules
 //!
-//! 当多个 Project 节点连续出现时，合并为一个 Project 节点
-//! 减少不必要的中间结果生成
+//! When multiple Project nodes appear in succession, they should be merged into a single Project node.
+//! Reduce the generation of unnecessary intermediate results.
 //!
-//! 示例:
+//! Example:
 //! ```
 //! Project(a, b) -> Project(c, d)  =>  Project(c, d)
 //! ```
 //!
-//! 适用条件:
-//! - 两个 Project 节点连续出现
-//! - 上层 Project 不依赖下层 Project 的别名解析
+//! Applicable Conditions:
+//! Two Project nodes appear in succession.
+//! The upper-level project does not rely on the alias resolution of the lower-level project.
 
 use crate::core::YieldColumn;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
@@ -23,9 +23,9 @@ use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 use std::collections::HashMap;
 
-/// 合并连续投影规则
+/// Merge consecutive projection rules
 ///
-/// # 转换示例
+/// # Example of conversion
 ///
 /// Before:
 /// ```text
@@ -43,28 +43,28 @@ use std::collections::HashMap;
 ///   ScanVertices
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - 当前节点为Project节点
-/// - 子节点也为Project节点
-/// - 上层Project的列引用可以解析为下层Project的输入
+/// The current node is a Project node.
+/// The child node is also a Project node.
+/// The column references from the upper-level project can be parsed as inputs for the lower-level project.
 #[derive(Debug)]
 pub struct CollapseConsecutiveProjectRule;
 
 impl CollapseConsecutiveProjectRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         Self
     }
 
-    /// 执行合并操作
+    /// Perform the merge operation.
     fn merge_projects(
         &self,
         parent_proj: &ProjectNode,
         child_proj: &ProjectNode,
         ctx: &RewriteContext,
     ) -> Option<ProjectNode> {
-        // 构建列名到表达式的映射（从子Project）
+        // Construct a mapping from column names to expressions (from the sub-project)
         let mut rewrite_map = HashMap::new();
         for col in child_proj.columns() {
             if !col.alias.is_empty() {
@@ -74,7 +74,7 @@ impl CollapseConsecutiveProjectRule {
 
         let expr_context = ctx.expr_context();
 
-        // 重写父Project的列表达式
+        // Rewrite the list expression of the parent Project.
         let new_columns: Vec<YieldColumn> = parent_proj
             .columns()
             .iter()
@@ -89,7 +89,7 @@ impl CollapseConsecutiveProjectRule {
             })
             .collect();
 
-        // 创建新的Project节点，输入为子Project的输入
+        // Create a new Project node, and enter the information for the sub-Project as input.
         let child_input = child_proj.input().clone();
         ProjectNode::new(child_input, new_columns).ok()
     }
@@ -115,20 +115,20 @@ impl RewriteRule for CollapseConsecutiveProjectRule {
         ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为Project节点
+        // Check whether it is a Project node.
         let parent_proj = match node {
             PlanNodeEnum::Project(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取子节点
+        // Obtain child nodes
         let child_node = parent_proj.input();
         let child_proj = match child_node {
             PlanNodeEnum::Project(n) => n,
             _ => return Ok(None),
         };
 
-        // 执行合并
+        // Perform the merge.
         if let Some(new_proj) = self.merge_projects(parent_proj, child_proj, ctx) {
             let mut result = TransformResult::new();
             result.erase_curr = true;
@@ -181,13 +181,13 @@ mod tests {
         use crate::query::validator::context::ExpressionAnalysisContext;
         use std::sync::Arc;
 
-        // 创建起始节点
+        // Create the starting node.
         let start = PlanNodeEnum::Start(StartNode::new());
 
-        // 创建表达式上下文
+        // Create the context for the expression.
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
-        // 创建下层Project节点
+        // Create a lower-level Project node.
         let a_expr = Expression::Variable("a".to_string());
         let a_meta = ExpressionMeta::new(a_expr);
         let a_id = expr_ctx.register_expression(a_meta);
@@ -213,7 +213,7 @@ mod tests {
         let child_proj = ProjectNode::new(start, child_columns).expect("创建下层Project失败");
         let child_node = PlanNodeEnum::Project(child_proj);
 
-        // 创建上层Project节点，引用下层Project的别名
+        // Create an upper-level Project node that references the alias of the lower-level Project.
         let col_a_expr = Expression::Variable("col_a".to_string());
         let col_a_meta = ExpressionMeta::new(col_a_expr);
         let col_a_id = expr_ctx.register_expression(col_a_meta);
@@ -228,35 +228,35 @@ mod tests {
             ProjectNode::new(child_node, parent_columns).expect("创建上层Project失败");
         let parent_node = PlanNodeEnum::Project(parent_proj);
 
-        // 应用规则
+        // Apply the rules
         let rule = CollapseConsecutiveProjectRule::new();
         let mut ctx = RewriteContext::new();
         let result = rule.apply(&mut ctx, &parent_node).expect("应用规则失败");
 
-        assert!(result.is_some(), "应该成功合并连续的Project节点");
+        assert!(result.is_some(), "The consecutive Project nodes should be merged successfully.");
 
-        // 验证结果
+        // Verification results
         let transform_result = result.expect("Failed to apply rewrite rule");
         assert!(transform_result.erase_curr);
         assert_eq!(transform_result.new_nodes.len(), 1);
 
-        // 验证新的Project节点
+        // Verify the new Project node.
         if let PlanNodeEnum::Project(ref new_proj) = transform_result.new_nodes[0] {
             let columns = new_proj.columns();
             assert_eq!(columns.len(), 1);
             assert_eq!(columns[0].alias, "result");
-            // 验证表达式已被重写为原始引用
+            // The verification expression has been rewritten to match the original reference.
             if let Some(expr_meta) = columns[0].expression.expression() {
                 if let Expression::Variable(name) = expr_meta.inner() {
                     assert_eq!(name, "a");
                 } else {
-                    panic!("表达式应该是Variable");
+                    panic!("The expression should be “Variable”.");
                 }
             } else {
-                panic!("表达式应该存在");
+                panic!("The expression should exist.");
             }
         } else {
-            panic!("转换结果应该是Project节点");
+            panic!("The “Project” node");
         }
     }
 }

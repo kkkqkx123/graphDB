@@ -1,6 +1,6 @@
-//! UnionAll执行器实现
+//! Implementation of the UnionAll executor
 //!
-//! 实现UNION ALL操作，合并两个数据集但保留重复行
+//! Implement the UNION ALL operation to merge two datasets while retaining duplicate rows.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -13,17 +13,17 @@ use crate::storage::StorageClient;
 
 use super::base::SetExecutor;
 
-/// UnionAll执行器
+/// The UnionAll executor
 ///
-/// 实现UNION ALL操作，合并两个数据集但保留重复行
-/// 类似于SQL的UNION ALL
+/// Implement the UNION ALL operation to merge two datasets while retaining duplicate rows.
+/// Something similar to SQL’s UNION ALL
 #[derive(Debug)]
 pub struct UnionAllExecutor<S: StorageClient> {
     pub set_executor: SetExecutor<S>,
 }
 
 impl<S: StorageClient> UnionAllExecutor<S> {
-    /// 创建新的UnionAll执行器
+    /// Create a new UnionAll executor.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -43,21 +43,21 @@ impl<S: StorageClient> UnionAllExecutor<S> {
         }
     }
 
-    /// 执行UNION ALL操作
+    /// Perform the UNION ALL operation
     ///
-    /// 算法步骤：
-    /// 1. 获取左右两个输入数据集
-    /// 2. 验证列名是否一致
+    /// Algorithm steps:
+    /// 1. Obtain the two input datasets on the left and right.
+    /// 2. Verify whether the column names are consistent.
     fn execute_union_all(&mut self) -> Result<DataSet, QueryError> {
-        // 获取左右输入数据集
+        // Obtain the left and right input datasets
         let left_dataset = self.set_executor.get_left_input_data()?;
         let right_dataset = self.set_executor.get_right_input_data()?;
 
-        // 检查输入数据集的有效性
+        // Check the validity of the input dataset.
         self.set_executor
             .check_input_data_sets(&left_dataset, &right_dataset)?;
 
-        // 合并两个数据集（不去重）
+        // Merge two datasets (without removing duplicates)
         let result_dataset = SetExecutor::<S>::concat_datasets(left_dataset, right_dataset);
 
         Ok(result_dataset)
@@ -119,7 +119,7 @@ mod tests {
     use super::*;
     use crate::core::Value;
 
-    // 创建测试用的存储引擎
+    // Create a storage engine for testing purposes.
     fn create_test_storage() -> Arc<Mutex<crate::storage::test_mock::MockStorage>> {
         let storage =
             crate::storage::test_mock::MockStorage::new().expect("Failed to create test storage");
@@ -142,7 +142,7 @@ mod tests {
             context,
         );
 
-        // 设置测试数据
+        // Set up the test data
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -154,12 +154,12 @@ mod tests {
         let right_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
-                vec![Value::Int(2), Value::String("Bob".to_string())], // 重复行
+                vec![Value::Int(2), Value::String("Bob".to_string())], // Duplicate rows
                 vec![Value::Int(3), Value::String("Charlie".to_string())],
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -169,17 +169,17 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行UNION ALL操作
+        // Perform the UNION ALL operation
         let result = executor.execute();
 
-        // 验证结果
+        // Verification results
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该包含所有8个值（不去重）：左表4个值 + 右表4个值
+            // All 8 unique values should be included: 4 values from the left table + 4 values from the right table.
             assert_eq!(values.len(), 8);
         } else {
-            panic!("期望Values结果");
+            panic!("Expected Values results");
         }
     }
 
@@ -195,7 +195,7 @@ mod tests {
             context,
         );
 
-        // 设置空的左数据集和非空的右数据集
+        // Set an empty left dataset and a non-empty right dataset.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![],
@@ -209,7 +209,7 @@ mod tests {
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -219,7 +219,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 测试左数据集为空的UNION ALL
+        // The UNION ALL operation is being tested on a left dataset that is empty.
         let result = executor.execute();
         assert!(result.is_ok());
 
@@ -240,7 +240,7 @@ mod tests {
             context,
         );
 
-        // 设置非空的左数据集和空的右数据集
+        // Set a non-empty left dataset and an empty right dataset.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -254,7 +254,7 @@ mod tests {
             rows: vec![],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -264,13 +264,13 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 测试右数据集为空的UNION ALL
+        // The UNION ALL operation on the right dataset, which is empty, results in no data being returned.
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该只包含左数据集的内容
-            // 2行 × 2列 = 4个值
+            // Only the content from the left dataset should be included.
+            // 2 rows × 2 columns = 4 values
             assert_eq!(values.len(), 4);
         }
     }
@@ -287,7 +287,7 @@ mod tests {
             context,
         );
 
-        // 设置两个空数据集
+        // Create two empty datasets.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![],
@@ -298,7 +298,7 @@ mod tests {
             rows: vec![],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -308,7 +308,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 测试两个数据集都为空的UNION ALL
+        // Test the UNION ALL operation when both datasets are empty.
         let result = executor.execute();
         assert!(result.is_ok());
 
@@ -329,18 +329,18 @@ mod tests {
             context,
         );
 
-        // 设置列名不匹配的数据集
+        // A dataset with column names that do not match the specified values
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![vec![Value::Int(1), Value::String("Alice".to_string())]],
         };
 
         let right_dataset = DataSet {
-            col_names: vec!["id".to_string(), "title".to_string()], // 不同的列名
+            col_names: vec!["id".to_string(), "title".to_string()], // Different column names
             rows: vec![vec![Value::Int(2), Value::String("Mr".to_string())]],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_mismatch".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -350,7 +350,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行应该失败
+        // The execution should fail.
         let result = executor.execute();
         assert!(result.is_err());
 
@@ -360,7 +360,7 @@ mod tests {
         {
             assert!(msg.contains("列名不匹配"));
         } else {
-            panic!("期望列名不匹配错误");
+            panic!("Error: The expected column names do not match.");
         }
     }
 
@@ -376,24 +376,24 @@ mod tests {
             context,
         );
 
-        // 设置包含重复行的数据集
+        // Setting up a dataset that contains duplicate rows
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "value".to_string()],
             rows: vec![
                 vec![Value::Int(1), Value::String("same".to_string())],
-                vec![Value::Int(1), Value::String("same".to_string())], // 左数据集中的重复行
+                vec![Value::Int(1), Value::String("same".to_string())], // Duplicate rows in the left dataset
             ],
         };
 
         let right_dataset = DataSet {
             col_names: vec!["id".to_string(), "value".to_string()],
             rows: vec![
-                vec![Value::Int(1), Value::String("same".to_string())], // 与左数据集重复的行
+                vec![Value::Int(1), Value::String("same".to_string())], // Rows that are repeated in the left dataset
                 vec![Value::Int(2), Value::String("different".to_string())],
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_dup".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -403,17 +403,17 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行UNION ALL操作
+        // Perform the UNION ALL operation
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该保留所有重复行
-            // 左数据集有2行（其中1行重复），右数据集有2行，总共4行
-            // 4行 × 2列 = 8个值
+            // All duplicate rows should be retained.
+            // The left dataset contains 2 rows (one of which is repeated), and the right dataset also contains 2 rows. In total, there are 4 rows.
+            // 4 rows × 2 columns = 8 values
             assert_eq!(values.len(), 8);
         } else {
-            panic!("期望Values结果");
+            panic!("Expected Values results");
         }
     }
 }

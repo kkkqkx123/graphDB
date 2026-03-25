@@ -1,13 +1,13 @@
-//! 执行器宏模块
+//! Actuator Macro Module
 //!
-//! 提供用于简化 ExecutorEnum trait 实现的声明宏
-//! 减少样板代码，提高可维护性
+//! Provide a declaration macro for simplifying the implementation of the ExecutorEnum trait
+//! Reduce the amount of样板 code and improve maintainability.
 
-/// 为 ExecutorEnum 生成 Executor trait 方法的宏
+/// Generate macro methods for the `ExecutorEnum` that implement the `Executor` trait
 ///
-/// 此宏自动生成对所有变体调用相同方法的 match 语句
+/// This macro automatically generates `match` statements that call the same method for all variants.
 ///
-/// # 用法
+/// # Usage
 /// ```
 /// delegate_executor_method! {
 ///     fn method_name(&self) -> ReturnType;
@@ -15,7 +15,7 @@
 /// ```
 #[macro_export]
 macro_rules! delegate_executor_method {
-    // 不可变 self，无参数，有返回值
+    // Immutable self: no parameters, returns a value
     ($method:ident, $return_type:ty) => {
         fn $method(&self) -> $return_type {
             match self {
@@ -99,7 +99,7 @@ macro_rules! delegate_executor_method {
         }
     };
 
-    // 可变 self，无参数，有返回值
+    // Variable self, no parameters, returns a value
     ($method:ident, mut $return_type:ty) => {
         fn $method(&mut self) -> $return_type {
             match self {
@@ -184,13 +184,13 @@ macro_rules! delegate_executor_method {
     };
 }
 
-/// 为 ExecutorEnum 生成 InputExecutor trait 方法的宏
+/// Generate a macro for the InputExecutor trait method of ExecutorEnum
 ///
-/// 此宏用于生成 set_input 和 get_input 方法
-/// 支持为有输入的执行器生成实际实现，为无输入的执行器生成默认实现
+/// This macro is used to generate the `set_input` and `get_input` methods.
+/// Support generating actual implementations for executors with input parameters, as well as default implementations for executors without input parameters.
 #[macro_export]
 macro_rules! delegate_input_executor_method {
-    // set_input 方法 - 区分有输入和无输入的执行器
+    // The `set_input` method – distinguishes between actuators with and without input data
     (set_input, $input:ty) => {
         fn set_input(&mut self, input: $input) {
             match self {
@@ -209,13 +209,13 @@ macro_rules! delegate_input_executor_method {
                 ExecutorEnum::GroupBy(exec) => exec.set_input(input),
                 ExecutorEnum::Having(exec) => exec.set_input(input),
                 ExecutorEnum::Remove(exec) => exec.set_input(input),
-                // 无输入的执行器 - 空操作
+                // No executor available – No action will be performed.
                 _ => {}
             }
         }
     };
 
-    // get_input 方法 - 区分有输入和无输入的执行器
+    // `get_input` method – Distinguishes between executors with and without input
     (get_input, $return_type:ty) => {
         fn get_input(&self) -> $return_type {
             match self {
@@ -234,14 +234,14 @@ macro_rules! delegate_input_executor_method {
                 ExecutorEnum::GroupBy(exec) => exec.get_input(),
                 ExecutorEnum::Having(exec) => exec.get_input(),
                 ExecutorEnum::Remove(exec) => exec.get_input(),
-                // 无输入的执行器 - 返回 None
+                // No executor available – Return None.
                 _ => None,
             }
         }
     };
 }
 
-/// 为 ExecutorEnum 生成 Debug trait 实现的宏
+/// Macro for generating the Debug trait implementation for ExecutorEnum
 #[macro_export]
 macro_rules! delegate_debug_fmt {
     () => {
@@ -336,7 +336,7 @@ macro_rules! delegate_debug_fmt {
     };
 }
 
-/// 为 ExecutorEnum 生成 NodeType trait 实现的宏
+/// Macro for generating the NodeType trait implementation for ExecutorEnum
 #[macro_export]
 macro_rules! delegate_node_type_id {
     () => {

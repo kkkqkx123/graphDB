@@ -1,85 +1,85 @@
-//! 执行器统计信息
+//! Actuator statistics
 //!
-//! 用于记录执行器执行过程中的各种统计信息，包括处理行数、执行时间等。
+//! Used to record a variety of statistical information during actuator execution, including the number of lines processed, execution time, and so on.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
-/// 执行器统计信息
+/// Actuator statistics
 ///
-/// 记录执行器执行过程中的统计数据，用于性能分析和查询优化。
+/// Record statistics during actuator execution for performance analysis and query optimization.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ExecutorStats {
-    /// 处理的行数
+    /// Number of rows processed
     pub num_rows: usize,
-    /// 执行时间（微秒）
+    /// Execution time (microseconds)
     pub exec_time_us: u64,
-    /// 总时间（微秒）
+    /// Total time (microseconds)
     pub total_time_us: u64,
-    /// 内存使用峰值（字节）
+    /// Peak memory usage (bytes)
     pub memory_peak: usize,
-    /// 内存使用当前值（字节）
+    /// Memory use current value (bytes)
     pub memory_current: usize,
-    /// 批量操作次数
+    /// Number of batch operations
     pub batch_count: usize,
-    /// 缓存命中次数
+    /// Cache hits
     pub cache_hits: usize,
-    /// 缓存未命中次数
+    /// Number of cache misses
     pub cache_misses: usize,
-    /// 其他统计信息
+    /// Other statistical information
     pub other_stats: HashMap<String, String>,
 }
 
 impl ExecutorStats {
-    /// 创建新的统计信息实例
+    /// Creating a New Statistical Information Instance
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 增加处理的行数
+    /// Increase the number of rows processed
     pub fn add_row(&mut self, count: usize) {
         self.num_rows += count;
     }
 
-    /// 增加执行时间
+    /// Increase in execution time
     pub fn add_exec_time(&mut self, duration: Duration) {
         self.exec_time_us += duration.as_micros() as u64;
     }
 
-    /// 增加总时间
+    /// Increase in total time
     pub fn add_total_time(&mut self, duration: Duration) {
         self.total_time_us += duration.as_micros() as u64;
     }
 
-    /// 设置内存使用峰值
+    /// Setting peak memory usage
     pub fn set_memory_peak(&mut self, peak: usize) {
         if peak > self.memory_peak {
             self.memory_peak = peak;
         }
     }
 
-    /// 更新内存当前使用量
+    /// Update memory current usage
     pub fn update_memory_current(&mut self, current: usize) {
         self.memory_current = current;
     }
 
-    /// 增加批量操作次数
+    /// Increase the number of batch operations
     pub fn add_batch(&mut self, count: usize) {
         self.batch_count += count;
     }
 
-    /// 记录缓存命中
+    /// Logging Cache Hits
     pub fn record_cache_hit(&mut self) {
         self.cache_hits += 1;
     }
 
-    /// 记录缓存未命中
+    /// Record cache misses
     pub fn record_cache_miss(&mut self) {
         self.cache_misses += 1;
     }
 
-    /// 计算缓存命中率
+    /// Calculating Cache Hit Ratio
     pub fn cache_hit_rate(&self) -> f64 {
         let total = self.cache_hits + self.cache_misses;
         if total > 0 {
@@ -89,17 +89,17 @@ impl ExecutorStats {
         }
     }
 
-    /// 添加自定义统计信息
+    /// Adding customized statistics
     pub fn add_stat(&mut self, key: String, value: String) {
         self.other_stats.insert(key, value);
     }
 
-    /// 获取自定义统计信息
+    /// Getting customized statistics
     pub fn get_stat(&self, key: &str) -> Option<&String> {
         self.other_stats.get(key)
     }
 
-    /// 获取吞吐量（行/秒）
+    /// Get throughput (lines/sec)
     pub fn throughput_rows_per_sec(&self) -> f64 {
         if self.total_time_us > 0 {
             self.num_rows as f64 * 1_000_000.0 / self.total_time_us as f64
@@ -108,7 +108,7 @@ impl ExecutorStats {
         }
     }
 
-    /// 获取执行效率（行/微秒）
+    /// Get execution efficiency (lines/microseconds)
     pub fn efficiency_rows_per_us(&self) -> f64 {
         if self.exec_time_us > 0 {
             self.num_rows as f64 / self.exec_time_us as f64
@@ -117,17 +117,17 @@ impl ExecutorStats {
         }
     }
 
-    /// 导出为 JSON 字符串
+    /// Export as JSON string
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
 
-    /// 从 JSON 字符串导入
+    /// Import from JSON string
     pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(json)
     }
 
-    /// 导出为格式化字符串
+    /// Export as Formatted String
     pub fn to_formatted_string(&self) -> String {
         format!(
             "rows: {}, exec_time: {}us, total_time: {}us, memory_peak: {}B, \

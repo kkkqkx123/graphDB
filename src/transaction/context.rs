@@ -1,6 +1,6 @@
-//! 事务上下文
+//! Transaction Context
 //!
-//! 管理单个事务的状态和资源
+//! Manages the state and resources of a single transaction
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -15,39 +15,39 @@ use crate::storage::operations::rollback::RollbackExecutor;
 use crate::storage::redb_types::{ByteKey, EDGES_TABLE, NODES_TABLE};
 use crate::transaction::types::*;
 
-/// 事务上下文
+/// Transaction Context
 pub struct TransactionContext {
-    /// 事务ID
+    /// Transaction ID
     pub id: TransactionId,
-    /// 当前状态
+    /// Current state
     state: AtomicCell<TransactionState>,
-    /// 开始时间戳
+    /// Start timestamp
     pub start_time: Instant,
-    /// 超时时间
+    /// Timeout duration
     timeout: Duration,
-    /// 是否只读
+    /// Whether read-only
     pub read_only: bool,
-    /// redb写事务（读写事务时存在）
-    /// 使用Option以便在提交时取出所有权
+    /// redb write transaction (exists for read-write transactions)
+    /// Using Option to take ownership on commit
     pub write_txn: Mutex<Option<redb::WriteTransaction>>,
-    /// redb读事务（只读事务时存在）
+    /// redb read transaction (exists for read-only transactions)
     pub read_txn: Option<redb::ReadTransaction>,
-    /// 持久性级别
+    /// Durability level
     pub durability: DurabilityLevel,
-    /// 操作日志（使用 RwLock 优化读多写少的场景）
+    /// Operation log (using RwLock to optimize read-heavy write-light scenarios)
     operation_logs: RwLock<Vec<OperationLog>>,
-    /// 修改的表
+    /// Modified tables
     modified_tables: Mutex<Vec<String>>,
-    /// 保存点管理器（使用 RwLock 优化读多写少的场景）
+    /// Savepoint manager (using RwLock to optimize read-heavy write-light scenarios)
     savepoint_manager: RwLock<SavepointManager>,
-    /// 回滚执行器（用于保存点回滚时执行实际的数据回滚）
+    /// Rollback executor (used to execute actual data rollback during savepoint rollback)
     rollback_executor: Mutex<Option<Box<dyn RollbackExecutor>>>,
-    /// 数据库引用（用于创建回滚执行器，暂未使用）
+    /// Database reference (used to create rollback executor, currently unused)
     #[allow(dead_code)]
     db: Option<Arc<redb::Database>>,
 }
 
-/// 保存点管理器
+/// Savepoint Manager
 pub(crate) struct SavepointManager {
     savepoints: HashMap<SavepointId, SavepointInfo>,
     next_id: SavepointId,
@@ -99,7 +99,7 @@ impl SavepointManager {
 }
 
 impl TransactionContext {
-    /// 创建新的事务上下文（读写事务）
+    /// Create a new transaction context (read-write transaction)
     pub fn new_writable(
         id: TransactionId,
         timeout: Duration,
@@ -124,7 +124,7 @@ impl TransactionContext {
         }
     }
 
-    /// 创建新的事务上下文（只读事务）
+    /// Create a new transaction context (read-only transaction)
     pub fn new_readonly(
         id: TransactionId,
         timeout: Duration,
@@ -148,17 +148,17 @@ impl TransactionContext {
         }
     }
 
-    /// 获取当前状态
+    /// Get current state
     pub fn state(&self) -> TransactionState {
         self.state.load()
     }
 
-    /// 检查事务是否超时
+    /// Check if transaction has expired
     pub fn is_expired(&self) -> bool {
         self.start_time.elapsed() > self.timeout
     }
 
-    /// 获取剩余时间
+    /// Get remaining time
     pub fn remaining_time(&self) -> Duration {
         let elapsed = self.start_time.elapsed();
         if elapsed >= self.timeout {
@@ -168,11 +168,11 @@ impl TransactionContext {
         }
     }
 
-    /// 状态转换
+    /// State transition
     pub fn transition_to(&self, new_state: TransactionState) -> Result<(), TransactionError> {
         let current = self.state.load();
 
-        // 验证状态转换是否合法
+        /// Validate if state transition is valid
         let valid_transition = matches!(
             (current, new_state),
             (
@@ -193,7 +193,7 @@ impl TransactionContext {
         Ok(())
     }
 
-    /// 检查是否可以执行操作
+    /// Check if operation can be executed
     pub fn can_execute(&self) -> Result<(), TransactionError> {
         let state = self.state.load();
 
@@ -208,7 +208,7 @@ impl TransactionContext {
         Ok(())
     }
 
-    /// 获取事务信息
+    /// Get transaction info
     pub fn info(&self) -> TransactionInfo {
         let tables = self.modified_tables.lock();
         let savepoints = self.savepoint_manager.read();
@@ -223,37 +223,37 @@ impl TransactionContext {
         }
     }
 
-    /// 添加操作日志
+    /// Add operation log
     pub fn add_operation_log(&self, operation: OperationLog) {
         let mut logs = self.operation_logs.write();
         logs.push(operation);
     }
 
-    /// 批量添加操作日志
+    /// Batch add operation logs
     pub fn add_operation_logs(&self, operations: Vec<OperationLog>) {
         let mut logs = self.operation_logs.write();
         logs.extend(operations);
     }
 
-    /// 获取操作日志
+    /// Get operation logs
     pub fn get_operation_logs(&self) -> Vec<OperationLog> {
         let logs = self.operation_logs.read();
         logs.clone()
     }
 
-    /// 获取操作日志长度
+    /// Get operation log length
     pub fn operation_log_len(&self) -> usize {
         let logs = self.operation_logs.read();
         logs.len()
     }
 
-    /// 获取指定索引的操作日志
+    /// Get operation log at specified index
     pub fn get_operation_log(&self, index: usize) -> Option<OperationLog> {
         let logs = self.operation_logs.read();
         logs.get(index).cloned()
     }
 
-    /// 获取指定范围的操作日志
+    /// Get operation logs in specified range
     pub fn get_operation_logs_range(&self, start: usize, end: usize) -> Vec<OperationLog> {
         let logs = self.operation_logs.read();
         if start >= logs.len() {
@@ -263,7 +263,7 @@ impl TransactionContext {
         logs[start..end].to_vec()
     }
 
-    /// 截断操作日志到指定索引
+    /// Truncate operation logs to specified index
     pub fn truncate_operation_log(&self, index: usize) {
         let mut logs = self.operation_logs.write();
         if index < logs.len() {
@@ -271,13 +271,13 @@ impl TransactionContext {
         }
     }
 
-    /// 清空操作日志
+    /// Clear operation logs
     pub fn clear_operation_log(&self) {
         let mut logs = self.operation_logs.write();
         logs.clear();
     }
 
-    /// 记录表修改
+    /// Record table modification
     pub fn record_table_modification(&self, table_name: &str) {
         let mut tables = self.modified_tables.lock();
         if !tables.contains(&table_name.to_string()) {
@@ -285,38 +285,38 @@ impl TransactionContext {
         }
     }
 
-    /// 获取修改的表
+    /// Get modified tables
     pub fn get_modified_tables(&self) -> Vec<String> {
         let tables = self.modified_tables.lock();
         tables.clone()
     }
 
-    /// 创建保存点
+    /// Create savepoint
     pub fn create_savepoint(&self, name: Option<String>) -> SavepointId {
         let mut manager = self.savepoint_manager.write();
         let operation_log_index = self.operation_log_len();
         manager.create_savepoint(name, operation_log_index)
     }
 
-    /// 获取保存点信息
+    /// Get savepoint info
     pub fn get_savepoint(&self, id: SavepointId) -> Option<SavepointInfo> {
         let manager = self.savepoint_manager.read();
         manager.get_savepoint(id).cloned()
     }
 
-    /// 获取所有保存点
+    /// Get all savepoints
     pub fn get_all_savepoints(&self) -> Vec<SavepointInfo> {
         let manager = self.savepoint_manager.read();
         manager.savepoints.values().cloned().collect()
     }
 
-    /// 通过名称查找保存点
+    /// Find savepoint by name
     pub fn find_savepoint_by_name(&self, name: &str) -> Option<SavepointInfo> {
         let manager = self.savepoint_manager.read();
         manager.find_by_name(name)
     }
 
-    /// 释放保存点
+    /// Release savepoint
     pub fn release_savepoint(&self, id: SavepointId) -> Result<(), TransactionError> {
         let mut manager = self.savepoint_manager.write();
         manager
@@ -325,7 +325,7 @@ impl TransactionContext {
             .ok_or(TransactionError::SavepointNotFound(id))
     }
 
-    /// 回滚到保存点
+    /// Rollback to savepoint
     pub fn rollback_to_savepoint(&self, id: SavepointId) -> Result<(), TransactionError> {
         let state = self.state.load();
         if !state.can_execute() {
@@ -342,7 +342,7 @@ impl TransactionContext {
             .cloned()
             .ok_or(TransactionError::SavepointNotFound(id))?;
 
-        // 获取需要回滚的操作日志（从保存点索引到当前日志末尾）
+        /// Get operation logs to rollback (from savepoint index to current log end)
         let logs_to_rollback = {
             let logs = self.operation_logs.read();
             if savepoint_info.operation_log_index >= logs.len() {
@@ -354,15 +354,15 @@ impl TransactionContext {
 
         drop(manager);
 
-        // 先执行数据回滚
+        /// First execute data rollback
         if !logs_to_rollback.is_empty() {
             self.execute_rollback_logs(&logs_to_rollback)?;
         }
 
-        // 数据回滚成功后，再截断操作日志
+        /// After data rollback succeeds, truncate operation logs
         self.truncate_operation_log(savepoint_info.operation_log_index);
 
-        // 移除该保存点之后的所有保存点
+        /// Remove all savepoints after this savepoint
         let mut manager = self.savepoint_manager.write();
         let savepoints_to_remove: Vec<SavepointId> = manager
             .savepoints
@@ -378,9 +378,9 @@ impl TransactionContext {
         Ok(())
     }
 
-    /// 执行操作日志的回滚
+    /// Execute rollback for operation logs
     fn execute_rollback_logs(&self, logs: &[OperationLog]) -> Result<(), TransactionError> {
-        // 按逆序执行回滚操作
+        /// Execute rollback operations in reverse order
         for log in logs.iter().rev() {
             match log {
                 OperationLog::InsertVertex {
@@ -559,32 +559,32 @@ impl TransactionContext {
         Ok(())
     }
 
-    /// 清除所有保存点
+    /// Clear all savepoints
     pub fn clear_savepoints(&self) {
         let mut manager = self.savepoint_manager.write();
         manager.clear();
     }
 
-    /// 设置回滚执行器
+    /// Set rollback executor
     ///
     /// # Arguments
-    /// * `executor` - 回滚执行器实例
+    /// * `executor` - Rollback executor instance
     ///
-    /// # 注意
-    /// 此方法用于将存储层的回滚能力集成到事务上下文中，
-    /// 使得保存点回滚能够执行实际的数据回滚操作
+    /// # Note
+    /// This method integrates the rollback capability of the storage layer into the transaction context,
+    /// enabling savepoint rollback to execute actual data rollback operations
     pub fn set_rollback_executor(&self, executor: Box<dyn RollbackExecutor>) {
         let mut guard = self.rollback_executor.lock();
         *guard = Some(executor);
     }
 
-    /// 清除回滚执行器
+    /// Clear rollback executor
     pub fn clear_rollback_executor(&self) {
         let mut guard = self.rollback_executor.lock();
         *guard = None;
     }
 
-    /// 取出写事务（用于提交）
+    /// Take write transaction (for commit)
     pub fn take_write_txn(&self) -> Result<redb::WriteTransaction, TransactionError> {
         self.write_txn
             .lock()
@@ -592,21 +592,21 @@ impl TransactionContext {
             .ok_or(TransactionError::ReadOnlyTransaction)
     }
 
-    /// 获取读事务引用
+    /// Get read transaction reference
     pub fn read_txn(&self) -> Result<&redb::ReadTransaction, TransactionError> {
         self.read_txn.as_ref().ok_or(TransactionError::Internal(
             "Read transaction not available".to_string(),
         ))
     }
 
-    /// 使用写事务执行操作（供存储层调用）
+    /// Execute operation with write transaction (for storage layer)
     ///
     /// # Arguments
-    /// * `f` - 闭包，接收 redb::WriteTransaction 引用并返回结果
+    /// * `f` - Closure that receives redb::WriteTransaction reference and returns result
     ///
     /// # Returns
-    /// * `Ok(R)` - 操作成功返回的结果
-    /// * `Err(TransactionError)` - 操作失败返回的错误
+    /// * `Ok(R)` - Result on successful operation
+    /// * `Err(TransactionError)` - Error on operation failure
     pub fn with_write_txn<F, R>(&self, f: F) -> Result<R, TransactionError>
     where
         F: FnOnce(&redb::WriteTransaction) -> Result<R, StorageError>,
@@ -627,24 +627,24 @@ impl TransactionContext {
         let guard = self.write_txn.lock();
         let txn = guard
             .as_ref()
-            .ok_or(TransactionError::Internal("写事务不可用".to_string()))?;
+            .ok_or(TransactionError::Internal("Write transaction not available".to_string()))?;
 
         f(txn).map_err(|e| TransactionError::Internal(e.to_string()))
     }
 
-    /// 使用读事务执行操作（供存储层调用）
+    /// Execute operation with read transaction (for storage layer)
     ///
     /// # Arguments
-    /// * `f` - 闭包，接收 ReadTransaction 或 WriteTransaction 并返回结果
+    /// * `f` - Closure that receives ReadTransaction or WriteTransaction and returns result
     ///
     /// # Returns
-    /// * `Ok(R)` - 操作成功返回的结果
-    /// * `Err(TransactionError)` - 操作失败返回的错误
+    /// * `Ok(R)` - Result on successful operation
+    /// * `Err(TransactionError)` - Error on operation failure
     ///
-    /// # 注意
-    /// redb 本身不支持从 WriteTransaction 创建 ReadTransaction。
-    /// 此方法通过两个不同的闭包来处理只读事务和读写事务。
-    /// 对于只读事务，使用 read_txn；对于读写事务，使用 write_txn 进行读取。
+    /// # Note
+    /// redb does not support creating ReadTransaction from WriteTransaction.
+    /// This method uses two different closures to handle read-only and read-write transactions.
+    /// For read-only transactions, use read_txn; for read-write transactions, use write_txn for reading.
     pub fn with_read_txn<F, R>(&self, f: F) -> Result<R, TransactionError>
     where
         F: FnOnce(&redb::ReadTransaction) -> Result<R, StorageError>,
@@ -658,28 +658,28 @@ impl TransactionContext {
             return Err(TransactionError::TransactionExpired);
         }
 
-        // 优先使用只读事务
+        // Prefer using read transaction
         if let Some(ref txn) = self.read_txn {
             return f(txn).map_err(|e| TransactionError::Internal(e.to_string()));
         }
 
-        // 对于读写事务，需要从写事务创建读事务
-        // redb 不支持直接从 WriteTransaction 读取，需要创建新的读事务
-        // 但这会导致读写不一致，所以这里返回错误
-        // 调用者应该使用 with_write_txn 方法
+        // For read-write transactions, need to create read transaction from write transaction
+        // redb does not support direct reading from WriteTransaction, need to create new read transaction
+        // But this would cause read-write inconsistency, so return error here
+        // Caller should use with_write_txn method
         Err(TransactionError::Internal(
-            "读写事务不支持直接读取，请使用 with_write_txn 方法".to_string(),
+            "Read-write transactions do not support direct reading, please use with_write_txn method".to_string(),
         ))
     }
 
-    /// 获取写事务的可变引用（供存储层调用）
+    /// Get mutable reference to write transaction (for storage layer)
     ///
     /// # Safety
-    /// 此方法返回可变引用，调用者必须确保：
-    /// 1. 没有其他线程同时访问该事务
-    /// 2. 操作完成后立即释放引用
+    /// This method returns a mutable reference, caller must ensure:
+    /// 1. No other thread accesses the transaction simultaneously
+    /// 2. Release the reference immediately after operation completes
     ///
-    /// 建议使用 `with_write_txn` 方法代替
+    /// It is recommended to use `with_write_txn` method instead
     pub fn write_txn_mut(
         &self,
     ) -> Result<impl std::ops::DerefMut<Target = redb::WriteTransaction> + '_, TransactionError>
@@ -700,19 +700,19 @@ impl TransactionContext {
         impl<'a> std::ops::Deref for WriteTxnGuard<'a> {
             type Target = redb::WriteTransaction;
             fn deref(&self) -> &Self::Target {
-                self.guard.as_ref().expect("写事务应该存在")
+                self.guard.as_ref().expect("Write transaction should exist")
             }
         }
 
         impl<'a> std::ops::DerefMut for WriteTxnGuard<'a> {
             fn deref_mut(&mut self) -> &mut Self::Target {
-                self.guard.as_mut().expect("写事务应该存在")
+                self.guard.as_mut().expect("Write transaction should exist")
             }
         }
 
         let guard = self.write_txn.lock();
         if guard.is_none() {
-            return Err(TransactionError::Internal("写事务不可用".to_string()));
+            return Err(TransactionError::Internal("Write transaction not available".to_string()));
         }
 
         Ok(WriteTxnGuard { guard })
@@ -721,20 +721,20 @@ impl TransactionContext {
 
 impl Drop for TransactionContext {
     fn drop(&mut self) {
-        // 如果事务仍处于活跃状态，自动中止
+        // If transaction is still active, abort automatically
         let state = self.state.load();
         if state == TransactionState::Active {
-            // redb的WriteTransaction在Drop时会自动回滚
-            // 这里只需要更新状态
+            // redb's WriteTransaction automatically rolls back on Drop
+            // Here we only need to update the state
             self.state.store(TransactionState::Aborted);
         }
 
-        // 清理保存点资源
+        // Clean up savepoint resources
         let mut manager = self.savepoint_manager.write();
         manager.clear();
         drop(manager);
 
-        // 清理回滚执行器
+        // Clean up rollback executor
         let mut executor_guard = self.rollback_executor.lock();
         *executor_guard = None;
     }
@@ -745,17 +745,17 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
-    // 注意：这些测试需要redb数据库实例，这里仅测试基本逻辑
+    // Note: These tests require redb database instance, here only basic logic is tested
 
     #[test]
     fn test_transaction_context_state_machine() {
-        // 由于需要实际的redb事务，这里仅测试状态转换逻辑
-        // 实际测试应在集成测试中进行
+        // Since actual redb transaction is required, only state transition logic is tested here
+        // Actual tests should be in integration tests
     }
 
     #[test]
     fn test_transaction_timeout() {
-        // 创建模拟上下文（仅用于测试超时逻辑）
+        // Create mock context (only for testing timeout logic)
         struct MockContext {
             start_time: Instant,
             timeout: Duration,

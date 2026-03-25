@@ -1,88 +1,88 @@
-//! 聚合函数元数据定义
-//! 定义支持的聚合函数及其约束条件
+//! Metadata definition for aggregate functions
+//! Define the supported aggregate functions and their constraints.
 
-/// 聚合函数元数据
+/// Aggregation function metadata
 #[derive(Debug, Clone)]
 pub struct AggFunctionMeta {
-    /// 函数名
+    /// Function name
     pub name: &'static str,
-    /// 是否要求参数为数值类型（SUM、AVG、STD等）
+    /// Should the parameters be required to be of a numeric type (SUM, AVG, STD, etc.)?
     pub require_numeric: bool,
-    /// 是否允许通配符属性 (*.) 作为参数
+    /// Are wildcard attributes (*.) allowed to be used as parameters?
     pub allow_wildcard: bool,
 }
 
 impl AggFunctionMeta {
-    /// 根据函数名获取聚合函数元数据
+    /// Retrieve metadata for aggregate functions based on the function name
     ///
     /// # Arguments
-    /// * `name` - 聚合函数名（大小写不敏感）
+    /// * `name` – The name of the aggregate function (case-insensitive).
     ///
     /// # Returns
-    /// 如果函数有效则返回Some，否则返回None
+    /// Return “Some” if the function is valid; otherwise, return “None”.
     pub fn get(name: &str) -> Option<Self> {
         match name.to_uppercase().as_str() {
-            // COUNT 允许任意参数，且允许通配符
+            // The COUNT function accepts any number of parameters and also supports the use of wildcards.
             "COUNT" => Some(AggFunctionMeta {
                 name: "COUNT",
                 require_numeric: false,
                 allow_wildcard: true,
             }),
-            // SUM 要求数值参数，不允许通配符
+            // The SUM function requires numeric parameters; wildcards are not allowed.
             "SUM" => Some(AggFunctionMeta {
                 name: "SUM",
                 require_numeric: true,
                 allow_wildcard: false,
             }),
-            // AVG 要求数值参数，不允许通配符
+            // AVG requires numerical parameters; wildcards are not allowed.
             "AVG" => Some(AggFunctionMeta {
                 name: "AVG",
                 require_numeric: true,
                 allow_wildcard: false,
             }),
-            // MAX 可以比较各种类型，不允许通配符
+            // MAX can compare various types; the use of wildcards is not allowed.
             "MAX" => Some(AggFunctionMeta {
                 name: "MAX",
                 require_numeric: false,
                 allow_wildcard: false,
             }),
-            // MIN 可以比较各种类型，不允许通配符
+            // MIN can compare various types; wildcards are not allowed.
             "MIN" => Some(AggFunctionMeta {
                 name: "MIN",
                 require_numeric: false,
                 allow_wildcard: false,
             }),
-            // STD 要求数值参数，不允许通配符
+            // The STD requires a numerical parameter; wildcards are not allowed.
             "STD" => Some(AggFunctionMeta {
                 name: "STD",
                 require_numeric: true,
                 allow_wildcard: false,
             }),
-            // BIT_AND 要求整数参数，不允许通配符
+            // The BIT_AND function requires integer parameters and does not allow the use of wildcards.
             "BIT_AND" => Some(AggFunctionMeta {
                 name: "BIT_AND",
                 require_numeric: true,
                 allow_wildcard: false,
             }),
-            // BIT_OR 要求整数参数，不允许通配符
+            // The BIT_OR function requires integer parameters; wildcards are not allowed.
             "BIT_OR" => Some(AggFunctionMeta {
                 name: "BIT_OR",
                 require_numeric: true,
                 allow_wildcard: false,
             }),
-            // BIT_XOR 要求整数参数，不允许通配符
+            // The BIT_XOR function requires integer parameters; wildcards are not allowed.
             "BIT_XOR" => Some(AggFunctionMeta {
                 name: "BIT_XOR",
                 require_numeric: true,
                 allow_wildcard: false,
             }),
-            // COLLECT 允许任意参数，不允许通配符
+            // The `COLLECT` function allows any number of parameters, but wildcards are not permitted.
             "COLLECT" => Some(AggFunctionMeta {
                 name: "COLLECT",
                 require_numeric: false,
                 allow_wildcard: false,
             }),
-            // COLLECT_SET 允许任意参数，不允许通配符
+            // The `COLLECT_SET` function allows any number of parameters, but wildcards are not permitted.
             "COLLECT_SET" => Some(AggFunctionMeta {
                 name: "COLLECT_SET",
                 require_numeric: false,
@@ -92,7 +92,7 @@ impl AggFunctionMeta {
         }
     }
 
-    /// 获取所有支持的聚合函数名列表
+    /// Get a list of all the names of the supported aggregate functions.
     pub fn all_functions() -> Vec<&'static str> {
         vec![
             "COUNT",
@@ -109,7 +109,7 @@ impl AggFunctionMeta {
         ]
     }
 
-    /// 检查函数名是否有效
+    /// Check whether the function name is valid.
     pub fn is_valid(name: &str) -> bool {
         Self::get(name).is_some()
     }

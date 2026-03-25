@@ -1,41 +1,41 @@
-//! 节点类型统一接口
+//! Unified Interface for Node Types
 //!
-//! 提供 PlanNodeEnum 和 ExecutorEnum 的统一 trait 接口，
-//! 用于确保两个枚举之间的一致性和可追踪性。
+//! provides a unified trait interface for PlanNodeEnum and ExecutorEnum.
+//! Used to ensure consistency and traceability between two enumerations.
 
-/// 节点分类
+/// Classification of nodes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NodeCategory {
-    /// 扫描操作节点
+    /// scanning operation node
     Scan,
-    /// 连接操作节点
+    /// Connection Operation Node
     Join,
-    /// 过滤操作节点
+    /// Filtering Operation Nodes
     Filter,
-    /// 投影操作节点
+    /// Projection operation node
     Project,
-    /// 聚合操作节点
+    /// Aggregation Operation Node
     Aggregate,
-    /// 排序操作节点
+    /// Sort Operation Node
     Sort,
-    /// 控制流节点
+    /// control flow node
     Control,
-    /// 数据收集节点
+    /// Data collection nodes
     DataCollect,
-    /// 遍历操作节点
+    /// Iterative operation node
     Traversal,
-    /// 集合操作节点
+    /// set operator node (computing)
     SetOp,
-    /// 路径算法节点
+    /// Path Algorithm Node
     Path,
-    /// 管理操作节点
+    /// Managing Operational Nodes
     Admin,
-    /// 其他类型
+    /// Other types
     Other,
 }
 
 impl NodeCategory {
-    /// 获取分类的名称
+    /// Get the name of the category
     pub fn name(&self) -> &'static str {
         match self {
             NodeCategory::Scan => "Scan",
@@ -55,31 +55,31 @@ impl NodeCategory {
     }
 }
 
-/// 节点类型统一接口
+/// Unified Interface for Node Types
 ///
-/// 此 trait 用于统一 PlanNodeEnum 和 ExecutorEnum 的接口，
-/// 确保两个枚举在语义上保持一致。
+/// This trait is used to unify the interfaces of PlanNodeEnum and ExecutorEnum.
+/// Ensure that the two enumerations are semantically consistent.
 pub trait NodeType {
-    /// 获取节点类型的唯一标识符
+    /// Get a unique identifier for the node type
     ///
-    /// 返回值应该是全局唯一的字符串标识符，
-    /// 例如："cross_join", "index_scan" 等
+    /// The return value should be a globally unique string identifier.
+    /// Examples: "cross_join", "index_scan", etc.
     fn node_type_id(&self) -> &'static str;
 
-    /// 获取节点类型的名称
+    /// Get the name of the node type
     ///
-    /// 返回值应该是人类可读的名称，
-    /// 例如："Cross Join", "Index Scan" 等
+    /// The return value should be a human-readable name.
+    /// Examples: "Cross Join", "Index Scan", etc.
     fn node_type_name(&self) -> &'static str;
 
-    /// 获取节点所属的分类
+    /// Get the classification to which the node belongs
     fn category(&self) -> NodeCategory;
 }
 
-/// 节点类型映射 trait
+/// Node type mapping trait
 ///
-/// 用于将 PlanNodeEnum 映射到对应的 ExecutorEnum
+/// Used to map a PlanNodeEnum to a corresponding ExecutorEnum.
 pub trait NodeTypeMapping {
-    /// 获取对应的执行器类型 ID
+    /// Get the corresponding actuator type ID
     fn corresponding_executor_type(&self) -> Option<&'static str>;
 }

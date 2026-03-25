@@ -1,11 +1,11 @@
-//! 管理类语句验证器
-//! 对应 NebulaGraph AdminValidator 的功能
-//! 验证 SHOW, DESC, SHOW CREATE, SHOW CONFIGS 等管理类语句
+//! Management Statement Validator
+//! Corresponding to the functionality of NebulaGraph AdminValidator
+//! Verify management statements such as SHOW, DESC, SHOW CREATE, and SHOW CONFIGS.
 //!
-//! 设计原则：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 所有管理类语句都是全局语句，不需要预先选择空间
-//! 3. 验证目标对象是否存在
+//! Design principles:
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. All management statements are global statements; there is no need to pre-select a specific scope (i.e., no need to specify a particular “space” in which the statements should be applied).
+//! 3. Verify whether the target object exists.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{
@@ -19,14 +19,14 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 验证后的 SHOW 信息
+/// Verified SHOW information
 #[derive(Debug, Clone)]
 pub struct ValidatedShow {
     pub target_type: ShowTargetType,
     pub target_name: Option<String>,
 }
 
-/// SHOW 目标类型
+/// SHOW: Target type
 #[derive(Debug, Clone)]
 pub enum ShowTargetType {
     Spaces,
@@ -44,7 +44,7 @@ pub enum ShowTargetType {
     Stats,
 }
 
-/// SHOW 语句验证器
+/// SHOW statement validator
 #[derive(Debug)]
 pub struct ShowValidator {
     target_type: ShowTargetType,
@@ -179,10 +179,10 @@ impl ShowValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for ShowValidator {
     fn validate(
         &mut self,
@@ -239,7 +239,7 @@ impl Default for ShowValidator {
     }
 }
 
-/// 验证后的 DESCRIBE 信息
+/// Verified DESCRIBE information
 #[derive(Debug, Clone)]
 pub struct ValidatedDesc {
     pub target_type: DescTargetType,
@@ -247,7 +247,7 @@ pub struct ValidatedDesc {
     pub target_name: String,
 }
 
-/// DESCRIBE 目标类型
+/// Describe the target type.
 #[derive(Debug, Clone)]
 pub enum DescTargetType {
     Space,
@@ -255,7 +255,7 @@ pub enum DescTargetType {
     Edge,
 }
 
-/// DESCRIBE 语句验证器
+/// The DESCRIBE statement validator
 #[derive(Debug)]
 pub struct DescValidator {
     target_type: DescTargetType,
@@ -421,7 +421,7 @@ impl Default for DescValidator {
     }
 }
 
-/// SHOW CREATE 语句验证器
+/// SHOW CREATE statement validator
 #[derive(Debug)]
 pub struct ShowCreateValidator {
     target_type: ShowCreateTargetType,
@@ -547,7 +547,7 @@ impl Default for ShowCreateValidator {
     }
 }
 
-/// SHOW CONFIGS 语句验证器
+/// The SHOW CONFIGS statement validator
 #[derive(Debug)]
 pub struct ShowConfigsValidator {
     module: Option<String>,
@@ -650,7 +650,7 @@ impl Default for ShowConfigsValidator {
     }
 }
 
-/// SHOW SESSIONS 语句验证器
+/// The SHOW SESSIONS statement validator
 #[derive(Debug)]
 pub struct ShowSessionsValidator {
     inputs: Vec<ColumnDef>,
@@ -755,7 +755,7 @@ impl Default for ShowSessionsValidator {
     }
 }
 
-/// SHOW QUERIES 语句验证器
+/// SHOW QUERIES statement validator
 #[derive(Debug)]
 pub struct ShowQueriesValidator {
     inputs: Vec<ColumnDef>,
@@ -860,7 +860,7 @@ impl Default for ShowQueriesValidator {
     }
 }
 
-/// KILL QUERY 语句验证器
+/// KILL QUERY Statement Validator
 #[derive(Debug)]
 pub struct KillQueryValidator {
     session_id: i64,
@@ -953,7 +953,7 @@ impl Default for KillQueryValidator {
     }
 }
 
-/// CLEAR SPACE 语句验证器
+/// CLEAR SPACE Statement Validator
 #[derive(Debug)]
 pub struct ClearSpaceValidator {
     space_name: String,

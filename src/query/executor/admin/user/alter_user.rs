@@ -1,6 +1,6 @@
-//! AlterUserExecutor - 修改用户执行器
+//! AlterUserExecutor – Modifier for the user executor
 //!
-//! 负责修改用户属性（如角色、锁定状态等）。
+//! Responsible for modifying user attributes (such as role, lock status, etc.).
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -10,9 +10,9 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 修改用户执行器
+/// Modify the user executor
 ///
-/// 该执行器负责修改用户属性。
+/// This executor is responsible for modifying user attributes.
 #[derive(Debug)]
 pub struct AlterUserExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

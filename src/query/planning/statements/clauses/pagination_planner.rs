@@ -1,6 +1,6 @@
-//! LIMIT/SKIP 子句规划器
+//! LIMIT/SKIP Clause Planner
 //!
-//! 负责规划 LIMIT 和 SKIP 子句的执行，实现结果分页。
+//! Responsible for planning the execution of the LIMIT and SKIP clauses, in order to implement paginated results.
 
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::PlanNode;
@@ -13,9 +13,9 @@ use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// LIMIT/SKIP 子句规划器
+/// LIMIT/SKIP Clause Planner
 ///
-/// 负责规划 LIMIT 和 SKIP 子句的执行，实现结果分页。
+/// Responsible for planning the execution of the LIMIT and SKIP clauses, in order to implement result pagination.
 #[derive(Debug, Default)]
 pub struct PaginationPlanner;
 

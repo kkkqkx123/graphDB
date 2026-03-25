@@ -1,43 +1,43 @@
-//! 默认表达式求值上下文实现
+//! Implementation of the default expression evaluation context
 //!
-//! 提供表达式求值过程中的上下文管理
+//! Provide context management during the evaluation of expressions.
 //!
-//! **注意：** 此上下文用于运行时表达式求值。
-//! 编译时分析请使用 `ExpressionAnalysisContext`。
+//! Note: This context is used for the evaluation of runtime expressions.
+//! For compilation-time analysis, please use `ExpressionAnalysisContext`.
 
 use crate::core::Value;
 use crate::query::executor::expression::functions::global_registry_ref;
 use std::collections::HashMap;
 
-/// 默认表达式求值上下文
+/// The evaluation context of the default expression
 ///
-/// 提供表达式求值所需的上下文环境，包括：
-/// - 变量存储
-/// - 函数注册（使用全局函数注册表）
+/// Provide the contextual environment required for evaluating the expression, including:
+/// Variable storage
+/// Function registration (using a global function registry)
 ///
-/// **注意：** 此上下文用于运行时表达式求值。
-/// 编译时分析请使用 `ExpressionAnalysisContext`。
+/// Note: This context is used for the evaluation of runtime expressions.
+/// For compilation-time analysis, please use `ExpressionAnalysisContext`.
 #[derive(Debug)]
 pub struct DefaultExpressionContext {
-    /// 变量存储
+    /// Variable storage
     variables: HashMap<String, Value>,
 }
 
 impl DefaultExpressionContext {
-    /// 创建新的上下文
+    /// Create a new context.
     pub fn new() -> Self {
         Self {
             variables: HashMap::new(),
         }
     }
 
-    /// 添加变量
+    /// Add a variable
     pub fn add_variable(mut self, name: String, value: Value) -> Self {
         self.variables.insert(name, value);
         self
     }
 
-    /// 批量添加变量
+    /// Add variables in batches
     pub fn with_variables<I>(mut self, variables: I) -> Self
     where
         I: IntoIterator<Item = (String, Value)>,
@@ -48,18 +48,18 @@ impl DefaultExpressionContext {
         self
     }
 
-    /// 从 ExecutionContext 创建 DefaultExpressionContext
+    /// Create a DefaultExpressionContext from the ExecutionContext.
     ///
-    /// 复制 ExecutionContext 中的所有变量到新的 DefaultExpressionContext
+    /// Copy all variables from the ExecutionContext to the new DefaultExpressionContext.
     pub fn from_execution_context(ctx: &crate::query::executor::base::ExecutionContext) -> Self {
         Self {
             variables: ctx.variables.clone(),
         }
     }
 
-    /// 将变量同步回 ExecutionContext
+    /// Synchronize the variable back to the ExecutionContext.
     ///
-    /// 将当前 DefaultExpressionContext 中的所有变量同步到 ExecutionContext
+    /// Synchronize all variables from the current DefaultExpressionContext to the ExecutionContext.
     pub fn sync_to_execution_context(
         self,
         ctx: &mut crate::query::executor::base::ExecutionContext,

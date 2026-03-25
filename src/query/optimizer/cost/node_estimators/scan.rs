@@ -1,6 +1,6 @@
-//! 扫描操作估算器
+//! Scan Operation Estimator
 //!
-//! 为扫描节点提供代价估算：
+//! Provide a cost estimate for the scanning nodes:
 //! - ScanVertices
 //! - ScanEdges
 //! - IndexScan
@@ -14,18 +14,18 @@ use crate::query::planning::plan::core::nodes::access::EdgeIndexScanNode;
 use crate::query::planning::plan::core::nodes::access::{IndexScanNode, ScanType};
 use crate::query::planning::plan::PlanNodeEnum;
 
-/// 扫描操作估算器
+/// Scan Operation Estimator
 pub struct ScanEstimator<'a> {
     cost_calculator: &'a CostCalculator,
 }
 
 impl<'a> ScanEstimator<'a> {
-    /// 创建新的扫描估算器
+    /// Create a new scanning estimator.
     pub fn new(cost_calculator: &'a CostCalculator) -> Self {
         Self { cost_calculator }
     }
 
-    /// 估算索引扫描的选择性
+    /// Estimating the selectivity of index scans
     pub fn estimate_index_scan_selectivity(&self, node: &IndexScanNode) -> f64 {
         if node.scan_limits().is_empty() {
             return 0.1;
@@ -44,7 +44,7 @@ impl<'a> ScanEstimator<'a> {
         total_selectivity.min(1.0)
     }
 
-    /// 估算边索引扫描的选择性
+    /// Estimating the selectivity of edge index scans
     pub fn estimate_edge_index_scan_selectivity(&self, node: &EdgeIndexScanNode) -> f64 {
         if node.scan_limits().is_empty() {
             return 0.1;
@@ -63,9 +63,9 @@ impl<'a> ScanEstimator<'a> {
         total_selectivity.min(1.0)
     }
 
-    /// 从 IndexScan 节点获取标签名称
+    /// Obtain the tag name from the IndexScan node.
     fn get_tag_name_from_index_scan(&self, node: &IndexScanNode) -> String {
-        // 尝试通过 tag_id 获取标签名称
+        // Try to obtain the tag name using the `tag_id`.
         if let Some(tag_name) = self
             .cost_calculator
             .statistics_manager()
@@ -74,7 +74,7 @@ impl<'a> ScanEstimator<'a> {
             return tag_name;
         }
 
-        // 回退：尝试从 scan_limits 中的列名推断标签名称
+        // Rollback: Attempt to infer the tag names from the column names in scan_limits.
         if let Some(limit) = node.scan_limits().first() {
             let column = &limit.column;
             if let Some(dot_pos) = column.find('.') {
@@ -85,7 +85,7 @@ impl<'a> ScanEstimator<'a> {
         "default".to_string()
     }
 
-    /// 从 IndexScan 节点获取属性名称
+    /// Retrieve the attribute names from the IndexScan node.
     fn get_property_name_from_index_scan(&self, node: &IndexScanNode) -> String {
         if let Some(limit) = node.scan_limits().first() {
             limit.column.clone()

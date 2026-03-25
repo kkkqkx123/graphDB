@@ -1,6 +1,6 @@
-//! Insert Vertices 语句验证器
-//! 对应 NebulaGraph InsertVerticesValidator 的功能
-//! 验证 INSERT VERTICES 语句的语义正确性，支持多 Tag 插入
+//! Vertices Insert Statement Validator
+//! Corresponding to the functionality of NebulaGraph InsertVerticesValidator
+//! Verify the semantic correctness of the INSERT VERTICES statement; multiple tags can be inserted.
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
-/// 验证后的顶点插入信息
+/// Verified vertex insertion information
 #[derive(Debug, Clone)]
 pub struct ValidatedInsertVertices {
     pub space_id: u64,
@@ -27,7 +27,7 @@ pub struct ValidatedInsertVertices {
     pub if_not_exists: bool,
 }
 
-/// 验证后的 Tag 插入规范
+/// Verified Tag insertion specifications
 #[derive(Debug, Clone)]
 pub struct ValidatedTagInsert {
     pub tag_id: i32,
@@ -35,7 +35,7 @@ pub struct ValidatedTagInsert {
     pub prop_names: Vec<String>,
 }
 
-/// 验证后的单个顶点
+/// Verified individual vertex
 #[derive(Debug, Clone)]
 pub struct ValidatedVertex {
     pub vid: Value,
@@ -69,7 +69,7 @@ impl InsertVerticesValidator {
         self
     }
 
-    /// 验证 Tag 名称
+    /// Verify the Tag name
     fn validate_tag_name(&self, tag_name: &str) -> Result<(), ValidationError> {
         if tag_name.is_empty() {
             return Err(ValidationError::new(
@@ -80,7 +80,7 @@ impl InsertVerticesValidator {
         Ok(())
     }
 
-    /// 验证属性名
+    /// Verify the attribute name
     fn validate_property_names(&self, prop_names: &[String]) -> Result<(), ValidationError> {
         let mut seen = HashSet::new();
         for prop_name in prop_names {
@@ -94,17 +94,17 @@ impl InsertVerticesValidator {
         Ok(())
     }
 
-    /// 验证顶点行数据
+    /// Verify the data in the vertex row.
     fn validate_vertex_rows(
         &self,
         tags: &[TagInsertSpec],
         rows: &[VertexRow],
     ) -> Result<(), ValidationError> {
         for (row_idx, row) in rows.iter().enumerate() {
-            // 验证 VID 格式
+            // Verify the VID format.
             self.validate_vid_expression(&row.vid, row_idx)?;
 
-            // 验证值数量与 Tag 数量匹配
+            // The number of verification values matches the number of tags.
             if row.tag_values.len() != tags.len() {
                 return Err(ValidationError::new(
                     format!(
@@ -117,7 +117,7 @@ impl InsertVerticesValidator {
                 ));
             }
 
-            // 验证每个 Tag 的值数量
+            // Verify the number of values for each Tag.
             for (tag_idx, (tag_spec, values)) in tags.iter().zip(row.tag_values.iter()).enumerate()
             {
                 if values.len() != tag_spec.prop_names.len() {
@@ -137,7 +137,7 @@ impl InsertVerticesValidator {
         Ok(())
     }
 
-    /// 验证 VID 表达式
+    /// Verify the VID expression
     fn validate_vid_expression(
         &self,
         vid_expr: &ContextualExpression,
@@ -146,7 +146,7 @@ impl InsertVerticesValidator {
         self.validate_vid_expression_internal(vid_expr, idx)
     }
 
-    /// 内部方法：验证 VID 表达式
+    /// Internal method: Verification of the VID expression
     fn validate_vid_expression_internal(
         &self,
         vid_expr: &ContextualExpression,
@@ -182,7 +182,7 @@ impl InsertVerticesValidator {
         }
     }
 
-    /// 评估表达式为值
+    /// Evaluating an expression to obtain a value
     fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
         if let Some(e) = expr.get_expression() {
             self.evaluate_expression_internal(&e)
@@ -191,7 +191,7 @@ impl InsertVerticesValidator {
         }
     }
 
-    /// 内部方法：评估表达式为值
+    /// Internal method: Evaluating an expression to determine its value
     fn evaluate_expression_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -201,14 +201,14 @@ impl InsertVerticesValidator {
         match expr {
             Expression::Literal(val) => Ok(val.clone()),
             Expression::Variable(name) => {
-                // 变量在运行时解析
+                // Variables are parsed at runtime.
                 Ok(Value::String(format!("${}", name)))
             }
             _ => Ok(Value::Null(crate::core::NullType::Null)),
         }
     }
 
-    /// 生成输出列
+    /// Generate a column of outputs.
     fn generate_output_columns(&mut self) {
         self.outputs.clear();
         self.outputs.push(ColumnDef {
@@ -224,17 +224,17 @@ impl Default for InsertVerticesValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for InsertVerticesValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
@@ -242,7 +242,7 @@ impl StatementValidator for InsertVerticesValidator {
             ));
         }
 
-        // 2. 获取 INSERT 语句
+        // 2. Obtain the INSERT statement
         let insert_stmt = match &ast.stmt {
             Stmt::Insert(insert_stmt) => insert_stmt,
             _ => {
@@ -253,7 +253,7 @@ impl StatementValidator for InsertVerticesValidator {
             }
         };
 
-        // 3. 验证语句类型
+        // 3. Verify the type of the statement
         let (tags, values) = match &insert_stmt.target {
             InsertTarget::Vertices { tags, values } => {
                 if tags.is_empty() {
@@ -272,20 +272,20 @@ impl StatementValidator for InsertVerticesValidator {
             }
         };
 
-        // 4. 验证所有 Tag
+        // 4. Verify all tags.
         for tag_spec in &tags {
             self.validate_tag_name(&tag_spec.tag_name)?;
             self.validate_property_names(&tag_spec.prop_names)?;
         }
 
-        // 5. 验证顶点行数据
+        // 5. Verify the data in the vertex row.
         self.validate_vertex_rows(&tags, &values)?;
 
-        // 6. 转换验证后的数据
+        // 6. Convert the verified data
         let mut validated_tags = Vec::new();
         for tag_spec in &tags {
             validated_tags.push(ValidatedTagInsert {
-                tag_id: 0, // 运行时从 schema 获取
+                tag_id: 0, // Obtaining data from the schema at runtime
                 tag_name: tag_spec.tag_name.clone(),
                 prop_names: tag_spec.prop_names.clone(),
             });
@@ -305,10 +305,10 @@ impl StatementValidator for InsertVerticesValidator {
             validated_vertices.push(ValidatedVertex { vid, tag_values });
         }
 
-        // 7. 获取 space_id
+        // 7. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 8. 创建验证结果
+        // 8. Create the verification results
         let validated = ValidatedInsertVertices {
             space_id,
             tags: validated_tags.clone(),
@@ -318,13 +318,13 @@ impl StatementValidator for InsertVerticesValidator {
 
         self.validated_result = Some(validated);
 
-        // 9. 生成输出列
+        // 9. Generate the output column
         self.generate_output_columns();
 
-        // 10. 构建详细的 ValidationInfo
+        // 10. Constructing detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // 添加语义信息
+        // Add semantic information
         for tag in &validated_tags {
             if !info.semantic_info.referenced_tags.contains(&tag.tag_name) {
                 info.semantic_info
@@ -333,7 +333,7 @@ impl StatementValidator for InsertVerticesValidator {
             }
         }
 
-        // 11. 返回包含详细信息的验证结果
+        // 11. Return the verification results containing detailed information.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -350,7 +350,7 @@ impl StatementValidator for InsertVerticesValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // INSERT VERTICES 不是全局语句，需要预先选择空间
+        // The `INSERT VERTICES` command is not a global statement; therefore, the space (the database or table in which the vertices are to be inserted) must be selected in advance.
         false
     }
 
@@ -382,7 +382,7 @@ mod tests {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建测试用的 QueryContext，带有有效的 space_id
+    /// Create a QueryContext for testing purposes, which should contain a valid space_id.
     fn create_test_query_context() -> Arc<QueryContext> {
         let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
         let mut qctx = QueryContext::new(rctx);
@@ -684,7 +684,7 @@ mod tests {
         let result = validator.validate(create_test_ast(Stmt::Insert(stmt)), qctx);
         assert!(result.is_ok());
 
-        // 验证 if_not_exists 被正确保存
+        // Verify whether `if_not_exists` has been saved correctly.
         assert!(
             validator
                 .validated_result

@@ -1,6 +1,6 @@
-//! 事务管理类型定义
+//! Transaction Management Type Definitions
 //!
-//! 提供事务管理所需的核心类型和结构
+//! Provides core types and structures needed for transaction management
 
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -9,23 +9,23 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// 事务ID
+/// Transaction ID
 pub type TransactionId = u64;
 
-/// 保存点ID
+/// Savepoint ID
 pub type SavepointId = u64;
 
-/// 保存点信息
+/// Savepoint Info
 #[derive(Debug, Clone)]
 pub struct SavepointInfo {
     pub id: SavepointId,
     pub name: Option<String>,
     pub created_at: std::time::Instant,
-    /// 对应的操作日志索引
+    /// Corresponding operation log index
     pub operation_log_index: usize,
 }
 
-/// 操作日志
+/// Operation Log
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OperationLog {
     InsertVertex {
@@ -60,38 +60,38 @@ pub enum OperationLog {
     },
 }
 
-/// 事务状态
+/// Transaction State
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TransactionState {
-    /// 活跃状态，可执行读写操作
+    /// Active state, can execute read-write operations
     Active,
-    /// 提交中
+    /// Committing
     Committing,
-    /// 已提交
+    /// Committed
     Committed,
-    /// 中止中
+    /// Aborting
     Aborting,
-    /// 已中止
+    /// Aborted
     Aborted,
 }
 
 impl TransactionState {
-    /// 检查是否可以执行操作
+    /// Check if operation can be executed
     pub fn can_execute(&self) -> bool {
         matches!(self, TransactionState::Active)
     }
 
-    /// 检查是否可以提交
+    /// Check if can commit
     pub fn can_commit(&self) -> bool {
         matches!(self, TransactionState::Active)
     }
 
-    /// 检查是否可以中止
+    /// Check if can abort
     pub fn can_abort(&self) -> bool {
         matches!(self, TransactionState::Active)
     }
 
-    /// 检查是否已结束
+    /// Check if has ended
     pub fn is_terminal(&self) -> bool {
         matches!(
             self,
@@ -112,84 +112,84 @@ impl fmt::Display for TransactionState {
     }
 }
 
-/// 事务错误类型
+/// Transaction Error Type
 #[derive(Error, Debug, Clone)]
 pub enum TransactionError {
-    #[error("事务开始失败: {0}")]
+    #[error("Transaction begin failed: {0}")]
     BeginFailed(String),
 
-    #[error("事务提交失败: {0}")]
+    #[error("Transaction commit failed: {0}")]
     CommitFailed(String),
 
-    #[error("事务中止失败: {0}")]
+    #[error("Transaction abort failed: {0}")]
     AbortFailed(String),
 
-    #[error("事务未找到: {0}")]
+    #[error("Transaction not found: {0}")]
     TransactionNotFound(TransactionId),
 
-    #[error("保存点创建失败: {0}")]
+    #[error("Savepoint creation failed: {0}")]
     SavepointFailed(String),
 
-    #[error("保存点未找到: {0}")]
+    #[error("Savepoint not found: {0}")]
     SavepointNotFound(TransactionId),
 
-    #[error("保存点未激活: {0}")]
+    #[error("Savepoint not active: {0}")]
     SavepointNotActive(TransactionId),
 
-    #[error("事务中无保存点")]
+    #[error("No savepoints in transaction")]
     NoSavepointsInTransaction,
 
-    #[error("无效的状态转换: 从 {from} 到 {to}")]
+    #[error("Invalid state transition: from {from} to {to}")]
     InvalidStateTransition {
         from: TransactionState,
         to: TransactionState,
     },
 
-    #[error("无效的状态用于提交: {0}")]
+    #[error("Invalid state for commit: {0}")]
     InvalidStateForCommit(TransactionState),
 
-    #[error("无效的状态用于中止: {0}")]
+    #[error("Invalid state for abort: {0}")]
     InvalidStateForAbort(TransactionState),
 
-    #[error("事务超时")]
+    #[error("Transaction timeout")]
     TransactionTimeout,
 
-    #[error("事务已过期")]
+    #[error("Transaction expired")]
     TransactionExpired,
 
-    #[error("回滚失败: {0}")]
+    #[error("Rollback failed: {0}")]
     RollbackFailed(String),
 
-    #[error("并发事务数过多")]
+    #[error("Too many concurrent transactions")]
     TooManyTransactions,
 
-    #[error("只读事务")]
+    #[error("Read-only transaction")]
     ReadOnlyTransaction,
 
-    #[error("写事务冲突")]
+    #[error("Write transaction conflict")]
     WriteTransactionConflict,
 
-    #[error("恢复失败: {0}")]
+    #[error("Recovery failed: {0}")]
     RecoveryFailed(String),
 
-    #[error("持久化失败: {0}")]
+    #[error("Persistence failed: {0}")]
     PersistenceFailed(String),
 
-    #[error("序列化失败: {0}")]
+    #[error("Serialization failed: {0}")]
     SerializationFailed(String),
 
-    #[error("内部错误: {0}")]
+    #[error("Internal error: {0}")]
     Internal(String),
 }
 
-/// 事务选项
+/// Transaction Options
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransactionOptions {
-    /// 事务超时时间
+    /// Transaction timeout duration
     pub timeout: Option<Duration>,
-    /// 是否只读
+    /// Whether read-only
     pub read_only: bool,
-    /// 持久性级别
+    /// Durability level
     pub durability: DurabilityLevel,
 }
 
@@ -204,36 +204,36 @@ impl Default for TransactionOptions {
 }
 
 impl TransactionOptions {
-    /// 创建默认选项
+    /// Create default options
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 设置超时
+    /// Set timeout
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
     }
 
-    /// 设置为只读
+    /// Set to read-only
     pub fn read_only(mut self) -> Self {
         self.read_only = true;
         self
     }
 
-    /// 设置持久性级别
+    /// Set durability level
     pub fn with_durability(mut self, durability: DurabilityLevel) -> Self {
         self.durability = durability;
         self
     }
 }
 
-/// 持久性级别
+/// Durability Level
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DurabilityLevel {
-    /// 不保证立即持久化（高性能）
+    /// No guarantee of immediate durability (high performance)
     None,
-    /// 立即持久化（默认）
+    /// Immediate durability (default)
     Immediate,
 }
 
@@ -246,14 +246,14 @@ impl From<DurabilityLevel> for redb::Durability {
     }
 }
 
-/// 事务管理器配置
+/// Transaction Manager Configuration
 #[derive(Debug, Clone)]
 pub struct TransactionManagerConfig {
-    /// 默认事务超时时间
+    /// Default transaction timeout duration
     pub default_timeout: Duration,
-    /// 最大并发事务数
+    /// Maximum concurrent transactions
     pub max_concurrent_transactions: usize,
-    /// 是否自动清理过期事务
+    /// Whether to automatically cleanup expired transactions
     pub auto_cleanup: bool,
 }
 
@@ -267,18 +267,18 @@ impl Default for TransactionManagerConfig {
     }
 }
 
-/// 事务统计信息
+/// Transaction Statistics
 #[derive(Debug, Default)]
 pub struct TransactionStats {
-    /// 总事务数
+    /// Total transactions
     pub total_transactions: AtomicU64,
-    /// 活跃事务数
+    /// Active transactions
     pub active_transactions: AtomicU64,
-    /// 已提交事务数
+    /// Committed transactions
     pub committed_transactions: AtomicU64,
-    /// 已中止事务数
+    /// Aborted transactions
     pub aborted_transactions: AtomicU64,
-    /// 超时事务数
+    /// Timeout transactions
     pub timeout_transactions: AtomicU64,
 }
 
@@ -312,7 +312,7 @@ impl TransactionStats {
     }
 }
 
-/// 事务信息（用于监控）
+/// Transaction Info (for monitoring)
 #[derive(Debug, Clone)]
 pub struct TransactionInfo {
     pub id: TransactionId,

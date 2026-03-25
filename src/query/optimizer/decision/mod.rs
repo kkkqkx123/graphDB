@@ -1,16 +1,16 @@
-//! 优化决策模块
+//! Optimized Decision-Making Module
 //!
-//! 提供优化决策类型定义。
+//! Provide definitions for the types of optimization decisions.
 //!
-//! 注意：原包含的决策缓存（DecisionCache）已删除，因为：
-//! 1. 决策计算开销不大，缓存收益有限
-//! 2. 版本感知机制复杂，维护成本高
-//! 3. 实际使用场景少，QueryPlanCache已足够
+//! The DecisionCache that was originally included has been deleted because:
+//! The computational cost for decision-making is not high; however, the benefits of caching are limited.
+//! The version-awareness mechanism is complex, and the maintenance costs are high.
+//! 3. There are few practical use cases; QueryPlanCache is already sufficient.
 
-// 类型定义
+// Type definition
 pub mod types;
 
-// 重新导出主要类型
+// Re-export the main types
 pub use types::{
     AccessPath, EntityIndexChoice, EntityType, IndexChoice, IndexSelectionDecision, JoinAlgorithm,
     JoinOrderDecision, OptimizationDecision, RewriteRuleId, TraversalStartDecision,

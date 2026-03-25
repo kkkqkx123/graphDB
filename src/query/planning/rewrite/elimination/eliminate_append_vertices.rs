@@ -1,9 +1,9 @@
-//! 消除冗余添加顶点操作的规则
+//! Rules for eliminating redundancy and adding vertex operations
 //!
-//! 根据 nebula-graph 的参考实现，此规则匹配 Project->AppendVertices 模式，
-//! 当 AppendVertices 节点没有过滤条件且输出列为匿名变量时，可以消除 AppendVertices。
+//! According to the reference implementation of nebula-graph, this rule matches the Project->AppendVertices mode.
+//! The AppendVertices node can be eliminated when it has no filtering criteria and the output column is an anonymous variable.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before:
 //! ```text
@@ -16,17 +16,17 @@
 //!
 //! After:
 //! ```text
-//!   Project (input改为GetNeighbors)
+//! Project (input should be replaced with “GetNeighbors”):
 //!       |
 //!   GetNeighbors
 //! ```
 //!
-//! # 适用条件
+//! # Applicable Conditions
 //!
-//! - Project 节点的子节点为 AppendVertices
-//! - AppendVertices 没有 vFilter 和 filter
-//! - AppendVertices 的输出列为匿名变量
-//! - Project 的列表达式中不包含 PathBuild 表达式
+//! The child nodes of a Project node are AppendVertices.
+//! The `AppendVertices` method does not support the `vFilter` or `filter` parameters.
+//! The output column of the AppendVertices function is an anonymous variable.
+//! The list expression of the project does not contain the PathBuild expression.
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor_checkers::PathBuildContainsChecker;
@@ -41,24 +41,24 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::RewriteRule;
 
-/// 消除冗余添加顶点操作的规则
+/// Rules for removing redundancy and adding vertex operations
 ///
-/// 当 AppendVertices 节点满足特定条件时，直接将其从计划树中移除
+/// When the AppendVertices node meets certain conditions, it is directly removed from the planning tree.
 #[derive(Debug)]
 pub struct EliminateAppendVerticesRule;
 
 impl EliminateAppendVerticesRule {
-    /// 创建规则实例
+    /// Create a rule instance.
     pub fn new() -> Self {
         Self
     }
 
-    /// 检查列名是否为匿名变量（以 __anon_ 开头）
+    /// Check whether the column names are anonymous variables (starting with __anon_).
     fn is_anonymous_var(&self, name: &str) -> bool {
         name.starts_with("__anon_")
     }
 
-    /// 检查表达式中是否包含 PathBuild
+    /// Check whether the expression contains PathBuild.
     fn contains_path_build(&self, expr: &ContextualExpression) -> bool {
         let expr_meta = match expr.expression() {
             Some(e) => e,
@@ -67,25 +67,25 @@ impl EliminateAppendVerticesRule {
         PathBuildContainsChecker::check(expr_meta.inner())
     }
 
-    /// 检查是否可以消除 AppendVertices
+    /// Check whether it is possible to eliminate the AppendVertices operation.
     fn can_eliminate_append_vertices(
         &self,
         project: &ProjectNode,
         append_vertices: &AppendVerticesNode,
     ) -> bool {
-        // 检查 Project 的列表达式中是否包含 PathBuild
+        // Check whether the list expressions of the Project contain PathBuild.
         for col in project.columns() {
             if self.contains_path_build(&col.expression) {
                 return false;
             }
         }
 
-        // 检查 AppendVertices 是否有过滤条件
+        // Check whether AppendVertices has any filtering criteria.
         if append_vertices.v_filter().is_some() {
             return false;
         }
 
-        // 检查 AppendVertices 的最后一列是否为匿名变量
+        // Check whether the last column of AppendVertices contains an anonymous variable.
         let col_names = append_vertices.col_names();
         if let Some(last_col) = col_names.last() {
             if !self.is_anonymous_var(last_col) {
@@ -111,7 +111,7 @@ impl RewriteRule for EliminateAppendVerticesRule {
     }
 
     fn pattern(&self) -> Pattern {
-        // 匹配 Project->AppendVertices 模式
+        // Match the Project->AppendVertices mode.
         Pattern::new_with_name("Project").with_dependency_name("AppendVertices")
     }
 
@@ -120,34 +120,34 @@ impl RewriteRule for EliminateAppendVerticesRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 Project 节点
+        // Check whether it is a Project node.
         let project = match node {
             PlanNodeEnum::Project(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取输入节点（应该是 AppendVertices）
+        // Retrieve the input node (which should be AppendVertices).
         let input = project.input();
         let append_vertices = match input {
             PlanNodeEnum::AppendVertices(n) => n,
             _ => return Ok(None),
         };
 
-        // 检查是否可以消除
+        // Check whether it is possible to eliminate this element.
         if !self.can_eliminate_append_vertices(project, append_vertices) {
             return Ok(None);
         }
 
-        // 获取 AppendVertices 的输入
+        // Obtaining the input for the AppendVertices method
         let append_inputs = append_vertices.inputs();
         if append_inputs.is_empty() {
             return Ok(None);
         }
 
-        // 创建新的 Project 节点，输入改为 AppendVertices 的输入
+        // Create a new Project node and enter the input parameters for the AppendVertices operation.
         let mut result = TransformResult::new();
         result.erase_curr = true;
-        // 添加新的 Project 节点，其输入为 AppendVertices 的原始输入
+        // Add a new Project node, with the input being the original input of the AppendVertices function.
         let new_project = PlanNodeEnum::Project(project.clone());
         result.add_new_node(new_project);
 

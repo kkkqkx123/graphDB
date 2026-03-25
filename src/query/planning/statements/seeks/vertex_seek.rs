@@ -1,6 +1,6 @@
-//! 顶点查找策略
+//! Vertex search strategy
 //!
-//! 基于顶点ID的直接查找策略
+//! Direct search strategy based on vertex IDs
 
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn test_vertex_seek_new() {
         let _ = VertexSeek::new();
-        // 测试通过到达此处即表示成功
+        // If the test is successful and you have reached this point, it means that everything has gone well.
     }
 
     #[test]

@@ -1,6 +1,6 @@
-//! 控制流节点实现
+//! Implementation of control flow nodes
 //!
-//! 包含Start、Argument、Select、Loop等控制流相关的计划节点
+//! Plan nodes related to control flow, such as Start, Argument, Select, Loop, etc.
 
 use std::sync::Arc;
 
@@ -52,7 +52,7 @@ impl PassThroughNode {
     }
 }
 
-/// Select节点 - 在运行时选择if分支或else分支
+/// “Select Node” – Choose the if-branch or the else-branch at runtime.
 #[derive(Debug)]
 pub struct SelectNode {
     id: i64,
@@ -241,7 +241,7 @@ impl PlanNodeClonable for SelectNode {
     }
 }
 
-/// Loop节点 - 在运行时多次执行分支
+/// Loop node: A branch that is executed multiple times during runtime.
 #[derive(Debug)]
 pub struct LoopNode {
     id: i64,

@@ -1,6 +1,6 @@
-//! 连接执行器构建器
+//! Connection Executor Builder
 //!
-//! 负责创建连接类型的执行器（InnerJoin, LeftJoin, FullOuterJoin, CrossJoin）
+//! Responsible for creating executors for different types of joins (InnerJoin, LeftJoin, FullOuterJoin, CrossJoin)
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
@@ -18,22 +18,22 @@ use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// 连接执行器构建器
+/// Connection Executor Builder
 pub struct JoinBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
-    /// 创建新的连接构建器
+    /// Create a new connection builder.
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
     }
 
-    /// 提取连接操作的变量名
+    /// Extract the variable names associated with the connection operations.
     fn extract_join_vars<N: JoinNode>(node: &N) -> (String, String) {
-        // 使用节点的 output_var 作为变量名，如果未设置则生成默认值
+        // Use the `output_var` of the node as the variable name; if it is not set, a default value will be generated.
         let left_var = node
             .left_input()
             .output_var()
@@ -47,7 +47,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         (left_var, right_var)
     }
 
-    /// 构建 InnerJoin 执行器
+    /// Constructing the InnerJoin executor
     pub fn build_inner_join(
         &self,
         node: &InnerJoinNode,
@@ -72,7 +72,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         Ok(ExecutorEnum::InnerJoin(executor))
     }
 
-    /// 构建 HashInnerJoin 执行器
+    /// Constructing the HashInnerJoin executor
     pub fn build_hash_inner_join(
         &self,
         node: &HashInnerJoinNode,
@@ -97,7 +97,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         Ok(ExecutorEnum::HashInnerJoin(executor))
     }
 
-    /// 构建 LeftJoin 执行器
+    /// Building the LeftJoin executor
     pub fn build_left_join(
         &self,
         node: &LeftJoinNode,
@@ -121,7 +121,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         Ok(ExecutorEnum::LeftJoin(executor))
     }
 
-    /// 构建 HashLeftJoin 执行器
+    /// Constructing the HashLeftJoin executor
     pub fn build_hash_left_join(
         &self,
         node: &HashLeftJoinNode,
@@ -146,7 +146,7 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         Ok(ExecutorEnum::HashLeftJoin(executor))
     }
 
-    /// 构建 FullOuterJoin 执行器
+    /// Constructing the FullOuterJoin executor
     pub fn build_full_outer_join(
         &self,
         node: &FullOuterJoinNode,
@@ -174,14 +174,14 @@ impl<S: StorageClient + Send + 'static> JoinBuilder<S> {
         Ok(ExecutorEnum::FullOuterJoin(executor))
     }
 
-    /// 构建 CrossJoin 执行器
+    /// Building the CrossJoin executor
     pub fn build_cross_join(
         &self,
         node: &CrossJoinNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // CrossJoinExecutor 需要 Vec<String> 作为输入变量列表
+        // The CrossJoinExecutor requires a list of input variables of type Vec<String>.
         let left_var = node
             .left_input()
             .output_var()

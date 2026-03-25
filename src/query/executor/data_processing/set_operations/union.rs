@@ -1,6 +1,6 @@
-//! Union执行器实现
+//! Implementation of the Union executor
 //!
-//! 实现UNION操作，合并两个数据集并去除重复行
+//! Implement the UNION operation to merge two datasets and remove duplicate rows.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -13,17 +13,17 @@ use crate::storage::StorageClient;
 
 use super::base::SetExecutor;
 
-/// Union执行器
+/// Union Executor
 ///
-/// 实现UNION操作，合并两个数据集并去除重复行
-/// 类似于SQL的UNION（不是UNION ALL）
+/// Implement the UNION operation to merge two datasets and remove duplicate rows.
+/// Something similar to the SQL UNION command (but not UNION ALL).
 #[derive(Debug)]
 pub struct UnionExecutor<S: StorageClient> {
     pub set_executor: SetExecutor<S>,
 }
 
 impl<S: StorageClient> UnionExecutor<S> {
-    /// 创建新的Union执行器
+    /// Create a new Union executor.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -43,28 +43,28 @@ impl<S: StorageClient> UnionExecutor<S> {
         }
     }
 
-    /// 执行UNION操作
+    /// Perform the UNION operation
     ///
-    /// 算法步骤：
-    /// 1. 获取左右两个输入数据集
-    /// 2. 验证列名是否一致
-    /// 3. 合并两个数据集的所有行
+    /// Algorithm steps:
+    /// 1. Obtain the two input datasets on the left and right sides.
+    /// 2. Verify whether the column names are consistent.
+    /// 3. Merge all rows from the two datasets.
     fn execute_union(&mut self) -> Result<DataSet, QueryError> {
-        // 获取左右输入数据集
+        // Obtaining the left and right input datasets
         let left_dataset = self.set_executor.get_left_input_data()?;
         let right_dataset = self.set_executor.get_right_input_data()?;
 
-        // 检查输入数据集的有效性
+        // Check the validity of the input dataset.
         self.set_executor
             .check_input_data_sets(&left_dataset, &right_dataset)?;
 
-        // 合并两个数据集
+        // Merge two datasets
         let combined_dataset = SetExecutor::<S>::concat_datasets(left_dataset, right_dataset);
 
-        // 去除重复行
+        // Remove duplicate rows.
         let deduped_rows = SetExecutor::<S>::dedup_rows(combined_dataset.rows);
 
-        // 构建结果数据集
+        // Constructing the resulting dataset
         let result_dataset = DataSet {
             col_names: self.set_executor.get_col_names().clone(),
             rows: deduped_rows,
@@ -130,7 +130,7 @@ mod tests {
     use crate::core::{DataSet, Value};
     use ExpressionAnalysisContext;
 
-    // 创建测试用的存储引擎
+    // Create a storage engine for testing purposes.
     fn create_test_storage() -> Arc<Mutex<crate::storage::test_mock::MockStorage>> {
         let storage =
             crate::storage::test_mock::MockStorage::new().expect("Failed to create test storage");
@@ -149,7 +149,7 @@ mod tests {
             expr_context,
         );
 
-        // 设置测试数据
+        // Set up the test data
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -161,12 +161,12 @@ mod tests {
         let right_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
-                vec![Value::Int(2), Value::String("Bob".to_string())], // 重复行
+                vec![Value::Int(2), Value::String("Bob".to_string())], // Duplicate rows
                 vec![Value::Int(3), Value::String("Charlie".to_string())],
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -176,18 +176,18 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行UNION操作
+        // Perform the UNION operation
         let result = executor.execute();
 
-        // 验证结果
+        // Verification results
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该有3个唯一的值（去重后）
+            // There should be 3 unique values (after deduplication).
             // 1, Alice, 2, Bob, 3, Charlie
-            assert_eq!(values.len(), 6); // 3行 × 2列
+            assert_eq!(values.len(), 6); // 3 rows × 2 columns
         } else {
-            panic!("期望Values结果");
+            panic!("Expected Values results");
         }
     }
 
@@ -203,7 +203,7 @@ mod tests {
             expr_context,
         );
 
-        // 设置两个空数据集
+        // Create two empty datasets.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![],
@@ -214,7 +214,7 @@ mod tests {
             rows: vec![],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -224,7 +224,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 测试空数据集的UNION
+        // Testing the UNION operation on an empty dataset
         let result = executor.execute();
         assert!(result.is_ok());
 
@@ -245,18 +245,18 @@ mod tests {
             expr_context,
         );
 
-        // 设置列名不匹配的数据集
+        // A dataset with column names that do not match the specified values
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![vec![Value::Int(1), Value::String("Alice".to_string())]],
         };
 
         let right_dataset = DataSet {
-            col_names: vec!["id".to_string(), "title".to_string()], // 不同的列名
+            col_names: vec!["id".to_string(), "title".to_string()], // Different column names
             rows: vec![vec![Value::Int(2), Value::String("Mr".to_string())]],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_mismatch".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -266,7 +266,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行应该失败
+        // The execution should fail.
         let result = executor.execute();
         assert!(result.is_err());
 
@@ -276,7 +276,7 @@ mod tests {
         {
             assert!(msg.contains("列名不匹配"));
         } else {
-            panic!("期望列名不匹配错误");
+            panic!("Error: The expected column names do not match.");
         }
     }
 }

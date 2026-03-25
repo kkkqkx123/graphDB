@@ -1,7 +1,7 @@
-//! 语句解析模块
+//! Sentence Parsing Module
 //!
-//! 负责解析各种语句，包括 MATCH、GO、CREATE、DELETE、UPDATE 等。
-//! 本模块作为入口，将具体解析逻辑委托给各个子模块。
+//! Responsible for parsing various statements, including MATCH, GO, CREATE, DELETE, UPDATE, etc.
+//! This module serves as an entry point; it delegates the specific analysis logic to the various sub-modules.
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::*;
@@ -13,7 +13,7 @@ use crate::query::parser::parsing::{
 };
 use crate::query::parser::TokenKind;
 
-/// 语句解析器
+/// Statement parser
 pub struct StmtParser;
 
 impl StmtParser {
@@ -21,17 +21,17 @@ impl StmtParser {
         Self
     }
 
-    /// 解析语句（支持管道操作符）
+    /// Parse statements (pipeline operators are supported)
     pub fn parse_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let stmt = self.parse_single_statement(ctx)?;
         self.parse_pipe_suffix(ctx, stmt)
     }
 
-    /// 解析单个语句（不分发管道）
+    /// Analyzing a single statement (without distributing it through any pipelines)
     fn parse_single_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let token = ctx.current_token().clone();
         match token.kind {
-            // 图遍历语句
+            // Graph traversal statement
             TokenKind::Match | TokenKind::Optional => {
                 TraversalParser::new().parse_match_statement(ctx)
             }
@@ -39,20 +39,20 @@ impl StmtParser {
             TokenKind::Find => TraversalParser::new().parse_find_path_statement(ctx),
             TokenKind::Get => TraversalParser::new().parse_subgraph_statement(ctx),
 
-            // 数据修改语句
+            // Data modification statements
             TokenKind::Insert => DmlParser::new().parse_insert_statement(ctx),
             TokenKind::Delete => DmlParser::new().parse_delete_statement(ctx),
             TokenKind::Update => self.parse_update_statement_extended(ctx),
             TokenKind::Upsert => DmlParser::new().parse_upsert_statement(ctx),
             TokenKind::Merge => DmlParser::new().parse_merge_statement(ctx),
 
-            // DDL 语句 或 Cypher CREATE 数据语句
+            // DDL statements or Cypher CREATE data statements
             TokenKind::Create => self.parse_create_statement_extended(ctx),
             TokenKind::Drop => DdlParser::new().parse_drop_statement(ctx),
             TokenKind::Desc => DdlParser::new().parse_desc_statement(ctx),
             TokenKind::Alter => DdlParser::new().parse_alter_statement(ctx),
 
-            // 用户管理语句
+            // User management statements
             TokenKind::CreateUser => UserParser::new().parse_create_user_statement(ctx),
             TokenKind::AlterUser => UserParser::new().parse_alter_user_statement(ctx),
             TokenKind::DropUser => UserParser::new().parse_drop_user_statement(ctx),
@@ -61,7 +61,7 @@ impl StmtParser {
             TokenKind::Grant => UserParser::new().parse_grant_statement(ctx),
             TokenKind::Revoke => UserParser::new().parse_revoke_statement(ctx),
 
-            // 工具语句
+            // Tool statements
             TokenKind::Use => UtilStmtParser::new().parse_use_statement(ctx),
             TokenKind::Show => self.parse_show_statement_extended(ctx),
             TokenKind::Explain => self.parse_explain_statement(ctx),
@@ -77,7 +77,7 @@ impl StmtParser {
             TokenKind::Set => UtilStmtParser::new().parse_set_statement(ctx),
             TokenKind::Remove => UtilStmtParser::new().parse_remove_statement(ctx),
 
-            // 变量赋值语句 ($var = statement)
+            // Variable assignment statement ($var = statement)
             TokenKind::Dollar => self.parse_assignment_statement(ctx),
 
             _ => Err(ParseError::new(
@@ -88,7 +88,7 @@ impl StmtParser {
         }
     }
 
-    /// 解析管道后缀（| 操作符）
+    /// Analyzing the pipe suffix (the | operator)
     fn parse_pipe_suffix(
         &mut self,
         ctx: &mut ParseContext,
@@ -108,17 +108,17 @@ impl StmtParser {
 
             self.parse_pipe_suffix(ctx, pipe_stmt)
         } else {
-            // 检查是否是集合操作
+            // Check whether it is a set operation.
             self.parse_set_operation_suffix(ctx, left)
         }
     }
 
-    /// 解析 EXPLAIN 语句（需要特殊处理，因为包含子语句）
+    /// Analyzing the EXPLAIN statement (special handling is required, as it contains sub-statements)
     fn parse_explain_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Explain)?;
 
-        // 解析可选的 FORMAT 子句
+        // Analysis of the optional FORMAT clause
         let format = if ctx.match_token(TokenKind::Format) {
             ctx.expect_token(TokenKind::Assign)?;
             let format_name = ctx.expect_identifier()?;
@@ -146,12 +146,24 @@ impl StmtParser {
         }))
     }
 
-    /// 解析 PROFILE 语句
+    /// Analyzing the PROFILE statement
     fn parse_profile_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Profile)?;
 
-        // 解析可选的 FORMAT 子句
+        // Explanation of the "FORMAT" clause (optional):  
+The "FORMAT" clause is an optional parameter in certain programming languages or contexts that allows you to specify how data should be displayed or formatted. It provides more control over the appearance of the output, such as the style of fonts, the alignment of text, the number of decimal places in numbers, or the format of dates and times.  
+
+For example, in Python, you might use the "format" function to format a string with a specific format string:  
+```python
+name = "John Doe"
+age = 30
+output = f"{name} is {age} years old."
+print(output)  # Output: John Doe is 30 years old.
+```  
+In this example, the `{name}` and `{age}` placeholders are replaced with the actual values of `name` and `age`, and the output string is formatted according to the specified format (`f"{name} is {age} years old."`).  
+
+The specific format of the "FORMAT" clause can vary depending on the language or context in use. It may include various format specifiers, such as `%d` for integers, `%f` for floating-point numbers, `%s` for strings, `%A` for uppercase letters, `%a` for lowercase letters, etc.
         let format = if ctx.match_token(TokenKind::Format) {
             ctx.expect_token(TokenKind::Assign)?;
             let format_name = ctx.expect_identifier()?;
@@ -179,7 +191,7 @@ impl StmtParser {
         }))
     }
 
-    /// 解析 GROUP BY 语句
+    /// Analysis of the GROUP BY statement
     fn parse_group_by_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         use crate::core::types::expr::Expression;
         use crate::query::parser::ast::stmt::{GroupByStmt, YieldItem};
@@ -189,7 +201,7 @@ impl StmtParser {
         ctx.expect_token(TokenKind::Group)?;
         ctx.expect_token(TokenKind::By)?;
 
-        // 解析分组项列表（只解析标识符）
+        // Parse the list of group items (only identifiers are to be parsed).
         let mut group_items = Vec::new();
         loop {
             let ident = ctx.expect_identifier()?;
@@ -206,11 +218,11 @@ impl StmtParser {
             }
         }
 
-        // 解析 YIELD 子句
+        // Analyzing the YIELD clause
         let yield_clause = if ctx.match_token(TokenKind::Yield) {
             ClauseParser::new().parse_yield_clause(ctx)?
         } else {
-            // 如果没有 YIELD，创建一个默认的返回所有分组项的 YIELD
+            // If YIELD is not available, create a default version that returns all group items.
             let items: Vec<YieldItem> = group_items
                 .iter()
                 .enumerate()
@@ -230,7 +242,7 @@ impl StmtParser {
             }
         };
 
-        // 解析可选的 HAVING 子句
+        // Analyzing the optional HAVING clause
         let having_clause = if ctx.match_token(TokenKind::Having) {
             Some(self.parse_expression(ctx)?)
         } else {
@@ -248,7 +260,7 @@ impl StmtParser {
         }))
     }
 
-    /// 解析表达式（辅助方法）
+    /// Analyzing expressions (auxiliary method)
     fn parse_expression(
         &mut self,
         ctx: &mut ParseContext,
@@ -257,7 +269,7 @@ impl StmtParser {
         expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 
-    /// 解析扩展的 SHOW 语句（包括 SESSIONS、QUERIES 和 CONFIGS）
+    /// Analysis of extended SHOW statements (including SESSIONS, QUERIES, and CONFIGS)
     fn parse_show_statement_extended(
         &mut self,
         ctx: &mut ParseContext,
@@ -267,7 +279,7 @@ impl StmtParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Show)?;
 
-        // 检查下一个 token
+        // Check the next token.
         if ctx.check_token(TokenKind::Sessions) {
             ctx.expect_token(TokenKind::Sessions)?;
             let end_span = ctx.current_span();
@@ -280,7 +292,7 @@ impl StmtParser {
             Ok(Stmt::ShowQueries(ShowQueriesStmt { span }))
         } else if ctx.check_token(TokenKind::Configs) {
             ctx.expect_token(TokenKind::Configs)?;
-            // 解析可选的模块名
+            // Analysis of the available module names
             let module = if ctx.is_identifier_or_in_token() {
                 Some(ctx.expect_identifier()?)
             } else {
@@ -317,7 +329,7 @@ impl StmtParser {
             ctx.expect_token(TokenKind::Hosts)?;
             let end_span = ctx.current_span();
             let span = ctx.merge_span(start_span.start, end_span.end);
-            // HOSTS 暂时映射到 Spaces，因为这是一个单节点实现
+            // HOSTS is temporarily mapped to Spaces, as this is a single-node implementation.
             Ok(Stmt::Show(crate::query::parser::ast::stmt::ShowStmt {
                 span,
                 target: crate::query::parser::ast::stmt::ShowTarget::Spaces,
@@ -326,7 +338,7 @@ impl StmtParser {
             ctx.expect_token(TokenKind::Parts)?;
             let end_span = ctx.current_span();
             let span = ctx.merge_span(start_span.start, end_span.end);
-            // PARTS 暂时映射到 Spaces，因为这是一个单节点实现
+            // The “PARTS” component is temporarily mapped to the “Spaces” component, because this is a single-node implementation.
             Ok(Stmt::Show(crate::query::parser::ast::stmt::ShowStmt {
                 span,
                 target: crate::query::parser::ast::stmt::ShowTarget::Spaces,
@@ -349,7 +361,7 @@ impl StmtParser {
                 },
             ))
         } else if ctx.check_token(TokenKind::Create) {
-            // SHOW CREATE 语句：委托给 UtilStmtParser 的统一处理方法
+            // The SHOW CREATE statement: A unified processing method delegated to UtilStmtParser
             // 支持 SHOW CREATE { SPACE | TAG | EDGE | INDEX } <name>
             UtilStmtParser::new().parse_show_create_internal(ctx, start_span)
         } else {
@@ -361,7 +373,7 @@ impl StmtParser {
         }
     }
 
-    /// 解析 KILL 语句
+    /// Analyzing the KILL statement
     fn parse_kill_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::KillQueryStmt;
 
@@ -369,13 +381,13 @@ impl StmtParser {
         ctx.expect_token(TokenKind::Kill)?;
         ctx.expect_token(TokenKind::Query)?;
 
-        // 解析 session_id
+        // Analyzing the `session_id`
         let session_id = ctx.expect_integer_literal()?;
 
-        // 解析逗号
+        // Analyzing the use of commas
         ctx.expect_token(TokenKind::Comma)?;
 
-        // 解析 plan_id
+        // Analysis of plan_id
         let plan_id = ctx.expect_integer_literal()?;
 
         let end_span = ctx.current_span();
@@ -388,7 +400,7 @@ impl StmtParser {
         }))
     }
 
-    /// 解析扩展的 UPDATE 语句（包括 UPDATE CONFIGS）
+    /// Analysis of the extended UPDATE statement (including UPDATE CONFIGS)
     fn parse_update_statement_extended(
         &mut self,
         ctx: &mut ParseContext,
@@ -396,27 +408,27 @@ impl StmtParser {
         use crate::query::parser::ast::stmt::UpdateConfigsStmt;
         use crate::query::parser::parsing::dml_parser::DmlParser;
 
-        // 检查是否是 UPDATE CONFIGS
-        // 先消费 UPDATE token
+        // Check whether it is an UPDATE CONFIGS command.
+        // Consume the UPDATE token first.
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Update)?;
 
         if ctx.check_token(TokenKind::Configs) {
-            // 解析 UPDATE CONFIGS
+            // Analysis of the UPDATE CONFIGS command
             ctx.expect_token(TokenKind::Configs)?;
 
-            // 先解析第一个标识符
+            // Let’s first analyze the first identifier.
             let first_ident = ctx.expect_identifier()?;
 
-            // 检查下一个 token 是否是 '='，如果是，则第一个标识符是配置名
-            // 否则，第一个标识符是模块名，还需要解析配置名
+            // Check whether the next token is ‘=’. If it is, the first identifier represents the configuration name.
+            // Otherwise, the first identifier is the module name, and the configuration name also needs to be parsed.
             let (module, config_name) = if ctx.check_token(TokenKind::Assign) {
                 (None, first_ident)
             } else {
                 (Some(first_ident), ctx.expect_identifier()?)
             };
 
-            // 解析等号和值
+            // Analyzing the equal sign and the value
             ctx.expect_token(TokenKind::Assign)?;
             let config_value = self.parse_expression(ctx)?;
 
@@ -430,28 +442,28 @@ impl StmtParser {
                 config_value,
             }))
         } else {
-            // 不是 UPDATE CONFIGS，回退到普通的 UPDATE 解析
-            // 由于我们已经消费了 UPDATE token，需要调用 DML 解析器的其他方法
-            // 这里我们直接调用 parse_update_statement 并处理错误
-            // 实际上应该重构，但这里先这样处理
+            // It’s not about using the `UPDATE CONFIGS` command; instead, we need to revert to the regular `UPDATE` parsing method.
+            // Since we have already used the UPDATE token, we need to call other methods of the DML parser.
+            // Here, we directly call the `parse_update_statement` function and handle any errors that may occur.
+            // In fact, it should be restructured, but let’s deal with it this way for now.
             DmlParser::new().parse_update_after_token(ctx, start_span)
         }
     }
 
-    /// 解析变量赋值语句 ($var = statement)
+    /// Analysis of the variable assignment statement ($var = statement)
     fn parse_assignment_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::AssignmentStmt;
 
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Dollar)?;
 
-        // 解析变量名
+        // Analyzing variable names
         let var_name = ctx.expect_identifier()?;
 
-        // 解析等号
+        // Analyzing the equal sign
         ctx.expect_token(TokenKind::Assign)?;
 
-        // 解析右侧语句
+        // Analyze the sentence on the right side.
         let statement = Box::new(self.parse_statement(ctx)?);
 
         let end_span = ctx.current_span();
@@ -464,8 +476,8 @@ impl StmtParser {
         }))
     }
 
-    /// 解析扩展的 CREATE 语句
-    /// 区分 DDL CREATE (TAG/EDGE/SPACE/INDEX) 和 Cypher CREATE 数据语句
+    /// Analyzing the extended CREATE statement
+    /// Distinguish between DDL CREATE statements (for creating tags, edges, spaces, or indexes) and Cypher CREATE statements for creating data.
     fn parse_create_statement_extended(
         &mut self,
         ctx: &mut ParseContext,
@@ -473,34 +485,34 @@ impl StmtParser {
         use crate::query::parser::parsing::ddl_parser::DdlParser;
         use crate::query::parser::parsing::dml_parser::DmlParser;
 
-        // 预读下一个 token 来判断 CREATE 类型
+        // Pre-read the next token to determine the type of the CREATE command.
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Create)?;
 
-        // 检查是否是 Cypher 风格的 CREATE (以 '(' 开头)
+        // Check whether it is a Cypher-style CREATE statement (starting with ‘(‘).
         if ctx.check_token(TokenKind::LParen) {
             // Cypher CREATE 数据语句: CREATE (n:Label {props})
-            // 由于已经消费了 CREATE token，需要调用特殊方法
+            // Since the CREATE token has already been consumed, a special method needs to be called.
             return DmlParser::new().parse_create_data_after_token(ctx, start_span);
         }
 
-        // 检查是否是 CREATE USER 语句
+        // Check whether it is a CREATE USER statement.
         if ctx.check_token(TokenKind::User) {
             return UserParser::new().parse_create_user_statement_after_create(ctx, start_span);
         }
 
-        // 检查 DDL CREATE 类型
+        // Check the DDL CREATE type.
         if ctx.check_token(TokenKind::Tag)
             || ctx.check_token(TokenKind::Edge)
             || ctx.check_token(TokenKind::Space)
             || ctx.check_token(TokenKind::Index)
         {
             // DDL CREATE: CREATE TAG/EDGE/SPACE/INDEX
-            // 由于已经消费了 CREATE token，调用 DDL 解析器的特殊方法
+            // Since the CREATE token has already been consumed, a special method of the DDL parser is called.
             return DdlParser::new().parse_create_after_token(ctx, start_span);
         }
 
-        // 无法确定类型，报错
+        // It is not possible to determine the type; an error has occurred.
         Err(ParseError::new(
             ParseErrorKind::SyntaxError,
             "CREATE 语句期望 '(' (Cypher 数据创建) 或 TAG/EDGE/SPACE/INDEX (Schema 定义) 或 USER (用户管理)".to_string(),
@@ -508,7 +520,7 @@ impl StmtParser {
         ))
     }
 
-    /// 解析集合操作语句后的管道或结束
+    /// Pipeline after parsing set operation statements, or end of the process.
     fn parse_set_operation_suffix(
         &mut self,
         ctx: &mut ParseContext,
@@ -516,7 +528,7 @@ impl StmtParser {
     ) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::{SetOperationStmt, SetOperationType};
 
-        // 检查是否是集合操作符
+        // Check whether it is a set operator.
         let op_type = if ctx.match_token(TokenKind::Union) {
             if ctx.match_token(TokenKind::All) {
                 SetOperationType::UnionAll
@@ -528,7 +540,7 @@ impl StmtParser {
         } else if ctx.match_token(TokenKind::SetMinus) {
             SetOperationType::Minus
         } else {
-            // 不是集合操作符，返回左侧语句
+            // It is not a set operator; it returns the statement on the left side.
             return Ok(left);
         };
 
@@ -544,7 +556,7 @@ impl StmtParser {
             right: Box::new(right),
         });
 
-        // 继续检查是否有更多的集合操作
+        // Continue to check whether there are any more set operations.
         self.parse_set_operation_suffix(ctx, set_op_stmt)
     }
 }
@@ -617,7 +629,7 @@ mod tests {
         if let Ok(Stmt::Use(stmt)) = result {
             assert_eq!(stmt.space, "test_space");
         } else {
-            panic!("期望 Use 语句");
+            panic!("“Use statement” is a term commonly used in programming languages to refer to a specific instruction or command that tells the computer how to perform a certain action. For example, in Python, the “print” statement is used to display text on the screen.");
         }
     }
 
@@ -633,16 +645,16 @@ mod tests {
     fn test_create_space_statement_parses() {
         let mut parser = StmtParser::new();
 
-        // 测试 CREATE SPACE 语句能够解析成功
+        // It has been tested that the CREATE SPACE statement can be parsed successfully.
         let mut ctx = create_parser_context("CREATE SPACE IF NOT EXISTS test_space");
         let result = parser.parse_statement(&mut ctx);
 
-        // 验证解析成功
+        // Verification and parsing were successful.
         assert!(result.is_ok(), "CREATE SPACE 解析失败: {:?}", result.err());
 
-        // 验证是 Create 语句
+        // The verification involves the “Create” statement.
         if let Ok(Stmt::Create(stmt)) = result {
-            // 验证是 Space 创建目标
+            // The verification confirms that Space created the target.
             match &stmt.target {
                 CreateTarget::Space { name, vid_type, .. } => {
                     assert_eq!(name, "test_space");
@@ -652,7 +664,7 @@ mod tests {
             }
             assert!(stmt.if_not_exists);
         } else {
-            panic!("期望 Create 语句");
+            panic!("The expected Create statement");
         }
     }
 
@@ -660,20 +672,20 @@ mod tests {
     fn test_create_space_with_params_parses() {
         let mut parser = StmtParser::new();
 
-        // 测试 CREATE SPACE 带参数语句能够解析成功
+        // The test shows that the CREATE SPACE statement with parameters can be parsed successfully.
         let mut ctx = create_parser_context("CREATE SPACE test_space(vid_type=FIXEDSTRING32)");
         let result = parser.parse_statement(&mut ctx);
 
-        // 验证解析成功
+        // Verification and parsing were successful.
         assert!(
             result.is_ok(),
             "CREATE SPACE with params 解析失败: {:?}",
             result.err()
         );
 
-        // 验证是 Create 语句
+        // The verification involves the “Create” statement.
         if let Ok(Stmt::Create(stmt)) = result {
-            // 验证是 Space 创建目标
+            // The verification confirms that Space has created the target.
             match &stmt.target {
                 CreateTarget::Space { name, vid_type, .. } => {
                     assert_eq!(name, "test_space");
@@ -682,7 +694,7 @@ mod tests {
                 _ => panic!("期望 Space 创建目标，实际得到 {:?}", stmt.target),
             }
         } else {
-            panic!("期望 Create 语句");
+            panic!("The expected Create statement");
         }
     }
 
@@ -696,7 +708,7 @@ mod tests {
         if let Ok(Stmt::Explain(stmt)) = result {
             assert!(matches!(stmt.format, ExplainFormat::Table));
         } else {
-            panic!("期望 Explain 语句");
+            panic!("The phrase “Expect to” is used to indicate that someone has a reasonable expectation or belief about a certain situation or outcome. It suggests that the expectation is based on facts, information, or past experience, and that it is likely to come true. For example, if someone says, “I expect to finish the project by Friday,” they are expressing the belief that they will be able to complete the project by that deadline.");
         }
     }
 
@@ -714,7 +726,7 @@ mod tests {
         if let Ok(Stmt::Explain(stmt)) = result {
             assert!(matches!(stmt.format, ExplainFormat::Dot));
         } else {
-            panic!("期望 Explain 语句");
+            panic!("“Expect” is a verb that means to have a belief or hope that something will happen in a particular way. For example, if you expect to finish a project by Friday, you believe that you will be able to complete it by that day. The phrase “explain” is a verb that means to give a clear description or explanation of something so that others can understand it. For example, if someone asks you to explain a complex concept, you need to provide enough information so that they can understand it.");
         }
     }
 
@@ -728,7 +740,7 @@ mod tests {
         if let Ok(Stmt::Profile(stmt)) = result {
             assert!(matches!(stmt.format, ExplainFormat::Table));
         } else {
-            panic!("期望 Profile 语句");
+            panic!("Expected Profile statement");
         }
     }
 
@@ -746,7 +758,7 @@ mod tests {
         if let Ok(Stmt::Profile(stmt)) = result {
             assert!(matches!(stmt.format, ExplainFormat::Table));
         } else {
-            panic!("期望 Profile 语句");
+            panic!("Expected Profile statement");
         }
     }
 
@@ -762,7 +774,7 @@ mod tests {
             assert_eq!(stmt.yield_clause.items.len(), 1);
             assert!(stmt.having_clause.is_none());
         } else {
-            panic!("期望 GroupBy 语句");
+            panic!("The expectation is that the GroupBy statement will be used.");
         }
     }
 
@@ -781,7 +793,7 @@ mod tests {
             assert_eq!(stmt.group_items.len(), 2);
             assert_eq!(stmt.yield_clause.items.len(), 2);
         } else {
-            panic!("期望 GroupBy 语句");
+            panic!("The expectation is that the GroupBy statement will be used.");
         }
     }
 
@@ -793,9 +805,9 @@ mod tests {
         assert!(result.is_ok(), "SHOW SESSIONS 解析失败: {:?}", result.err());
 
         if let Ok(Stmt::ShowSessions(_)) = result {
-            // 成功
+            // Success
         } else {
-            panic!("期望 ShowSessions 语句");
+            panic!("The expectation is that the ShowSessions statement will be executed.");
         }
     }
 
@@ -807,9 +819,9 @@ mod tests {
         assert!(result.is_ok(), "SHOW QUERIES 解析失败: {:?}", result.err());
 
         if let Ok(Stmt::ShowQueries(_)) = result {
-            // 成功
+            // Success
         } else {
-            panic!("期望 ShowQueries 语句");
+            panic!("The expectation is for the ShowQueries statement to be executed.");
         }
     }
 
@@ -824,7 +836,7 @@ mod tests {
             assert_eq!(stmt.session_id, 123);
             assert_eq!(stmt.plan_id, 456);
         } else {
-            panic!("期望 KillQuery 语句");
+            panic!("The expectation is that the KillQuery statement will be executed.");
         }
     }
 
@@ -838,7 +850,7 @@ mod tests {
         if let Ok(Stmt::ShowConfigs(stmt)) = result {
             assert!(stmt.module.is_none());
         } else {
-            panic!("期望 ShowConfigs 语句");
+            panic!("The expectation for the ShowConfigs statement");
         }
     }
 
@@ -856,7 +868,7 @@ mod tests {
         if let Ok(Stmt::ShowConfigs(stmt)) = result {
             assert_eq!(stmt.module, Some("storage".to_string()));
         } else {
-            panic!("期望 ShowConfigs 语句");
+            panic!("The expectation for the ShowConfigs statement");
         }
     }
 
@@ -875,7 +887,7 @@ mod tests {
             assert!(stmt.module.is_none());
             assert_eq!(stmt.config_name, "max_connections");
         } else {
-            panic!("期望 UpdateConfigs 语句");
+            panic!("The expectation is for the UpdateConfigs statement to be executed.");
         }
     }
 
@@ -894,7 +906,7 @@ mod tests {
             assert_eq!(stmt.module, Some("storage".to_string()));
             assert_eq!(stmt.config_name, "cache_size");
         } else {
-            panic!("期望 UpdateConfigs 语句");
+            panic!("The expectation is for the UpdateConfigs statement to be executed.");
         }
     }
 

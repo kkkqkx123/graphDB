@@ -1,6 +1,6 @@
-//! 采样节点实现
+//! Implementation of the sampling node
 //!
-//! SampleNode 用于对输入数据进行随机采样操作
+//! SampleNode is used to perform random sampling on the input data.
 
 use crate::define_plan_node_with_deps;
 

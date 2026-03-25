@@ -1,6 +1,6 @@
-//! 执行器执行模块
+//! Actuator execution module
 //!
-//! 负责执行执行计划，管理执行器树的生命周期
+//! Responsible for executing the execution plan and managing the lifecycle of the executor tree.
 
 pub mod plan_executor;
 

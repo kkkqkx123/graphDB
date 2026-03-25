@@ -1,8 +1,8 @@
-//! 列投影执行器
+//! Column Projection Executor
 //!
-//! ProjectExecutor - 选择和投影输出列
+//! ProjectExecutor – Selection and projection of output columns
 //!
-//! CPU 密集型操作，使用 Rayon 进行并行化
+//! CPU-intensive operations are parallelized using Rayon.
 
 use parking_lot::Mutex;
 use rayon::prelude::*;
@@ -23,11 +23,11 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::ExecutionResult;
 use crate::storage::StorageClient;
 
-/// 投影列定义
+/// Projection column definition
 #[derive(Debug, Clone)]
 pub struct ProjectionColumn {
-    pub name: String,                     // 输出列名
-    pub expression: ContextualExpression, // 投影表达式
+    pub name: String,                     // Column names
+    pub expression: ContextualExpression, // Projection expression
 }
 
 impl ProjectionColumn {
@@ -36,16 +36,16 @@ impl ProjectionColumn {
     }
 }
 
-/// ProjectExecutor - 投影执行器
+/// ProjectExecutor – The projection executor
 ///
-/// 执行列投影操作，支持表达式求值和列重命名
+/// Performs column projection operations, supports the evaluation of expressions, and allows for the renaming of columns.
 ///
-/// CPU 密集型操作，使用 Rayon 进行并行化
+/// CPU-intensive operations are parallelized using Rayon.
 pub struct ProjectExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     columns: Vec<ProjectionColumn>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    /// 并行计算配置
+    /// Parallel computing configuration
     parallel_config: ParallelConfig,
 }
 
@@ -64,28 +64,28 @@ impl<S: StorageClient> ProjectExecutor<S> {
         }
     }
 
-    /// 设置并行计算配置
+    /// Setting up parallel computing configuration
     pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
         self.parallel_config = config;
         self
     }
 
-    /// 处理单行数据的投影
+    /// Projection of single-row data
     fn project_row(&self, row: &[Value], col_names: &[String]) -> DBResult<Vec<Value>> {
         let mut projected_row = Vec::new();
 
         let mut context = DefaultExpressionContext::new();
 
-        // 将当前行的值设置为上下文变量
+        // Set the value of the current row to the context variable.
         for (i, col_name) in col_names.iter().enumerate() {
             if i < row.len() {
                 context.set_variable(col_name.clone(), row[i].clone());
             }
         }
 
-        // 对每个投影列进行求值
+        // Evaluate each projected column.
         for column in &self.columns {
-            // 从 ContextualExpression 提取 Expression
+            // Extract the Expression from the ContextualExpression.
             let expr = match column.expression.expression() {
                 Some(meta) => meta.inner().clone(),
                 None => continue,
@@ -107,36 +107,36 @@ impl<S: StorageClient> ProjectExecutor<S> {
         Ok(projected_row)
     }
 
-    /// 处理数据集投影
+    /// Processing data set projections
     ///
-    /// 根据数据量选择处理方式：
-    /// - 数据量小于single_thread_limit：单线程处理
-    /// - 数据量大：使用rayon并行处理
+    /// Choose the processing method based on the amount of data:
+    /// The amount of data is less than single_thread_limit: The processing is done using a single thread.
+    /// Large amount of data: Parallel processing using Rayon technology
     fn project_dataset(
         &self,
         dataset: crate::core::value::DataSet,
     ) -> DBResult<crate::core::value::DataSet> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
-        // 设置新的列名
+        // Set new column names
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
         let total_size = dataset.rows.len();
 
-        // 根据并行配置判断是否使用并行计算
+        // Determine whether to use parallel computing based on the parallel configuration.
         if !self.parallel_config.should_use_parallel(total_size) {
-            // 数据量小或禁用并行，使用单线程处理
+            // If the amount of data is small or parallel processing is disabled, single-threaded processing should be used.
             for row in dataset.rows {
                 let projected_row = self.project_row(&row, &dataset.col_names)?;
                 result_dataset.rows.push(projected_row);
             }
         } else {
-            // 数据量大，使用rayon并行处理
+            // The amount of data is large; therefore, rayon parallel processing is used for processing it.
             let batch_size = self.parallel_config.calculate_batch_size(total_size);
             let columns = self.columns.clone();
             let col_names = dataset.col_names.clone();
 
-            // 使用rayon的par_chunks进行并行处理
+            // Use `par_chunks` from `rayon` for parallel processing.
             let projected_rows: Vec<Vec<Value>> = dataset
                 .rows
                 .par_chunks(batch_size)
@@ -146,17 +146,17 @@ impl<S: StorageClient> ProjectExecutor<S> {
                         .filter_map(|row| {
                             let mut context = DefaultExpressionContext::new();
 
-                            // 将当前行的值设置为上下文变量
+                            // Set the value of the current row to the context variable.
                             for (i, col_name) in col_names.iter().enumerate() {
                                 if i < row.len() {
                                     context.set_variable(col_name.clone(), row[i].clone());
                                 }
                             }
 
-                            // 对每个投影列进行求值
+                            // Evaluate each projected column.
                             let mut projected_row = Vec::new();
                             for column in &columns {
-                                // 从 ContextualExpression 提取 Expression
+                                // Extract the Expression from the ContextualExpression.
                                 let expr = match column.expression.expression() {
                                     Some(meta) => meta.inner().clone(),
                                     None => return None,
@@ -164,7 +164,7 @@ impl<S: StorageClient> ProjectExecutor<S> {
 
                                 match ExpressionEvaluator::evaluate(&expr, &mut context) {
                                     Ok(value) => projected_row.push(value),
-                                    Err(_) => return None, // 跳过求值失败的行
+                                    Err(_) => return None, // Skip the rows where the evaluation failed.
                                 }
                             }
                             Some(projected_row)
@@ -179,29 +179,29 @@ impl<S: StorageClient> ProjectExecutor<S> {
         Ok(result_dataset)
     }
 
-    /// 处理顶点列表投影
+    /// Processing the projection of the vertex list
     fn project_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
     ) -> DBResult<crate::core::value::DataSet> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
-        // 设置列名
+        // Set column names
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
-        // 对每个顶点进行投影
+        // Project each vertex.
         for vertex in vertices {
             let mut context = DefaultExpressionContext::new();
-            // 设置顶点信息
+            // Setting vertex information
             context.set_variable(
                 "_vertex".to_string(),
                 Value::Vertex(Box::new(vertex.clone())),
             );
 
-            // 设置顶点ID作为变量
+            // Set the vertex ID as a variable.
             context.set_variable("id".to_string(), *vertex.vid.clone());
 
-            // 将顶点属性也设置为变量，以便InputProperty可以访问
+            // Set the vertex properties as variables as well, so that the InputProperty can access them.
             for (prop_name, prop_value) in &vertex.properties {
                 context.set_variable(prop_name.clone(), prop_value.clone());
             }
@@ -231,23 +231,23 @@ impl<S: StorageClient> ProjectExecutor<S> {
         Ok(result_dataset)
     }
 
-    /// 处理边列表投影
+    /// Processing of edge list projections
     fn project_edges(
         &self,
         edges: Vec<crate::core::Edge>,
     ) -> DBResult<crate::core::value::DataSet> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
-        // 设置列名
+        // Set column names
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
-        // 对每个边进行投影
+        // Project each edge.
         for edge in edges {
             let mut context = DefaultExpressionContext::new();
-            // 设置边信息
+            // Set border information
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
-            // 设置边属性作为变量
+            // Set the edge properties as variables.
             context.set_variable("src".to_string(), *edge.src.clone());
             context.set_variable("dst".to_string(), *edge.dst.clone());
             context.set_variable(
@@ -433,7 +433,7 @@ mod tests {
 
         let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
-        // 创建测试数据集
+        // Create a test dataset
         let mut input_dataset = crate::core::value::DataSet::new();
         input_dataset.col_names = vec!["col1".to_string(), "col2".to_string()];
         input_dataset.rows = vec![
@@ -442,12 +442,12 @@ mod tests {
             vec![Value::Int(3), Value::String("Charlie".to_string())],
         ];
 
-        // 不设置 input_executor，直接调用 project_dataset 方法测试
+        // Without setting the `inputExecutor`, directly call the `project_dataset` method to conduct the test.
         let projected_dataset = executor
             .project_dataset(input_dataset)
             .expect("Projection should succeed");
 
-        // 验证结果
+        // Verification results
         assert_eq!(projected_dataset.col_names, vec!["projected_col1"]);
         assert_eq!(projected_dataset.rows.len(), 3);
         assert_eq!(projected_dataset.rows[0], vec![Value::Int(1)]);
@@ -473,7 +473,7 @@ mod tests {
 
         let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
-        // 创建测试数据集
+        // Create a test dataset
         let mut input_dataset = crate::core::value::DataSet::new();
         input_dataset.col_names = vec!["col1".to_string(), "col2".to_string()];
         input_dataset.rows = vec![
@@ -482,12 +482,12 @@ mod tests {
             vec![Value::Int(3), Value::Int(30)],
         ];
 
-        // 直接调用 project_dataset 方法测试
+        // Directly call the `project_dataset` method to conduct the test.
         let projected_dataset = executor
             .project_dataset(input_dataset)
             .expect("Projection should succeed");
 
-        // 验证结果
+        // Verification results
         assert_eq!(projected_dataset.col_names, vec!["sum"]);
         assert_eq!(projected_dataset.rows.len(), 3);
         assert_eq!(projected_dataset.rows[0], vec![Value::Int(11)]);
@@ -519,7 +519,7 @@ mod tests {
 
         let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
-        // 创建测试顶点
+        // Create test vertices.
         let vertex1 = crate::core::Vertex {
             vid: Box::new(Value::Int(1)),
             id: 1,
@@ -548,12 +548,12 @@ mod tests {
 
         let vertices = vec![vertex1, vertex2];
 
-        // 直接调用 project_vertices 方法测试
+        // Directly call the `project_vertices` method to conduct the test.
         let projected_dataset = executor
             .project_vertices(vertices)
             .expect("Projection should succeed");
 
-        // 验证结果
+        // Verification results
         assert_eq!(projected_dataset.col_names, vec!["vertex_id", "name"]);
         assert_eq!(projected_dataset.rows.len(), 2);
         assert_eq!(
@@ -597,7 +597,7 @@ mod tests {
 
         let executor = ProjectExecutor::new(1, storage, columns, expr_context);
 
-        // 创建测试边
+        // Create a test edge.
         let edge1 = crate::core::Edge {
             src: Box::new(Value::Int(1)),
             dst: Box::new(Value::Int(2)),
@@ -621,12 +621,12 @@ mod tests {
 
         let edges = vec![edge1, edge2];
 
-        // 直接调用 project_edges 方法测试
+        // Directly call the `project_edges` method to perform the test.
         let projected_dataset = executor
             .project_edges(edges)
             .expect("Projection should succeed");
 
-        // 验证结果
+        // Verification results
         assert_eq!(
             projected_dataset.col_names,
             vec!["src_id", "dst_id", "edge_type"]

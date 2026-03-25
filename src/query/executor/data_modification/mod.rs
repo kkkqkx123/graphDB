@@ -1,6 +1,6 @@
-//! 数据修改执行器模块
+//! Data modification actuator module
 //!
-//! 包含所有与数据修改相关的执行器，这些执行器修改存储层的数据
+//! Contains all the actuators associated with data modification that modify data in the storage layer
 
 pub mod delete;
 pub mod index_ops;

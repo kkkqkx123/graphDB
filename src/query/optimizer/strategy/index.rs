@@ -1,41 +1,41 @@
-//! 索引选择器模块
+//! Index Selector Module
 //!
-//! 用于为查询选择最优索引
+//! Used to select the optimal index for the query.
 
 use std::sync::Arc;
 
 use crate::core::types::{Expression, Index};
 use crate::query::optimizer::cost::{CostCalculator, SelectivityEstimator};
 
-/// 索引选择器
+/// Index selector
 #[derive(Debug)]
 pub struct IndexSelector {
     cost_calculator: Arc<CostCalculator>,
     selectivity_estimator: Arc<SelectivityEstimator>,
 }
 
-/// 索引选择结果
+/// Index selection results
 #[derive(Debug, Clone)]
 pub enum IndexSelection {
-    /// 属性索引
+    /// Attribute Index
     PropertyIndex {
-        /// 索引名称
+        /// Index name
         index_name: String,
-        /// 属性名称
+        /// Attribute name
         property_name: String,
-        /// 估计代价
+        /// Estimated cost
         estimated_cost: f64,
-        /// 选择性
+        /// selectivity
         selectivity: f64,
     },
-    /// 标签索引
+    /// Tag Index
     TagIndex {
         /// 估计代价
         estimated_cost: f64,
-        /// 顶点数量
+        /// Number of vertices
         vertex_count: u64,
     },
-    /// 全表扫描
+    /// Full table scan
     FullScan {
         /// 估计代价
         estimated_cost: f64,
@@ -44,31 +44,31 @@ pub enum IndexSelection {
     },
 }
 
-/// 属性谓词
+/// Attribute predicate
 #[derive(Debug, Clone)]
 pub struct PropertyPredicate {
     /// 属性名称
     pub property_name: String,
-    /// 操作符
+    /// Operator
     pub operator: PredicateOperator,
-    /// 值表达式
+    /// Value expression
     pub value: Expression,
 }
 
-/// 谓词操作符
+/// Predicate operator
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PredicateOperator {
-    /// 等于
+    /// equals
     Equal,
-    /// 不等于
+    /// Not equal to
     NotEqual,
-    /// 小于
+    /// less than
     LessThan,
-    /// 小于等于
+    /// less than or equal to
     LessThanOrEqual,
-    /// 大于
+    /// greater than
     GreaterThan,
-    /// 大于等于
+    /// greater than or equal to
     GreaterThanOrEqual,
     /// LIKE
     Like,
@@ -77,7 +77,7 @@ pub enum PredicateOperator {
 }
 
 impl IndexSelector {
-    /// 创建新的索引选择器
+    /// Create a new index selector.
     pub fn new(
         cost_calculator: Arc<CostCalculator>,
         selectivity_estimator: Arc<SelectivityEstimator>,
@@ -88,14 +88,14 @@ impl IndexSelector {
         }
     }
 
-    /// 为查询选择最优索引
+    /// Select the optimal index for the query.
     pub fn select_index(
         &self,
         tag_name: &str,
         predicates: &[PropertyPredicate],
         available_indexes: &[Index],
     ) -> IndexSelection {
-        // 如果没有谓词，使用全表扫描
+        // If there are no predicates, use a full table scan.
         if predicates.is_empty() {
             let vertex_count = self
                 .cost_calculator
@@ -108,11 +108,11 @@ impl IndexSelector {
             };
         }
 
-        // 评估每个可用索引
+        // Evaluate each available index.
         let mut best_selection: Option<IndexSelection> = None;
 
         for index in available_indexes {
-            // 只考虑与标签匹配的索引
+            // Please provide the text that needs to be translated. I will then translate it into English, ensuring that only the content matching the specified tags is included in the translation.
             if index.schema_name != tag_name {
                 continue;
             }
@@ -129,7 +129,7 @@ impl IndexSelector {
             }
         }
 
-        // 如果没有找到合适的索引，使用全表扫描
+        // If no suitable index is found, a full table scan is used.
         best_selection.unwrap_or_else(|| {
             let vertex_count = self
                 .cost_calculator
@@ -143,13 +143,13 @@ impl IndexSelector {
         })
     }
 
-    /// 评估单个索引
+    /// Evaluating a single index
     fn evaluate_index(
         &self,
         index: &Index,
         predicates: &[PropertyPredicate],
     ) -> Option<IndexSelection> {
-        // 检查索引是否覆盖谓词
+        // Check whether the index covers the predicate.
         let covered_predicates: Vec<&PropertyPredicate> = predicates
             .iter()
             .filter(|p| index.properties.contains(&p.property_name))
@@ -159,12 +159,12 @@ impl IndexSelector {
             return None;
         }
 
-        // 计算选择性
+        // Calculating selectivity
         let mut total_selectivity = 1.0;
         for predicate in &covered_predicates {
             let selectivity = match predicate.operator {
                 PredicateOperator::Equal => {
-                    // 尝试从表达式中提取值
+                    // Try to extract the values from the expression.
                     let value = if let Expression::Literal(v) = &predicate.value {
                         Some(v.clone())
                     } else {
@@ -183,7 +183,7 @@ impl IndexSelector {
                     .selectivity_estimator
                     .estimate_greater_than_selectivity(None),
                 PredicateOperator::Like => {
-                    // 尝试从表达式中提取模式
+                    // Try to extract patterns from the expression.
                     if let Expression::Literal(crate::core::value::Value::String(pattern)) =
                         &predicate.value
                     {
@@ -198,14 +198,14 @@ impl IndexSelector {
             total_selectivity *= selectivity;
         }
 
-        // 计算代价
+        // Calculating the cost
         let estimated_cost = self.cost_calculator.calculate_index_scan_cost(
             &index.schema_name,
             &covered_predicates[0].property_name,
             total_selectivity,
         );
 
-        // 获取第一个覆盖的属性名
+        // Get the name of the first overridden attribute.
         let property_name = covered_predicates[0].property_name.clone();
 
         Some(IndexSelection::PropertyIndex {
@@ -216,7 +216,7 @@ impl IndexSelector {
         })
     }
 
-    /// 选择最优的复合索引策略
+    /// Choosing the optimal composite index strategy
     pub fn select_composite_index_strategy(
         &self,
         tag_name: &str,
@@ -225,7 +225,7 @@ impl IndexSelector {
     ) -> Vec<IndexSelection> {
         let mut strategies = Vec::new();
 
-        // 添加全表扫描作为基准
+        // Add a full-table scan as a benchmark.
         let vertex_count = self
             .cost_calculator
             .statistics_manager()
@@ -236,7 +236,7 @@ impl IndexSelector {
             vertex_count,
         });
 
-        // 评估每个索引
+        // Evaluate each index.
         for index in available_indexes {
             if index.schema_name != tag_name {
                 continue;
@@ -247,7 +247,7 @@ impl IndexSelector {
             }
         }
 
-        // 按代价排序
+        // Sort by cost
         strategies.sort_by(|a, b| {
             a.estimated_cost()
                 .partial_cmp(&b.estimated_cost())
@@ -268,7 +268,7 @@ impl Clone for IndexSelector {
 }
 
 impl IndexSelection {
-    /// 获取估计代价
+    /// Obtain the estimated cost.
     pub fn estimated_cost(&self) -> f64 {
         match self {
             IndexSelection::PropertyIndex { estimated_cost, .. } => *estimated_cost,
@@ -277,7 +277,7 @@ impl IndexSelection {
         }
     }
 
-    /// 获取选择性（如果有）
+    /// Obtain the options (if any).
     pub fn selectivity(&self) -> Option<f64> {
         match self {
             IndexSelection::PropertyIndex { selectivity, .. } => Some(*selectivity),
@@ -285,12 +285,12 @@ impl IndexSelection {
         }
     }
 
-    /// 判断是否为索引扫描
+    /// Determine whether it is an index scan.
     pub fn is_index_scan(&self) -> bool {
         matches!(self, IndexSelection::PropertyIndex { .. })
     }
 
-    /// 判断是否为全表扫描
+    /// Determine whether it is a full table scan.
     pub fn is_full_scan(&self) -> bool {
         matches!(self, IndexSelection::FullScan { .. })
     }

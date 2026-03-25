@@ -1,15 +1,15 @@
-//! Sequential 语句验证器
+//! Sequential Statement Validator
 //! 对应 NebulaGraph SequentialValidator.h/.cpp 的功能
-//! 验证多语句查询（使用分号分隔）的合法性
+//! Verify the validity of multi-statement queries (separated by semicolons).
 //!
-//! 本文件已按照新的 trait + 枚举 验证器体系重构：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 保留了原有完整功能：
-//!    - 语句数量验证
-//!    - DDL/DML 语句顺序验证
-//!    - 变量名验证
-//!    - 最大语句数限制
-//! 3. 使用 QueryContext 统一管理上下文
+//! This document has been restructured in accordance with the new trait + enumeration validator framework.
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. All original functions have been retained.
+//! Verification of the number of sentences
+//! Verification of the order of DDL/DML statements
+//! Variable name validation
+//! Limit on the maximum number of sentences
+//! 3. Use QueryContext to manage the context in a unified manner.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -23,7 +23,7 @@ use crate::query::QueryContext;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// 顺序语句定义
+/// Definition of sequential statements
 #[derive(Debug, Clone)]
 pub struct SequentialStatement {
     pub statement: String,
@@ -31,7 +31,7 @@ pub struct SequentialStatement {
 }
 
 impl SequentialStatement {
-    /// 创建新的顺序语句
+    /// Create a new sentence with the given words in the correct order.
     pub fn new(statement: String) -> Self {
         Self {
             statement,
@@ -39,43 +39,43 @@ impl SequentialStatement {
         }
     }
 
-    /// 添加参数
+    /// Add parameters
     pub fn with_parameter(mut self, name: String, expr: ContextualExpression) -> Self {
         self.parameters.insert(name, expr);
         self
     }
 }
 
-/// Sequential 验证器 - 新体系实现
+/// Sequential Validator – New Implementation in the New System
 ///
-/// 功能完整性保证：
-/// 1. 完整的验证生命周期
-/// 2. 输入/输出列管理
-/// 3. 表达式属性追踪
-/// 4. 多语句顺序验证
-/// 5. DDL/DML 顺序约束检查
+/// Functionality completeness assurance:
+/// 1. Complete validation lifecycle
+/// 2. Management of input/output columns
+/// 3. Expression property tracing
+/// 4. Verification of the order of multiple sentences
+/// 5. Verification of DDL/DML sequence constraints
 #[derive(Debug)]
 pub struct SequentialValidator {
-    // 语句列表
+    // List of sentences
     statements: Vec<SequentialStatement>,
-    // 最大语句数限制
+    // Limit on the maximum number of sentences
     max_statements: usize,
-    // 变量映射
+    // Variable mapping
     variables: HashMap<String, DataType>,
-    // 输入列定义（用于 trait 接口）
+    // Column definition (for the trait interface)
     inputs: Vec<ColumnDef>,
-    // 输出列定义（顺序语句的输出为最后一条语句的输出）
+    // Column definition (The output of the sequence of statements is the output of the last statement.)
     outputs: Vec<ColumnDef>,
-    // 表达式属性
+    // Expression property
     expr_props: ExpressionProps,
-    // 用户定义变量
+    // User-defined variables
     user_defined_vars: Vec<String>,
-    // 验证错误列表
+    // List of validation errors
     validation_errors: Vec<ValidationError>,
 }
 
 impl SequentialValidator {
-    /// 创建新的验证器实例
+    /// Create a new instance of the validator.
     pub fn new() -> Self {
         Self {
             statements: Vec::new(),
@@ -89,18 +89,18 @@ impl SequentialValidator {
         }
     }
 
-    /// 设置最大语句数
+    /// Set the maximum number of sentences
     pub fn with_max_statements(mut self, max: usize) -> Self {
         self.max_statements = max;
         self
     }
 
-    /// 添加语句
+    /// Add the sentence
     pub fn add_statement(&mut self, statement: SequentialStatement) {
         self.statements.push(statement);
     }
 
-    /// 设置变量
+    /// Setting variables
     pub fn set_variable(&mut self, name: String, type_: DataType) {
         self.variables.insert(name.clone(), type_);
         if !self.user_defined_vars.contains(&name) {
@@ -108,17 +108,17 @@ impl SequentialValidator {
         }
     }
 
-    /// 获取语句列表
+    /// Obtain a list of statements.
     pub fn statements(&self) -> &[SequentialStatement] {
         &self.statements
     }
 
-    /// 获取变量映射
+    /// Obtain the variable mapping.
     pub fn variables(&self) -> &HashMap<String, DataType> {
         &self.variables
     }
 
-    /// 获取最大语句数
+    /// Obtain the maximum number of sentences.
     pub fn max_statements(&self) -> usize {
         self.max_statements
     }
@@ -128,12 +128,12 @@ impl SequentialValidator {
         self.max_statements = max;
     }
 
-    /// 清空验证错误
+    /// Clear the verification errors.
     fn clear_errors(&mut self) {
         self.validation_errors.clear();
     }
 
-    /// 执行验证（传统方式，保持向后兼容）
+    /// Perform validation (in the traditional way, while maintaining backward compatibility).
     pub fn validate_sequential(&mut self) -> Result<(), ValidationError> {
         self.clear_errors();
         self.validate_impl()?;
@@ -232,7 +232,7 @@ impl SequentialValidator {
         Ok(())
     }
 
-    /// 检查语句是否为查询语句（返回结果集）
+    /// Check whether the statement is a query statement (which returns a result set).
     pub fn is_query_statement(&self, stmt: &str) -> bool {
         let stmt_upper = stmt.to_uppercase();
         stmt_upper.starts_with("MATCH")
@@ -243,7 +243,7 @@ impl SequentialValidator {
             || stmt_upper.starts_with("GET SUBGRAPH")
     }
 
-    /// 检查语句是否为修改语句
+    /// Check whether the sentence is a modified sentence.
     pub fn is_mutation_statement(&self, stmt: &str) -> bool {
         let stmt_upper = stmt.to_uppercase();
         stmt_upper.starts_with("INSERT")
@@ -259,10 +259,10 @@ impl Default for SequentialValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for SequentialValidator {
     fn validate(
         &mut self,
@@ -271,13 +271,13 @@ impl StatementValidator for SequentialValidator {
     ) -> Result<ValidationResult, ValidationError> {
         self.clear_errors();
 
-        // 执行验证
+        // Please provide the text you would like to have translated. I will then perform the verification and provide the translated version.
         if let Err(e) = self.validate_impl() {
             return Ok(ValidationResult::failure(vec![e]));
         }
 
-        // Sequential 语句的输出取决于最后一条语句
-        // 这里简化处理，输出为空（实际应根据最后一条语句类型确定）
+        // The output of a sequence of statements depends on the last statement in the sequence.
+        // The simplification process here results in an empty output. (In reality, the output should be determined based on the type of the last sentence.)
         self.outputs = Vec::new();
 
         let info = ValidationInfo::new();
@@ -298,7 +298,7 @@ impl StatementValidator for SequentialValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // Sequential 不是全局语句，需要预先选择空间
+        // “Sequential” is not a global statement; it is necessary to select a space in advance.
         false
     }
 

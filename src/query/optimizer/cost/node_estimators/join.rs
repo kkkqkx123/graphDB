@@ -1,6 +1,6 @@
-//! 连接操作估算器
+//! Connection Operation Estimator
 //!
-//! 为连接节点提供代价估算：
+//! Provide a cost estimate for connecting the nodes:
 //! - HashInnerJoin
 //! - HashLeftJoin
 //! - InnerJoin
@@ -14,13 +14,13 @@ use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::planning::plan::PlanNodeEnum;
 
-/// 连接操作估算器
+/// Connection Operation Estimator
 pub struct JoinEstimator<'a> {
     cost_calculator: &'a CostCalculator,
 }
 
 impl<'a> JoinEstimator<'a> {
-    /// 创建新的连接估算器
+    /// Create a new connection estimator.
     pub fn new(cost_calculator: &'a CostCalculator) -> Self {
         Self { cost_calculator }
     }
@@ -45,7 +45,7 @@ impl<'a> NodeEstimator for JoinEstimator<'a> {
                 Ok((cost, output_rows))
             }
             PlanNodeEnum::HashLeftJoin(_) => {
-                // 左连接保持左表所有行
+                // The left join retains all rows from the left table.
                 let output_rows = left_rows;
                 let cost = self
                     .cost_calculator

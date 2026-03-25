@@ -1,6 +1,6 @@
-//! 边索引执行器
+//! Side Indexing Actuator
 //!
-//! 提供边索引的创建、删除、描述和列出功能。
+//! Provides creation, deletion, description and listing functions for side indexes.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
-/// 边索引描述信息
+/// Side Index Description Information
 #[derive(Debug, Clone)]
 pub struct EdgeIndexDesc {
     pub index_id: i32,
@@ -62,7 +62,7 @@ impl From<&EdgeIndexDesc> for Index {
     }
 }
 
-/// 创建边索引执行器
+/// Creating a Side-Indexed Executor
 #[derive(Debug)]
 pub struct CreateEdgeIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -172,7 +172,7 @@ impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateEdg
     }
 }
 
-/// 删除边索引执行器
+/// Delete Side Index Enforcer
 #[derive(Debug)]
 pub struct DropEdgeIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -281,7 +281,7 @@ impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropEdgeI
     }
 }
 
-/// 描述边索引执行器
+/// Description Edge Indexing Actuator
 #[derive(Debug)]
 pub struct DescEdgeIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -381,7 +381,7 @@ impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescEdgeI
     }
 }
 
-/// 列出边索引执行器
+/// List Edge Indexing Actuator
 #[derive(Debug)]
 pub struct ShowEdgeIndexesExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

@@ -1,4 +1,4 @@
-//! 实用函数实现
+//! Implementation of practical functions
 
 use crate::core::error::ExpressionError;
 use crate::core::value::dataset::List;
@@ -6,7 +6,7 @@ use crate::core::value::NullType;
 use crate::core::Value;
 use serde_json::Value as JsonValue;
 
-/// 实用函数枚举
+/// Enumeration of practical functions
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UtilityFunction {
     Coalesce,

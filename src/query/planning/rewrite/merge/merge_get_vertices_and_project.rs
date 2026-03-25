@@ -1,4 +1,4 @@
-//! 合并获取顶点和投影操作的规则
+//! Combine the rules for obtaining vertices and performing projection operations.
 
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
@@ -7,9 +7,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 
-/// 合并获取顶点和投影操作的规则
+/// Merge the rules for obtaining vertices and performing projection operations.
 ///
-/// # 转换示例
+/// # Conversion example
 ///
 /// Before:
 /// ```text
@@ -27,16 +27,16 @@ use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 ///   ScanVertices
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - 当前节点为GetVertices节点
-/// - 子节点为Project节点
-/// - Project只投影一列，且该列作为GetVertices的源
+/// The current node is the GetVertices node.
+/// The child node is a Project node.
+/// The project only projects one column, and this column serves as the source for the GetVertices function.
 #[derive(Debug)]
 pub struct MergeGetVerticesAndProjectRule;
 
 impl MergeGetVerticesAndProjectRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         Self
     }
@@ -62,41 +62,41 @@ impl RewriteRule for MergeGetVerticesAndProjectRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 GetVertices 节点
+        // Check whether it is a GetVertices node.
         let get_vertices = match node {
             PlanNodeEnum::GetVertices(n) => n,
             _ => return Ok(None),
         };
 
-        // GetVertices使用MultipleInputNode，需要获取依赖
+        // GetVertices uses the MultipleInputNode and needs to retrieve the dependencies.
         let deps = get_vertices.dependencies();
         if deps.is_empty() {
             return Ok(None);
         }
 
-        // 检查第一个依赖是否为Project节点
+        // Check whether the first dependency is a Project node.
         let project_node = match deps.first() {
             Some(PlanNodeEnum::Project(n)) => n,
             _ => return Ok(None),
         };
 
-        // 检查Project是否只投影一列
+        // Check whether the Project only projects one column.
         let columns = project_node.columns();
         if columns.len() != 1 {
             return Ok(None);
         }
 
-        // 获取Project的输入作为新的输入
+        // Obtain the input for the Project as the new input.
         let project_input = project_node.input().clone();
 
-        // 创建新的GetVertices节点
+        // Create a new GetVertices node.
         let mut new_get_vertices = get_vertices.clone();
 
-        // 更新源引用为Project列的表达式
+        // Update the source reference to the expression in the Project column.
         let src_expr = columns[0].expression.clone();
         new_get_vertices.set_src_ref(src_expr);
 
-        // 清除原有依赖并设置新的输入
+        // Remove the existing dependencies and set up the new input.
         new_get_vertices.deps_mut().clear();
         new_get_vertices.deps_mut().push(project_input);
 
@@ -151,13 +151,13 @@ mod tests {
         use crate::query::validator::context::ExpressionAnalysisContext;
         use std::sync::Arc;
 
-        // 创建起始节点
+        // Create the starting node.
         let start = PlanNodeEnum::Start(StartNode::new());
 
-        // 创建表达式上下文
+        // Create the context for the expression.
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
-        // 创建Project节点，投影一列
+        // Create a Project node and project a column.
         let vid_expr = Expression::Variable("vid".to_string());
         let vid_meta = ExpressionMeta::new(vid_expr);
         let vid_id = expr_ctx.register_expression(vid_meta);
@@ -171,23 +171,23 @@ mod tests {
         let project = ProjectNode::new(start, columns).expect("创建ProjectNode失败");
         let project_node = PlanNodeEnum::Project(project);
 
-        // 创建GetVertices节点
+        // Create the GetVertices node.
         let get_vertices = GetVerticesNode::new(1, "v");
         let mut get_vertices_node = PlanNodeEnum::GetVertices(get_vertices);
 
-        // 手动设置依赖关系
+        // Manually setting dependencies
         if let PlanNodeEnum::GetVertices(ref mut gv) = get_vertices_node {
             gv.deps_mut().clear();
             gv.deps_mut().push(project_node);
         }
 
-        // 应用规则
+        // Application rules
         let rule = MergeGetVerticesAndProjectRule::new();
         let mut ctx = RewriteContext::new();
         let result = rule
             .apply(&mut ctx, &get_vertices_node)
             .expect("应用规则失败");
 
-        assert!(result.is_some(), "应该成功合并GetVertices和Project节点");
+        assert!(result.is_some(), "The merging of the GetVertices and Project nodes should succeed.");
     }
 }

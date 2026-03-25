@@ -1,6 +1,6 @@
-//! 标签索引执行器
+//! Tag Index Executor
 //!
-//! 提供标签索引的创建、删除、描述和列出功能。
+//! Provide functions for creating, deleting, describing, and listing tag indexes.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
-/// 标签索引描述信息
+/// Tag index description information
 #[derive(Debug, Clone)]
 pub struct TagIndexDesc {
     pub index_id: i32,
@@ -62,7 +62,7 @@ impl From<&TagIndexDesc> for Index {
     }
 }
 
-/// 创建标签索引执行器
+/// Create a Tag Index Executor
 #[derive(Debug)]
 pub struct CreateTagIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -172,7 +172,7 @@ impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateTag
     }
 }
 
-/// 删除标签索引执行器
+/// Delete the Tag Index Executor
 #[derive(Debug)]
 pub struct DropTagIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -281,7 +281,7 @@ impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropTagIn
     }
 }
 
-/// 描述标签索引执行器
+/// Description of the Tag Index Executor
 #[derive(Debug)]
 pub struct DescTagIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -381,7 +381,7 @@ impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescTagIn
     }
 }
 
-/// 列出标签索引执行器
+/// List the tag index executor
 #[derive(Debug)]
 pub struct ShowTagIndexesExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

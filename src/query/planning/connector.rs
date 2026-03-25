@@ -1,21 +1,21 @@
-//! 连接器模块
+//! Connector module
 //!
-//! 提供计划节点之间的连接功能，包括内连接、左连接和输入添加
+//! Provide the functionality to connect the planned nodes, including inner joins, left joins, and the ability to add inputs.
 
 use crate::query::planning::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planning::planner::PlannerError;
 use crate::query::QueryContext;
 use std::collections::HashSet;
 
-/// 计划连接器
+/// Plan Connector
 ///
-/// 用于连接两个子计划，类似于 C++ 实现中的 SegmentsConnector
+/// Used to connect two sub-plans, similar to the SegmentsConnector implementation in C++.
 pub struct SegmentsConnector;
 
 impl SegmentsConnector {
-    /// 创建内连接
+    /// Create an inner join
     ///
-    /// 将两个计划进行内连接，使用指定的连接键
+    /// Perform an inner join on the two plans, using the specified join key.
     pub fn inner_join(
         _qctx: &QueryContext,
         left: SubPlan,
@@ -49,9 +49,9 @@ impl SegmentsConnector {
         })
     }
 
-    /// 创建左连接
+    /// Create a left join
     ///
-    /// 将两个计划进行左连接，用于可选 MATCH 等场景
+    /// Perform a left join on the two plans, for use in scenarios such as an optional MATCH operation.
     pub fn left_join(
         _qctx: &QueryContext,
         left: SubPlan,
@@ -84,9 +84,9 @@ impl SegmentsConnector {
         })
     }
 
-    /// 添加输入
+    /// Add the input.
     ///
-    /// 将一个计划作为另一个计划的输入
+    /// Using one plan as input for another plan
     pub fn add_input(input_plan: SubPlan, dependent_plan: SubPlan, _is_left: bool) -> SubPlan {
         SubPlan {
             root: dependent_plan.root,
@@ -94,9 +94,9 @@ impl SegmentsConnector {
         }
     }
 
-    /// 创建交叉连接
+    /// Create a cross-link
     ///
-    /// 将两个计划进行笛卡尔积连接
+    /// Connect the two plans using the Cartesian product.
     pub fn cross_join(left: SubPlan, right: SubPlan) -> Result<SubPlan, PlannerError> {
         let left_root = match left.root {
             Some(ref r) => r,

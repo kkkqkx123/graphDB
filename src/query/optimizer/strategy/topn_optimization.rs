@@ -1,21 +1,21 @@
-//! 排序消除优化器模块
+//! Sorting Elimination Optimizer Module
 //!
-//! **基于代价的排序优化策略**，专注于 Sort + Limit 到 TopN 的转换决策。
+//! A cost-based sorting optimization strategy, focusing on the decision-making process for converting the Sort + Limit operation into a TopN result.
 //!
-//! ## 注意
+//! ## Note
 //!
-//! 此模块**仅包含基于代价的优化逻辑**。
+//! This module **only contains cost-based optimization logic**.
 //!
-//! 启发式排序消除（如索引有序性消除）已在 rewrite 阶段通过 `EliminateSortRule` 处理。
-//! 这种分层设计确保：
-//! 1. 简单确定的优化（索引匹配）在 rewrite 阶段尽早执行
-//! 2. 复杂的代价决策（TopN 转换）在物理优化阶段执行
+//! Heuristic sorting eliminations (such as those related to the ordering of indexes) have been handled during the rewrite phase using the `EliminateSortRule` mechanism.
+//! This layered design ensures that:
+//! Simple optimization measures (such as index matching) should be carried out as early as possible during the rewrite phase.
+//! 2. Complex cost decision-making processes (TopN conversion) are carried out during the physical optimization phase.
 //!
-//! ## 优化策略
+//! ## Optimization Strategies
 //!
-//! - 将 Sort + Limit 转换为 TopN（基于代价比较）
+//! - Convert “Sort + Limit” to “TopN” (based on cost comparison).
 //!
-//! ## 使用示例
+//! ## Usage Examples
 //!
 //! ```rust
 //! use graphdb::query::optimizer::strategy::SortEliminationOptimizer;
@@ -31,64 +31,67 @@ use std::sync::Arc;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::planning::plan::core::nodes::{SortItem, SortNode};
 
-/// 排序消除决策
+/// Sorting-based decision elimination
 #[derive(Debug, Clone, PartialEq)]
 pub enum SortEliminationDecision {
-    /// 保留排序（无法消除或转换）
+    /// Maintain the order (this cannot be changed or reversed).
     KeepSort {
-        /// 保留原因
+        /// Reason for retention
         reason: SortKeepReason,
-        /// 估计代价
+        /// Estimated cost
         estimated_cost: f64,
     },
-    /// 转换为 TopN
+    /// Convert to TopN
     ConvertToTopN {
-        /// 转换原因
+        /// The text to be translated is:  “You are a professional translator.”  
+
+**Translation:**  
+“You are a professional translator.”
         reason: TopNConversionReason,
-        /// TopN 估计代价
+        /// Cost estimate for TopN method
         topn_cost: f64,
-        /// 原排序代价
+        /// Original sorting cost
         original_cost: f64,
     },
 }
 
-/// 保留排序的原因
+/// The reason for maintaining the order:
 #[derive(Debug, Clone, PartialEq)]
 pub enum SortKeepReason {
-    /// 无 Limit 子节点，无法转换为 TopN
+    /// There are no Limit child nodes; therefore, it is not possible to convert the data into a TopN format.
     NoLimitForTopN,
-    /// Limit 值太小，不值得转换
+    /// The value of “Limit” is too small to be worth converting.
     LimitTooSmall,
-    /// 基于代价分析保留排序更优
+    /// Retaining the sorted order based on cost analysis is more advantageous.
     CostBasedDecision,
 }
 
-/// 转换为 TopN 的原因
+/// Reasons for converting to TopN
 #[derive(Debug, Clone, PartialEq)]
 pub enum TopNConversionReason {
-    /// Sort + Limit 组合，TopN 代价更低
+    /// The combination of “Sort” and “Limit” results in lower costs when implementing the TopN algorithm.
     SortWithLimit,
-    /// 小数据量使用 TopN 更优
+    /// For small amounts of data, it is better to use the TopN method.
     SmallLimit,
-    /// 基于代价分析
+    /// Based on cost analysis
     CostBased,
 }
 
-/// 排序优化上下文
+/// Sorting optimization context
 #[derive(Debug, Clone)]
 pub struct SortContext {
-    /// 排序节点
+    /// Sorted nodes
     pub sort_node: SortNode,
-    /// 输入行数估计
+    /// Estimated number of lines to be translated
     pub input_rows: u64,
-    /// 是否有 Limit 子节点
+    /// Is there a Limit child node?
     pub has_limit_child: bool,
-    /// Limit 值（如果有）
+    /// The Limit value (if any)
     pub limit_value: Option<i64>,
 }
 
 impl SortContext {
-    /// 创建新的排序上下文
+    /// Create a new sorting context.
     pub fn new(sort_node: SortNode, input_rows: u64) -> Self {
         Self {
             sort_node,
@@ -98,7 +101,7 @@ impl SortContext {
         }
     }
 
-    /// 设置 Limit 信息
+    /// Setting the Limit information
     pub fn with_limit(mut self, limit: i64) -> Self {
         self.has_limit_child = true;
         self.limit_value = Some(limit);
@@ -106,23 +109,23 @@ impl SortContext {
     }
 }
 
-/// 排序消除优化器
+/// Sorting Elimination Optimizer
 ///
-/// **基于代价模型**的排序优化器，专注于 Sort + Limit 到 TopN 的转换决策。
+/// A sorting optimizer based on a cost model, which focuses on the decision-making process for converting the “Sort + Limit” operation into the retrieval of the TopN results.
 ///
-/// 注意：索引有序性消除等启发式优化已在 rewrite 阶段完成。
+/// Heuristic optimizations such as the elimination of index orderliness have been completed during the rewrite phase.
 #[derive(Debug)]
 pub struct SortEliminationOptimizer {
     cost_calculator: Arc<CostCalculator>,
-    /// TopN 转换阈值（当 limit < threshold * input_rows 时考虑转换）
+    /// TopN conversion threshold (conversion is considered when limit < threshold * input_rows)
     topn_threshold: f64,
-    /// 最小 Limit 值才考虑 TopN
+    /// Only the smallest Limit value is considered for the TopN selection.
     min_limit_for_topn: i64,
 }
 
 impl SortEliminationOptimizer {
-    /// 创建新的排序消除优化器
-    pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
+    /// Create a new sorting and elimination optimizer
+    pub fn new(cost_calculator: A// Default: 10%tor>) -> Self {
         Self {
             cost_calculator,
             topn_threshold: 0.1, // 默认 10%
@@ -130,33 +133,33 @@ impl SortEliminationOptimizer {
         }
     }
 
-    /// 设置 TopN 转换阈值
+    /// Set the TopN conversion threshold
     pub fn with_topn_threshold(mut self, threshold: f64) -> Self {
         self.topn_threshold = threshold.clamp(0.001, 1.0);
         self
     }
 
-    /// 设置最小 Limit 值
+    /// Set the minimum limit value
     pub fn with_min_limit(mut self, min_limit: i64) -> Self {
         self.min_limit_for_topn = min_limit.max(1);
         self
     }
 
-    /// 优化排序操作
+    /// Optimize the sorting operation
     ///
-    /// 基于代价分析决定是否将 Sort + Limit 转换为 TopN。
+    /// The decision to convert from Sort + Limit to TopN is based on a cost analysis.
     ///
-    /// # 参数
-    /// - `context`: 排序优化上下文
+    /// # Parameters
+    /// **Context:** Optimization of sorting algorithms
     ///
-    /// # 返回
-    /// 排序优化决策（保留排序或转换为 TopN）
-    pub fn optimize_sort(&self, context: &SortContext) -> SortEliminationDecision {
+    /// # Return
+    /// Sorting optimization decision (whether to maintain the original sorting order or convert the data into a TopN list)
+    pub // Check whether it is possible to convert this into a TopN approach.rtContext) -> SortEliminationDecision {
         let sort_items = context.sort_node.sort_items();
 
         // 检查是否可以转换为 TopN
         if let Some(decision) = self.check_topn_conversion(context, sort_items) {
-            return decision;
+        // Unable to convert; the original order is maintained.
         }
 
         // 无法转换，保留排序
@@ -167,10 +170,10 @@ impl SortEliminationOptimizer {
         }
     }
 
-    /// 检查是否可以转换为 TopN
+    /// Check whether it is possible to convert this into a TopN format.
     ///
-    /// 基于代价比较决定是否将 Sort + Limit 转换为 TopN。
-    /// 这是**基于代价的决策**，不是无条件转换。
+    /// The decision to convert from “Sort + Limit” to “TopN” is based on a cost comparison.
+    /// This is a **cost-based decision**, not an unconditional conversion.
     fn check_topn_conversion(
         &self,
         context: &SortContext,
@@ -179,7 +182,7 @@ impl SortEliminationOptimizer {
         let limit = context.limit_value?;
 
         if limit < self.min_limit_for_topn {
-            return None;
+        // Check whether the conditions for the TopN conversion are met.
         }
 
         // 检查是否满足 TopN 转换条件
@@ -207,21 +210,21 @@ impl SortEliminationOptimizer {
         None
     }
 
-    /// 计算排序代价
+    /// Calculating the cost of sorting
     fn calculate_sort_cost(&self, input_rows: u64, sort_columns: usize) -> f64 {
         self.cost_calculator
             .calculate_sort_cost(input_rows, sort_columns, None)
     }
 
-    /// 检查是否可以转换为 TopN 节点
+    /// Check whether it is possible to convert this into TopN nodes.
     ///
     /// # 参数
-    /// - `sort_items`: 排序项
-    /// - `limit`: Limit 值
-    /// - `input_rows`: 输入行数
+    /// `sort_items`: Functions to sort items
+    /// - `limit`: The value of the `limit` parameter
+    /// `input_rows`: The number of input rows
     ///
     /// # 返回
-    /// 如果可以转换，返回 (TopN 代价, 原排序代价)
+    /// If conversion is possible, return (TopN cost, original sorting cost).
     pub fn check_topn_conversion_cost(
         &self,
         sort_items: &[SortItem],
@@ -246,9 +249,9 @@ impl SortEliminationOptimizer {
         None
     }
 
-    /// 获取排序优化建议
+    /// Obtain suggestions for sorting optimization
     ///
-    /// 分析排序操作并返回优化建议
+    /// Analyze the sorting operation and provide optimization suggestions.
     pub fn get_optimization_advice(&self, context: &SortContext) -> Vec<String> {
         let mut advice = Vec::new();
 
@@ -358,7 +361,7 @@ mod tests {
 
     #[test]
     fn test_check_topn_conversion_cost_limit_too_small() {
-        let optimizer = create_test_optimizer();
+        // If the value of `Limit` is 0, `None` should be returned.er();
         let sort_items = vec![SortItem::asc("name".to_string())];
 
         // Limit 为 0，应该返回 None

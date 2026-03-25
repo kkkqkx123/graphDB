@@ -1,28 +1,28 @@
-//! 查询缓存模块
+//! Query Cache Module
 //!
-//! 提供统一的缓存管理功能，包括：
-//! - 查询计划缓存（Prepared Statement）
-//! - CTE结果缓存
-//! - 未来可能扩展的其他缓存类型
+//! Provide a unified cache management function, including:
+//! Query plan cache (Prepared Statement)
+//! CTE result caching
+//! Other cache types that may be added in the future:
 //!
-//! # 设计目标
+//! # Design Goals
 //!
-//! 1. 集中管理所有缓存，便于配置和监控
-//! 2. 统一的内存预算管理
-//! 3. 共享缓存策略（LRU、TTL等）
-//! 4. 统一的统计和指标收集
+//! Centralized management of all caches facilitates configuration and monitoring.
+//! 2. Unified memory budget management
+//! 3. Shared caching strategies (LRU, TTL, etc.)
+//! 4. Unified collection of statistics and indicators
 
-// 子模块
+// Submodule
 pub mod cte_cache;
 pub mod plan_cache;
 
-// 重新导出计划缓存类型
+// Reexport the plan cache type.
 pub use plan_cache::{
     CachedPlan, ParamPosition, ParameterizedQueryHandler, PlanCacheConfig, PlanCacheKey,
     PlanCacheStats, QueryPlanCache,
 };
 
-// 重新导出CTE缓存类型
+// Re-export the CTE cache type
 pub use cte_cache::{
     CteCacheConfig, CteCacheDecision, CteCacheDecisionMaker, CteCacheEntry, CteCacheManager,
     CteCacheStats,
@@ -30,19 +30,19 @@ pub use cte_cache::{
 
 use std::sync::Arc;
 
-/// 统一缓存管理器
+/// Unified Cache Manager
 ///
-/// 集中管理所有类型的缓存，提供统一的配置和监控接口
+/// Centralized management of all types of caches, with a unified configuration and monitoring interface available.
 #[derive(Debug, Clone)]
 pub struct CacheManager {
-    /// 查询计划缓存
+    /// Query plan cache
     plan_cache: Arc<QueryPlanCache>,
-    /// CTE结果缓存
+    /// CTE result caching
     cte_cache: Arc<CteCacheManager>,
 }
 
 impl CacheManager {
-    /// 创建新的缓存管理器
+    /// Create a new cache manager.
     pub fn new() -> Self {
         Self {
             plan_cache: Arc::new(QueryPlanCache::default()),
@@ -50,7 +50,7 @@ impl CacheManager {
         }
     }
 
-    /// 使用配置创建
+    /// Create using the configuration.
     pub fn with_config(plan_config: PlanCacheConfig, cte_config: CteCacheConfig) -> Self {
         Self {
             plan_cache: Arc::new(QueryPlanCache::new(plan_config)),
@@ -58,17 +58,17 @@ impl CacheManager {
         }
     }
 
-    /// 获取查询计划缓存
+    /// Obtain the query plan cache
     pub fn plan_cache(&self) -> Arc<QueryPlanCache> {
         self.plan_cache.clone()
     }
 
-    /// 获取CTE缓存
+    /// Obtaining the CTE cache
     pub fn cte_cache(&self) -> Arc<CteCacheManager> {
         self.cte_cache.clone()
     }
 
-    /// 获取总内存使用（字节）
+    /// Get the total memory usage (in bytes).
     pub fn total_memory_usage(&self) -> usize {
         let plan_stats = self.plan_cache.stats();
         let cte_stats = self.cte_cache.get_stats();
@@ -76,13 +76,13 @@ impl CacheManager {
         plan_stats.estimated_memory_bytes() + cte_stats.current_memory
     }
 
-    /// 清空所有缓存
+    /// Clear all caches.
     pub fn clear_all(&self) {
         self.plan_cache.clear();
         self.cte_cache.clear();
     }
 
-    /// 获取缓存统计摘要
+    /// Obtain a summary of cache statistics.
     pub fn stats_summary(&self) -> CacheStatsSummary {
         let plan_stats = self.plan_cache.stats();
         let cte_stats = self.cte_cache.get_stats();
@@ -103,23 +103,23 @@ impl Default for CacheManager {
     }
 }
 
-/// 缓存统计摘要
+/// Cache statistics summary
 #[derive(Debug, Clone)]
 pub struct CacheStatsSummary {
-    /// 计划缓存条目数
+    /// Number of planned cache entries
     pub plan_cache_entries: usize,
-    /// 计划缓存命中率
+    /// Plan Cache Hit Rate
     pub plan_cache_hit_rate: f64,
-    /// CTE缓存条目数
+    /// Number of CTE (Common Table Expression) cache entries
     pub cte_cache_entries: usize,
-    /// CTE缓存命中率
+    /// CTE Cache Hit Rate
     pub cte_cache_hit_rate: f64,
-    /// 总内存使用（字节）
+    /// Total memory usage (in bytes)
     pub total_memory_bytes: usize,
 }
 
 impl CacheStatsSummary {
-    /// 格式化输出
+    /// Of course! Please provide the text you would like to have translated.
     pub fn format(&self) -> String {
         format!(
             "Cache Statistics:\n\

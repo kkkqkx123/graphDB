@@ -1,5 +1,5 @@
-//! 变量检查工具
-//! 负责验证变量的作用域、命名格式和使用
+//! Variable checking tool
+//! Responsible for verifying the scope of variables, the naming conventions, and their usage.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -313,7 +313,7 @@ mod tests {
     #[test]
     fn test_variable_checker_creation() {
         let _checker = VariableChecker::new();
-        // 测试通过到达此处即表示成功
+        // If the test is successful and you have reached this point, it means that everything has gone as planned.
     }
 
     #[test]

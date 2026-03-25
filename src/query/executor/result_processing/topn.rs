@@ -1,7 +1,7 @@
-//! TopN 执行器
+//! TopN Executor
 //!
-//! 实现高效的 TopN 查询，使用堆数据结构优化性能
-//! CPU 密集型操作，使用 Rayon 进行并行化
+//! Implementing efficient TopN queries by optimizing performance using heap data structures
+//! CPU-intensive operations are parallelized using Rayon.
 
 use parking_lot::Mutex;
 use std::cmp::Ordering;
@@ -23,14 +23,14 @@ use crate::query::executor::expression::{DefaultExpressionContext, ExpressionCon
 use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::storage::StorageClient;
 
-/// 排序列定义
+/// Sorting column definition
 #[derive(Debug, Clone)]
 pub struct SortColumn {
-    /// 列索引
+    /// Column index
     pub column_index: usize,
-    /// 数据类型
+    /// Data types
     pub data_type: crate::core::DataType,
-    /// NULL 值是否排在前面
+    /// Does the NULL value appear at the beginning?
     pub nulls_first: bool,
 }
 
@@ -44,7 +44,7 @@ impl SortColumn {
     }
 }
 
-/// TopN 错误类型
+/// Top N error types
 #[derive(Debug, thiserror::Error)]
 pub enum TopNError {
     #[error("执行器已打开")]
@@ -66,35 +66,35 @@ pub enum TopNError {
     InputExecutorError(#[from] DBError),
 }
 
-/// TopNExecutor - TOP N 结果执行器
+/// TopNExecutor – The executor responsible for generating the top N results.
 ///
-/// 返回排序后的前 N 个结果，是 Sort + Limit 的优化版本
-/// 使用堆数据结构实现高效的 TopN 查询
-/// CPU 密集型操作，使用 Rayon 进行并行化
+/// Return the first N sorted results; this is an optimized version of the “Sort + Limit” approach.
+/// Implementing efficient TopN queries using the heap data structure
+/// CPU-intensive operations are parallelized using Rayon.
 pub struct TopNExecutor<S: StorageClient + Send + 'static> {
-    /// 基础处理器
+    /// Basic processor
     base: BaseResultProcessor<S>,
-    /// 返回的结果数量
+    /// Number of results returned
     n: usize,
-    /// 偏移量
+    /// Offset
     offset: usize,
-    /// 排序键列表
+    /// List of sorting keys
     sort_keys: Vec<crate::query::executor::result_processing::sort::SortKey>,
-    /// 输入执行器
+    /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
     /// 排序列定义
     sort_columns: Vec<SortColumn>,
-    /// 排序方向
+    /// Sorting direction
     sort_direction: OrderDirection,
-    /// 堆数据结构（最大堆或最小堆）
+    /// Heap data structure (max heap or min heap)
     heap: Option<BinaryHeap<TopNItem>>,
-    /// 是否已打开
+    /// Has it been turned on?
     is_open: bool,
-    /// 是否已关闭
+    /// Has it been turned off?
     is_closed: bool,
-    /// 已处理记录数
+    /// Number of records processed
     processed_count: usize,
-    /// 并行计算配置
+    /// Parallel computing configuration
     parallel_config: ParallelConfig,
 }
 
@@ -113,7 +113,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             storage,
         );
 
-        // 转换旧的排序列格式为新的排序键格式
+        // Convert the old sorting column format to the new sorting key format.
         let sort_keys = sort_columns
             .into_iter()
             .map(|col| {
@@ -149,7 +149,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
-    /// 创建带有排序列定义的 TopN 执行器
+    /// Create a TopN executor with the definition of sorted columns
     pub fn with_sort_columns(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -195,19 +195,19 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
-    /// 设置并行计算配置
+    /// Setting up parallel computing configuration
     pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
         self.parallel_config = config;
         self
     }
 
-    /// 设置偏移量
+    /// Set the offset value.
     pub fn with_offset(mut self, offset: usize) -> Self {
         self.offset = offset;
         self
     }
 
-    /// 处理输入数据并执行 TopN
+    /// Process the input data and perform the TopN operation.
     fn process_input(&mut self) -> DBResult<ExecutionResult> {
         if let Some(input) = self.base.input.take() {
             match input {
@@ -268,11 +268,11 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
-    /// 对数据集执行 TopN
+    /// Performing a TopN operation on a dataset
     ///
-    /// 根据数据量选择执行方式：
-    /// - 数据量小于阈值：单线程堆排序
-    /// - 数据量大：使用 Rayon 并行处理
+    /// Select the execution method based on the amount of data:
+    /// Data volume is below the threshold: Single-threaded heap sort
+    /// Large amount of data: Rayon is used for parallel processing.
     fn execute_topn_dataset(&self, dataset: DataSet) -> DBResult<DataSet> {
         if self.sort_keys.is_empty() {
             return self.apply_limit_and_offset(dataset);
@@ -287,7 +287,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
-    /// 顺序执行的 TopN（使用堆排序）
+    /// TopN elements executed in order (using heap sorting)
     fn execute_topn_dataset_sequential(&self, mut dataset: DataSet) -> DBResult<DataSet> {
         if self.is_ascending() {
             self.heap_ascending(&mut dataset, self.n + self.offset)?;
@@ -298,11 +298,11 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(dataset)
     }
 
-    /// 并行执行的 TopN（使用 Rayon）
+    /// Parallel execution of TopN (using Rayon)
     ///
-    /// 使用两阶段策略：
-    /// 1. 并行计算每行的排序键值
-    /// 2. 使用 Rayon 分区排序 + 选择 N 个元素
+    /// Use a two-stage strategy:
+    /// Parallel computing of the sort key-value pairs for each row
+    /// 2. Use Rayon partitioning for sorting, and then select N elements.
     fn execute_topn_dataset_parallel(&self, mut dataset: DataSet) -> DBResult<DataSet> {
         let _heap_size = self.n + self.offset;
         let sort_keys = self.sort_keys.clone();
@@ -379,7 +379,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(dataset)
     }
 
-    /// 并行计算行的排序值
+    /// Sorting of values in parallel computing rows
     fn calculate_sort_value_parallel(
         row: &[Value],
         col_names: &[String],
@@ -410,11 +410,11 @@ impl<S: StorageClient> TopNExecutor<S> {
         sort_values
     }
 
-    /// 升序排序的堆实现
+    /// Implementation of a heap for ascending order sorting
     fn heap_ascending(&self, dataset: &mut DataSet, heap_size: usize) -> DBResult<()> {
         let mut heap = BinaryHeap::with_capacity(heap_size);
 
-        // 处理所有元素
+        // Process all elements.
         for (i, row) in dataset.rows.iter().enumerate() {
             let sort_value = self.calculate_sort_value(row, &dataset.col_names)?;
             let new_item = TopNItem {
@@ -426,8 +426,8 @@ impl<S: StorageClient> TopNExecutor<S> {
             if heap.len() < heap_size {
                 heap.push(new_item);
             } else {
-                // 对于升序（取最小的N个元素）：使用最大堆
-                // 如果新元素小于堆顶（最大堆的堆顶是当前最大的元素），则替换
+                // For ascending order (selecting the smallest N elements): use a max heap.
+                // If the new element is smaller than the top element of the heap (the top element of a max heap is always the largest element currently in the heap), then replace it.
                 if let Some(peeked) = heap.peek() {
                     if new_item < *peeked {
                         heap.pop();
@@ -437,11 +437,11 @@ impl<S: StorageClient> TopNExecutor<S> {
             }
         }
 
-        // 提取并排序结果（升序）
+        // Extract and sort the results (in ascending order).
         let mut items: Vec<TopNItem> = heap.into_iter().collect();
         items.sort_by(|a, b| a.sort_value.cmp(&b.sort_value));
 
-        // 更新数据集
+        // Update the dataset
         dataset.rows = items
             .into_iter()
             .skip(self.offset)
@@ -451,13 +451,13 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(())
     }
 
-    /// 降序排序的堆实现
+    /// Implementation of a heap for descending order sorting
     fn heap_descending(&self, dataset: &mut DataSet, heap_size: usize) -> DBResult<()> {
-        // 对于降序（取最大的N个元素）：使用最小堆
-        // 使用 TopNItemDesc 实现最小堆效果
+        // For descending order (selecting the N largest elements): use a min-heap.
+        // Implement the effect of a minimum heap using TopNItemDesc.
         let mut heap = BinaryHeap::with_capacity(heap_size);
 
-        // 处理所有元素
+        // Process all elements.
         for (i, row) in dataset.rows.iter().enumerate() {
             let sort_value = self.calculate_sort_value(row, &dataset.col_names)?;
             let new_item = TopNItemDesc {
@@ -469,11 +469,11 @@ impl<S: StorageClient> TopNExecutor<S> {
             if heap.len() < heap_size {
                 heap.push(new_item);
             } else {
-                // 对于降序TopN（取最大的N个元素）：
-                // 使用最小堆，如果新元素大于堆顶（当前最小的元素），则替换
+                // For the descending TopN (selecting the largest N elements):
+                // Using a min-heap, if the new element is greater than the element at the top of the heap (the current smallest element), then replace it.
                 if let Some(peeked) = heap.peek() {
-                    // 注意：由于TopNItemDesc的比较逻辑是反向的，
-                    // 所以这里应该使用小于比较，而不是大于
+                    // Since the comparison logic for TopNItemDesc is reverse,
+                    // So, a less-than comparison should be used here, rather than a greater-than comparison.
                     if new_item < *peeked {
                         heap.pop();
                         heap.push(new_item);
@@ -482,11 +482,11 @@ impl<S: StorageClient> TopNExecutor<S> {
             }
         }
 
-        // 提取并排序结果（降序）
+        // Extract and sort the results in descending order.
         let mut items: Vec<TopNItemDesc> = heap.into_iter().collect();
         items.sort_by(|a, b| b.sort_value.cmp(&a.sort_value));
 
-        // 更新数据集
+        // Update the dataset
         dataset.rows = items
             .into_iter()
             .skip(self.offset)
@@ -496,7 +496,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(())
     }
 
-    /// 计算行的排序值
+    /// Calculate the sorting value for the row.
     fn calculate_sort_value(&self, row: &[Value], col_names: &[String]) -> DBResult<Vec<Value>> {
         let mut context = DefaultExpressionContext::new();
         for (i, col_name) in col_names.iter().enumerate() {
@@ -520,7 +520,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(sort_values)
     }
 
-    /// 比较两个值
+    /// Compare two values
     #[allow(dead_code)]
     fn compare_values(
         &self,
@@ -538,7 +538,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
-    /// 判断是否为升序
+    /// Determine whether it is in ascending order.
     fn is_ascending(&self) -> bool {
         self.sort_keys
             .first()
@@ -551,9 +551,9 @@ impl<S: StorageClient> TopNExecutor<S> {
             .unwrap_or(true)
     }
 
-    /// 应用限制和偏移
+    /// Application restrictions and offsets
     fn apply_limit_and_offset(&self, mut dataset: DataSet) -> DBResult<DataSet> {
-        // 应用偏移量
+        // Application offset
         if self.offset > 0 {
             if self.offset < dataset.rows.len() {
                 dataset.rows.drain(0..self.offset);
@@ -562,16 +562,16 @@ impl<S: StorageClient> TopNExecutor<S> {
             }
         }
 
-        // 应用限制
+        // Application restrictions
         dataset.rows.truncate(self.n);
 
         Ok(dataset)
     }
 
-    /// 对顶点列表执行 TopN
+    /// Perform a TopN operation on the list of vertices.
     ///
-    /// 使用排序键对顶点进行排序，支持基于属性的复杂排序
-    /// 参考nebula-graph的TopNExecutor实现，使用堆排序优化
+    /// Sort the vertices using sorting keys; complex sorting based on attributes is also supported.
+    /// Refer to the TopNExecutor implementation in nebula-graph; use heap sorting for optimization.
     fn execute_topn_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
@@ -587,7 +587,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             return Ok(Vec::new());
         }
 
-        // 计算maxCount：最终需要保留的元素数量
+        // Calculate maxCount: The number of elements that need to be retained in the end.
         let max_count = if total_size <= self.offset {
             0
         } else if total_size > self.offset + self.n {
@@ -600,8 +600,8 @@ impl<S: StorageClient> TopNExecutor<S> {
             return Ok(Vec::new());
         }
 
-        // 参考nebula-graph的TopNExecutor实现
-        // 1. 先计算所有元素的排序值
+        // Refer to the TopNExecutor implementation in nebula-graph.
+        // 1. First, calculate the sorted values of all elements.
         let mut vertices_with_sort_values: Vec<(Vec<Value>, crate::core::Vertex)> = vertices
             .into_iter()
             .map(|vertex| {
@@ -610,18 +610,18 @@ impl<S: StorageClient> TopNExecutor<S> {
             })
             .collect::<DBResult<Vec<_>>>()?;
 
-        // 2. 使用select_nth_unstable优化TopN查询
+        // 2. Use the `select_nth_unstable` optimization to optimize TopN queries
         if vertices_with_sort_values.len() > heap_size {
-            // 使用select_nth_unstable选择前heap_size个元素
+            // Use `select_nth_unstable` to select the first `heap_size` elements.
             vertices_with_sort_values
                 .select_nth_unstable_by(heap_size, |a, b| self.compare_sort_values(&a.0, &b.0));
             vertices_with_sort_values.truncate(heap_size);
         }
 
-        // 3. 对选中的元素进行完整排序
+        // 3. Perform a complete sorting of the selected elements.
         vertices_with_sort_values.sort_by(|a, b| self.compare_sort_values(&a.0, &b.0));
 
-        // 4. 应用offset和limit
+        // 4. Apply the offset and limit parameters.
         let start = self.offset.min(vertices_with_sort_values.len());
         let end = (self.n + self.offset).min(vertices_with_sort_values.len());
 
@@ -633,9 +633,9 @@ impl<S: StorageClient> TopNExecutor<S> {
             .collect())
     }
 
-    /// 对边列表执行 TopN
+    /// Perform a TopN operation on the list of opposite sides.
     ///
-    /// 使用排序键对边进行排序，支持基于属性的复杂排序
+    /// Sort the edges using the sorting key; complex sorting based on attributes is also supported.
     /// 参考nebula-graph的TopNExecutor实现，使用堆排序优化
     fn execute_topn_edges(
         &self,
@@ -652,7 +652,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             return Ok(Vec::new());
         }
 
-        // 计算maxCount：最终需要保留的元素数量
+        // Calculate maxCount: The number of elements that ultimately need to be retained.
         let max_count = if total_size <= self.offset {
             0
         } else if total_size > self.offset + self.n {
@@ -665,8 +665,8 @@ impl<S: StorageClient> TopNExecutor<S> {
             return Ok(Vec::new());
         }
 
-        // 参考nebula-graph的TopNExecutor实现
-        // 1. 先计算所有元素的排序值
+        // Refer to the TopNExecutor implementation in nebula-graph.
+        // 1. First, calculate the sorted values of all elements.
         let mut edges_with_sort_values: Vec<(Vec<Value>, crate::core::Edge)> = edges
             .into_iter()
             .map(|edge| {
@@ -675,18 +675,18 @@ impl<S: StorageClient> TopNExecutor<S> {
             })
             .collect::<DBResult<Vec<_>>>()?;
 
-        // 2. 使用select_nth_unstable优化TopN查询
+        // 2. Use the `select_nth_unstable` optimization to optimize TopN queries
         if edges_with_sort_values.len() > heap_size {
-            // 使用select_nth_unstable选择前heap_size个元素
+            // Use `select_nth_unstable` to select the first `heap_size` elements.
             edges_with_sort_values
                 .select_nth_unstable_by(heap_size, |a, b| self.compare_sort_values(&a.0, &b.0));
             edges_with_sort_values.truncate(heap_size);
         }
 
-        // 3. 对选中的元素进行完整排序
+        // 3. Perform a complete sorting of the selected elements.
         edges_with_sort_values.sort_by(|a, b| self.compare_sort_values(&a.0, &b.0));
 
-        // 4. 应用offset和limit
+        // 4. Apply the offset and limit parameters.
         let start = self.offset.min(edges_with_sort_values.len());
         let end = (self.n + self.offset).min(edges_with_sort_values.len());
 
@@ -698,9 +698,9 @@ impl<S: StorageClient> TopNExecutor<S> {
             .collect())
     }
 
-    /// 对值列表执行 TopN
+    /// Perform a TopN operation on a list of values.
     ///
-    /// 使用排序键对值列表进行排序
+    /// Sort a list of key-value pairs using a sorting key.
     fn execute_topn_values(&self, values: Vec<Value>) -> DBResult<Vec<Value>> {
         if values.is_empty() || self.n == 0 {
             return Ok(Vec::new());
@@ -713,17 +713,17 @@ impl<S: StorageClient> TopNExecutor<S> {
             return Ok(Vec::new());
         }
 
-        // 将Value包装为单行数据以便复用排序逻辑
+        // Wrap the “Value” data into a single-line format to allow for the reuse of the sorting logic.
         let mut rows: Vec<Vec<Value>> = values.into_iter().map(|v| vec![v]).collect();
 
-        // 使用堆排序实现TopN
+        // Implementing TopN using Heap Sort
         let heap_size = self.n + self.offset;
 
         if rows.len() <= heap_size {
-            // 数据量小于等于heap_size，直接排序
+            // If the amount of data is less than or equal to `heap_size`, simply sort it.
             rows.sort_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
         } else {
-            // 使用TopN算法
+            // Use the TopN algorithm
             rows.select_nth_unstable_by(heap_size, |a, b| {
                 self.compare_rows(a, b).unwrap_or(Ordering::Equal)
             });
@@ -731,7 +731,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             rows.sort_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
         }
 
-        // 应用offset和limit
+        // Apply the `offset` and `limit` parameters.
         let start = self.offset.min(rows.len());
         let end = (self.n + self.offset).min(rows.len());
 
@@ -743,7 +743,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             .collect())
     }
 
-    /// 计算堆大小
+    /// Calculate the size of the heap
     fn calculate_heap_size(&self, total_size: usize) -> usize {
         if total_size <= self.offset {
             0
@@ -754,7 +754,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
-    /// 计算顶点的排序值
+    /// Calculate the sorting values of the vertices
     fn calculate_vertex_sort_values(&self, vertex: &crate::core::Vertex) -> DBResult<Vec<Value>> {
         let mut sort_values = Vec::with_capacity(self.sort_keys.len());
 
@@ -766,7 +766,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(sort_values)
     }
 
-    /// 计算边的排序值
+    /// Calculate the sorting value of the edges
     fn calculate_edge_sort_values(&self, edge: &crate::core::Edge) -> DBResult<Vec<Value>> {
         let mut sort_values = Vec::with_capacity(self.sort_keys.len());
 
@@ -778,7 +778,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(sort_values)
     }
 
-    /// 从顶点中提取值
+    /// Extract values from the vertices.
     fn extract_value_from_vertex(
         &self,
         vertex: &crate::core::Vertex,
@@ -786,7 +786,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     ) -> DBResult<Value> {
         match expression {
             Expression::Variable(name) => {
-                // 尝试从属性中获取
+                // Try to obtain the value from the attribute.
                 if let Some(value) = vertex.get_property_any(name) {
                     Ok(value.clone())
                 } else if name == "vid" || name == "_vid" {
@@ -812,12 +812,12 @@ impl<S: StorageClient> TopNExecutor<S> {
             }
             Expression::Literal(value) => Ok(value.clone()),
             _ => {
-                // 对于复杂表达式，使用表达式求值器
+                // For complex expressions, use an expression evaluator.
                 let mut context = DefaultExpressionContext::new();
                 context.set_variable("vid".to_string(), *vertex.vid.clone());
                 context.set_variable("id".to_string(), Value::Int(vertex.id));
 
-                // 添加所有标签属性到上下文
+                // Add all tag attributes to the context.
                 for tag in &vertex.tags {
                     for (prop_name, prop_value) in &tag.properties {
                         context.set_variable(prop_name.clone(), prop_value.clone());
@@ -833,7 +833,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
-    /// 从边中提取值
+    /// Extract values from the edges.
     fn extract_value_from_edge(
         &self,
         edge: &crate::core::Edge,
@@ -870,7 +870,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             }
             Expression::Literal(value) => Ok(value.clone()),
             _ => {
-                // 对于复杂表达式，使用表达式求值器
+                // For complex expressions, use an expression evaluator.
                 let mut context = DefaultExpressionContext::new();
                 context.set_variable("src".to_string(), *edge.src.clone());
                 context.set_variable("dst".to_string(), *edge.dst.clone());
@@ -880,7 +880,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                     Value::String(edge.edge_type.clone()),
                 );
 
-                // 添加所有属性到上下文
+                // Add all attributes to the context.
                 for (prop_name, prop_value) in &edge.props {
                     context.set_variable(prop_name.clone(), prop_value.clone());
                 }
@@ -894,7 +894,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
-    /// 比较排序值
+    /// Compare the sorted values
     fn compare_sort_values(&self, a: &[Value], b: &[Value]) -> Ordering {
         for (idx, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
             let order = if idx < self.sort_keys.len() {
@@ -920,21 +920,21 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ordering::Equal
     }
 
-    /// 比较两行数据（用于值列表排序）
+    /// Compare two rows of data (used for sorting value lists)
     fn compare_rows(&self, a: &[Value], b: &[Value]) -> DBResult<Ordering> {
-        // 创建虚拟列名
+        // Create virtual column names
         let col_names: Vec<String> = (0..a.len().max(b.len()))
             .map(|i| format!("col_{}", i))
             .collect();
 
-        // 计算排序值
+        // Calculate the sorted values
         let sort_values_a = self.calculate_sort_value(a, &col_names)?;
         let sort_values_b = self.calculate_sort_value(b, &col_names)?;
 
         Ok(self.compare_sort_values(&sort_values_a, &sort_values_b))
     }
 
-    /// 提取排序值
+    /// Extract the sorted values.
     #[allow(dead_code)]
     fn extract_sort_values(&self, row: &[Value]) -> Result<Vec<Value>, TopNError> {
         let mut sort_values = Vec::with_capacity(self.sort_columns.len());
@@ -946,7 +946,7 @@ impl<S: StorageClient> TopNExecutor<S> {
 
             let value = &row[sort_col.column_index];
 
-            // 处理 NULL 值排序
+            // Handling sorting of NULL values
             let adjusted_value = if value.is_null() {
                 Value::Null(crate::core::value::NullType::Null)
             } else {
@@ -959,7 +959,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(sort_values)
     }
 
-    /// 反转排序值（用于最大堆）
+    /// Reverse the order of the values (for a max heap)
     #[allow(dead_code)]
     fn invert_sort_values(&self, mut sort_values: Vec<Value>) -> Result<Vec<Value>, TopNError> {
         for value in &mut sort_values {
@@ -970,7 +970,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(sort_values)
     }
 
-    /// 反转单个值的比较逻辑
+    /// Reversing the comparison logic for a single value
     #[allow(dead_code)]
     fn invert_value_for_sorting(&self, value: &Value) -> Result<Value, TopNError> {
         match value {
@@ -985,7 +985,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
-    /// 动态调整堆容量
+    /// Dynamic adjustment of heap capacity
     #[allow(dead_code)]
     fn optimize_heap_capacity(&mut self) {
         if let Some(ref mut heap) = self.heap {
@@ -1005,24 +1005,24 @@ impl<S: StorageClient> TopNExecutor<S> {
         }
     }
 
-    /// 检查是否超出内存限制
+    /// Check whether the memory limits have been exceeded.
     #[allow(dead_code)]
     fn exceeds_memory_limit(&self) -> bool {
         let estimated_memory = self.heap.as_ref().map_or(0, |h| h.len()) * 100;
         estimated_memory > 100 * 1024 * 1024
     }
 
-    /// 获取堆大小
+    /// Obtain the heap size
     pub fn get_heap_size(&self) -> usize {
         self.heap.as_ref().map_or(0, |h| h.len())
     }
 
-    /// 获取已处理记录数
+    /// Obtain the number of processed records.
     pub fn get_processed_count(&self) -> usize {
         self.processed_count
     }
 
-    /// 配置排序参数
+    /// Configure sorting parameters
     pub fn configure_sorting(
         &mut self,
         sort_columns: Vec<SortColumn>,
@@ -1036,7 +1036,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(())
     }
 
-    /// 推入堆中
+    /// Push into the heap
     pub fn push_to_heap(&mut self, item: TopNItem) -> Result<(), TopNError> {
         let heap = self
             .heap
@@ -1051,13 +1051,13 @@ impl<S: StorageClient> TopNExecutor<S> {
         Ok(())
     }
 
-    /// 从堆中弹出
+    /// Pop from the heap
     pub fn pop_from_heap(&mut self) -> Option<TopNItem> {
         self.heap.as_mut()?.pop()
     }
 }
 
-/// TopN 堆项
+/// TopN heap items
 #[derive(Debug, Clone)]
 pub struct TopNItem {
     sort_value: Vec<Value>,
@@ -1081,12 +1081,12 @@ impl PartialOrd for TopNItem {
 
 impl Ord for TopNItem {
     fn cmp(&self, other: &Self) -> Ordering {
-        // 正常比较，BinaryHeap 是最大堆
+        // In a normal comparison, BinaryHeap is a max heap.
         self.sort_value.cmp(&other.sort_value)
     }
 }
 
-/// 用于降序排序的堆项（实现最小堆效果）
+/// Heap items used for descending sorting (to implement a minimum heap)
 #[derive(Debug, Clone)]
 struct TopNItemDesc {
     sort_value: Vec<Value>,
@@ -1114,7 +1114,7 @@ impl Ord for TopNItemDesc {
     }
 }
 
-/// 并行 TopN 使用的项（支持 partial_cmp）
+/// Items used by parallel TopN (partial_cmp is supported)
 #[derive(Debug, Clone)]
 struct TopNItemParallel {
     sort_value: Vec<Value>,
@@ -1314,7 +1314,7 @@ mod tests {
     fn test_topn_executor_basic() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
-        // 创建测试数据
+        // Create test data
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["name".to_string(), "score".to_string()];
         for i in 1..=10 {
@@ -1324,19 +1324,19 @@ mod tests {
             ]);
         }
 
-        // 创建 TopN 执行器 (取前3名，按分数降序)
+        // Create a TopN executor (to retrieve the top 3 items, sorted in descending order by score)
         let mut executor = TopNExecutor::new(1, storage, 3, vec!["score".to_string()], false);
 
-        // 执行 TopN
+        // Perform TopN
         let result = executor
             .process(ExecutionResult::DataSet(dataset))
             .expect("TopN executor should process successfully");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::DataSet(topn_dataset) => {
                 assert_eq!(topn_dataset.rows.len(), 3);
-                // 验证按分数降序排列
+                // Verify that the list is sorted in descending order by score.
                 assert_eq!(topn_dataset.rows[0][1], Value::Int(100)); // User10
                 assert_eq!(topn_dataset.rows[1][1], Value::Int(90)); // User9
                 assert_eq!(topn_dataset.rows[2][1], Value::Int(80)); // User8
@@ -1349,23 +1349,23 @@ mod tests {
     fn test_topn_executor_with_offset() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
-        // 创建测试数据
+        // Create test data
         let values: Vec<Value> = (1..=10).map(Value::Int).collect();
 
-        // 创建 TopN 执行器 (取3-5名，按数值升序)
+        // Create a TopN executor (select 3-5 entries, sorted in ascending order by the numerical value)
         let mut executor =
             TopNExecutor::new(1, storage, 3, vec!["value".to_string()], true).with_offset(2);
 
-        // 执行 TopN
+        // Perform the TopN task.
         let result = executor
             .process(ExecutionResult::Values(values))
             .expect("TopN executor should process successfully");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::Values(topn_values) => {
                 assert_eq!(topn_values.len(), 3);
-                assert_eq!(topn_values[0], Value::Int(3)); // 跳过前2个，取3-5
+                assert_eq!(topn_values[0], Value::Int(3)); // Skip the first 2 items; take the 3rd to the 5th one.
                 assert_eq!(topn_values[1], Value::Int(4));
                 assert_eq!(topn_values[2], Value::Int(5));
             }

@@ -1,12 +1,12 @@
-//! 顶点解析器
+//! Vertex Parser
 //!
-//! 负责解析顶点ID字符串，从计划节点提取顶点ID
+//! Responsible for parsing the vertex ID string and extracting the vertex IDs from the planning nodes.
 
 use crate::core::Value;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 
-/// 从 PlanNode 提取顶点 ID 列表
-/// 用于多源最短路径等算法获取起始和目标顶点
+/// Extract the list of vertex IDs from PlanNode.
+/// Used to obtain the starting and target vertices in algorithms such as the shortest path algorithm for multiple sources.
 pub fn extract_vertex_ids_from_node(node: &PlanNodeEnum) -> Vec<Value> {
     match node {
         PlanNodeEnum::GetVertices(n) => {
@@ -27,8 +27,8 @@ pub fn extract_vertex_ids_from_node(node: &PlanNodeEnum) -> Vec<Value> {
     }
 }
 
-/// 解析顶点ID字符串为 Value 列表
-/// 支持逗号分隔的多个ID
+/// Parse the vertex ID string into a list of Values.
+/// Supports multiple IDs separated by commas.
 pub fn parse_vertex_ids(src_vids: &str) -> Vec<Value> {
     src_vids
         .split(',')

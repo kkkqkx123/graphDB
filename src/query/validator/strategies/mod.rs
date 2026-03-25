@@ -1,5 +1,5 @@
-//! 验证策略模块
-//! 包含所有验证策略的实现
+//! Verification Policy Module
+//! Implementation that includes all verification strategies
 
 pub mod agg_functions;
 pub mod aggregate_strategy;

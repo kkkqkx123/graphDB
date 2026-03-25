@@ -1,7 +1,7 @@
-//! 路径查找算法相关的计划节点
-//! 包含最短路径、所有路径等算法相关的计划节点
+//! Plan nodes related to pathfinding algorithms
+//! Plan nodes related to algorithms such as the shortest path, all paths, etc.
 //!
-//! 注意：算法选择已在Planner阶段完成，此模块只包含具体算法的计划节点
+//! The selection of the algorithm was completed during the Planner phase; this module only contains the planning nodes related to the specific algorithm.
 
 use crate::core::types::ContextualExpression;
 use crate::define_binary_input_node;
@@ -9,7 +9,7 @@ use crate::query::planning::plan::core::node_id_generator::next_node_id;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 
 define_binary_input_node! {
-    /// 多源最短路径计划节点
+    /// Multi-source shortest path planning nodes
     pub struct MultiShortestPathNode {
         steps: usize,
         left_vid_var: String,
@@ -77,10 +77,10 @@ impl MultiShortestPathNode {
 }
 
 define_binary_input_node! {
-    /// BFS最短路径计划节点
+    /// BFS (Broad-Search First) algorithm for planning the shortest path: the nodes involved in this process
     ///
-    /// 使用双向BFS算法查找最短路径
-    /// 注意：算法选择已在Planner阶段完成，此节点专门用于双向BFS
+    /// Use a bidirectional BFS algorithm to find the shortest path.
+    /// The selection of the algorithm was completed during the Planner phase. This node is specifically designed for bidirectional BFS (Breadth-First Search).
     pub struct BFSShortestNode {
         steps: usize,
         edge_types: Vec<String>,
@@ -154,7 +154,7 @@ impl BFSShortestNode {
 }
 
 define_binary_input_node! {
-    /// 所有路径计划节点
+    /// All path planning nodes
     pub struct AllPathsNode {
         steps: usize,
         edge_types: Vec<String>,
@@ -254,7 +254,7 @@ impl AllPathsNode {
 }
 
 define_binary_input_node! {
-    /// 最短路径计划节点
+    /// Shortest Path Planning Node
     pub struct ShortestPathNode {
         edge_types: Vec<String>,
         max_step: usize,

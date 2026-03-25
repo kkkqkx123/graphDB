@@ -1,6 +1,6 @@
-//! DropSpaceExecutor - 删除图空间执行器
+//! DropSpaceExecutor – The executor responsible for deleting image spaces.
 //!
-//! 负责删除指定的图空间及其所有数据。
+//! Responsible for deleting the specified graph space and all its data.
 
 use std::sync::Arc;
 
@@ -9,9 +9,9 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 删除图空间执行器
+/// Delete the image space executor.
 ///
-/// 该执行器负责删除指定的图空间及其所有数据。
+/// This executor is responsible for deleting the specified graph space and all its data.
 #[derive(Debug)]
 pub struct DropSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -20,7 +20,7 @@ pub struct DropSpaceExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DropSpaceExecutor<S> {
-    /// 创建新的 DropSpaceExecutor
+    /// Create a new DropSpaceExecutor.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -34,7 +34,7 @@ impl<S: StorageClient> DropSpaceExecutor<S> {
         }
     }
 
-    /// 创建带 IF EXISTS 选项的 DropSpaceExecutor
+    /// Create a DropSpaceExecutor with the IF EXISTS option
     pub fn with_if_exists(
         id: i64,
         storage: Arc<Mutex<S>>,

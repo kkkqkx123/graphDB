@@ -1,6 +1,6 @@
-//! 谓词下推优化规则
+//! Predicate Pushdown Optimization Rule
 //!
-//! 这些规则负责将过滤条件下推到计划树的底层，以减少数据处理量
+//! These rules are responsible for pushing the filtering conditions down to the lowest levels of the planning tree, in order to reduce the amount of data that needs to be processed.
 
 pub mod push_efilter_down;
 pub mod push_filter_down_all_paths;

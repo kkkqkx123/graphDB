@@ -1,6 +1,6 @@
-//! 工具语句解析模块
+//! Tool Statement Parsing Module
 //!
-//! 负责解析工具类语句，包括 USE、SHOW、EXPLAIN、FETCH、LOOKUP、UNWIND、RETURN、WITH、YIELD、SET、REMOVE 等。
+//! Responsible for parsing statements related to tool functions, including USE, SHOW, EXPLAIN, FETCH, LOOKUP, UNWIND, RETURN, WITH, YIELD, SET, REMOVE, etc.
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::parser::ast::stmt::*;
@@ -11,7 +11,7 @@ use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::parsing::ExprParser;
 use crate::query::parser::TokenKind;
 
-/// 工具语句解析器
+/// Tool Syntax Parser
 pub struct UtilStmtParser;
 
 impl UtilStmtParser {
@@ -19,7 +19,7 @@ impl UtilStmtParser {
         Self
     }
 
-    /// 解析 USE 语句
+    /// Analysis of the USE statement
     pub fn parse_use_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Use)?;
@@ -32,22 +32,22 @@ impl UtilStmtParser {
         }))
     }
 
-    /// 解析 SHOW 语句
+    /// Analysis of the SHOW statement
     pub fn parse_show_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Show)?;
 
-        // 检查 SHOW CREATE
+        // Check the “SHOW CREATE” command.
         if ctx.check_token(TokenKind::Create) {
             return self.parse_show_create_internal(ctx, start_span);
         }
 
-        // 检查 SHOW USERS
+        // Check the SHOW USERS command.
         if ctx.check_token(TokenKind::Users) {
             return self.parse_show_users_internal(ctx, start_span);
         }
 
-        // 检查 SHOW ROLES
+        // Check “SHOW ROLES”.
         if ctx.check_token(TokenKind::Roles) {
             return self.parse_show_roles_internal(ctx, start_span);
         }
@@ -68,7 +68,7 @@ impl UtilStmtParser {
         }))
     }
 
-    /// 解析 SHOW CREATE 内部方法
+    /// Analyzing the internal methods of the SHOW CREATE statement
     pub fn parse_show_create_internal(
         &mut self,
         ctx: &mut ParseContext,
@@ -98,7 +98,7 @@ impl UtilStmtParser {
         Ok(Stmt::ShowCreate(ShowCreateStmt { span, target }))
     }
 
-    /// 解析 SHOW USERS 内部方法
+    /// Analysis of the internal methods of the SHOW USERS command
     fn parse_show_users_internal(
         &mut self,
         ctx: &mut ParseContext,
@@ -112,7 +112,7 @@ impl UtilStmtParser {
         Ok(Stmt::ShowUsers(ShowUsersStmt { span }))
     }
 
-    /// 解析 SHOW ROLES 内部方法
+    /// Analysis of the internal methods of the SHOW ROLES command
     fn parse_show_roles_internal(
         &mut self,
         ctx: &mut ParseContext,
@@ -120,7 +120,7 @@ impl UtilStmtParser {
     ) -> Result<Stmt, ParseError> {
         ctx.expect_token(TokenKind::Roles)?;
 
-        // 可选的 IN <space_name> 子句
+        // Optional IN <space_name> clause
         let space_name = if ctx.match_token(TokenKind::In) {
             Some(ctx.expect_identifier()?)
         } else {
@@ -133,14 +133,14 @@ impl UtilStmtParser {
         Ok(Stmt::ShowRoles(ShowRolesStmt { span, space_name }))
     }
 
-    /// 解析 EXPLAIN 语句
+    /// Analyzing the EXPLAIN statement
     pub fn parse_explain_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let _start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Explain)?;
 
-        // EXPLAIN 后面需要解析一个子语句
-        // 这里我们需要调用主解析器，但由于循环依赖问题，我们返回一个占位符
-        // 实际解析将在 StmtParser 中处理
+        // After “EXPLAIN”, a substatement needs to be parsed.
+        // Here, we need to invoke the main parser, but due to circular dependency issues, we are returning a placeholder.
+        // The actual parsing will be handled within the StmtParser.
         Err(ParseError::new(
             ParseErrorKind::SyntaxError,
             "EXPLAIN should be handled by main parser".to_string(),
@@ -148,16 +148,16 @@ impl UtilStmtParser {
         ))
     }
 
-    /// 解析 FETCH 语句
+    /// Analysis of the FETCH statement
     pub fn parse_fetch_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Fetch)?;
 
-        // 支持 FETCH PROP ON <tag> <ids> 语法
+        // The FETCH PROP ON <tag> <ids> syntax is supported.
         let _with_props = ctx.match_token(TokenKind::Prop);
 
         let target = if ctx.match_token(TokenKind::On) {
-            // FETCH PROP ON <tag> <ids> 语法
+            // The syntax for `FETCH PROP ON <tag> <ids>` is as follows:
             let _tag_name = ctx.expect_identifier()?;
             let ids = self.parse_expression_list(ctx)?;
             FetchTarget::Vertices {
@@ -202,14 +202,14 @@ impl UtilStmtParser {
         }))
     }
 
-    /// 解析 LOOKUP 语句
+    /// Analysis of the LOOKUP statement
     pub fn parse_lookup_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Lookup)?;
 
         let target = if ctx.match_token(TokenKind::On) {
             let name = ctx.expect_identifier()?;
-            ctx.match_token(TokenKind::Tag); // 消费 TokenKind::Tag 标记
+            ctx.match_token(TokenKind::Tag); // Consuming the TokenKind::Tag token
             LookupTarget::Tag(name)
         } else {
             LookupTarget::Tag(String::new())
@@ -235,7 +235,7 @@ impl UtilStmtParser {
         }))
     }
 
-    /// 解析 UNWIND 语句
+    /// Analysis of the UNWIND statement
     pub fn parse_unwind_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Unwind)?;
@@ -253,7 +253,7 @@ impl UtilStmtParser {
         }))
     }
 
-    /// 解析 RETURN 语句
+    /// Analysis of the RETURN statement
     pub fn parse_return_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Return)?;
@@ -270,7 +270,7 @@ impl UtilStmtParser {
         }))
     }
 
-    /// 解析 WITH 语句
+    /// Analysis of the WITH statement
     pub fn parse_with_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::With)?;
@@ -300,7 +300,7 @@ impl UtilStmtParser {
             None
         };
 
-        // 解析 ORDER BY
+        // Explanation of `ORDER BY`
         let order_by = if ctx.match_token(TokenKind::Order) {
             ctx.expect_token(TokenKind::By)?;
             Some(self.parse_order_by_clause(ctx)?)
@@ -308,7 +308,7 @@ impl UtilStmtParser {
             None
         };
 
-        // 解析 SKIP
+        // Analysis of SKIP
         let skip = if ctx.match_token(TokenKind::Skip) {
             let count = ctx.expect_integer_literal()? as usize;
             Some(count)
@@ -316,7 +316,7 @@ impl UtilStmtParser {
             None
         };
 
-        // 解析 LIMIT
+        // Analysis of the LIMIT clause
         let limit = if ctx.match_token(TokenKind::Limit) {
             let count = ctx.expect_integer_literal()? as usize;
             Some(count)
@@ -335,7 +335,7 @@ impl UtilStmtParser {
         }))
     }
 
-    /// 解析 YIELD 语句
+    /// Analysis of the YIELD statement
     pub fn parse_yield_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Yield)?;
@@ -353,7 +353,7 @@ impl UtilStmtParser {
         }))
     }
 
-    /// 解析 SET 语句
+    /// Analyzing the SET statement
     pub fn parse_set_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Set)?;
@@ -366,7 +366,7 @@ impl UtilStmtParser {
         }))
     }
 
-    /// 解析 REMOVE 语句
+    /// Analysis of the REMOVE statement
     pub fn parse_remove_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Remove)?;
@@ -385,7 +385,7 @@ impl UtilStmtParser {
         }))
     }
 
-    /// 解析表达式列表
+    /// Parse the list of expressions
     fn parse_expression_list(
         &mut self,
         ctx: &mut ParseContext,
@@ -402,7 +402,7 @@ impl UtilStmtParser {
         Ok(expressions)
     }
 
-    /// 解析表达式
+    /// Analyzing the expression
     fn parse_expression(
         &mut self,
         ctx: &mut ParseContext,
@@ -411,7 +411,7 @@ impl UtilStmtParser {
         expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 
-    /// 解析 ORDER BY 子句
+    /// Analysis of the ORDER BY clause
     fn parse_order_by_clause(
         &mut self,
         ctx: &mut ParseContext,

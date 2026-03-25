@@ -1,6 +1,6 @@
-//! 删除执行器
+//! Delete the executor.
 //!
-//! 负责删除顶点和边数据
+//! Responsible for deleting vertex and edge data
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -16,15 +16,15 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 删除执行器
+/// Delete the executor.
 ///
-/// 负责删除顶点和边
+/// Responsible for deleting vertices and edges
 pub struct DeleteExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
     edge_ids: Option<Vec<(Value, Value, String)>>,
     condition: Option<ContextualExpression>,
-    with_edge: bool, // 是否级联删除关联边
+    with_edge: bool, // Should the associated edges be deleted in a cascading manner?
     space_name: String,
 }
 
@@ -47,13 +47,13 @@ impl<S: StorageClient> DeleteExecutor<S> {
         }
     }
 
-    /// 设置是否级联删除关联边
+    /// Set whether to delete associated edges in a cascading manner.
     pub fn with_edge(mut self, with_edge: bool) -> Self {
         self.with_edge = with_edge;
         self
     }
 
-    /// 设置空间名称
+    /// Set the name of the space.
     pub fn with_space(mut self, space_name: String) -> Self {
         self.space_name = space_name;
         self
@@ -115,7 +115,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
     fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_deleted = 0;
 
-        // 直接从 ContextualExpression 获取 Expression
+        // Obtain the Expression directly from the ContextualExpression.
         let condition_expression = self.condition.as_ref().and_then(|c| c.get_expression());
 
         if let Some(ids) = &self.vertex_ids {
@@ -151,7 +151,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                 };
 
                 if should_delete {
-                    // 如果启用了级联删除，先删除关联边
+                    // If cascading deletion is enabled, the associated edges are deleted first.
                     if self.with_edge {
                         let edges = storage
                             .get_node_edges(&self.space_name, id, crate::core::EdgeDirection::Both)

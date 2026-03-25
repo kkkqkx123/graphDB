@@ -1,6 +1,6 @@
-//! 过滤节点实现
+//! Implementation of the filtering node
 //!
-//! FilterNode 用于根据指定的条件过滤输入数据流
+//! The `FilterNode` is used to filter the input data stream based on specified conditions.
 
 use std::sync::Arc;
 
@@ -19,7 +19,7 @@ define_plan_node_with_deps! {
 }
 
 impl FilterNode {
-    /// 创建新的过滤节点
+    /// Create a new filter node.
     pub fn new(
         input: PlanNodeEnum,
         condition: ContextualExpression,
@@ -37,12 +37,12 @@ impl FilterNode {
         })
     }
 
-    /// 获取过滤条件
+    /// Obtain the filtering criteria
     pub fn condition(&self) -> &ContextualExpression {
         &self.condition
     }
 
-    /// 设置过滤条件
+    /// Set filter criteria
     pub fn set_condition(&mut self, condition: ContextualExpression) {
         self.condition = condition;
         self.condition_serializable = None;

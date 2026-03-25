@@ -1,6 +1,6 @@
-//! 索引管理执行器
+//! Index Management Executor
 //!
-//! 提供标签索引和边索引的创建、删除、描述、列出、重建和状态显示功能。
+//! Provide functions for creating, deleting, describing, listing, reconstructing, and displaying the tag index and the edge index.
 
 pub mod edge_index;
 pub mod rebuild_index;

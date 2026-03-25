@@ -1,11 +1,11 @@
-//! PlanNode trait 实现
+//! The PlanNode trait is implemented.
 
 use super::plan_node_enum::PlanNodeEnum;
 use crate::query::core::{NodeCategory, NodeType, NodeTypeMapping};
 
-/// PlanNodeEnum 的 NodeType trait 实现
+/// Implementation of the NodeType trait for PlanNodeEnum
 ///
-/// 为每个变体提供统一的类型标识和分类
+/// Provide a unified type identifier and classification for each variant.
 impl NodeType for PlanNodeEnum {
     fn node_type_id(&self) -> &'static str {
         match self {
@@ -263,9 +263,9 @@ impl NodeType for PlanNodeEnum {
     }
 }
 
-/// NodeTypeMapping trait 实现
+/// The NodeTypeMapping trait is implemented.
 ///
-/// 提供 PlanNodeEnum 到 ExecutorEnum 的映射
+/// Provide a mapping from PlanNodeEnum to ExecutorEnum.
 impl NodeTypeMapping for PlanNodeEnum {
     fn corresponding_executor_type(&self) -> Option<&'static str> {
         match self {

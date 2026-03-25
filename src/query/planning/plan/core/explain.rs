@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// 节点描述键值对
+/// Node description key-value pair
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pair {
     pub key: String,
@@ -16,7 +16,7 @@ impl Pair {
     }
 }
 
-/// 分支信息
+/// Branch information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanNodeBranchInfo {
     pub is_do_branch: bool,
@@ -32,7 +32,7 @@ impl PlanNodeBranchInfo {
     }
 }
 
-/// 性能统计
+/// Performance statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProfilingStats {
     pub rows: i64,
@@ -58,7 +58,7 @@ impl Default for ProfilingStats {
     }
 }
 
-/// 计划节点描述
+/// Plan Node Description
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanNodeDescription {
     pub name: String,
@@ -132,7 +132,7 @@ impl PlanNodeDescription {
     }
 }
 
-/// 计划描述
+/// Plan Description
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanDescription {
     pub plan_node_descs: Vec<PlanNodeDescription>,
@@ -208,9 +208,9 @@ use crate::query::planning::plan::core::nodes::{
     EdgeIndexScanNode, HashInnerJoinNode, HashLeftJoinNode, IntersectNode, MinusNode, SampleNode,
 };
 
-/// DescribeVisitor - 计划节点描述访问者
+/// DescribeVisitor – Description of visitors to the planned node
 ///
-/// 使用零成本抽象的访问者模式，在编译时进行分发
+/// Use the Visitor pattern with zero-cost abstraction for distribution at compile time.
 pub struct DescribeVisitor {
     descriptions: Vec<PlanNodeDescription>,
 }

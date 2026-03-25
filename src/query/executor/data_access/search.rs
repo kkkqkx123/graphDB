@@ -1,6 +1,6 @@
-//! 搜索执行器
+//! Search for actuators
 //!
-//! 包含索引扫描等搜索相关的执行器
+//! Includes search-related executables such as index scanning
 
 use std::sync::Arc;
 
@@ -12,9 +12,9 @@ use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// IndexScanExecutor - 索引扫描执行器
+/// IndexScanExecutor - Index Scan Executor
 ///
-/// 用于执行基于索引的扫描操作，支持复杂索引查询
+/// Used to perform index-based scanning operations, supporting complex index queries
 pub struct IndexScanExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     space_id: u64,
@@ -77,7 +77,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         self.is_edge
     }
 
-    /// 获取空间名称
+    /// Get space name
     fn get_space_name(&self, storage: &S) -> DBResult<String> {
         if let Ok(Some(space_info)) = storage.get_space_by_id(self.space_id) {
             Ok(space_info.space_name)
@@ -86,7 +86,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         }
     }
 
-    /// 获取schema名称（tag或edge类型名称）
+    /// Get the schema name (tag or edge type name)
     fn get_schema_name(&self, storage: &S) -> DBResult<String> {
         let space_name = self.get_space_name(storage)?;
 
@@ -110,16 +110,16 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         }
     }
 
-    /// 执行索引查找
+    /// Perform an index lookup
     fn lookup_by_index(&self, storage: &S) -> DBResult<Vec<Value>> {
         let space_name = self.get_space_name(storage)?;
         let index_name = format!("index_{}", self.index_id);
 
-        // 使用存储层的索引查找功能
-        // 根据scan_type选择不同的查找策略
+        // Using the storage tier's index lookup function
+        // Select different lookup strategies based on scan_type
         match self.scan_type.as_str() {
             "UNIQUE" => {
-                // 唯一索引查找
+                // Unique Index Lookup
                 if let Some(first_limit) = self.scan_limits.first() {
                     let value = first_limit
                         .begin_value
@@ -134,7 +134,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 }
             }
             "PREFIX" => {
-                // 前缀索引查找
+                // prefix index lookup
                 if let Some(first_limit) = self.scan_limits.first() {
                     let prefix = first_limit
                         .begin_value
@@ -149,13 +149,13 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 }
             }
             "RANGE" => {
-                // 范围索引查找
+                // Range Index Lookup
                 if let Some(first_limit) = self.scan_limits.first() {
                     let column_name = &first_limit.column;
                     let include_begin = first_limit.include_begin;
                     let include_end = first_limit.include_end;
 
-                    // 获取起始值和结束值
+                    // Get start and end values
                     let start_value = first_limit
                         .begin_value
                         .as_ref()
@@ -165,27 +165,27 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         .as_ref()
                         .map(|v| Value::String(v.clone()));
 
-                    // 如果没有起始值，返回空结果
+                    // Returns null if there is no starting value
                     let start_val = match start_value {
                         Some(v) => v,
                         None => return Ok(Vec::new()),
                     };
 
-                    // 使用起始值进行前缀查找获取候选结果
+                    // Prefix lookup using start value to get candidate results
                     let candidates = storage
                         .lookup_index(&space_name, &index_name, &start_val)
                         .map_err(DBError::Storage)?;
 
-                    // 如果有结束值，进行范围过滤
+                    // Range filtering if there is an end value
                     if let Some(end_val) = end_value {
                         let filtered: Vec<Value> = candidates
                             .into_iter()
                             .filter(|id| {
-                                // 获取实体的属性值进行比较
+                                // Getting the value of an entity's attribute for comparison
                                 match self.get_entity_property_for_filter(storage, id, column_name)
                                 {
                                     Some(prop_value) => {
-                                        // 比较属性值是否在范围内，考虑边界包含控制
+                                        // Compare attribute values to see if they are in range, consider boundary inclusion control
                                         Self::value_in_range(
                                             &prop_value,
                                             &start_val,
@@ -200,12 +200,12 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                             .collect();
                         Ok(filtered)
                     } else {
-                        // 没有结束值，返回所有候选结果（从起始值到无穷大）
-                        // 但仍需要检查起始边界
+                        // No end value, returns all candidate results (from start value to infinity)
+                        // However, the starting boundary still needs to be checked
                         if include_begin {
                             Ok(candidates)
                         } else {
-                            // 不包含起始值，需要过滤掉等于起始值的
+                            // does not contain a starting value and needs to be filtered out equal to the starting value of the
                             let filtered: Vec<Value> = candidates
                                 .into_iter()
                                 .filter(|id| {
@@ -229,13 +229,13 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 }
             }
             _ => {
-                // 默认扫描所有
+                // Default scanning of all
                 Ok(Vec::new())
             }
         }
     }
 
-    /// 获取实体的属性值用于范围过滤
+    /// Getting the value of an attribute of an entity for range filtering
     fn get_entity_property_for_filter(
         &self,
         storage: &S,
@@ -248,7 +248,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         };
 
         if self.is_edge {
-            // 边类型：ID格式应该是 src:dst:ranking
+            // Edge type: ID format should be src:dst:ranking
             if let Value::String(edge_key) = id {
                 let parts: Vec<&str> = edge_key.split(':').collect();
                 if parts.len() >= 2 {
@@ -261,11 +261,11 @@ impl<S: StorageClient> IndexScanExecutor<S> {
 
                     if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &schema_name)
                     {
-                        // 从边的属性中查找
+                        // Find from the properties of the edge
                         if let Some(value) = edge.props.get(column_name) {
                             return Some(value.clone());
                         }
-                        // 特殊字段
+                        // special field
                         match column_name {
                             "src" => return Some((*edge.src).clone()),
                             "dst" => return Some((*edge.dst).clone()),
@@ -277,19 +277,19 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 }
             }
         } else {
-            // 顶点类型
+            // Vertex Type
             if let Ok(Some(vertex)) = storage.get_vertex(&space_name, id) {
-                // 从顶点的属性中查找
+                // Find from vertex's attributes
                 if let Some(value) = vertex.properties.get(column_name) {
                     return Some(value.clone());
                 }
-                // 从tag的属性中查找
+                // Find from tag's attributes
                 for tag in &vertex.tags {
                     if let Some(value) = tag.properties.get(column_name) {
                         return Some(value.clone());
                     }
                 }
-                // 特殊字段
+                // special field
                 match column_name {
                     "vid" => return Some((*vertex.vid).clone()),
                     "id" => return Some(Value::Int(vertex.id)),
@@ -301,7 +301,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         None
     }
 
-    /// 根据ID列表获取完整顶点或边
+    /// Get the complete vertex or edge based on the ID list
     fn fetch_entities(&self, storage: &S, ids: Vec<Value>) -> DBResult<Vec<Value>> {
         let space_name = self.get_space_name(storage)?;
         let schema_name = self.get_schema_name(storage)?;
@@ -310,7 +310,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
 
         for id in ids {
             if self.is_edge {
-                // 边类型：ID格式应该是 src_dst_ranking
+                // Edge type: ID format should be src_dst_ranking
                 if let Value::String(edge_key) = &id {
                     let parts: Vec<&str> = edge_key.split(':').collect();
                     if parts.len() >= 2 {
@@ -325,7 +325,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                     }
                 }
             } else {
-                // 顶点类型
+                // Vertex Type
                 if let Some(vertex) = storage
                     .get_vertex(&space_name, &id)
                     .map_err(DBError::Storage)?
@@ -338,7 +338,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         Ok(results)
     }
 
-    /// 应用过滤器
+    /// Application filters
     fn apply_filter(&self, entities: Vec<Value>) -> Vec<Value> {
         if let Some(ref filter_expr) = self.filter {
             let mut context = crate::query::executor::expression::DefaultExpressionContext::new();
@@ -365,7 +365,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         }
     }
 
-    /// 投影返回列
+    /// Projected return columns
     fn project_columns(&self, entities: Vec<Value>) -> Vec<Value> {
         if self.return_columns.is_empty() || self.return_columns.contains(&"*".to_string()) {
             return entities;
@@ -433,7 +433,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             .collect()
     }
 
-    /// 检查值是否在指定范围内
+    /// Checks if the value is within the specified range
     fn value_in_range(
         value: &Value,
         start: &Value,
@@ -443,7 +443,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     ) -> bool {
         use std::cmp::Ordering;
 
-        // 比较起始边界
+        // Compare Starting Boundaries
         let pass_start = match Self::compare_values(value, start) {
             Some(Ordering::Greater) => true,
             Some(Ordering::Equal) => include_begin,
@@ -455,7 +455,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             return false;
         }
 
-        // 比较结束边界
+        // Comparison End Boundary
         match Self::compare_values(value, end) {
             Some(Ordering::Less) => true,
             Some(Ordering::Equal) => include_end,
@@ -464,7 +464,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         }
     }
 
-    /// 比较两个值
+    /// Comparing two values
     fn compare_values(a: &Value, b: &Value) -> Option<std::cmp::Ordering> {
         match (a, b) {
             (Value::Int(a_i), Value::Int(b_i)) => Some(a_i.cmp(b_i)),
@@ -476,7 +476,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         }
     }
 
-    /// 检查两个值是否相等
+    /// Check if two values are equal
     fn values_equal(a: &Value, b: &Value) -> bool {
         matches!(Self::compare_values(a, b), Some(std::cmp::Ordering::Equal))
     }
@@ -486,26 +486,26 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = self.get_storage().lock();
 
-        // 1. 使用索引查找获取ID列表
+        // 1. Use index lookup to get a list of IDs
         let index_results = self.lookup_by_index(&storage)?;
 
-        // 2. 根据ID获取完整实体
+        // 2. Obtaining the full entity by ID
         let entities = self.fetch_entities(&storage, index_results)?;
 
-        // 3. 应用过滤器
+        // 3. Application filters
         let filtered = self.apply_filter(entities);
 
-        // 4. 投影返回列
+        // 4. Projected return columns
         let projected = self.project_columns(filtered);
 
-        // 5. 应用限制
+        // 5. Application limitations
         let limited: Vec<Value> = if let Some(limit) = self.limit {
             projected.into_iter().take(limit).collect()
         } else {
             projected
         };
 
-        // 6. 构建返回结果
+        // 6. Constructing return results
         let rows: Vec<Vec<Value>> = limited.into_iter().map(|v| vec![v]).collect();
 
         Ok(ExecutionResult::Values(

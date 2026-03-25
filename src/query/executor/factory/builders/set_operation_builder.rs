@@ -1,6 +1,6 @@
-//! 集合操作执行器构建器
+//! Collection Operation Executor Builder
 //!
-//! 负责创建集合操作类型的执行器（Union, Minus, Intersect）
+//! Responsible for creating executors for set operation types (Union, Minus, Intersect)
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
@@ -13,28 +13,28 @@ use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// 集合操作执行器构建器
+/// Set Operation Executor Builder
 pub struct SetOperationBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
-    /// 创建新的集合操作构建器
+    /// Create a new collection operation builder.
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
     }
 
-    /// 构建 Union 执行器
+    /// Building a Union executor
     pub fn build_union(
         &self,
         node: &UnionNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // UnionExecutor 需要 left_input_var 和 right_input_var
-        // 使用 output_var 或生成默认值
+        // The UnionExecutor requires left_input_var and right_input_var.
+        // Use `output_var` or generate a default value.
         let left_var = node
             .output_var()
             .map(|v| v.to_string())
@@ -51,14 +51,14 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
         Ok(ExecutorEnum::Union(executor))
     }
 
-    /// 构建 Minus 执行器
+    /// Building the Minus executor
     pub fn build_minus(
         &self,
         node: &MinusNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // MinusExecutor 需要 left_input_var 和 right_input_var
+        // The `MinusExecutor` requires `left_input_var` and `right_input_var`.
         let left_var = node
             .output_var()
             .map(|v| v.to_string())
@@ -75,14 +75,14 @@ impl<S: StorageClient + Send + 'static> SetOperationBuilder<S> {
         Ok(ExecutorEnum::Minus(executor))
     }
 
-    /// 构建 Intersect 执行器
+    /// Constructing the Intersect executor
     pub fn build_intersect(
         &self,
         node: &IntersectNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // IntersectExecutor 需要 left_input_var 和 right_input_var
+        // The IntersectExecutor requires the left_input_var and right_input_var parameters.
         let left_var = node
             .output_var()
             .map(|v| v.to_string())

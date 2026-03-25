@@ -1,6 +1,6 @@
-//! AppendVerticesExecutor实现
+//! Implementation of AppendVerticesExecutor
 //!
-//! 负责处理追加顶点操作，根据给定的顶点ID获取顶点信息并追加到结果中
+//! Responsible for handling the addition of vertices; retrieves vertex information based on the provided vertex ID and adds it to the result.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -15,26 +15,26 @@ use crate::query::executor::expression::evaluator::expression_evaluator::Express
 use crate::query::executor::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::storage::StorageClient;
 
-/// AppendVertices执行器
-/// 用于根据顶点ID获取顶点信息并追加到结果中
+/// AppendVertices executor
+/// Used to retrieve vertex information based on the vertex ID and append it to the result.
 pub struct AppendVerticesExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
-    /// 输入变量名
+    /// Input variable name
     input_var: String,
-    /// 源表达式，用于获取顶点ID
+    /// Source expression used to obtain the vertex ID
     src_expression: Expression,
-    /// 顶点过滤表达式
+    /// Vertex filtering expression
     v_filter: Option<Expression>,
-    /// 输出列名
+    /// Column names
     col_names: Vec<String>,
-    /// 是否去重
+    /// Should duplicates be removed?
     dedup: bool,
-    /// 是否需要获取属性
+    /// Is it necessary to obtain the attribute?
     need_fetch_prop: bool,
 }
 
 impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
-    /// 创建新的AppendVerticesExecutor
+    /// Create a new AppendVerticesExecutor.
     pub fn new(base_config: ExecutorConfig<S>, config: AppendVerticesConfig) -> Self {
         Self {
             base: BaseExecutor::new(
@@ -52,7 +52,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
         }
     }
 
-    /// 带上下文创建AppendVerticesExecutor
+    /// Create an AppendVerticesExecutor with context.
     pub fn with_context(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -75,9 +75,9 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
         }
     }
 
-    /// 构建请求数据集
+    /// Constructing a request dataset
     fn build_request_dataset(&mut self) -> DBResult<Vec<Value>> {
-        // 获取输入结果
+        // Obtain the input result.
         let input_result = self
             .base
             .context
@@ -89,7 +89,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                 )))
             })?;
 
-        // 创建表达式上下文
+        // Create the context for the expression.
         let mut expr_context = DefaultExpressionContext::new();
 
         let mut vids = Vec::new();
@@ -99,14 +99,14 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             None
         };
 
-        // 根据输入结果类型处理
+        // Please provide the text you would like to have translated. I will then process it according to the specified type of translation required.
         match input_result {
             ExecutionResult::Values(values) => {
                 for value in values {
-                    // 设置当前值到表达式上下文
+                    // Set the current value to the context of the expression.
                     expr_context.set_variable("_".to_string(), value.clone());
 
-                    // 计算源表达式获取顶点ID
+                    // Calculate the source expression to obtain the vertex ID.
                     let vid =
                         ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
                             .map_err(|e| {
@@ -115,7 +115,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                                 ))
                             })?;
 
-                    // 检查是否去重
+                    // Check whether there are any duplicates.
                     if let Some(ref mut seen_map) = seen {
                         if !seen_map.contains_key(&vid) {
                             seen_map.insert(vid.clone(), true);
@@ -184,7 +184,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
         Ok(vids)
     }
 
-    /// 处理空属性情况
+    /// Handling cases of empty attributes
     fn handle_null_prop(&mut self, vids: Vec<Value>) -> DBResult<DataSet> {
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
@@ -202,7 +202,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
                 continue;
             }
 
-            // 创建顶点
+            // Create vertices
             let vertex = Vertex {
                 vid: Box::new(vid.clone()),
                 id: 0,
@@ -216,7 +216,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
         Ok(dataset)
     }
 
-    /// 从存储中获取顶点属性
+    /// Retrieve vertex attributes from storage.
     fn fetch_vertices(&mut self, vids: Vec<Value>) -> DBResult<Vec<Vertex>> {
         let mut vertices = Vec::new();
 

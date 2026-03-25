@@ -1,6 +1,6 @@
-//! 执行器构建器模块
+//! Executor Builder Module
 //!
-//! 负责创建各种类型的执行器
+//! Responsible for creating various types of actuators
 
 pub mod admin_builder;
 pub mod control_flow_builder;
@@ -24,7 +24,7 @@ pub use traversal_builder::TraversalBuilder;
 
 use crate::storage::StorageClient;
 
-/// 构建器集合
+/// Collection of builders
 pub struct Builders<S: StorageClient + 'static> {
     data_access: DataAccessBuilder<S>,
     data_modification: DataModificationBuilder<S>,
@@ -38,7 +38,7 @@ pub struct Builders<S: StorageClient + 'static> {
 }
 
 impl<S: StorageClient + 'static> Builders<S> {
-    /// 创建新的构建器集合
+    /// Create a new set of builders.
     pub fn new() -> Self {
         Self {
             data_access: DataAccessBuilder::new(),
@@ -53,47 +53,47 @@ impl<S: StorageClient + 'static> Builders<S> {
         }
     }
 
-    /// 获取数据访问构建器
+    /// Obtain the data access builder.
     pub fn data_access(&self) -> &DataAccessBuilder<S> {
         &self.data_access
     }
 
-    /// 获取数据修改构建器
+    /// Obtain the data modification builder.
     pub fn data_modification(&self) -> &DataModificationBuilder<S> {
         &self.data_modification
     }
 
-    /// 获取数据处理构建器
+    /// Obtain the data processing builder.
     pub fn data_processing(&self) -> &DataProcessingBuilder<S> {
         &self.data_processing
     }
 
-    /// 获取连接构建器
+    /// Obtain the connection builder.
     pub fn join(&self) -> &JoinBuilder<S> {
         &self.join
     }
 
-    /// 获取集合操作构建器
+    /// Obtaining the set operation builder
     pub fn set_operation(&self) -> &SetOperationBuilder<S> {
         &self.set_operation
     }
 
-    /// 获取图遍历构建器
+    /// Obtain the graph traversal builder.
     pub fn traversal(&self) -> &TraversalBuilder<S> {
         &self.traversal
     }
 
-    /// 获取数据转换构建器
+    /// Obtain the Data Conversion Builder
     pub fn transformation(&self) -> &TransformationBuilder<S> {
         &self.transformation
     }
 
-    /// 获取控制流构建器
+    /// Obtain the control flow builder.
     pub fn control_flow(&self) -> &ControlFlowBuilder<S> {
         &self.control_flow
     }
 
-    /// 获取管理执行器构建器
+    /// Obtain the Management Executor Builder
     pub fn admin(&self) -> &AdminBuilder<S> {
         &self.admin
     }

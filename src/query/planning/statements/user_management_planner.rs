@@ -1,5 +1,5 @@
-//! 用户管理规划器
-//! 处理用户管理相关的查询规划（CREATE USER、ALTER USER、DROP USER、CHANGE PASSWORD）
+//! User Management Planner
+//! Handling query planning related to user management (CREATE USER, ALTER USER, DROP USER, CHANGE PASSWORD)
 
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::{ArgumentNode, PlanNodeEnum};
@@ -8,8 +8,8 @@ use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement}
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 用户管理规划器
-/// 负责将用户管理操作转换为执行计划
+/// User Management Planner
+/// Responsible for converting user management operations into execution plans
 #[derive(Debug, Clone)]
 pub struct UserManagementPlanner;
 

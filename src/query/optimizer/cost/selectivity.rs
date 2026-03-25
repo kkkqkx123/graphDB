@@ -1,6 +1,6 @@
-//! 选择性估计器模块
+//! Selective Estimator Module
 //!
-//! 用于估算查询条件的选择性
+//! Used to estimate the selectivity of the query conditions
 
 use std::sync::Arc;
 
@@ -9,48 +9,48 @@ use crate::core::types::Expression;
 use crate::core::value::Value;
 use crate::query::optimizer::stats::{RangeCondition, StatisticsManager};
 
-/// 选择性估计器
+/// Selective Estimator
 ///
-/// 提供基于统计信息和启发式规则的选择性估计
+/// Provide selective estimates based on statistical information and heuristic rules.
 #[derive(Debug)]
 pub struct SelectivityEstimator {
     stats_manager: Arc<StatisticsManager>,
 }
 
-/// 默认选择性常量
+/// Default selective constants
 pub mod defaults {
-    /// 等值查询默认选择性（假设10个不同值）
+    /// Default selectivity for equivalent queries (assuming 10 different values)
     pub const EQUALITY: f64 = 0.1;
-    /// 范围查询默认选择性（假设选择1/3的数据）
+    /// The default selectivity for range queries is such that approximately one-third of the data is selected.
     pub const RANGE: f64 = 0.333;
-    /// 小于/大于查询默认选择性
+    /// The default selectivity for the “less than/greater than” query
     pub const COMPARISON: f64 = 0.333;
-    /// 不等查询默认选择性
+    /// The default selectivity of inequality queries
     pub const NOT_EQUAL: f64 = 0.9;
-    /// IS NULL 查询选择性（通常很少为null）
+    /// The selectivity of IS NULL queries (which usually rarely return a value of NULL)
     pub const IS_NULL: f64 = 0.05;
-    /// IS NOT NULL 查询选择性
+    /// The selectivity of the IS NOT NULL query
     pub const IS_NOT_NULL: f64 = 0.95;
-    /// IN 查询默认选择性（假设3个值）
+    /// The default selectivity of an IN query (assuming 3 values)
     pub const IN_LIST: f64 = 0.3;
-    /// EXISTS 查询选择性
+    /// The SELECTIVE nature of the EXISTS query
     pub const EXISTS: f64 = 0.5;
-    /// 布尔AND操作的选择性惩罚
+    /// The selective penalty of the Boolean AND operation
     pub const AND_CORRELATION: f64 = 0.9;
-    /// 布尔OR操作的选择性惩罚
+    /// The selective penalty for the Boolean OR operation
     pub const OR_CORRELATION: f64 = 0.9;
 }
 
 impl SelectivityEstimator {
-    /// 创建新的选择性估计器
+    /// Create a new selective estimator.
     pub fn new(stats_manager: Arc<StatisticsManager>) -> Self {
         Self { stats_manager }
     }
 
-    /// 估计等值条件选择性
+    /// Estimated Equivalence Condition Selectivity
     ///
-    /// 如果有直方图统计信息，使用直方图进行精确估计；
-    /// 否则如果有基本统计信息，使用 1/不同值数量；
+    /// If there is histogram statistical information, use the histogram for an accurate estimation.
+    /// Otherwise, if basic statistical information is available, use 1 divided by the number of distinct values.
     /// 否则使用默认值 0.1
     pub fn estimate_equality_selectivity(
         &self,
@@ -64,7 +64,7 @@ impl SelectivityEstimator {
 
         match stats {
             Some(s) => {
-                // 优先使用直方图进行精确估计
+                // Give priority to using histograms for accurate estimates.
                 if s.should_use_histogram() {
                     if let Some(ref histogram) = s.histogram {
                         if let Some(v) = value {
@@ -73,7 +73,7 @@ impl SelectivityEstimator {
                     }
                 }
 
-                // 回退到基本统计信息
+                // Return to basic statistical information
                 if s.distinct_values > 0 {
                     (1.0 / s.distinct_values as f64).min(1.0)
                 } else {
@@ -84,7 +84,7 @@ impl SelectivityEstimator {
         }
     }
 
-    /// 估计等值条件选择性（简化版本，不带值）
+    /// Estimated Equivalence Condition Selectivity (simplified version, without values)
     pub fn estimate_equality_selectivity_simple(
         &self,
         tag_name: Option<&str>,
@@ -93,10 +93,10 @@ impl SelectivityEstimator {
         self.estimate_equality_selectivity(tag_name, property_name, None)
     }
 
-    /// 估计范围条件选择性
+    /// Conditional selectivity of the estimation range
     ///
-    /// 如果有直方图统计信息，基于直方图计算；
-    /// 否则使用默认值 1/3
+    /// If there is histogram statistical information, the calculations are based on that histogram.
+    /// Otherwise, use the default value of 1/3.
     pub fn estimate_range_selectivity(
         &self,
         tag_name: Option<&str>,
@@ -109,28 +109,28 @@ impl SelectivityEstimator {
 
         match stats {
             Some(s) => {
-                // 优先使用直方图进行精确估计
+                // Give priority to using histograms for accurate estimations.
                 if s.should_use_histogram() {
                     if let Some(ref histogram) = s.histogram {
                         return histogram.estimate_range_selectivity(range);
                     }
                 }
 
-                // 回退到默认值
+                // Revert to the default values.
                 defaults::RANGE
             }
             _ => defaults::RANGE,
         }
     }
 
-    /// 估计范围条件选择性（简化版本）
+    /// Estimated Range Condition Selectivity (simplified version)
     pub fn estimate_range_selectivity_simple(&self) -> f64 {
         defaults::RANGE
     }
 
-    /// 估计范围条件选择性（带边界值）
+    /// Conditional Selectivity of Estimation Ranges (with Boundary Values)
     ///
-    /// 根据范围大小调整选择性
+    /// Adjust the selectivity based on the size of the scope.
     pub fn estimate_range_selectivity_with_bounds(
         &self,
         min_val: f64,
@@ -142,36 +142,36 @@ impl SelectivityEstimator {
         }
         let total_range = max_val - min_val;
         let selectivity = (range_size / total_range).clamp(0.001, 1.0);
-        // 范围查询通常不会选择太多数据，添加一个上限
+        // Range queries usually do not retrieve a large amount of data; adding an upper limit helps to control the amount of data retrieved.
         selectivity.min(0.8)
     }
 
-    /// 估计小于条件选择性
+    /// Estimated to be less than conditional selectivity
     ///
-    /// 如果有统计信息，基于直方图计算；
-    /// 否则假设数据均匀分布，返回 1/3
+    /// If there is statistical information available, the calculations are based on histograms.
+    /// Otherwise, assume that the data is evenly distributed, and return 1/3.
     pub fn estimate_less_than_selectivity(&self, value: Option<f64>) -> f64 {
-        // 如果有具体值，可以尝试根据值的分布调整
-        // 这里使用简单的启发式：假设数据均匀分布
+        // If there are specific values, you can try to adjust the settings based on the distribution of those values.
+        // A simple heuristic is used here: assume that the data is evenly distributed.
         match value {
-            Some(v) if v < 0.0 => 0.1, // 负值通常较少
-            Some(0.0) => 0.05,         // 零值通常很少
+            Some(v) if v < 0.0 => 0.1, // Negative values are generally less common.
+            Some(0.0) => 0.05,         // Zero values are usually very rare.
             _ => defaults::COMPARISON,
         }
     }
 
-    /// 估计大于条件选择性
+    /// The estimate is greater than the condition selectivity.
     pub fn estimate_greater_than_selectivity(&self, value: Option<f64>) -> f64 {
         match value {
-            Some(v) if v < 0.0 => 0.9, // 大于负值通常选择大部分数据
-            Some(0.0) => 0.95,         // 大于零通常选择大部分数据
+            Some(v) if v < 0.0 => 0.9, // When comparing values, it is generally preferable to choose the option that represents the majority of the data. In this case, since “greater than a negative value” indicates a positive value, that option would correspond to the majority of the data points in the dataset.
+            Some(0.0) => 0.95,         // When the value is greater than zero, it usually indicates that the majority of the data falls into that category.
             _ => defaults::COMPARISON,
         }
     }
 
-    /// 估计 LIKE 条件选择性
+    /// Estimating the selectivity of LIKE conditions
     ///
-    /// 根据模式的前缀和后缀通配符调整选择性：
+    /// Adjust the selectivity based on the prefix and suffix wildcards of the pattern:
     /// - prefix%：选择性较高（约0.1）
     /// - %suffix：选择性中等（约0.2）
     /// - %substring%：选择性较低（约0.5）
@@ -183,52 +183,52 @@ impl SelectivityEstimator {
 
         match (has_prefix, has_suffix) {
             (true, true) => {
-                // %xxx% 模式选择性很低
+                // The selectivity of the %xxx% mode is very low.
                 0.5_f64.min(0.1 + middle_wildcards as f64 * 0.1)
             }
             (false, true) => {
-                // xxx% 前缀匹配选择性较高
+                // The prefix matching with a percentage of xxx% has a relatively high degree of selectivity.
                 0.1_f64.min(0.05 + middle_wildcards as f64 * 0.02)
             }
             (true, false) => {
-                // %xxx 后缀匹配选择性中等
+                // The matching accuracy for suffixes with the “%xxx” pattern is moderately high.
                 0.2_f64.min(0.1 + middle_wildcards as f64 * 0.05)
             }
             (false, false) => {
-                // 无通配符，接近精确匹配
+                // No wildcards; the match is nearly exact.
                 0.05
             }
         }
     }
 
-    /// 估计 IN 列表选择性
+    /// Estimating the selectivity of the IN list
     ///
-    /// 假设每个值的选择性相同，总选择性 = 值数量 * 单个值选择性
+    /// Assuming that the selectivity of each value is the same, the total selectivity = number of values * selectivity of a single value.
     pub fn estimate_in_selectivity(&self, list_size: usize) -> f64 {
         let single_selectivity = defaults::EQUALITY;
         (list_size as f64 * single_selectivity).min(0.9)
     }
 
-    /// 估计 IS NULL 选择性
+    /// Estimated IS NULL selectivity
     pub fn estimate_is_null_selectivity(&self) -> f64 {
         defaults::IS_NULL
     }
 
-    /// 估计 IS NOT NULL 选择性
+    /// The “IS NOT NULL” condition is used for selection purposes.
     pub fn estimate_is_not_null_selectivity(&self) -> f64 {
         defaults::IS_NOT_NULL
     }
 
-    /// 估计 NOT 条件选择性
+    /// Estimated NOT conditional selectivity
     ///
-    /// NOT 条件的选择性 = 1 - 原条件选择性
+    /// The selectivity of the NOT condition = 1 – the selectivity of the original condition
     pub fn estimate_not_selectivity(&self, inner_selectivity: f64) -> f64 {
         (1.0 - inner_selectivity).clamp(0.01, 0.99)
     }
 
-    /// 从表达式估计选择性
+    /// Estimating selectivity from expressions
     ///
-    /// 这是主要的入口方法，根据表达式类型分发到具体的估计方法
+    /// This is the main entry method, which distributes the data to the specific estimation methods based on the type of the expression.
     pub fn estimate_from_expression(&self, expr: &Expression, tag_name: Option<&str>) -> f64 {
         match expr {
             Expression::Binary { op, left, right } => {
@@ -239,19 +239,19 @@ impl SelectivityEstimator {
             }
             Expression::Function { name, args } => self.estimate_function_expression(name, args),
             Expression::Literal(_) => {
-                // 字面量条件的选择性取决于值，通常认为是高选择性
+                // The selectivity of literal value conditions depends on the specific values; such conditions are generally considered to be highly selective.
                 0.1
             }
             Expression::Property { .. } => {
                 // 属性本身作为条件（如 WHERE n.active）
-                // 假设布尔属性大约一半为真
+                // Assume that approximately half of the boolean attributes have the value “true”.
                 0.5
             }
             _ => defaults::EQUALITY,
         }
     }
 
-    /// 估计二元表达式选择性
+    /// Estimating the selectivity of binary expressions
     fn estimate_binary_expression(
         &self,
         op: &BinaryOperator,
@@ -261,12 +261,12 @@ impl SelectivityEstimator {
     ) -> f64 {
         match op {
             BinaryOperator::Equal => {
-                // 尝试从表达式中提取属性名和值
+                // Try to extract the attribute names and values from the expression.
                 let property_name = self
                     .extract_property_name(left)
                     .or_else(|| self.extract_property_name(right));
 
-                // 尝试提取值
+                // Try to extract the value.
                 let value = self
                     .extract_value(right)
                     .or_else(|| self.extract_value(left));
@@ -278,7 +278,7 @@ impl SelectivityEstimator {
                 }
             }
             BinaryOperator::NotEqual => {
-                // 不等查询通常选择大部分数据
+                // Inequality queries usually select the majority of the data.
                 defaults::NOT_EQUAL
             }
             BinaryOperator::LessThan => {
@@ -301,7 +301,7 @@ impl SelectivityEstimator {
             BinaryOperator::And => {
                 let left_sel = self.estimate_from_expression(left, tag_name);
                 let right_sel = self.estimate_from_expression(right, tag_name);
-                // AND 的选择性通常比乘积略高（因为条件间可能有相关性）
+                // The selectivity of the “AND” operator is usually slightly higher than that of the multiplication operator (because there may be correlations between the conditions).
                 (left_sel * right_sel / defaults::AND_CORRELATION).min(1.0)
             }
             BinaryOperator::Or => {
@@ -313,7 +313,7 @@ impl SelectivityEstimator {
                 combined.clamp(0.01, 0.99)
             }
             BinaryOperator::In => {
-                // 估计 IN 列表的大小
+                // Estimating the size of the IN list
                 let list_size = self.estimate_list_size(right);
                 self.estimate_in_selectivity(list_size)
             }
@@ -321,7 +321,7 @@ impl SelectivityEstimator {
         }
     }
 
-    /// 估计一元表达式选择性
+    /// Estimating the selectivity of a unary expression
     fn estimate_unary_expression(
         &self,
         op: &crate::core::types::UnaryOperator,
@@ -341,22 +341,22 @@ impl SelectivityEstimator {
         }
     }
 
-    /// 估计函数表达式选择性
+    /// Estimating the selectivity of function expressions
     fn estimate_function_expression(&self, name: &str, args: &[Expression]) -> f64 {
         let name_lower = name.to_lowercase();
 
         match name_lower.as_str() {
             "like" | "ilike" if args.len() >= 2 => {
-                // 尝试提取 LIKE 模式
+                // Try to extract the LIKE pattern.
                 if let Expression::Literal(crate::core::value::Value::String(pattern)) = &args[1] {
                     return self.estimate_like_selectivity(pattern);
                 }
                 defaults::EQUALITY
             }
             "exists" => defaults::EXISTS,
-            "contains" | "has" => 0.2, // 包含查询通常选择性较高
-            "starts_with" => 0.1,      // 前缀匹配
-            "ends_with" => 0.2,        // 后缀匹配
+            "contains" | "has" => 0.2, // The content to be translated usually has a high degree of selectivity (i.e., only certain parts of the text are to be translated).
+            "starts_with" => 0.1,      // Prefix matching
+            "ends_with" => 0.2,        // Suffix matching
             "in" => {
                 let list_size = args.len().saturating_sub(1);
                 self.estimate_in_selectivity(list_size)
@@ -365,7 +365,7 @@ impl SelectivityEstimator {
         }
     }
 
-    /// 从表达式中提取属性名
+    /// Extract the attribute names from the expression.
     fn extract_property_name(&self, expr: &Expression) -> Option<String> {
         match expr {
             Expression::Property { property, .. } => Some(property.clone()),
@@ -373,7 +373,7 @@ impl SelectivityEstimator {
         }
     }
 
-    /// 从表达式中提取数值
+    /// Extract the numerical values from the expression.
     fn extract_numeric_value(&self, expr: &Expression) -> Option<f64> {
         match expr {
             Expression::Literal(value) => match value {
@@ -385,7 +385,7 @@ impl SelectivityEstimator {
         }
     }
 
-    /// 从表达式中提取值
+    /// Extract values from the expression.
     fn extract_value(&self, expr: &Expression) -> Option<Value> {
         match expr {
             Expression::Literal(value) => Some(value.clone()),
@@ -393,11 +393,11 @@ impl SelectivityEstimator {
         }
     }
 
-    /// 估计列表大小
+    /// Estimate the list size
     fn estimate_list_size(&self, expr: &Expression) -> usize {
         match expr {
             Expression::List(items) => items.len(),
-            _ => 3, // 默认假设3个元素
+            _ => 3, // The default assumption is that there are 3 elements.
         }
     }
 }

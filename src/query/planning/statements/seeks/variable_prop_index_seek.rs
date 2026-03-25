@@ -1,18 +1,18 @@
-//! 变量属性索引查找策略
+//! Variable attribute index lookup strategy
 //!
-//! 基于变量属性的索引查找，用于运行时变量值确定的情况
+//! Index lookup based on variable attributes, used in cases where the value of a runtime variable needs to be determined.
 //!
-//! 适用场景:
+//! Applicable scenarios:
 //! - MATCH (v:Person) WHERE v.name = $varName
 //! - MATCH (v:Person) WHERE v.age > $minAge
-//! - 参数化查询中的变量绑定
+//! Variable binding in parameterized queries
 
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{IndexInfo, SeekResult, SeekStrategyContext, SeekStrategyType};
 use crate::core::{StorageError, Value};
 use crate::storage::StorageClient;
 
-/// 变量属性谓词
+/// Variable attribute predicate
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariablePropertyPredicate {
     pub property: String,
@@ -20,7 +20,7 @@ pub struct VariablePropertyPredicate {
     pub variable_name: String,
 }
 
-/// 变量谓词操作类型
+/// Variable predicate operation types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VariablePredicateOp {
     Eq, // =
@@ -33,7 +33,7 @@ pub enum VariablePredicateOp {
 }
 
 impl VariablePredicateOp {
-    /// 转换为普通谓词操作
+    /// Convert to ordinary predicate operations
     pub fn to_predicate_op(&self) -> super::prop_index_seek::PredicateOp {
         match self {
             VariablePredicateOp::Eq => super::prop_index_seek::PredicateOp::Eq,
@@ -64,7 +64,7 @@ impl std::str::FromStr for VariablePredicateOp {
     }
 }
 
-/// 变量属性索引查找策略
+/// Variable attribute index lookup strategy
 #[derive(Debug, Clone)]
 pub struct VariablePropIndexSeek {
     predicates: Vec<VariablePropertyPredicate>,
@@ -79,24 +79,24 @@ impl VariablePropIndexSeek {
         }
     }
 
-    /// 绑定变量值
+    /// Binding variable values
     pub fn bind_variable(&mut self, name: &str, value: Value) {
         self.variable_values.insert(name.to_string(), value);
     }
 
-    /// 批量绑定变量值
+    /// Batch binding of variable values
     pub fn bind_variables(&mut self, values: std::collections::HashMap<String, Value>) {
         self.variable_values.extend(values);
     }
 
-    /// 检查所有变量是否已绑定
+    /// Check whether all variables have been bound.
     pub fn all_variables_bound(&self) -> bool {
         self.predicates
             .iter()
             .all(|pred| self.variable_values.contains_key(&pred.variable_name))
     }
 
-    /// 从表达式列表提取变量属性谓词
+    /// Extract variable attribute predicates from the list of expressions.
     pub fn extract_predicates(
         expressions: &[crate::core::Expression],
     ) -> Vec<VariablePropertyPredicate> {
@@ -111,7 +111,7 @@ impl VariablePropIndexSeek {
         predicates
     }
 
-    /// 从单个表达式提取变量属性谓词
+    /// Extracting variable attribute predicates from a single expression
     fn extract_predicate(expr: &crate::core::Expression) -> Option<VariablePropertyPredicate> {
         use crate::core::types::operators::BinaryOperator;
 
@@ -164,7 +164,7 @@ impl VariablePropIndexSeek {
         }
     }
 
-    /// 从表达式提取属性名
+    /// Extract attribute names from the expression.
     fn extract_property(expr: &crate::core::Expression) -> Option<String> {
         match expr {
             crate::core::Expression::Property { object, property } => {
@@ -179,10 +179,10 @@ impl VariablePropIndexSeek {
         }
     }
 
-    /// 从表达式提取变量名
+    /// Extract variable names from the expression.
     fn extract_variable(expr: &crate::core::Expression) -> Option<String> {
         match expr {
-            // 变量以 $ 开头表示参数
+            // Variables that start with the symbol $ indicate parameters.
             crate::core::Expression::Variable(name) if name.starts_with('$') => {
                 Some(name[1..].to_string())
             }
@@ -190,7 +190,7 @@ impl VariablePropIndexSeek {
         }
     }
 
-    /// 查找适合变量属性谓词的索引
+    /// Find an index that is suitable for the predicate of the variable attribute.
     fn find_best_index<'a>(
         &'a self,
         context: &'a SeekStrategyContext,
@@ -203,12 +203,12 @@ impl VariablePropIndexSeek {
         None
     }
 
-    /// 评估值是否满足谓词条件
+    /// Does the evaluated value satisfy the predicate condition?
     fn value_matches(&self, value: &Value, pred: &VariablePropertyPredicate) -> bool {
-        // 获取变量值
+        // Obtain the value of a variable
         let var_value = match self.variable_values.get(&pred.variable_name) {
             Some(v) => v,
-            None => return false, // 变量未绑定，无法匹配
+            None => return false, // The variable is not bound, so a match cannot be made.
         };
 
         match pred.op {
@@ -227,13 +227,13 @@ impl VariablePropIndexSeek {
                 .map(|c| c >= 0)
                 .unwrap_or(false),
             VariablePredicateOp::In => {
-                // IN 操作需要变量值是列表
+                // The IN operation requires that the variable value be a list.
                 matches!(var_value, Value::List(list) if list.contains(value))
             }
         }
     }
 
-    /// 比较两个值
+    /// Compare two values
     fn compare_values(left: &Value, right: &Value) -> Option<i32> {
         match (left, right) {
             (Value::Int(i1), Value::Int(i2)) => Some(i1.cmp(i2) as i32),
@@ -252,7 +252,7 @@ impl SeekStrategy for VariablePropIndexSeek {
         storage: &S,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
-        // 检查变量是否已绑定
+        // Check whether the variable has been bound.
         if !self.all_variables_bound() {
             return Err(StorageError::InvalidInput(
                 "变量属性查找需要所有变量已绑定".to_string(),
@@ -262,18 +262,18 @@ impl SeekStrategy for VariablePropIndexSeek {
         let mut vertex_ids = Vec::new();
         let mut rows_scanned = 0;
 
-        // 查找最佳索引
+        // Find the best index.
         if let Some((index_info, primary_pred)) = self.find_best_index(context) {
-            // 获取标签对应的顶点
-            let space_name = "default"; // 实际应从 context 获取
+            // Retrieve the vertices corresponding to the tags.
+            let space_name = "default"; // In fact, the relevant information should be obtained from the context.
             let vertices = storage.scan_vertices_by_tag(space_name, &index_info.target_name)?;
             rows_scanned = vertices.len();
 
-            // 过滤满足所有谓词的顶点
+            // Filter the vertices that satisfy all predicates.
             for vertex in vertices {
                 let mut matches_all = true;
 
-                // 检查主谓词
+                // Check the subject and verb.
                 if let Some(prop_value) = vertex.get_property_any(&primary_pred.property) {
                     if !self.value_matches(prop_value, primary_pred) {
                         matches_all = false;
@@ -282,7 +282,7 @@ impl SeekStrategy for VariablePropIndexSeek {
                     matches_all = false;
                 }
 
-                // 检查其他谓词
+                // Check the other predicates.
                 if matches_all {
                     for pred in &self.predicates {
                         if pred.property != primary_pred.property {
@@ -313,7 +313,7 @@ impl SeekStrategy for VariablePropIndexSeek {
     }
 
     fn supports(&self, _context: &SeekStrategyContext) -> bool {
-        // 只要有变量属性谓词就支持
+        // Support is available as long as there is a predicate with variable attributes.
         !self.predicates.is_empty()
     }
 }

@@ -1,14 +1,14 @@
-//! 计划节点访问者 - 用于重写子节点
+//! Planned node visitor – used for rewriting child nodes
 //!
-//! 本模块提供 ChildRewriteVisitor，用于遍历计划树并重写所有子节点。
+//! This module provides the ChildRewriteVisitor class, which is used to traverse the plan tree and rewrite all its child nodes.
 //! 利用现有的 PlanNodeVisitor trait，消除 plan_rewriter.rs 中的重复代码。
 //!
-//! # 设计优势
+//! # Design Advantages
 //!
-//! - 消除重复代码：统一子节点重写逻辑
-//! - 保持类型安全：使用静态分发，避免动态分发开销
-//! - 易于扩展：新增节点类型时只需实现对应方法
-//! - 与现有架构兼容：利用已有的 PlanNodeVisitor
+//! Remove duplicate code: Unify the logic for rewriting child nodes.
+//! Maintain type safety: Use static distribution to avoid the overhead associated with dynamic distribution.
+//! Easy to expand: When adding new node types, you only need to implement the corresponding methods.
+//! – Compatible with the existing architecture: Make use of the existing PlanNodeVisitor.
 
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, SingleInputNode,
@@ -72,10 +72,10 @@ use crate::query::planning::plan::core::nodes::traversal::{
     AllPathsNode, BFSShortestNode, MultiShortestPathNode, ShortestPathNode,
 };
 
-/// 子节点重写访问者
+/// Child node overrides the visitor.
 ///
-/// 遍历计划树并重写所有子节点，用于 PlanRewriter 的 rewrite_children 方法。
-/// 利用 PlanNodeVisitor trait 实现零成本抽象。
+/// Traverse the plan tree and rewrite all child nodes; this is used by the rewrite_children method of PlanRewriter.
+/// Implement zero-cost abstraction by using the PlanNodeVisitor trait.
 pub struct ChildRewriteVisitor<'a> {
     ctx: &'a mut RewriteContext,
     rewriter: &'a PlanRewriter,
@@ -87,7 +87,7 @@ impl<'a> ChildRewriteVisitor<'a> {
     }
 }
 
-/// 生成单输入节点的重写方法
+/// A method for rewriting a single-input node
 macro_rules! impl_single_input_rewrite {
     ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
         $(
@@ -103,7 +103,7 @@ macro_rules! impl_single_input_rewrite {
     };
 }
 
-/// 生成双输入节点的重写方法
+/// A method for rewriting the generation of dual-input nodes
 macro_rules! impl_binary_input_rewrite {
     ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
         $(
@@ -123,7 +123,7 @@ macro_rules! impl_binary_input_rewrite {
     };
 }
 
-/// 生成多输入节点（使用 dependencies）的重写方法
+/// A method for rewriting code that generates multiple input nodes (using dependencies)
 macro_rules! impl_multi_input_deps_rewrite {
     ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
         $(
@@ -147,7 +147,7 @@ macro_rules! impl_multi_input_deps_rewrite {
     };
 }
 
-/// 生成多输入节点（使用 inputs）的重写方法
+/// A rewritten method for generating multiple input nodes (using `inputs`)
 macro_rules! impl_multi_input_inputs_rewrite {
     ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
         $(
@@ -171,7 +171,7 @@ macro_rules! impl_multi_input_inputs_rewrite {
     };
 }
 
-/// 生成无输入节点的重写方法
+/// Generate a rewritten method that does not contain any input nodes.
 macro_rules! impl_no_input_rewrite {
     ($($method:ident, $node_type:ty, $enum_variant:ident),* $(,)?) => {
         $(
@@ -488,7 +488,7 @@ mod tests {
         assert!(result.is_ok());
         match result.expect("访问不应失败") {
             PlanNodeEnum::Start(_) => {}
-            _ => panic!("期望 Start 节点"),
+            _ => panic!("The Start node is expected to be activated/started."),
         }
     }
 }

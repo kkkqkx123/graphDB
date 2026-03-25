@@ -1,4 +1,4 @@
-//! 地理空间函数实现
+//! Implementation of geospatial functions
 
 use crate::core::error::ExpressionError;
 use crate::core::value::geography::GeographyValue;
@@ -6,7 +6,7 @@ use crate::core::value::NullType;
 use crate::core::Value;
 
 define_function_enum! {
-    /// 地理空间函数枚举
+    /// Enumeration of geospatial functions
     pub enum GeographyFunction {
         StPoint => {
             name: "st_point",

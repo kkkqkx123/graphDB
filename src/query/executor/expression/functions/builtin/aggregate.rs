@@ -1,4 +1,4 @@
-//! 聚合函数实现
+//! Implementation of aggregate functions
 
 use crate::core::types::operators::AggregateFunction;
 use crate::core::value::dataset::List;
@@ -35,7 +35,7 @@ impl std::str::FromStr for AggregateFunction {
 }
 
 impl AggregateFunction {
-    /// 从字符串和参数创建聚合函数
+    /// Creating aggregate functions from strings and parameters
     pub fn from_str_with_args(func_name: &str, args: &[String]) -> Result<Self, ExpressionError> {
         match func_name.to_uppercase().as_str() {
             "COUNT" => {
@@ -113,7 +113,7 @@ impl AggregateFunction {
     }
 }
 
-/// 聚合表达式
+/// Aggregate expressions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggregateExpression {
     pub function: AggregateFunction,
@@ -130,7 +130,7 @@ impl AggregateExpression {
         }
     }
 
-    /// 计算聚合表达式的值
+    /// Calculate the value of the aggregate expression.
     pub fn evaluate<C: crate::query::executor::expression::ExpressionContext>(
         &self,
         context: &mut C,
@@ -143,10 +143,10 @@ impl AggregateExpression {
             )
             .map_err(|e| ExpressionError::function_error(e.to_string()))?;
 
-        // 更新聚合状态
+        // Update the aggregation status.
         state.update(&self.function, &arg_value, self.distinct);
 
-        // 返回当前状态的聚合结果
+        // Return the aggregated results of the current state.
         match &self.function {
             AggregateFunction::Count(_) => Ok(Value::Int(state.count)),
             AggregateFunction::Sum(_) => Ok(state.sum.clone()),
@@ -193,7 +193,7 @@ impl AggregateExpression {
     }
 }
 
-/// 聚合状态，用于累积聚合函数的中间结果
+/// Aggregation status, used to accumulate the intermediate results of aggregate functions.
 #[derive(Debug, Clone)]
 pub struct AggregateState {
     pub count: i64,
@@ -246,16 +246,16 @@ impl AggregateState {
         self.group_concat_values.clear();
     }
 
-    /// 更新聚合状态
+    /// Update the aggregation status.
     pub fn update(&mut self, function: &AggregateFunction, value: &Value, distinct: bool) {
         let value_str = format!("{}", value);
 
-        // 如果启用distinct，检查是否已存在
+        // If `distinct` is enabled, check whether it already exists.
         if distinct && self.distinct_values.contains(&value_str) {
             return;
         }
 
-        // 记录值用于去重
+        // The recorded values are used for deduplication (i.e., to remove duplicate entries).
         if distinct {
             self.distinct_values.insert(value_str);
         }
@@ -263,10 +263,10 @@ impl AggregateState {
         self.count += 1;
         self.values.push(value.clone());
 
-        // 根据聚合函数类型进行特殊处理
+        // Special processing is performed depending on the type of aggregate function.
         match function {
             AggregateFunction::Percentile(_, _) => {
-                // PERCENTILE函数特殊处理：收集数值
+                // Special handling of the PERCENTILE function: Collecting numerical values
                 match value {
                     Value::Int(v) => self.percentile_values.push(*v as f64),
                     Value::Float(v) => self.percentile_values.push(*v),
@@ -274,7 +274,7 @@ impl AggregateState {
                 }
             }
             AggregateFunction::Std(_) => {
-                // STD函数特殊处理：收集数值
+                // Special handling of the STD function: Collecting numerical values
                 match value {
                     Value::Int(v) => self.std_values.push(*v as f64),
                     Value::Float(v) => self.std_values.push(*v),
@@ -282,7 +282,7 @@ impl AggregateState {
                 }
             }
             AggregateFunction::BitAnd(_) => {
-                // BIT_AND函数特殊处理
+                // Special handling of the BIT_AND function
                 if let Value::Int(v) = value {
                     if let Some(current) = self.bit_and_value {
                         self.bit_and_value = Some(current & v);
@@ -292,7 +292,7 @@ impl AggregateState {
                 }
             }
             AggregateFunction::BitOr(_) => {
-                // BIT_OR函数特殊处理
+                // Special handling of the BIT_OR function
                 if let Value::Int(v) = value {
                     if let Some(current) = self.bit_or_value {
                         self.bit_or_value = Some(current | v);
@@ -302,22 +302,22 @@ impl AggregateState {
                 }
             }
             AggregateFunction::GroupConcat(_, _) => {
-                // GROUP_CONCAT函数特殊处理
+                // Special handling of the GROUP_CONCAT function
                 self.group_concat_values.push(value.clone());
             }
             _ => {
-                // 其他聚合函数的通用处理
-                // 更新最小值
+                // General handling of other aggregate functions
+                // Update the minimum value
                 if self.min.as_ref().is_none_or(|min_val| value < min_val) {
                     self.min = Some(value.clone());
                 }
 
-                // 更新最大值
+                // Update the maximum value
                 if self.max.as_ref().is_none_or(|max_val| value > max_val) {
                     self.max = Some(value.clone());
                 }
 
-                // 更新总和
+                // Update Total
                 match (&mut self.sum, value) {
                     (Value::Int(ref mut sum_int), Value::Int(val_int)) => {
                         *sum_int += *val_int;
@@ -337,7 +337,7 @@ impl AggregateState {
         }
     }
 
-    /// 计算百分位数
+    /// Calculating percentiles
     pub fn calculate_percentile(&self, percentile: f64) -> Result<Value, ExpressionError> {
         if self.percentile_values.is_empty() {
             return Ok(Value::Null(crate::core::value::NullType::Null));
@@ -367,7 +367,7 @@ impl AggregateState {
         }
     }
 
-    /// 计算标准差
+    /// Calculate the standard deviation
     pub fn calculate_std(&self) -> Result<Value, ExpressionError> {
         if self.std_values.is_empty() {
             return Ok(Value::Null(crate::core::value::NullType::Null));
@@ -386,7 +386,7 @@ impl AggregateState {
         Ok(Value::Float(std_dev))
     }
 
-    /// 计算按位与
+    /// Performing a bitwise AND operation
     pub fn calculate_bit_and(&self) -> Result<Value, ExpressionError> {
         if let Some(value) = self.bit_and_value {
             Ok(Value::Int(value))
@@ -395,7 +395,7 @@ impl AggregateState {
         }
     }
 
-    /// 计算按位或
+    /// Performing a bitwise OR operation
     pub fn calculate_bit_or(&self) -> Result<Value, ExpressionError> {
         if let Some(value) = self.bit_or_value {
             Ok(Value::Int(value))
@@ -404,7 +404,7 @@ impl AggregateState {
         }
     }
 
-    /// 计算分组连接
+    /// Computing group joins
     pub fn calculate_group_concat(&self) -> Result<Value, ExpressionError> {
         if self.group_concat_values.is_empty() {
             return Ok(Value::String(String::new()));
@@ -425,7 +425,7 @@ mod tests {
 
     #[test]
     fn test_unified_aggregate_function() {
-        // 测试从字符串创建
+        // The test involves creating objects from strings.
         let func = std::str::FromStr::from_str("COUNT").expect("from_str should succeed");
         assert!(matches!(func, AggregateFunction::Count(_)));
 

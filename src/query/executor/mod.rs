@@ -15,13 +15,13 @@ pub mod recursion_detector;
 pub mod result_processing;
 pub mod tag_filter;
 
-// Re-export from base module (基础类型从 base 模块统一导出)
+// Re-export from the base module: The basic types are uniformly exported from the base module.
 pub use base::{
     BaseExecutor, BaseResultProcessor, ExecutionContext, ExecutionResult, Executor, ExecutorStats,
     HasInput, HasStorage, InputExecutor, ResultProcessor, ResultProcessorContext, StartExecutor,
 };
 
-// Re-export ExecutorEnum (执行器枚举)
+// Re-export ExecutorEnum (Executor Enumeration)
 pub use executor_enum::ExecutorEnum;
 
 // Re-export data access executors
@@ -37,19 +37,19 @@ pub use result_processing::{
     SampleExecutor, SampleMethod, SortExecutor, SortKey, SortOrder, TopNExecutor,
 };
 
-// Re-export transformations (数据转换执行器)
+// Re-export transformations (Data conversion executors)
 pub use result_processing::transformations::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor,
     UnwindExecutor,
 };
 
-// Re-export logic executors (循环控制执行器)
+// Re-export logic executors
 pub use logic::{ForLoopExecutor, LoopExecutor, WhileLoopExecutor};
 
 // Re-export core execution states
 pub use crate::query::core::{ExecutorState, LoopExecutionState, QueryExecutionState, RowStatus};
 
-// Re-export admin executors (管理执行器)
+// Re-export admin executors
 pub use admin::{
     AlterEdgeExecutor, AlterTagExecutor, AlterUserExecutor, ChangePasswordExecutor,
     CreateEdgeExecutor, CreateEdgeIndexExecutor, CreateSpaceExecutor, CreateTagExecutor,
@@ -60,63 +60,63 @@ pub use admin::{
     ShowEdgesExecutor, ShowSpacesExecutor, ShowTagIndexesExecutor, ShowTagsExecutor,
 };
 
-// Re-export pipeline executors (管道执行器)
+// Re-export pipeline executors
 pub use pipeline_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
 // Re-export graph traversal executors (图遍历执行器)
 pub use data_processing::graph_traversal::algorithms::BFSShortestExecutor;
 
-// 编译期枚举一致性检查
-// 这些检查确保 PlanNodeEnum 和 ExecutorEnum 的变体数量一致
-// 如果数量不匹配，编译将失败并给出明确的错误信息
+// Compilation-time enumeration consistency check
+// These checks ensure that the number of variants for PlanNodeEnum and ExecutorEnum is the same.
+// If the quantities do not match, the compilation will fail and a clear error message will be displayed.
 
-/// PlanNodeEnum 的变体数量
-/// 注意：当添加或删除 PlanNodeEnum 的变体时，需要更新此常量
-/// 此常量仅用于编译期断言检查，故标记为允许未使用
+/// The number of variants of PlanNodeEnum
+/// When adding or removing variants of PlanNodeEnum, this constant needs to be updated.
+/// This constant is only used for compile-time assertion checks; therefore, it is marked as allowing its non-use.
 #[allow(dead_code)]
 const PLAN_NODE_VARIANT_COUNT: usize = 68;
 
-/// ExecutorEnum 的变体数量
-/// 注意：当添加或删除 ExecutorEnum 的变体时，需要更新此常量
+/// The number of variants of ExecutorEnum
+/// When adding or removing variants of ExecutorEnum, this constant needs to be updated.
 /// 此常量仅用于编译期断言检查，故标记为允许未使用
 #[allow(dead_code)]
 const EXECUTOR_VARIANT_COUNT: usize = 68;
 
-// 编译期断言：确保两个枚举的变体数量一致
-// 注意：const assert 中不能使用格式化字符串
+// Compilation-time assertion: Ensure that the number of variants in both enumerations is the same.
+// Formatted strings cannot be used within the `const assert` statement.
 const _: () = assert!(
     PLAN_NODE_VARIANT_COUNT == EXECUTOR_VARIANT_COUNT,
     "PlanNodeEnum and ExecutorEnum variant count mismatch"
 );
 
-/// 节点类型一致性检查
+/// Consistency check of node type
 ///
-/// 此模块在编译期检查 PlanNodeEnum 和 ExecutorEnum 的一致性
+/// This module checks the consistency of PlanNodeEnum and ExecutorEnum during the compilation phase.
 #[cfg(test)]
 mod consistency_tests {
     use crate::query::core::NodeTypeMapping;
     use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 
-    /// 测试 PlanNodeEnum 和 ExecutorEnum 的节点类型 ID 是否一致
+    /// Test whether the node type IDs of PlanNodeEnum and ExecutorEnum are consistent.
     #[test]
     fn test_node_type_id_consistency() {
-        // 此测试确保所有 PlanNode 类型都有对应的 Executor 类型
-        // 实际检查在编译期通过常量断言完成
+        // This test ensures that all PlanNode types have corresponding Executor types.
+        // The actual checks are performed during the compilation phase using constant assertions.
         assert_eq!(
             super::PLAN_NODE_VARIANT_COUNT,
             super::EXECUTOR_VARIANT_COUNT
         );
     }
 
-    /// 验证节点类型映射
+    /// Verify the node type mapping.
     #[test]
     fn test_node_type_mapping() {
         use crate::query::planning::plan::core::nodes::{
             ArgumentNode, CrossJoinNode, PlanNodeEnum as NodeEnum,
         };
 
-        // 示例：验证 CrossJoin 的映射
-        // 创建两个 ArgumentNode 作为 CrossJoin 的输入
+        // Example: Verifying the mapping of CrossJoin
+        // Create two ArgumentNode objects as inputs for the CrossJoin operation.
         let left = ArgumentNode::new(1, "left_var");
         let right = ArgumentNode::new(2, "right_var");
         let cross_join_node =
@@ -124,7 +124,7 @@ mod consistency_tests {
                 .expect("创建 CrossJoinNode 失败");
         let plan_node = PlanNodeEnum::CrossJoin(cross_join_node);
 
-        // 验证 PlanNodeEnum 实现了 NodeTypeMapping
+        // Verify that the PlanNodeEnum implementation satisfies the NodeTypeMapping requirements.
         let executor_type = plan_node.corresponding_executor_type();
         assert!(executor_type.is_some());
         assert_eq!(

@@ -1,18 +1,18 @@
-//! DELETE 语句验证器 - 新体系版本
-//! 对应 NebulaGraph DeleteValidator 的功能
-//! 验证 DELETE 语句的语义正确性
+//! DELETE Statement Validator – New Version
+//! Corresponding to the functionality of NebulaGraph’s DeleteValidator
+//! Verify the semantic correctness of the DELETE statement.
 //!
-//! 本文件已按照新的 trait + 枚举 验证器体系重构：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 保留了完整功能：
-//!    - 验证生命周期管理
-//!    - 输入/输出列管理
-//!    - 表达式属性追踪
-//!    - 用户定义变量管理
-//!    - 权限检查
-//!    - 执行计划生成
-//! 3. 移除了生命周期参数，使用 Arc 管理 SchemaManager
-//! 4. 使用 AstContext 统一管理上下文
+//! This document has been restructured in accordance with the new trait + enumeration validator framework.
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. All functions are retained.
+//! Verify Lifecycle Management
+//! Management of input/output columns
+//! Expression property tracing
+//! User-defined variable management
+//! Permission check
+//! Execution plan generation
+//! 3. The lifecycle parameters have been removed, and SchemaManager is now managed using Arc.
+//! 4. Use AstContext to manage the context in a unified manner.
 
 use std::sync::Arc;
 
@@ -28,7 +28,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
-/// 验证后的删除信息
+/// Verified deletion information
 #[derive(Debug, Clone)]
 pub struct ValidatedDelete {
     pub space_id: u64,
@@ -37,7 +37,7 @@ pub struct ValidatedDelete {
     pub where_clause: Option<ContextualExpression>,
 }
 
-/// 删除目标类型
+/// Delete the target type.
 #[derive(Debug, Clone)]
 pub enum DeleteTargetType {
     Vertices(Vec<Value>),
@@ -54,7 +54,7 @@ pub enum DeleteTargetType {
     Index(String),
 }
 
-/// 边的唯一标识
+/// The unique identifier for the edge
 #[derive(Debug, Clone)]
 pub struct EdgeKey {
     pub src: Value,
@@ -62,28 +62,28 @@ pub struct EdgeKey {
     pub rank: i64,
 }
 
-/// DELETE 语句验证器 - 新体系实现
+/// DELETE Statement Validator – New System Implementation
 ///
-/// 功能完整性保证：
-/// 1. 完整的验证生命周期
-/// 2. 输入/输出列管理
-/// 3. 表达式属性追踪
-/// 4. 用户定义变量管理
-/// 5. 权限检查（可扩展）
-/// 6. 执行计划生成（可扩展）
+/// Functionality completeness assurance:
+/// 1. Complete validation lifecycle
+/// 2. Management of input/output columns
+/// 3. Tracking of expression property values
+/// 4. Management of user-defined variables
+/// 5. Permission checking (scalable)
+/// 6. Generation of execution plans (scalable)
 #[derive(Debug)]
 pub struct DeleteValidator {
-    // Schema 管理
+    // Schema management
     schema_manager: Option<Arc<RedbSchemaManager>>,
-    // 输入列定义
+    // Input column definition
     inputs: Vec<ColumnDef>,
-    // 输出列定义
+    // Column definition
     outputs: Vec<ColumnDef>,
-    // 表达式属性
+    // Expression properties
     expr_props: ExpressionProps,
-    // 用户定义变量
+    // User-defined variables
     user_defined_vars: Vec<String>,
-    // 缓存验证结果
+    // Cache validation results
     validated_result: Option<ValidatedDelete>,
 }
 
@@ -104,19 +104,19 @@ impl DeleteValidator {
         self
     }
 
-    /// 获取验证结果
+    /// Obtain the verification results.
     pub fn validated_result(&self) -> Option<&ValidatedDelete> {
         self.validated_result.as_ref()
     }
 
-    /// 基础验证（不依赖 Schema）
+    /// Basic validation (not dependent on a Schema)
     fn validate_delete(&self, stmt: &DeleteStmt) -> Result<(), ValidationError> {
         self.validate_target(&stmt.target)?;
         self.validate_where_clause(stmt.where_clause.as_ref())?;
         Ok(())
     }
 
-    /// 验证删除目标
+    /// Verify the deletion target.
     fn validate_target(&self, target: &DeleteTarget) -> Result<(), ValidationError> {
         match target {
             DeleteTarget::Vertices(vids) => {
@@ -152,7 +152,7 @@ impl DeleteValidator {
                 vertex_ids,
                 is_all_tags,
             } => {
-                // 如果不是删除所有 Tag，则需要指定至少一个 Tag 名
+                // If you do not want to delete all tags, you need to specify at least one tag name.
                 if !is_all_tags && tag_names.is_empty() {
                     return Err(ValidationError::new(
                         "DELETE TAG must specify at least one tag name or use *".to_string(),
@@ -189,8 +189,8 @@ impl DeleteValidator {
         Ok(())
     }
 
-    /// 验证顶点 ID
-    /// 使用 SchemaValidator 的统一验证方法
+    /// Verify the vertex ID
+    /// Using the unified validation method provided by SchemaValidator
     fn validate_vertex_id(
         &self,
         expr: &ContextualExpression,
@@ -221,7 +221,7 @@ impl DeleteValidator {
         }
     }
 
-    /// 基本顶点 ID 验证（无 SchemaManager 时）
+    /// Basic vertex ID verification (when no SchemaManager is available)
     fn basic_validate_vertex_id(
         expr: &ContextualExpression,
         idx: usize,
@@ -255,7 +255,7 @@ impl DeleteValidator {
         }
     }
 
-    /// 验证 rank
+    /// Verify the rank.
     fn validate_rank(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
         if let Some(e) = expr.get_expression() {
             match e {
@@ -274,7 +274,7 @@ impl DeleteValidator {
         }
     }
 
-    /// 验证 WHERE 子句
+    /// Verify the WHERE clause
     fn validate_where_clause(
         &self,
         where_clause: Option<&ContextualExpression>,
@@ -285,7 +285,7 @@ impl DeleteValidator {
         Ok(())
     }
 
-    /// 验证表达式
+    /// Verify the expression
     fn validate_expression(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
         let expr_meta = match expr.get_expression() {
             Some(e) => e,
@@ -299,7 +299,7 @@ impl DeleteValidator {
         self.validate_expression_internal(&expr_meta)
     }
 
-    /// 内部方法：验证表达式
+    /// Internal method: Verifying expressions
     fn validate_expression_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -326,7 +326,7 @@ impl DeleteValidator {
         }
     }
 
-    /// 验证并转换目标（使用 Schema）
+    /// Verify and convert the target content (using Schema).
     fn validate_and_convert_target(
         &self,
         target: &DeleteTarget,
@@ -342,7 +342,7 @@ impl DeleteValidator {
                 Ok(DeleteTargetType::Vertices(validated_vids))
             }
             DeleteTarget::Edges { edge_type, edges } => {
-                // 获取 EdgeType ID
+                // Obtain the EdgeType ID
                 let edge_type_id = if let Some(et) = edge_type {
                     self.get_edge_type_id(et, space_id)?
                 } else {
@@ -376,10 +376,10 @@ impl DeleteValidator {
                 vertex_ids,
                 is_all_tags,
             } => {
-                // 获取 Tag IDs
+                // Obtaining Tag IDs
                 let mut tag_ids = Vec::new();
                 let final_tag_names = if *is_all_tags {
-                    // 如果是删除所有 Tag，执行层会处理获取所有 Tag 的逻辑
+                    // If all tags are to be deleted, the execution layer will handle the logic for retrieving all the tags.
                     vec![]
                 } else {
                     for tag_name in tag_names {
@@ -407,7 +407,7 @@ impl DeleteValidator {
         }
     }
 
-    /// 评估 VID 表达式
+    /// Evaluating VID expressions
     fn evaluate_vid(
         &self,
         vid_expr: &ContextualExpression,
@@ -433,7 +433,7 @@ impl DeleteValidator {
         }
     }
 
-    /// 评估 rank 表达式
+    /// Evaluating the rank expression
     fn evaluate_rank(&self, expr: &ContextualExpression) -> Result<i64, ValidationError> {
         let inner_expr = match expr.get_expression() {
             Some(e) => e,
@@ -455,22 +455,22 @@ impl DeleteValidator {
         }
     }
 
-    /// 获取 EdgeType ID
+    /// Obtain the EdgeType ID
     fn get_edge_type_id(
         &self,
         edge_type_name: &str,
         _space_id: u64,
     ) -> Result<Option<i32>, ValidationError> {
-        // 如果有 schema_manager，可以查询实际的 edge_type_id
-        // 这里简化处理，返回 None 让执行层处理
+        // If there is a schema_manager, it is possible to retrieve the actual edge_type_id.
+        // The simplification here is to return `None`, allowing the execution layer to handle the task accordingly.
         let _ = edge_type_name;
         Ok(None)
     }
 
-    /// 获取 Tag ID
+    /// Obtain the Tag ID
     fn get_tag_id(&self, tag_name: &str, _space_id: u64) -> Result<Option<i32>, ValidationError> {
-        // 如果有 schema_manager，可以查询实际的 tag_id
-        // 这里简化处理，返回 None 让执行层处理
+        // If there is a schema_manager, it is possible to retrieve the actual tag_id.
+        // The simplification here is to return `None`, allowing the execution layer to handle the task accordingly.
         let _ = tag_name;
         Ok(None)
     }
@@ -482,17 +482,17 @@ impl Default for DeleteValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for DeleteValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
@@ -500,7 +500,7 @@ impl StatementValidator for DeleteValidator {
             ));
         }
 
-        // 2. 获取 DELETE 语句
+        // 2. Obtain the DELETE statement
         let delete_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Delete(delete_stmt) => delete_stmt,
             _ => {
@@ -511,16 +511,16 @@ impl StatementValidator for DeleteValidator {
             }
         };
 
-        // 3. 执行基础验证
+        // 3. Perform basic validation.
         self.validate_delete(delete_stmt)?;
 
-        // 4. 获取 space_id
+        // 4. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 5. 验证并转换目标
+        // 5. Verify and convert the target content.
         let target_type = self.validate_and_convert_target(&delete_stmt.target, space_id)?;
 
-        // 6. 创建验证结果
+        // 6. Create the verification results
         let validated = ValidatedDelete {
             space_id,
             target_type,
@@ -530,17 +530,17 @@ impl StatementValidator for DeleteValidator {
 
         self.validated_result = Some(validated.clone());
 
-        // 7. 设置输出列
+        // 7. Set the output columns
         self.outputs.clear();
         self.outputs.push(ColumnDef {
             name: "DELETED".to_string(),
             type_: ValueType::Bool,
         });
 
-        // 8. 构建详细的 ValidationInfo
+        // 8. Constructing detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // 添加语义信息
+        // Add semantic information
         match &delete_stmt.target {
             DeleteTarget::Vertices(_) => {
                 info.semantic_info
@@ -560,11 +560,11 @@ impl StatementValidator for DeleteValidator {
                 }
             }
             DeleteTarget::Index(_) => {
-                // 索引删除不需要添加语义信息
+                // The deletion of an index does not require the addition of any semantic information.
             }
         }
 
-        // 9. 返回包含详细信息的验证结果
+        // 9. Return the verification results containing detailed information.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -581,7 +581,7 @@ impl StatementValidator for DeleteValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // DELETE 不是全局语句，需要预先选择空间
+        // The `DELETE` command is not a global statement; it is necessary to select a specific space (or database table, etc.) in advance before executing the command.
         false
     }
 
@@ -768,14 +768,14 @@ mod tests {
     fn test_statement_validator_trait() {
         let validator = DeleteValidator::new();
 
-        // 测试 statement_type
+        // Testing the `statement_type`
         assert_eq!(validator.statement_type(), StatementType::Delete);
 
-        // 测试 inputs/outputs
+        // Testing inputs/outputs
         assert!(validator.inputs().is_empty());
         assert!(validator.outputs().is_empty());
 
-        // 测试 user_defined_vars
+        // Testing user_defined_vars
         assert!(validator.user_defined_vars().is_empty());
     }
 }

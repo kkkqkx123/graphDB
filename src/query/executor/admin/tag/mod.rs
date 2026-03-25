@@ -1,6 +1,6 @@
-//! 标签管理执行器
+//! Tag Management Executor
 //!
-//! 提供标签的创建、修改、描述、删除和列出功能。
+//! Provide functions for creating, modifying, describing, deleting, and listing tags.
 
 pub mod alter_tag;
 pub mod create_tag;

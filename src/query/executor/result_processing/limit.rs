@@ -1,6 +1,6 @@
-//! 限制执行器
+//! Limit the execution of the actuator
 //!
-//! 实现对查询结果的数量限制和偏移功能，支持 LIMIT 和 OFFSET 操作
+//! Implementing a limit on the number of query results and an offset function, supporting the LIMIT and OFFSET operations.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -13,15 +13,15 @@ use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
 
-/// 限制执行器 - 实现LIMIT和OFFSET功能
+/// Limiting actuators – Implementing the LIMIT and OFFSET functions
 pub struct LimitExecutor<S: StorageClient + Send + 'static> {
-    /// 基础处理器
+    /// Basic processor
     base: BaseResultProcessor<S>,
-    /// 限制数量
+    /// Limit the quantity
     limit: Option<usize>,
-    /// 偏移量
+    /// Offset
     offset: usize,
-    /// 输入执行器
+    /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
@@ -42,19 +42,19 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
         }
     }
 
-    /// 仅设置LIMIT
+    /// Only set the LIMIT
     pub fn with_limit(id: i64, storage: Arc<Mutex<S>>, limit: usize) -> Self {
         Self::new(id, storage, Some(limit), 0)
     }
 
-    /// 仅设置OFFSET
+    /// Only set the OFFSET.
     pub fn with_offset(id: i64, storage: Arc<Mutex<S>>, offset: usize) -> Self {
         Self::new(id, storage, None, offset)
     }
 
-    /// 处理输入数据并应用限制
+    /// Process the input data and apply the relevant restrictions.
     fn process_input(&mut self) -> DBResult<DataSet> {
-        // 优先使用 input_executor
+        // Give priority to using the `inputExecutor`.
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute()?;
             self.apply_limits_to_input(input_result)
@@ -70,7 +70,7 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
         }
     }
 
-    /// 对输入应用限制
+    /// Apply restrictions to the input.
     fn apply_limits_to_input(&self, input: ExecutionResult) -> DBResult<DataSet> {
         match input {
             ExecutionResult::DataSet(mut data_set) => {
@@ -97,9 +97,9 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
         }
     }
 
-    /// 对数据集应用限制
+    /// Applying restrictions to the dataset
     fn apply_limits(&self, data_set: &mut DataSet) -> DBResult<()> {
-        // 应用偏移量
+        // Application offset
         if self.offset > 0 {
             if self.offset < data_set.rows.len() {
                 data_set.rows.drain(0..self.offset);
@@ -108,7 +108,7 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
             }
         }
 
-        // 应用限制
+        // Application restrictions
         if let Some(limit) = self.limit {
             data_set.rows.truncate(limit);
         }
@@ -116,9 +116,9 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
         Ok(())
     }
 
-    /// 对值列表应用限制
+    /// Applying restrictions to a list of values
     fn apply_values_limit(&self, mut values: Vec<Value>) -> DBResult<DataSet> {
-        // 应用偏移量
+        // Application offset
         if self.offset > 0 {
             if self.offset < values.len() {
                 values.drain(0..self.offset);
@@ -127,20 +127,20 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
             }
         }
 
-        // 应用限制
+        // Application restrictions
         if let Some(limit) = self.limit {
             values.truncate(limit);
         }
 
         Ok(DataSet {
-            col_names: vec!["_value".to_string()], // 单列数据
+            col_names: vec!["_value".to_string()], // Single-column data
             rows: values.into_iter().map(|v| vec![v]).collect(),
         })
     }
 
-    /// 对顶点列表应用限制
+    /// Apply restrictions to the list of vertices.
     fn apply_vertices_limit(&self, mut vertices: Vec<crate::core::Vertex>) -> DBResult<DataSet> {
-        // 应用偏移量
+        // Application offset
         if self.offset > 0 {
             if self.offset < vertices.len() {
                 vertices.drain(0..self.offset);
@@ -149,12 +149,12 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
             }
         }
 
-        // 应用限制
+        // Application restrictions
         if let Some(limit) = self.limit {
             vertices.truncate(limit);
         }
 
-        // 将顶点转换为数据集
+        // Convert the vertices into a dataset.
         let rows: Vec<Vec<Value>> = vertices
             .into_iter()
             .map(|v| vec![Value::Vertex(Box::new(v))])
@@ -166,9 +166,9 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
         })
     }
 
-    /// 对边列表应用限制
+    /// Apply restrictions to the list of opposite sides.
     fn apply_edges_limit(&self, mut edges: Vec<crate::core::Edge>) -> DBResult<DataSet> {
-        // 应用偏移量
+        // Application offset
         if self.offset > 0 {
             if self.offset < edges.len() {
                 edges.drain(0..self.offset);
@@ -177,12 +177,12 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
             }
         }
 
-        // 应用限制
+        // Application restrictions
         if let Some(limit) = self.limit {
             edges.truncate(limit);
         }
 
-        // 将边转换为数据集
+        // Convert the edges into a dataset.
         let rows: Vec<Vec<Value>> = edges.into_iter().map(|e| vec![Value::Edge(e)]).collect();
 
         Ok(DataSet {
@@ -298,7 +298,7 @@ mod tests {
     fn test_limit_executor_basic() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
-        // 创建测试数据
+        // Create test data
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["name".to_string(), "age".to_string()];
         for i in 1..=10 {
@@ -308,22 +308,22 @@ mod tests {
             ]);
         }
 
-        // 创建限制执行器 (LIMIT 5 OFFSET 2)
+        // Create a limit executor (LIMIT 5 OFFSET 2)
         let mut executor = LimitExecutor::new(1, storage, Some(5), 2);
 
-        // 设置输入数据
+        // Setting the input data
         ResultProcessor::set_input(&mut executor, ExecutionResult::DataSet(dataset));
 
-        // 执行限制
+        // Enforce the restrictions.
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .expect("Failed to process limit");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::DataSet(limited_dataset) => {
                 assert_eq!(limited_dataset.rows.len(), 5);
-                // 验证跳过了前2行，取了5行
+                // The validation process skipped the first 2 lines and selected the 5th line.
                 assert_eq!(limited_dataset.rows[0][1], Value::Int(30)); // User3
                 assert_eq!(limited_dataset.rows[4][1], Value::Int(70)); // User7
             }
@@ -335,21 +335,21 @@ mod tests {
     fn test_limit_executor_only_limit() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
-        // 创建测试数据
+        // Create test data
         let values: Vec<Value> = (1..=10).map(Value::Int).collect();
 
-        // 创建限制执行器 (仅 LIMIT 3)
+        // Create a limit executor (only allowing the execution of the LIMIT command 3 times).
         let mut executor = LimitExecutor::with_limit(1, storage, 3);
 
-        // 设置输入数据
+        // Setting the input data
         ResultProcessor::set_input(&mut executor, ExecutionResult::Values(values));
 
-        // 执行限制
+        // Enforce the restrictions.
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .expect("Failed to process limit");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::DataSet(limited_dataset) => {
                 assert_eq!(limited_dataset.rows.len(), 3);

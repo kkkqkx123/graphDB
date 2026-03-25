@@ -1,12 +1,12 @@
-//! 别名验证策略
-//! 负责验证表达式中的别名引用和可用性
+//! Alias Verification Policy
+//! Responsible for verifying alias references and their availability in expressions.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 
-/// 别名验证策略
+/// Alias validation policy
 pub struct AliasValidationStrategy;
 
 impl Default for AliasValidationStrategy {
@@ -20,7 +20,7 @@ impl AliasValidationStrategy {
         Self
     }
 
-    /// 验证表达式列表中的别名
+    /// Verify the aliases in the list of expressions.
     pub fn validate_aliases(
         &self,
         exprs: &[ContextualExpression],
@@ -32,20 +32,20 @@ impl AliasValidationStrategy {
         Ok(())
     }
 
-    /// 验证单个表达式中的别名
+    /// Verify aliases in a single expression
     pub fn validate_expression_aliases(
         &self,
         expression: &ContextualExpression,
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        // 从 ContextualExpression 获取 Expression
+        // Obtain the Expression from ContextualExpression.
         let expr_meta = match expression.expression() {
             Some(e) => e,
             None => return Ok(()),
         };
         let expr = expr_meta.inner();
 
-        // 首先检查表达式本身是否引用了一个别名
+        // First, check whether the expression itself references an alias.
         if let Some(alias_name) = self.extract_alias_name_internal(expr) {
             if !aliases.contains_key(&alias_name) {
                 return Err(ValidationError::new(
@@ -55,19 +55,19 @@ impl AliasValidationStrategy {
             }
         }
 
-        // 递归验证子表达式
+        // Recursive verification of subexpressions
         self.validate_subexpressions_aliases_internal(expr, aliases)?;
 
         Ok(())
     }
 
-    /// 从表达式中提取别名名称
+    /// Extract the alias names from the expression.
     pub fn extract_alias_name(&self, expression: &ContextualExpression) -> Option<String> {
         let expr_meta = expression.expression()?;
         self.extract_alias_name_internal(expr_meta.inner())
     }
 
-    /// 内部方法：从表达式中提取别名名称
+    /// Internal method: Extracting alias names from expressions
     fn extract_alias_name_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
@@ -150,7 +150,7 @@ impl AliasValidationStrategy {
         }
     }
 
-    /// 内部方法：递归验证子表达式中的别名
+    /// Internal method: Recursively verifying aliases in subexpressions
     fn validate_subexpressions_aliases_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
@@ -216,11 +216,11 @@ impl AliasValidationStrategy {
             | crate::core::types::expr::Expression::PathBuild(_)
             | crate::core::types::expr::Expression::Parameter(_) => Ok(()),
             crate::core::types::expr::Expression::TypeCast { expression, .. } => {
-                // 类型转换表达式需要验证其子表达式
+                // Type conversion expressions require that their subexpressions be validated.
                 self.validate_expression_aliases_internal(expression, aliases)
             }
             crate::core::types::expr::Expression::Aggregate { arg, .. } => {
-                // 聚合函数表达式需要验证其参数表达式
+                // Aggregate function expressions need to have their parameter expressions verified.
                 self.validate_expression_aliases_internal(arg, aliases)
             }
             crate::core::types::expr::Expression::Range {
@@ -228,7 +228,7 @@ impl AliasValidationStrategy {
                 start,
                 end,
             } => {
-                // 范围访问表达式需要验证集合和范围表达式
+                // Range access expressions require the validation of both the set and the range expression itself.
                 self.validate_expression_aliases_internal(collection, aliases)?;
                 if let Some(start_expression) = start {
                     self.validate_expression_aliases_internal(start_expression, aliases)?;
@@ -239,7 +239,7 @@ impl AliasValidationStrategy {
                 Ok(())
             }
             crate::core::types::expr::Expression::Path(items) => {
-                // 路径表达式需要验证其所有项
+                // Path expressions need to have all their components verified.
                 for item in items {
                     self.validate_expression_aliases_internal(item, aliases)?;
                 }
@@ -248,13 +248,13 @@ impl AliasValidationStrategy {
         }
     }
 
-    /// 内部方法：验证单个表达式中的别名
+    /// Internal method: Verifying aliases in a single expression
     fn validate_expression_aliases_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        // 首先检查表达式本身是否引用了一个别名
+        // First, check whether the expression itself references an alias.
         if let Some(alias_name) = self.extract_alias_name_internal(expression) {
             if !aliases.contains_key(&alias_name) {
                 return Err(ValidationError::new(
@@ -264,17 +264,17 @@ impl AliasValidationStrategy {
             }
         }
 
-        // 递归验证子表达式
+        // Recursive verification of subexpressions
         self.validate_subexpressions_aliases_internal(expression, aliases)
     }
 
-    /// 检查别名类型是否匹配使用方式
+    /// Check whether the alias types match the way they are being used.
     pub fn check_alias(
         &self,
         ref_expression: &ContextualExpression,
         aliases_available: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        // 提取表达式中的别名名称
+        // Extract the alias names from the expression.
         if let Some(alias_name) = self.extract_alias_name(ref_expression) {
             if !aliases_available.contains_key(&alias_name) {
                 return Err(ValidationError::new(
@@ -287,7 +287,7 @@ impl AliasValidationStrategy {
         Ok(())
     }
 
-    /// 结合别名
+    /// Taking into account the aliases…
     pub fn combine_aliases(
         &self,
         cur_aliases: &mut HashMap<String, AliasType>,
@@ -310,7 +310,7 @@ impl AliasValidationStrategy {
 }
 
 impl AliasValidationStrategy {
-    /// 获取策略名称
+    /// Obtain the policy name
     pub fn strategy_name(&self) -> &'static str {
         "AliasValidationStrategy"
     }
@@ -334,7 +334,7 @@ mod tests {
     fn test_extract_alias_name() {
         let strategy = AliasValidationStrategy::new();
 
-        // 测试从变量表达式中提取别名
+        // The test involves extracting aliases from variable expressions.
         let var_expression = Expression::Variable("test_var".to_string());
         let meta = ExpressionMeta::new(var_expression);
         let expr_ctx = ExpressionAnalysisContext::new();
@@ -345,7 +345,7 @@ mod tests {
             Some("test_var".to_string())
         );
 
-        // 测试从常量表达式中提取别名（应该返回None）
+        // The test checks whether aliases can be extracted from constant expressions (it should return None).
         let const_expression = Expression::Literal(crate::core::Value::Int(42));
         let meta = ExpressionMeta::new(const_expression);
         let expr_ctx = ExpressionAnalysisContext::new();

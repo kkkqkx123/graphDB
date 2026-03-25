@@ -1,6 +1,6 @@
-// 日志工具模块
+// Logging utility module
 //
-// 封装 flexi_logger 的初始化和关闭操作，确保异步日志正确 flush
+// Encapsulates flexi_logger initialization and shutdown operations, ensuring async logs are properly flushed
 
 use crate::config::Config;
 use flexi_logger::{
@@ -9,12 +9,12 @@ use flexi_logger::{
 };
 use parking_lot::Mutex;
 
-/// 全局日志句柄，用于程序退出时 flush
+/// Global logger handle, used for flush on program exit
 static LOGGER_HANDLE: Mutex<Option<LoggerHandle>> = Mutex::new(None);
 
-/// 自定义日志格式化函数，添加时间戳
+/// Custom log formatting function, adds timestamp
 ///
-/// 格式：YYYY-MM-DD HH:MM:SS.mmm [LEVEL] module_path: 消息内容
+/// Format: YYYY-MM-DD HH:MM:SS.mmm [LEVEL] module_path: message content
 fn log_format(
     w: &mut dyn std::io::Write,
     now: &mut DeferredNow,
@@ -30,14 +30,14 @@ fn log_format(
     )
 }
 
-/// 初始化日志系统
+/// Initialize logging system
 ///
 /// # Arguments
-/// * `config` - 应用配置，包含日志相关参数
+/// * `config` - Application configuration, containing logging parameters
 ///
 /// # Returns
-/// * `Ok(())` - 初始化成功
-/// * `Err(Box<dyn std::error::Error>)` - 初始化失败
+/// * `Ok(())` - Initialization successful
+/// * `Err(Box<dyn std::error::Error>)` - Initialization failed
 ///
 /// # Examples
 /// ```
@@ -45,7 +45,7 @@ fn log_format(
 /// use graphdb::utils::logging;
 ///
 /// let config = Config::default();
-/// logging::init(&config).expect("日志初始化失败");
+/// logging::init(&config).expect("Logging initialization failed");
 /// ```
 pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
     let handle = Logger::try_with_str(&config.log.level)?
@@ -64,7 +64,7 @@ pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
         .append()
         .start()?;
 
-    // 保存句柄供后续 flush 使用
+    // Save handle for subsequent flush operations
     *LOGGER_HANDLE.lock() = Some(handle);
 
     log::info!(
@@ -75,31 +75,31 @@ pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// 刷新并关闭日志系统
+/// Flush and shutdown logging system
 ///
-/// 在程序退出前调用，确保所有异步日志都已写入文件
-/// 这是一个阻塞操作，会等待日志线程完成当前工作
+/// Call before program exit to ensure all async logs are written to file
+/// This is a blocking operation that waits for the log thread to complete its work
 ///
 /// # Examples
 /// ```
 /// use graphdb::utils::logging;
 ///
-/// // 程序退出前
+/// // Before program exit
 /// logging::shutdown();
 /// ```
 pub fn shutdown() {
     let mut guard = LOGGER_HANDLE.lock();
     if let Some(handle) = guard.take() {
         handle.flush();
-        // handle 在这里被 drop，会等待异步线程完成
+        // handle is dropped here, which waits for async thread to complete
     }
 }
 
-/// 检查日志系统是否已初始化
+/// Check if logging system is initialized
 ///
 /// # Returns
-/// * `true` - 日志系统已初始化
-/// * `false` - 日志系统未初始化
+/// * `true` - Logging system is initialized
+/// * `false` - Logging system is not initialized
 pub fn is_initialized() -> bool {
     LOGGER_HANDLE.lock().is_some()
 }
@@ -112,23 +112,27 @@ mod tests {
     fn test_logging_init_and_shutdown() {
         let config = Config::default();
 
-        // 初始化日志
+        // Initialize logging
         let result = init(&config);
-        assert!(result.is_ok(), "日志初始化失败: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Logging initialization failed: {:?}",
+            result.err()
+        );
         assert!(is_initialized());
 
-        // 写入测试日志
+        // Write test log
         log::info!("Test log message");
 
-        // 关闭日志
+        // Shutdown logging
         shutdown();
         assert!(!is_initialized());
     }
 
     #[test]
     fn test_is_initialized_before_init() {
-        // 确保在初始化前返回 false
-        // 注意：由于 LOGGER_HANDLE 是全局的，这个测试可能受到其他测试的影响
-        // 在实际运行中，应该在独立的进程中测试
+        // Ensure it returns false before initialization
+        // Note: Since LOGGER_HANDLE is global, this test may be affected by other tests
+        // In practice, it should be tested in an independent process
     }
 }

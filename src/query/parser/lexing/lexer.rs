@@ -120,9 +120,9 @@ impl<'a> Lexer<'a> {
             if ch.is_ascii_digit() {
                 self.read_char();
             } else if ch == '.' && !has_decimal && !has_exponent {
-                // 检查 . 后面是否跟着数字（使用 peek 不消耗字符）
+                // Check whether a number follows the text (using “peek” without consuming any characters).
                 let mut temp_chars = self.chars.clone();
-                temp_chars.next(); // 跳过 .
+                temp_chars.next(); // Skip.
                 if temp_chars.peek().is_some_and(|c| c.is_ascii_digit()) {
                     has_decimal = true;
                     self.read_char();
@@ -511,13 +511,13 @@ impl<'a> Lexer<'a> {
                 }
             }
             Some(&'-') => {
-                // 检查下一个字符是否也是 -（使用 clone 避免消耗当前字符）
+                // Check whether the next character is also “-” (use the “clone” function to avoid consuming the current character).
                 let mut temp_chars = self.chars.clone();
-                temp_chars.next(); // 跳过第一个 -
+                temp_chars.next(); // Skip the first one.
                 if let Some(&'-') = temp_chars.peek() {
-                    // 是 SQL 注释，消耗两个 -
-                    self.read_char(); // 读取第一个 -
-                    self.read_char(); // 读取第二个 -
+                    // These are SQL comments; they consume two “-” characters each.
+                    self.read_char(); // Read the first one –
+                    self.read_char(); // Read the second one…
                     while let Some(&ch) = self.peek_char() {
                         if ch == '\n' {
                             break;
@@ -526,7 +526,7 @@ impl<'a> Lexer<'a> {
                     }
                     Ok(())
                 } else {
-                    // 不是注释，返回错误让调用者处理
+                    // Don’t return errors; let the caller handle them.
                     Err(LexError::new(
                         "Not a comment".to_string(),
                         self.current_position(),
@@ -963,7 +963,7 @@ mod tests {
 
     #[test]
     fn test_float_literals() {
-        let input = "42"; // 测试整数
+        let input = "42"; // Testing integers
         let lexer = Lexer::new(input);
         assert_eq!(lexer.current_token.kind, Tk::IntegerLiteral(42));
     }
@@ -1076,32 +1076,32 @@ mod tests {
 
     #[test]
     fn test_values_keyword() {
-        // 测试 VALUES 关键字识别
+        // Testing the recognition of the VALUES keyword
         let input = "VALUES";
         let lexer = Lexer::new(input);
 
-        // 关键测试：VALUES 应该被识别为关键字
+        // Key test: The value “VALUES” should be recognized as a keyword.
         assert_eq!(lexer.current_token.kind, Tk::Values);
         assert_eq!(lexer.current_token.lexeme, "VALUES");
     }
 
     #[test]
     fn test_values_in_insert_context() {
-        // 测试在 INSERT 语句上下文中 VALUES 关键字识别
+        // The test focuses on the recognition of the VALUES keyword in the context of INSERT statements.
         let input = "INSERT VALUES";
         let mut lexer = Lexer::new(input);
 
         assert_eq!(lexer.current_token.kind, Tk::Insert);
         lexer.advance();
 
-        // VALUES 应该被识别为关键字，不是标识符
+        // The term “VALUES” should be recognized as a keyword, not as an identifier.
         assert_eq!(lexer.current_token.kind, Tk::Values);
         assert_eq!(lexer.current_token.lexeme, "VALUES");
     }
 
     #[test]
     fn test_values_case_insensitive() {
-        // 测试 VALUES 关键字大小写不敏感
+        // The VALUES keyword is case-insensitive when tested.
         let inputs = vec!["VALUES", "values", "Values", "VaLuEs"];
 
         for input in inputs {

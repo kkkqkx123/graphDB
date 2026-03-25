@@ -1,6 +1,6 @@
-//! GO 语句验证器
+//! GO Statement Validator
 //! 对应 NebulaGraph GoValidator.h/.cpp 的功能
-//! 验证 GO FROM ... OVER ... WHERE ... YIELD ... 语句
+//! Verify the GO FROM ... OVER ... WHERE ... YIELD ... statement
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -19,7 +19,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
-/// 验证后的 GO 语句信息
+/// Verified information about the GO statement
 #[derive(Debug, Clone)]
 pub struct ValidatedGo {
     pub space_id: u64,
@@ -124,12 +124,12 @@ impl GoValidator {
         self
     }
 
-    /// 验证 FROM 子句
+    /// Verify the FROM clause
     fn validate_from_clause(
         &mut self,
         from_vertices: &[ContextualExpression],
     ) -> Result<GoSource, ValidationError> {
-        // 取第一个顶点表达式作为源
+        // Take the expression of the first vertex as the source.
         let from_expr = from_vertices.first().ok_or_else(|| {
             ValidationError::new(
                 "FROM 子句不能为空".to_string(),
@@ -172,7 +172,7 @@ impl GoValidator {
         })
     }
 
-    /// 验证 OVER 子句
+    /// Verify the OVER clause
     fn validate_over_clause(
         &mut self,
         edge_names: &[String],
@@ -206,7 +206,7 @@ impl GoValidator {
         Ok(over_edges)
     }
 
-    /// 验证 WHERE 子句
+    /// Verify the WHERE clause
     fn validate_where_clause(
         &mut self,
         filter: &Option<ContextualExpression>,
@@ -214,15 +214,15 @@ impl GoValidator {
         if let Some(ref expr) = filter {
             self.validate_expression(expr)?;
 
-            // WHERE 子句应该返回布尔类型
-            // 简化处理：假设表达式有效
+            // The WHERE clause should return a boolean value.
+            // Assume that the expression is valid.
             Ok(Some(expr.clone()))
         } else {
             Ok(None)
         }
     }
 
-    /// 验证 YIELD 子句
+    /// Verify the YIELD clause
     fn validate_yield_clause(
         &mut self,
         items: &[(ContextualExpression, Option<String>)],
@@ -253,7 +253,7 @@ impl GoValidator {
         Ok(yield_columns)
     }
 
-    /// 验证步数范围
+    /// Verify the range of steps
     fn validate_step_range(
         &mut self,
         steps: &crate::query::parser::ast::stmt::Steps,
@@ -293,13 +293,13 @@ impl GoValidator {
                 }))
             }
             crate::query::parser::ast::stmt::Steps::Variable(_) => {
-                // 变量步数，运行时确定
+                // Number of variable steps: determined at runtime
                 Ok(None)
             }
         }
     }
 
-    /// 验证表达式
+    /// Verify the expression
     fn validate_expression(
         &mut self,
         expression: &ContextualExpression,
@@ -311,7 +311,7 @@ impl GoValidator {
             ));
         }
 
-        // 检查变量是否已定义
+        // Check whether the variable has been defined.
         if expression.is_variable() {
             if let Some(var_name) = expression.as_variable() {
                 if var_name != "$-" && !self.user_defined_vars.contains(&var_name) {
@@ -320,7 +320,7 @@ impl GoValidator {
             }
         }
 
-        // 获取所有变量并验证
+        // Retrieve all variables and verify them.
         let variables = expression.get_variables();
         for var_name in variables {
             if var_name != "$-" && !self.user_defined_vars.contains(&var_name) {
@@ -331,7 +331,7 @@ impl GoValidator {
         Ok(())
     }
 
-    /// 构建输出列
+    /// Construct the output column
     fn build_outputs(&mut self, yield_columns: &[GoYieldColumn]) {
         self.outputs.clear();
         for col in yield_columns {
@@ -349,17 +349,17 @@ impl Default for GoValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for GoValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
@@ -367,7 +367,7 @@ impl StatementValidator for GoValidator {
             ));
         }
 
-        // 2. 获取 GO 语句
+        // 2. Obtain the GO statements
         let go_stmt = match &ast.stmt {
             Stmt::Go(go_stmt) => go_stmt,
             _ => {
@@ -378,10 +378,10 @@ impl StatementValidator for GoValidator {
             }
         };
 
-        // 3. 验证 FROM 子句
+        // 3. Verify the FROM clause
         let from_source = self.validate_from_clause(&go_stmt.from.vertices)?;
 
-        // 4. 验证 OVER 子句
+        // 4. Verify the OVER clause
         let edge_names: Vec<String> = go_stmt
             .over
             .as_ref()
@@ -389,10 +389,10 @@ impl StatementValidator for GoValidator {
             .unwrap_or_default();
         let over_edges = self.validate_over_clause(&edge_names)?;
 
-        // 5. 验证 WHERE 子句
+        // 5. Verify the WHERE clause
         let where_filter = self.validate_where_clause(&go_stmt.where_clause)?;
 
-        // 6. 验证 YIELD 子句
+        // 6. Verify the YIELD clause
         let yield_items: Vec<(ContextualExpression, Option<String>)> = go_stmt
             .yield_clause
             .as_ref()
@@ -406,16 +406,16 @@ impl StatementValidator for GoValidator {
             .unwrap_or_default();
         let yield_columns = self.validate_yield_clause(&yield_items)?;
 
-        // 7. 验证步数范围
+        // 7. Verify the range of steps
         let step_range = self.validate_step_range(&go_stmt.steps)?;
 
-        // 8. 构建输出列
+        // 8. Constructing the output column
         self.build_outputs(&yield_columns);
 
-        // 9. 获取 space_id
+        // 9. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 10. 构建详细的 ValidationInfo
+        // 10. Constructing detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
         // 10.1 添加别名映射
@@ -467,7 +467,7 @@ impl StatementValidator for GoValidator {
         info.validated_clauses
             .push(crate::query::validator::structs::ClauseKind::Match);
 
-        // 11. 创建验证结果（放在最后一步，避免不必要的 clone）
+        // 11. Generate the verification results (perform this in the final step to avoid unnecessary clones).
         let validated = ValidatedGo {
             space_id,
             from_source: Some(from_source),
@@ -481,7 +481,7 @@ impl StatementValidator for GoValidator {
 
         self.validated_result = Some(validated);
 
-        // 12. 返回包含详细信息的验证结果
+        // 12. Return the verification results containing detailed information.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -498,7 +498,7 @@ impl StatementValidator for GoValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // GO 不是全局语句，需要预先选择空间
+        // “GO” is not a global statement; the relevant space (i.e., the context in which the statement is to be executed) must be selected in advance.
         false
     }
 
@@ -530,7 +530,7 @@ mod tests {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建测试用的 QueryContext，带有有效的 space_id
+    /// Create a QueryContext for testing purposes, which should contain a valid space_id.
     fn create_test_query_context() -> Arc<QueryContext> {
         let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
         let mut qctx = QueryContext::new(rctx);

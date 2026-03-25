@@ -1,7 +1,7 @@
-//! AST 基础类型定义
+//! AST Basic Type Definitions
 //!
-//! 本模块定义查询 AST 特有的类型，包括标签、属性引用、子句结构等。
-//! 同时重导出 core 模块的类型以方便使用。
+//! This module defines types specific to the query AST (Abstract Syntax Tree), including tags, property references, clause structures, etc.
+//! At the same time, the type of the core module is re-exported for easier use.
 
 pub use crate::core::types::operators::AggregateFunction as CoreAggregateFunction;
 pub use crate::core::types::{EdgeDirection, OrderDirection};

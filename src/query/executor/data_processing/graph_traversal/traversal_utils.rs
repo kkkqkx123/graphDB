@@ -7,23 +7,23 @@ use crate::query::executor::base::EdgeDirection;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 获取邻居节点
+/// Obtaining neighbor nodes
 ///
-/// 自环边（A->A）在图遍历中可能导致结果膨胀或无限循环。
-/// 此函数默认对自环边进行去重，通过跟踪已处理的（边类型, ranking）组合
-/// 确保相同类型和ranking的自环边只返回一次。
+/// Self-loop edges (A->A) can lead to an inflated result or an infinite loop during graph traversal.
+/// By default, this function removes duplicates from self-loop edges by tracking the combinations of edge types and rankings that have already been processed.
+/// Ensure that self-loop edges of the same type and ranking are only returned once.
 ///
-/// # 参数
-/// - `storage`: 存储客户端
-/// - `node_id`: 当前节点ID
-/// - `edge_direction`: 边方向
-/// - `edge_types`: 边类型过滤
-/// - `allow_loop`: 是否允许自环边（默认false，即去重自环边）
+/// # Parameters
+/// “storage”: The storage component on the client side.
+/// `node_id`: The ID of the current node.
+/// `edge_direction`: Direction of the edge
+/// `edge_types`: Filter by edge type
+/// `allow_loop`: Whether self-loop edges are allowed (default is `false`, which means duplicate self-loop edges are removed).
 ///
-/// # 返回
-/// 邻居节点列表
+/// # Return
+/// List of neighbor nodes
 ///
-/// # 示例
+/// # Example
 /// ```
 /// let neighbors = get_neighbors(
 ///     &storage,
@@ -55,20 +55,20 @@ pub fn get_neighbors<S: StorageClient>(
         edges
     };
 
-    // 自环边去重：使用 (edge_type, ranking) 作为key
+    // Remove duplicates from self-loop edges: Use (edge_type, ranking) as the key.
     let mut seen_self_loops: HashSet<(String, i64)> = HashSet::new();
 
     let neighbors: Vec<Value> = filtered_edges
         .into_iter()
         .filter_map(|edge| {
-            // 检查是否是自环边
+            // Check whether it is a self-loop edge.
             let is_self_loop = *edge.src == *edge.dst;
 
-            // 如果不允许自环边，进行去重处理
+            // If self-loop edges are not allowed, then deduplication should be performed.
             if is_self_loop && !allow_loop {
                 let key = (edge.edge_type.clone(), edge.ranking);
                 if !seen_self_loops.insert(key) {
-                    return None; // 重复的自环边，跳过
+                    return None; // Duplicate self-loop edges should be skipped.
                 }
             }
 
@@ -103,9 +103,9 @@ pub fn get_neighbors<S: StorageClient>(
     Ok(neighbors)
 }
 
-/// 获取邻居节点和边
+/// Obtaining neighbor nodes and edges
 ///
-/// 默认对自环边进行去重，确保相同类型和ranking的自环边只返回一次。
+/// By default, duplicate self-loop edges are removed to ensure that self-loop edges of the same type and ranking are only returned once.
 ///
 /// # 参数
 /// - `storage`: 存储客户端
@@ -115,7 +115,7 @@ pub fn get_neighbors<S: StorageClient>(
 /// - `allow_loop`: 是否允许自环边（默认false，即去重自环边）
 ///
 /// # 返回
-/// (邻居节点, 边) 元组列表
+/// List of tuples representing neighbor nodes and edges
 pub fn get_neighbors_with_edges<S: StorageClient>(
     storage: &Arc<Mutex<S>>,
     node_id: &Value,
@@ -138,20 +138,20 @@ pub fn get_neighbors_with_edges<S: StorageClient>(
         edges
     };
 
-    // 自环边去重
+    // Remove duplicates from the self-loop edges.
     let mut seen_self_loops: HashSet<(String, i64)> = HashSet::new();
 
     let neighbors_with_edges: Vec<(Value, Edge)> = filtered_edges
         .into_iter()
         .filter_map(|edge| {
-            // 检查是否是自环边
+            // Check whether it is a self-loop edge.
             let is_self_loop = *edge.src == *edge.dst;
 
-            // 如果不允许自环边，进行去重处理
+            // If self-loop edges are not allowed, then deduplication should be performed.
             if is_self_loop && !allow_loop {
                 let key = (edge.edge_type.clone(), edge.ranking);
                 if !seen_self_loops.insert(key) {
-                    return None; // 重复的自环边，跳过
+                    return None; // Duplicate self-loop edges should be skipped.
                 }
             }
 

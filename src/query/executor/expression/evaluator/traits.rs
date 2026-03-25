@@ -1,40 +1,40 @@
-//! 表达式求值上下文 trait 定义
+//! The `trait` for defining the context in which expressions are evaluated
 //!
-//! 为图数据库表达式求值提供统一的上下文接口
+//! Provide a unified context interface for evaluating expressions in graph databases.
 //!
-//! **注意：** 此 trait 用于运行时表达式求值。
-//! 编译时分析请使用 `ExpressionAnalysisContext`。
+//! Note: This trait is used for the evaluation of runtime expressions.
+//! For compilation-time analysis, please use `ExpressionAnalysisContext`.
 
 use crate::core::Value;
 use crate::query::executor::expression::functions::OwnedFunctionRef;
 
-/// 表达式求值上下文 trait
+/// The “expression evaluation context trait”
 ///
-/// 为图数据库表达式求值提供统一的上下文接口
+/// Provide a unified context interface for evaluating graph database expressions.
 ///
-/// **注意：** 此 trait 用于运行时表达式求值。
-/// 编译时分析请使用 `ExpressionAnalysisContext`。
+/// Note: This trait is used for the evaluation of runtime expressions.
+/// For compilation-time analysis, please use `ExpressionAnalysisContext`.
 pub trait ExpressionContext {
-    /// 获取变量值
+    /// Obtain the value of the variable
     fn get_variable(&self, name: &str) -> Option<Value>;
 
-    /// 设置变量值
+    /// Setting variable values
     fn set_variable(&mut self, name: String, value: Value);
 
-    /// 获取函数引用
+    /// Obtain a function reference
     fn get_function(&self, name: &str) -> Option<OwnedFunctionRef> {
         let _ = name;
         None
     }
 
-    /// 检查上下文是否支持缓存
+    /// Check whether the context supports caching.
     fn supports_cache(&self) -> bool {
         false
     }
 
-    /// 获取缓存管理器（如果支持）
+    /// Obtain the cache manager (if available).
     ///
-    /// 注意：缓存功能已移除，返回None
+    /// The caching function has been removed; the result is “None”.
     fn get_cache(&mut self) -> Option<&mut ()> {
         None
     }

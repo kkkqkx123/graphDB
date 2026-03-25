@@ -1,6 +1,6 @@
-//! 图扫描节点实现
+//! Implementation of the image scanning node
 //!
-//! 包含获取顶点、边和邻居节点的计划节点
+//! This includes the planning of the steps required to obtain the vertices, edges, and neighboring nodes.
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::define_plan_node;

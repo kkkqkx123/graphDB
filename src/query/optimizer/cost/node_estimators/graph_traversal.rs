@@ -1,6 +1,6 @@
-//! 图遍历操作估算器
+//! Image traversal operation estimator
 //!
-//! 为图遍历节点提供代价估算：
+//! Provide a cost estimate for traversing the nodes in the graph:
 //! - Expand
 //! - ExpandAll
 //! - Traverse
@@ -17,18 +17,18 @@ use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::stats::{EdgeTypeStatistics, SkewnessLevel};
 use crate::query::planning::plan::PlanNodeEnum;
 
-/// 图遍历操作估算器
+/// Graph Traversal Operation Estimator
 pub struct GraphTraversalEstimator<'a> {
     cost_calculator: &'a CostCalculator,
 }
 
 impl<'a> GraphTraversalEstimator<'a> {
-    /// 创建新的图遍历估算器
+    /// Create a new graph traversal estimator.
     pub fn new(cost_calculator: &'a CostCalculator) -> Self {
         Self { cost_calculator }
     }
 
-    /// 获取边类型的平均出度
+    /// Obtain the average outdegree for each edge type.
     fn get_avg_out_degree(&self, edge_type: Option<&str>) -> f64 {
         edge_type
             .and_then(|et| self.cost_calculator.statistics_manager().get_edge_stats(et))
@@ -36,7 +36,7 @@ impl<'a> GraphTraversalEstimator<'a> {
             .unwrap_or(2.0)
     }
 
-    /// 获取边类型的平均入度
+    /// Obtain the average in-degree for each edge type.
     fn get_avg_in_degree(&self, edge_type: Option<&str>) -> f64 {
         edge_type
             .and_then(|et| self.cost_calculator.statistics_manager().get_edge_stats(et))
@@ -44,7 +44,7 @@ impl<'a> GraphTraversalEstimator<'a> {
             .unwrap_or(2.0)
     }
 
-    /// 获取边类型的平均度数（出入度平均值）
+    /// Obtain the average degree of the edge type (the average of in-degree and out-degree values).
     fn get_avg_degree(&self, edge_type: Option<&str>) -> f64 {
         edge_type
             .and_then(|et| self.cost_calculator.statistics_manager().get_edge_stats(et))
@@ -52,12 +52,12 @@ impl<'a> GraphTraversalEstimator<'a> {
             .unwrap_or(2.0)
     }
 
-    /// 获取边类型统计信息
+    /// Obtain statistical information about the type of edges.
     fn get_edge_stats(&self, edge_type: Option<&str>) -> Option<EdgeTypeStatistics> {
         edge_type.and_then(|et| self.cost_calculator.statistics_manager().get_edge_stats(et))
     }
 
-    /// 计算倾斜感知的扩展代价
+    /// Calculating the extended cost of tilt perception
     fn calculate_skew_aware_expand_cost(
         &self,
         start_rows: u64,
@@ -68,7 +68,7 @@ impl<'a> GraphTraversalEstimator<'a> {
 
         match stats {
             Some(s) if s.is_heavily_skewed() => {
-                // 根据倾斜度和方向计算代价
+                // Calculate the cost based on the inclination and direction.
                 let penalty = match s.skewness_level() {
                     SkewnessLevel::Severe => 2.0,
                     SkewnessLevel::Moderate => 1.5,
@@ -76,7 +76,7 @@ impl<'a> GraphTraversalEstimator<'a> {
                     SkewnessLevel::None => 1.0,
                 };
 
-                // 根据方向选择对应的倾斜度
+                // Select the appropriate inclination angle based on the direction.
                 let direction_penalty = match direction {
                     EdgeDirection::Out if s.max_out_degree as f64 > s.avg_out_degree * 5.0 => {
                         penalty * 1.5
@@ -98,7 +98,7 @@ impl<'a> GraphTraversalEstimator<'a> {
         }
     }
 
-    /// 计算倾斜感知的输出行数估计
+    /// Estimation of the number of output lines for the calculation of inclination perception
     fn estimate_skew_aware_output_rows(
         &self,
         start_rows: u64,
@@ -114,8 +114,8 @@ impl<'a> GraphTraversalEstimator<'a> {
 
         match stats {
             Some(s) if s.is_heavily_skewed() => {
-                // 对于倾斜数据，使用更保守的估计
-                // 考虑最坏情况：所有起始节点都是热点
+                // For skewed data, it is advisable to use more conservative estimates.
+                // Consider the worst-case scenario: all starting nodes are hotspots.
                 let conservative_factor = match s.skewness_level() {
                     SkewnessLevel::Severe => 1.5,
                     SkewnessLevel::Moderate => 1.3,
@@ -142,7 +142,7 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                 let edge_type = n.edge_types().first().map(|s| s.as_str());
                 let direction = n.direction();
 
-                // 使用倾斜感知估计
+                // Estimation using tilt sensing
                 let output_rows =
                     self.estimate_skew_aware_output_rows(start_rows, edge_type, direction);
                 let cost = self.calculate_skew_aware_expand_cost(start_rows, edge_type, direction);
@@ -152,11 +152,11 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
             PlanNodeEnum::ExpandAll(n) => {
                 let start_rows = get_input_rows(child_estimates, 0);
                 let edge_type = n.edge_types().first().map(|s| s.as_str());
-                // ExpandAllNode 使用字符串表示方向，需要解析
+                // The ExpandAllNode function uses strings to represent directions, and these strings need to be parsed.
                 let avg_degree = match n.direction() {
                     "IN" | "in" | "In" => self.get_avg_in_degree(edge_type),
                     "BOTH" | "both" | "Both" => self.get_avg_degree(edge_type),
-                    _ => self.get_avg_out_degree(edge_type), // 默认出边
+                    _ => self.get_avg_out_degree(edge_type), // By default, it is displayed outside.
                 };
                 let output_rows = (start_rows as f64 * avg_degree) as u64;
                 let cost = self
@@ -168,13 +168,13 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                 let start_rows = get_input_rows(child_estimates, 0);
                 let edge_type = n.edge_types().first().map(|s| s.as_str());
                 let steps = n.max_steps();
-                // 根据遍历方向选择度数
+                // Select the degree value based on the direction of the traversal.
                 let avg_degree = match n.direction() {
                     EdgeDirection::Out => self.get_avg_out_degree(edge_type),
                     EdgeDirection::In => self.get_avg_in_degree(edge_type),
                     EdgeDirection::Both => self.get_avg_degree(edge_type),
                 };
-                // 多步遍历的输出行数估算
+                // Estimation of the number of output lines for a multi-step traversal
                 let output_rows = (start_rows as f64 * avg_degree.powi(steps as i32)) as u64;
                 let cost = self
                     .cost_calculator
@@ -186,17 +186,17 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                 let cost = self
                     .cost_calculator
                     .calculate_append_vertices_cost(input_rows_val);
-                // AppendVertices 不改变行数
+                // The `AppendVertices` method does not change the number of rows.
                 Ok((cost, input_rows_val))
             }
             PlanNodeEnum::GetNeighbors(n) => {
                 let start_rows = get_input_rows(child_estimates, 0);
                 let edge_type = n.edge_types().first().map(|s| s.as_str());
-                // GetNeighborsNode 使用字符串表示方向，需要解析
+                // The `GetNeighborsNode` function uses strings to represent directions, and these strings need to be parsed.
                 let avg_degree = match n.direction() {
                     "IN" | "in" | "In" => self.get_avg_in_degree(edge_type),
                     "BOTH" | "both" | "Both" => self.get_avg_degree(edge_type),
-                    _ => self.get_avg_out_degree(edge_type), // 默认出边
+                    _ => self.get_avg_out_degree(edge_type), // By default, it is displayed outside.
                 };
                 let output_rows = (start_rows as f64 * avg_degree) as u64;
                 let cost = self

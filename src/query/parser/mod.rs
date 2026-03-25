@@ -8,17 +8,17 @@ pub mod core;
 pub mod lexing;
 pub mod parsing;
 
-// 重新导出 core 模块的常用类型
+// Re-export the common types of the core module
 pub use crate::core::types::{Position, Span};
 pub use core::{ParseError, ParseErrors, Token, TokenKind};
 
-// 重新导出 AST 中的类型
+// Re-export the types from the AST
 pub use ast::{
     LimitClause, OrderByClause, OrderByItem, OrderDirection, SampleClause, SetClause, SkipClause,
     Steps, YieldClause, YieldItem,
 };
 
-// 重新导出解析器
+// Re-export the parser
 pub use parsing::ExprParser;
 pub use parsing::Parser;
 pub use parsing::ParserResult;

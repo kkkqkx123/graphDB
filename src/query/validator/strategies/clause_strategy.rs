@@ -1,6 +1,6 @@
-//! 子句验证策略（合并版）
-//! 负责验证不同查询子句（MATCH、RETURN、WITH、UNWIND等）
-//! 合并原expression_validator和clause_validator的功能
+//! Sentence Verification Strategy (Combined Version)
+//! Responsible for verifying different query clauses (MATCH, RETURN, WITH, UNWIND, etc.)
+//! Merge the functions of the original expression_validator and clause_validator.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::{ContextualExpression, ExpressionMeta};
@@ -14,7 +14,7 @@ use crate::query::validator::structs::{
 use crate::query::validator::{Path, QueryPart};
 use std::sync::Arc;
 
-/// 子句验证策略
+/// Sentence validation strategy
 pub struct ClauseValidationStrategy;
 
 impl Default for ClauseValidationStrategy {
@@ -28,7 +28,7 @@ impl ClauseValidationStrategy {
         Self
     }
 
-    /// 从 Expression 创建 ContextualExpression
+    /// Create a ContextualExpression from an Expression.
     fn create_contextual_expression(&self, expr: Expression) -> ContextualExpression {
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
@@ -36,12 +36,12 @@ impl ClauseValidationStrategy {
         ContextualExpression::new(id, expr_ctx)
     }
 
-    /// 验证返回子句
+    /// Verify the returned subquery.
     pub fn validate_return_clause(
         &self,
         context: &ReturnClauseContext,
     ) -> Result<(), ValidationError> {
-        // 检查别名可用性
+        // Check the availability of the alias.
         use super::alias_strategy::AliasValidationStrategy;
         let alias_validator = AliasValidationStrategy::new();
 
@@ -52,7 +52,7 @@ impl ClauseValidationStrategy {
             )?;
         }
 
-        // 验证分页
+        // Verify pagination
         if let Some(ref pagination) = context.pagination {
             if pagination.skip < 0 {
                 return Err(ValidationError::new(
@@ -68,11 +68,11 @@ impl ClauseValidationStrategy {
             }
         }
 
-        // 验证排序
+        // Verify the sorting order.
         if let Some(ref order_by) = context.order_by {
-            // 在这里可以验证排序条件
+            // Here, the sorting criteria can be verified.
             for &(index, _) in &order_by.indexed_order_factors {
-                // 检查索引是否有效
+                // Check whether the index is valid.
                 if index >= context.yield_clause.yield_columns.len() {
                     return Err(ValidationError::new(
                         format!("列索引{}超出范围", index),
@@ -85,7 +85,7 @@ impl ClauseValidationStrategy {
         Ok(())
     }
 
-    /// 构建所有命名别名的列
+    /// Create all columns with their respective aliases.
     pub fn build_columns_for_all_named_aliases(
         &self,
         query_parts: &[QueryPart],
@@ -105,13 +105,13 @@ impl ClauseValidationStrategy {
             )
         })?;
 
-        // 处理前一个查询部分的边界子句
+        // Process the boundary clause from the previous query part.
         if query_parts.len() > 1 {
             let prev_query_part = &query_parts[query_parts.len() - 2];
             if let Some(ref boundary) = prev_query_part.boundary {
                 match boundary {
                     BoundaryClauseContext::Unwind(unwind_data) => {
-                        // 添加Unwind子句的别名
+                        // Add an alias for the Unwind clause
                         columns.push(YieldColumn::new(
                             self.create_contextual_expression(Expression::Label(
                                 unwind_data.alias.clone(),
@@ -119,7 +119,7 @@ impl ClauseValidationStrategy {
                             unwind_data.alias.clone(),
                         ));
 
-                        // 添加之前可用的别名
+                        // Add the previously available aliases.
                         for alias in prev_query_part.aliases_available.keys() {
                             columns.push(YieldColumn::new(
                                 self.create_contextual_expression(Expression::Label(alias.clone())),
@@ -127,7 +127,7 @@ impl ClauseValidationStrategy {
                             ));
                         }
 
-                        // 添加之前生成的别名
+                        // Add the aliases that were generated previously.
                         for alias in prev_query_part.aliases_generated.keys() {
                             columns.push(YieldColumn::new(
                                 self.create_contextual_expression(Expression::Label(alias.clone())),
@@ -136,7 +136,7 @@ impl ClauseValidationStrategy {
                         }
                     }
                     BoundaryClauseContext::With(with_data) => {
-                        // 添加With子句的列
+                        // Column with the "With" clause added
                         for col in &with_data.yield_clause.yield_columns {
                             if !col.alias.is_empty() {
                                 columns.push(YieldColumn::new(
@@ -152,10 +152,10 @@ impl ClauseValidationStrategy {
             }
         }
 
-        // 处理当前查询部分的匹配子句
+        // Process the matching clauses in the current query section.
         for match_ctx in &curr_query_part.matchs {
             for path in &match_ctx.paths {
-                // 添加路径中节点和边的别名
+                // Add aliases for the nodes and edges in the path.
                 for i in 0..path.edge_infos.len() {
                     if !path.node_infos[i].anonymous {
                         columns.push(YieldColumn::new(
@@ -176,7 +176,7 @@ impl ClauseValidationStrategy {
                     }
                 }
 
-                // 添加最后的节点别名
+                // Add an alias for the last node.
                 let last_node = path.node_infos.last().ok_or_else(|| {
                     ValidationError::new(
                         "Path should have at least one node".to_string(),
@@ -193,7 +193,7 @@ impl ClauseValidationStrategy {
                 }
             }
 
-            // 添加路径别名
+            // Add a path alias
             for (alias, alias_type) in &match_ctx.aliases_generated {
                 if *alias_type == AliasType::Path {
                     columns.push(YieldColumn::new(
@@ -207,28 +207,28 @@ impl ClauseValidationStrategy {
         Ok(())
     }
 
-    /// 构建输出
+    /// Build the output.
     pub fn build_outputs(&self, paths: &mut Vec<Path>) -> Result<(), ValidationError> {
-        // 构建查询输出，包括列名和类型
-        // 这里会根据路径信息构建最终的输出格式
+        // Construct the query output, including column names and data types.
+        // The final output format will be generated based on the path information provided here.
         for _path in paths {
-            // 为每个路径构建输出信息
-            // 在实际实现中，这里会构建具体的输出格式
+            // Generate output information for each path.
+            // In the actual implementation, a specific output format will be constructed here.
         }
         Ok(())
     }
 
-    /// 验证Yield子句
+    /// Verify the Yield clause
     pub fn validate_yield_clause(
         &self,
         context: &YieldClauseContext,
     ) -> Result<(), ValidationError> {
-        // 如果有聚合函数，执行特殊验证
+        // If there are aggregate functions, perform special validation.
         if context.has_agg {
             return self.validate_group(context);
         }
 
-        // 对于普通Yield子句，验证别名
+        // For the regular Yield clause, verify the alias.
         use super::alias_strategy::AliasValidationStrategy;
         let alias_validator = AliasValidationStrategy::new();
         for col in &context.yield_columns {
@@ -241,45 +241,45 @@ impl ClauseValidationStrategy {
         Ok(())
     }
 
-    /// 验证分组子句
+    /// Verify the grouping clause
     fn validate_group(&self, yield_ctx: &YieldClauseContext) -> Result<(), ValidationError> {
-        // 验证分组逻辑
+        // Verify the grouping logic
         use super::aggregate_strategy::AggregateValidationStrategy;
         let aggregate_validator = AggregateValidationStrategy::new();
 
         for col in &yield_ctx.yield_columns {
-            // 如果表达式包含聚合函数，验证聚合表达式
+            // If the expression contains aggregate functions, verify the aggregate expression.
             if aggregate_validator.has_aggregate_expression(&col.expression) {
-                // 验证聚合函数
-                // 在实际实现中，这里会进行更详细的聚合函数验证
+                // Verify the aggregate functions
+                // In the actual implementation, more detailed verification of the aggregate functions will be carried out here.
             } else {
-                // 非聚合表达式将作为分组键添加
-                // 这里需要修改context，但在策略模式中不应该直接修改
-                // 应该在主验证器中处理
+                // Non-aggregated expressions will be added as grouping keys.
+                // The context needs to be modified here, but in the Strategy pattern, direct modification should not be performed.
+                // This should be processed in the main validator.
             }
         }
 
         Ok(())
     }
 
-    /// 验证Match子句上下文
+    /// Verify the context of the Match clause.
     pub fn validate_match_clause_context(
         &self,
         context: &MatchClauseContext,
     ) -> Result<(), ValidationError> {
-        // 验证Match子句的基本结构
-        // 检查路径、别名等的有效性
+        // Verify the basic structure of the Match clause
+        // Check the validity of paths, aliases, and other elements.
 
-        // 验证路径
+        // Verify the path.
         for _path in &context.paths {
-            // 验证路径结构
-            // 在实际实现中，这里会进行更详细的路径验证
+            // Verify the path structure
+            // In the actual implementation, more detailed path validation will be carried out here.
         }
 
-        // 验证WHERE子句（如果存在）
+        // Verify the WHERE clause (if it exists).
         if let Some(ref _where_clause) = context.where_clause {
-            // 验证WHERE子句
-            // 在实际实现中，这里会进行更详细的WHERE子句验证
+            // Verify the WHERE clause
+            // In the actual implementation, a more detailed verification of the WHERE clause will be carried out here.
         }
 
         Ok(())
@@ -287,7 +287,7 @@ impl ClauseValidationStrategy {
 }
 
 impl ClauseValidationStrategy {
-    /// 获取策略名称
+    /// Obtain the policy name
     pub fn strategy_name(&self) -> &'static str {
         "ClauseValidationStrategy"
     }
@@ -313,7 +313,7 @@ mod tests {
     fn test_validate_return_clause() {
         let strategy = ClauseValidationStrategy::new();
 
-        // 创建测试数据
+        // Create test data
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
@@ -355,7 +355,7 @@ mod tests {
     fn test_validate_return_clause_with_pagination() {
         let strategy = ClauseValidationStrategy::new();
 
-        // 创建带分页的测试数据
+        // Create test data with pagination.
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
@@ -397,7 +397,7 @@ mod tests {
     fn test_validate_return_clause_invalid_pagination() {
         let strategy = ClauseValidationStrategy::new();
 
-        // 创建无效分页的测试数据
+        // Create test data for invalid pagination.
         let return_context = ReturnClauseContext {
             yield_clause: YieldClauseContext {
                 yield_columns: vec![YieldColumn::new(
@@ -442,7 +442,7 @@ mod tests {
     fn test_build_columns_for_all_named_aliases() {
         let strategy = ClauseValidationStrategy::new();
 
-        // 创建测试查询部分
+        // Create the test query section
         let query_parts = vec![QueryPart {
             matchs: Vec::new(),
             boundary: None,
@@ -453,12 +453,12 @@ mod tests {
 
         let mut columns = Vec::new();
 
-        // 测试空查询部分
+        // Testing the empty query section…
         assert!(strategy
             .build_columns_for_all_named_aliases(&[], &mut columns)
             .is_err());
 
-        // 测试有查询部分但无别名
+        // The test includes a query section, but no aliases.
         assert!(strategy
             .build_columns_for_all_named_aliases(&query_parts, &mut columns)
             .is_ok());
@@ -522,10 +522,10 @@ mod tests {
 
         let mut paths = Vec::new();
 
-        // 测试空路径
+        // Testing the empty path
         assert!(strategy.build_outputs(&mut paths).is_ok());
 
-        // 测试有路径的情况
+        // Testing the case where there is a path
         let path = Path {
             alias: "test_path".to_string(),
             anonymous: false,

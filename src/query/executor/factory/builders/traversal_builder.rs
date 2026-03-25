@@ -1,6 +1,6 @@
-//! 图遍历执行器构建器
+//! Graph Traversal Executor Builder
 //!
-//! 负责创建图遍历类型的执行器（Expand, ExpandAll, Traverse, AllPaths, ShortestPath, MultiShortestPath）
+//! Responsible for creating executors of graph traversal types (Expand, ExpandAll, Traverse, AllPaths, ShortestPath, MultiShortestPath)
 
 use crate::core::error::QueryError;
 use crate::core::types::EdgeDirection;
@@ -21,27 +21,27 @@ use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// 图遍历执行器构建器
+/// Graph Traversal Executor Builder
 pub struct TraversalBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
-    /// 创建新的图遍历构建器
+    /// Create a new graph traversal builder.
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
     }
 
-    /// 构建 Expand 执行器
+    /// Constructing the Expand executor
     pub fn build_expand(
         &self,
         node: &ExpandNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // ExpandExecutor::new 参数: id, storage, edge_direction, edge_types, max_depth, expr_context
+        // Parameters of ExpandExecutor::new: id, storage, edge_direction, edge_types, max_depth, expr_context
         // direction() 返回 EdgeDirection 值，直接传递即可
         let executor = ExpandExecutor::new(
             node.id(),
@@ -54,14 +54,14 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         Ok(ExecutorEnum::Expand(executor))
     }
 
-    /// 构建 ExpandAll 执行器
+    /// Building the ExpandAll executor
     pub fn build_expand_all(
         &self,
         node: &ExpandAllNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // ExpandAllExecutor::new 参数: id, storage, edge_direction, edge_types, any_edge_type, max_depth, expr_context
+        // Parameters of ExpandAllExecutor::new: id, storage, edge_direction, edge_types, any_edge_type, max_depth, expr_context
         // ExpandAllNode 的 direction() 返回 &str，需要转换为 EdgeDirection
         let edge_direction = EdgeDirection::from(node.direction());
         let executor = ExpandAllExecutor::new(
@@ -76,14 +76,14 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         Ok(ExecutorEnum::ExpandAll(executor))
     }
 
-    /// 构建 Traverse 执行器
+    /// Building the Traverse executor
     pub fn build_traverse(
         &self,
         node: &TraverseNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // TraverseExecutor::new 参数: id, storage, edge_direction, edge_types, max_depth, conditions, expr_context
+        // TraverseExecutor::new parameters: id, storage, edge_direction, edge_types, max_depth, conditions, expr_context
         let executor = TraverseExecutor::new(
             node.id(),
             storage,
@@ -96,7 +96,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         Ok(ExecutorEnum::Traverse(executor))
     }
 
-    /// 构建 AllPaths 执行器
+    /// Building the AllPaths executor
     pub fn build_all_paths(
         &self,
         node: &AllPathsNode,
@@ -106,8 +106,8 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         let executor = AllPathsExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
             AllPathsConfig {
-                left_start_ids: Vec::new(),  // 需要从输入获取
-                right_start_ids: Vec::new(), // 需要从输入获取
+                left_start_ids: Vec::new(),  // Please provide the text you would like to have translated.
+                right_start_ids: Vec::new(), // Please provide the text you would like to have translated.
                 max_hops: node.max_hop(),
                 edge_types: Some(node.edge_types().to_vec()),
                 direction: EdgeDirection::Out,
@@ -116,7 +116,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         Ok(ExecutorEnum::AllPaths(executor))
     }
 
-    /// 构建 ShortestPath 执行器
+    /// Building the ShortestPath executor
     pub fn build_shortest_path(
         &self,
         node: &ShortestPathNode,
@@ -125,7 +125,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 
-        // 从输入获取起点和终点ID
+        //  Obtain the start and end ID from the input.
         let start_vertex_ids: Vec<crate::core::Value> = Vec::new();
         let _end_vertex_ids: Vec<crate::core::Value> = Vec::new();
 
@@ -141,7 +141,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         Ok(ExecutorEnum::ShortestPath(executor))
     }
 
-    /// 构建 BFSShortest 执行器
+    /// Building the BFSShortest executor
     pub fn build_bfs_shortest(
         &self,
         node: &BFSShortestNode,
@@ -151,7 +151,7 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         use crate::core::Value;
         use crate::query::executor::data_processing::graph_traversal::algorithms::BFSShortestExecutor;
 
-        // BFSShortestExecutor::new 参数: id, storage, steps, edge_types, with_cycle, max_depth, single_shortest, limit, start_vertex, end_vertex, expr_context
+        // BFSShortestExecutor::new parameters: id, storage, steps, edge_types, with_cycle, max_depth, single_shortest, limit, start_vertex, end_vertex, expr_context
         let executor = BFSShortestExecutor::new(
             ExecutorConfig::new(node.id(), storage, context.expression_context().clone()),
             BfsShortestPathConfig {
@@ -168,14 +168,14 @@ impl<S: StorageClient + Send + 'static> TraversalBuilder<S> {
         Ok(ExecutorEnum::BFSShortest(executor))
     }
 
-    /// 构建 MultiShortestPath 执行器
+    /// Constructing the MultiShortestPath executor
     pub fn build_multi_shortest_path(
         &self,
         node: &MultiShortestPathNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // 从输入获取起点和终点ID
+        //  Obtain the starting and ending point IDs from the input.
         let start_vids: Vec<crate::core::Value> = Vec::new();
         let _end_vids: Vec<crate::core::Value> = Vec::new();
 

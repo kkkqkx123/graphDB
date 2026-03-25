@@ -1,25 +1,25 @@
-//! 查询空间上下文
+//! Query space context
 //!
-//! 管理查询执行过程中的空间信息，包括当前空间、字符集等。
+//! Manage spatial information during query execution, including current space, character set, etc.
 
 use crate::core::types::CharsetInfo;
 use crate::core::types::SpaceInfo;
 
-/// 查询空间上下文
+/// Query space context
 ///
-/// 管理查询执行过程中的空间信息，包括：
-/// - 当前空间信息
-/// - 字符集信息
+/// Manage spatial information during query execution, including:
+/// - Current space information
+/// - character set information
 pub struct QuerySpaceContext {
-    /// 当前空间信息
+    /// Current space information
     space_info: Option<SpaceInfo>,
 
-    /// 字符集信息
+    /// character set information
     charset_info: Option<Box<CharsetInfo>>,
 }
 
 impl QuerySpaceContext {
-    /// 创建新的空间上下文
+    /// Creating a new spatial context
     pub fn new() -> Self {
         Self {
             space_info: None,
@@ -27,37 +27,37 @@ impl QuerySpaceContext {
         }
     }
 
-    /// 获取当前空间信息
+    /// Get current space information
     pub fn space_info(&self) -> Option<&SpaceInfo> {
         self.space_info.as_ref()
     }
 
-    /// 设置当前空间信息
+    /// Setting current space information
     pub fn set_space_info(&mut self, space_info: SpaceInfo) {
         self.space_info = Some(space_info);
     }
 
-    /// 获取当前空间的 ID
+    /// Get the ID of the current space
     pub fn space_id(&self) -> Option<u64> {
         self.space_info().map(|s| s.space_id)
     }
 
-    /// 获取当前空间的名称
+    /// Get the name of the current space
     pub fn space_name(&self) -> Option<String> {
         self.space_info().map(|s| s.space_name.clone())
     }
 
-    /// 设置字符集信息
+    /// Setting Character Set Information
     pub fn set_charset_info(&mut self, charset_info: CharsetInfo) {
         self.charset_info = Some(Box::new(charset_info));
     }
 
-    /// 获取字符集信息
+    /// Getting Character Set Information
     pub fn charset_info(&self) -> Option<&CharsetInfo> {
         self.charset_info.as_ref().map(|ci| ci.as_ref())
     }
 
-    /// 重置空间上下文
+    /// Reset the spatial context
     pub fn reset(&mut self) {
         self.space_info = None;
         self.charset_info = None;

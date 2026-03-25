@@ -1,4 +1,4 @@
-//! 合并获取邻居和去重操作的规则
+//! Combine the rules for retrieving neighboring elements and performing deduplication operations.
 
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
@@ -7,9 +7,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 
-/// 合并获取邻居和去重操作的规则
+/// Combine the rules for obtaining neighboring elements and performing deduplication operations.
 ///
-/// # 转换示例
+/// # Conversion example
 ///
 /// Before:
 /// ```text
@@ -27,16 +27,16 @@ use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 ///   ScanVertices
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - 当前节点为GetNeighbors节点
-/// - 子节点为Dedup节点
-/// - 可以将去重操作合并到GetNeighbors中
+/// The current node is the GetNeighbors node.
+/// The child node is a Dedup node.
+/// The deduplication operation can be merged into the GetNeighbors function.
 #[derive(Debug)]
 pub struct MergeGetNbrsAndDedupRule;
 
 impl MergeGetNbrsAndDedupRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         Self
     }
@@ -62,36 +62,36 @@ impl RewriteRule for MergeGetNbrsAndDedupRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 GetNeighbors 节点
+        // Check whether it is a GetNeighbors node.
         let get_neighbors = match node {
             PlanNodeEnum::GetNeighbors(n) => n,
             _ => return Ok(None),
         };
 
-        // GetNeighbors使用MultipleInputNode，需要获取依赖
+        // GetNeighbors uses the MultipleInputNode and needs to retrieve the dependencies.
         let deps = get_neighbors.dependencies();
         if deps.is_empty() {
             return Ok(None);
         }
 
-        // 检查第一个依赖是否为Dedup节点
+        // Check whether the first dependency is a Dedup node.
         let dedup_node = match deps.first() {
             Some(PlanNodeEnum::Dedup(n)) => n,
             _ => return Ok(None),
         };
 
-        // 获取Dedup的输入作为新的输入
+        // Use the input from Dedup as the new input.
         let dedup_input = dedup_node.input().clone();
 
-        // 创建新的GetNeighbors节点
+        // Create a new GetNeighbors node.
         let mut new_get_neighbors = get_neighbors.clone();
 
-        // 设置去重标志
+        // Set the deduplication flag
         if !new_get_neighbors.dedup() {
             new_get_neighbors.set_dedup(true);
         }
 
-        // 清除原有依赖并设置新的输入
+        // Remove the existing dependencies and set up the new input.
         new_get_neighbors.deps_mut().clear();
         new_get_neighbors.deps_mut().push(dedup_input);
 
@@ -140,42 +140,42 @@ mod tests {
 
     #[test]
     fn test_merge_get_nbrs_and_dedup() {
-        // 创建起始节点
+        // Create the starting node.
         let start = PlanNodeEnum::Start(StartNode::new());
 
-        // 创建Dedup节点
+        // Creating a Deduplication Node
         let dedup = DedupNode::new(start).expect("创建DedupNode失败");
         let dedup_node = PlanNodeEnum::Dedup(dedup);
 
-        // 创建GetNeighbors节点
+        // Create the GetNeighbors node.
         let get_neighbors = GetNeighborsNode::new(1, "v");
         let mut get_neighbors_node = PlanNodeEnum::GetNeighbors(get_neighbors);
 
-        // 手动设置依赖关系
+        // Manually setting dependencies
         if let PlanNodeEnum::GetNeighbors(ref mut gn) = get_neighbors_node {
             gn.deps_mut().clear();
             gn.deps_mut().push(dedup_node);
         }
 
-        // 应用规则
+        // Apply the rules
         let rule = MergeGetNbrsAndDedupRule::new();
         let mut ctx = RewriteContext::new();
         let result = rule
             .apply(&mut ctx, &get_neighbors_node)
             .expect("应用规则失败");
 
-        assert!(result.is_some(), "应该成功合并GetNeighbors和Dedup节点");
+        assert!(result.is_some(), "The merging of the GetNeighbors and Dedup nodes should succeed.");
 
-        // 验证结果
+        // Verification results
         let transform_result = result.expect("Failed to apply rewrite rule");
         assert!(transform_result.erase_curr);
         assert_eq!(transform_result.new_nodes.len(), 1);
 
-        // 验证新的GetNeighbors节点设置了dedup标志
+        // Verify that the new GetNeighbors node has the dedup flag set.
         if let PlanNodeEnum::GetNeighbors(ref new_gn) = transform_result.new_nodes[0] {
-            assert!(new_gn.dedup(), "新的GetNeighbors节点应该设置dedup标志");
+            assert!(new_gn.dedup(), "The new GetNeighbors node should have the dedup flag set.");
         } else {
-            panic!("转换结果应该是GetNeighbors节点");
+            panic!("The “GetNeighbors” node");
         }
     }
 }

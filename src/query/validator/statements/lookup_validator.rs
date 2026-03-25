@@ -1,6 +1,6 @@
-//! LOOKUP 语句验证器
+//! LOOKUP Statement Validator
 //! 对应 NebulaGraph LookupValidator.h/.cpp 的功能
-//! 验证 LOOKUP 语句的合法性
+//! Verify the validity of the LOOKUP statement.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -21,7 +21,7 @@ use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
-/// 验证后的 LOOKUP 信息
+/// Verified LOOKUP information
 #[derive(Debug, Clone)]
 pub struct ValidatedLookup {
     pub space_id: u64,
@@ -53,8 +53,8 @@ pub struct LookupProperty {
     pub type_: ValueType,
 }
 
-/// LOOKUP 验证器
-/// 完全从 AST 解析 LOOKUP 语句，不依赖外部预设值
+/// LOOKUP Validator
+/// Parse the LOOKUP statement entirely from the AST (Abstract Syntax Tree), without relying on any external preset values.
 #[derive(Debug)]
 pub struct LookupValidator {
     inputs: Vec<ColumnDef>,
@@ -82,7 +82,7 @@ impl LookupValidator {
         self
     }
 
-    /// 从 AST 解析 LOOKUP 语句
+    /// Parsing a LOOKUP statement from AST (Abstract Syntax Tree)
     fn parse_from_ast(&self, ast: &Arc<Ast>) -> Result<ParsedLookupInfo, ValidationError> {
         let lookup_stmt = match &ast.stmt {
             Stmt::Lookup(lookup_stmt) => lookup_stmt,
@@ -94,7 +94,7 @@ impl LookupValidator {
             }
         };
 
-        // 解析目标（Tag 或 Edge）
+        // Analysis target (Tag or Edge)
         let (label, is_edge) = match &lookup_stmt.target {
             crate::query::parser::ast::stmt::LookupTarget::Tag(name) => (name.clone(), false),
             crate::query::parser::ast::stmt::LookupTarget::Edge(name) => (name.clone(), true),
@@ -107,10 +107,10 @@ impl LookupValidator {
             ));
         }
 
-        // 解析 WHERE 子句
+        // Analyzing the WHERE clause
         let filter_expression = lookup_stmt.where_clause.clone();
 
-        // 解析 YIELD 子句
+        // Analyzing the YIELD clause
         let mut yield_columns = Vec::new();
         let mut is_yield_all = false;
 
@@ -118,7 +118,7 @@ impl LookupValidator {
             for item in &yield_clause.items {
                 yield_columns.push(self.parse_yield_item(item)?);
             }
-            // 检查是否是 YIELD *
+            // Check whether it is YIELD *
             if yield_columns.len() == 1 && yield_columns[0].name == "*" {
                 is_yield_all = true;
             }
@@ -133,7 +133,7 @@ impl LookupValidator {
         })
     }
 
-    /// 解析单个 YIELD 项
+    /// Analyzing a single YIELD entry
     fn parse_yield_item(&self, item: &YieldItem) -> Result<LookupYieldColumn, ValidationError> {
         let name = self.extract_column_name(&item.expression)?;
         Ok(LookupYieldColumn {
@@ -143,7 +143,7 @@ impl LookupValidator {
         })
     }
 
-    /// 从表达式中提取列名
+    /// Extract column names from the expression.
     fn extract_column_name(&self, expr: &ContextualExpression) -> Result<String, ValidationError> {
         if let Some(inner_expr) = expr.expression() {
             let expr_inner = inner_expr.inner();
@@ -164,7 +164,7 @@ impl LookupValidator {
         }
     }
 
-    /// 验证 LOOKUP 目标
+    /// Verify the LOOKUP target
     /// 对应 NebulaGraph 的 validateFrom() 方法
     fn validate_lookup_target(
         &self,
@@ -172,7 +172,7 @@ impl LookupValidator {
         label: &str,
         is_edge: bool,
     ) -> Result<LookupIndexType, ValidationError> {
-        // 检查 schema_manager 是否可用
+        // Check whether schema_manager is available.
         let schema_manager = self.schema_manager.as_ref().ok_or_else(|| {
             ValidationError::new(
                 "Schema manager not available".to_string(),
@@ -181,10 +181,10 @@ impl LookupValidator {
         })?;
 
         if is_edge {
-            // 验证 Edge Type 是否存在
+            // Verify whether the Edge Type exists.
             match schema_manager.as_ref().get_edge_type(space_name, label) {
                 Ok(Some(_edge_info)) => {
-                    // Edge Type 存在，返回 Single 索引类型
+                    // If the “Edge Type” is present, the “Single” index type should be returned.
                     Ok(LookupIndexType::Single(label.to_string()))
                 }
                 Ok(None) => Err(ValidationError::new(
@@ -197,10 +197,10 @@ impl LookupValidator {
                 )),
             }
         } else {
-            // 验证 Tag 是否存在
+            // Verify whether the Tag exists.
             match schema_manager.as_ref().get_tag(space_name, label) {
                 Ok(Some(_tag_info)) => {
-                    // Tag 存在，返回 Single 索引类型
+                    // If the “Tag” field exists, return the “Single” index type.
                     Ok(LookupIndexType::Single(label.to_string()))
                 }
                 Ok(None) => Err(ValidationError::new(
@@ -215,7 +215,7 @@ impl LookupValidator {
         }
     }
 
-    /// 验证过滤条件
+    /// Verify the filtering criteria.
     fn validate_filter(
         &self,
         filter: &Option<ContextualExpression>,
@@ -244,7 +244,7 @@ impl LookupValidator {
         Ok(())
     }
 
-    /// 验证过滤器类型
+    /// Verify the filter type.
     fn validate_filter_type(&self, filter: &Expression) -> Result<(), ValidationError> {
         match filter {
             Expression::Binary { op, .. } => {
@@ -268,7 +268,7 @@ impl LookupValidator {
         }
     }
 
-    /// 检查是否包含聚合表达式
+    /// Check whether it contains aggregate expressions.
     fn has_aggregate_expression(&self, expression: &Expression) -> bool {
         match expression {
             Expression::Aggregate { .. } => true,
@@ -283,7 +283,7 @@ impl LookupValidator {
         }
     }
 
-    /// 验证 YIELD 子句
+    /// Verify the YIELD clause
     fn validate_yields(
         &self,
         yield_columns: &[LookupYieldColumn],
@@ -314,7 +314,7 @@ impl LookupValidator {
         Ok(())
     }
 
-    /// 生成输出列
+    /// Generate a column of outputs.
     fn generate_output_columns(
         &self,
         yield_columns: &[LookupYieldColumn],
@@ -338,7 +338,7 @@ impl LookupValidator {
     }
 }
 
-/// 从 AST 解析的 LOOKUP 信息
+/// LOOKUP information parsed from AST
 #[derive(Debug)]
 struct ParsedLookupInfo {
     label: String,
@@ -354,17 +354,17 @@ impl Default for LookupValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for LookupValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
@@ -372,10 +372,10 @@ impl StatementValidator for LookupValidator {
             ));
         }
 
-        // 2. 从 Ast 解析 LOOKUP 语句
+        // 2. Parsing the LOOKUP statement from Ast
         let parsed_info = self.parse_from_ast(&ast)?;
 
-        // 3. 获取当前空间名称
+        // 3. Obtain the current name of the space.
         let space_name = qctx.space_name().unwrap_or_default();
 
         if space_name.is_empty() {
@@ -385,24 +385,24 @@ impl StatementValidator for LookupValidator {
             ));
         }
 
-        // 4. 验证 LOOKUP 目标
+        // 4. Verify the LOOKUP target
         let index_type =
             self.validate_lookup_target(&space_name, &parsed_info.label, parsed_info.is_edge)?;
 
-        // 4. 验证过滤条件
+        // 4. Verify the filtering criteria
         self.validate_filter(&parsed_info.filter_expression)?;
 
-        // 5. 验证 YIELD 子句
+        // 5. Verify the YIELD clause
         self.validate_yields(&parsed_info.yield_columns, parsed_info.is_yield_all)?;
 
-        // 6. 获取 space_id
+        // 6. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 7. 生成输出列
+        // 7. Generate the output column.
         self.outputs =
             self.generate_output_columns(&parsed_info.yield_columns, parsed_info.is_yield_all);
 
-        // 8. 构建详细的 ValidationInfo
+        // 8. Constructing detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
         // 8.1 添加别名映射
@@ -466,7 +466,7 @@ impl StatementValidator for LookupValidator {
         info.validated_clauses
             .push(crate::query::validator::structs::ClauseKind::Match);
 
-        // 9. 创建验证结果（放在最后一步，避免不必要的 clone）
+        // 9. Create the validation results (place this in the final step to avoid unnecessary clones).
         let validated = ValidatedLookup {
             space_id,
             label: parsed_info.label,
@@ -479,7 +479,7 @@ impl StatementValidator for LookupValidator {
 
         self.validated_result = Some(validated);
 
-        // 10. 返回包含详细信息的验证结果
+        // 10. Return the verification results containing detailed information.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -488,7 +488,7 @@ impl StatementValidator for LookupValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // LOOKUP 不是全局语句，需要预先选择空间
+        // LOOKUP is not a global statement; the relevant scope must be selected in advance.
         false
     }
 
@@ -518,7 +518,7 @@ mod tests {
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
-    /// 创建测试用的 QueryContext，带有有效的 space_id
+    /// Create a QueryContext for testing purposes, which should contain a valid space_id.
     fn create_test_query_context() -> Arc<QueryContext> {
         let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
         let mut qctx = QueryContext::new(rctx);
@@ -562,7 +562,7 @@ mod tests {
         let qctx = create_test_query_context();
 
         let result = validator.validate(create_test_ast(Stmt::Lookup(lookup_stmt)), qctx);
-        // 当前会失败，因为没有 YIELD 列且不是 YIELD *
+        // The current attempt will fail because there is no YIELD column, and the calculation cannot be performed using the formula YIELD * …
         assert!(result.is_err());
     }
 
@@ -582,7 +582,7 @@ mod tests {
     fn test_lookup_validator_not_lookup_stmt() {
         let mut validator = LookupValidator::new();
         let qctx = create_test_query_context();
-        // 不设置 LOOKUP 语句
+        // Do not set the LOOKUP statement.
 
         let result = validator.validate(
             create_test_ast(Stmt::Use(crate::query::parser::ast::stmt::UseStmt {

@@ -1,19 +1,19 @@
-//! Schema 验证工具模块
+//! Schema validation tool module
 //!
-//! 提供完整的 Schema 校验功能，对标 NebulaGraph 的 SchemaUtil
-//! 用于 DML 语句（INSERT、UPDATE、DELETE）的 Schema 级别验证
+//! Provide a complete Schema validation function that meets the standards of NebulaGraph’s SchemaUtil.
+//! Schema-level validation for DML statements (INSERT, UPDATE, DELETE)
 //!
-//! 本文件已按照新的验证器体系更新：
-//! 1. 保留了原有完整功能：
-//!    - 属性存在性验证
-//!    - 属性类型验证
-//!    - 非空约束验证
-//!    - 默认值填充
-//!    - VID 类型验证
-//!    - 表达式求值
-//!    - 自动 Schema 创建
-//! 2. 添加了与新的验证器体系的集成支持
-//! 3. 使用 Arc 管理 SchemaManager 以支持新体系
+//! This document has been updated in accordance with the new validator framework.
+//! 1. All original functions have been retained.
+//! Attribute existence verification
+//! Attribute type validation
+//! Empty value check
+//! Fill in default values
+//! VID type validation
+//! Expression evaluation
+//! Automatic Schema creation
+//! 2. Integration support for the new verification system has been added.
+//! 3. Use Arc to manage SchemaManager in order to support the new system.
 
 use std::sync::Arc;
 
@@ -25,33 +25,33 @@ use crate::query::validator::validator_trait::ValueType;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
-/// Schema 验证器
-/// 封装 Schema 相关的所有验证逻辑
+/// Schema Validator
+/// Encapsulate all the validation logic related to the Schema.
 ///
-/// 注意：这是一个工具验证器，不直接实现 StatementValidator trait
-/// 它被其他语句验证器（如 InsertVerticesValidator, UpdateValidator 等）使用
+/// This is a tool validator; it does not directly implement the StatementValidator trait.
+/// It is used by other statement validators (such as InsertVerticesValidator, UpdateValidator, etc.).
 #[derive(Debug, Clone)]
 pub struct SchemaValidator {
     schema_manager: Arc<RedbSchemaManager>,
 }
 
 impl SchemaValidator {
-    /// 创建新的 Schema 验证器
+    /// Create a new Schema validator.
     pub fn new(schema_manager: Arc<RedbSchemaManager>) -> Self {
         Self { schema_manager }
     }
 
-    /// 获取底层的 SchemaManager
+    /// Obtaining the underlying SchemaManager
     pub fn get_schema_manager(&self) -> &RedbSchemaManager {
         self.schema_manager.as_ref()
     }
 
-    /// 获取 Arc<SchemaManager>
+    /// Obtain Arc<SchemaManager>
     pub fn schema_manager_arc(&self) -> Arc<RedbSchemaManager> {
         self.schema_manager.clone()
     }
 
-    /// 获取 Tag 信息
+    /// Obtaining Tag information
     pub fn get_tag(
         &self,
         space_name: &str,
@@ -68,7 +68,7 @@ impl SchemaValidator {
             })
     }
 
-    /// 获取 EdgeType 信息
+    /// Obtaining EdgeType information
     pub fn get_edge_type(
         &self,
         space_name: &str,
@@ -85,7 +85,7 @@ impl SchemaValidator {
             })
     }
 
-    /// 获取 Space 的所有 EdgeType
+    /// Retrieve all EdgeTypes of Space
     pub fn get_all_edge_types(
         &self,
         space_name: &str,
@@ -101,7 +101,7 @@ impl SchemaValidator {
             })
     }
 
-    /// 验证属性名是否存在于 Schema 中
+    /// Verify whether the attribute name exists in the Schema.
     pub fn validate_property_exists(
         &self,
         prop_name: &str,
@@ -116,7 +116,7 @@ impl SchemaValidator {
         Ok(())
     }
 
-    /// 根据属性名获取属性定义
+    /// Retrieve the attribute definition based on the attribute name.
     pub fn get_property_def<'b>(
         &self,
         prop_name: &str,
@@ -125,14 +125,14 @@ impl SchemaValidator {
         properties.iter().find(|p| p.name == prop_name)
     }
 
-    /// 验证属性值类型是否匹配
+    /// Verify whether the type of the attribute value matches the expected type.
     pub fn validate_property_type(
         &self,
         prop_name: &str,
         expected_type: &DataType,
         value: &Value,
     ) -> Result<(), CoreValidationError> {
-        // NULL 值特殊处理（由 validate_not_null 处理约束）
+        // Special handling of NULL values (constrained by the validate_not_null function)
         if matches!(value, Value::Null(_)) {
             return Ok(());
         }
@@ -151,42 +151,42 @@ impl SchemaValidator {
         Ok(())
     }
 
-    /// 检查类型兼容性
-    /// 支持一些隐式类型转换
+    /// Check the compatibility of the types.
+    /// Supports some implicit type conversions.
     pub fn is_type_compatible(expected: &DataType, actual: &DataType) -> bool {
         match (expected, actual) {
-            // 精确匹配
+            // Exact match
             (a, b) if a == b => true,
 
-            // 整数类型兼容
+            // The integer type is compatible.
             (DataType::Int, DataType::Int64) => true,
             (DataType::Int64, DataType::Int) => true,
             (DataType::Int32, DataType::Int) => true,
             (DataType::Int32, DataType::Int64) => true,
 
-            // 浮点数兼容
+            // Floating-point number compatibility
             (DataType::Float, DataType::Double) => true,
             (DataType::Double, DataType::Float) => true,
 
-            // VID 兼容多种类型
+            // VID is compatible with various types.
             (DataType::VID, DataType::String) => true,
             (DataType::VID, DataType::Int) => true,
             (DataType::VID, DataType::Int64) => true,
             (DataType::VID, DataType::FixedString(_)) => true,
 
-            // FixedString 兼容 String
+            // FixedString is compatible with String.
             (DataType::FixedString(_), DataType::String) => true,
             (DataType::String, DataType::FixedString(_)) => true,
 
-            // NULL 可以赋值给任何类型（在验证非空之前）
+            // The value NULL can be assigned to any data type (before verifying that the value is not empty).
             (_, DataType::Null) => true,
 
-            // 其他情况不匹配
+            // The other conditions do not match.
             _ => false,
         }
     }
 
-    /// 将 DataType 转换为 ValueType（用于新验证器体系）
+    /// Convert DataType to ValueType (for the new validator framework)
     pub fn data_type_to_value_type(data_type: &DataType) -> ValueType {
         match data_type {
             DataType::Bool => ValueType::Bool,
@@ -211,7 +211,7 @@ impl SchemaValidator {
         }
     }
 
-    /// 验证非空约束
+    /// Verify the non-null constraint
     pub fn validate_not_null(
         &self,
         prop_name: &str,
@@ -227,13 +227,13 @@ impl SchemaValidator {
         Ok(())
     }
 
-    /// 获取属性的默认值
+    /// Get the default value of the attribute
     pub fn get_default_value(&self, prop_def: &PropertyDef) -> Option<Value> {
         prop_def.default.clone()
     }
 
-    /// 填充默认值
-    /// 为未提供的属性填充默认值或 NULL
+    /// Fill in the default values
+    /// Fill in default values or NULL for the attributes that have not been provided.
     pub fn fill_default_values(
         &self,
         properties: &[PropertyDef],
@@ -243,7 +243,7 @@ impl SchemaValidator {
 
         for prop_def in properties {
             if !result.iter().any(|(name, _)| name == &prop_def.name) {
-                // 属性未提供，尝试使用默认值
+                // The attribute was not provided; attempting to use the default value.
                 if let Some(default) = &prop_def.default {
                     result.push((prop_def.name.clone(), default.clone()));
                 } else if !prop_def.nullable {
@@ -255,7 +255,7 @@ impl SchemaValidator {
                         ValidationErrorType::ConstraintViolation,
                     ));
                 } else {
-                    // nullable 且无默认值，填充 NULL
+                    // The property is `nullable` and has no default value; therefore, it should be set to `NULL`.
                     result.push((
                         prop_def.name.clone(),
                         Value::Null(crate::core::NullType::default()),
@@ -267,7 +267,7 @@ impl SchemaValidator {
         Ok(result)
     }
 
-    /// 验证 VID 类型
+    /// Verify the VID type
     pub fn validate_vid(
         &self,
         vid: &Value,
@@ -291,7 +291,7 @@ impl SchemaValidator {
                 }
             }
             DataType::VID => {
-                // VID 类型接受多种格式
+                // The VID type accepts a variety of formats.
                 if !matches!(vid, Value::String(_) | Value::Int(_)) {
                     return Err(CoreValidationError::new(
                         format!("VID 类型不兼容: {:?}", vid.get_type()),
@@ -309,15 +309,15 @@ impl SchemaValidator {
         Ok(())
     }
 
-    /// 统一验证 VID 表达式
-    /// 根据 Space 的 vid_type 验证表达式，确保类型匹配
+    /// Unified verification of VID expressions
+    /// Verify the expression based on the `vid_type` of `Space` to ensure that the types match.
     ///
-    /// 参数:
-    /// - expr: VID 表达式
-    /// - vid_type: Space 定义的 VID 类型
-    /// - role: VID 角色描述（如 "source", "destination", "vertex"）
+    /// Parameters:
+    /// - expr: The VID expression
+    /// `vid_type`: The VID type defined by the Space standard.
+    /// Role: Description of the VID role (e.g., “source”, “destination”, “vertex”)
     ///
-    /// 返回:
+    /// Please provide the text you would like to have translated.
     /// - Ok(()) 验证通过
     /// - Err(ValidationError) 验证失败
     pub fn validate_vid_expr(
@@ -336,7 +336,7 @@ impl SchemaValidator {
         }
     }
 
-    /// 内部方法：验证 VID 表达式
+    /// Internal method: Validation of the VID expression
     fn validate_vid_expr_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -347,7 +347,7 @@ impl SchemaValidator {
 
         match expr {
             Expression::Literal(value) => {
-                // 字面量需要检查空值和类型匹配
+                // Literal values need to be checked for null values and type mismatches.
                 match value {
                     Value::String(s) => {
                         if s.is_empty() {
@@ -356,7 +356,7 @@ impl SchemaValidator {
                                 ValidationErrorType::SemanticError,
                             ));
                         }
-                        // 检查类型是否匹配
+                        // Check whether the type of the data matches the required format.
                         if !matches!(
                             vid_type,
                             DataType::String | DataType::FixedString(_) | DataType::VID
@@ -371,7 +371,7 @@ impl SchemaValidator {
                         }
                     }
                     Value::Int(_) => {
-                        // 检查类型是否匹配
+                        // Check whether the types of the data match.
                         if !matches!(
                             vid_type,
                             DataType::Int | DataType::Int64 | DataType::Int32 | DataType::VID
@@ -392,7 +392,7 @@ impl SchemaValidator {
                 Ok(())
             }
             Expression::Variable(_) => {
-                // 变量在验证阶段无法确定具体值，假设有效
+                // The specific value of the variable cannot be determined during the validation phase; it is assumed to be valid.
                 Ok(())
             }
             _ => Err(CoreValidationError::new(
@@ -402,8 +402,8 @@ impl SchemaValidator {
         }
     }
 
-    /// 验证属性值列表
-    /// 验证所有属性存在、类型匹配、非空约束
+    /// Verify the list of attribute values.
+    /// Verify that all attributes exist, their types match, and that the values are not empty.
     pub fn validate_properties(
         &self,
         properties: &[PropertyDef],
@@ -412,7 +412,7 @@ impl SchemaValidator {
         let mut result = Vec::new();
 
         for (prop_name, value) in prop_values {
-            // 验证属性存在
+            // Verify that the attribute exists.
             let prop_def = self
                 .get_property_def(prop_name, properties)
                 .ok_or_else(|| {
@@ -422,21 +422,21 @@ impl SchemaValidator {
                     )
                 })?;
 
-            // 验证非空约束
+            // Verify the non-null constraint
             self.validate_not_null(prop_name, prop_def, value)?;
 
-            // 验证类型
+            // Verification type
             self.validate_property_type(prop_name, &prop_def.data_type, value)?;
 
             result.push((prop_name.clone(), value.clone()));
         }
 
-        // 填充默认值
+        // Fill in the default values
         self.fill_default_values(properties, &result)
     }
 
-    /// 验证表达式是否为可计算的值
-    /// 用于检查 VID 和属性值表达式
+    /// Verify whether the expression represents a computable value.
+    /// Used to check VID and attribute value expressions.
     pub fn is_evaluable_expr(&self, expr: &ContextualExpression) -> bool {
         if let Some(e) = expr.get_expression() {
             self.is_evaluable_expr_internal(&e)
@@ -445,7 +445,7 @@ impl SchemaValidator {
         }
     }
 
-    /// 内部方法：验证表达式是否为可计算的值
+    /// Internal method: Verifying whether an expression represents a computable value
     fn is_evaluable_expr_internal(&self, expr: &crate::core::types::expr::Expression) -> bool {
         use crate::core::types::expr::Expression;
         match expr {
@@ -453,14 +453,14 @@ impl SchemaValidator {
             Expression::Variable(_) => true,
             Expression::List(list) => list.iter().all(|e| self.is_evaluable_expr_internal(e)),
             Expression::Map(map) => map.iter().all(|(_, e)| self.is_evaluable_expr_internal(e)),
-            // 函数调用如果是确定性的也可以接受
+            // Function calls that are deterministic can also be accepted.
             Expression::Function { .. } => true,
             _ => false,
         }
     }
 
-    /// 评估表达式为值
-    /// 仅支持常量表达式
+    /// Evaluating an expression to obtain a value
+    /// Only constant expressions are allowed.
     pub fn evaluate_expression(
         &self,
         expr: &ContextualExpression,
@@ -475,7 +475,7 @@ impl SchemaValidator {
         }
     }
 
-    /// 内部方法：评估表达式为值
+    /// Internal method: Evaluating an expression to obtain a value
     fn evaluate_expression_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -484,7 +484,7 @@ impl SchemaValidator {
         match expr {
             Expression::Literal(value) => Ok(value.clone()),
             Expression::Variable(name) => {
-                // 变量在验证阶段无法求值，返回特殊标记
+                // Variables cannot be evaluated during the validation phase; a special marker is returned instead.
                 Ok(Value::String(format!("${}", name)))
             }
             Expression::List(list) => {
@@ -508,15 +508,15 @@ impl SchemaValidator {
         }
     }
 
-    /// 自动创建 Tag（如果不存在）
-    /// 根据提供的属性推断 Tag 的 Schema
+    /// Automatically create a Tag (if it does not exist).
+    /// Infer the Schema of the Tag based on the provided attributes.
     pub fn auto_create_tag(
         &self,
         space_name: &str,
         tag_name: &str,
         properties: &[(String, Value)],
     ) -> Result<TagInfo, CoreValidationError> {
-        // 检查 Tag 是否已存在
+        // Check whether the tag already exists.
         if let Some(existing) = self
             .schema_manager
             .as_ref()
@@ -531,17 +531,17 @@ impl SchemaValidator {
             return Ok(existing);
         }
 
-        // 根据属性值推断属性类型
+        // Infer the attribute type based on the attribute value.
         let mut prop_defs = Vec::new();
         for (prop_name, value) in properties {
             let data_type = Self::infer_data_type(value);
-            let prop_def = PropertyDef::new(prop_name.clone(), data_type).with_nullable(true); // 自动创建的属性默认可为空
+            let prop_def = PropertyDef::new(prop_name.clone(), data_type).with_nullable(true); // The automatically generated attributes can be left empty by default.
             prop_defs.push(prop_def);
         }
 
-        // 创建 TagInfo
+        // Create TagInfo
         let tag_info = TagInfo {
-            tag_id: 0, // 由存储层分配
+            tag_id: 0, // Allocated by the storage layer
             tag_name: tag_name.to_string(),
             properties: prop_defs,
             comment: Some("Auto-created for Cypher CREATE".to_string()),
@@ -549,7 +549,7 @@ impl SchemaValidator {
             ttl_col: None,
         };
 
-        // 创建 Tag
+        // Create a Tag
         self.schema_manager
             .as_ref()
             .create_tag(space_name, &tag_info)
@@ -563,15 +563,15 @@ impl SchemaValidator {
         Ok(tag_info)
     }
 
-    /// 自动创建 Edge Type（如果不存在）
-    /// 根据提供的属性推断 Edge Type 的 Schema
+    /// Automatically create an Edge Type (if it does not exist).
+    /// Infer the Schema of the Edge Type based on the provided attributes.
     pub fn auto_create_edge_type(
         &self,
         space_name: &str,
         edge_type_name: &str,
         properties: &[(String, Value)],
     ) -> Result<EdgeTypeInfo, CoreValidationError> {
-        // 检查 Edge Type 是否已存在
+        // Check whether the Edge Type already exists.
         if let Some(existing) = self
             .schema_manager
             .as_ref()
@@ -586,17 +586,17 @@ impl SchemaValidator {
             return Ok(existing);
         }
 
-        // 根据属性值推断属性类型
+        // Infer the attribute type based on the attribute value.
         let mut prop_defs = Vec::new();
         for (prop_name, value) in properties {
             let data_type = Self::infer_data_type(value);
-            let prop_def = PropertyDef::new(prop_name.clone(), data_type).with_nullable(true); // 自动创建的属性默认可为空
+            let prop_def = PropertyDef::new(prop_name.clone(), data_type).with_nullable(true); // The automatically generated attributes can be left empty by default.
             prop_defs.push(prop_def);
         }
 
-        // 创建 EdgeTypeInfo
+        // Create EdgeTypeInfo
         let edge_info = EdgeTypeInfo {
-            edge_type_id: 0, // 由存储层分配
+            edge_type_id: 0, // Allocated by the storage layer
             edge_type_name: edge_type_name.to_string(),
             properties: prop_defs,
             comment: Some("Auto-created for Cypher CREATE".to_string()),
@@ -604,7 +604,7 @@ impl SchemaValidator {
             ttl_col: None,
         };
 
-        // 创建 Edge Type
+        // Create an Edge Type
         self.schema_manager
             .as_ref()
             .create_edge_type(space_name, &edge_info)
@@ -618,15 +618,15 @@ impl SchemaValidator {
         Ok(edge_info)
     }
 
-    /// 根据 Value 推断 DataType
+    /// Determine the DataType based on the Value.
     fn infer_data_type(value: &Value) -> DataType {
         match value {
-            Value::Null(_) => DataType::String, // 默认为字符串类型
+            Value::Null(_) => DataType::String, // The text to be translated is: “By default, it is of the string type.”
             Value::Bool(_) => DataType::Bool,
             Value::Int(_) => DataType::Int64,
             Value::Float(_) => DataType::Double,
             Value::String(s) => {
-                // 根据字符串长度选择 FixedString 或 String
+                // Select either FixedString or String depending on the length of the string.
                 if s.len() <= 256 {
                     DataType::FixedString(s.len().max(32))
                 } else {
@@ -637,11 +637,11 @@ impl SchemaValidator {
             Value::Map(_) => DataType::Map,
             Value::Date(_) => DataType::Date,
             Value::DateTime(_) => DataType::DateTime,
-            _ => DataType::String, // 默认为字符串类型
+            _ => DataType::String, // The text “默认为字符串类型” translates to “By default, it is of the string type.”
         }
     }
 
-    /// 批量自动创建缺失的 Tags
+    /// Automated creation of missing Tags in batches
     pub fn auto_create_missing_tags(
         &self,
         space_name: &str,
@@ -655,7 +655,7 @@ impl SchemaValidator {
         Ok(created)
     }
 
-    /// 批量自动创建缺失的 Edge Types
+    /// Automated creation of missing Edge Types in batches
     pub fn auto_create_missing_edge_types(
         &self,
         space_name: &str,
@@ -813,7 +813,7 @@ mod tests {
 
     #[test]
     fn test_is_type_compatible() {
-        // 整数兼容
+        // Integer compatibility
         assert!(SchemaValidator::is_type_compatible(
             &DataType::Int,
             &DataType::Int64
@@ -823,13 +823,13 @@ mod tests {
             &DataType::Int
         ));
 
-        // 浮点数兼容
+        // Floating-point number compatibility
         assert!(SchemaValidator::is_type_compatible(
             &DataType::Float,
             &DataType::Double
         ));
 
-        // VID 兼容
+        // VID is compatible.
         assert!(SchemaValidator::is_type_compatible(
             &DataType::VID,
             &DataType::String
@@ -839,7 +839,7 @@ mod tests {
             &DataType::Int
         ));
 
-        // 不兼容
+        // Incompatible
         assert!(!SchemaValidator::is_type_compatible(
             &DataType::Int,
             &DataType::String

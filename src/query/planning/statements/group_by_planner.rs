@@ -1,6 +1,6 @@
-//! GroupBy 操作规划器
+//! GroupBy Operation Planner
 //!
-//! 处理 GROUP BY 语句的查询规划
+//! Query planning for statements that involve the GROUP BY clause
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::Expression;
@@ -15,21 +15,21 @@ use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement}
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// GroupBy 操作规划器
-/// 负责将 GROUP BY 语句转换为执行计划
+/// GroupBy Operation Planner
+/// Responsible for converting GROUP BY statements into execution plans.
 #[derive(Debug, Clone)]
 pub struct GroupByPlanner;
 
 impl GroupByPlanner {
-    /// 创建新的 GroupBy 规划器
+    /// Create a new GroupBy planner.
     pub fn new() -> Self {
         Self
     }
 
-    /// 从表达式中提取聚合函数
+    /// Extract the aggregate functions from the expression.
     ///
-    /// 递归遍历表达式树，收集所有聚合函数。
-    /// 参考 nebula-graph 的 ExpressionUtils::collectAll 实现。
+    /// Recursively traverse the expression tree and collect all aggregate functions.
+    /// Refer to the implementation of ExpressionUtils::collectAll in nebula-graph.
     fn extract_aggregate_functions(&self, expr: &ContextualExpression) -> Vec<AggregateFunction> {
         let expr_meta = match expr.expression() {
             Some(e) => e,
@@ -41,7 +41,7 @@ impl GroupByPlanner {
         functions
     }
 
-    /// 递归收集聚合函数的辅助方法
+    /// Auxiliary method for recursively collecting aggregate functions
     fn collect_aggregate_functions_recursive(
         &self,
         expr: &Expression,
@@ -179,11 +179,11 @@ impl Planner for GroupByPlanner {
             }
         };
 
-        // 创建参数节点作为输入
+        // Create a parameter node as the input.
         let arg_node = ArgumentNode::new(next_node_id(), "group_by_input");
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
-        // 提取分组键 - 使用表达式描述作为键
+        // Extract the group key – Use an expression to describe the key.
         let group_keys: Vec<String> = group_by_stmt
             .group_items
             .iter()
@@ -191,14 +191,14 @@ impl Planner for GroupByPlanner {
             .map(|(i, _)| format!("group_key_{}", i))
             .collect();
 
-        // 提取聚合函数
+        // Extract the aggregate functions
         let mut aggregation_functions = Vec::new();
         for item in &group_by_stmt.yield_clause.items {
             let funcs = self.extract_aggregate_functions(&item.expression);
             aggregation_functions.extend(funcs);
         }
 
-        // 创建聚合节点
+        // Create an aggregate node.
         let aggregate_node = AggregateNode::new(
             arg_node_enum.clone(),
             group_keys,
@@ -210,7 +210,7 @@ impl Planner for GroupByPlanner {
 
         let mut final_node = PlanNodeEnum::Aggregate(aggregate_node);
 
-        // 如果有 HAVING 子句，添加 FilterNode
+        // If there is a HAVING clause, add a FilterNode.
         if let Some(ref having_expr) = group_by_stmt.having_clause {
             let filter_node =
                 FilterNode::new(final_node.clone(), having_expr.clone()).map_err(|e| {
@@ -222,7 +222,7 @@ impl Planner for GroupByPlanner {
             final_node = PlanNodeEnum::Filter(filter_node);
         }
 
-        // 创建 SubPlan
+        // Create a SubPlan
         let sub_plan = SubPlan::new(Some(final_node), Some(arg_node_enum));
 
         Ok(sub_plan)

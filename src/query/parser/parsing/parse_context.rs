@@ -192,7 +192,7 @@ impl<'a> ParseContext<'a> {
                 self.next_token();
                 Ok(id)
             }
-            // 允许某些关键字作为标识符使用
+            // Allow certain keywords to be used as identifiers.
             TokenKind::Count => {
                 self.next_token();
                 Ok("count".to_string())

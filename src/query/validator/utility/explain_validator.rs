@@ -1,11 +1,11 @@
-//! Explain/Profile 语句验证器
-//! 对应 NebulaGraph ExplainValidator 的功能
-//! 验证 EXPLAIN 和 PROFILE 语句
+//! Statement Validator Explanation/Profile:
+//! Corresponding to the functionality of NebulaGraph ExplainValidator
+//! Verify the EXPLAIN and PROFILE statements
 //!
-//! 设计原则：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. EXPLAIN/PROFILE 包装其他语句，需要递归验证内部语句
-//! 3. 支持多种输出格式（row, dot）
+//! Design principles:
+//! The StatementValidator trait has been implemented, unifying the interface.
+//! 2. EXPLAIN/PROFILE: These functions are used to analyze the structure of SQL queries. When applied to a query, they “package” other related statements and perform recursive verification of the internal components of the query. In other words, they break down the query into its individual components (such as SELECT, INSERT, UPDATE, etc.) and then check the syntax, semantics, and performance characteristics of each component. This process helps to identify potential issues or optimizations that can improve the overall performance of the query.
+//! 3. Support for multiple output formats (row, dot).
 
 use std::sync::Arc;
 
@@ -18,14 +18,14 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 
-/// 验证后的 EXPLAIN 信息
+/// Verified EXPLAIN information
 #[derive(Debug, Clone)]
 pub struct ValidatedExplain {
     pub format: ExplainFormat,
     pub inner_statement_type: String,
 }
 
-/// EXPLAIN 语句验证器
+/// EXPLAIN Statement Validator
 #[derive(Debug)]
 pub struct ExplainValidator {
     format: ExplainFormat,
@@ -72,7 +72,7 @@ impl ExplainValidator {
     fn validate_impl(&mut self, stmt: &ExplainStmt) -> Result<(), ValidationError> {
         self.format = stmt.format.clone();
 
-        // 验证内部语句
+        // Verify the internal statements.
         self.inner_validator = Some(Box::new(
             Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
                 ValidationError::new(
@@ -85,12 +85,12 @@ impl ExplainValidator {
         Ok(())
     }
 
-    /// 获取内部验证器
+    /// Obtain the internal validator.
     pub fn inner_validator(&self) -> Option<&Validator> {
         self.inner_validator.as_deref()
     }
 
-    /// 获取格式类型
+    /// Obtain the format type
     pub fn format(&self) -> &ExplainFormat {
         &self.format
     }
@@ -107,11 +107,11 @@ impl ExplainValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
-/// - 内部语句验证直接调用 validate 方法，传入 stmt 和 qctx
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
+/// The internal statement validation directly calls the `validate` method, passing in `stmt` and `qctx` as arguments.
 impl StatementValidator for ExplainValidator {
     fn validate(
         &mut self,
@@ -128,12 +128,12 @@ impl StatementValidator for ExplainValidator {
             }
         };
 
-        // 提取内部语句（在移动之前）
+        // Extract the internal statements (before moving).
         let inner_stmt = *explain_stmt.statement.clone();
 
         self.validate_impl(explain_stmt)?;
 
-        // 验证内部语句
+        // Verify the internal statements.
         if let Some(ref mut inner) = self.inner_validator {
             let result = inner.validate(
                 Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())),
@@ -188,8 +188,8 @@ impl Default for ExplainValidator {
     }
 }
 
-/// PROFILE 语句验证器
-/// PROFILE 与 EXPLAIN 类似，但会实际执行并收集性能数据
+/// PROFILE Statement Validator
+/// PROFILE is similar to EXPLAIN, but it actually executes the code and collects performance data.
 #[derive(Debug)]
 pub struct ProfileValidator {
     format: ExplainFormat,
@@ -236,7 +236,7 @@ impl ProfileValidator {
     fn validate_impl(&mut self, stmt: &ProfileStmt) -> Result<(), ValidationError> {
         self.format = stmt.format.clone();
 
-        // 验证内部语句
+        // Verify the internal statements.
         self.inner_validator = Some(Box::new(
             Validator::create_from_stmt(&stmt.statement).ok_or_else(|| {
                 ValidationError::new(
@@ -292,12 +292,12 @@ impl StatementValidator for ProfileValidator {
             }
         };
 
-        // 提取内部语句（在移动之前）
+        // Extract the internal statements (before moving).
         let inner_stmt = *profile_stmt.statement.clone();
 
         self.validate_impl(profile_stmt)?;
 
-        // 验证内部语句
+        // Verify the internal statements.
         if let Some(ref mut inner) = self.inner_validator {
             let result = inner.validate(
                 Arc::new(Ast::new(inner_stmt, ast.expr_context.clone())),

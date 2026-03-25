@@ -1,20 +1,20 @@
-//! 子节点访问器
+//! Child node accessor
 //!
-//! 提供统一的方式来访问各种计划节点的子节点
+//! Provide a unified way to access the subnodes of various plan nodes.
 
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::{
     MultipleInputNode, SingleInputNode,
 };
 use crate::query::planning::plan::PlanNodeEnum;
 
-/// 子节点访问器 trait
+/// Child Node Accessor Trait
 ///
-/// 为不同类型的计划节点提供统一的子节点访问接口
+/// Provide a unified sub-node access interface for different types of plan nodes.
 pub trait ChildAccessor {
-    /// 获取子节点数量
+    /// Get the number of child nodes
     fn child_count(&self) -> usize;
 
-    /// 获取指定索引的可变子节点引用
+    /// Obtain a reference to the variable child node at the specified index.
     fn get_child_mut(&mut self, index: usize) -> Option<&mut PlanNodeEnum>;
 }
 
@@ -25,7 +25,7 @@ impl ChildAccessor for PlanNodeEnum {
 
     fn get_child_mut(&mut self, index: usize) -> Option<&mut PlanNodeEnum> {
         match self {
-            // ==================== 双输入节点 ====================
+            // ==================== Dual-Input Nodes ====================
             PlanNodeEnum::InnerJoin(n) => match index {
                 0 => Some(n.left_input_mut()),
                 1 => Some(n.right_input_mut()),
@@ -57,7 +57,7 @@ impl ChildAccessor for PlanNodeEnum {
                 _ => None,
             },
 
-            // ==================== 单输入节点 ====================
+            // ==================== Single Input Node ====================
             PlanNodeEnum::Project(n) => {
                 if index == 0 {
                     Some(n.input_mut())
@@ -160,14 +160,14 @@ impl ChildAccessor for PlanNodeEnum {
             PlanNodeEnum::Minus(n) => n.dependencies_mut().get_mut(index),
             PlanNodeEnum::Intersect(n) => n.dependencies_mut().get_mut(index),
 
-            // ==================== 多输入节点 ====================
+            // ==================== Multiple input nodes ====================
             PlanNodeEnum::Expand(n) => n.inputs_mut().get_mut(index),
             PlanNodeEnum::ExpandAll(n) => n.inputs_mut().get_mut(index),
             PlanNodeEnum::AppendVertices(n) => n.inputs_mut().get_mut(index),
             PlanNodeEnum::GetVertices(n) => n.inputs_mut().get_mut(index),
             PlanNodeEnum::GetNeighbors(n) => n.inputs_mut().get_mut(index),
 
-            // ==================== 控制流节点 ====================
+            // ==================== Control Flow Nodes ====================
             PlanNodeEnum::Loop(n) => {
                 if index == 0 {
                     n.body_mut().as_mut().map(|b| b.as_mut())
@@ -181,7 +181,7 @@ impl ChildAccessor for PlanNodeEnum {
                 _ => None,
             },
 
-            // ==================== 无输入节点 ====================
+            // ==================== No input nodes ====================
             _ => None,
         }
     }

@@ -1,6 +1,6 @@
-//! Minus执行器实现
+//! Implementation of the Minus actuator
 //!
-//! 实现MINUS操作，返回左数据集中存在但右数据集中不存在的行
+//! Implement the MINUS operation to return the rows that exist in the left dataset but not in the right dataset.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -13,17 +13,17 @@ use crate::storage::StorageClient;
 
 use super::base::SetExecutor;
 
-/// Minus执行器
+/// Minus Actuator
 ///
-/// 实现MINUS操作，返回左数据集中存在但右数据集中不存在的行
-/// 类似于SQL的EXCEPT或MINUS
+/// Implement the MINUS operation to return the rows that exist in the left dataset but not in the right dataset.
+/// Something similar to the SQL operators EXCEPT or MINUS
 #[derive(Debug)]
 pub struct MinusExecutor<S: StorageClient> {
     pub set_executor: SetExecutor<S>,
 }
 
 impl<S: StorageClient> MinusExecutor<S> {
-    /// 创建新的Minus执行器
+    /// Create a newMinus executor.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -43,22 +43,22 @@ impl<S: StorageClient> MinusExecutor<S> {
         }
     }
 
-    /// 执行MINUS操作
+    /// Perform the MINUS operation
     ///
-    /// 算法步骤：
-    /// 1. 获取左右两个输入数据集
-    /// 2. 验证列名是否一致
-    /// 3. 创建右数据集的行哈希集合
+    /// Algorithm steps:
+    /// 1. Obtain the two input datasets on the left and right.
+    /// 2. Verify whether the column names are consistent.
+    /// 3. Create a set of row hashes for the right dataset.
     fn execute_minus(&mut self) -> Result<DataSet, QueryError> {
-        // 获取左右输入数据集
+        // Obtain the left and right input datasets
         let left_dataset = self.set_executor.get_left_input_data()?;
         let right_dataset = self.set_executor.get_right_input_data()?;
 
-        // 检查输入数据集的有效性
+        // Check the validity of the input dataset.
         self.set_executor
             .check_input_data_sets(&left_dataset, &right_dataset)?;
 
-        // 如果右数据集为空，直接返回左数据集
+        // If the right dataset is empty, return the left dataset directly.
         if right_dataset.rows.is_empty() {
             return Ok(DataSet {
                 col_names: self.set_executor.get_col_names().clone(),
@@ -66,7 +66,7 @@ impl<S: StorageClient> MinusExecutor<S> {
             });
         }
 
-        // 如果左数据集为空，直接返回空结果
+        // If the left dataset is empty, return an empty result directly.
         if left_dataset.rows.is_empty() {
             return Ok(DataSet {
                 col_names: self.set_executor.get_col_names().clone(),
@@ -74,10 +74,10 @@ impl<S: StorageClient> MinusExecutor<S> {
             });
         }
 
-        // 创建右数据集的行哈希集合用于快速查找
+        // Creating a set of row hashes for the right dataset is used for quick searches.
         let right_row_set = SetExecutor::<S>::create_row_set(&right_dataset.rows);
 
-        // 找出在左数据集中存在但在右数据集中不存在的行
+        // Identify the rows that exist in the left dataset but not in the right dataset.
         let mut minus_rows = Vec::new();
 
         for left_row in &left_dataset.rows {
@@ -86,7 +86,7 @@ impl<S: StorageClient> MinusExecutor<S> {
             }
         }
 
-        // 构建结果数据集
+        // Constructing the resulting dataset
         let result_dataset = DataSet {
             col_names: self.set_executor.get_col_names().clone(),
             rows: minus_rows,
@@ -151,7 +151,7 @@ mod tests {
     use super::*;
     use crate::core::Value;
 
-    // 创建测试用的存储引擎
+    // Create a storage engine for testing purposes.
     fn create_test_storage() -> Arc<Mutex<crate::storage::test_mock::MockStorage>> {
         let storage =
             crate::storage::test_mock::MockStorage::new().expect("Failed to create test storage");
@@ -174,7 +174,7 @@ mod tests {
             context,
         );
 
-        // 设置测试数据
+        // Set up the test data
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -188,13 +188,13 @@ mod tests {
         let right_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
-                vec![Value::Int(2), Value::String("Bob".to_string())], // 要排除的行
-                vec![Value::Int(4), Value::String("David".to_string())], // 要排除的行
-                vec![Value::Int(5), Value::String("Eve".to_string())], // 左数据集中不存在的行
+                vec![Value::Int(2), Value::String("Bob".to_string())], // Rows to be excluded
+                vec![Value::Int(4), Value::String("David".to_string())], // Rows to be excluded
+                vec![Value::Int(5), Value::String("Eve".to_string())], // Rows that do not exist in the left dataset
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -204,18 +204,18 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行MINUS操作
+        // Perform the MINUS operation
         let result = executor.execute();
 
-        // 验证结果
+        // Verification results
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该只包含Alice和Charlie（Bob和David被排除）
-            // 2行 × 2列 = 4个值
+            // Only Alice and Charlie should be included (Bob and David are excluded).
+            // 2 rows × 2 columns = 4 values
             assert_eq!(values.len(), 4);
         } else {
-            panic!("期望Values结果");
+            panic!("Expected Values results");
         }
     }
 
@@ -231,7 +231,7 @@ mod tests {
             context,
         );
 
-        // 设置没有重叠的数据集
+        // Set up datasets that do not overlap.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -248,7 +248,7 @@ mod tests {
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_no_overlap".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -258,13 +258,13 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行MINUS操作
+        // Perform the MINUS operation
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 没有重叠，应该返回整个左数据集
-            // 2行 × 2列 = 4个值
+            // There is no overlap; therefore, the entire left dataset should be returned.
+            // 2 rows × 2 columns = 4 values
             assert_eq!(values.len(), 4);
         }
     }
@@ -281,7 +281,7 @@ mod tests {
             context,
         );
 
-        // 设置完全重叠的数据集
+        // Setting up a dataset with complete overlap
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -298,7 +298,7 @@ mod tests {
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_all_overlap".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -308,12 +308,12 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行MINUS操作
+        // Perform the MINUS operation
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 完全重叠，结果应该为空
+            // The overlap is complete; therefore, the result should be empty.
             assert_eq!(values.len(), 0);
         }
     }
@@ -330,7 +330,7 @@ mod tests {
             context,
         );
 
-        // 设置空的左数据集和非空的右数据集
+        // Set an empty left dataset and a non-empty right dataset.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![],
@@ -344,7 +344,7 @@ mod tests {
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -354,12 +354,12 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 测试左数据集为空的MINUS
+        // The test for the MINUS case where the left dataset is empty is completed.
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 左数据集为空，结果应该为空
+            // The left dataset is empty; therefore, the result should also be empty.
             assert_eq!(values.len(), 0);
         }
     }
@@ -376,7 +376,7 @@ mod tests {
             context,
         );
 
-        // 设置非空的左数据集和空的右数据集
+        // Set a non-empty left dataset and an empty right dataset.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -390,7 +390,7 @@ mod tests {
             rows: vec![],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_input".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -400,13 +400,13 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 测试右数据集为空的MINUS
+        // The test for the MINUS case where the right dataset is empty is completed.
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 右数据集为空，应该返回整个左数据集
-            // 2行 × 2列 = 4个值
+            // The right dataset is empty; therefore, the entire left dataset should be returned.
+            // 2 rows × 2 columns = 4 values
             assert_eq!(values.len(), 4);
         }
     }
@@ -423,7 +423,7 @@ mod tests {
             context,
         );
 
-        // 设置两个空数据集
+        // Create two empty datasets.
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![],
@@ -434,7 +434,7 @@ mod tests {
             rows: vec![],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "empty_left".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -444,7 +444,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 测试两个数据集都为空的MINUS
+        // Testing the MINUS case where both datasets are empty.
         let result = executor.execute();
         assert!(result.is_ok());
 
@@ -465,12 +465,12 @@ mod tests {
             context,
         );
 
-        // 设置包含重复行的数据集
+        // Setting up a dataset that contains duplicate rows
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "value".to_string()],
             rows: vec![
                 vec![Value::Int(1), Value::String("common".to_string())],
-                vec![Value::Int(1), Value::String("common".to_string())], // 左数据集中的重复行
+                vec![Value::Int(1), Value::String("common".to_string())], // Duplicate rows in the left dataset
                 vec![Value::Int(2), Value::String("unique".to_string())],
                 vec![Value::Int(3), Value::String("another".to_string())],
             ],
@@ -484,7 +484,7 @@ mod tests {
             ],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_dup".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -494,16 +494,16 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行MINUS操作
+        // Perform the MINUS operation
         let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该只包含unique行，common和another被排除
-            // 1行 × 2列 = 2个值
+            // Only unique rows should be included; the terms “common” and “another” should be excluded.
+            // 1 row × 2 columns = 2 values
             assert_eq!(values.len(), 2);
         } else {
-            panic!("期望Values结果");
+            panic!("Expected Values results");
         }
     }
 
@@ -519,18 +519,18 @@ mod tests {
             context,
         );
 
-        // 设置列名不匹配的数据集
+        // A dataset with column names that do not match the specified values
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![vec![Value::Int(1), Value::String("Alice".to_string())]],
         };
 
         let right_dataset = DataSet {
-            col_names: vec!["id".to_string(), "title".to_string()], // 不同的列名
+            col_names: vec!["id".to_string(), "title".to_string()], // Different column names
             rows: vec![vec![Value::Int(1), Value::String("Ms".to_string())]],
         };
 
-        // 将数据集设置到执行器上下文中
+        // Set the dataset in the executor context.
         executor.set_executor.base_mut().context.set_result(
             "left_mismatch".to_string(),
             ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
@@ -540,7 +540,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行应该失败
+        // The execution should fail.
         let result = executor.execute();
         assert!(result.is_err());
 
@@ -550,7 +550,7 @@ mod tests {
         {
             assert!(msg.contains("列名不匹配"));
         } else {
-            panic!("期望列名不匹配错误");
+            panic!("Error: The expected column names do not match.");
         }
     }
 }

@@ -1,13 +1,13 @@
-//! PlanNode 子节点遍历实现
+//! Implementation of PlanNode child node traversal
 
 use super::plan_node_enum::PlanNodeEnum;
 
 impl PlanNodeEnum {
-    /// 获取节点的所有子节点
-    /// 用于遍历执行计划树
+    /// Get all the child nodes of a node
+    /// Used for traversing the execution plan tree
     pub fn children(&self) -> Vec<&PlanNodeEnum> {
         match self {
-            // ZeroInputNode: 没有子节点
+            // ZeroInputNode: Has no child nodes.
             PlanNodeEnum::Start(_) => vec![],
             PlanNodeEnum::CreateSpace(_) => vec![],
             PlanNodeEnum::DropSpace(_) => vec![],
@@ -57,7 +57,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(_) => vec![],
             PlanNodeEnum::MultiShortestPath(_) => vec![],
 
-            // SingleInputNode: 有一个子节点
+            // SingleInputNode: There is a child node.
             PlanNodeEnum::Project(node) => {
                 vec![super::plan_node_traits::SingleInputNode::input(node)]
             }
@@ -103,7 +103,7 @@ impl PlanNodeEnum {
                 vec![super::plan_node_traits::SingleInputNode::input(node)]
             }
 
-            // BinaryInputNode: 有两个子节点
+            // BinaryInputNode: It has two child nodes.
             PlanNodeEnum::InnerJoin(node) => vec![
                 super::plan_node_traits::BinaryInputNode::left_input(node),
                 super::plan_node_traits::BinaryInputNode::right_input(node),
@@ -129,7 +129,7 @@ impl PlanNodeEnum {
                 super::plan_node_traits::BinaryInputNode::right_input(node),
             ],
 
-            // MultipleInputNode: 有多个子节点
+            // MultipleInputNode: It has multiple child nodes.
             PlanNodeEnum::Expand(node) => node.dependencies().iter().collect(),
             PlanNodeEnum::ExpandAll(node) => node.dependencies().iter().collect(),
             PlanNodeEnum::AppendVertices(node) => node.dependencies().iter().collect(),

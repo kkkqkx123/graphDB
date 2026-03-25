@@ -1,4 +1,4 @@
-//! 子句相关数据结构
+//! Data structures related to clauses
 
 use super::alias_structs::AliasType;
 use super::path_structs::Path;
@@ -12,7 +12,7 @@ use crate::query::validator::strategies::helpers::ExpressionValidationContext;
 use crate::query::validator::QueryPart;
 use std::collections::HashMap;
 
-/// Match子句上下文
+/// Context of the “Match” clause
 #[derive(Debug, Clone)]
 pub struct MatchClauseContext {
     pub paths: Vec<Path>,
@@ -26,7 +26,7 @@ pub struct MatchClauseContext {
     pub errors: Vec<ValidationError>,
 }
 
-/// WHERE子句上下文
+/// Context of the WHERE clause
 #[derive(Debug, Clone)]
 pub struct WhereClauseContext {
     pub filter: Option<ContextualExpression>,
@@ -37,7 +37,7 @@ pub struct WhereClauseContext {
     pub errors: Vec<ValidationError>,
 }
 
-/// RETURN子句上下文
+/// Context of the RETURN clause
 #[derive(Debug, Clone)]
 pub struct ReturnClauseContext {
     pub yield_clause: YieldClauseContext,
@@ -50,7 +50,7 @@ pub struct ReturnClauseContext {
     pub errors: Vec<ValidationError>,
 }
 
-/// WITH子句上下文
+/// Context of the WITH clause
 #[derive(Debug, Clone)]
 pub struct WithClauseContext {
     pub yield_clause: YieldClauseContext,
@@ -64,19 +64,19 @@ pub struct WithClauseContext {
     pub errors: Vec<ValidationError>,
 }
 
-/// UNWIND子句上下文
+/// Context of the UNWIND clause
 #[derive(Debug, Clone)]
 pub struct UnwindClauseContext {
     pub alias: String,
     pub unwind_expression: Expression,
     pub aliases_available: HashMap<String, AliasType>,
     pub aliases_generated: HashMap<String, AliasType>,
-    pub paths: Vec<Path>, // Unwind子句中可能包含的路径
+    pub paths: Vec<Path>, // The paths that may be contained in the Unwind clause
     pub query_parts: Vec<QueryPart>,
     pub errors: Vec<ValidationError>,
 }
 
-/// Yield子句上下文
+/// Context of the Yield clause
 #[derive(Debug, Clone)]
 pub struct YieldClauseContext {
     pub yield_columns: Vec<YieldColumn>,
@@ -98,20 +98,20 @@ pub struct YieldClauseContext {
     pub limit: Option<usize>,
 }
 
-/// 分页上下文
+/// Pagination context
 #[derive(Debug, Clone)]
 pub struct PaginationContext {
     pub skip: i64,
     pub limit: i64,
 }
 
-/// 排序子句上下文
+/// Context of the sorting clause
 #[derive(Debug, Clone)]
 pub struct OrderByClauseContext {
     pub indexed_order_factors: Vec<(usize, OrderDirection)>,
 }
 
-// 为各上下文类型实现 ExpressionValidationContext trait
+// Implement the ExpressionValidationContext trait for various context types.
 impl ExpressionValidationContext for MatchClauseContext {
     fn get_aliases(&self) -> &HashMap<String, AliasType> {
         &self.aliases_available

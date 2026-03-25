@@ -1,6 +1,6 @@
-//! LIMIT下推优化规则
+//! LIMIT push-down optimization rule
 //!
-//! 这些规则负责将LIMIT操作下推到计划树的底层，以减少数据处理量
+//! These rules are responsible for pushing the LIMIT operation down to the lowest level of the planning tree, in order to reduce the amount of data that needs to be processed.
 
 pub mod push_limit_down_get_edges;
 pub mod push_limit_down_get_vertices;
@@ -9,7 +9,7 @@ pub mod push_limit_down_scan_edges;
 pub mod push_limit_down_scan_vertices;
 pub mod push_topn_down_index_scan;
 
-// 导出所有规则
+// Export all rules
 pub use push_limit_down_get_edges::PushLimitDownGetEdgesRule;
 pub use push_limit_down_get_vertices::PushLimitDownGetVerticesRule;
 pub use push_limit_down_index_scan::PushLimitDownIndexScanRule;

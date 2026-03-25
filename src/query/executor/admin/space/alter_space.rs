@@ -1,6 +1,6 @@
-//! AlterSpaceExecutor - 修改空间执行器
+//! AlterSpaceExecutor – The executor for modifying spaces
 //!
-//! 负责修改图空间的配置。
+//! Responsible for modifying the configuration of the graphic space.
 
 use std::sync::Arc;
 
@@ -9,15 +9,15 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 空间修改选项
+/// Space modification options
 #[derive(Debug, Clone)]
 pub enum SpaceAlterOption {
     Comment(String),
 }
 
-/// 修改空间执行器
+/// Modified Space Executor
 ///
-/// 该执行器负责修改图空间的配置。
+/// This actuator is responsible for modifying the configuration of the graphical space.
 #[derive(Debug)]
 pub struct AlterSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

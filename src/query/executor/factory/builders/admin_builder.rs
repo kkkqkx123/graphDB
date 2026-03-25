@@ -1,6 +1,6 @@
-//! 管理执行器构建器
+//! Management Executor Builder
 //!
-//! 负责创建管理类型的执行器（空间管理、标签管理、边管理、索引管理、用户管理）
+//! Responsible for creating and managing various types of executors (space management, tag management, edge management, index management, user management).
 
 use crate::core::error::QueryError;
 use crate::core::types::index::IndexConfig;
@@ -35,22 +35,22 @@ use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// 管理执行器构建器
+/// Management Executor Builder
 pub struct AdminBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
-    /// 创建新的管理执行器构建器
+    /// Create a new management executor builder.
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
     }
 
-    // ========== 空间管理执行器 ==========
+    // Space Management Executor
 
-    /// 构建 CreateSpace 执行器
+    /// Building the CreateSpace executor
     pub fn build_create_space(
         &self,
         node: &CreateSpaceNode,
@@ -69,7 +69,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::CreateSpace(executor))
     }
 
-    /// 构建 DropSpace 执行器
+    /// Building the DropSpace executor
     pub fn build_drop_space(
         &self,
         node: &DropSpaceNode,
@@ -85,7 +85,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DropSpace(executor))
     }
 
-    /// 构建 DescSpace 执行器
+    /// Building the DescSpace executor
     pub fn build_desc_space(
         &self,
         node: &DescSpaceNode,
@@ -101,7 +101,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DescSpace(executor))
     }
 
-    /// 构建 ShowSpaces 执行器
+    /// Building the ShowSpaces executor
     pub fn build_show_spaces(
         &self,
         _node: &ShowSpacesNode,
@@ -113,9 +113,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::ShowSpaces(executor))
     }
 
-    // ========== 标签管理执行器 ==========
+    // Tag Management Executor
 
-    /// 构建 CreateTag 执行器
+    /// Building the CreateTag executor
     pub fn build_create_tag(
         &self,
         node: &CreateTagNode,
@@ -135,7 +135,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::CreateTag(executor))
     }
 
-    /// 构建 AlterTag 执行器
+    /// Building the AlterTag executor
     pub fn build_alter_tag(
         &self,
         node: &AlterTagNode,
@@ -162,7 +162,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::AlterTag(executor))
     }
 
-    /// 构建 DescTag 执行器
+    /// Building the DescTag executor
     pub fn build_desc_tag(
         &self,
         node: &DescTagNode,
@@ -179,7 +179,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DescTag(executor))
     }
 
-    /// 构建 DropTag 执行器
+    /// Building the DropTag executor
     pub fn build_drop_tag(
         &self,
         node: &DropTagNode,
@@ -196,7 +196,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DropTag(executor))
     }
 
-    /// 构建 ShowTags 执行器
+    /// Constructing the ShowTags executor
     pub fn build_show_tags(
         &self,
         _node: &ShowTagsNode,
@@ -212,9 +212,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::ShowTags(executor))
     }
 
-    // ========== 边类型管理执行器 ==========
+    //  Ellison Type Management Executor ============
 
-    /// 构建 CreateEdge 执行器
+    /// Building the CreateEdge executor
     pub fn build_create_edge(
         &self,
         node: &CreateEdgeNode,
@@ -237,7 +237,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::CreateEdge(executor))
     }
 
-    /// 构建 AlterEdge 执行器
+    /// Building the AlterEdge executor
     pub fn build_alter_edge(
         &self,
         node: &AlterEdgeNode,
@@ -266,7 +266,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::AlterEdge(executor))
     }
 
-    /// 构建 DescEdge 执行器
+    /// Building the DescEdge executor
     pub fn build_desc_edge(
         &self,
         node: &DescEdgeNode,
@@ -283,7 +283,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DescEdge(executor))
     }
 
-    /// 构建 DropEdge 执行器
+    /// Building the DropEdge executor
     pub fn build_drop_edge(
         &self,
         node: &DropEdgeNode,
@@ -300,7 +300,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DropEdge(executor))
     }
 
-    /// 构建 ShowEdges 执行器
+    /// Constructing the ShowEdges executor
     pub fn build_show_edges(
         &self,
         _node: &ShowEdgesNode,
@@ -316,9 +316,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::ShowEdges(executor))
     }
 
-    // ========== 标签索引管理执行器 ==========
+    // Tag Index Management Executor
 
-    /// 构建 CreateTagIndex 执行器
+    /// Construct the CreateTagIndex executor.
     pub fn build_create_tag_index(
         &self,
         node: &CreateTagIndexNode,
@@ -351,7 +351,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::CreateTagIndex(executor))
     }
 
-    /// 构建 DropTagIndex 执行器
+    /// Building the DropTagIndex executor
     pub fn build_drop_tag_index(
         &self,
         node: &DropTagIndexNode,
@@ -368,7 +368,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DropTagIndex(executor))
     }
 
-    /// 构建 DescTagIndex 执行器
+    /// Constructing the DescTagIndex executor
     pub fn build_desc_tag_index(
         &self,
         node: &DescTagIndexNode,
@@ -385,14 +385,14 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DescTagIndex(executor))
     }
 
-    /// 构建 ShowTagIndexes 执行器
+    /// Constructing the ShowTagIndexes executor
     pub fn build_show_tag_indexes(
         &self,
         _node: &ShowTagIndexesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // ShowTagIndexesNode 没有 space_name 方法，使用空字符串
+        // The ShowTagIndexesNode class does not have a method named “space_name”; therefore, an empty string is used in its place.
         let executor = ShowTagIndexesExecutor::new(
             _node.id(),
             storage,
@@ -402,7 +402,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::ShowTagIndexes(executor))
     }
 
-    /// 构建 RebuildTagIndex 执行器
+    /// Constructing the RebuildTagIndex executor
     pub fn build_rebuild_tag_index(
         &self,
         node: &RebuildTagIndexNode,
@@ -419,9 +419,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::RebuildTagIndex(executor))
     }
 
-    // ========== 边索引管理执行器 ==========
+    // ========== Side Index Management Executor ----------
 
-    /// 构建 CreateEdgeIndex 执行器
+    /// Build the CreateEdgeIndex executor.
     pub fn build_create_edge_index(
         &self,
         node: &CreateEdgeIndexNode,
@@ -454,7 +454,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::CreateEdgeIndex(executor))
     }
 
-    /// 构建 DropEdgeIndex 执行器
+    /// Constructing the DropEdgeIndex executor
     pub fn build_drop_edge_index(
         &self,
         node: &DropEdgeIndexNode,
@@ -471,7 +471,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DropEdgeIndex(executor))
     }
 
-    /// 构建 DescEdgeIndex 执行器
+    /// Constructing the DescEdgeIndex executor
     pub fn build_desc_edge_index(
         &self,
         node: &DescEdgeIndexNode,
@@ -488,14 +488,14 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DescEdgeIndex(executor))
     }
 
-    /// 构建 ShowEdgeIndexes 执行器
+    /// Constructing the ShowEdgeIndexes executor
     pub fn build_show_edge_indexes(
         &self,
         _node: &ShowEdgeIndexesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // ShowEdgeIndexesNode 没有 space_name 方法，使用空字符串
+        // The `ShowEdgeIndexesNode` class does not have a `space_name` method; therefore, an empty string is used in its place.
         let executor = ShowEdgeIndexesExecutor::new(
             _node.id(),
             storage,
@@ -505,7 +505,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::ShowEdgeIndexes(executor))
     }
 
-    /// 构建 RebuildEdgeIndex 执行器
+    /// Constructing the RebuildEdgeIndex executor
     pub fn build_rebuild_edge_index(
         &self,
         node: &RebuildEdgeIndexNode,
@@ -522,9 +522,9 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::RebuildEdgeIndex(executor))
     }
 
-    // ========== 用户管理执行器 ==========
+    // >User Management Executor==========
 
-    /// 构建 CreateUser 执行器
+    /// Constructing the CreateUser executor
     pub fn build_create_user(
         &self,
         node: &CreateUserNode,
@@ -533,7 +533,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::UserInfo;
         // CreateUserNode 使用 username() 和 password() 方法
-        // UserInfo::new 需要 username 和 password 两个参数
+        // The `UserInfo::new` method requires two parameters: `username` and `password`.
         let user_info = UserInfo::new(node.username().to_string(), node.password().to_string())
             .map_err(|e| QueryError::ExecutionError(format!("创建用户信息失败: {}", e)))?;
         let executor = CreateUserExecutor::new(
@@ -545,7 +545,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::CreateUser(executor))
     }
 
-    /// 构建 AlterUser 执行器
+    /// Constructing the AlterUser executor
     pub fn build_alter_user(
         &self,
         node: &AlterUserNode,
@@ -554,7 +554,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::core::types::UserAlterInfo;
         // AlterUserNode 使用 username() 方法
-        // AlterUserExecutor::new 需要 UserAlterInfo 对象
+        // The `AlterUserExecutor::new` method requires a `UserAlterInfo` object.
         let alter_info = UserAlterInfo::new(node.username().to_string());
         let executor = AlterUserExecutor::new(
             node.id(),
@@ -565,7 +565,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::AlterUser(executor))
     }
 
-    /// 构建 DropUser 执行器
+    /// Building the DropUser executor
     pub fn build_drop_user(
         &self,
         node: &DropUserNode,
@@ -582,7 +582,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::DropUser(executor))
     }
 
-    /// 构建 ChangePassword 执行器
+    /// Constructing the ChangePassword executor
     pub fn build_change_password(
         &self,
         node: &ChangePasswordNode,
@@ -603,7 +603,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::ChangePassword(executor))
     }
 
-    /// 构建 GrantRole 执行器
+    /// Building the GrantRole executor
     pub fn build_grant_role(
         &self,
         node: &GrantRoleNode,
@@ -628,7 +628,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::GrantRole(executor))
     }
 
-    /// 构建 RevokeRole 执行器
+    /// Building the RevokeRole executor
     pub fn build_revoke_role(
         &self,
         node: &RevokeRoleNode,
@@ -645,7 +645,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::RevokeRole(executor))
     }
 
-    /// 构建 SwitchSpace 执行器
+    /// Building the SwitchSpace executor
     pub fn build_switch_space(
         &self,
         node: &SwitchSpaceNode,
@@ -661,7 +661,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::SwitchSpace(executor))
     }
 
-    /// 构建 AlterSpace 执行器
+    /// Building the AlterSpace executor
     pub fn build_alter_space(
         &self,
         node: &AlterSpaceNode,
@@ -687,7 +687,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::AlterSpace(executor))
     }
 
-    /// 构建 ClearSpace 执行器
+    /// Building the ClearSpace executor
     pub fn build_clear_space(
         &self,
         node: &ClearSpaceNode,
@@ -703,7 +703,7 @@ impl<S: StorageClient + Send + 'static> AdminBuilder<S> {
         Ok(ExecutorEnum::ClearSpace(executor))
     }
 
-    /// 构建 ShowStats 执行器
+    /// Building the ShowStats executor
     pub fn build_show_stats(
         &self,
         node: &ShowStatsNode,

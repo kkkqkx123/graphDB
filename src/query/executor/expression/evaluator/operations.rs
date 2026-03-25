@@ -1,24 +1,24 @@
 use crate::core::error::ExpressionError;
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::core::value::dataset::List;
-/// 算术和逻辑运算模块
+/// Arithmetic and logical operations module
 ///
-/// 本模块负责处理表达式求值中的算术运算、比较运算、逻辑运算等基础运算操作。
+/// This module is responsible for handling basic arithmetic operations, comparison operations, logical operations, and other fundamental operations involved in the evaluation of expressions.
 use crate::core::value::types::Value;
 use crate::query::executor::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 
-/// 二元运算求值器
+/// Binary operation evaluator
 pub struct BinaryOperationEvaluator;
 
 impl BinaryOperationEvaluator {
-    /// 求值二元运算
+    /// Evaluating binary operations
     pub fn evaluate(
         left: &Value,
         op: &BinaryOperator,
         right: &Value,
     ) -> Result<Value, ExpressionError> {
         match op {
-            // 算术运算
+            // Arithmetic operations
             BinaryOperator::Add => Self::eval_add(left, right),
             BinaryOperator::Subtract => Self::eval_subtract(left, right),
             BinaryOperator::Multiply => Self::eval_multiply(left, right),
@@ -26,7 +26,7 @@ impl BinaryOperationEvaluator {
             BinaryOperator::Modulo => Self::eval_modulo(left, right),
             BinaryOperator::Exponent => Self::eval_exponent(left, right),
 
-            // 比较运算
+            // Comparison operations
             BinaryOperator::Equal => Self::eval_equal(left, right),
             BinaryOperator::NotEqual => Self::eval_not_equal(left, right),
             BinaryOperator::LessThan => Self::eval_less_than(left, right),
@@ -34,12 +34,12 @@ impl BinaryOperationEvaluator {
             BinaryOperator::GreaterThan => Self::eval_greater_than(left, right),
             BinaryOperator::GreaterThanOrEqual => Self::eval_greater_than_or_equal(left, right),
 
-            // 逻辑运算
+            // Logical operations
             BinaryOperator::And => Self::eval_and(left, right),
             BinaryOperator::Or => Self::eval_or(left, right),
             BinaryOperator::Xor => Self::eval_xor(left, right),
 
-            // 字符串运算
+            // String operations
             BinaryOperator::StringConcat => Self::eval_string_concat(left, right),
             BinaryOperator::Like => Self::eval_like(left, right),
             BinaryOperator::In => Self::eval_in(left, right),
@@ -48,7 +48,7 @@ impl BinaryOperationEvaluator {
             BinaryOperator::StartsWith => Self::eval_starts_with(left, right),
             BinaryOperator::EndsWith => Self::eval_ends_with(left, right),
 
-            // 访问运算 - 委托给CollectionOperationEvaluator
+            // Access operation – delegated to CollectionOperationEvaluator
             BinaryOperator::Subscript => {
                 CollectionOperationEvaluator::eval_subscript_access(left, right)
             }
@@ -56,7 +56,7 @@ impl BinaryOperationEvaluator {
                 CollectionOperationEvaluator::eval_attribute_access(left, right)
             }
 
-            // 集合运算
+            // Set operations
             BinaryOperator::Union => Self::eval_union(left, right),
             BinaryOperator::Intersect => Self::eval_intersect(left, right),
             BinaryOperator::Except => Self::eval_except(left, right),
@@ -326,21 +326,21 @@ impl BinaryOperationEvaluator {
     }
 }
 
-/// 一元运算求值器
+/// One-element operation evaluator
 pub struct UnaryOperationEvaluator;
 
 impl UnaryOperationEvaluator {
-    /// 求值一元运算
+    /// Evaluating a unary operation
     pub fn evaluate(op: &UnaryOperator, value: &Value) -> Result<Value, ExpressionError> {
         match op {
-            // 算术运算
+            // Arithmetic operations
             UnaryOperator::Plus => Self::eval_plus(value),
             UnaryOperator::Minus => Self::eval_minus(value),
 
-            // 逻辑运算
+            // Logical operations
             UnaryOperator::Not => Self::eval_not(value),
 
-            // 存在性检查
+            // Existence check
             UnaryOperator::IsNull => Self::eval_is_null(value),
             UnaryOperator::IsNotNull => Self::eval_is_not_null(value),
             UnaryOperator::IsEmpty => Self::eval_is_empty(value),

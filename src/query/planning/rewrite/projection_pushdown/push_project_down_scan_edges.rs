@@ -1,8 +1,8 @@
-//! ScanEdges 投影下推优化规则
+//! ScanEdges: Projection Downstream Optimization Rules
 //!
-//! 该规则将投影操作下推到 ScanEdges 节点，减少数据传输量。
+//! This rule pushes the projection operation down to the ScanEdges node, thereby reducing the amount of data transmitted.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before:
 //! ```text
@@ -25,9 +25,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// ScanEdges 投影下推规则
+/// ScanEdges Projection Pushdown Rule
 ///
-/// 将投影操作下推到 ScanEdges 节点
+/// Push the projection operation down to the ScanEdges node.
 #[derive(Debug)]
 pub struct PushProjectDownScanEdgesRule;
 
@@ -188,7 +188,7 @@ mod tests {
             PlanNodeEnum::ScanEdges(node) => {
                 assert_eq!(node.col_names(), &["src", "dst"]);
             }
-            _ => panic!("期望 ScanEdges 节点"),
+            _ => panic!("Expectation for the ScanEdges node"),
         }
     }
 

@@ -1,6 +1,6 @@
-//! 笛卡尔积执行器实现
+//! Implementation of a Cartesian product actuator
 //!
-//! 实现笛卡尔积（交叉连接）算法，支持多表连接
+//! Implement the Cartesian product (cross join) algorithm, supporting the joining of multiple tables.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -15,10 +15,10 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use ExpressionAnalysisContext as ExpressionContextStruct;
 
-/// 笛卡尔积执行器
+/// Cartesian product actuator
 pub struct CrossJoinExecutor<S: StorageClient> {
     base_executor: BaseJoinExecutor<S>,
-    /// 输入变量列表（支持多表）
+    /// List of input variables (multiple tables are supported)
     input_vars: Vec<String>,
 }
 
@@ -46,10 +46,10 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
                 storage,
                 expr_context,
                 JoinConfig {
-                    left_var: String::new(),  // 左变量（不使用）
-                    right_var: String::new(), // 右变量（不使用）
-                    hash_keys: Vec::new(),    // 哈希键（不使用）
-                    probe_keys: Vec::new(),   // 探测键（不使用）
+                    left_var: String::new(),  // Left variable (not used)
+                    right_var: String::new(), // Right variable (not used)
+                    hash_keys: Vec::new(),    // Hash key (not used)
+                    probe_keys: Vec::new(),   // Detection key (not used)
                     col_names,
                 },
             ),
@@ -57,7 +57,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
         }
     }
 
-    /// 执行两表笛卡尔积
+    /// Perform the Cartesian product of two tables.
     fn execute_two_way_cartesian_product(
         &self,
         left_dataset: &DataSet,
@@ -66,13 +66,13 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
         let mut result = DataSet::new();
         result.col_names = self.base_executor.get_col_names().clone();
 
-        // 计算结果集大小并预分配
+        // Calculate the size of the result set and pre-allocate memory accordingly.
         let estimated_size = left_dataset.rows.len() * right_dataset.rows.len();
         if estimated_size > 0 {
             result.rows.reserve(estimated_size);
         }
 
-        // 执行笛卡尔积
+        // Calculate the Cartesian product.
         for left_row in &left_dataset.rows {
             for right_row in &right_dataset.rows {
                 let mut new_row = left_row.clone();
@@ -84,7 +84,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
         Ok(result)
     }
 
-    /// 优化的笛卡尔积实现（使用迭代器避免中间结果集）
+    /// An optimized implementation of the Cartesian product (using iterators to avoid intermediate result sets)
     fn execute_optimized_cartesian_product(&self) -> Result<DataSet, QueryError> {
         if self.input_vars.len() < 2 {
             return Err(QueryError::ExecutionError(
@@ -92,7 +92,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
             ));
         }
 
-        // 获取所有输入数据集
+        // Obtain all the input datasets.
         let mut datasets = Vec::new();
         for var in &self.input_vars {
             let result = self
@@ -124,7 +124,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
             datasets.push(dataset);
         }
 
-        // 检查是否有空集
+        // Check whether there is an empty set.
         for dataset in &datasets {
             if dataset.rows.is_empty() {
                 return Ok(DataSet {
@@ -134,7 +134,7 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
             }
         }
 
-        // 计算结果集大小
+        // Calculate the size of the result set
         let total_size: usize = datasets.iter().map(|ds| ds.rows.len()).product();
 
         let mut result = DataSet::new();
@@ -144,13 +144,13 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
             result.rows.reserve(total_size);
         }
 
-        // 使用递归或迭代方式生成笛卡尔积
+        // Generate the Cartesian product using either a recursive or an iterative approach.
         self.generate_cartesian_product_recursive(&datasets, 0, Vec::new(), &mut result);
 
         Ok(result)
     }
 
-    /// 递归生成笛卡尔积
+    /// Recursively generate the Cartesian product
     fn generate_cartesian_product_recursive(
         &self,
         datasets: &[DataSet],
@@ -159,12 +159,12 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
         result: &mut DataSet,
     ) {
         if current_index >= datasets.len() {
-            // 到达最后一个数据集，添加完整行到结果
+            // Upon reaching the last dataset, add the complete row to the results.
             result.rows.push(current_row);
             return;
         }
 
-        // 遍历当前数据集的每一行
+        // Traverse each row of the current dataset.
         for row in &datasets[current_index].rows {
             let mut new_row = current_row.clone();
             new_row.extend(row.clone());
@@ -175,9 +175,9 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 根据输入数量选择实现方式
+        // Select the implementation method based on the number of inputs.
         let result = if self.input_vars.len() == 2 {
-            // 两表笛卡尔积
+            // Cartesian product of two sets
             let left_var = &self.input_vars[0];
             let right_var = &self.input_vars[1];
 
@@ -250,7 +250,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
             self.execute_two_way_cartesian_product(&left_dataset, &right_dataset)
                 .map_err(DBError::from)?
         } else {
-            // 多表笛卡尔积
+            // Cartesian product of multiple tables
             self.execute_optimized_cartesian_product()
                 .map_err(DBError::from)?
         };
@@ -316,7 +316,7 @@ pub mod tests {
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        // 创建执行器
+        // Create an executor.
         let mut executor = CrossJoinExecutor::new(
             1,
             storage,
@@ -330,7 +330,7 @@ pub mod tests {
             expr_context,
         );
 
-        // 设置执行上下文
+        // Setting the execution context
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -357,16 +357,17 @@ pub mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行连接
+        // Establish the connection.
         let result = executor.execute().expect("Failed to execute");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 4); // 2 * 2 = 4 行结果
+                    assert_eq!(dataset.rows.len(), 4); // 2 * 2 = 4  
+(The result is displayed in a row.)
 
-                    // 验证第一行
+                    // Verify the first line.
                     assert_eq!(
                         dataset.rows[0],
                         vec![
@@ -377,7 +378,7 @@ pub mod tests {
                         ]
                     );
 
-                    // 验证最后一行
+                    // Verify the last line.
                     assert_eq!(
                         dataset.rows[3],
                         vec![
@@ -388,10 +389,10 @@ pub mod tests {
                         ]
                     );
                 } else {
-                    panic!("期望DataSet结果");
+                    panic!("Expected DataSet results");
                 }
             }
-            _ => panic!("期望Values结果"),
+            _ => panic!("Expected Values results"),
         }
     }
 
@@ -401,7 +402,7 @@ pub mod tests {
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        // 创建执行器
+        // Create an executor.
         let mut executor = CrossJoinExecutor::new(
             1,
             storage,
@@ -410,7 +411,7 @@ pub mod tests {
             expr_context,
         );
 
-        // 设置执行上下文
+        // Setting the execution context
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![vec![Value::Int(1), Value::String("Alice".to_string())]],
@@ -418,7 +419,7 @@ pub mod tests {
 
         let right_dataset = DataSet {
             col_names: vec!["age".to_string()],
-            rows: Vec::new(), // 空右表
+            rows: Vec::new(), // Empty right-hand table
         };
 
         executor.base_executor.get_base_mut().context.set_result(
@@ -431,19 +432,19 @@ pub mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行连接
+        // Establish the connection.
         let result = executor.execute().expect("Failed to execute");
 
-        // 验证结果
+        // Validation results
         match result {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 0); // 空结果
+                    assert_eq!(dataset.rows.len(), 0); // Empty result
                 } else {
-                    panic!("期望DataSet结果");
+                    panic!("Expected DataSet results");
                 }
             }
-            _ => panic!("期望Values结果"),
+            _ => panic!("Expected Values results"),
         }
     }
 
@@ -453,7 +454,7 @@ pub mod tests {
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        // 创建执行器
+        // Create an executor.
         let mut executor = CrossJoinExecutor::new(
             1,
             storage,
@@ -473,7 +474,7 @@ pub mod tests {
             expr_context,
         );
 
-        // 设置执行上下文
+        // Setting the execution context
         let table1 = DataSet {
             col_names: vec!["a".to_string()],
             rows: vec![vec![Value::Int(1)]],
@@ -504,14 +505,15 @@ pub mod tests {
             ExecutionResult::Values(vec![Value::DataSet(table3)]),
         );
 
-        // 执行连接
+        // Establish the connection.
         let result = executor.execute().expect("Failed to execute");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 1); // 1 * 1 * 1 = 1 行结果
+                    assert_eq!(dataset.rows.len(), 1); // 1 * 1 * 1 = 1  
+(1 row of results)
                     assert_eq!(
                         dataset.rows[0],
                         vec![
@@ -524,10 +526,10 @@ pub mod tests {
                         ]
                     );
                 } else {
-                    panic!("期望DataSet结果");
+                    panic!("Expected DataSet results");
                 }
             }
-            _ => panic!("期望Values结果"),
+            _ => panic!("Expected Values results"),
         }
     }
 }

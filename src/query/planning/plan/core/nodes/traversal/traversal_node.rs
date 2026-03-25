@@ -1,6 +1,6 @@
-//! 图遍历节点实现
+//! Implementation of node traversal in graphs
 //!
-//! 包含Expand、ExpandAll、Traverse等图遍历相关的计划节点
+//! Plan nodes related to graph traversal, such as Expand, ExpandAll, and Traverse.
 
 use std::sync::Arc;
 

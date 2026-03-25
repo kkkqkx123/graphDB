@@ -1,5 +1,5 @@
-//! 索引扫描相关的计划节点
-//! 包含索引扫描等搜索相关操作
+//! Plan nodes related to index scanning
+//! Search-related operations, including index scanning
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::graph_schema::OrderDirection;
@@ -7,7 +7,7 @@ use crate::define_plan_node;
 use crate::query::planning::plan::core::node_id_generator::next_node_id;
 use crate::query::planning::plan::core::nodes::base::plan_node_visitor::PlanNodeVisitor;
 
-/// 排序项定义
+/// Definition of sorting items
 #[derive(Debug, Clone, PartialEq)]
 pub struct OrderByItem {
     pub column: String,
@@ -31,17 +31,17 @@ impl OrderByItem {
     }
 }
 
-/// 索引扫描类型
+/// Index scan type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ScanType {
-    /// 唯一匹配（等值查询）
+    /// The only match (equivalent query)
     #[default]
     Unique,
-    /// 前缀匹配
+    /// Prefix matching
     Prefix,
-    /// 范围查询
+    /// Range query
     Range,
-    /// 全表扫描
+    /// Full table scan
     Full,
 }
 
@@ -60,12 +60,12 @@ impl std::str::FromStr for ScanType {
 }
 
 impl ScanType {
-    /// 从字符串解析扫描类型（带默认值）
+    /// Parse the scan type from a string (with default values)
     pub fn from_str_with_default(s: &str) -> Self {
         std::str::FromStr::from_str(s).unwrap_or(ScanType::Range)
     }
 
-    /// 转换为字符串
+    /// Translate the following text into a string:
     pub fn as_str(&self) -> &'static str {
         match self {
             ScanType::Unique => "UNIQUE",
@@ -76,22 +76,22 @@ impl ScanType {
     }
 }
 
-/// 索引扫描限制条件
+/// Index scan limitation criteria
 #[derive(Debug, Clone)]
 pub struct IndexLimit {
     pub column: String,
     pub begin_value: Option<String>,
     pub end_value: Option<String>,
-    /// 是否包含起始值
+    /// Does it include a starting value?
     pub include_begin: bool,
-    /// 是否包含结束值
+    /// Does it include an end value?
     pub include_end: bool,
-    /// 扫描类型
+    /// Scan type
     pub scan_type: ScanType,
 }
 
 impl IndexLimit {
-    /// 创建等值查询限制
+    /// Create restrictions for equivalent queries
     pub fn equal(column: impl Into<String>, value: impl Into<String>) -> Self {
         let value = value.into();
         Self {
@@ -104,7 +104,7 @@ impl IndexLimit {
         }
     }
 
-    /// 创建范围查询限制
+    /// Create range query limits.
     pub fn range(
         column: impl Into<String>,
         begin: Option<impl Into<String>>,
@@ -122,7 +122,7 @@ impl IndexLimit {
         }
     }
 
-    /// 创建前缀查询限制
+    /// Create restrictions for prefix queries
     pub fn prefix(column: impl Into<String>, prefix: impl Into<String>) -> Self {
         Self {
             column: column.into(),
@@ -136,7 +136,7 @@ impl IndexLimit {
 }
 
 define_plan_node! {
-    /// 索引扫描计划节点
+    /// Index Scan Plan Node
     pub struct IndexScanNode {
         space_id: u64,
         tag_id: i32,
@@ -170,7 +170,7 @@ impl IndexScanNode {
         }
     }
 
-    /// 从字符串创建新的 IndexScanNode
+    /// Create a new IndexScanNode from a string.
     pub fn new_with_str(space_id: u64, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
         Self::new(
             space_id,

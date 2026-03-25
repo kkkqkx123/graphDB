@@ -1,10 +1,10 @@
-//! Index 创建语句验证器
-//! 验证 CREATE TAG INDEX / CREATE EDGE INDEX 语句
+//! Index creation statement validator
+//! Verify the CREATE TAG INDEX and CREATE EDGE INDEX statements.
 //!
-//! 设计原则：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 需要预先选择空间（从语句中获取或使用默认值）
-//! 3. 验证索引属性非空
+//! Design principles:
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. It is necessary to pre-select the space (either obtain it from the statement or use the default value).
+//! 3. Verify that the index attribute is not empty.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{Ast, CreateStmt, CreateTarget, IndexType};

@@ -1,6 +1,6 @@
-//! 查询执行上下文模块
+//! Query execution context module
 //!
-//! 管理查询执行过程中的上下文信息，包括执行管理器、资源管理和空间信息。
+//! Manages contextual information during query execution, including execution manager, resource management, and spatial information.
 
 pub mod execution_manager;
 pub mod resource_context;

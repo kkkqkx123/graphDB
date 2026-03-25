@@ -1,6 +1,6 @@
-//! 表达式求值器实现
+//! Implementation of an expression evaluator
 //!
-//! 提供具体的表达式求值功能，使用直接递归匹配实现，避免不必要的抽象开销。
+//! Provide a function for evaluating specific expressions, implemented using direct recursive matching to avoid unnecessary abstract overhead.
 
 use crate::core::error::ExpressionError;
 use crate::core::types::expr::utils::is_evaluable;
@@ -16,12 +16,12 @@ use crate::query::executor::expression::evaluator::operations::{
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::functions::global_registry;
 
-/// 表达式求值器实现（unit struct，零开销）
+/// Implementation of an expression evaluator (unit struct, zero overhead)
 #[derive(Debug)]
 pub struct ExpressionEvaluator;
 
 impl ExpressionEvaluator {
-    /// 在给定上下文中求值表达式
+    /// Evaluate the expression in the given context.
     pub fn evaluate<C: ExpressionContext>(
         expression: &Expression,
         context: &mut C,
@@ -29,7 +29,7 @@ impl ExpressionEvaluator {
         Self::evaluate_recursive(expression, context)
     }
 
-    /// 批量求值表达式列表
+    /// Evaluating a list of expressions in batches
     pub fn evaluate_batch<C: ExpressionContext>(
         expressions: &[Expression],
         context: &mut C,
@@ -40,42 +40,42 @@ impl ExpressionEvaluator {
             .collect()
     }
 
-    /// 检查表达式是否可以求值
+    /// Check whether the expression can be evaluated.
     ///
-    /// 检查表达式是否可以在没有运行时上下文的情况下求值
-    /// 即表达式只包含常量，不包含变量或属性访问
+    /// Check whether the expression can be evaluated without any runtime context.
+    /// In other words, the expression contains only constants and does not include any variables or accesses to attributes.
     pub fn can_evaluate(expression: &Expression) -> bool {
         is_evaluable(expression)
     }
 
-    /// 递归求值表达式
+    /// Recursive evaluation expressions
     fn evaluate_recursive<C: ExpressionContext>(
         expression: &Expression,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
         match expression {
-            // 字面量 - 直接返回值
+            // Literal values – return the value directly.
             Expression::Literal(value) => Ok(value.clone()),
 
-            // 变量 - 从上下文获取
+            // Variable – Obtained from the context
             Expression::Variable(name) => context
                 .get_variable(name)
                 .ok_or_else(|| ExpressionError::undefined_variable(name)),
 
-            // 二元操作 - 递归求值左右操作数
+            // Binary operations – Recursive evaluation of the left and right operands
             Expression::Binary { left, op, right } => {
                 let left_value = Self::evaluate_recursive(left, context)?;
                 let right_value = Self::evaluate_recursive(right, context)?;
                 BinaryOperationEvaluator::evaluate(&left_value, op, &right_value)
             }
 
-            // 一元操作 - 递归求值操作数
+            // One-element operation – Recursive evaluation of the operand
             Expression::Unary { op, operand } => {
                 let value = Self::evaluate_recursive(operand, context)?;
                 UnaryOperationEvaluator::evaluate(op, &value)
             }
 
-            // 函数调用 - 批量求值参数
+            // Function calls – Parameter evaluation in batch
             Expression::Function { name, args } => {
                 let arg_values: Result<Vec<Value>, ExpressionError> = args
                     .iter()
@@ -83,33 +83,33 @@ impl ExpressionEvaluator {
                     .collect();
                 let arg_values = arg_values?;
 
-                // 先获取函数（不可变借用）
+                // First, obtain the function (as an immutable borrowing).
                 let func_ref = context.get_function(name);
 
                 if let Some(func_ref) = func_ref {
-                    // 转换为拥有所有权的函数引用以避免借用问题
+                    // Convert to a function reference with ownership to avoid borrowing issues.
                     let owned_func: crate::query::executor::expression::functions::OwnedFunctionRef =
                         func_ref.clone();
 
-                    // 显式释放 func_ref 的借用
+                    // Explicitly releasing the borrow of func_ref
                     drop(func_ref);
 
-                    // 如果上下文支持缓存，使用缓存感知执行
+                    // If the context supports caching, use cache-aware execution.
                     if context.supports_cache() {
-                        // 获取缓存（可变借用）
+                        // Retrieve the cache (variable borrowing).
                         if let Some(cache) = context.get_cache() {
                             return owned_func.execute_with_cache(&arg_values, cache);
                         }
                     }
-                    // 否则使用普通执行
+                    // Otherwise, use the normal execution mode.
                     owned_func.execute(&arg_values)
                 } else {
-                    // 如果上下文中没有，则使用全局注册表
+                    // If it is not available in the context, use the global registry.
                     global_registry().execute(name, &arg_values)
                 }
             }
 
-            // 聚合函数 - 直接求值
+            // Aggregate functions – Direct evaluation
             Expression::Aggregate {
                 func,
                 arg,
@@ -119,7 +119,7 @@ impl ExpressionEvaluator {
                 FunctionEvaluator::eval_aggregate_function(func, &[arg_value], *distinct)
             }
 
-            // CASE 表达式 - 短路求值
+            // CASE expressions – Short-circuit evaluation
             Expression::Case {
                 test_expr,
                 conditions,
@@ -151,7 +151,7 @@ impl ExpressionEvaluator {
                 }
             }
 
-            // 列表 - 批量求值
+            // List – Batch evaluation
             Expression::List(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
                     .iter()
@@ -160,7 +160,7 @@ impl ExpressionEvaluator {
                 element_values.map(|vals| Value::List(List::from(vals)))
             }
 
-            // 映射 - 批量求值
+            // Mapping – Batch evaluation
             Expression::Map(entries) => {
                 let mut map_values = std::collections::HashMap::new();
                 for (key, value_expression) in entries {
@@ -170,14 +170,14 @@ impl ExpressionEvaluator {
                 Ok(Value::Map(map_values))
             }
 
-            // 下标访问
+            // Subscript access
             Expression::Subscript { collection, index } => {
                 let collection_value = Self::evaluate_recursive(collection, context)?;
                 let index_value = Self::evaluate_recursive(index, context)?;
                 CollectionOperationEvaluator::eval_subscript_access(&collection_value, &index_value)
             }
 
-            // 范围访问
+            // Range access
             Expression::Range {
                 collection,
                 start,
@@ -199,7 +199,7 @@ impl ExpressionEvaluator {
                 )
             }
 
-            // 路径表达式
+            // Path expression
             Expression::Path(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
                     .iter()
@@ -208,13 +208,13 @@ impl ExpressionEvaluator {
                 element_values.map(|vals| Value::List(List::from(vals)))
             }
 
-            // 属性访问
+            // Attribute access
             Expression::Property { object, property } => {
                 let object_value = Self::evaluate_recursive(object, context)?;
                 CollectionOperationEvaluator::eval_property_access(&object_value, property)
             }
 
-            // 类型转换
+            // Type conversion
             Expression::TypeCast {
                 expression,
                 target_type,
@@ -223,7 +223,7 @@ impl ExpressionEvaluator {
                 Self::eval_type_cast(&value, target_type)
             }
 
-            // 其他需要运行时上下文的表达式类型
+            // Other types of expressions that require runtime context to be executed
             Expression::Label(_) => Err(ExpressionError::type_error("未求解的标签表达式")),
             Expression::ListComprehension { .. } => Err(ExpressionError::type_error(
                 "列表推导表达式需要运行时上下文",
@@ -253,7 +253,7 @@ impl ExpressionEvaluator {
         }
     }
 
-    /// 求值类型转换
+    /// Type conversion for evaluation
     pub fn eval_type_cast(
         value: &Value,
         target_type: &crate::core::types::DataType,

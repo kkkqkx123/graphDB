@@ -1,4 +1,4 @@
-//! 日期时间函数实现
+//! Implementation of date and time functions
 
 use crate::core::error::ExpressionError;
 use crate::core::value::{DateTimeValue, DateValue, NullType, TimeValue};
@@ -6,7 +6,7 @@ use crate::core::Value;
 use chrono::{Datelike, Timelike};
 
 define_function_enum! {
-    /// 日期时间函数枚举
+    /// Date and time function enumeration
     pub enum DateTimeFunction {
         Now => {
             name: "now",
@@ -89,13 +89,13 @@ define_function_enum! {
 }
 
 impl DateTimeFunction {
-    /// 执行函数（带缓存）
+    /// Call the function (with caching)
     pub fn execute_with_cache(
         &self,
         args: &[Value],
         _cache: &mut (),
     ) -> Result<Value, ExpressionError> {
-        // 缓存功能已移除，直接调用execute
+        // The caching function has been removed; the `execute` method can be called directly.
         self.execute(args)
     }
 }
@@ -111,7 +111,7 @@ fn execute_now(_args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_date(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.is_empty() {
-        // 返回当前日期
+        // Return the current date
         let now = chrono::Utc::now();
         Ok(Value::Date(DateValue {
             year: now.year(),
@@ -121,7 +121,7 @@ fn execute_date(args: &[Value]) -> Result<Value, ExpressionError> {
     } else {
         match &args[0] {
             Value::String(s) => {
-                // 解析日期
+                // Parse the date
                 let naivedate = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| {
                     ExpressionError::type_error("无法解析日期字符串，期望格式: YYYY-MM-DD")
                 })?;
@@ -140,7 +140,7 @@ fn execute_date(args: &[Value]) -> Result<Value, ExpressionError> {
 
 fn execute_time(args: &[Value]) -> Result<Value, ExpressionError> {
     if args.is_empty() {
-        // 返回当前时间
+        // Return the current time
         let now = chrono::Utc::now();
         Ok(Value::Time(TimeValue {
             hour: now.hour(),
@@ -151,7 +151,7 @@ fn execute_time(args: &[Value]) -> Result<Value, ExpressionError> {
     } else {
         match &args[0] {
             Value::String(s) => {
-                // 解析时间
+                // Analysis time
                 let time = chrono::NaiveTime::parse_from_str(s, "%H:%M:%S%.f")
                     .or_else(|_| chrono::NaiveTime::parse_from_str(s, "%H:%M:%S"))
                     .map_err(|_| {

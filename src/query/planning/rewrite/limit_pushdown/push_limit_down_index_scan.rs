@@ -1,7 +1,7 @@
-//! 将LIMIT下推到索引扫描操作的规则
+//! The rule for pushing down the LIMIT clause to the index scanning operation
 //!
-//! 该规则识别 Limit -> IndexScan 模式，
-//! 并将LIMIT值集成到IndexScan操作中。
+//! This rule identifies the mode in which the operation switches from “Limit” to “IndexScan”.
+//! And integrate the LIMIT value into the IndexScan operation.
 
 use crate::query::planning::plan::core::nodes::access::IndexScanNode;
 use crate::query::planning::plan::core::nodes::operation::sort_node::LimitNode;
@@ -9,9 +9,9 @@ use crate::query::planning::rewrite::macros::define_rewrite_pushdown_rule;
 use crate::query::planning::rewrite::result::TransformResult;
 
 define_rewrite_pushdown_rule! {
-    /// 将LIMIT下推到索引扫描操作的规则
+    /// The rule for pushing the LIMIT clause down to the index scanning operation
     ///
-    /// # 转换示例
+    /// # Conversion example
     ///
     /// Before:
     /// ```text
@@ -27,32 +27,32 @@ define_rewrite_pushdown_rule! {
     ///   IndexScan(limit=110)
     /// ```
     ///
-    /// # 适用条件
+    /// # Applicable Conditions
     ///
-    /// - 当前节点为Limit节点
-    /// - 子节点为IndexScan节点
-    /// - Limit节点只有一个子节点
-    /// - IndexScan尚未设置limit，或新limit小于现有limit
+    /// The current node is a Limit node.
+    /// The child node is an IndexScan node.
+    /// The Limit node has only one child node.
+    /// The `IndexScan` has not had its `limit` set yet, or the new `limit` is smaller than the existing `limit`.
     name: PushLimitDownIndexScanRule,
     parent_node: Limit,
     child_node: IndexScan,
     apply: |_ctx, limit_node: &LimitNode, index_scan_node: &IndexScanNode| {
-        // 计算需要获取的总行数（offset + count）
+        // Calculate the total number of rows that need to be retrieved (offset + count).
         let limit_rows = limit_node.offset() + limit_node.count();
 
-        // 检查IndexScan是否已有更严格的limit
+        // Check whether there is a more stringent limit for IndexScan already in place.
         if let Some(existing_limit) = index_scan_node.limit() {
             if limit_rows >= existing_limit {
-                // 现有limit更严格，无需转换
+                // The existing restrictions are already more stringent; no conversion is required.
                 return Ok(None::<TransformResult>);
             }
         }
 
-        // 创建新的IndexScan节点，设置limit
+        // Create a new IndexScan node and set the limit.
         let mut new_index_scan = index_scan_node.clone();
         new_index_scan.set_limit(limit_rows);
 
-        // 创建转换结果
+        // Create the translation result.
         let mut result = TransformResult::new();
         result.erase_all = true;
         result.add_new_node(PlanNodeEnum::IndexScan(new_index_scan));

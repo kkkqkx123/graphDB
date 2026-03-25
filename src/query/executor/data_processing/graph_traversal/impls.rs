@@ -6,7 +6,7 @@ use crate::query::executor::data_processing::graph_traversal::shortest_path::Sho
 use crate::query::executor::data_processing::graph_traversal::traits::TraversalStats;
 use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
 
-/// 宏定义：为具有访问节点统计的执行器实现通用统计信息
+/// Macro definition: Implements general statistical information for executors that have access to node statistics.
 macro_rules! impl_graph_traversal_executor_with_stats {
     ($executor:ty, $visited_nodes_field:ident) => {
         impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for $executor {
@@ -58,12 +58,12 @@ macro_rules! impl_graph_traversal_executor_with_stats {
     };
 }
 
-// 使用带统计的宏为具有 visited_nodes 字段的执行器实现通用特征
+// Implementing general features for executors with a `visited_nodes` field using macros with statistics
 impl_graph_traversal_executor_with_stats!(ExpandExecutor<S>, visited_nodes);
 impl_graph_traversal_executor_with_stats!(ExpandAllExecutor<S>, visited_nodes);
 impl_graph_traversal_executor_with_stats!(TraverseExecutor<S>, visited_nodes);
 
-/// 为ShortestPathExecutor提供特殊实现
+/// Provide a special implementation for ShortestPathExecutor.
 impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPathExecutor<S> {
     fn set_edge_direction(&mut self, direction: crate::query::executor::base::EdgeDirection) {
         self.edge_direction = direction;
@@ -74,8 +74,8 @@ impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPat
     }
 
     fn set_max_depth(&mut self, max_depth: Option<usize>) {
-        // 最短路径算法支持最大深度限制
-        // 这可以用于限制搜索范围，避免无限循环
+        // The shortest path algorithm supports a maximum depth limit.
+        // This can be used to limit the search scope and prevent infinite loops.
         self.max_depth = max_depth;
     }
 
@@ -88,29 +88,29 @@ impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPat
     }
 
     fn get_max_depth(&self) -> Option<usize> {
-        // 返回实际设置的最大深度
+        // Return the maximum depth actually set.
         self.max_depth
     }
 
     fn validate_config(&self) -> Result<(), String> {
-        // 最短路径的特殊验证
+        // Special validation of the shortest path
         if let Some(max_depth) = self.max_depth {
             if max_depth == 0 {
                 return Err("最短路径的最大深度不能为0".to_string());
             }
         }
 
-        // 验证算法选择是否有效
+        // Verify whether the selection of the validation algorithm is effective.
         let algorithm = self.get_algorithm();
         match algorithm {
             ShortestPathAlgorithmType::BFS
             | ShortestPathAlgorithmType::Dijkstra
             | ShortestPathAlgorithmType::AStar => {
-                // 所有枚举变体都是有效的
+                // All enumerated variants are valid.
             }
         }
 
-        // 验证起始节点和结束节点配置
+        // Verify the configuration of the starting and ending nodes.
         if self.get_start_vertex_ids().is_empty() {
             return Err("最短路径必须配置至少一个起始节点".to_string());
         }
@@ -122,7 +122,7 @@ impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPat
     }
 
     fn get_stats(&self) -> TraversalStats {
-        // 提供最短路径特定的统计信息
+        // Provide statistical information specific to the shortest path.
         TraversalStats {
             nodes_visited: self.nodes_visited,
             edges_traversed: self.edges_traversed,

@@ -1,7 +1,7 @@
-//! 验证结果信息模块
+//! Verification Results Information Module
 //!
-//! 本模块定义验证阶段产生的结构化信息，用于传递给规划阶段
-//! 避免规划器重复解析 AST
+//! This module defines the structured information generated during the validation phase, which is used to be transmitted to the planning phase.
+//! Avoid having the planner parse the AST multiple times.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -14,22 +14,22 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::structs::AliasType;
 use crate::query::validator::validator_trait::ValueType;
 
-/// 验证后的语句包装器
-/// 包含原始 AST（语句 + 表达式上下文）和验证信息
+/// Verified Statement Wrapper
+/// The text to be translated contains both the original AST (Abstract Syntax Tree) information (which includes the statements and the context of the expressions) as well as verification details.
 ///
-/// # 重构变更
-/// - 使用 Arc<Ast> 替代 Arc<Stmt>
-/// - Ast 包含 Stmt 和 ExpressionAnalysisContext
+/// # Refactoring Changes
+/// Replace `Arc<Stmt>` with `Arc<Ast>`.
+/// The `Ast` class contains both `Stmt` and `ExpressionAnalysisContext` objects.
 #[derive(Debug, Clone)]
 pub struct ValidatedStatement {
-    /// 原始 AST（使用 Arc 共享所有权）
+    /// Original AST (using Arc for shared ownership)
     pub ast: Arc<Ast>,
-    /// 验证阶段收集的信息
+    /// Information collected during the verification phase
     pub validation_info: ValidationInfo,
 }
 
 impl ValidatedStatement {
-    /// 创建新的验证后语句
+    /// Create a new sentence that has been verified.
     pub fn new(ast: Arc<Ast>, validation_info: ValidationInfo) -> Self {
         Self {
             ast,
@@ -37,79 +37,79 @@ impl ValidatedStatement {
         }
     }
 
-    /// 获取语句引用
+    /// Obtain statement references
     pub fn stmt(&self) -> &crate::query::parser::ast::Stmt {
         &self.ast.stmt
     }
 
-    /// 获取语句类型
+    /// Determine the type of the sentence
     pub fn statement_type(&self) -> &'static str {
         self.ast.stmt.kind()
     }
 
-    /// 获取别名映射
+    /// Obtain the alias mapping.
     pub fn alias_map(&self) -> &HashMap<String, AliasType> {
         &self.validation_info.alias_map
     }
 
-    /// 获取表达式上下文
+    /// Obtain the context of the expression.
     pub fn expr_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.ast.expr_context
     }
 }
 
-/// 验证信息结构体
-/// 包含验证阶段收集的所有有用信息
+/// Verification Information Structure
+/// Include all useful information collected during the validation phase.
 ///
-/// 设计说明：
-/// 表达式类型信息统一存储在 ExpressionContext 中，通过 ContextualExpression 访问。
-/// 本结构体不再维护独立的表达式类型缓存，确保单一数据源。
+/// Design Description:
+/// The information about the expression types is stored uniformly in the ExpressionContext and can be accessed through the ContextualExpression.
+/// This structure no longer maintains a separate cache for expression types, ensuring a single data source.
 #[derive(Debug, Clone, Default)]
 pub struct ValidationInfo {
-    /// 别名映射（变量名 -> 类型）
+    /// Alias mapping (variable name -> type)
     pub alias_map: HashMap<String, AliasType>,
 
-    /// 路径分析结果
+    /// Path analysis results
     pub path_analysis: Vec<PathAnalysis>,
 
-    /// 优化提示
+    /// Optimization suggestions
     pub optimization_hints: Vec<OptimizationHint>,
 
-    /// 变量定义位置
+    /// Location of variable definition
     pub variable_definitions: HashMap<String, Span>,
 
-    /// 使用的索引信息
+    /// The index information that was used
     pub index_hints: Vec<IndexHint>,
 
-    /// 验证通过的子句
+    /// Validated sub-sentences
     pub validated_clauses: Vec<ClauseKind>,
 
-    /// 语义分析结果
+    /// Results of semantic analysis
     pub semantic_info: SemanticInfo,
 }
 
 impl ValidationInfo {
-    /// 创建空的验证信息
+    /// Create empty verification information.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 添加别名
+    /// Add an alias
     pub fn add_alias(&mut self, name: String, alias_type: AliasType) {
         self.alias_map.insert(name, alias_type);
     }
 
-    /// 获取表达式类型
+    /// Determine the type of the expression.
     ///
-    /// 从 ExpressionContext 获取类型信息，确保单一数据源。
-    /// 所有类型信息在验证阶段通过 ExpressionAnalyzer 存储到 ExpressionContext。
+    /// Retrieve type information from the ExpressionContext to ensure a single data source.
+    /// All types of information are stored in the ExpressionContext during the validation phase using the ExpressionAnalyzer.
     pub fn get_expr_type(&self, expr: &ContextualExpression) -> Option<ValueType> {
         expr.data_type()
             .map(|data_type| ValueType::from_data_type(&data_type))
     }
 
-    /// 使用 ExpressionAnalyzer 分析表达式
-    /// 将类型和常量信息存储到 ExpressionContext
+    /// Analyze expressions using ExpressionAnalyzer.
+    /// Store type and constant information in the ExpressionContext.
     pub fn analyze_expression(
         &mut self,
         expr: &ContextualExpression,
@@ -126,27 +126,27 @@ impl ValidationInfo {
         Ok(result)
     }
 
-    /// 添加路径分析
+    /// Add path analysis
     pub fn add_path_analysis(&mut self, analysis: PathAnalysis) {
         self.path_analysis.push(analysis);
     }
 
-    /// 添加优化提示
+    /// Add optimization suggestions
     pub fn add_optimization_hint(&mut self, hint: OptimizationHint) {
         self.optimization_hints.push(hint);
     }
 
-    /// 添加索引提示
+    /// Add an index hint
     pub fn add_index_hint(&mut self, hint: IndexHint) {
         self.index_hints.push(hint);
     }
 
-    /// 获取变量的类型
+    /// Obtaining the type of a variable
     pub fn get_alias_type(&self, name: &str) -> Option<&AliasType> {
         self.alias_map.get(name)
     }
 
-    /// 检查变量是否为节点类型
+    /// Check whether the variable is of the node type.
     pub fn is_node_variable(&self, name: &str) -> bool {
         matches!(
             self.alias_map.get(name),
@@ -154,7 +154,7 @@ impl ValidationInfo {
         )
     }
 
-    /// 检查变量是否为边类型
+    /// Check whether the variable is of the edge type.
     pub fn is_edge_variable(&self, name: &str) -> bool {
         matches!(
             self.alias_map.get(name),
@@ -163,31 +163,31 @@ impl ValidationInfo {
     }
 }
 
-/// 路径分析信息
+/// Path analysis information
 #[derive(Debug, Clone)]
 pub struct PathAnalysis {
-    /// 路径别名
+    /// Path alias
     pub alias: Option<String>,
-    /// 节点数量
+    /// Number of nodes
     pub node_count: usize,
-    /// 边数量
+    /// Number of edges
     pub edge_count: usize,
-    /// 是否有方向
+    /// Is there a direction to follow?
     pub has_direction: bool,
-    /// 最小跳数
+    /// Minimum number of jumps
     pub min_hops: Option<usize>,
-    /// 最大跳数
+    /// Maximum number of jumps
     pub max_hops: Option<usize>,
-    /// 路径中的变量
+    /// Variables in the path
     pub variables: Vec<String>,
-    /// 路径中的标签
+    /// Tags in the path
     pub labels: Vec<String>,
-    /// 路径中的边类型
+    /// Edge types in the path
     pub edge_types: Vec<String>,
 }
 
 impl PathAnalysis {
-    /// 创建新的路径分析
+    /// Create a new path analysis.
     pub fn new() -> Self {
         Self {
             alias: None,
@@ -209,38 +209,38 @@ impl Default for PathAnalysis {
     }
 }
 
-/// 优化提示类型
+/// Optimize the type of suggestions.
 #[derive(Debug, Clone)]
 pub enum OptimizationHint {
-    /// 建议使用索引扫描
+    /// It is recommended to use index scanning.
     UseIndexScan {
         table: String,
         column: String,
         condition: ContextualExpression,
     },
-    /// 建议限制结果数量
+    /// It is recommended to limit the number of results.
     LimitResults {
         reason: String,
         suggested_limit: usize,
     },
-    /// 建议预过滤
+    /// It is recommended to perform a pre-filtering step.
     PreFilter {
         condition: ContextualExpression,
         selectivity: f64,
     },
-    /// 建议连接顺序
+    /// Suggested order of connection
     JoinOrder {
         optimal_order: Vec<String>,
         estimated_cost: f64,
     },
-    /// 提示可能的性能问题
+    /// Indicate potential performance issues
     PerformanceWarning {
         message: String,
         severity: HintSeverity,
     },
 }
 
-/// 提示严重程度
+/// Indication of the severity
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HintSeverity {
     Info,
@@ -248,22 +248,22 @@ pub enum HintSeverity {
     Critical,
 }
 
-/// 索引提示
+/// Index tips
 #[derive(Debug, Clone)]
 pub struct IndexHint {
-    /// 索引名称
+    /// Index name
     pub index_name: String,
-    /// 表/标签名
+    /// Table/Tag Name
     pub table_name: String,
-    /// 索引列
+    /// Index column
     pub columns: Vec<String>,
-    /// 适用条件
+    /// Applicable Conditions
     pub applicable_conditions: Vec<ContextualExpression>,
-    /// 预估选择性
+    /// Estimated selectivity
     pub estimated_selectivity: f64,
 }
 
-/// 子句类型
+/// Sentence types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClauseKind {
     Match,
@@ -284,51 +284,51 @@ pub enum ClauseKind {
     From,
 }
 
-/// 语义信息
+/// Semantic information
 ///
-/// 存储验证阶段收集的语义信息，用于优化器和执行器。
-/// 设计原则：只保留规划阶段真正需要的信息，避免冗余。
+/// The semantic information collected during the storage validation phase is used by the optimizer and the executor.
+/// Design principle: Only retain the information that is truly necessary during the planning phase, and avoid redundancy.
 #[derive(Debug, Clone, Default)]
 pub struct SemanticInfo {
-    /// 引用的标签
+    /// Cited tags
     pub referenced_tags: Vec<String>,
-    /// 引用的边类型
+    /// Type of the referenced edge
     pub referenced_edges: Vec<String>,
-    /// 引用的属性
+    /// Cited attributes
     pub referenced_properties: Vec<String>,
-    /// 使用的变量
+    /// Variables used
     pub used_variables: Vec<String>,
-    /// 定义的变量
+    /// Defined variables
     pub defined_variables: Vec<String>,
-    /// 聚合函数调用
+    /// Aggregate function calls
     pub aggregate_calls: Vec<AggregateCallInfo>,
-    /// 输出字段
+    /// Of course! Please provide the text you would like to have translated.
     pub output_fields: Vec<String>,
-    /// 排序字段
+    /// Sorting field
     pub ordering_fields: Vec<String>,
-    /// 分页偏移
+    /// Pagination offset
     pub pagination_offset: Option<usize>,
-    /// 分页限制
+    /// Pagination limits
     pub pagination_limit: Option<usize>,
-    /// 查询类型
+    /// Query type
     pub query_type: Option<String>,
-    /// 查询复杂度
+    /// Query complexity
     pub query_complexity: Option<usize>,
-    /// 空间名称
+    /// Space Name
     pub space_name: Option<String>,
-    /// 引用的 Schema（标签或边类型）
+    /// The referenced Schema (types of tags or edges)
     pub referenced_schemas: Vec<String>,
 }
 
-/// 聚合函数调用信息
+/// Information on aggregate function calls
 #[derive(Debug, Clone)]
 pub struct AggregateCallInfo {
-    /// 函数名
+    /// Function name
     pub function_name: String,
-    /// 参数表达式
+    /// Parameter expression
     pub arguments: Vec<ContextualExpression>,
-    /// 是否去重
+    /// Should duplicates be removed?
     pub distinct: bool,
-    /// 别名
+    /// Alias
     pub alias: Option<String>,
 }

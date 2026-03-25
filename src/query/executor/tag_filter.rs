@@ -1,6 +1,6 @@
-//! 标签过滤器处理器
+//! Tag Filter Processor
 //!
-//! 提供对顶点标签的高级过滤功能，支持复杂的表达式求值
+//! Provide an advanced filtering function for vertex labels that supports the evaluation of complex expressions.
 
 use crate::core::value::dataset::List;
 use crate::core::vertex_edge_path::Vertex;
@@ -10,39 +10,39 @@ use crate::query::executor::expression::evaluator::expression_evaluator::Express
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
 
-/// 标签过滤器处理器
+/// Tag Filter Processor
 ///
-/// 使用 unit struct 模式，零开销
+/// Using the unit struct pattern, with zero overhead.
 #[derive(Debug)]
 pub struct TagFilterProcessor;
 
 impl TagFilterProcessor {
-    /// 处理标签过滤表达式
+    /// Processing tag filtering expressions
     pub fn process_tag_filter(filter_expression: &Expression, vertex: &Vertex) -> bool {
-        // 创建包含顶点标签的上下文
+        // Create a context that includes vertex labels.
         let mut context = Self::create_tag_context(vertex);
 
-        // 评估表达式
+        // Evaluating an expression
         match ExpressionEvaluator::evaluate(filter_expression, &mut context) {
             Ok(value) => Self::value_to_bool(&value),
             Err(e) => {
                 log::warn!("标签过滤表达式评估失败: {}", e);
-                false // 默认排除
+                false // Default exclusion
             }
         }
     }
 
-    /// 创建包含标签信息的评估上下文
+    /// Create an evaluation context that includes tag information.
     fn create_tag_context(vertex: &Vertex) -> DefaultExpressionContext {
         let mut context = DefaultExpressionContext::new();
 
-        // 将顶点作为变量添加
+        // Add the vertices as variables.
         context.set_variable(
             "vertex".to_string(),
             Value::Vertex(Box::new(vertex.clone())),
         );
 
-        // 添加标签列表
+        // Add a list of tags
         let tag_names: Vec<Value> = vertex
             .tags
             .iter()
@@ -50,17 +50,17 @@ impl TagFilterProcessor {
             .collect();
         context.set_variable("tags".to_string(), Value::List(List::from(tag_names)));
 
-        // 添加标签数量
+        // Number of tags added
         let tag_count = vertex.tags.len() as i64;
         context.set_variable("tag_count".to_string(), Value::Int(tag_count));
 
-        // 将每个标签作为单独的变量添加
+        // Add each tag as a separate variable.
         for (i, tag) in vertex.tags.iter().enumerate() {
             context.set_variable(format!("tag_{}", tag.name), Value::String(tag.name.clone()));
             context.set_variable(format!("tag_{}", i), Value::String(tag.name.clone()));
         }
 
-        // 添加标签属性
+        // Add tag attributes
         for tag in &vertex.tags {
             let tag_prefix = format!("tag_{}_", tag.name);
             for (prop_name, prop_value) in &tag.properties {
@@ -71,7 +71,7 @@ impl TagFilterProcessor {
         context
     }
 
-    /// 将值转换为布尔值
+    /// Convert the value to a boolean value.
     fn value_to_bool(value: &Value) -> bool {
         match value {
             Value::Bool(b) => *b,
@@ -83,7 +83,7 @@ impl TagFilterProcessor {
             Value::List(l) if l.is_empty() => false,
             Value::Map(m) if m.is_empty() => false,
             Value::Set(s) if s.is_empty() => false,
-            _ => true, // 非空、非零值视为 true
+            _ => true, // Non-empty, non-zero values are considered to be true.
         }
     }
 }
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_process_tag_filter_with_contains() {
-        // 创建测试顶点
+        // Create test vertices.
         let vertex = Vertex::new(
             Value::Int(1),
             vec![
@@ -105,7 +105,7 @@ mod tests {
             ],
         );
 
-        // 测试包含标签的表达式 - "user" IN tags
+        // The test includes expressions with tags – “user” IN tags
         let expression = Expression::binary(
             Expression::literal("user".to_string()),
             BinaryOperator::In,

@@ -13,10 +13,10 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// ExpandAllExecutor - 全路径扩展执行器
+/// ExpandAllExecutor – An executor that performs full-path expansion
 ///
-/// 返回从当前节点出发的所有可能的路径，而不仅仅是下一跳节点
-/// 通常用于路径探索查询
+/// Return all possible paths starting from the current node, not just the next-hop node.
+/// Usually used in path exploration queries
 pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
@@ -24,11 +24,11 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     pub any_edge_type: bool,
     pub max_depth: Option<usize>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    // 使用 NPath 缓存中间结果，减少内存复制
+    // Use the NPath cache to store intermediate results and reduce the amount of memory copying.
     npath_cache: Vec<Arc<NPath>>,
-    // 路径缓存（最终输出时转换）
+    // Path caching (converted during the final output process)
     path_cache: Vec<Path>,
-    // 已访问节点集合，用于避免循环
+    // Set of visited nodes, used to avoid loops.
     pub visited_nodes: HashSet<Value>,
 }
 
@@ -87,37 +87,37 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
-    /// 递归扩展路径（同步版本）
+    /// Recursive expansion of paths (synchronous version)
     fn expand_paths_recursive(
         &mut self,
         current_npath: &Arc<NPath>,
         current_depth: usize,
         max_depth: usize,
     ) -> Result<Vec<Arc<NPath>>, QueryError> {
-        // 获取当前路径的最后一个节点
+        // Get the last node of the current path.
         let current_node = &current_npath.vertex().vid;
 
-        // 检查是否达到最大深度
+        // Check whether the maximum depth has been reached.
         if current_depth >= max_depth {
-            // 返回当前路径
+            // Return to the current path
             return Ok(vec![current_npath.clone()]);
         }
 
-        // 获取邻居节点和边
+        // Obtaining neighbor nodes and edges
         let neighbors_with_edges = self.get_neighbors_with_edges(current_node)?;
 
         if neighbors_with_edges.is_empty() {
-            // 没有更多邻居，返回当前路径
+            // There are no more neighbors; return to the current path.
             return Ok(vec![current_npath.clone()]);
         }
 
         let mut all_npaths: Vec<Arc<NPath>> = Vec::new();
 
-        // 为每个邻居创建新路径
+        // Create a new path for each neighbor.
         for (neighbor_id, edge) in neighbors_with_edges {
-            // 检查是否已访问过该节点（避免循环）
+            // Check whether the node has already been visited (to avoid loops).
             if self.visited_nodes.contains(&neighbor_id) {
-                // 创建包含循环的路径
+                // Create a path that contains loops.
                 let path_with_cycle = Arc::new(NPath::extend(
                     current_npath.clone(),
                     Arc::new(edge),
@@ -127,7 +127,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 continue;
             }
 
-            // 获取邻居节点的完整信息
+            // Obtain the complete information of the neighboring nodes.
             let neighbor_vertex = {
                 let storage = self.get_storage().lock();
                 storage
@@ -135,11 +135,11 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                     .map_err(|e| QueryError::StorageError(e.to_string()))?
             };
 
-            // 创建顶点对象：如果顶点存在则使用实际顶点，否则创建悬挂顶点（空Tag列表）
+            // Create a vertex object: If the vertex already exists, use the actual vertex; otherwise, create a suspended vertex (with an empty Tag list).
             let vertex = match neighbor_vertex {
                 Some(v) => v,
                 None => {
-                    // 悬挂边处理：创建一个空Tag的顶点，保留VID
+                    // Suspension edge processing: Create a vertex for an empty Tag, while retaining the VID (Video Identifier).
                     Vertex::new(neighbor_id.clone(), Vec::new())
                 }
             };
@@ -151,39 +151,39 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 Arc::new(vertex),
             ));
 
-            // 标记为已访问
+            // Marked as visited
             self.visited_nodes.insert(neighbor_id.clone());
 
-            // 递归扩展（即使顶点是悬挂的，也继续扩展以获取更多边）
+            // Recursive expansion (continuing to expand in order to obtain more edges, even if the vertex is “悬挂”/not directly connected to other nodes in the graph).
             let mut expanded_npaths =
                 self.expand_paths_recursive(&new_npath, current_depth + 1, max_depth)?;
             all_npaths.append(&mut expanded_npaths);
 
-            // 取消标记（允许在其他路径中访问）
+            // Unmark (allows access from other paths)
             self.visited_nodes.remove(&neighbor_id);
         }
 
-        // 添加当前路径
+        // Add the current path
         all_npaths.push(current_npath.clone());
 
         Ok(all_npaths)
     }
 
-    /// 构建扩展结果
+    /// Construct the extended result.
     fn build_expansion_result(&self) -> ExecutionResult {
-        // 将 NPath 转换为 Path 用于输出
+        // Convert NPath to Path for output.
         let paths: Vec<Path> = self.npath_cache.iter().map(|np| np.to_path()).collect();
 
-        // 将路径转换为值列表
+        // Convert the path into a list of values.
         let mut path_values = Vec::new();
 
         for path in &paths {
             let mut path_value = Vec::new();
 
-            // 添加起始节点
+            // Add a starting node.
             path_value.push(Value::Vertex(path.src.clone()));
 
-            // 添加每一步的边和节点
+            // Add the edges and nodes for each step.
             for step in &path.steps {
                 path_value.push(Value::Edge((*step.edge).clone()));
                 path_value.push(Value::Vertex(Box::new((*step.dst).clone())));
@@ -208,19 +208,19 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExpandAllExecutor<S
 
 impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 首先执行输入执行器（如果存在）
+        // First, execute the input executor (if it exists).
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute()?
         } else {
-            // 如果没有输入执行器，返回空结果
+            // If no actuator is specified, return an empty result.
             ExecutionResult::Vertices(Vec::new())
         };
 
-        // 提取输入节点
+        // Extract the input node.
         let input_nodes = match input_result {
             ExecutionResult::Vertices(vertices) => vertices,
             ExecutionResult::Edges(edges) => {
-                // 从边中提取节点
+                // Extract nodes from the edges.
                 let mut nodes = Vec::new();
                 let storage = self.get_storage().lock();
                 let mut visited = HashSet::new();
@@ -239,14 +239,14 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                 nodes.into_iter().collect()
             }
             ExecutionResult::Values(values) => {
-                // 从值中提取节点
+                // Extract nodes from the values.
                 let mut vertices = Vec::new();
                 let storage = self.get_storage().lock();
                 for value in values {
                     match value {
                         Value::Vertex(vertex) => vertices.push(*vertex),
                         Value::String(id_str) => {
-                            // 尝试将字符串作为节点ID获取节点
+                            // Try to obtain the node by using the string as the node ID.
                             let node_id = Value::String(id_str);
                             if let Ok(Some(vertex)) = storage.get_vertex("default", &node_id) {
                                 vertices.push(vertex);
@@ -260,24 +260,24 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             _ => Vec::new(),
         };
 
-        // 确定最大深度
-        let max_depth = self.max_depth.unwrap_or(3); // 默认深度为3
+        // Determine the maximum depth.
+        let max_depth = self.max_depth.unwrap_or(3); // The default depth is 3.
 
-        // 为每个输入节点生成路径
+        // Generate a path for each input node.
         for vertex in input_nodes {
-            // 重置访问状态
+            // Reset the access status
             self.visited_nodes.clear();
             self.visited_nodes.insert((*vertex.vid).clone());
 
-            // 创建初始 NPath
+            // Create the initial NPath.
             let initial_npath = Arc::new(NPath::new(Arc::new(vertex)));
 
-            // 递归扩展路径
+            // Recursive expansion of the path
             let mut expanded_npaths = self.expand_paths_recursive(&initial_npath, 0, max_depth)?;
             self.npath_cache.append(&mut expanded_npaths);
         }
 
-        // 构建结果
+        // Build the results.
         Ok(self.build_expansion_result())
     }
 

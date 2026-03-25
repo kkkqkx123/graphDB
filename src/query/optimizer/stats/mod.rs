@@ -1,15 +1,15 @@
-//! 统计信息模块
+//! Statistics Information Module
 //!
-//! 提供查询优化器所需的统计信息管理和收集功能
+//! Provide the functionality for managing and collecting statistical information required by the query optimizer.
 //!
-//! ## 模块结构
+//! ## Module Structure
 //!
-//! - `manager` - 统计信息管理器，统一管理所有统计信息
-//! - `tag` - 标签统计信息
-//! - `edge` - 边类型统计信息
-//! - `property` - 属性统计信息
-//! - `histogram` - 直方图统计信息
-//! - `feedback` - 运行时统计反馈模块
+//! “Manager” refers to a statistical information manager that oversees and manages all statistical data in a centralized manner.
+//! `tag` – Statistics on tag usage
+//! “Edge” – Statistical information about the type of edges
+//! “Property” – Statistical information about properties.
+//! `histogram` – Statistical information in the form of a histogram.
+//! “Feedback” – A module for collecting runtime statistics and feedback.
 
 pub mod edge;
 pub mod feedback;
@@ -18,7 +18,7 @@ pub mod manager;
 pub mod property;
 pub mod tag;
 
-// 从feedback模块重新导出主要类型
+// Re-export the main types from the feedback module.
 pub use edge::{EdgeTypeStatistics, HotVertexInfo, SkewnessLevel};
 pub use feedback::{
     generate_query_fingerprint, normalize_query, AutoFeedbackConfig, AutoFeedbackTrigger,

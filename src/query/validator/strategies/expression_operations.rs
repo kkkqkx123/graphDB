@@ -1,5 +1,5 @@
-//! 表达式操作验证器
-//! 负责验证表达式的操作合法性和结构完整性
+//! Expression Operation Validator
+//! Responsible for verifying the operational legality and structural integrity of expressions.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -9,7 +9,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::validator::strategies::helpers::TypeDeduceValidator;
 use std::collections::HashSet;
 
-/// 表达式操作验证器
+/// Expression Operation Validator
 pub struct ExpressionOperationsValidator;
 
 impl Default for ExpressionOperationsValidator {
@@ -23,7 +23,7 @@ impl ExpressionOperationsValidator {
         Self
     }
 
-    /// 验证表达式操作的合法性
+    /// Verify the legitimacy of the expression operation.
     pub fn validate_expression_operations(
         &self,
         expression: &ContextualExpression,
@@ -39,18 +39,18 @@ impl ExpressionOperationsValidator {
         };
         let expr = expr_meta.inner();
 
-        // 使用 BFS 方式检查表达式深度（防止 OOM）
+        // Use the BFS (Breadth-First Search) method to check the depth of the expression (to prevent Out of Memory errors).
         self.check_expression_depth_bfs(expression, 100)?;
         self.validate_expression_operations_recursive(expr, 0)
     }
 
-    /// 递归验证表达式操作
+    /// Recursive verification of expression operations
     fn validate_expression_operations_recursive(
         &self,
         expression: &crate::core::types::expr::Expression,
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 检查表达式深度，防止栈溢出
+        // Check the depth of the expression to prevent stack overflow.
         if depth > 100 {
             return Err(ValidationError::new(
                 "表达式嵌套层级过深".to_string(),
@@ -60,15 +60,15 @@ impl ExpressionOperationsValidator {
 
         match expression {
             crate::core::types::expr::Expression::Binary { op, left, right } => {
-                // 验证二元操作符
+                // Verify the binary operator
                 self.validate_binary_operation(op, left, right, depth)?;
             }
             crate::core::types::expr::Expression::Unary { op, operand } => {
-                // 验证一元操作符
+                // Verify the unary operator
                 self.validate_unary_operation(op, operand, depth)?;
             }
             crate::core::types::expr::Expression::Function { name, args } => {
-                // 验证函数调用
+                // Verify function calls
                 self.validate_function_call(name, args, depth)?;
             }
             crate::core::types::expr::Expression::Aggregate {
@@ -76,29 +76,29 @@ impl ExpressionOperationsValidator {
                 arg,
                 distinct,
             } => {
-                // 验证聚合函数
+                // Verify the aggregate functions
                 self.validate_aggregate_operation(func, arg, *distinct, depth)?;
             }
             crate::core::types::expr::Expression::Property {
                 object: prop_expression,
                 property: name,
             } => {
-                // 验证属性访问
+                // Verify attribute access
                 self.validate_property_access(prop_expression, name, depth)?;
             }
             crate::core::types::expr::Expression::Subscript {
                 collection: index_expression,
                 index,
             } => {
-                // 验证索引访问
+                // Verify index access
                 self.validate_index_access(index_expression, index, depth)?;
             }
             crate::core::types::expr::Expression::List(items) => {
-                // 验证列表表达式
+                // Verify the list expression
                 self.validate_list_expression(items, depth)?;
             }
             crate::core::types::expr::Expression::Map(pairs) => {
-                // 验证映射表达式
+                // Verify the mapping expression
                 self.validate_map_expression(pairs, depth)?;
             }
             crate::core::types::expr::Expression::Case {
@@ -106,18 +106,18 @@ impl ExpressionOperationsValidator {
                 conditions: when_clauses,
                 default: else_clause,
             } => {
-                // 验证条件表达式
+                // Validation condition expression
                 self.validate_case_expression(test_expr, when_clauses, else_clause, depth)?;
             }
             _ => {
-                // 其他表达式类型无需特殊验证
+                // Other types of expressions do not require any special validation.
             }
         }
 
         Ok(())
     }
 
-    /// 验证二元操作
+    /// Verify the binary operation
     fn validate_binary_operation(
         &self,
         op: &crate::core::BinaryOperator,
@@ -125,14 +125,14 @@ impl ExpressionOperationsValidator {
         right: &crate::core::types::expr::Expression,
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 递归验证左右操作数
+        // Recursive verification of the left and right operands
         self.validate_expression_operations_recursive(left, depth + 1)?;
         self.validate_expression_operations_recursive(right, depth + 1)?;
 
-        // 验证操作符的合法性
+        // Verifying the validity of the operator
         match op {
             crate::core::BinaryOperator::Divide => {
-                // 除法需要特殊检查：除数不能为常量0
+                // Division requires special checks: the divisor cannot be the constant 0.
                 if let crate::core::types::expr::Expression::Literal(crate::core::Value::Int(0)) =
                     right
                 {
@@ -149,7 +149,7 @@ impl ExpressionOperationsValidator {
                 }
             }
             crate::core::BinaryOperator::Modulo => {
-                // 模运算需要特殊检查：模数不能为常量0
+                // Modular operations require special checks: the modulus cannot be the constant 0.
                 if let Expression::Literal(crate::core::Value::Int(0)) = right {
                     return Err(ValidationError::new(
                         "模数不能为0".to_string(),
@@ -163,25 +163,25 @@ impl ExpressionOperationsValidator {
         Ok(())
     }
 
-    /// 验证一元操作
+    /// Verify the unary operation
     fn validate_unary_operation(
         &self,
         _op: &crate::core::UnaryOperator,
         operand: &crate::core::types::expr::Expression,
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 递归验证操作数
+        // Recursive validation of operands
         self.validate_expression_operations_recursive(operand, depth + 1)
     }
 
-    /// 验证函数调用
+    /// Verify function calls
     fn validate_function_call(
         &self,
         name: &str,
         args: &[crate::core::types::expr::Expression],
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 验证函数名格式
+        // Verify the format of function names.
         if name.is_empty() {
             return Err(ValidationError::new(
                 "函数名不能为空".to_string(),
@@ -189,7 +189,7 @@ impl ExpressionOperationsValidator {
             ));
         }
 
-        // 验证参数数量限制
+        // Verification of the limit on the number of parameters
         if args.len() > 100 {
             return Err(ValidationError::new(
                 format!("函数 {:?} 的参数数量过多: {}", name, args.len()),
@@ -197,7 +197,7 @@ impl ExpressionOperationsValidator {
             ));
         }
 
-        // 递归验证每个参数
+        // Recursively verify each parameter.
         for (i, arg) in args.iter().enumerate() {
             self.validate_expression_operations_recursive(arg, depth + 1)
                 .map_err(|e| {
@@ -216,7 +216,7 @@ impl ExpressionOperationsValidator {
         Ok(())
     }
 
-    /// 验证聚合操作
+    /// Verify the aggregation operation
     fn validate_aggregate_operation(
         &self,
         func: &crate::core::AggregateFunction,
@@ -224,26 +224,26 @@ impl ExpressionOperationsValidator {
         distinct: bool,
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 递归验证聚合参数
+        // Recursive verification of aggregation parameters
         self.validate_expression_operations_recursive(arg, depth + 1)?;
 
-        // 创建临时 ContextualExpression 用于类型推导
+        // Create a temporary ContextualExpression for type inference.
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
         let meta = crate::core::types::expr::ExpressionMeta::new(arg.clone());
         let id = ctx.register_expression(meta);
         let contextual_arg = ContextualExpression::new(id, ctx);
 
-        // 使用类型推导验证器验证聚合函数参数类型
+        // Use type inference validators to verify the parameter types of aggregate functions.
         let type_validator = TypeDeduceValidator::new();
         let _ = type_validator.deduce_type(&contextual_arg);
 
-        // 验证 DISTINCT 标记
+        // Verify the DISTINCT flag
         if distinct {
             match func {
                 crate::core::AggregateFunction::Count(_)
                 | crate::core::AggregateFunction::Sum(_)
                 | crate::core::AggregateFunction::Avg(_) => {
-                    // 这些函数支持 DISTINCT
+                    // These functions support the use of DISTINCT.
                 }
                 _ => {
                     return Err(ValidationError::new(
@@ -257,14 +257,14 @@ impl ExpressionOperationsValidator {
         Ok(())
     }
 
-    /// 验证属性访问
+    /// Verify attribute access
     fn validate_property_access(
         &self,
         expression: &crate::core::types::expr::Expression,
         name: &str,
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 验证属性名格式
+        // Verify the format of the attribute names.
         if name.is_empty() {
             return Err(ValidationError::new(
                 "属性名不能为空".to_string(),
@@ -272,22 +272,22 @@ impl ExpressionOperationsValidator {
             ));
         }
 
-        // 递归验证表达式
+        // Recursive validation of expressions
         self.validate_expression_operations_recursive(expression, depth + 1)
     }
 
-    /// 验证索引访问
+    /// Verify index access
     fn validate_index_access(
         &self,
         expression: &crate::core::types::expr::Expression,
         index: &crate::core::types::expr::Expression,
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 递归验证表达式和索引
+        // Recursive validation of expressions and indices
         self.validate_expression_operations_recursive(expression, depth + 1)?;
         self.validate_expression_operations_recursive(index, depth + 1)?;
 
-        // 创建临时 ContextualExpression 用于类型推导
+        // Create a temporary ContextualExpression for type inference.
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(expression.clone());
         let expr_id = ctx.register_expression(expr_meta);
@@ -297,14 +297,14 @@ impl ExpressionOperationsValidator {
         let index_id = ctx.register_expression(index_meta);
         let contextual_index = ContextualExpression::new(index_id, ctx);
 
-        // 使用类型推导验证器验证索引类型
+        // Use type inference validators to verify the index type.
         let type_validator = TypeDeduceValidator::new();
         let expr_type = type_validator.deduce_type(&contextual_expr);
         let index_type = type_validator.deduce_type(&contextual_index);
 
         match expr_type {
             DataType::List => {
-                // 列表需要整数索引
+                // The list requires integer indices.
                 if index_type != DataType::Int && index_type != DataType::Empty {
                     return Err(ValidationError::new(
                         format!("列表下标需要整数类型，但得到: {:?}", index_type),
@@ -313,7 +313,7 @@ impl ExpressionOperationsValidator {
                 }
             }
             DataType::Map => {
-                // 映射需要字符串键
+                // The mapping requires string keys.
                 if index_type != DataType::String && index_type != DataType::Empty {
                     return Err(ValidationError::new(
                         format!("映射键需要字符串类型，但得到: {:?}", index_type),
@@ -322,7 +322,7 @@ impl ExpressionOperationsValidator {
                 }
             }
             DataType::Empty => {
-                // 类型未知时跳过验证
+                // Skip validation when the type is unknown.
             }
             _ => {
                 return Err(ValidationError::new(
@@ -335,13 +335,13 @@ impl ExpressionOperationsValidator {
         Ok(())
     }
 
-    /// 验证列表表达式
+    /// Verify the list expression
     fn validate_list_expression(
         &self,
         items: &[crate::core::types::expr::Expression],
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 验证列表大小限制
+        // Verify the list size limit.
         if items.len() > 10000 {
             return Err(ValidationError::new(
                 "列表表达式元素过多".to_string(),
@@ -349,7 +349,7 @@ impl ExpressionOperationsValidator {
             ));
         }
 
-        // 递归验证每个元素
+        // Recursively verify each element.
         for (i, item) in items.iter().enumerate() {
             self.validate_expression_operations_recursive(item, depth + 1)
                 .map_err(|e| {
@@ -363,13 +363,13 @@ impl ExpressionOperationsValidator {
         Ok(())
     }
 
-    /// 验证映射表达式
+    /// Verify the mapping expression
     fn validate_map_expression(
         &self,
         pairs: &[(String, crate::core::types::expr::Expression)],
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 验证映射大小限制
+        // Verify the limits on the size of the mapping.
         if pairs.len() > 10000 {
             return Err(ValidationError::new(
                 "映射表达式键值对过多".to_string(),
@@ -377,7 +377,7 @@ impl ExpressionOperationsValidator {
             ));
         }
 
-        // 检查键的唯一性
+        // Check the uniqueness of the key.
         let mut keys = HashSet::new();
         for (key, _) in pairs {
             if !keys.insert(key) {
@@ -388,7 +388,7 @@ impl ExpressionOperationsValidator {
             }
         }
 
-        // 递归验证每个值
+        // Recursively verify each value.
         for (key, value) in pairs {
             self.validate_expression_operations_recursive(value, depth + 1)
                 .map_err(|e| {
@@ -402,7 +402,7 @@ impl ExpressionOperationsValidator {
         Ok(())
     }
 
-    /// 验证条件表达式
+    /// Validation condition expression
     fn validate_case_expression(
         &self,
         operand: &Option<Box<crate::core::types::expr::Expression>>,
@@ -413,7 +413,7 @@ impl ExpressionOperationsValidator {
         else_clause: &Option<Box<crate::core::types::expr::Expression>>,
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 验证 WHEN 子句数量
+        // Verify the number of WHEN clauses
         if when_clauses.is_empty() {
             return Err(ValidationError::new(
                 "CASE 表达式必须至少有一个 WHEN 子句".to_string(),
@@ -421,12 +421,12 @@ impl ExpressionOperationsValidator {
             ));
         }
 
-        // 验证操作数（如果存在）
+        // Verify the operands (if any exist).
         if let Some(op) = operand {
             self.validate_expression_operations_recursive(op, depth + 1)?;
         }
 
-        // 递归验证每个 WHEN 子句
+        // Recursively verify each WHEN clause.
         for (i, (when_expression, then_expression)) in when_clauses.iter().enumerate() {
             self.validate_expression_operations_recursive(when_expression, depth + 1)
                 .map_err(|e| {
@@ -452,7 +452,7 @@ impl ExpressionOperationsValidator {
                 })?;
         }
 
-        // 验证 ELSE 子句（如果存在）
+        // Verify the ELSE clause (if it exists).
         if let Some(else_expression) = else_clause {
             self.validate_expression_operations_recursive(else_expression, depth + 1)?;
         }
@@ -460,7 +460,7 @@ impl ExpressionOperationsValidator {
         Ok(())
     }
 
-    /// 验证表达式循环依赖
+    /// Verify circular dependencies in expressions
     pub fn validate_expression_cycles(
         &self,
         expression: &ContextualExpression,
@@ -480,14 +480,14 @@ impl ExpressionOperationsValidator {
         self.check_expression_cycles(expr, &mut visited, 0)
     }
 
-    /// 检查表达式循环依赖
+    /// Check for circular dependencies in the expression.
     fn check_expression_cycles(
         &self,
         expression: &crate::core::types::expr::Expression,
         visited: &mut HashSet<String>,
         depth: usize,
     ) -> Result<(), ValidationError> {
-        // 防止无限递归
+        // Prevent infinite recursion
         if depth > 100 {
             return Err(ValidationError::new(
                 "表达式循环依赖检测深度超限".to_string(),
@@ -526,7 +526,7 @@ impl ExpressionOperationsValidator {
         Ok(())
     }
 
-    /// 计算表达式深度
+    /// Calculating the depth of an expression
     pub fn calculate_expression_depth(&self, expression: &ContextualExpression) -> usize {
         match expression.expression() {
             Some(e) => self.calculate_expression_depth_internal(e.inner()),
@@ -534,7 +534,7 @@ impl ExpressionOperationsValidator {
         }
     }
 
-    /// 内部方法：计算表达式深度
+    /// Internal method: Calculating the depth of an expression
     fn calculate_expression_depth_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
@@ -616,10 +616,10 @@ impl ExpressionOperationsValidator {
         }
     }
 
-    /// 使用 BFS 方式检查表达式深度
+    /// Check the depth of the expression using the BFS (Breadth-First Search) method.
     ///
-    /// 类似于 nebula-graph 的 ExpressionUtils::checkExprDepth
-    /// 使用广度优先遍历检查表达式深度，防止 OOM
+    /// Something similar to ExpressionUtils::checkExprDepth from nebula-graph
+    /// Use breadth-first traversal to check the depth of the expression and prevent Out of Memory (OOM) errors.
     pub fn check_expression_depth_bfs(
         &self,
         expression: &ContextualExpression,
@@ -639,7 +639,7 @@ impl ExpressionOperationsValidator {
         self.check_expression_depth_bfs_internal(expr, max_depth)
     }
 
-    /// 内部方法：使用 BFS 方式检查表达式深度
+    /// Internal method: Checking the depth of an expression using the BFS (Breadth-First Search) approach
     fn check_expression_depth_bfs_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
@@ -675,7 +675,7 @@ mod tests {
     use crate::query::validator::context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
-    /// 从 Expression 创建 ContextualExpression
+    /// Create a ContextualExpression from an Expression.
     fn create_contextual_expression(expr: Expression) -> ContextualExpression {
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
@@ -686,20 +686,20 @@ mod tests {
     #[test]
     fn test_expression_operations_validator_creation() {
         let _validator = ExpressionOperationsValidator::new();
-        // 测试通过到达此处即表示成功
+        // If the test is successful and you have reached this point, it means that everything has gone as planned.
     }
 
     #[test]
     fn test_validate_expression_operations() {
         let validator = ExpressionOperationsValidator::new();
 
-        // 简单的字面量表达式
+        // Simple literal expressions
         let literal_expression = create_contextual_expression(Expression::Literal(Value::Int(42)));
         assert!(validator
             .validate_expression_operations(&literal_expression)
             .is_ok());
 
-        // 简单的二元表达式
+        // Simple binary expressions
         let binary_expression = create_contextual_expression(Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Literal(Value::Int(1))),
@@ -709,7 +709,7 @@ mod tests {
             .validate_expression_operations(&binary_expression)
             .is_ok());
 
-        // 除零检测
+        // Zero Detection
         let divide_by_zero = create_contextual_expression(Expression::Binary {
             op: crate::core::BinaryOperator::Divide,
             left: Box::new(Expression::Literal(Value::Int(10))),
@@ -724,7 +724,7 @@ mod tests {
     fn test_validate_function_call() {
         let validator = ExpressionOperationsValidator::new();
 
-        // 有效的函数调用
+        // Valid function call
         let valid_function = create_contextual_expression(Expression::Function {
             name: "length".to_string(),
             args: vec![Expression::Literal(Value::String("test".to_string()))],
@@ -733,7 +733,7 @@ mod tests {
             .validate_expression_operations(&valid_function)
             .is_ok());
 
-        // 空函数名
+        // Empty function name
         let empty_function_name = create_contextual_expression(Expression::Function {
             name: "".to_string(),
             args: vec![Expression::Literal(Value::Int(1))],
@@ -747,11 +747,11 @@ mod tests {
     fn test_calculate_expression_depth() {
         let validator = ExpressionOperationsValidator::new();
 
-        // 简单表达式
+        // Simple expressions
         let literal_expression = create_contextual_expression(Expression::Literal(Value::Int(42)));
         assert_eq!(validator.calculate_expression_depth(&literal_expression), 1);
 
-        // 嵌套表达式
+        // Nested expressions
         let nested_expression = create_contextual_expression(Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Literal(Value::Int(1))),

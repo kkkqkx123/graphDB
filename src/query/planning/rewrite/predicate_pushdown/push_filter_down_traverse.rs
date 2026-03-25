@@ -1,7 +1,7 @@
-//! 将过滤条件下推到遍历操作的规则
+//! Push the filtering conditions up to the rules that are used in the traversal operation.
 //!
-//! 该规则识别 Filter -> Traverse 模式，
-//! 并将边属性过滤条件下推到 Traverse 节点中。
+//! This rule identifies the Filter -> Traverse mode.
+//! And push the filtering conditions for the edge attributes down to the Traverse node.
 
 use crate::core::types::expr::{ExpressionVisitor, VariableCollector};
 use crate::core::Expression;
@@ -13,9 +13,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// 将过滤条件下推到遍历操作的规则
+/// Push the filtering conditions up to the rules that are used in the traversal operation.
 ///
-/// # 转换示例
+/// # Conversion example
 ///
 /// Before:
 /// ```text
@@ -33,15 +33,15 @@ use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 ///   Traverse(eFilter: *.likeness > 78)
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - 过滤条件包含边属性表达式
-/// - Traverse 节点为单步遍历
+/// The filtering criteria include edge attribute expressions.
+/// The Traverse node is used for single-step traversal.
 #[derive(Debug)]
 pub struct PushFilterDownTraverseRule;
 
 impl PushFilterDownTraverseRule {
-    /// 创建规则实例
+    /// Create a rule instance.
     pub fn new() -> Self {
         Self
     }
@@ -67,81 +67,81 @@ impl RewriteRule for PushFilterDownTraverseRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 Filter 节点
+        // Check whether it is a Filter node.
         let filter_node = match node {
             PlanNodeEnum::Filter(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取输入节点
+        // Obtain the input node
         let input = filter_node.input();
 
-        // 检查输入节点是否为 Traverse
+        // Check whether the input node is of the Traverse type.
         let traverse = match input {
             PlanNodeEnum::Traverse(t) => t,
             _ => return Ok(None),
         };
 
-        // 检查是否为单步遍历
+        // Check whether it is a single-step iteration.
         if !traverse.is_one_step() {
             return Ok(None);
         }
 
-        // 获取边别名
+        // Obtaining edge aliases
         let edge_alias = match traverse.edge_alias() {
             Some(alias) => alias,
             None => return Ok(None),
         };
 
-        // 获取过滤条件
+        // Obtain the filtering criteria
         let filter_condition = filter_node.condition();
 
-        // 获取上下文用于创建 ContextualExpression
+        // Obtaining the context is necessary for creating a ContextualExpression.
         let ctx = filter_condition.context().clone();
 
-        // 定义选择器函数：检查表达式是否包含边属性
+        // Define a selector function: Check whether an expression contains edge attributes.
         let picker = |expr: &Expression| -> bool { is_edge_property_expression(edge_alias, expr) };
 
-        // 分割过滤条件
+        // Split filter criteria
         let (filter_picked, filter_unpicked) = split_filter(filter_condition, picker);
 
-        // 如果没有可以选择的条件，则不进行转换
+        // If there are no available options to choose from, then no conversion will be performed.
         let picked = match filter_picked {
             Some(f) => f,
             None => return Ok(None),
         };
 
-        // 创建新的 Traverse 节点
+        // Create a new Traverse node.
         let mut new_traverse = traverse.clone();
 
-        // 设置或合并 eFilter
+        // Set up or merge the eFilter.
         if let Some(existing_ctx) = traverse.e_filter() {
-            // 使用 ExpressionContext 的 and 方法组合表达式
+            // Combining expressions using the and method of ExpressionContext
             if let Some(combined_ctx_expr) = ctx.and(&picked, existing_ctx) {
                 new_traverse.set_e_filter(combined_ctx_expr);
             }
         } else {
-            // 克隆表达式并设置
+            // Clone the expression and set it accordingly.
             if let Some(picked_ctx_expr) = ctx.clone_expression(&picked) {
                 new_traverse.set_e_filter(picked_ctx_expr);
             }
         }
 
-        // 构建转换结果
+        // Construct the translation result.
         let mut result = TransformResult::new();
 
-        // 如果有未选择的过滤条件，保留 Filter 节点
+        // If there are any filter criteria that have not been selected, retain the Filter node.
         if let Some(unpicked) = filter_unpicked {
             result.erase_curr = false;
-            // 更新 Filter 节点的条件
+            // Update the conditions for the Filter node.
             let mut new_filter = filter_node.clone();
-            // 克隆表达式并设置
+            // Clone the expression and set it accordingly.
             if let Some(unpicked_ctx_expr) = ctx.clone_expression(&unpicked) {
                 new_filter.set_condition(unpicked_ctx_expr);
             }
             result.add_new_node(PlanNodeEnum::Filter(new_filter));
         } else {
-            // 完全下推，删除 Filter 节点
+            // Push everything completely down; remove the Filter node.
             result.erase_curr = true;
         }
 
@@ -171,7 +171,7 @@ impl PushDownRule for PushFilterDownTraverseRule {
     }
 }
 
-/// 检查表达式是否为边属性表达式
+/// Check whether the expression is an edge attribute expression.
 fn is_edge_property_expression(edge_alias: &str, expr: &Expression) -> bool {
     let mut collector = VariableCollector::new();
     ExpressionVisitor::visit(&mut collector, expr);
@@ -199,14 +199,14 @@ mod tests {
     fn test_is_edge_property_expression() {
         let edge_alias = "e";
 
-        // 测试边属性表达式
+        // Testing edge attribute expressions
         let prop_expr = Expression::Property {
             object: Box::new(Expression::Variable("e".to_string())),
             property: "likeness".to_string(),
         };
         assert!(is_edge_property_expression(edge_alias, &prop_expr));
 
-        // 测试非边属性表达式
+        // Testing non-edge attribute expressions
         let var_expr = Expression::Variable("v".to_string());
         assert!(!is_edge_property_expression(edge_alias, &var_expr));
     }

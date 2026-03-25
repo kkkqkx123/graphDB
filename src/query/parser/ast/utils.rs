@@ -1,4 +1,4 @@
-//! 工具函数和辅助功能
+//! Tool functions and auxiliary features
 
 use super::pattern::*;
 use super::stmt::*;
@@ -8,11 +8,11 @@ use crate::core::Value;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
-/// 表达式工厂 - 用于创建表达式节点
+/// Expression Factory – Used for creating expression nodes
 pub struct ExprFactory;
 
 impl ExprFactory {
-    /// 创建常量表达式
+    /// Create a constant expression.
     pub fn constant(value: Value, ctx: Arc<ExpressionAnalysisContext>) -> ContextualExpression {
         let expr = Expression::Literal(value);
         let meta = ExpressionMeta::new(expr);
@@ -20,7 +20,7 @@ impl ExprFactory {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建变量表达式
+    /// Create a variable expression.
     pub fn variable(name: String, ctx: Arc<ExpressionAnalysisContext>) -> ContextualExpression {
         let expr = Expression::Variable(name);
         let meta = ExpressionMeta::new(expr);
@@ -28,7 +28,7 @@ impl ExprFactory {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建二元表达式
+    /// Create a binary expression
     pub fn binary(
         left: ContextualExpression,
         op: crate::core::types::operators::BinaryOperator,
@@ -55,7 +55,7 @@ impl ExprFactory {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建一元表达式
+    /// Create a monomial expression.
     pub fn unary(
         op: crate::core::types::operators::UnaryOperator,
         operand: ContextualExpression,
@@ -75,7 +75,7 @@ impl ExprFactory {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建函数调用表达式
+    /// Create a function call expression.
     pub fn function_call(
         name: String,
         args: Vec<ContextualExpression>,
@@ -104,7 +104,7 @@ impl ExprFactory {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建属性访问表达式
+    /// Creating attribute access expressions
     pub fn property_access(object: ContextualExpression, property: String) -> ContextualExpression {
         let ctx = object.context().clone();
         let object_expr = object
@@ -121,7 +121,7 @@ impl ExprFactory {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建列表表达式
+    /// Create a list expression.
     pub fn list(elements: Vec<ContextualExpression>) -> ContextualExpression {
         let ctx = if elements.is_empty() {
             Arc::new(ExpressionAnalysisContext::new())
@@ -143,7 +143,7 @@ impl ExprFactory {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建映射表达式
+    /// Create a mapping expression.
     pub fn map(pairs: Vec<(String, ContextualExpression)>) -> ContextualExpression {
         let ctx = if pairs.is_empty() {
             Arc::new(ExpressionAnalysisContext::new())
@@ -169,7 +169,7 @@ impl ExprFactory {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建 CASE 表达式
+    /// Creating a CASE expression
     pub fn case(
         match_expression: Option<ContextualExpression>,
         when_then_pairs: Vec<(ContextualExpression, ContextualExpression)>,
@@ -224,7 +224,7 @@ impl ExprFactory {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建下标表达式
+    /// Create an subscript expression.
     pub fn subscript(
         collection: ContextualExpression,
         index: ContextualExpression,
@@ -249,7 +249,7 @@ impl ExprFactory {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建比较表达式
+    /// Create a comparative expression
     pub fn compare(
         left: ContextualExpression,
         op: crate::core::types::operators::BinaryOperator,
@@ -258,7 +258,7 @@ impl ExprFactory {
         Self::binary(left, op, right)
     }
 
-    /// 创建逻辑表达式
+    /// Create a logical expression
     pub fn logical(
         left: ContextualExpression,
         op: crate::core::types::operators::BinaryOperator,
@@ -267,7 +267,7 @@ impl ExprFactory {
         Self::binary(left, op, right)
     }
 
-    /// 创建算术表达式
+    /// Create arithmetic expressions.
     pub fn arithmetic(
         left: ContextualExpression,
         op: crate::core::types::operators::BinaryOperator,
@@ -277,16 +277,16 @@ impl ExprFactory {
     }
 }
 
-/// 语句工厂 - 用于创建语句节点
+/// Statement Factory – Used for creating statement nodes
 pub struct StmtFactory;
 
 impl StmtFactory {
-    /// 创建查询语句
+    /// Create a query statement.
     pub fn query(statements: Vec<Stmt>, span: Span) -> Stmt {
         Stmt::Query(QueryStmt::new(statements, span))
     }
 
-    /// 创建 CREATE 节点语句
+    /// Create the CREATE node statement.
     pub fn create_node(
         variable: Option<String>,
         labels: Vec<String>,
@@ -304,7 +304,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建 CREATE 边语句
+    /// Create a CREATE edge statement.
     pub fn create_edge(
         variable: Option<String>,
         edge_type: String,
@@ -328,7 +328,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建 MATCH 语句
+    /// Create a MATCH statement
     pub fn match_stmt(
         patterns: Vec<Pattern>,
         where_clause: Option<ContextualExpression>,
@@ -350,7 +350,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建 DELETE 语句
+    /// Create a DELETE statement
     pub fn delete(
         target: DeleteTarget,
         where_clause: Option<ContextualExpression>,
@@ -364,7 +364,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建带 WITH EDGE 选项的 DELETE 语句
+    /// Create a DELETE statement with the WITH EDGE option
     pub fn delete_with_edge(
         target: DeleteTarget,
         where_clause: Option<ContextualExpression>,
@@ -378,7 +378,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建 UPDATE 语句
+    /// Create an UPDATE statement
     pub fn update(
         target: UpdateTarget,
         set_clause: SetClause,
@@ -395,7 +395,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建 GO 语句
+    /// Create GO statements
     pub fn go(
         steps: Steps,
         from: FromClause,
@@ -414,22 +414,22 @@ impl StmtFactory {
         })
     }
 
-    /// 创建 FETCH 语句
+    /// Create a FETCH statement
     pub fn fetch(target: FetchTarget, span: Span) -> Stmt {
         Stmt::Fetch(FetchStmt { span, target })
     }
 
-    /// 创建 USE 语句
+    /// Create a USE statement
     pub fn r#use(space: String, span: Span) -> Stmt {
         Stmt::Use(UseStmt { span, space })
     }
 
-    /// 创建 SHOW 语句
+    /// Creating a SHOW statement
     pub fn show(target: ShowTarget, span: Span) -> Stmt {
         Stmt::Show(ShowStmt { span, target })
     }
 
-    /// 创建 EXPLAIN 语句
+    /// Creating an EXPLAIN statement
     pub fn explain(statement: Box<Stmt>, span: Span) -> Stmt {
         Stmt::Explain(ExplainStmt {
             span,
@@ -438,7 +438,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建带格式的 EXPLAIN 语句
+    /// Creating a formatted EXPLAIN statement
     pub fn explain_with_format(statement: Box<Stmt>, format: ExplainFormat, span: Span) -> Stmt {
         Stmt::Explain(ExplainStmt {
             span,
@@ -447,7 +447,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建 PROFILE 语句
+    /// Create a PROFILE statement
     pub fn profile(statement: Box<Stmt>, span: Span) -> Stmt {
         Stmt::Profile(ProfileStmt {
             span,
@@ -456,7 +456,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建带格式的 PROFILE 语句
+    /// Create a formatted PROFILE statement.
     pub fn profile_with_format(statement: Box<Stmt>, format: ExplainFormat, span: Span) -> Stmt {
         Stmt::Profile(ProfileStmt {
             span,
@@ -465,7 +465,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建 LOOKUP 语句
+    /// Create a LOOKUP statement
     pub fn lookup(
         target: LookupTarget,
         where_clause: Option<ContextualExpression>,
@@ -480,7 +480,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建 SUBGRAPH 语句
+    /// Create the SUBGRAPH statement
     pub fn subgraph(
         steps: Steps,
         from: FromClause,
@@ -499,7 +499,7 @@ impl StmtFactory {
         })
     }
 
-    /// 创建 FIND PATH 语句
+    /// Create the FIND PATH statement
     pub fn find_path(
         from: FromClause,
         to: ContextualExpression,
@@ -528,11 +528,11 @@ impl StmtFactory {
     }
 }
 
-/// 模式工厂 - 用于创建模式节点
+/// Pattern Factory – Used for creating pattern nodes
 pub struct PatternFactory;
 
 impl PatternFactory {
-    /// 创建节点模式
+    /// Create a node pattern.
     pub fn node(
         variable: Option<String>,
         labels: Vec<String>,
@@ -545,7 +545,7 @@ impl PatternFactory {
         ))
     }
 
-    /// 创建边模式
+    /// Create a edge pattern.
     pub fn edge(
         variable: Option<String>,
         edge_types: Vec<String>,
@@ -560,22 +560,22 @@ impl PatternFactory {
         ))
     }
 
-    /// 创建路径模式
+    /// Create a path pattern
     pub fn path(elements: Vec<PathElement>, span: Span) -> Pattern {
         Pattern::Path(PathPattern::new(elements, span))
     }
 
-    /// 创建变量模式
+    /// Create a variable pattern.
     pub fn variable(name: String, span: Span) -> Pattern {
         Pattern::Variable(VariablePattern::new(name, span))
     }
 
-    /// 创建简单的节点模式
+    /// Create a simple node pattern.
     pub fn simple_node(variable: Option<String>, labels: Vec<String>, span: Span) -> Pattern {
         Self::node(variable, labels, None, vec![], span)
     }
 
-    /// 创建简单的边模式
+    /// Create a simple edge pattern.
     pub fn simple_edge(
         variable: Option<String>,
         edge_types: Vec<String>,
@@ -585,7 +585,7 @@ impl PatternFactory {
         Self::edge(variable, edge_types, None, vec![], direction, None, span)
     }
 
-    /// 创建有向边模式
+    /// Create a directed edge pattern
     pub fn directed_edge(
         variable: Option<String>,
         edge_type: String,
@@ -595,13 +595,13 @@ impl PatternFactory {
         Self::simple_edge(variable, vec![edge_type], direction, span)
     }
 
-    /// 创建无向边模式
+    /// Create an undirected edge pattern.
     pub fn undirected_edge(variable: Option<String>, edge_type: String, span: Span) -> Pattern {
         Self::simple_edge(variable, vec![edge_type], EdgeDirection::Both, span)
     }
 }
 
-/// AST 构建器 - 用于构建复杂的 AST 结构
+/// The AST builder is used for constructing complex AST (Abstract Syntax Tree) structures.
 pub struct AstBuilder {
     span: Span,
 }
@@ -611,7 +611,7 @@ impl AstBuilder {
         Self { span }
     }
 
-    /// 构建简单的 MATCH 查询
+    /// Constructing a simple MATCH query
     pub fn build_simple_match(
         &self,
         pattern: Pattern,
@@ -641,12 +641,12 @@ impl AstBuilder {
         )
     }
 
-    /// 构建简单的 CREATE 节点查询
+    /// Constructing a simple CREATE node query
     pub fn build_create_node(&self, variable: Option<String>, labels: Vec<String>) -> Stmt {
         StmtFactory::create_node(variable, labels, None, self.span)
     }
 
-    /// 构建简单的 CREATE 边查询
+    /// Constructing a simple CREATE edge query
     pub fn build_create_edge(
         &self,
         variable: Option<String>,
@@ -658,12 +658,12 @@ impl AstBuilder {
         StmtFactory::create_edge(variable, edge_type, src, dst, None, direction, self.span)
     }
 
-    /// 构建简单的 DELETE 查询
+    /// Constructing a simple DELETE query
     pub fn build_delete_vertices(&self, vertices: Vec<ContextualExpression>) -> Stmt {
         StmtFactory::delete(DeleteTarget::Vertices(vertices), None, self.span)
     }
 
-    /// 构建简单的 UPDATE 查询
+    /// Constructing a simple UPDATE query
     pub fn build_update_vertex(
         &self,
         vertex: ContextualExpression,
@@ -688,15 +688,15 @@ mod tests {
     fn test_expr_factory() {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
 
-        // 测试常量表达式
+        // Testing constant expressions
         let const_expression = ExprFactory::constant(Value::Int(42), ctx.clone());
         assert!(const_expression.expression().is_some());
 
-        // 测试变量表达式
+        // Test variable expressions
         let var_expression = ExprFactory::variable("x".to_string(), ctx.clone());
         assert!(var_expression.expression().is_some());
 
-        // 测试二元表达式
+        // Testing binary expressions
         let left = ExprFactory::constant(Value::Int(5), ctx.clone());
         let right = ExprFactory::constant(Value::Int(3), ctx.clone());
         let binary_expression = ExprFactory::binary(

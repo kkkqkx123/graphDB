@@ -1,5 +1,5 @@
-//! 数据结构模块
-//! 包含验证器使用的所有数据结构定义
+//! Data Structures Module
+//! Contains the definitions of all data structures used by the validator.
 
 pub mod alias_structs;
 pub mod clause_structs;

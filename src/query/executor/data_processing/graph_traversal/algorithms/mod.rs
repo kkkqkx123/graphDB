@@ -1,14 +1,14 @@
-//! 图算法模块
+//! Graph Algorithm Module
 //!
-//! 包含各种图遍历和路径查找算法的实现
+//! Implementations of various graph traversal and pathfinding algorithms
 //!
-//! # 算法列表
-//! - `a_star`: A*启发式搜索算法
-//! - `bidirectional_bfs`: 双向BFS最短路径算法
-//! - `bfs_shortest`: BFS最短路径执行器
-//! - `dijkstra`: Dijkstra最短路径算法
-//! - `multi_shortest_path`: 多源最短路径算法
-//! - `subgraph_executor`: 子图查询执行器
+//! # List of Algorithms
+//! *a_star*: An A* heuristic search algorithm
+//! `bidirectional_bfs`: Algorithm for finding the shortest path using Bidirectional Breadth-First Search (BFS)
+//! `bfs_shortest`: The executor for finding the shortest path using Breadth-First Search (BFS) algorithm.
+//! Dijkstra: The Dijkstra algorithm for finding the shortest path
+//! `multi_shortest_path`: An algorithm for finding the shortest paths from multiple sources to a single destination.
+//! `subgraphExecutor`: The executor responsible for executing subgraph queries.
 
 pub mod a_star;
 pub mod bfs_shortest;
@@ -19,7 +19,7 @@ pub mod subgraph_executor;
 pub mod traits;
 pub mod types;
 
-// 重新导出算法类型
+// Reexport the algorithm type
 pub use a_star::AStar;
 pub use bfs_shortest::BFSShortestExecutor;
 pub use bidirectional_bfs::BidirectionalBFS;

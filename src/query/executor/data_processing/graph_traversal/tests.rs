@@ -18,11 +18,11 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let space = "default";
 
-        // 创建测试图：A -> B -> C, A -> D
+        // Create test diagrams: A -> B -> C, A -> D
         {
             let mut storage_lock = storage.lock();
 
-            // 创建顶点
+            // Create vertices
             let vertex_a = Vertex::new(Value::String("A".to_string()), vec![]);
             let vertex_b = Vertex::new(Value::String("B".to_string()), vec![]);
             let vertex_c = Vertex::new(Value::String("C".to_string()), vec![]);
@@ -41,7 +41,7 @@ mod tests {
                 .insert_vertex(space, vertex_d)
                 .expect("Failed to insert test vertex D");
 
-            // 创建边
+            // Create an edge.
             let edge_ab = Edge::new(
                 id_a.clone(),
                 id_b.clone(),
@@ -91,7 +91,7 @@ mod tests {
             expr_context,
         );
 
-        // 测试基本功能
+        // Testing the basic functions
         assert_eq!(executor.name(), "ExpandExecutor");
         assert_eq!(executor.id(), 1);
         assert!(matches!(executor.get_edge_direction(), EdgeDirection::Out));
@@ -169,8 +169,8 @@ mod tests {
         assert!(executor.get_edge_types().is_none());
     }
 
-    /// 创建带权测试图
-    /// 图结构: A --(weight: 1)--> B --(weight: 2)--> C
+    /// Create a test image with weights applied
+    /// Graph structure: A --(weight: 1)--> B --(weight: 2)--> C
     ///         \--(weight: 5)--> D --(weight: 1)--> C
     /// 最短路径(按权重): A->B->C (总权重: 3)
     /// 最短路径(按步数): A->B->C 或 A->D->C (都是2步)
@@ -181,7 +181,7 @@ mod tests {
         {
             let mut storage_lock = storage.lock();
 
-            // 创建顶点
+            // Create vertices
             let vertex_a = Vertex::new(Value::String("A".to_string()), vec![]);
             let vertex_b = Vertex::new(Value::String("B".to_string()), vec![]);
             let vertex_c = Vertex::new(Value::String("C".to_string()), vec![]);
@@ -200,7 +200,7 @@ mod tests {
                 .insert_vertex(space, vertex_d)
                 .expect("Failed to insert test vertex D");
 
-            // 创建带权边
+            // Create edges with weights
             let mut props_ab = std::collections::HashMap::new();
             props_ab.insert("weight".to_string(), Value::Int(1));
             let edge_ab = Edge::new(
@@ -269,7 +269,7 @@ mod tests {
             edge_types: None,
         };
 
-        // 使用属性权重创建执行器
+        // Create an executor using attribute weights.
         let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             5,
             storage.clone(),
@@ -297,7 +297,7 @@ mod tests {
             edge_types: None,
         };
 
-        // 使用ranking作为权重创建执行器
+        // Create an executor using “ranking” as a weight.
         let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             6,
             storage.clone(),
@@ -319,7 +319,7 @@ mod tests {
         let storage = create_weighted_test_graph("unweighted_shortest_path");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        // 使用无权图配置创建执行器
+        // Create an executor using the configuration from an unauthorized graph.
         let config = crate::query::executor::base::ShortestPathConfig {
             start_vertex_ids: vec![Value::String("A".to_string())],
             direction: EdgeDirection::Out,
@@ -342,17 +342,17 @@ mod tests {
         assert_eq!(executor.id(), 7);
     }
 
-    // 创建带坐标属性的测试图，用于A*算法测试
+    // Create a test image with coordinate attributes for testing the A* algorithm.
     fn create_spatial_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
         let space = "default";
 
         // 创建空间测试图：A(0,0) -> B(3,4) -> C(6,8), A -> D(1,1) -> C
-        // 使用欧几里得距离作为启发式
+        // Use the Euclidean distance as an heuristic.
         {
             let mut storage_lock = storage.lock();
 
-            // 创建带坐标属性的顶点
+            // Create vertices with coordinate attributes
             let mut props_a = std::collections::HashMap::new();
             props_a.insert("lat".to_string(), Value::Float(0.0));
             props_a.insert("lon".to_string(), Value::Float(0.0));
@@ -390,7 +390,7 @@ mod tests {
                 .insert_vertex(space, vertex_d)
                 .expect("Failed to insert test vertex D");
 
-            // 创建带权重的边
+            // Create edges with weights
             let mut props_ab = std::collections::HashMap::new();
             props_ab.insert("weight".to_string(), Value::Int(5));
             let edge_ab = Edge::new(
@@ -459,7 +459,7 @@ mod tests {
             edge_types: None,
         };
 
-        // 使用A*算法，带空间启发式
+        // Using the A* algorithm, with a space-heuristic approach
         let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             8,
             storage.clone(),
@@ -491,7 +491,7 @@ mod tests {
             edge_types: None,
         };
 
-        // 使用A*算法，但无启发式（退化为Dijkstra）
+        // Use the A* algorithm, but without any heuristic methods (which reduces it to the Dijkstra algorithm).
         let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             9,
             storage.clone(),
@@ -520,7 +520,7 @@ mod tests {
             edge_types: None,
         };
 
-        // 使用A*算法，带固定缩放因子启发式
+        // Using the A* algorithm with a fixed scaling factor as a heuristic approach
         let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             10,
             storage.clone(),
@@ -540,7 +540,7 @@ mod tests {
 
     #[test]
     fn test_weighted_path_query_integration() {
-        // 测试完整的带权路径查询流程
+        // Test the complete process for querying weighted paths.
         let storage = create_weighted_test_graph("weighted_integration");
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
@@ -550,7 +550,7 @@ mod tests {
             edge_types: None,
         };
 
-        // 测试使用属性权重的Dijkstra算法
+        // Testing the Dijkstra algorithm using attribute weights
         let mut dijkstra_executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             11,
             storage.clone(),
@@ -566,7 +566,7 @@ mod tests {
         assert_eq!(dijkstra_executor.name(), "ShortestPathExecutor");
         assert_eq!(dijkstra_executor.id(), 11);
 
-        // 验证算法类型
+        // Verify the type of the algorithm.
         assert!(matches!(
             dijkstra_executor.get_algorithm(),
             ShortestPathAlgorithmType::Dijkstra
@@ -584,13 +584,13 @@ mod tests {
             edge_types: None,
         };
 
-        // 创建带权重的执行器，验证自动选择Dijkstra算法
+        // Create an executor with weights, and verify the automatic selection of the Dijkstra algorithm.
         let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             12,
             storage.clone(),
             expr_context,
             config,
-            ShortestPathAlgorithmType::Dijkstra, // 显式指定Dijkstra
+            ShortestPathAlgorithmType::Dijkstra, // Explicitly specifying Dijkstra
         )
         .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
 
@@ -599,14 +599,14 @@ mod tests {
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
 
-        // 带权图应该使用Dijkstra或A*算法
+        // For weighted graphs, the Dijkstra or A* algorithm should be used.
         let algorithm = executor.get_algorithm();
         assert!(
             matches!(
                 algorithm,
                 ShortestPathAlgorithmType::Dijkstra | ShortestPathAlgorithmType::AStar
             ),
-            "带权图应该使用Dijkstra或A*算法"
+            "For weighted graphs, the Dijkstra or A* algorithm should be used."
         );
     }
 
@@ -621,7 +621,7 @@ mod tests {
             edge_types: None,
         };
 
-        // 创建无权重的执行器，验证使用BFS算法
+        // Create an executor without any weights, and verify its functionality using the BFS (Breadth-First Search) algorithm.
         let mut executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             13,
             storage.clone(),
@@ -636,7 +636,7 @@ mod tests {
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
 
-        // 无权图应该使用BFS算法
+        // The “No Permission Graph” should use the BFS (Breadth-First Search) algorithm.
         assert!(matches!(
             executor.get_algorithm(),
             ShortestPathAlgorithmType::BFS

@@ -1,6 +1,6 @@
-//! 基础执行器实现
+//! Implementation of basic actuators
 //!
-//! 提供执行器的基础结构和通用功能，包括 Executor trait、HasStorage trait、HasInput trait 等。
+//! Provide the basic structure and common functions of an executor, including the Executor trait, the HasStorage trait, the HasInput trait, etc.
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -14,98 +14,98 @@ use super::execution_context::ExecutionContext;
 use super::execution_result::{DBResult, ExecutionResult};
 use super::executor_stats::ExecutorStats;
 
-/// 统一的执行器 trait
+/// A unified Executor trait
 ///
-/// 所有执行器必须实现的核心 trait，包含执行、生命周期和元数据功能。
+/// The core trait that all actuators must implement includes functions for execution, lifecycle management, and metadata handling.
 pub trait Executor<S: StorageClient>: Send {
-    /// 执行查询
+    /// Please provide the text you would like to have translated.
     fn execute(&mut self) -> DBResult<ExecutionResult>;
 
-    /// 打开执行器
+    /// Activate the actuator.
     fn open(&mut self) -> DBResult<()>;
 
-    /// 关闭执行器
+    /// Turn off the actuator.
     fn close(&mut self) -> DBResult<()>;
 
-    /// 检查执行器是否已打开
+    /// Check whether the actuator has been turned on.
     fn is_open(&self) -> bool;
 
-    /// 获取执行器 ID
+    /// Obtain the executor ID
     fn id(&self) -> i64;
 
-    /// 获取执行器名称
+    /// Obtain the name of the executor.
     fn name(&self) -> &str;
 
-    /// 获取执行器描述
+    /// Obtain the executor description.
     fn description(&self) -> &str;
 
-    /// 获取执行统计信息
+    /// Obtain execution statistics information.
     fn stats(&self) -> &ExecutorStats;
 
-    /// 获取可变的执行统计信息
+    /// Obtain variable execution statistics information.
     fn stats_mut(&mut self) -> &mut ExecutorStats;
 
-    /// 检查内存使用
+    /// Check the memory usage.
     fn check_memory(&self) -> DBResult<()> {
         Ok(())
     }
 }
 
-/// 存储访问 trait
+/// “Storage Access Trait”
 ///
-/// 只需要存储访问能力的执行器可以实现此 trait。
+/// Only executors that have access to storage capabilities can implement this trait.
 pub trait HasStorage<S: StorageClient> {
     fn get_storage(&self) -> &Arc<Mutex<S>>;
 }
 
-/// 输入访问 trait - 统一输入处理机制
+/// “Input Access Trait” – A unified mechanism for handling user input
 ///
-/// 需要访问输入数据的执行器应实现此 trait。
+/// Executors that need to access the input data should implement this trait.
 pub trait HasInput<S: StorageClient> {
     fn get_input(&self) -> Option<&ExecutionResult>;
     fn set_input(&mut self, input: ExecutionResult);
 }
 
-/// 输入执行器 trait
+/// Input Executor trait
 ///
-/// 用于处理来自其他执行器的输入数据。
-/// 使用 ExecutorEnum 替代 Box<dyn Executor<S>>，实现静态分发。
+/// Used to process input data from other actuators.
+/// Replace `Box<dyn Executor<S>>` with `ExecutorEnum` to achieve static distribution.
 pub trait InputExecutor<S: StorageClient + Send + 'static> {
     fn set_input(&mut self, input: ExecutorEnum<S>);
     fn get_input(&self) -> Option<&ExecutorEnum<S>>;
 }
 
-/// 可链式执行的执行器 trait
+/// An executor trait that can be executed in a chained manner
 ///
-/// 支持链式组合的执行器可以实现此 trait。
+/// Executors that support chained combination can implement this trait.
 pub trait ChainableExecutor<S: StorageClient + Send + 'static>:
     Executor<S> + InputExecutor<S>
 {
 }
 
-/// 基础执行器
+/// Basic Executor
 ///
-/// 提供执行器的通用功能，包括存储访问、统计信息、生命周期管理等。
+/// Provide general functions for actuators, including storage access, statistical information, lifecycle management, etc.
 #[derive(Clone, Debug)]
 pub struct BaseExecutor<S: StorageClient> {
-    /// 执行器 ID
+    /// Actuator ID
     pub id: i64,
-    /// 执行器名称
+    /// Actuator name
     pub name: String,
-    /// 执行器描述
+    /// Actuator description
     pub description: String,
-    /// 存储引擎引用
+    /// Storage engine reference
     pub storage: Option<Arc<Mutex<S>>>,
-    /// 执行上下文
+    /// Of course! Please provide the text you would like to have translated.
     pub context: ExecutionContext,
-    /// 是否已打开
+    /// Has it been turned on?
     is_open: bool,
-    /// 执行统计信息
+    /// Generate statistical information.
     stats: ExecutorStats,
 }
 
 impl<S: StorageClient> BaseExecutor<S> {
-    /// 创建新的基础执行器（带存储）
+    /// Create a new basic executor (with storage).
     pub fn new(
         id: i64,
         name: String,
@@ -123,7 +123,7 @@ impl<S: StorageClient> BaseExecutor<S> {
         }
     }
 
-    /// 创建新的基础执行器（不带存储）
+    /// Create a new basic executor (without storage).
     pub fn without_storage(
         id: i64,
         name: String,
@@ -140,7 +140,7 @@ impl<S: StorageClient> BaseExecutor<S> {
         }
     }
 
-    /// 创建带上下文的基础执行器
+    /// Create a basic executor with context
     pub fn with_context(
         id: i64,
         name: String,
@@ -158,7 +158,7 @@ impl<S: StorageClient> BaseExecutor<S> {
         }
     }
 
-    /// 创建带描述的基础执行器
+    /// Create a basic executor with a description
     pub fn with_description(
         id: i64,
         name: String,
@@ -176,7 +176,7 @@ impl<S: StorageClient> BaseExecutor<S> {
         }
     }
 
-    /// 创建带上下文和描述的基础执行器
+    /// Create a basic executor with context and description
     pub fn with_context_and_description(
         id: i64,
         name: String,
@@ -195,12 +195,12 @@ impl<S: StorageClient> BaseExecutor<S> {
         }
     }
 
-    /// 获取执行统计信息（不可变引用）
+    /// Obtain execution statistics (immutable reference)
     pub fn get_stats(&self) -> &ExecutorStats {
         &self.stats
     }
 
-    /// 获取执行统计信息（可变引用）
+    /// Obtain execution statistics information (variable reference)
     pub fn get_stats_mut(&mut self) -> &mut ExecutorStats {
         &mut self.stats
     }
@@ -255,16 +255,16 @@ impl<S: StorageClient> Executor<S> for BaseExecutor<S> {
     }
 }
 
-/// 开始执行器
+/// Start the executor
 ///
-/// 表示查询执行的起始点，不产生实际数据。
+/// It indicates the starting point for the execution of the query; no actual data is generated.
 #[derive(Debug)]
 pub struct StartExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
 }
 
 impl<S: StorageClient> StartExecutor<S> {
-    /// 创建新的开始执行器
+    /// Create a new start executor.
     pub fn new(id: i64, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             base: BaseExecutor::without_storage(id, "StartExecutor".to_string(), expr_context),

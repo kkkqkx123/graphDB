@@ -1,7 +1,7 @@
-//! 执行器枚举定义
+//! Executor enumeration definition
 //!
-//! 使用静态分发替代动态分发，所有执行器类型都包含在此枚举中
-//! 通过为枚举实现 Executor trait，可以统一处理所有执行器类型
+//! Use static distribution instead of dynamic distribution; all types of executors are included in this enumeration.
+//! By implementing the Executor trait for enumerations, it is possible to handle all types of executors in a unified manner.
 
 use std::fmt;
 use std::fmt::{Debug, Formatter};
@@ -51,9 +51,9 @@ use super::result_processing::{
     LimitExecutor, ProjectExecutor, SampleExecutor, SortExecutor, TopNExecutor,
 };
 
-/// 执行器枚举
+/// Executor enumeration
 ///
-/// 包含所有可能的执行器类型，使用静态分发实现多态
+/// Include all possible types of executors, and implement polymorphism using static distribution.
 pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     Start(StartExecutor<S>),
     Base(BaseExecutor<S>),
@@ -640,9 +640,9 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
     }
 }
 
-/// 内部宏模块 - 用于简化 ExecutorEnum 的方法委托
+/// Internal macro module – used to simplify the method delegation in ExecutorEnum
 mod macros {
-    /// 委托给内部执行器的不可变方法
+    /// Immutable methods that are delegated to internal executors
     macro_rules! delegate_to_executor {
         ($self:expr, $method:ident) => {
             match $self {
@@ -737,7 +737,7 @@ mod macros {
         };
     }
 
-    /// 委托给内部执行器的可变方法
+    /// A variable method that is delegated to an internal executor
     macro_rules! delegate_to_executor_mut {
         ($self:expr, $method:ident) => {
             match $self {

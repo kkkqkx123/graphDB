@@ -1,6 +1,6 @@
-//! 数据访问执行器构建器
+//! Data Access Executor Builder
 //!
-//! 负责创建数据访问类型的执行器（ScanVertices, ScanEdges, GetVertices, GetNeighbors, IndexScan, GetEdges）
+//! Responsible for creating executors for different data access types (ScanVertices, ScanEdges, GetVertices, GetNeighbors, IndexScan, GetEdges)
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::{ExecutionContext, ExecutorConfig, IndexScanConfig};
@@ -19,20 +19,20 @@ use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// 数据访问执行器构建器
+/// Data Access Executor Builder
 pub struct DataAccessBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
-    /// 创建新的数据访问构建器
+    /// Create a new data access builder.
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
     }
 
-    /// 构建 ScanVertices 执行器
+    /// Building the ScanVertices executor
     pub fn build_scan_vertices(
         &self,
         node: &ScanVerticesNode,
@@ -51,7 +51,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         Ok(ExecutorEnum::GetVertices(executor))
     }
 
-    /// 构建 ScanEdges 执行器
+    /// Building the ScanEdges executor
     pub fn build_scan_edges(
         &self,
         node: &ScanEdgesNode,
@@ -69,7 +69,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         Ok(ExecutorEnum::ScanEdges(executor))
     }
 
-    /// 构建 GetVertices 执行器
+    /// Constructing the GetVertices executor
     pub fn build_get_vertices(
         &self,
         node: &GetVerticesNode,
@@ -93,7 +93,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         Ok(ExecutorEnum::GetVertices(executor))
     }
 
-    /// 构建 GetNeighbors 执行器
+    /// Constructing the GetNeighbors executor
     pub fn build_get_neighbors(
         &self,
         node: &GetNeighborsNode,
@@ -118,7 +118,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         Ok(ExecutorEnum::GetNeighbors(executor))
     }
 
-    /// 构建 EdgeIndexScan 执行器
+    /// Building the EdgeIndexScan executor
     pub fn build_edge_index_scan(
         &self,
         node: &EdgeIndexScanNode,
@@ -148,7 +148,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         Ok(ExecutorEnum::IndexScan(executor))
     }
 
-    /// 构建 GetEdges 执行器
+    /// Constructing the GetEdges executor
     pub fn build_get_edges(
         &self,
         node: &GetEdgesNode,
@@ -170,7 +170,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
         Ok(ExecutorEnum::GetEdges(executor))
     }
 
-    /// 构建 IndexScan 执行器（用于标签索引扫描）
+    /// Building the IndexScan executor (for scanning tag indexes)
     pub fn build_index_scan(
         &self,
         node: &IndexScanNode,
@@ -188,7 +188,7 @@ impl<S: StorageClient + Send + 'static> DataAccessBuilder<S> {
                 filter: node.filter().and_then(|f| f.get_expression()),
                 return_columns: node.return_columns().to_vec(),
                 limit: node.limit().map(|l| l as usize),
-                is_edge: false, // is_edge = false，这是标签索引扫描
+                is_edge: false, // `is_edge = false` – This indicates that the tag index scanning has been completed.
             },
         );
         Ok(ExecutorEnum::IndexScan(executor))

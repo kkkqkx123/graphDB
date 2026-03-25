@@ -1,6 +1,6 @@
-//! 数据访问执行器模块
+//! Data Access Executor Module
 //!
-//! 包含所有与数据访问相关的执行器，这些执行器直接从存储层读取数据
+//! This includes all executors related to data access, which directly read data from the storage layer.
 
 pub mod edge;
 pub mod index;

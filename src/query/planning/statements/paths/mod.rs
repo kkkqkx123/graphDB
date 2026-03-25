@@ -1,6 +1,6 @@
-//! 路径规划器模块
+//! Path Planner Module
 //!
-//! 包含 MATCH 查询中的路径规划器和最短路径规划器
+//! The path planner and the shortest path planner used in the MATCH query
 
 pub mod match_path_planner;
 pub mod shortest_path_planner;

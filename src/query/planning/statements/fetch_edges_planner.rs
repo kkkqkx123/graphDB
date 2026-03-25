@@ -1,5 +1,5 @@
-//! FETCH EDGES查询规划器
-//! 处理FETCH EDGES查询的规划
+//! The FETCH EDGES query planner
+//! Planning for the execution of the FETCH EDGES query
 
 use crate::core::types::expr::common_utils::extract_string_from_expr;
 use crate::query::parser::ast::{FetchTarget, Stmt};
@@ -12,13 +12,13 @@ use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement}
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// FETCH EDGES查询规划器
-/// 负责将FETCH EDGES查询转换为执行计划
+/// The FETCH EDGES query planner
+/// Responsible for converting the FETCH EDGES query into an execution plan.
 #[derive(Debug, Clone)]
 pub struct FetchEdgesPlanner;
 
 impl FetchEdgesPlanner {
-    /// 创建新的FETCH EDGES规划器
+    /// Create a new FETCH EDGES planner.
     pub fn new() -> Self {
         Self
     }
@@ -41,7 +41,7 @@ impl Planner for FetchEdgesPlanner {
             }
         };
 
-        // 检查是否是 FETCH EDGES
+        // Check whether it is "FETCH EDGES".
         let (src, dst, edge_type, rank) = match &fetch_stmt.target {
             FetchTarget::Edges {
                 src,
@@ -59,10 +59,10 @@ impl Planner for FetchEdgesPlanner {
 
         let var_name = "e";
 
-        // 1. 创建参数节点，获取边的条件
+        // 1. Create a parameter node to define the conditions for obtaining the edges.
         let arg_node = ArgumentNode::new(1, var_name);
 
-        // 从表达式中提取字符串值
+        // Extract string values from the expression.
         let src_str = extract_string_from_expr(src)?;
         let dst_str = extract_string_from_expr(dst)?;
         let rank_str = rank
@@ -71,13 +71,13 @@ impl Planner for FetchEdgesPlanner {
             .transpose()?
             .unwrap_or_else(|| "0".to_string());
 
-        // 2. 创建获取边的节点
+        // 2. Create nodes for retrieving the edges.
         let get_edges_node = PlanNodeEnum::GetEdges(GetEdgesNode::new(
             1, // space_id
             &src_str, edge_type, &rank_str, &dst_str,
         ));
 
-        // 3. 创建过滤空边的节点
+        // 3. Create nodes that filter out empty edges.
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(
             crate::core::Expression::Variable(format!("{} IS NOT EMPTY", var_name)),
         );
@@ -89,7 +89,7 @@ impl Planner for FetchEdgesPlanner {
             Err(_) => get_edges_node.clone(),
         };
 
-        // 4. 创建投影节点
+        // 4. Create a projection node.
         let project_node = match ProjectNode::new(filter_node.clone(), vec![]) {
             Ok(node) => PlanNodeEnum::Project(node),
             Err(e) => {
@@ -98,7 +98,7 @@ impl Planner for FetchEdgesPlanner {
             }
         };
 
-        // 5. 创建SubPlan
+        // 5. Create a SubPlan
         let arg_node = PlanNodeEnum::Argument(arg_node);
         let sub_plan = SubPlan::new(Some(project_node), Some(arg_node));
 

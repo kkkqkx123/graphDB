@@ -1,6 +1,6 @@
-//! 集合操作执行器基类
+//! Collection Operation Executor Base Class
 //!
-//! 提供所有集合操作执行器的通用功能和接口
+//! Provide the general functions and interfaces of all set operation executors.
 
 use parking_lot::Mutex;
 use std::collections::HashSet;
@@ -13,9 +13,9 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 
-/// 集合操作执行器基类
+/// Collection Operation Executor Base Class
 ///
-/// 提供所有集合操作（Union、Intersect、Minus等）的通用功能
+/// Provide general functionality for all set operations (Union, Intersect, Subtract, etc.)
 #[derive(Debug)]
 pub struct SetExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -25,7 +25,7 @@ pub struct SetExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> SetExecutor<S> {
-    /// 创建新的集合操作执行器
+    /// Create a new collection operation executor.
     pub fn new(
         id: i64,
         name: String,
@@ -42,34 +42,34 @@ impl<S: StorageClient> SetExecutor<S> {
         }
     }
 
-    /// 获取对内部base执行器的可变引用
+    /// Obtain a variable reference to the internal base executor.
     pub fn base_mut(&mut self) -> &mut BaseExecutor<S> {
         &mut self.base
     }
 
-    /// 获取对内部base执行器的不可变引用
+    /// Obtain an immutable reference to the internal base executor.
     pub fn base(&self) -> &BaseExecutor<S> {
         &self.base
     }
 
-    /// 获取左输入数据集
+    /// Obtain the left input dataset
     pub fn get_left_input_data(&self) -> Result<DataSet, QueryError> {
         match self.base.context.get_result(&self.left_input_var) {
             Some(ExecutionResult::Values(values)) => {
-                // 检查Values中是否包含DataSet
+                // Check whether the “Values” contain a “DataSet”.
                 if values.len() == 1 {
                     if let Value::DataSet(dataset) = &values[0] {
                         return Ok(dataset.clone());
                     }
                 }
-                // 如果不是DataSet，尝试将Values转换为DataSet
+                // If it’s not a DataSet, try converting the Values to a DataSet.
                 Ok(DataSet {
                     col_names: self.col_names.clone(),
                     rows: vec![values.clone()],
                 })
             }
             Some(_result) => {
-                // 其他类型的结果需要转换为DataSet
+                // Results of other types need to be converted into a DataSet.
                 Err(QueryError::ExecutionError(format!(
                     "左输入变量 {} 不是有效的数据集",
                     self.left_input_var
@@ -82,24 +82,24 @@ impl<S: StorageClient> SetExecutor<S> {
         }
     }
 
-    /// 获取右输入数据集
+    /// Obtain the right input dataset
     pub fn get_right_input_data(&self) -> Result<DataSet, QueryError> {
         match self.base.context.get_result(&self.right_input_var) {
             Some(ExecutionResult::Values(values)) => {
-                // 检查Values中是否包含DataSet
+                // Check whether the “Values” contain a “DataSet”.
                 if values.len() == 1 {
                     if let Value::DataSet(dataset) = &values[0] {
                         return Ok(dataset.clone());
                     }
                 }
-                // 如果不是DataSet，尝试将Values转换为DataSet
+                // If it’s not a DataSet, try converting the Values to a DataSet.
                 Ok(DataSet {
                     col_names: self.col_names.clone(),
                     rows: vec![values.clone()],
                 })
             }
             Some(_result) => {
-                // 其他类型的结果需要转换为DataSet
+                // Results of other types need to be converted into a DataSet.
                 Err(QueryError::ExecutionError(format!(
                     "右输入变量 {} 不是有效的数据集",
                     self.right_input_var
@@ -112,9 +112,9 @@ impl<S: StorageClient> SetExecutor<S> {
         }
     }
 
-    /// 检查输入数据集的有效性
+    /// Check the validity of the input dataset.
     ///
-    /// 验证两个输入数据集的列名是否一致
+    /// Verify whether the column names in the two input datasets are consistent.
     pub fn check_input_data_sets(
         &mut self,
         left: &DataSet,
@@ -129,22 +129,22 @@ impl<S: StorageClient> SetExecutor<S> {
             )));
         }
 
-        // 保存列名供后续使用
+        // Save the column names for later use.
         self.col_names = left.col_names.clone();
         Ok(())
     }
 
-    /// 获取列名
+    /// Obtain the column names
     pub fn get_col_names(&self) -> &Vec<String> {
         &self.col_names
     }
 
-    /// 设置列名
+    /// Set column names
     pub fn set_col_names(&mut self, col_names: Vec<String>) {
         self.col_names = col_names;
     }
 
-    /// 创建行的哈希值用于去重和比较
+    /// The hash values of the created rows are used for deduplication and comparison.
     pub fn hash_row(row: &[Value]) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::Hasher;
@@ -156,7 +156,7 @@ impl<S: StorageClient> SetExecutor<S> {
         hasher.finish()
     }
 
-    /// 创建行集合用于快速查找
+    /// Creating a set of rows facilitates quick searches.
     pub fn create_row_set(rows: &[Vec<Value>]) -> HashSet<u64> {
         let mut row_set = HashSet::new();
         for row in rows {
@@ -165,13 +165,13 @@ impl<S: StorageClient> SetExecutor<S> {
         row_set
     }
 
-    /// 检查行是否在集合中
+    /// Check whether the row is in the set.
     pub fn row_in_set(row: &[Value], row_set: &HashSet<u64>) -> bool {
         let hash = Self::hash_row(row);
         row_set.contains(&hash)
     }
 
-    /// 去重数据集的行
+    /// Rows from the deduplicated dataset
     pub fn dedup_rows(rows: Vec<Vec<Value>>) -> Vec<Vec<Value>> {
         let mut seen = HashSet::new();
         let mut result = Vec::new();
@@ -186,7 +186,7 @@ impl<S: StorageClient> SetExecutor<S> {
         result
     }
 
-    /// 合并两个数据集的行（不去重）
+    /// Merge the rows of two datasets (without duplicates)
     pub fn concat_datasets(left: DataSet, right: DataSet) -> DataSet {
         let mut rows = left.rows;
         rows.extend(right.rows);
@@ -270,12 +270,12 @@ mod tests {
         let rows = vec![
             vec![Value::Int(1), Value::String("a".to_string())],
             vec![Value::Int(2), Value::String("b".to_string())],
-            vec![Value::Int(1), Value::String("a".to_string())], // 重复行
+            vec![Value::Int(1), Value::String("a".to_string())], // Duplicate rows
         ];
 
         let row_set =
             SetExecutor::<crate::storage::redb_storage::DefaultStorage>::create_row_set(&rows);
-        assert_eq!(row_set.len(), 2); // 应该只有2个唯一的哈希值
+        assert_eq!(row_set.len(), 2); // There should only be 2 unique hash values.
     }
 
     #[test]
@@ -283,12 +283,12 @@ mod tests {
         let rows = vec![
             vec![Value::Int(1), Value::String("a".to_string())],
             vec![Value::Int(2), Value::String("b".to_string())],
-            vec![Value::Int(1), Value::String("a".to_string())], // 重复行
+            vec![Value::Int(1), Value::String("a".to_string())], // Duplicate rows
             vec![Value::Int(3), Value::String("c".to_string())],
         ];
 
         let deduped = SetExecutor::<crate::storage::redb_storage::DefaultStorage>::dedup_rows(rows);
-        assert_eq!(deduped.len(), 3); // 应该去重为3行
+        assert_eq!(deduped.len(), 3); // The text should be deduplicated to three lines.
     }
 
     #[test]

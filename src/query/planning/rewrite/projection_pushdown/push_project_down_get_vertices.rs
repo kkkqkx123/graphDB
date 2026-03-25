@@ -1,8 +1,8 @@
-//! GetVertices 投影下推优化规则
+//! GetVertices: Optimization rules for projection and downcasting
 //!
-//! 该规则将投影操作下推到 GetVertices 节点，减少数据传输量。
+//! This rule pushes the projection operation down to the GetVertices node, thereby reducing the amount of data transmitted.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before:
 //! ```text
@@ -25,9 +25,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// GetVertices 投影下推规则
+/// GetVertices Projection Pushdown Rule
 ///
-/// 将投影操作下推到 GetVertices 节点
+/// Push the projection operation down to the GetVertices node.
 #[derive(Debug)]
 pub struct PushProjectDownGetVerticesRule;
 
@@ -189,7 +189,7 @@ mod tests {
             PlanNodeEnum::GetVertices(node) => {
                 assert_eq!(node.col_names(), &["vertex"]);
             }
-            _ => panic!("期望 GetVertices 节点"),
+            _ => panic!("The GetVertices node is expected."),
         }
     }
 

@@ -1,8 +1,8 @@
-//! 执行器基础类型统一模块
+//! Unified Module for Basic Types of Actuators
 //!
-//! 本模块集中定义所有执行器相关的基础类型，消除重复定义，确保类型一致性。
+//! This module defines all the basic types related to actuators in a centralized manner, eliminating duplicate definitions and ensuring type consistency.
 //!
-//! 模块结构：
+//! Module structure:
 //! - executor_stats.rs    - 执行器统计信息
 //! - execution_result.rs  - 执行结果类型
 //! - execution_context.rs - 执行上下文

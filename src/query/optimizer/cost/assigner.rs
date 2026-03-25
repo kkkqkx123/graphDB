@@ -1,8 +1,8 @@
-//! 代价赋值器模块
+//! Cost Assignment Module
 //!
-//! 为执行计划中的所有节点计算代价（仅用于优化决策，不存储到节点中）
+//! Calculate the cost for all nodes in the plan (used only for optimization decisions; the cost is not stored in the nodes).
 //!
-//! ## 使用示例
+//! ## Usage Examples
 //!
 //! ```rust
 //! use graphdb::query::optimizer::cost::CostAssigner;
@@ -13,15 +13,15 @@
 //! let stats_manager = Arc::new(StatisticsManager::new());
 //! let assigner = CostAssigner::new(stats_manager);
 //!
-//! // 为执行计划计算代价（仅用于优化决策）
+// Calculate the cost of the execution plan (only for optimization decisions)
 //! // let total_cost = assigner.assign_costs(&mut plan)?;
 //! ```
 //!
-//! ## 架构说明
+//! ## Architecture Description
 //!
-//! 代价计算完全隔离在优化器层，不再存储到 PlanNode 中。
-//! 代价仅用于优化决策（如索引选择、连接算法选择等），
-//! 执行阶段不需要代价信息。
+//! The cost calculation is completely isolated in the optimizer layer and is no longer stored in the PlanNode.
+//! The cost is only used for optimizing decisions (such as the selection of indexes, the choice of join algorithms, etc.).
+//! Cost information is not required during the execution phase.
 
 use std::sync::Arc;
 
@@ -39,9 +39,9 @@ use super::{
     CostCalculator, CostModelConfig, SelectivityEstimator,
 };
 
-/// 代价赋值器
+/// Cost Assignment Operator
 ///
-/// 为执行计划中的所有节点计算并设置代价
+/// Calculate and set the costs for all nodes in the plan.
 #[derive(Debug, Clone)]
 pub struct CostAssigner {
     cost_calculator: CostCalculator,
@@ -50,7 +50,7 @@ pub struct CostAssigner {
 }
 
 impl CostAssigner {
-    /// 创建新的代价赋值器（使用默认配置）
+    /// Create a new cost allocator (using the default configuration).
     pub fn new(stats_manager: Arc<StatisticsManager>) -> Self {
         Self {
             cost_calculator: CostCalculator::new(stats_manager.clone()),
@@ -59,7 +59,7 @@ impl CostAssigner {
         }
     }
 
-    /// 创建新的代价赋值器（使用指定配置）
+    /// Create a new cost assigner (using the specified configuration).
     pub fn with_config(stats_manager: Arc<StatisticsManager>, config: CostModelConfig) -> Self {
         Self {
             cost_calculator: CostCalculator::with_config(stats_manager.clone(), config),
@@ -68,24 +68,24 @@ impl CostAssigner {
         }
     }
 
-    /// 获取代价计算器
+    /// Obtain the Cost Calculator
     pub fn cost_calculator(&self) -> &CostCalculator {
         &self.cost_calculator
     }
 
-    /// 获取选择性估计器
+    /// Obtaining a selective estimator
     pub fn selectivity_estimator(&self) -> &SelectivityEstimator {
         &self.selectivity_estimator
     }
 
-    /// 获取配置
+    /// Obtain the configuration.
     pub fn config(&self) -> &CostModelConfig {
         &self.config
     }
 
-    /// 为整个执行计划赋值代价
+    /// Assign a cost to the entire execution plan.
     ///
-    /// 这会递归遍历计划树，为每个节点计算并设置代价
+    /// This will recursively traverse the planning tree, calculating and setting the cost for each node.
     pub fn assign_costs(&self, plan: &mut ExecutionPlan) -> CostResult<f64> {
         match plan.root_mut() {
             Some(root) => {
@@ -96,9 +96,9 @@ impl CostAssigner {
         }
     }
 
-    /// 为整个执行计划赋值代价并返回详细估算结果
+    /// Assign a cost to the entire execution plan and return a detailed estimate of the results.
     ///
-    /// 返回根节点的代价和行数估算结果
+    /// The cost and number of rows estimates for returning to the root node
     pub fn assign_costs_with_estimate(
         &self,
         plan: &mut ExecutionPlan,
@@ -109,21 +109,21 @@ impl CostAssigner {
         }
     }
 
-    /// 递归为节点及其子节点赋值代价
+    /// Recursively assign costs to the nodes and their child nodes.
     ///
-    /// 使用后序遍历：先计算子节点代价，再计算当前节点
-    /// 返回包含代价和行数的估算结果
+    /// Use post-order traversal: First, calculate the cost of the child nodes, and then calculate the cost of the current node.
+    /// Return the estimation results that include the cost and the number of rows.
     fn assign_node_costs_recursive(&self, node: &mut PlanNodeEnum) -> CostResult<NodeCostEstimate> {
-        // 1. 先递归计算子节点的代价和行数（后序遍历）
+        // 1. First, recursively calculate the cost and the number of rows of the child nodes (using the post-order traversal method).
         let child_estimates = self.calculate_child_estimates(node)?;
 
-        // 2. 根据节点类型计算自身代价和输出行数
+        // 2. Calculate the own cost and the number of output rows based on the node type.
         let estimate = self.calculate_node_estimate(node, &child_estimates)?;
 
         Ok(estimate)
     }
 
-    /// 计算子节点的代价和行数估算
+    /// Calculate the cost of child nodes and estimate the number of rows.
     fn calculate_child_estimates(
         &self,
         node: &mut PlanNodeEnum,
@@ -141,30 +141,30 @@ impl CostAssigner {
         Ok(estimates)
     }
 
-    /// 计算节点的代价和输出行数估算
+    /// Estimation of the cost of computing nodes and the number of output rows
     fn calculate_node_estimate(
         &self,
         node: &PlanNodeEnum,
         child_estimates: &[NodeCostEstimate],
     ) -> CostResult<NodeCostEstimate> {
-        // 计算子节点的累计代价
+        // Calculate the cumulative cost of the child nodes.
         let child_total_cost: f64 = child_estimates.iter().map(|e| e.total_cost).sum();
 
-        // 根据节点类型选择合适的估算器
+        // Select the appropriate estimator based on the node type.
         let (node_cost, output_rows) = self.estimate_by_node_type(node, child_estimates)?;
 
         let total_cost = node_cost + child_total_cost;
         Ok(NodeCostEstimate::new(node_cost, total_cost, output_rows))
     }
 
-    /// 根据节点类型选择估算器进行估算
+    /// Select an estimator based on the node type to perform the estimation.
     fn estimate_by_node_type(
         &self,
         node: &PlanNodeEnum,
         child_estimates: &[NodeCostEstimate],
     ) -> CostResult<(f64, u64)> {
         match node {
-            // 扫描操作
+            // Scanning operation
             PlanNodeEnum::ScanVertices(_)
             | PlanNodeEnum::ScanEdges(_)
             | PlanNodeEnum::IndexScan(_)
@@ -173,7 +173,7 @@ impl CostAssigner {
                 estimator.estimate(node, child_estimates)
             }
 
-            // 图遍历操作
+            // Image traversal operations
             PlanNodeEnum::Expand(_)
             | PlanNodeEnum::ExpandAll(_)
             | PlanNodeEnum::Traverse(_)
@@ -185,7 +185,7 @@ impl CostAssigner {
                 estimator.estimate(node, child_estimates)
             }
 
-            // 连接操作
+            // Connection operation
             PlanNodeEnum::HashInnerJoin(_)
             | PlanNodeEnum::HashLeftJoin(_)
             | PlanNodeEnum::InnerJoin(_)
@@ -196,7 +196,7 @@ impl CostAssigner {
                 estimator.estimate(node, child_estimates)
             }
 
-            // 排序和限制操作
+            // Sorting and filtering operations
             PlanNodeEnum::Sort(_)
             | PlanNodeEnum::Limit(_)
             | PlanNodeEnum::TopN(_)
@@ -207,13 +207,13 @@ impl CostAssigner {
                 estimator.estimate(node, child_estimates)
             }
 
-            // 集合操作 - 无优化决策需求，返回保守估计
+            // Set operations: No need for optimization decisions; a conservative estimate is returned.
             PlanNodeEnum::Union(_) | PlanNodeEnum::Minus(_) | PlanNodeEnum::Intersect(_) => {
                 let input_rows: u64 = child_estimates.iter().map(|e| e.output_rows).sum();
                 Ok((1.0, input_rows.max(1)))
             }
 
-            // 控制流节点
+            // Control flow nodes
             PlanNodeEnum::Loop(_)
             | PlanNodeEnum::Select(_)
             | PlanNodeEnum::PassThrough(_)
@@ -222,7 +222,7 @@ impl CostAssigner {
                 estimator.estimate(node, child_estimates)
             }
 
-            // 图算法
+            // Graph algorithms
             PlanNodeEnum::ShortestPath(_)
             | PlanNodeEnum::AllPaths(_)
             | PlanNodeEnum::MultiShortestPath(_)
@@ -231,7 +231,7 @@ impl CostAssigner {
                 estimator.estimate(node, child_estimates)
             }
 
-            // 数据处理
+            // Data processing
             PlanNodeEnum::Filter(_)
             | PlanNodeEnum::Project(_)
             | PlanNodeEnum::Unwind(_)
@@ -245,9 +245,9 @@ impl CostAssigner {
                 estimator.estimate(node, child_estimates)
             }
 
-            // 其他节点类型
+            // Other node types
             _ => {
-                // 对于未明确处理的节点类型，返回保守估计
+                // For node types that have not been explicitly processed, return a conservative estimate.
                 Ok((1.0, 1))
             }
         }

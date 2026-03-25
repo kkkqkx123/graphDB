@@ -1,6 +1,6 @@
-//! 聚合节点实现
+//! Implementation of Aggregation Nodes
 //!
-//! AggregateNode 用于对输入数据进行聚合操作
+//! The `AggregateNode` is used to perform aggregation operations on the input data.
 
 use crate::core::types::operators::AggregateFunction;
 use crate::define_plan_node_with_deps;
@@ -15,7 +15,7 @@ define_plan_node_with_deps! {
 }
 
 impl AggregateNode {
-    /// 创建新的聚合节点
+    /// Create a new aggregate node.
     pub fn new(
         input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         group_keys: Vec<String>,
@@ -37,17 +37,17 @@ impl AggregateNode {
         })
     }
 
-    /// 获取分组键
+    /// Obtain the group key
     pub fn group_keys(&self) -> &[String] {
         &self.group_keys
     }
 
-    /// 获取聚合函数列表
+    /// Obtain a list of aggregate functions
     pub fn aggregation_functions(&self) -> &[AggregateFunction] {
         &self.aggregation_functions
     }
 
-    /// 获取聚合表达式（别名方法，与aggregation_functions相同）
+    /// Obtaining aggregate expressions (also known as alias methods, which are the same as aggregation_functions)
     pub fn agg_exprs(&self) -> &[AggregateFunction] {
         &self.aggregation_functions
     }

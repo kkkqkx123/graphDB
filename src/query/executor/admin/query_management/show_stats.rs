@@ -1,6 +1,6 @@
-//! ShowStatsExecutor - 显示统计执行器
+//! ShowStatsExecutor - Show Stats Executor
 //!
-//! 负责显示数据库的统计信息。
+//! Responsible for displaying statistical information about the database.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -10,18 +10,18 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 显示统计类型
+/// Type of statistics displayed
 #[derive(Debug, Clone)]
 pub enum ShowStatsType {
-    /// 显示存储统计（顶点、边、空间、标签、边类型数量）
+    /// Display storage statistics (number of vertices, edges, spaces, labels, edge types)
     Storage,
-    /// 显示空间统计（空间列表）
+    /// Display space statistics (space list)
     Space,
 }
 
-/// 显示统计执行器
+/// Display Statistical Actuators
 ///
-/// 该执行器负责显示数据库的统计信息。
+/// This actuator is responsible for displaying statistical information about the database.
 #[derive(Debug)]
 pub struct ShowStatsExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

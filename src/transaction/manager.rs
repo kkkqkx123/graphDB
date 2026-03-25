@@ -1,6 +1,6 @@
-//! 事务管理器
+//! Transaction Manager
 //!
-//! 管理所有事务的生命周期，提供事务的开始、提交、中止等操作
+//! Manages the lifecycle of all transactions, providing operations such as transaction start, commit, and abort
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -16,26 +16,26 @@ use crate::transaction::types::*;
 /// Rollback executor factory type alias
 type RollbackExecutorFactory = Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>;
 
-/// 事务管理器
+/// Transaction Manager
 pub struct TransactionManager {
-    /// 数据库实例
+    /// Database instance
     db: Arc<Database>,
-    /// 配置
+    /// Configuration
     config: TransactionManagerConfig,
-    /// 活跃事务表 - 使用 DashMap 替代 RwLock<HashMap> 以获得更好的并发性能
+    /// Active transactions table - Using DashMap instead of RwLock<HashMap> for better concurrent performance
     active_transactions: Arc<DashMap<TransactionId, Arc<TransactionContext>>>,
-    /// 事务ID生成器
+    /// Transaction ID generator
     id_generator: AtomicU64,
-    /// 统计信息
+    /// Statistics
     stats: Arc<TransactionStats>,
-    /// 是否已关闭
+    /// Whether shutdown
     shutdown_flag: AtomicU64,
-    /// 回滚执行器工厂（用于为每个事务创建回滚执行器）
+    /// Rollback executor factory (used to create rollback executor for each transaction)
     rollback_executor_factory: Mutex<Option<RollbackExecutorFactory>>,
 }
 
 impl TransactionManager {
-    /// 创建新的事务管理器
+    /// Create a new transaction manager
     pub fn new(db: Arc<Database>, config: TransactionManagerConfig) -> Self {
         Self {
             db,
@@ -48,23 +48,23 @@ impl TransactionManager {
         }
     }
 
-    /// 开始新事务
+    /// Start a new transaction
     pub fn begin_transaction(
         &self,
         options: TransactionOptions,
     ) -> Result<TransactionId, TransactionError> {
-        // 检查是否已关闭
+        // Check if shutdown
         if self.shutdown_flag.load(Ordering::SeqCst) != 0 {
-            return Err(TransactionError::Internal("事务管理器已关闭".to_string()));
+            return Err(TransactionError::Internal("Transaction manager is shutdown".to_string()));
         }
 
-        // 检查并发事务数限制
+        // Check concurrent transaction count limit
         let active_count = self.active_transactions.len();
         if active_count >= self.config.max_concurrent_transactions {
             return Err(TransactionError::TooManyTransactions);
         }
 
-        // 检查是否已经有活跃的写事务
+        // Check if there is already an active write transaction
         if !options.read_only {
             for entry in self.active_transactions.iter() {
                 let context = entry.value();
@@ -77,7 +77,7 @@ impl TransactionManager {
         let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);
         let timeout = options.timeout.unwrap_or(self.config.default_timeout);
 
-        // 创建事务上下文
+        // Create transaction context
         let db = Arc::clone(&self.db);
         let context = if options.read_only {
             let read_txn = self
@@ -92,7 +92,7 @@ impl TransactionManager {
                 Some(db),
             ))
         } else {
-            // redb 会自动处理单写者限制，不需要手动管理
+            // redb automatically handles single-writer restriction, no manual management needed
             let write_txn = self
                 .db
                 .begin_write()
@@ -107,8 +107,8 @@ impl TransactionManager {
             ))
         };
 
-        // 为读写事务设置回滚执行器（已废弃，不再使用）
-        // 保存点回滚现在直接在 TransactionContext 中实现
+        // Set rollback executor for read-write transactions (deprecated, no longer used)
+        // Savepoint rollback is now directly implemented in TransactionContext
         if !options.read_only {
             let factory_guard = self.rollback_executor_factory.lock();
             if let Some(factory) = factory_guard.as_ref() {
@@ -124,7 +124,7 @@ impl TransactionManager {
         Ok(txn_id)
     }
 
-    /// 获取事务上下文
+    /// Get transaction context
     pub fn get_context(
         &self,
         txn_id: TransactionId,
@@ -135,7 +135,7 @@ impl TransactionManager {
             .ok_or(TransactionError::TransactionNotFound(txn_id))
     }
 
-    /// 检查事务是否存在且活跃
+    /// Check if transaction exists and is active
     pub fn is_transaction_active(&self, txn_id: TransactionId) -> bool {
         self.active_transactions
             .get(&txn_id)
@@ -143,9 +143,9 @@ impl TransactionManager {
             .unwrap_or(false)
     }
 
-    /// 提交事务
+    /// Commit transaction
     pub fn commit_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
-        // 从 DashMap 中移除事务并获取所有权
+        // Remove transaction from DashMap and get ownership
         let context = {
             let entry = self
                 .active_transactions
@@ -155,38 +155,38 @@ impl TransactionManager {
             let ctx = entry.value().clone();
             drop(entry);
 
-            // 检查状态
+            // Check state
             if !ctx.state().can_commit() {
                 return Err(TransactionError::InvalidStateForCommit(ctx.state()));
             }
 
-            // 检查超时
+            // Check timeout
             if ctx.is_expired() {
-                // 已经超时，移除并中止
+                // Already expired, remove and abort
                 self.active_transactions.remove(&txn_id);
                 self.stats.increment_timeout();
-                // 中止事务
+                // Abort transaction
                 self.abort_transaction_internal(ctx)?;
                 return Err(TransactionError::TransactionTimeout);
             }
 
-            // 状态检查通过，移除事务
+            // State check passed, remove transaction
             self.active_transactions.remove(&txn_id);
             ctx
         };
 
-        // 执行提交
+        // Execute commit
         context.transition_to(TransactionState::Committing)?;
 
-        // 提交 redb 事务
+        // Commit redb transaction
         if !context.read_only {
             let mut write_txn = context.take_write_txn()?;
 
-            // 设置持久性级别
+            // Set durability level
             let durability: redb::Durability = context.durability.into();
             write_txn.set_durability(durability);
 
-            // 提交事务
+            // Commit transaction
             write_txn
                 .commit()
                 .map_err(|e| TransactionError::CommitFailed(e.to_string()))?;
@@ -194,14 +194,14 @@ impl TransactionManager {
 
         context.transition_to(TransactionState::Committed)?;
 
-        // 清理
+        // Cleanup
         self.stats.decrement_active();
         self.stats.increment_committed();
 
         Ok(())
     }
 
-    /// 中止事务（内部版本，不操作HashMap）
+    /// Abort transaction (internal version, does not operate HashMap)
     fn abort_transaction_internal(
         &self,
         context: Arc<TransactionContext>,
@@ -212,7 +212,7 @@ impl TransactionManager {
 
         context.transition_to(TransactionState::Aborting)?;
 
-        // 取出写事务，Drop时会自动回滚
+        // Take write transaction, automatic rollback on Drop
         if !context.read_only {
             let _ = context.take_write_txn();
         }
@@ -223,9 +223,9 @@ impl TransactionManager {
         Ok(())
     }
 
-    /// 中止事务
+    /// Abort transaction
     pub fn abort_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
-        // 从DashMap中移除事务并获取所有权
+        // Remove transaction from DashMap and get ownership
         let context = {
             let entry = self
                 .active_transactions
@@ -238,16 +238,16 @@ impl TransactionManager {
                 return Err(TransactionError::InvalidStateForAbort(ctx.state()));
             }
 
-            // 状态检查通过，移除事务
+            // State check passed, remove transaction
             self.active_transactions.remove(&txn_id);
             ctx
         };
 
-        // 执行中止
+        // Execute abort
         self.abort_transaction_internal(context)
     }
 
-    /// 获取活跃事务列表
+    /// Get active transaction list
     pub fn list_active_transactions(&self) -> Vec<TransactionInfo> {
         self.active_transactions
             .iter()
@@ -255,28 +255,28 @@ impl TransactionManager {
             .collect()
     }
 
-    /// 获取指定事务的信息
+    /// Get transaction info
     ///
     /// # Arguments
-    /// * `txn_id` - 事务ID
+    /// * `txn_id` - Transaction ID
     ///
     /// # Returns
-    /// * `Some(TransactionInfo)` - 如果事务存在
-    /// * `None` - 如果事务不存在
+    /// * `Some(TransactionInfo)` - If transaction exists
+    /// * `None` - If transaction does not exist
     pub fn get_transaction_info(&self, txn_id: TransactionId) -> Option<TransactionInfo> {
         self.active_transactions
             .get(&txn_id)
             .map(|entry| entry.value().info())
     }
 
-    /// 获取统计信息
+    /// Get statistics
     pub fn stats(&self) -> &TransactionStats {
         &self.stats
     }
 
-    /// 清理过期事务
+    /// Cleanup expired transactions
     pub fn cleanup_expired_transactions(&self) {
-        // 收集所有过期的事务ID
+        // Collect all expired transaction IDs
         let expired: Vec<TransactionId> = {
             self.active_transactions
                 .iter()
@@ -291,12 +291,12 @@ impl TransactionManager {
         }
     }
 
-    /// 关闭事务管理器
+    /// Shutdown transaction manager
     pub fn shutdown(&self) {
-        // 设置关闭标志
+        // Set shutdown flag
         self.shutdown_flag.store(1, Ordering::SeqCst);
 
-        // 中止所有活跃事务
+        // Abort all active transactions
         let txn_ids: Vec<TransactionId> = {
             self.active_transactions
                 .iter()
@@ -309,20 +309,20 @@ impl TransactionManager {
         }
     }
 
-    /// 获取配置
+    /// Get configuration
     pub fn config(&self) -> TransactionManagerConfig {
         self.config.clone()
     }
 
-    /// 创建保存点
+    /// Create savepoint
     ///
     /// # Arguments
-    /// * `txn_id` - 事务ID
-    /// * `name` - 保存点名称（可选）
+    /// * `txn_id` - Transaction ID
+    /// * `name` - Savepoint name (optional)
     ///
     /// # Returns
-    /// * `Ok(SavepointId)` - 保存点ID
-    /// * `Err(TransactionError)` - 失败时返回错误
+    /// * `Ok(SavepointId)` - Savepoint ID
+    /// * `Err(TransactionError)` - Error on failure
     pub fn create_savepoint(
         &self,
         txn_id: TransactionId,
@@ -332,29 +332,29 @@ impl TransactionManager {
         Ok(context.create_savepoint(name))
     }
 
-    /// 获取保存点信息
+    /// Get savepoint info
     ///
     /// # Arguments
-    /// * `txn_id` - 事务ID
-    /// * `id` - 保存点ID
+    /// * `txn_id` - Transaction ID
+    /// * `id` - Savepoint ID
     ///
     /// # Returns
-    /// * `Some(SavepointInfo)` - 保存点信息
-    /// * `None` - 保存点不存在
+    /// * `Some(SavepointInfo)` - Savepoint info
+    /// * `None` - Savepoint does not exist
     pub fn get_savepoint(&self, txn_id: TransactionId, id: SavepointId) -> Option<SavepointInfo> {
         let context = self.get_context(txn_id).ok()?;
         context.get_savepoint(id)
     }
 
-    /// 释放保存点
+    /// Release savepoint
     ///
     /// # Arguments
-    /// * `txn_id` - 事务ID
-    /// * `id` - 保存点ID
+    /// * `txn_id` - Transaction ID
+    /// * `id` - Savepoint ID
     ///
     /// # Returns
-    /// * `Ok(())` - 成功
-    /// * `Err(TransactionError)` - 失败时返回错误
+    /// * `Ok(())` - Success
+    /// * `Err(TransactionError)` - Error on failure
     pub fn release_savepoint(
         &self,
         txn_id: TransactionId,
@@ -364,19 +364,19 @@ impl TransactionManager {
         context.release_savepoint(id)
     }
 
-    /// 回滚到保存点
+    /// Rollback to savepoint
     ///
     /// # Arguments
-    /// * `txn_id` - 事务ID
-    /// * `id` - 保存点ID
+    /// * `txn_id` - Transaction ID
+    /// * `id` - Savepoint ID
     ///
     /// # Returns
-    /// * `Ok(())` - 成功
-    /// * `Err(TransactionError)` - 失败时返回错误
+    /// * `Ok(())` - Success
+    /// * `Err(TransactionError)` - Error on failure
     ///
-    /// # 注意
-    /// 此方法会移除该保存点之后的所有保存点
-    /// 实际的数据回滚需要与存储层配合实现
+    /// # Note
+    /// This method removes all savepoints after this savepoint
+    /// Actual data rollback needs to be implemented with the storage layer
     pub fn rollback_to_savepoint(
         &self,
         txn_id: TransactionId,
@@ -386,13 +386,13 @@ impl TransactionManager {
         context.rollback_to_savepoint(id)
     }
 
-    /// 获取事务的所有活跃保存点
+    /// Get all active savepoints for transaction
     ///
     /// # Arguments
-    /// * `txn_id` - 事务ID
+    /// * `txn_id` - Transaction ID
     ///
     /// # Returns
-    /// * `Vec<SavepointInfo>` - 保存点信息列表
+    /// * `Vec<SavepointInfo>` - Savepoint info list
     pub fn get_active_savepoints(&self, txn_id: TransactionId) -> Vec<SavepointInfo> {
         let context = match self.get_context(txn_id) {
             Ok(ctx) => ctx,
@@ -401,15 +401,15 @@ impl TransactionManager {
         context.get_all_savepoints()
     }
 
-    /// 通过名称查找保存点
+    /// Find savepoint by name
     ///
     /// # Arguments
-    /// * `txn_id` - 事务ID
-    /// * `name` - 保存点名称
+    /// * `txn_id` - Transaction ID
+    /// * `name` - Savepoint name
     ///
     /// # Returns
-    /// * `Some(SavepointInfo)` - 保存点信息
-    /// * `None` - 保存点不存在
+    /// * `Some(SavepointInfo)` - Savepoint info
+    /// * `None` - Savepoint does not exist
     pub fn find_savepoint_by_name(
         &self,
         txn_id: TransactionId,
@@ -419,14 +419,14 @@ impl TransactionManager {
         context.find_savepoint_by_name(name)
     }
 
-    /// 设置回滚执行器工厂
+    /// Set rollback executor factory
     ///
     /// # Arguments
-    /// * `factory` - 回滚执行器工厂，用于为每个事务创建回滚执行器
+    /// * `factory` - Rollback executor factory, used to create rollback executor for each transaction
     ///
-    /// # 注意
-    /// 此方法用于将存储层的回滚能力集成到事务管理器中，
-    /// 使得保存点回滚能够执行实际的数据回滚操作
+    /// # Note
+    /// This method integrates the rollback capability of the storage layer into the transaction manager,
+    /// enabling savepoint rollback to execute actual data rollback operations
     pub fn set_rollback_executor_factory(
         &self,
         factory: Box<dyn Fn() -> Box<dyn RollbackExecutor> + Send + Sync>,
@@ -435,7 +435,7 @@ impl TransactionManager {
         *guard = Some(factory);
     }
 
-    /// 清除回滚执行器工厂
+    /// Clear rollback executor factory
     pub fn clear_rollback_executor_factory(&self) {
         let mut guard = self.rollback_executor_factory.lock();
         *guard = None;
@@ -546,12 +546,12 @@ mod tests {
             .begin_transaction(TransactionOptions::default())
             .expect("Failed to begin transaction");
 
-        // 提交事务
+        // Commit transaction
         manager
             .commit_transaction(txn_id)
             .expect("Failed to commit transaction");
 
-        // 再次提交应该失败
+        // Second commit should fail
         let result = manager.commit_transaction(txn_id);
         assert!(matches!(
             result,
@@ -563,8 +563,8 @@ mod tests {
     fn test_concurrent_transactions() {
         let (manager, _db, _temp) = create_test_manager();
 
-        // 由于redb的单写者限制，我们只能顺序执行事务
-        // 第一个事务
+        // Due to redb's single-writer restriction, we can only execute transactions sequentially
+        // First transaction
         let txn1 = manager
             .begin_transaction(TransactionOptions::default())
             .expect("Failed to begin transaction");
@@ -574,7 +574,7 @@ mod tests {
             .expect("Failed to commit transaction");
         assert!(!manager.is_transaction_active(txn1));
 
-        // 第二个事务
+        // Second transaction
         let txn2 = manager
             .begin_transaction(TransactionOptions::default())
             .expect("Failed to begin transaction");
@@ -584,7 +584,7 @@ mod tests {
             .expect("Failed to abort transaction");
         assert!(!manager.is_transaction_active(txn2));
 
-        // 第三个事务
+        // Third transaction
         let txn3 = manager
             .begin_transaction(TransactionOptions::default())
             .expect("Failed to begin transaction");
@@ -611,7 +611,7 @@ mod tests {
     fn test_multiple_readonly_transactions() {
         let (manager, _db, _temp) = create_test_manager();
 
-        // 只读事务可以并发
+        // Read-only transactions can be concurrent
         let options = TransactionOptions::new().read_only();
         let txn1 = manager
             .begin_transaction(options.clone())

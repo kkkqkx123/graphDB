@@ -1,6 +1,6 @@
-//! DropEdgeExecutor - 删除边类型执行器
+//! DropEdgeExecutor – Executor for deleting edges
 //!
-//! 负责删除指定的边类型及其所有数据。
+//! Responsible for deleting the specified edge type and all its associated data.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -9,9 +9,9 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 删除边类型执行器
+/// Delete the edge type executor.
 ///
-/// 该执行器负责删除指定的边类型及其所有数据。
+/// This executor is responsible for deleting the specified edge type and all its associated data.
 #[derive(Debug)]
 pub struct DropEdgeExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -21,7 +21,7 @@ pub struct DropEdgeExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DropEdgeExecutor<S> {
-    /// 创建新的 DropEdgeExecutor
+    /// Create a new DropEdgeExecutor.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -37,7 +37,7 @@ impl<S: StorageClient> DropEdgeExecutor<S> {
         }
     }
 
-    /// 创建带 IF EXISTS 选项的 DropEdgeExecutor
+    /// Create a DropEdgeExecutor with the IF EXISTS option
     pub fn with_if_exists(
         id: i64,
         storage: Arc<Mutex<S>>,

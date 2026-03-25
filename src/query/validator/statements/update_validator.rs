@@ -1,6 +1,6 @@
-//! Update 语句验证器（增强版）
-//! 对应 NebulaGraph UpdateValidator 的功能
-//! 验证 UPDATE 语句的语义正确性
+//! Update Statement Validator (Enhanced Version)
+//! Corresponding to the functionality of NebulaGraph UpdateValidator
+//! Verify the semantic correctness of the UPDATE statement.
 
 use std::sync::Arc;
 
@@ -20,7 +20,7 @@ use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
-/// 验证后的更新信息
+/// Verified update information
 #[derive(Debug, Clone)]
 pub struct ValidatedUpdate {
     pub space_id: u64,
@@ -33,7 +33,7 @@ pub struct ValidatedUpdate {
     pub yield_columns: Option<Vec<String>>,
 }
 
-/// 更新目标类型
+/// Update the target type.
 #[derive(Debug, Clone)]
 pub enum UpdateTargetType {
     Vertex(Value),
@@ -46,7 +46,7 @@ pub enum UpdateTargetType {
     Tag(String, Value),
 }
 
-/// 验证后的赋值
+/// Verified assignment
 #[derive(Debug, Clone)]
 pub struct ValidatedAssignment {
     pub property: String,
@@ -80,13 +80,13 @@ impl UpdateValidator {
         self
     }
 
-    /// 验证 UPDATE 语句并返回验证后的信息
+    /// Verify the UPDATE statement and return the verified information.
     pub fn validate_with_schema(
         &mut self,
         stmt: &UpdateStmt,
         space_name: &str,
     ) -> Result<ValidatedUpdate, CoreValidationError> {
-        // 基础验证（不依赖 schema_validator 的可变借用）
+        // Basic validation (variable borrowing that does not rely on the schema_validator)
         self.validate_update_stmt(stmt)?;
 
         let schema_validator = self.schema_validator.as_ref().ok_or_else(|| {
@@ -112,14 +112,14 @@ impl UpdateValidator {
                 )
             })?;
 
-        // 验证并转换目标
+        // Verify and convert the target.
         let target_type = self.validate_and_convert_target_with_schema(
             &stmt.target,
             &space.vid_type,
             schema_validator,
         )?;
 
-        // 根据目标类型获取 Schema 信息
+        // Obtain Schema information based on the target type.
         let (tag_or_edge_id, tag_or_edge_name, schema_props) = match &target_type {
             UpdateTargetType::Tag(tag_name, _) => {
                 let tag_info = schema_validator
@@ -169,18 +169,18 @@ impl UpdateValidator {
             _ => (None, None, vec![]),
         };
 
-        // 验证并转换赋值
-        // 对于 Vertex 目标，跳过属性 Schema 验证（因为 Vertex 可能关联多个 Tag）
+        // Verify and convert the assignment.
+        // For the Vertex target, skip the attribute schema validation (because a Vertex may be associated with multiple Tags).
         let validated_assignments = match &target_type {
             UpdateTargetType::Vertex(_) => {
-                // Vertex 更新：仅验证赋值语法，不验证属性是否存在
+                // Vertex Update: Only the assignment syntax is verified; the existence of the property is not checked.
                 self.validate_and_convert_assignments_without_schema(
                     &stmt.set_clause,
                     schema_validator,
                 )?
             }
             _ => {
-                // Tag 或 Edge 更新：验证属性存在于 Schema 中
+                // Tag or Edge update: Verify that the attribute exists in the Schema.
                 self.validate_and_convert_assignments(
                     &stmt.set_clause,
                     &schema_props,
@@ -189,7 +189,7 @@ impl UpdateValidator {
             }
         };
 
-        // 提取 YIELD 列名
+        // Extract the column name “YIELD”.
         let yield_columns = stmt.yield_clause.as_ref().map(|yc| {
             yc.items
                 .iter()
@@ -213,7 +213,7 @@ impl UpdateValidator {
         })
     }
 
-    /// 基础验证（不依赖 Schema）
+    /// Basic validation (does not rely on a Schema)
     pub fn validate_update_stmt(&mut self, stmt: &UpdateStmt) -> Result<(), CoreValidationError> {
         self.validate_target(&stmt.target)?;
         self.validate_set_clause(&stmt.set_clause)?;
@@ -222,7 +222,7 @@ impl UpdateValidator {
         Ok(())
     }
 
-    /// 完整验证（包含 AST 上下文）
+    /// Full verification (including the AST context)
     pub fn validate_with_ast(
         &mut self,
         stmt: &UpdateStmt,
@@ -280,7 +280,7 @@ impl UpdateValidator {
         Ok(())
     }
 
-    /// 验证并转换目标（使用 Schema）
+    /// Verify and convert the target content (using Schema).
     fn validate_and_convert_target_with_schema(
         &self,
         target: &UpdateTarget,
@@ -337,8 +337,8 @@ impl UpdateValidator {
         }
     }
 
-    /// 验证顶点 ID
-    /// 优先使用 SchemaValidator 的统一验证方法
+    /// Verify the vertex ID
+    /// Give priority to the unified validation methods provided by SchemaValidator.
     fn validate_vertex_id(
         &self,
         expr: &ContextualExpression,
@@ -360,7 +360,7 @@ impl UpdateValidator {
             return schema_validator.validate_vid_expr(&ctx_expr, &vid_type, role);
         }
 
-        // 基本验证
+        // Basic validation
         if expr.is_variable() {
             return Ok(());
         }
@@ -391,7 +391,7 @@ impl UpdateValidator {
         ))
     }
 
-    /// 验证并评估 VID
+    /// Verify and evaluate the VID.
     fn validate_and_evaluate_vid(
         &self,
         vid_expr: &ContextualExpression,
@@ -443,7 +443,7 @@ impl UpdateValidator {
         ))
     }
 
-    /// 评估 rank 表达式
+    /// Evaluating the rank expression
     fn evaluate_rank_contextual(
         &self,
         expr: &ContextualExpression,
@@ -499,7 +499,7 @@ impl UpdateValidator {
         Ok(())
     }
 
-    /// 验证并转换赋值
+    /// Verify and convert the assignment.
     fn validate_and_convert_assignments(
         &self,
         set_clause: &SetClause,
@@ -509,7 +509,7 @@ impl UpdateValidator {
         let mut result = Vec::new();
 
         for assignment in &set_clause.assignments {
-            // 检查属性是否存在于 Schema 中
+            // Check whether the attribute exists in the Schema.
             let prop_def = schema_validator
                 .get_property_def(&assignment.property, schema_props)
                 .ok_or_else(|| {
@@ -522,7 +522,7 @@ impl UpdateValidator {
                     )
                 })?;
 
-            // 评估表达式
+            // Evaluating an expression
             let value = schema_validator
                 .evaluate_expression(&assignment.value)
                 .map_err(|e| {
@@ -535,7 +535,7 @@ impl UpdateValidator {
                     )
                 })?;
 
-            // 验证类型
+            // Verification type
             schema_validator
                 .validate_property_type(&assignment.property, &prop_def.data_type, &value)
                 .map_err(|e| {
@@ -548,7 +548,7 @@ impl UpdateValidator {
             result.push(ValidatedAssignment {
                 property: assignment.property.clone(),
                 value,
-                prop_id: None, // 可以后续填充
+                prop_id: None, // The content can be filled in later.
                 expression: Some(assignment.value.clone()),
             });
         }
@@ -556,7 +556,7 @@ impl UpdateValidator {
         Ok(result)
     }
 
-    /// 不验证 Schema 的情况下转换赋值（用于 Vertex 更新）
+    /// Converting assignments without verifying the Schema (for Vertex updates)
     fn validate_and_convert_assignments_without_schema(
         &self,
         set_clause: &SetClause,
@@ -565,7 +565,7 @@ impl UpdateValidator {
         let mut result = Vec::new();
 
         for assignment in &set_clause.assignments {
-            // 评估表达式
+            // Evaluating an expression
             let value = schema_validator
                 .evaluate_expression(&assignment.value)
                 .map_err(|e| {
@@ -654,15 +654,15 @@ impl UpdateValidator {
             ));
         }
 
-        // 基本验证：字面量、变量、属性引用都是有效的
+        // Basic validation: Literals, variables, and property references are all valid.
         if expr.is_literal() || expr.is_variable() || expr.is_property() {
             return Ok(());
         }
 
-        // 对于更复杂的表达式（函数、二元运算等），我们需要访问内部结构
-        // 注意：这里仍然需要访问内部 Expression，因为 ContextualExpression API
-        // 暂时不提供访问嵌套表达式的方法
-        // 这是一个已知的架构限制，需要在后续版本中改进 ContextualExpression API
+        // For more complex expressions (functions, binary operations, etc.), we need to access their internal structure.
+        // Note: It is still necessary to access the internal Expression; this is because the ContextualExpression API is used.
+        // For the time being, no methods for accessing nested expressions are provided.
+        // This is a known architectural limitation that needs to be addressed in future versions by improving the ContextualExpression API.
         if let Some(expr_meta) = expr.expression() {
             self.validate_expression_internal(expr_meta.inner())
         } else {
@@ -670,7 +670,7 @@ impl UpdateValidator {
         }
     }
 
-    /// 内部方法：验证表达式
+    /// Internal method: Verifying expressions
     fn validate_expression_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -715,17 +715,17 @@ impl UpdateValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
 impl StatementValidator for UpdateValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
@@ -733,7 +733,7 @@ impl StatementValidator for UpdateValidator {
             ));
         }
 
-        // 2. 获取 UPDATE 语句
+        // 2. Obtain the UPDATE statement
         let update_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Update(u) => u,
             _ => {
@@ -744,7 +744,7 @@ impl StatementValidator for UpdateValidator {
             }
         };
 
-        // 3. 验证 UPDATE 语句
+        // 3. Verify the UPDATE statement
         if let Err(e) = self.validate_update_stmt(update_stmt) {
             return Err(ValidationError::new(
                 format!("UPDATE 验证失败: {}", e),
@@ -752,13 +752,13 @@ impl StatementValidator for UpdateValidator {
             ));
         }
 
-        // 4. 生成输出列
+        // 4. Generate an output column
         self.generate_output_columns();
 
-        // 5. 构建详细的 ValidationInfo
+        // 5. Constructing detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // 添加语义信息
+        // Add semantic information
         match &update_stmt.target {
             UpdateTarget::Vertex(_) => {
                 info.semantic_info
@@ -778,7 +778,7 @@ impl StatementValidator for UpdateValidator {
             }
         }
 
-        // 添加引用的属性
+        // Add the attributes for the citation.
         for assignment in &update_stmt.set_clause.assignments {
             if !info
                 .semantic_info
@@ -791,7 +791,7 @@ impl StatementValidator for UpdateValidator {
             }
         }
 
-        // 6. 返回包含详细信息的验证结果
+        // 6. Return the verification results containing detailed information.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -921,8 +921,8 @@ mod tests {
 
     #[test]
     fn test_validate_with_schema() {
-        // 此测试需要完整的数据库和 Schema 设置，暂时跳过
-        // 使用 RedbSchemaManager 需要实际的存储后端
+        // This test requires a complete database and Schema setup; therefore, it will be skipped for now.
+        // Using RedbSchemaManager requires an actual storage backend.
         let mut validator = UpdateValidator::new();
 
         let stmt = create_update_stmt(

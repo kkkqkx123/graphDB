@@ -1,17 +1,17 @@
-//! 模式匹配定义
+//! Pattern matching definition
 //!
-//! 提供计划节点的模式匹配功能，用于重写规则识别特定计划结构。
-//! 这是从 optimizer 层独立出来的简化版本，专注于启发式重写规则的需求。
+//! Provide a pattern matching function for the planning nodes, which is used to rewrite rules in order to identify specific planning structures.
+//! This is a simplified version that has been separated from the optimizer layer, focusing on the requirements for heuristic rewriting rules.
 
 use crate::query::planning::plan::PlanNodeEnum;
 
-/// 生成节点匹配方法的宏
+/// Macro for generating node matching methods
 ///
-/// 为 Pattern 结构体生成便捷的节点匹配构造方法
+/// Generate a convenient node matching constructor for the Pattern structure.
 macro_rules! define_matcher {
     ($($method:ident => $name:expr),+ $(,)?) => {
         $(
-            /// 创建匹配节点的模式
+            /// Create a pattern for matching nodes.
             pub fn $method() -> Self {
                 Self::new_with_name($name)
             }
@@ -19,25 +19,25 @@ macro_rules! define_matcher {
     };
 }
 
-/// 模式结构体
+/// Pattern Structure
 ///
-/// 用于匹配计划树的特定结构。
-/// 包含当前节点的匹配条件和子节点的模式。
+/// Used to match the specific structure of the planning tree.
+/// The matching criteria for the current node, as well as the patterns for the child nodes.
 #[derive(Debug, Clone, Default)]
 pub struct Pattern {
-    /// 当前节点的匹配条件
+    /// The matching criteria for the current node
     pub node: Option<MatchNode>,
-    /// 子节点的模式列表
+    /// List of child node patterns
     pub dependencies: Vec<Pattern>,
 }
 
 impl Pattern {
-    /// 创建空模式（匹配任何节点）
+    /// Create an empty pattern (that matches any node).
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 使用指定节点创建模式
+    /// Create a pattern using the specified nodes.
     pub fn with_node(node: MatchNode) -> Self {
         Self {
             node: Some(node),
@@ -45,48 +45,48 @@ impl Pattern {
         }
     }
 
-    /// 使用节点名称创建模式
+    /// Create a pattern using the node names.
     pub fn new_with_name(name: &'static str) -> Self {
         Self::with_node(MatchNode::Single(name))
     }
 
-    /// 使用多个可能的节点名称创建模式
+    /// Create a pattern using multiple possible node names.
     pub fn multi(node_names: Vec<&'static str>) -> Self {
         Self::with_node(MatchNode::Multi(node_names))
     }
 
-    /// 添加子节点模式
+    /// Add child node mode
     pub fn with_dependency(mut self, dependency: Pattern) -> Self {
         self.dependencies.push(dependency);
         self
     }
 
-    /// 使用节点名称添加子节点模式
+    /// Use the node name to add a child node pattern.
     pub fn with_dependency_name(mut self, name: &'static str) -> Self {
         self.dependencies.push(Self::new_with_name(name));
         self
     }
 
-    /// 添加依赖模式（可变引用版本）
+    /// Add dependency pattern (variable reference version)
     pub fn add_dependency(&mut self, dependency: Pattern) {
         self.dependencies.push(dependency);
     }
 
-    /// 检查模式是否匹配给定的计划节点
+    /// Check whether the mode matches the given scheduled node.
     pub fn matches(&self, plan_node: &PlanNodeEnum) -> bool {
-        // 检查当前节点
+        // Check the current node.
         if let Some(ref node) = self.node {
             if !node.matches(plan_node.name()) {
                 return false;
             }
         }
 
-        // 如果没有依赖模式，直接匹配成功
+        // If there is no dependency pattern, a direct match will be successful.
         if self.dependencies.is_empty() {
             return true;
         }
 
-        // 获取所有依赖节点的名称
+        // Obtain the names of all dependent nodes.
         let dep_names: Vec<&str> = self
             .dependencies
             .iter()
@@ -98,7 +98,7 @@ impl Pattern {
             return true;
         }
 
-        // 检查每个依赖模式是否匹配
+        // Check whether each dependency pattern matches.
         for dep_pattern in &self.dependencies {
             let dep_matches = plan_node
                 .dependencies()
@@ -113,7 +113,7 @@ impl Pattern {
         true
     }
 
-    // ==================== 便捷构造方法 ====================
+    // ==================== Convenient Construction Methods ====================
 
     define_matcher! {
         with_project_matcher => "Project",
@@ -128,7 +128,7 @@ impl Pattern {
         with_traverse_matcher => "Traverse",
     }
 
-    /// 创建匹配 Join 节点的模式（匹配任何连接类型）
+    /// Create a pattern that matches the Join nodes (matching any type of connection).
     pub fn with_join_matcher() -> Self {
         Self::multi(vec![
             "HashInnerJoin",
@@ -141,21 +141,21 @@ impl Pattern {
     }
 }
 
-/// 节点匹配枚举
+/// Node matching enumeration
 ///
-/// 定义如何匹配单个计划节点
+/// Define how to match a single plan node.
 #[derive(Debug, Clone)]
 pub enum MatchNode {
-    /// 匹配单个特定名称的节点
+    /// Match a node with a specific single name.
     Single(&'static str),
-    /// 匹配多个可能名称中的任意一个
+    /// Match any one of the multiple possible names.
     Multi(Vec<&'static str>),
-    /// 匹配任何节点
+    /// Match any node
     Any,
 }
 
 impl MatchNode {
-    /// 检查节点名称是否匹配
+    /// Check whether the node names match.
     pub fn matches(&self, node_name: &str) -> bool {
         match self {
             MatchNode::Single(name) => *name == node_name,
@@ -164,7 +164,7 @@ impl MatchNode {
         }
     }
 
-    /// 获取单个名称（如果是 Single 变体）
+    /// Retrieve a single name (in the case of the Single variant).
     pub fn as_single(&self) -> Option<&'static str> {
         match self {
             MatchNode::Single(name) => Some(name),
@@ -172,7 +172,7 @@ impl MatchNode {
         }
     }
 
-    /// 获取多个名称（如果是 Multi 变体）
+    /// Obtain multiple names (in the case of a Multi variant).
     pub fn as_multi(&self) -> Option<&Vec<&'static str>> {
         match self {
             MatchNode::Multi(names) => Some(names),
@@ -181,21 +181,21 @@ impl MatchNode {
     }
 }
 
-/// 计划节点匹配器（复杂条件）
+/// Plan Node Matcher (Complex Conditions)
 #[derive(Debug, Clone)]
 pub enum PlanNodeMatcher {
-    /// 匹配特定名称
+    /// Match a specific name
     MatchNode(&'static str),
-    /// 不匹配
+    /// Does not match.
     Not(Box<PlanNodeMatcher>),
-    /// 所有条件都匹配
+    /// All conditions are met.
     And(Vec<PlanNodeMatcher>),
-    /// 任意条件匹配
+    /// Any condition matching
     Or(Vec<PlanNodeMatcher>),
 }
 
 impl PlanNodeMatcher {
-    /// 检查是否匹配计划节点
+    /// Check whether it matches the planned nodes.
     pub fn matches(&self, plan_node: &PlanNodeEnum) -> bool {
         match self {
             PlanNodeMatcher::MatchNode(name) => plan_node.name() == *name,
@@ -205,37 +205,37 @@ impl PlanNodeMatcher {
         }
     }
 
-    /// 与另一个匹配器组合（AND）
+    /// Combine with another matcher using the AND operator
     pub fn and(self, other: PlanNodeMatcher) -> Self {
         PlanNodeMatcher::And(vec![self, other])
     }
 
-    /// 与另一个匹配器组合（OR）
+    /// Combine with another matcher using the OR operator.
     pub fn or(self, other: PlanNodeMatcher) -> Self {
         PlanNodeMatcher::Or(vec![self, other])
     }
 }
 
-/// 模式构建器 trait
+/// Pattern Builder trait
 ///
-/// 允许自定义类型实现模式构建
+/// Allowing the customization of type implementation patterns for construction
 pub trait PatternBuilder {
-    /// 构建模式
+    /// Constructing patterns
     fn build(&self) -> Pattern;
 }
 
-/// 节点访问者 trait
+/// `NodeVisitor` trait
 ///
-/// 用于遍历计划树
+/// Used for traversing the planning tree
 pub trait NodeVisitor {
-    /// 访问节点
-    /// 返回 true 继续遍历，false 停止遍历
+    /// Access node
+    /// Return `true` to continue the iteration; return `false` to stop the iteration.
     fn visit(&mut self, node: &PlanNodeEnum) -> bool;
 }
 
-/// 节点记录访问者
+/// The node records the visitors.
 ///
-/// 记录所有访问过的节点
+/// Record all visited nodes.
 #[derive(Debug, Default)]
 pub struct NodeVisitorRecorder {
     pub nodes: Vec<PlanNodeEnum>,
@@ -258,9 +258,9 @@ impl NodeVisitor for NodeVisitorRecorder {
     }
 }
 
-/// 节点查找访问者
+/// Node that searches for visitors
 ///
-/// 查找特定名称的节点
+/// Find a node with a specific name.
 #[derive(Debug)]
 pub struct NodeVisitorFinder {
     pub target_name: String,
@@ -280,7 +280,7 @@ impl NodeVisitor for NodeVisitorFinder {
     fn visit(&mut self, node: &PlanNodeEnum) -> bool {
         if node.name() == self.target_name {
             self.found_node = Some(node.clone());
-            return false; // 找到后停止遍历
+            return false; // Stop the iteration once the item is found.
         }
         true
     }
@@ -360,7 +360,7 @@ mod tests {
 
         assert!(pattern.matches(&filter));
 
-        // Filter -> Scan 不应该匹配
+        // “The ‘Filter’ -> ‘Scan’ functions should not match each other.”
         let expr_meta2 =
             crate::core::types::expr::ExpressionMeta::new(Expression::Literal(Value::Bool(true)));
         let id2 = ctx.register_expression(expr_meta2);

@@ -1,37 +1,37 @@
-//! 优化器引擎模块
+//! Optimizer Engine Module
 //!
-//! 本模块提供查询优化引擎，负责协调和管理所有查询优化相关的组件。
+//! This module provides a query optimization engine, which is responsible for coordinating and managing all components related to query optimization.
 //!
-//! ## 设计说明
+//! ## Design Specifications
 //!
-//! `OptimizerEngine` 是查询优化层的核心组件，通过依赖注入在需要的地方共享使用。
-//! 它整合了统计信息管理、代价计算和选择性估计等功能，为查询流水线提供统一的优化服务。
+//! `OptimizerEngine` is the core component of the query optimization layer and is shared and used wherever it is needed through dependency injection.
+//! It integrates functions such as statistical information management, cost calculation, and selective estimation, providing a unified optimization service for the query pipeline.
 //!
-//! ## 共享实例说明
+//! ## Explanation of Shared Instances
 //!
-//! `OptimizerEngine` 设计为可在多个查询间共享的组件，原因如下：
+//! The `OptimizerEngine` is designed to be a component that can be shared across multiple queries for the following reasons:
 //!
-//! 1. **统计信息共享**：所有查询共享同一套统计信息，确保代价估算的一致性
-//! 2. **资源效率**：避免每个查询管道重复创建优化器组件
-//! 3. **配置一致性**：统一的代价模型配置应用于所有查询
+//! 1. **Sharing of statistical information**: All queries share the same set of statistical information, ensuring consistency in cost estimates.
+//! 2. **Resource Efficiency**: Avoid the repeated creation of optimizer components in each query pipeline.
+//! 3. **Configuration Consistency**: A unified cost model configuration is applied to all queries.
 //!
-//! ## 使用方式
+//! ## How to use it
 //!
 //! ```rust
-//! // 在数据库实例初始化时创建
+// Created during the initialization of the database instance
 //! let optimizer_engine = Arc::new(OptimizerEngine::new(CostModelConfig::default()));
 //!
-//! // 在查询流水线中通过依赖注入使用
+// Used in the query pipeline through dependency injection
 //! let pipeline = QueryPipelineManager::with_optimizer(storage, stats_manager, optimizer_engine);
 //! ```
 //!
-//! ## 线程安全
+//! ## Thread Safety
 //!
-//! `OptimizerEngine` 内部使用 `Arc` 和线程安全的数据结构，可以安全地在多线程环境中共享。
+//! `OptimizerEngine` utilizes `Arc` as well as thread-safe data structures, which allow for safe sharing in a multi-threaded environment.
 //!
-//! ## 注意
+//! ## Attention
 //!
-//! 这不是全局单例，而是通过 `Arc` 在组件间共享的实例。每个数据库实例可以有自己的优化器引擎配置。
+//! This is not a global singleton, but an instance that is shared between components through `Arc`. Each database instance can have its own optimizer engine configuration.
 
 use std::sync::Arc;
 
@@ -43,94 +43,94 @@ use crate::query::optimizer::{
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
 
-/// 优化器引擎
+/// Optimizer engine
 ///
-/// 全局唯一的优化器引擎实例，负责协调和管理所有查询优化相关的组件。
-/// 与数据库实例同生命周期，为所有查询提供统一的优化服务。
+/// A globally unique instance of the optimizer engine, responsible for coordinating and managing all components related to query optimization.
+/// It has the same lifecycle as the database instance and provides unified optimization services for all queries.
 #[derive(Debug)]
 pub struct OptimizerEngine {
-    /// 表达式上下文，用于跨阶段共享表达式信息
+    /// Expression context, used for sharing expression information across different stages
     expression_context: Arc<ExpressionAnalysisContext>,
-    /// 统计信息管理器
+    /// Statistics Information Manager
     stats_manager: Arc<StatisticsManager>,
-    /// 选择性反馈管理器
+    /// Selective Feedback Manager
     selectivity_feedback_manager: Arc<SelectivityFeedbackManager>,
-    /// CTE缓存管理器
+    /// CTE Cache Manager
     cte_cache_manager: Arc<CteCacheManager>,
-    /// 代价计算器
+    /// Cost Calculator
     cost_calculator: Arc<CostCalculator>,
-    /// 选择性估计器
+    /// Selective Estimator
     selectivity_estimator: Arc<SelectivityEstimator>,
-    /// 排序消除优化器
+    /// Sorting Elimination Optimizer
     sort_elimination_optimizer: Arc<SortEliminationOptimizer>,
-    /// 聚合策略选择器
+    /// Aggregation Policy Selector
     aggregate_strategy_selector: AggregateStrategySelector,
-    /// 表达式分析器
+    /// Expression Analyzer
     expression_analyzer: ExpressionAnalyzer,
-    /// 引用计数分析器
+    /// Reference Count Analyzer
     reference_count_analyzer: ReferenceCountAnalyzer,
-    /// 子查询去关联化优化器
+    /// Subquery de-correlating optimizer
     subquery_unnesting_optimizer: SubqueryUnnestingOptimizer,
-    /// CTE 物化优化器
+    /// CTE (Common Table Expression) Materialization Optimizer
     materialization_optimizer: MaterializationOptimizer,
-    /// 代价模型配置
+    /// Cost model configuration
     cost_config: CostModelConfig,
 }
 
 impl OptimizerEngine {
-    /// 创建新的优化器引擎
+    /// Create a new optimizer engine.
     ///
-    /// # 参数
-    /// - `cost_config`: 代价模型配置
+    /// # Parameters
+    /// `cost_config`: Configuration of the cost model
     pub fn new(cost_config: CostModelConfig) -> Self {
         Self::with_expression_context(Arc::new(ExpressionAnalysisContext::new()), cost_config)
     }
 
-    /// 使用共享的 ExpressionContext 创建优化器引擎
+    /// Create an optimizer engine using the shared ExpressionContext.
     ///
     /// # 参数
-    /// - `expression_context`: 共享的表达式上下文（跨阶段共享）
+    /// `expression_context`: A shared context for expressions (shared across different stages).
     /// - `cost_config`: 代价模型配置
     pub fn with_expression_context(
         expression_context: Arc<ExpressionAnalysisContext>,
         cost_config: CostModelConfig,
     ) -> Self {
-        // 创建统计信息管理器
+        // Create a statistical information manager
         let stats_manager = Arc::new(StatisticsManager::new());
 
-        // 创建选择性反馈管理器
+        // Create a selective feedback manager
         let selectivity_feedback_manager = Arc::new(SelectivityFeedbackManager::new());
 
-        // 创建CTE缓存管理器
+        // Create a CTE (Common Table Expression) for cache manager management.
         let cte_cache_manager = Arc::new(CteCacheManager::new());
 
-        // 创建代价计算器和选择性估计器
+        // Create a cost calculator and a selective estimator.
         let cost_calculator = Arc::new(CostCalculator::with_config(
             stats_manager.clone(),
             cost_config,
         ));
         let selectivity_estimator = Arc::new(SelectivityEstimator::new(stats_manager.clone()));
 
-        // 创建排序消除优化器
+        // Create a sorting elimination optimizer
         let sort_elimination_optimizer =
             Arc::new(SortEliminationOptimizer::new(cost_calculator.clone()));
 
-        // 创建分析器
+        // Create an analyzer
         let expression_analyzer = ExpressionAnalyzer::new();
         let reference_count_analyzer = ReferenceCountAnalyzer::new();
 
-        // 创建聚合策略选择器，使用表达式分析器和共享上下文
+        // Create an aggregate policy selector that uses an expression analyzer and a shared context.
         let aggregate_strategy_selector = AggregateStrategySelector::with_context(
             cost_calculator.clone(),
             expression_analyzer.clone(),
             expression_context.clone(),
         );
 
-        // 创建子查询去关联化优化器
+        // Create a subquery to de-associate the optimizer.
         let subquery_unnesting_optimizer =
             SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager);
 
-        // 创建 CTE 物化优化器
+        // Creating a CTE (Common Table Expression) materialization optimizer
         let materialization_optimizer = MaterializationOptimizer::new(
             &reference_count_analyzer,
             &expression_analyzer,
@@ -154,105 +154,105 @@ impl OptimizerEngine {
         }
     }
 
-    /// 使用 SSD 优化配置创建
+    /// Create an optimized configuration using an SSD.
     pub fn for_ssd() -> Self {
         Self::new(CostModelConfig::for_ssd())
     }
 
-    /// 使用内存数据库优化配置创建
+    /// Create an optimized configuration using a memory-based database.
     pub fn for_in_memory() -> Self {
         Self::new(CostModelConfig::for_in_memory())
     }
 
-    /// 获取代价模型配置
+    /// Obtaining the Cost Model Configuration
     pub fn cost_config(&self) -> &CostModelConfig {
         &self.cost_config
     }
 
-    /// 获取代价计算器
+    /// Obtain the Cost Calculator
     pub fn cost_calculator(&self) -> &CostCalculator {
         &self.cost_calculator
     }
 
-    /// 获取统计信息管理器
+    /// Statistics Information Manager
     pub fn stats_manager(&self) -> &StatisticsManager {
         &self.stats_manager
     }
 
-    /// 获取选择性估计器
+    /// Obtaining a selective estimator
     pub fn selectivity_estimator(&self) -> &SelectivityEstimator {
         &self.selectivity_estimator
     }
 
-    /// 获取排序消除优化器
+    /// Obtaining the sorting elimination optimizer
     pub fn sort_elimination_optimizer(&self) -> &SortEliminationOptimizer {
         &self.sort_elimination_optimizer
     }
 
-    /// 获取表达式分析器
+    /// Obtain an expression analyzer.
     pub fn expression_analyzer(&self) -> &ExpressionAnalyzer {
         &self.expression_analyzer
     }
 
-    /// 获取表达式上下文
+    /// Obtain the context of the expression.
     pub fn expression_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expression_context
     }
 
-    /// 获取引用计数分析器
+    /// Obtain a reference count analyzer
     pub fn reference_count_analyzer(&self) -> &ReferenceCountAnalyzer {
         &self.reference_count_analyzer
     }
 
-    /// 获取聚合策略选择器
+    /// Obtain the Aggregation Policy Selector
     pub fn aggregate_strategy_selector(&self) -> &AggregateStrategySelector {
         &self.aggregate_strategy_selector
     }
 
-    /// 获取子查询去关联化优化器
+    /// Obtaining the subquery to de-associate the optimizer
     pub fn subquery_unnesting_optimizer(&self) -> &SubqueryUnnestingOptimizer {
         &self.subquery_unnesting_optimizer
     }
 
-    /// 获取 CTE 物化优化器
+    /// Obtaining the CTE (Common Table Expression) materialization optimizer
     pub fn materialization_optimizer(&self) -> &MaterializationOptimizer {
         &self.materialization_optimizer
     }
 
-    /// 获取选择性反馈管理器
+    /// Obtaining the Selective Feedback Manager
     pub fn selectivity_feedback_manager(&self) -> &SelectivityFeedbackManager {
         &self.selectivity_feedback_manager
     }
 
-    /// 获取CTE缓存管理器
+    /// Obtaining the CTE Cache Manager
     pub fn cte_cache_manager(&self) -> &CteCacheManager {
         &self.cte_cache_manager
     }
 
-    /// 更新代价模型配置
+    /// Update the Cost Model Configuration
     ///
-    /// 注意：更新配置会重新创建代价计算器，但不会影响已有的决策缓存
+    /// Updating the configuration will recreate the cost calculator, but it will not affect the existing decision cache.
     pub fn set_cost_config(&mut self, config: CostModelConfig) {
         self.cost_config = config;
         self.cost_calculator = Arc::new(CostCalculator::with_config(
             self.stats_manager.clone(),
             self.cost_config,
         ));
-        // 重新创建排序消除优化器，使用新的代价计算器
+        // Re-create the sorting elimination optimizer, using a new cost calculator.
         self.sort_elimination_optimizer =
             Arc::new(SortEliminationOptimizer::new(self.cost_calculator.clone()));
-        // 重新创建分析器
+        // Re-create the analyzer
         self.expression_analyzer = ExpressionAnalyzer::new();
         self.reference_count_analyzer = ReferenceCountAnalyzer::new();
-        // 重新创建聚合策略选择器
+        // Recreate the Aggregation Policy Selector
         self.aggregate_strategy_selector = AggregateStrategySelector::with_analyzer(
             self.cost_calculator.clone(),
             self.expression_analyzer.clone(),
         );
-        // 重新创建子查询去关联化优化器
+        // Re-create the subquery to de-associate the optimizer.
         self.subquery_unnesting_optimizer =
             SubqueryUnnestingOptimizer::new(&self.expression_analyzer, &self.stats_manager);
-        // 重新创建 CTE 物化优化器
+        // Re-create the CTE (Common Table Expression) materialization optimizer
         self.materialization_optimizer = MaterializationOptimizer::new(
             &self.reference_count_analyzer,
             &self.expression_analyzer,

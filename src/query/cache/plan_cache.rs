@@ -1,19 +1,19 @@
-//! 查询计划缓存模块
+//! Query Plan Cache Module
 //!
-//! 提供 Prepared Statement 风格的查询计划缓存，支持参数化查询。
+//! Provides Prepared Statement style query plan caching with support for parameterized queries.
 //!
-//! # 设计目标
+//! # Design objectives
 //!
-//! 1. 缓存查询计划的解析、验证和规划结果
-//! 2. 支持参数化查询（Prepared Statement）
-//! 3. 限制内存使用，防止无限制增长
-//! 4. 线程安全，支持高并发访问
+//! 1. Cache query plan parsing, validation and planning results
+//! 2. Support for parameterized queries (Prepared Statement)
+//! 3. Limit memory usage to prevent unlimited growth
+//! 4. Thread-safe, supporting highly concurrent access
 //!
-//! # 使用场景
+//! # Scenarios of use
 //!
-//! - 相同查询模板的重复执行
-//! - 批量插入/更新操作
-//! - 应用程序使用 Prepared Statement
+//! - Repeated execution of the same query template
+//! - Batch insert/update operations
+//! - Applications use Prepared Statements
 
 use lru::LruCache;
 use parking_lot::Mutex;
@@ -24,14 +24,14 @@ use std::time::{Duration, Instant};
 use crate::core::error::{DBError, DBResult};
 use crate::query::planning::plan::ExecutionPlan;
 
-/// 查询计划缓存配置
+/// Query Plan Cache Configuration
 #[derive(Debug, Clone)]
 pub struct PlanCacheConfig {
-    /// 最大缓存条目数
+    /// Maximum number of cache entries
     pub max_entries: usize,
-    /// 条目最大存活时间（秒）
+    /// Maximum survival time of entries (seconds)
     pub ttl_seconds: u64,
-    /// 是否启用参数化查询支持
+    /// Whether to enable parameterized query support
     pub enable_parameterized: bool,
 }
 
@@ -39,60 +39,60 @@ impl Default for PlanCacheConfig {
     fn default() -> Self {
         Self {
             max_entries: 1000,
-            ttl_seconds: 3600, // 1小时
+            ttl_seconds: 3600, // 1 hour
             enable_parameterized: true,
         }
     }
 }
 
-/// 缓存的查询计划条目
+/// Cached query plan entries
 #[derive(Debug, Clone)]
 pub struct CachedPlan {
-    /// 查询模板（参数化形式）
+    /// Query template (parameterized form)
     pub query_template: String,
-    /// 执行计划
+    /// implementation plan
     pub plan: ExecutionPlan,
-    /// 参数位置信息（用于参数绑定）
+    /// Parameter location information (for parameter binding)
     pub param_positions: Vec<ParamPosition>,
-    /// 创建时间
+    /// Creation time
     pub created_at: Instant,
-    /// 最后访问时间
+    /// Last access time
     pub last_accessed: Instant,
-    /// 访问次数
+    /// Number of visits
     pub access_count: u64,
-    /// 平均执行时间（毫秒）
+    /// Average execution time (milliseconds)
     pub avg_execution_time_ms: f64,
-    /// 执行次数
+    /// Number of executions
     pub execution_count: u64,
 }
 
-/// 参数位置信息
+/// Parameter location information
 #[derive(Debug, Clone)]
 pub struct ParamPosition {
-    /// 参数索引
+    /// Parameter Index
     pub index: usize,
-    /// 参数名称（命名参数）
+    /// Parameter name (named parameter)
     pub name: Option<String>,
-    /// 参数在查询中的位置
+    /// Position of the parameter in the query
     pub position: usize,
-    /// 期望的数据类型
+    /// Desired data types
     pub expected_type: Option<crate::core::types::DataType>,
 }
 
-/// 查询计划缓存键
+/// Query Plan Cache Key
 ///
-/// 使用查询文本的哈希作为键，支持快速查找。
-/// 同时存储查询文本用于冲突检测。
+/// Supports fast lookups using the hash of the query text as the key.
+/// Also store query text for conflict detection.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PlanCacheKey {
-    /// 查询文本的哈希值
+    /// Query the hash value of the text
     pub hash: u64,
-    /// 查询文本（用于冲突检测，不只是调试）
+    /// Query text (for conflict detection, not just debugging)
     query_text: String,
 }
 
 impl PlanCacheKey {
-    /// 从查询文本创建缓存键
+    /// Creating Cache Keys from Query Text
     pub fn from_query(query: &str) -> Self {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -107,38 +107,38 @@ impl PlanCacheKey {
         }
     }
 
-    /// 验证查询文本是否匹配（用于冲突检测）
+    /// Verify that the query text matches (for conflict detection)
     pub fn verify_query(&self, query: &str) -> bool {
         self.query_text == query
     }
 
-    /// 获取查询文本（用于调试或日志）
+    /// Get query text (for debugging or logging)
     pub fn query_text(&self) -> &str {
         &self.query_text
     }
 }
 
-/// 查询计划缓存统计
+/// Query Plan Cache Statistics
 #[derive(Debug, Clone, Default)]
 pub struct PlanCacheStats {
-    /// 命中次数
+    /// Number of hits
     pub hits: u64,
-    /// 未命中次数
+    /// Number of missed hits
     pub misses: u64,
-    /// 淘汰次数
+    /// Number of eliminations
     pub evictions: u64,
-    /// 过期次数
+    /// Number of expiration dates
     pub expirations: u64,
-    /// 当前缓存条目数
+    /// Number of current cache entries
     pub current_entries: usize,
-    /// 平均查询模板大小（字节）
+    /// Average query template size (bytes)
     pub avg_query_template_bytes: usize,
-    /// 总查询模板大小（字节）
+    /// Total query template size (bytes)
     pub total_query_template_bytes: usize,
 }
 
 impl PlanCacheStats {
-    /// 命中率
+    /// hit rate
     pub fn hit_rate(&self) -> f64 {
         let total = self.hits + self.misses;
         if total == 0 {
@@ -148,24 +148,24 @@ impl PlanCacheStats {
         }
     }
 
-    /// 估算总内存占用（基于平均模板大小和条目数）
+    /// Estimate total memory footprint (based on average template size and number of entries)
     pub fn estimated_memory_bytes(&self) -> usize {
-        // 基础开销 + 每个条目的估算内存
-        // 每个条目大约包含：CachedPlan结构体 + ExecutionPlan + 查询模板字符串
-        const PER_ENTRY_OVERHEAD: usize = 1024; // 结构体和执行计划的估算开销
+        // Base overhead + estimated memory per entry
+        // Each entry contains approximately: CachedPlan structure + ExecutionPlan + query template string
+        const PER_ENTRY_OVERHEAD: usize = 1024; // Estimates of the overhead for structures and execution plans
         self.total_query_template_bytes + (self.current_entries * PER_ENTRY_OVERHEAD)
     }
 }
 
-/// 查询计划缓存
+/// Query plan cache
 ///
-/// 提供 Prepared Statement 风格的查询计划缓存
+/// Provide a query plan cache in the style of a Prepared Statement
 pub struct QueryPlanCache {
-    /// 缓存存储
+    /// Cache storage
     cache: Mutex<LruCache<PlanCacheKey, Arc<CachedPlan>>>,
-    /// 配置
+    /// Configuration
     config: PlanCacheConfig,
-    /// 统计信息
+    /// Statistical information
     stats: Mutex<PlanCacheStats>,
 }
 
@@ -180,7 +180,7 @@ impl std::fmt::Debug for QueryPlanCache {
 }
 
 impl QueryPlanCache {
-    /// 创建新的查询计划缓存
+    /// Create a new query plan cache.
     pub fn new(config: PlanCacheConfig) -> Self {
         Self {
             cache: Mutex::new(LruCache::new(
@@ -191,14 +191,14 @@ impl QueryPlanCache {
         }
     }
 
-    /// 获取缓存的计划
+    /// Obtaining the cached plan
     ///
-    /// # 参数
-    /// - `query`: 查询文本
+    /// # Parameters
+    /// `query`: The text of the query
     ///
-    /// # 返回
+    /// # Back
     /// - `Some(Arc<CachedPlan>)`: 缓存的计划
-    /// - `None`: 未找到或哈希冲突
+    /// “None”: No results were found, or there was a hash collision.
     pub fn get(&self, query: &str) -> Option<Arc<CachedPlan>> {
         let key = PlanCacheKey::from_query(query);
         let ttl = Duration::from_secs(self.config.ttl_seconds);
@@ -207,18 +207,18 @@ impl QueryPlanCache {
         let mut stats = self.stats.lock();
 
         if let Some(plan) = cache.get(&key) {
-            // 检查是否过期
+            // Check whether it has expired.
             if plan.created_at.elapsed() > ttl {
-                // 过期，移除并返回 None
+                // Expired; remove it and return None.
                 cache.pop(&key);
                 stats.expirations += 1;
                 stats.misses += 1;
                 return None;
             }
 
-            // 哈希冲突检测：验证查询文本是否匹配
+            // Hash collision detection: Verifying whether the query text matches a certain value.
             if plan.query_template != query {
-                // 发生哈希冲突，记录日志并返回 None
+                // A hash collision occurred; the event was logged, and None was returned.
                 log::warn!(
                     "查询计划缓存哈希冲突 detected: hash={}, expected_query={}, cached_query={}",
                     key.hash,
@@ -229,7 +229,7 @@ impl QueryPlanCache {
                 return None;
             }
 
-            // 更新访问统计
+            // Update the access statistics.
             stats.hits += 1;
             return Some(plan.clone());
         }
@@ -238,12 +238,12 @@ impl QueryPlanCache {
         None
     }
 
-    /// 将计划放入缓存
+    /// Put the plan in the cache.
     ///
     /// # 参数
     /// - `query`: 查询文本
-    /// - `plan`: 执行计划
-    /// - `param_positions`: 参数位置信息
+    /// Execute the plan.
+    /// `param_positions`: Information about the positions of the parameters
     pub fn put(&self, query: &str, plan: ExecutionPlan, param_positions: Vec<ParamPosition>) {
         let key = PlanCacheKey::from_query(query);
         let query_bytes = query.len();
@@ -262,28 +262,28 @@ impl QueryPlanCache {
         let mut cache = self.cache.lock();
         let old_len = cache.len();
 
-        // 检查是否是更新已有条目
+        // Check whether it is an update to an existing entry.
         let is_update = cache.contains(&key);
 
         cache.put(key, cached_plan);
         let new_len = cache.len();
 
-        // 更新统计
+        // Update the statistics.
         let mut stats = self.stats.lock();
         if new_len <= old_len && old_len > 0 && !is_update {
-            // 发生了淘汰
+            // A elimination has taken place.
             stats.evictions += 1;
         }
 
-        // 更新大小统计
+        // Update the size statistics.
         if is_update {
-            // 更新已有条目，重新计算总大小
+            // Update the existing entry and recalculate the total size.
             stats.total_query_template_bytes = cache
                 .iter()
                 .map(|(_, plan)| plan.query_template.len())
                 .sum();
         } else {
-            // 新条目
+            // New entry
             stats.total_query_template_bytes += query_bytes;
         }
 
@@ -294,35 +294,35 @@ impl QueryPlanCache {
         }
     }
 
-    /// 记录计划执行统计
+    /// Record the statistics on the execution of the plan.
     ///
     /// # 参数
     /// - `query`: 查询文本
-    /// - `execution_time_ms`: 执行时间（毫秒）
+    /// `execution_time_ms`: Execution time (in milliseconds)
     pub fn record_execution(&self, query: &str, execution_time_ms: f64) {
         let key = PlanCacheKey::from_query(query);
 
         let mut cache = self.cache.lock();
         if let Some(plan) = cache.get_mut(&key) {
-            // 使用 Arc::make_mut 获取可变引用
+            // Use `Arc::make_mut` to obtain a mutable reference.
             let plan_mut = Arc::make_mut(plan);
             plan_mut.execution_count += 1;
 
-            // 更新平均执行时间（指数移动平均）
-            let alpha = 0.1; // 平滑因子
+            // Update of the average execution time (Exponential Moving Average)
+            let alpha = 0.1; // Smoothing factor
             plan_mut.avg_execution_time_ms =
                 plan_mut.avg_execution_time_ms * (1.0 - alpha) + execution_time_ms * alpha;
         }
     }
 
-    /// 检查查询是否已缓存
+    /// Check whether the query has been cached.
     pub fn contains(&self, query: &str) -> bool {
         let key = PlanCacheKey::from_query(query);
         let cache = self.cache.lock();
         cache.contains(&key)
     }
 
-    /// 使缓存条目失效
+    /// Invalidate the cache entry
     pub fn invalidate(&self, query: &str) -> bool {
         let key = PlanCacheKey::from_query(query);
         let mut cache = self.cache.lock();
@@ -336,7 +336,7 @@ impl QueryPlanCache {
         removed
     }
 
-    /// 清空所有缓存
+    /// Clear all caches.
     pub fn clear(&self) {
         let mut cache = self.cache.lock();
         cache.clear();
@@ -347,14 +347,14 @@ impl QueryPlanCache {
         stats.avg_query_template_bytes = 0;
     }
 
-    /// 获取统计信息
+    /// Obtain statistical information
     pub fn stats(&self) -> PlanCacheStats {
         let mut stats = self.stats.lock();
         stats.current_entries = self.cache.lock().len();
         stats.clone()
     }
 
-    /// 清理过期条目
+    /// Clean up expired entries.
     pub fn cleanup_expired(&self) {
         let ttl = Duration::from_secs(self.config.ttl_seconds);
         let mut cache = self.cache.lock();
@@ -374,12 +374,12 @@ impl QueryPlanCache {
         stats.current_entries = cache.len();
     }
 
-    /// 获取缓存条目数
+    /// Get the number of cached entries
     pub fn len(&self) -> usize {
         self.cache.lock().len()
     }
 
-    /// 检查缓存是否为空
+    /// Check whether the cache is empty.
     pub fn is_empty(&self) -> bool {
         self.cache.lock().is_empty()
     }
@@ -391,16 +391,16 @@ impl Default for QueryPlanCache {
     }
 }
 
-/// 参数化查询处理器
+/// Parameterized query processor
 ///
-/// 处理参数化查询的解析和绑定
+/// Handling the parsing and binding of parameterized queries
 pub struct ParameterizedQueryHandler {
-    /// 参数占位符模式
+    /// Parameter placeholder pattern
     placeholder_pattern: regex::Regex,
 }
 
 impl ParameterizedQueryHandler {
-    /// 创建新的参数化查询处理器
+    /// Create a new parametric query processor.
     pub fn new() -> Self {
         Self {
             placeholder_pattern: regex::Regex::new(r"\$(\d+|[a-zA-Z_][a-zA-Z0-9_]*)")
@@ -408,13 +408,13 @@ impl ParameterizedQueryHandler {
         }
     }
 
-    /// 提取查询中的参数位置
+    /// Extract the parameter positions from the query.
     ///
     /// # 参数
     /// - `query`: 查询文本
     ///
     /// # 返回
-    /// 参数位置列表
+    /// Parameter Location List
     pub fn extract_params(&self, query: &str) -> Vec<ParamPosition> {
         let mut positions = Vec::new();
 
@@ -422,7 +422,7 @@ impl ParameterizedQueryHandler {
             let mat = cap.get(0).expect("正则表达式捕获组不应为空");
             let param_str = &cap[1];
 
-            // 判断是位置参数还是命名参数
+            // Determine if it is a positional or named parameter
             let (name, index) = if let Ok(num) = param_str.parse::<usize>() {
                 (None, num.saturating_sub(1)) // $1 对应索引 0
             } else {
@@ -433,21 +433,21 @@ impl ParameterizedQueryHandler {
                 index,
                 name,
                 position: mat.start(),
-                expected_type: None, // 类型在验证阶段确定
+                expected_type: None, // Types are determined during the validation phase
             });
         }
 
         positions
     }
 
-    /// 将参数绑定到查询模板
+    /// Binding parameters to a query template
     ///
     /// # 参数
-    /// - `template`: 查询模板
-    /// - `params`: 参数值
+    /// - `template`: query template
+    /// - `params`: parameter values
     ///
     /// # 返回
-    /// 绑定后的完整查询
+    /// Full query after binding
     pub fn bind_params(&self, template: &str, params: &[crate::core::Value]) -> DBResult<String> {
         let positions = self.extract_params(template);
 
@@ -462,7 +462,7 @@ impl ParameterizedQueryHandler {
         let mut result = template.to_string();
         let param_strings: Vec<String> = params.iter().map(|v| format!("{}", v)).collect();
 
-        // 从后向前替换，避免位置偏移
+        // Replacement from back to front to avoid positional shifts
         for (pos, value) in positions.iter().zip(param_strings.iter()).rev() {
             result.replace_range(pos.position..pos.position + 2, value);
         }

@@ -1,6 +1,6 @@
-//! ClearSpaceExecutor - 清空空间执行器
+//! ClearSpaceExecutor - ClearSpaceExecutor
 //!
-//! 负责清空指定空间的所有数据。
+//! Responsible for emptying all data in the specified space.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -9,9 +9,9 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 清空空间执行器
+/// Empty space actuator
 ///
-/// 该执行器负责清空指定空间的所有数据。
+/// This executor is responsible for emptying all data in the specified space.
 #[derive(Debug)]
 pub struct ClearSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

@@ -1,6 +1,6 @@
-//! 循环执行器模块
+//! Loop Executor Module
 //!
-//! 包含循环控制相关的执行器
+//! Actuators related to loop control
 //!
 
 use parking_lot::Mutex;
@@ -23,13 +23,13 @@ use crate::query::executor::recursion_detector::{
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-// 使用新的类型别名（LoopState 是 LoopExecutionState 的别名，用于向后兼容）
+// Use new type aliases (LoopState is an alias for LoopExecutionState, for backward compatibility).
 pub use crate::query::core::LoopExecutionState as LoopState;
 
-/// LoopExecutor - 循环控制执行器
+/// LoopExecutor – An executor for loop control and execution
 ///
-/// 实现循环控制逻辑，支持条件循环和计数循环
-/// 包含递归检测机制，防止循环执行器自引用
+/// Implement loop control logic that supports both conditional loops and counting loops.
+/// It includes a recursive detection mechanism to prevent the loop executor from self-referencing.
 pub struct LoopExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     condition: Option<Expression>,
@@ -71,7 +71,7 @@ impl<S: StorageClient> LoopExecutor<S> {
 }
 
 impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
-    /// 验证循环执行器是否存在自引用
+    /// Verify whether the loop executor contains any self-references.
     pub fn validate_no_self_reference(&self) -> Result<(), DBError> {
         if self.body_executor.id() == self.base.id {
             return Err(DBError::Query(
@@ -97,7 +97,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
         }
     }
 
-    /// 将值转换为布尔值
+    /// Convert the value to a boolean value.
     fn value_to_bool(&self, value: &Value) -> bool {
         match value {
             Value::Bool(b) => *b,
@@ -111,7 +111,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
         }
     }
 
-    /// 检查是否应该继续循环
+    /// Check whether the loop should continue.
     fn should_continue(&self) -> bool {
         if let LoopExecutionState::Error(_) = self.loop_state {
             return false;
@@ -141,7 +141,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
         Ok(result)
     }
 
-    /// 收集所有循环结果
+    /// Collect all the results of the loops.
     fn collect_results(&self) -> ExecutionResult {
         if self.results.is_empty() {
             return ExecutionResult::Success;
@@ -256,17 +256,17 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
         }
     }
 
-    /// 设置循环变量
+    /// Setting the loop variable
     pub fn set_loop_variable(&mut self, name: String, value: Value) {
         self.loop_context.set_variable(name, value);
     }
 
-    /// 获取当前迭代次数
+    /// Get the current iteration count.
     pub fn current_iteration(&self) -> usize {
         self.current_iteration
     }
 
-    /// 获取循环状态
+    /// Obtaining the cycle status
     pub fn loop_state(&self) -> &LoopState {
         &self.loop_state
     }
@@ -383,9 +383,9 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for LoopExecutor<S> {
     }
 }
 
-/// WhileLoopExecutor - 条件循环执行器
+/// WhileLoopExecutor – An executor for executing conditional loops
 ///
-/// 专门用于实现 WHILE 循环
+/// Specifically designed for implementing WHILE loops
 pub struct WhileLoopExecutor<S: StorageClient + Send + 'static> {
     inner: LoopExecutor<S>,
 }
@@ -456,9 +456,9 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for WhileLoopExecutor<S> {
     }
 }
 
-/// ForLoopExecutor - 计数循环执行器
+/// ForLoopExecutor – An executor for counting loop executions
 ///
-/// 专门用于实现 FOR 循环
+/// Specifically designed for implementing FOR loops
 pub struct ForLoopExecutor<S: StorageClient + Send + 'static> {
     inner: LoopExecutor<S>,
     start: i64,
@@ -467,7 +467,7 @@ pub struct ForLoopExecutor<S: StorageClient + Send + 'static> {
     loop_var: String,
 }
 
-/// For 循环配置
+/// For loop configuration
 #[derive(Debug)]
 pub struct ForLoopConfig<S: StorageClient + Send + 'static> {
     pub loop_var: String,
@@ -579,9 +579,9 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for ForLoopExecutor<S> {
     }
 }
 
-/// SelectExecutor - 条件分支执行器
+/// SelectExecutor – An executor for conditional branch execution
 ///
-/// 实现条件分支逻辑，根据条件选择执行 if 或 else 分支
+/// Implement conditional branching logic to choose and execute either the if or else branch based on a specified condition.
 pub struct SelectExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     condition: Expression,

@@ -1,37 +1,37 @@
 use crate::query::executor::base::EdgeDirection;
 use crate::storage::StorageClient;
 
-/// 图遍历执行器的通用特征
+/// General characteristics of graph traversal executors
 ///
-/// 这个trait为图遍历执行器提供统一的配置接口，
-/// 所有图遍历执行器都应该实现这个trait来提供一致的配置管理
+/// This trait provides a unified configuration interface for graph traversal executors.
+/// All graph traversal executors should implement this trait to provide consistent configuration management.
 pub trait GraphTraversalExecutor<S: StorageClient> {
-    /// 设置边方向
+    /// Set the border direction
     fn set_edge_direction(&mut self, direction: EdgeDirection);
 
-    /// 设置边类型过滤
+    /// Set edge type filtering
     fn set_edge_types(&mut self, edge_types: Option<Vec<String>>);
 
-    /// 设置最大深度
+    /// Set the maximum depth.
     fn set_max_depth(&mut self, max_depth: Option<usize>);
 
-    /// 获取当前边方向
+    /// Get the current edge direction.
     fn get_edge_direction(&self) -> EdgeDirection;
 
-    /// 获取当前边类型过滤
+    /// Get the current edge type filter.
     fn get_edge_types(&self) -> Option<Vec<String>>;
 
-    /// 获取当前最大深度
+    /// Obtain the current maximum depth.
     fn get_max_depth(&self) -> Option<usize>;
 
-    /// 验证执行器配置是否有效
+    /// Verify whether the executor configuration is valid.
     fn validate_config(&self) -> Result<(), String>;
 
-    /// 获取执行器统计信息
+    /// Obtain executor statistics information.
     fn get_stats(&self) -> TraversalStats;
 }
 
-/// 图遍历统计信息
+/// Graph traversal statistics
 #[derive(Debug, Clone, Default)]
 pub struct TraversalStats {
     pub nodes_visited: usize,

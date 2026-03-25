@@ -1,23 +1,23 @@
-//! 表达式工具函数
+//! Expression tool functions
 //!
-//! 提供表达式重写专用的工具函数
+//! Provide a specialized tool function for rewriting expressions
 //!
-//! # 设计说明
+//! # Design Notes
 //!
-//! Rewrite 层的职责是重写表达式，这需要：
-//! 1. 分析现有表达式的结构
-//! 2. 创建新的表达式
-//! 3. 将新表达式注册到 ExpressionContext
+//! The responsibility of the Rewrite layer is to rewrite expressions, which requires:
+//! 1. Analyze the structure of the existing expression.
+//! 2. Create a new expression.
+//! 3. Register the new expression in the ExpressionContext.
 //!
-//! 因此，Rewrite 层需要访问 Expression 的内部结构。
-//! 这是设计上的必要权衡，因为：
-//! - ContextualExpression 是轻量级引用，不包含表达式结构
-//! - 重写操作需要创建新的 Expression
-//! - 新 Expression 必须注册到 ExpressionContext 才能使用
+//! Therefore, the Rewrite layer needs to have access to the internal structure of the Expression.
+//! This is a necessary trade-off in terms of design, because:
+//! “ContextualExpression” is a lightweight reference that does not contain the structure of the expression itself.
+//! The rewrite operation requires the creation of a new Expression.
+//! The new Expression must be registered with the ExpressionContext in order to be used.
 //!
-//! # 注意
+//! # Note
 //!
-//! 通用的表达式工具函数（如 extract_property_refs、is_constant）已移至
+//! The general expression tools and functions (such as extract_property_refs, is_constant) have been moved to another location.
 //! `core::types::expression::common_utils`，本模块仅保留重写专用的函数。
 
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -28,29 +28,29 @@ use crate::core::Expression;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
-/// 检查表达式是否包含指定的属性名
+/// Check whether the expression contains the specified attribute name.
 ///
-/// # 参数
-/// - `property_names`: 属性名列表
-/// - `expr`: 要检查的表达式
+/// # Parameters
+/// `property_names`: List of property names
+/// `expr`: The expression to be checked.
 ///
-/// # 返回
-/// 如果表达式包含属性名列表中的任一属性，返回 true
+/// # Return
+/// If the expression contains any of the attributes from the list of attribute names, return true.
 pub fn check_col_name(property_names: &[String], expr: &Expression) -> bool {
     PropertyContainsChecker::check(expr, property_names)
 }
 
-/// 重写上下文表达式
+/// Rewrite the contextual expression
 ///
-/// 根据 rewrite_map 重写 ContextualExpression，并将结果注册到 ExpressionContext
+/// Rewrite the `ContextualExpression` according to the `rewrite_map`, and register the result in the `ExpressionContext`.
 ///
 /// # 参数
-/// - `expr`: 要重写的 ContextualExpression
-/// - `rewrite_map`: 重写映射表，键为变量名，值为要替换的 ContextualExpression
-/// - `expr_context`: 表达式上下文，用于注册新的表达式
+/// `expr`: The `ContextualExpression` that needs to be rewritten.
+/// `rewrite_map`: A map for rewriting expressions; the keys represent variable names, and the values represent the `ContextualExpression` objects that need to be replaced.
+/// `expr_context`: The context in which the expression is used, used for registering new expressions.
 ///
 /// # 返回
-/// 重写后的 ContextualExpression
+/// Revised ContextualExpression
 pub fn rewrite_contextual_expression(
     expr: &ContextualExpression,
     rewrite_map: &std::collections::HashMap<String, ContextualExpression>,
@@ -68,15 +68,15 @@ pub fn rewrite_contextual_expression(
     ContextualExpression::new(id, expr_context)
 }
 
-/// 使用 ContextualExpression 映射表重写表达式
+/// Rewrite the expression using the ContextualExpression mapping table.
 ///
 /// # 参数
-/// - `expr`: 要重写的 Expression
+/// `expr`: The Expression that needs to be rewritten.
 /// - `rewrite_map`: 重写映射表，键为变量名，值为要替换的 ContextualExpression
 /// - `expr_context`: 表达式上下文，用于注册新的表达式
 ///
 /// # 返回
-/// 重写后的 Expression
+/// The rewritten expression
 fn rewrite_expression_with_map(
     expr: &Expression,
     rewrite_map: &std::collections::HashMap<String, ContextualExpression>,
@@ -228,18 +228,18 @@ fn rewrite_expression_with_map(
     }
 }
 
-/// 分割过滤条件
+/// Split filter criteria
 ///
-/// 将复合过滤条件（如 AND 连接的条件）分割为两部分：
-/// - 符合选择器函数的部分
-/// - 剩余的部分
+/// Split complex filter conditions (such as those connected by the AND operator) into two parts:
+/// The part that corresponds to the selector function
+/// The remaining part
 ///
 /// # 参数
-/// - `ctx_expr`: 过滤条件上下文表达式
-/// - `picker`: 选择器函数，返回 true 表示该部分应该被选中
+/// `ctx_expr`: The context expression for the filtering criteria
+/// `picker`: A selector function that returns `true` if the corresponding element should be selected.
 ///
 /// # 返回
-/// (选中的部分, 剩余的部分)
+/// (The selected part; the remaining part)
 pub fn split_filter<F>(
     ctx_expr: &ContextualExpression,
     picker: F,
@@ -283,11 +283,11 @@ where
             left,
             right,
         } => {
-            // 递归处理左右两侧
+            // Handle the left and right sides recursively.
             let (left_picked, left_remained) = split_filter_impl(left, picker);
             let (right_picked, right_remained) = split_filter_impl(right, picker);
 
-            // 合并选中的部分
+            // Merge the selected sections.
             let picked = match (left_picked, right_picked) {
                 (Some(l), Some(r)) => Some(Expression::Binary {
                     op: BinaryOperator::And,
@@ -299,7 +299,7 @@ where
                 (None, None) => None,
             };
 
-            // 合并剩余的部分
+            // Merge the remaining parts.
             let remained = match (left_remained, right_remained) {
                 (Some(l), Some(r)) => Some(Expression::Binary {
                     op: BinaryOperator::And,
@@ -314,7 +314,7 @@ where
             (picked, remained)
         }
         _ => {
-            // 基本情况：检查当前表达式是否符合选择器
+            // Basic situation: Check whether the current expression meets the criteria of the selector.
             if picker(condition) {
                 (Some(condition.clone()), None)
             } else {
@@ -324,14 +324,14 @@ where
     }
 }
 
-/// 合并两个过滤条件使用 AND
+/// To combine two filter conditions, use the AND operator.
 ///
 /// # 参数
-/// - `left`: 左侧条件
-/// - `right`: 右侧条件
+/// “left”: The left-side condition
+/// “right”: The condition on the right side
 ///
 /// # 返回
-/// 合并后的条件
+/// The merged conditions
 pub fn and_condition(
     left: Option<ContextualExpression>,
     right: Option<ContextualExpression>,
@@ -362,10 +362,10 @@ pub fn and_condition(
     }
 }
 
-/// 合并多个过滤条件使用 AND
+/// To combine multiple filter conditions, use the AND operator.
 ///
 /// # 参数
-/// - `conditions`: 条件列表
+/// `conditions`: List of conditions
 ///
 /// # 返回
 /// 合并后的条件

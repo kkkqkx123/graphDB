@@ -1,11 +1,11 @@
-//! 类型转换函数实现
+//! Implementation of type conversion functions
 
 use crate::core::error::ExpressionError;
 use crate::core::value::NullType;
 use crate::core::Value;
 
 define_function_enum! {
-    /// 类型转换函数枚举
+    /// Type conversion function enumeration
     pub enum ConversionFunction {
         ToString => {
             name: "to_string",

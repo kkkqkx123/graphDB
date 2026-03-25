@@ -1,15 +1,15 @@
-//! 移除无操作投影的规则
+//! Remove the rule that applies to projections with no operations.
 //!
-//! 根据 nebula-graph 的参考实现，此规则检查 Project 节点是否只是简单地传递子节点的列，
-//! 如果是，则可以移除 Project 节点。
+//! Based on the reference implementation of nebula-graph, this rule checks whether the Project node simply passes on the columns of its child nodes.
+//! If that is the case, the Project node can be removed.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before:
 //! ```text
 //!   Project(v1, v2, v3)  // 列名和子节点输出列名相同
 //!       |
-//!   ScanVertices (输出 v1, v2, v3)
+//! `ScanVertices` (outputs `v1`, `v2`, `v3`)
 //! ```
 //!
 //! After:
@@ -17,11 +17,11 @@
 //!   ScanVertices
 //! ```
 //!
-//! # 适用条件
+//! # Applicable Conditions
 //!
-//! - Project 节点的输出列与子节点的输出列完全相同
-//! - Project 的列表达式为简单的属性引用（VarProperty 或 InputProperty）
-//! - 子节点在允许列表中（某些节点类型不允许移除 Project）
+//! The output column of the Project node is exactly the same as the output column of its child nodes.
+//! The list expression for the project represents a simple property reference (either VarProperty or InputProperty).
+//! The child node is in the allowed list (removing a project is not allowed for certain types of nodes).
 
 use crate::core::Expression;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
@@ -33,22 +33,22 @@ use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 use std::collections::HashSet;
 
-/// 移除无操作投影的规则
+/// Remove the rule that applies to projections with no operations.
 ///
-/// 当 Project 节点只是简单地传递子节点的列时，直接移除 Project 节点
+/// When the Project node simply passes on the columns of its child nodes, it is sufficient to remove the Project node directly.
 #[derive(Debug)]
 pub struct RemoveNoopProjectRule {
-    /// 允许移除 Project 的子节点类型集合
+    /// Allow the removal of the set of sub-node types from the Project.
     allowed_child_types: HashSet<&'static str>,
 }
 
 impl RemoveNoopProjectRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         let mut allowed_child_types = HashSet::new();
 
-        // 允许移除 Project 的子节点类型
-        // 参考 nebula-graph 的 kQueries 集合
+        // Allow the removal of sub-node types from the Project.
+        // Refer to the kQueries collection of nebula-graph.
         allowed_child_types.insert("GetNeighbors");
         allowed_child_types.insert("GetVertices");
         allowed_child_types.insert("GetEdges");
@@ -78,44 +78,44 @@ impl RemoveNoopProjectRule {
         }
     }
 
-    /// 检查子节点类型是否允许移除 Project
+    /// Check whether the type of the child node allows the removal of the Project.
     fn is_allowed_child_type(&self, node: &PlanNodeEnum) -> bool {
         self.allowed_child_types.contains(node.name())
     }
 
-    /// 检查是否为无操作投影
+    /// Check whether it is a projection with no operations (i.e., a projection that does not perform any computational tasks).
     fn is_noop_projection(&self, project: &ProjectNode, child_col_names: &[String]) -> bool {
         let proj_col_names = project.col_names();
 
-        // 列数必须相同
+        // The number of columns must be the same.
         if proj_col_names.len() != child_col_names.len() {
             return false;
         }
 
         let columns = project.columns();
 
-        // 检查每一列
+        // Check each column.
         for (i, col) in columns.iter().enumerate() {
             let expr = &col.expression;
 
-            // 表达式必须是简单的属性引用
+            // The expression must be a simple attribute reference.
             if let Some(expr_meta) = expr.expression() {
                 let inner_expr = expr_meta.inner();
                 match inner_expr {
                     Expression::Variable(var_name) => {
-                        // 变量名必须与 Project 的列名匹配
+                        // The variable names must match the column names in the Project.
                         if var_name != &proj_col_names[i] {
                             return false;
                         }
                     }
                     Expression::Property { property, .. } => {
-                        // 属性名必须与 Project 的列名匹配
+                        // The property names must match the column names in the Project.
                         if property != &proj_col_names[i] {
                             return false;
                         }
                     }
                     _ => {
-                        // 其他表达式类型，不是无操作投影
+                        // Other types of expressions are not equivalent to “operationally neutral projections” (i.e., projections that do not perform any specific mathematical operation).
                         return false;
                     }
                 }
@@ -123,7 +123,7 @@ impl RemoveNoopProjectRule {
                 return false;
             }
 
-            // 检查列名是否与输入列名匹配
+            // Check whether the column names match the input column names.
             if proj_col_names[i] != child_col_names[i] {
                 return false;
             }
@@ -153,29 +153,29 @@ impl RewriteRule for RemoveNoopProjectRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 Project 节点
+        // Check whether it is a Project node.
         let project = match node {
             PlanNodeEnum::Project(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取输入节点
+        // Obtain the input node
         let input = project.input();
 
-        // 检查子节点类型是否允许
+        // Check whether the type of the child node is allowed.
         if !self.is_allowed_child_type(input) {
             return Ok(None);
         }
 
-        // 获取子节点的列名
+        // Obtain the column names of the child nodes
         let child_col_names = input.col_names();
 
-        // 检查是否为无操作投影
+        // Check whether it is a projection with no operations (i.e., no specific actions or transformations being performed).
         if !self.is_noop_projection(project, child_col_names) {
             return Ok(None);
         }
 
-        // 创建转换结果，用输入节点替换当前 Project 节点
+        // Create a conversion result that replaces the current Project node with the input node.
         let mut result = TransformResult::new();
         result.erase_curr = true;
         result.add_new_node(input.clone());
@@ -229,10 +229,10 @@ mod tests {
     fn test_is_allowed_child_type() {
         let rule = RemoveNoopProjectRule::new();
 
-        // 测试允许的子节点类型
+        // The test determines the allowed types of child nodes.
         let start_node =
             crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode::new();
-        // Start 不在允许列表中
+        // “The ‘Start’ option is not included in the allowed list.”
         assert!(!rule.is_allowed_child_type(&PlanNodeEnum::Start(start_node.clone())));
     }
 }

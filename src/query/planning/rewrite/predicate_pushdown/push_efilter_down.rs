@@ -1,7 +1,7 @@
-//! 将边过滤条件下推到Traverse节点的规则
+//! Rules that push the edge filtering conditions to the Traverse node
 //!
-//! 该规则识别 Traverse 节点中的 eFilter，
-//! 并将其重写为具体的边属性表达式。
+//! This rule identifies the eFilter within the Traverse node.
+//! Rewrite it as a specific expression for the edge attributes.
 
 use crate::core::types::expr::visitor_checkers::WildcardReplacer;
 use crate::core::Expression;
@@ -11,9 +11,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// 将边过滤条件下推到Traverse节点的规则
+/// Rules that push the edge filtering conditions to the Traverse node
 ///
-/// # 转换示例
+/// # Conversion example
 ///
 /// Before:
 /// ```text
@@ -25,16 +25,16 @@ use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 ///   Traverse(filter: e.likeness > 78)
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - Traverse 节点存在 eFilter
-/// - eFilter 包含通配符边属性表达式
-/// - Traverse 不为零步遍历
+/// The Traverse node contains an eFilter.
+/// The eFilter contains wildcard-edge attribute expressions.
+/// A non-zero-step traversal of the “ Traverse” structure.
 #[derive(Debug)]
 pub struct PushEFilterDownRule;
 
 impl PushEFilterDownRule {
-    /// 创建规则实例
+    /// Create a rule instance.
     pub fn new() -> Self {
         Self
     }
@@ -60,48 +60,48 @@ impl RewriteRule for PushEFilterDownRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 Traverse 节点
+        // Check whether it is a Traverse node.
         let traverse = match node {
             PlanNodeEnum::Traverse(t) => t,
             _ => return Ok(None),
         };
 
-        // 获取 eFilter
+        // Obtain the eFilter
         let e_filter = match traverse.e_filter() {
             Some(filter) => filter,
             None => return Ok(None),
         };
 
-        // 获取边别名
+        // Obtaining edge aliases
         let edge_alias = match traverse.edge_alias() {
             Some(alias) => alias.clone(),
             None => return Ok(None),
         };
 
-        // 获取底层表达式
+        // Obtain the underlying expressions
         let e_expr = match e_filter.expression() {
             Some(meta) => meta.inner().clone(),
             None => return Ok(None),
         };
 
-        // 重写表达式，将通配符替换为具体的边别名
+        // Rewrite the expression by replacing the wildcard with a specific edge alias.
         let rewritten_expr = rewrite_wildcard_to_alias(&e_expr, &edge_alias);
 
-        // 获取上下文
+        // Obtain the context
         let ctx = e_filter.context().clone();
 
-        // 将重写后的表达式注册到上下文中
+        // Register the rewritten expression in the context.
         let rewritten_meta = crate::core::types::ExpressionMeta::new(rewritten_expr);
         let rewritten_id = ctx.register_expression(rewritten_meta);
         let rewritten_filter = crate::core::types::ContextualExpression::new(rewritten_id, ctx);
 
-        // 创建新的 Traverse 节点
+        // Create a new Traverse node.
         let mut new_traverse = traverse.clone();
 
-        // 设置新的 eFilter
+        // Set up a new eFilter
         new_traverse.set_e_filter(rewritten_filter);
 
-        // 构建转换结果
+        // Construct the translation result.
         let mut result = TransformResult::new();
         result.erase_curr = true;
         result.add_new_node(PlanNodeEnum::Traverse(new_traverse));
@@ -130,9 +130,9 @@ impl PushDownRule for PushEFilterDownRule {
     }
 }
 
-/// 将表达式中的通配符替换为具体的边别名
+/// Replace the wildcards in the expression with specific edge aliases.
 ///
-/// 通配符通常表示为 `*` 或 `_`，在属性访问中表示任意边
+/// Wildcards are usually represented by `*` or `_` and indicate any edge when accessing attributes.
 fn rewrite_wildcard_to_alias(expr: &Expression, edge_alias: &str) -> Expression {
     let replacer = WildcardReplacer::new(edge_alias);
     replacer.replace(expr)
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_rewrite_wildcard_to_alias() {
-        // 测试通配符属性访问
+        // Testing the access to wildcard attribute properties
         let wildcard_expr = Expression::Property {
             object: Box::new(Expression::Variable("*".to_string())),
             property: "likeness".to_string(),
@@ -171,16 +171,16 @@ mod tests {
                 assert_eq!(property, "likeness");
                 match object.as_ref() {
                     Expression::Variable(name) => assert_eq!(name, "e"),
-                    _ => panic!("期望变量表达式"),
+                    _ => panic!("Expected variable expression"),
                 }
             }
-            _ => panic!("期望属性表达式"),
+            _ => panic!("Expected attribute expression"),
         }
     }
 
     #[test]
     fn test_rewrite_binary_expr() {
-        // 测试二元表达式中的通配符
+        // Testing for wildcards in binary expressions
         let binary_expr = Expression::Binary {
             left: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("*".to_string())),
@@ -200,17 +200,17 @@ mod tests {
                         assert_eq!(property, "likeness");
                         match object.as_ref() {
                             Expression::Variable(name) => assert_eq!(name, "e"),
-                            _ => panic!("期望变量表达式"),
+                            _ => panic!("Expected variable expression"),
                         }
                     }
-                    _ => panic!("期望属性表达式"),
+                    _ => panic!("Expected attribute expression"),
                 }
                 match right.as_ref() {
                     Expression::Literal(val) => assert_eq!(val, &78.into()),
-                    _ => panic!("期望字面量表达式"),
+                    _ => panic!("Expected literal expression"),
                 }
             }
-            _ => panic!("期望二元表达式"),
+            _ => panic!("Expected binary expression"),
         }
     }
 }

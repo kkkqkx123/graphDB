@@ -1,6 +1,6 @@
-//! 哈希表实现，用于join操作
+//! Hash table implementation, used for the join operation
 //!
-//! 提供高效的哈希表用于join操作
+//! Provide an efficient hash table for use in join operations.
 
 use crate::core::types::expr::Expression;
 use crate::core::{DBError, DBResult, DataSet, Value};
@@ -11,11 +11,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-/// Join键，支持高效的哈希和序列化
+/// The “Join” key supports efficient hashing and serialization.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JoinKey {
     values: Vec<Value>,
-    /// 预计算的哈希值，避免重复计算
+    /// Precomputed hash values to avoid duplicate calculations.
     cached_hash: u64,
 }
 
@@ -56,12 +56,12 @@ impl Hash for JoinKey {
     }
 }
 
-/// 哈希表条目，包含行数据和元信息
+/// Hash table entry, containing row data and metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HashTableEntry {
-    /// 行数据
+    /// Row data
     pub row: Vec<Value>,
-    /// 原始行索引（用于调试和重复数据处理）
+    /// Original row index (used for debugging and processing duplicate data)
     pub original_index: usize,
 }
 
@@ -74,54 +74,54 @@ impl HashTableEntry {
     }
 }
 
-/// 哈希表
+/// Hash table
 pub struct HashTable {
     /// 哈希表
     table: HashMap<JoinKey, Vec<HashTableEntry>>,
 }
 
 impl HashTable {
-    /// 创建新的哈希表
+    /// Create a new hash table.
     pub fn new(initial_capacity: usize) -> Self {
         Self {
             table: HashMap::with_capacity(initial_capacity),
         }
     }
 
-    /// 插入条目
+    /// Insert an entry
     pub fn insert(&mut self, key: JoinKey, entry: HashTableEntry) -> DBResult<()> {
         self.table.entry(key).or_default().push(entry);
         Ok(())
     }
 
-    /// 探测哈希表
+    /// Detecting hash tables
     pub fn probe(&self, key: &JoinKey) -> Vec<HashTableEntry> {
         self.table
             .get(key)
             .map_or_else(Vec::new, |entries| entries.clone())
     }
 
-    /// 获取条目数量
+    /// Get the number of entries
     pub fn len(&self) -> usize {
         self.table.len()
     }
 
-    /// 检查是否为空
+    /// Check whether it is empty.
     pub fn is_empty(&self) -> bool {
         self.table.is_empty()
     }
 
-    /// 清空哈希表
+    /// Clear the hash table.
     pub fn clear(&mut self) {
         self.table.clear();
     }
 }
 
-/// 哈希表构建器
+/// Hash table builder
 pub struct HashTableBuilder;
 
 impl HashTableBuilder {
-    /// 从数据集构建哈希表
+    /// Constructing a hash table from a dataset
     pub fn build_from_dataset(
         dataset: &DataSet,
         key_indices: &[usize],
@@ -153,7 +153,7 @@ impl HashTableBuilder {
     }
 }
 
-/// 构建哈希表函数（接受表达式）
+/// Construct a hash table function (that accepts an expression)
 pub fn build_hash_table(
     dataset: &DataSet,
     key_exprs: &[Expression],
@@ -183,7 +183,7 @@ pub fn build_hash_table(
     Ok(hash_table)
 }
 
-/// 提取键值
+/// Extract the key-value pairs.
 pub fn extract_key_values(
     row: &[Value],
     _col_names: &[String],

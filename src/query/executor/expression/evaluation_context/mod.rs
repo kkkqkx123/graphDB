@@ -1,18 +1,18 @@
-//! 表达式求值上下文模块
+//! Expression Evaluation Context Module
 //!
-//! 提供表达式求值过程中的上下文管理，包括函数、错误处理等功能。
+//! Provide context management during the evaluation of expressions, including functions, error handling, and other features.
 //!
-//! **注意：** 此模块提供运行时求值上下文实现。
-//! 编译时分析上下文请参考 `ExpressionAnalysisContext`。
+//! Note: This module provides an implementation of the runtime evaluation context.
+//! For context analysis during compilation, please refer to `ExpressionAnalysisContext`.
 
 pub mod default_context;
 pub mod row_context;
 
-// 重新导出默认上下文类型
+// Re-export the default context type.
 pub use default_context::DefaultExpressionContext;
 
-// 重新导出 ExpressionContext trait（来自 evaluator::traits）
+// Re-export the ExpressionContext trait (from evaluator::traits)
 pub use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 
-// 重新导出行上下文类型
+// Rederive the context type of the row.
 pub use row_context::RowExpressionContext;

@@ -1,5 +1,5 @@
-//! With 语句验证器
-//! 用于验证 WITH 语句（Cypher 风格的管道子句）
+//! With the statement validator…
+//! Used to validate WITH statements (Cypher-style pipeline clauses)
 //! 参考 nebula-graph MatchValidator.cpp 中的 With 子句验证
 
 use crate::core::error::{ValidationError, ValidationErrorType};
@@ -13,7 +13,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// With 语句验证器
+/// With the statement validator
 #[derive(Debug)]
 pub struct WithValidator {
     items: Vec<ReturnItem>,
@@ -29,7 +29,7 @@ pub struct WithValidator {
 }
 
 impl WithValidator {
-    /// 创建新的 With 验证器
+    /// Create a new With validator.
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
@@ -45,20 +45,20 @@ impl WithValidator {
         }
     }
 
-    /// 验证返回项
+    /// Verify the returned items.
     fn validate_return_item(&self, item: &ReturnItem) -> Result<ColumnDef, ValidationError> {
         match item {
             ReturnItem::Expression { expression, alias } => {
-                // 验证表达式
+                // Verify the expression
                 self.validate_expression(expression)?;
 
-                // 确定列名
+                //  Determine the column names.
                 let name = alias
                     .clone()
                     .or_else(|| self.infer_column_name(expression))
                     .unwrap_or_else(|| "column".to_string());
 
-                // 推断类型
+                // Inference type
                 let type_ = self.infer_expression_type(expression);
 
                 Ok(ColumnDef { name, type_ })
@@ -66,7 +66,7 @@ impl WithValidator {
         }
     }
 
-    /// 验证表达式
+    /// Verify the expression
     fn validate_expression(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
         if let Some(e) = expr.get_expression() {
             self.validate_expression_internal(&e)
@@ -78,7 +78,7 @@ impl WithValidator {
         }
     }
 
-    /// 内部方法：验证表达式
+    /// Internal method: Verifying expressions
     fn validate_expression_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -88,7 +88,7 @@ impl WithValidator {
         match expr {
             Expression::Literal(_) => Ok(()),
             Expression::Variable(var) => {
-                // 检查变量是否来自输入
+                // Check whether the variable comes from the input.
                 if !self.inputs.iter().any(|c| &c.name == var)
                     && !self.user_defined_vars.iter().any(|v| v == var)
                 {
@@ -119,7 +119,7 @@ impl WithValidator {
         }
     }
 
-    /// 内部方法：验证函数调用
+    /// Internal method: Verification of function calls
     fn validate_function_call_internal(
         &self,
         name: &str,
@@ -139,14 +139,14 @@ impl WithValidator {
         Ok(())
     }
 
-    /// 验证 WHERE 子句
+    /// Verify the WHERE clause
     fn validate_where_clause(
         &self,
         where_clause: &ContextualExpression,
     ) -> Result<(), ValidationError> {
         self.validate_expression(where_clause)?;
 
-        // WHERE 子句必须是布尔类型或可转换为布尔类型
+        // The WHERE clause must be of a boolean type or can be converted to a boolean type.
         if let Some(e) = where_clause.get_expression() {
             use crate::core::types::expr::Expression;
             match e {
@@ -168,7 +168,7 @@ impl WithValidator {
         }
     }
 
-    /// 推断列名
+    /// Infer the column names
     fn infer_column_name(&self, expr: &ContextualExpression) -> Option<String> {
         if let Some(e) = expr.get_expression() {
             self.infer_column_name_internal(&e)
@@ -177,7 +177,7 @@ impl WithValidator {
         }
     }
 
-    /// 内部方法：推断列名
+    /// Internal method: Inferring column names
     fn infer_column_name_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -192,7 +192,7 @@ impl WithValidator {
         }
     }
 
-    /// 推断表达式类型
+    /// Determine the type of the expression
     fn infer_expression_type(&self, expr: &ContextualExpression) -> ValueType {
         if let Some(e) = expr.get_expression() {
             self.infer_expression_type_internal(&e)
@@ -201,7 +201,7 @@ impl WithValidator {
         }
     }
 
-    /// 内部方法：推断表达式类型
+    /// Internal method: Inferring the type of an expression
     fn infer_expression_type_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -231,7 +231,7 @@ impl WithValidator {
         }
     }
 
-    /// 验证 ORDER BY 子句
+    /// Verify the ORDER BY clause
     fn validate_order_by(
         &self,
         order_by: &crate::query::parser::ast::stmt::OrderByClause,
@@ -242,7 +242,7 @@ impl WithValidator {
         Ok(())
     }
 
-    /// 验证 SKIP 和 LIMIT
+    /// Verify SKIP and LIMIT
     fn validate_skip_limit(
         &self,
         skip: Option<usize>,
@@ -270,7 +270,7 @@ impl WithValidator {
     }
 
     fn validate_impl(&mut self, stmt: &WithStmt) -> Result<(), ValidationError> {
-        // 验证返回项
+        // Verify the returned items.
         if stmt.items.is_empty() {
             return Err(ValidationError::new(
                 "WITH clause must have at least one item".to_string(),
@@ -283,20 +283,20 @@ impl WithValidator {
             self.outputs.push(col);
         }
 
-        // 验证 WHERE 子句
+        // Verify the WHERE clause
         if let Some(ref where_clause) = stmt.where_clause {
             self.validate_where_clause(where_clause)?;
         }
 
-        // 验证 ORDER BY
+        // Verify the ORDER BY clause.
         if let Some(ref order_by) = stmt.order_by {
             self.validate_order_by(order_by)?;
         }
 
-        // 验证 SKIP 和 LIMIT
+        // Verify SKIP and LIMIT
         self.validate_skip_limit(stmt.skip, stmt.limit)?;
 
-        // 保存信息
+        // Save the information.
         self.items = stmt.items.clone();
         self.where_clause = stmt.where_clause.clone();
         self.distinct = stmt.distinct;
@@ -304,15 +304,15 @@ impl WithValidator {
         self.skip = stmt.skip;
         self.limit = stmt.limit;
 
-        // 更新用户定义变量为输出列
+        // Update the user-defined variable to the output column.
         self.user_defined_vars = self.outputs.iter().map(|c| c.name.clone()).collect();
 
         Ok(())
     }
 
-    /// 设置输入列（从上游传递的列）
+    /// Setting the input column (the column that is passed from the upstream source)
     pub fn set_inputs(&mut self, inputs: Vec<ColumnDef>) {
-        // 初始时，用户定义变量来自输入
+        // Initially, the user-defined variables come from the input.
         self.user_defined_vars = inputs.iter().map(|c| c.name.clone()).collect();
         self.inputs = inputs;
     }
@@ -324,10 +324,10 @@ impl Default for WithValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for WithValidator {
     fn validate(
         &mut self,
@@ -377,7 +377,7 @@ impl StatementValidator for WithValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // WITH 不是全局语句
+        // “WITH” is not a global statement.
         false
     }
 
@@ -410,7 +410,7 @@ mod tests {
 
         let validator = WithValidator::new();
 
-        // 有效的 WHERE 子句
+        // A valid WHERE clause
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Literal(Value::Bool(true));
         let meta = ExpressionMeta::new(expr);
@@ -418,7 +418,7 @@ mod tests {
         let where_expr = ContextualExpression::new(id, expr_ctx);
         assert!(validator.validate_where_clause(&where_expr).is_ok());
 
-        // 二元操作符
+        // Binary operator
         let _expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let _expr = Expression::Binary {
             left: Box::new(Expression::Variable("n".to_string())),
@@ -428,7 +428,7 @@ mod tests {
         let _meta = ExpressionMeta::new(_expr);
         let _id = _expr_ctx.register_expression(_meta);
         let _where_expr = ContextualExpression::new(_id, _expr_ctx);
-        // 这会失败，因为变量 n 不在输入中
+        // This will fail because the variable `n` is not included in the input data.
         // assert!(validator.validate_where_clause(&_where_expr).is_err());
     }
 
@@ -436,10 +436,10 @@ mod tests {
     fn test_validate_skip_limit() {
         let validator = WithValidator::new();
 
-        // 有效值
+        // Valid values
         assert!(validator.validate_skip_limit(Some(10), Some(100)).is_ok());
 
-        // 超过最大值
+        // Exceeds the maximum value.
         assert!(validator
             .validate_skip_limit(Some(2_000_000), None)
             .is_err());

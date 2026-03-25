@@ -1,6 +1,6 @@
-//! ShowTagsExecutor - 列出标签执行器
+//! ShowTagsExecutor - list tags executor
 //!
-//! 负责列出指定图空间中的所有标签。
+//! Responsible for listing all labels in the specified graph space.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -11,9 +11,9 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
-/// 列出标签执行器
+/// List labeling actuators
 ///
-/// 该执行器负责返回指定图空间中所有标签的列表。
+/// This executor is responsible for returning a list of all labels in the specified graph space.
 #[derive(Debug)]
 pub struct ShowTagsExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -21,7 +21,7 @@ pub struct ShowTagsExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> ShowTagsExecutor<S> {
-    /// 创建新的 ShowTagsExecutor
+    /// Create a new ShowTagsExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,

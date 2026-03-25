@@ -1,30 +1,30 @@
-//! 构建脚本
+//! Build script
 //!
-//! 用于生成 C API 头文件和配置构建环境
+//! Used to generate C API header files and configure the build environment
 
 use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    // 只在启用 c_api 特性时生成头文件
+    // Only generate header file when c_api feature is enabled
     if env::var("CARGO_FEATURE_C_API").is_ok() {
         generate_c_header();
     }
 
-    // 设置链接参数
+    // Set link parameters
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/api/embedded/c_api/");
 }
 
-/// 生成 C 头文件
+/// Generate C header file
 fn generate_c_header() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let output_path = PathBuf::from(&crate_dir).join("include").join("graphdb.h");
 
-    std::fs::create_dir_all(output_path.parent().expect("输出路径应有父目录"))
-        .expect("创建 include 目录失败");
+    std::fs::create_dir_all(output_path.parent().expect("Output path should have a parent directory"))
+        .expect("Failed to create include directory");
 
-    // 尝试使用 cbindgen 生成头文件
+    // Attempt to generate header file using cbindgen
     match try_cbindgen(&crate_dir, &output_path) {
         Ok(_) => println!("cargo:warning=Generated C header at {:?}", output_path),
         Err(e) => {
@@ -32,22 +32,22 @@ fn generate_c_header() {
                 "cargo:warning=Failed to generate C header with cbindgen: {}",
                 e
             );
-            // 如果 cbindgen 失败，使用备用方案
+            // If cbindgen fails, use fallback solution
             generate_fallback_header(&output_path);
         }
     }
 }
 
-/// 尝试使用 cbindgen 生成头文件
+/// Attempt to generate header file using cbindgen
 fn try_cbindgen(crate_dir: &str, output_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     let config_path = PathBuf::from(crate_dir).join("cbindgen.toml");
 
-    // 检查 cbindgen 配置是否存在
+    // Check if cbindgen config exists
     if !config_path.exists() {
         return Err("cbindgen.toml not found".into());
     }
 
-    // 使用 cbindgen 生成头文件
+    // Generate header file using cbindgen
     cbindgen::Builder::new()
         .with_crate(crate_dir)
         .with_config(cbindgen::Config::from_root_or_default(crate_dir))
@@ -58,18 +58,18 @@ fn try_cbindgen(crate_dir: &str, output_path: &PathBuf) -> Result<(), Box<dyn st
     Ok(())
 }
 
-/// 生成备用头文件（当 cbindgen 失败时使用）
+/// Generate fallback header file (used when cbindgen fails)
 fn generate_fallback_header(output_path: &PathBuf) {
     let header_content = r#"/**
  * GraphDB C API
  *
- * GraphDB C API 头文件
- * 提供 GraphDB 的 C 语言接口
+ * GraphDB C API Header File
+ * Provides C language interface for GraphDB
  *
- * 版本: 0.1.0
- * 许可: Apache-2.0
+ * Version: 0.1.0
+ * License: Apache-2.0
  *
- * 更多信息请访问: https://github.com/kkkqkx123/graphDB
+ * For more information, visit: https://github.com/kkkqkx123/graphDB
  */
 
 #ifndef GRAPHDB_H
@@ -86,278 +86,278 @@ fn generate_fallback_header(output_path: &PathBuf) {
 extern "C" {
 #endif
 
-/* ==================== 错误码定义 ==================== */
+/* ==================== Error Code Definitions ==================== */
 
 /**
- * 错误码枚举
+ * Error code enumeration
  */
 typedef enum {
-    GRAPHDB_OK = 0,           /**< 成功 */
-    GRAPHDB_ERROR = 1,        /**< 一般错误 */
-    GRAPHDB_INTERNAL = 2,     /**< 内部错误 */
-    GRAPHDB_PERM = 3,         /**< 权限被拒绝 */
-    GRAPHDB_ABORT = 4,        /**< 操作被中止 */
-    GRAPHDB_BUSY = 5,         /**< 数据库忙 */
-    GRAPHDB_LOCKED = 6,       /**< 数据库被锁定 */
-    GRAPHDB_NOMEM = 7,        /**< 内存不足 */
-    GRAPHDB_READONLY = 8,     /**< 只读 */
-    GRAPHDB_INTERRUPT = 9,    /**< 操作被中断 */
-    GRAPHDB_IOERR = 10,       /**< IO 错误 */
-    GRAPHDB_CORRUPT = 11,     /**< 数据损坏 */
-    GRAPHDB_NOTFOUND = 12,    /**< 未找到 */
-    GRAPHDB_FULL = 13,        /**< 磁盘已满 */
-    GRAPHDB_CANTOPEN = 14,    /**< 无法打开 */
-    GRAPHDB_PROTOCOL = 15,    /**< 协议错误 */
-    GRAPHDB_SCHEMA = 16,      /**< 模式错误 */
-    GRAPHDB_TOOBIG = 17,      /**< 数据过大 */
-    GRAPHDB_CONSTRAINT = 18,  /**< 约束违反 */
-    GRAPHDB_MISMATCH = 19,    /**< 类型不匹配 */
-    GRAPHDB_MISUSE = 20,      /**< API 误用 */
-    GRAPHDB_RANGE = 21,       /**< 超出范围 */
+    GRAPHDB_OK = 0,           /**< Success */
+    GRAPHDB_ERROR = 1,        /**< General error */
+    GRAPHDB_INTERNAL = 2,     /**< Internal error */
+    GRAPHDB_PERM = 3,         /**< Permission denied */
+    GRAPHDB_ABORT = 4,        /**< Operation aborted */
+    GRAPHDB_BUSY = 5,         /**< Database busy */
+    GRAPHDB_LOCKED = 6,       /**< Database locked */
+    GRAPHDB_NOMEM = 7,        /**< Out of memory */
+    GRAPHDB_READONLY = 8,     /**< Read-only */
+    GRAPHDB_INTERRUPT = 9,    /**< Operation interrupted */
+    GRAPHDB_IOERR = 10,       /**< I/O error */
+    GRAPHDB_CORRUPT = 11,     /**< Data corruption */
+    GRAPHDB_NOTFOUND = 12,    /**< Not found */
+    GRAPHDB_FULL = 13,        /**< Disk full */
+    GRAPHDB_CANTOPEN = 14,    /**< Cannot open */
+    GRAPHDB_PROTOCOL = 15,    /**< Protocol error */
+    GRAPHDB_SCHEMA = 16,      /**< Schema error */
+    GRAPHDB_TOOBIG = 17,      /**< Data too large */
+    GRAPHDB_CONSTRAINT = 18,  /**< Constraint violation */
+    GRAPHDB_MISMATCH = 19,    /**< Type mismatch */
+    GRAPHDB_MISUSE = 20,      /**< API misuse */
+    GRAPHDB_RANGE = 21,       /**< Out of range */
 } graphdb_error_code_t;
 
-/* ==================== 类型定义 ==================== */
+/* ==================== Type Definitions ==================== */
 
 /**
- * 数据库句柄（不透明指针）
+ * Database handle (opaque pointer)
  */
 typedef struct graphdb_t graphdb_t;
 
 /**
- * 会话句柄（不透明指针）
+ * Session handle (opaque pointer)
  */
 typedef struct graphdb_session_t graphdb_session_t;
 
 /**
- * 预编译语句句柄（不透明指针）
+ * Prepared statement handle (opaque pointer)
  */
 typedef struct graphdb_stmt_t graphdb_stmt_t;
 
 /**
- * 事务句柄（不透明指针）
+ * Transaction handle (opaque pointer)
  */
 typedef struct graphdb_txn_t graphdb_txn_t;
 
 /**
- * 结果集句柄（不透明指针）
+ * Result set handle (opaque pointer)
  */
 typedef struct graphdb_result_t graphdb_result_t;
 
 /**
- * 值类型枚举
+ * Value type enumeration
  */
 typedef enum {
-    GRAPHDB_NULL = 0,     /**< 空值 */
-    GRAPHDB_BOOL = 1,     /**< 布尔值 */
-    GRAPHDB_INT = 2,      /**< 整数 */
-    GRAPHDB_FLOAT = 3,    /**< 浮点数 */
-    GRAPHDB_STRING = 4,   /**< 字符串 */
-    GRAPHDB_LIST = 5,     /**< 列表 */
-    GRAPHDB_MAP = 6,      /**< 映射 */
-    GRAPHDB_VERTEX = 7,   /**< 顶点 */
-    GRAPHDB_EDGE = 8,     /**< 边 */
-    GRAPHDB_PATH = 9,     /**< 路径 */
+    GRAPHDB_NULL = 0,     /**< Null value */
+    GRAPHDB_BOOL = 1,     /**< Boolean value */
+    GRAPHDB_INT = 2,      /**< Integer */
+    GRAPHDB_FLOAT = 3,    /**< Floating point number */
+    GRAPHDB_STRING = 4,   /**< String */
+    GRAPHDB_LIST = 5,     /**< List */
+    GRAPHDB_MAP = 6,      /**< Map */
+    GRAPHDB_VERTEX = 7,   /**< Vertex */
+    GRAPHDB_EDGE = 8,     /**< Edge */
+    GRAPHDB_PATH = 9,     /**< Path */
 } graphdb_value_type_t;
 
 /**
- * 值结构
+ * Value structure
  */
 typedef struct {
-    graphdb_value_type_t type;  /**< 值类型 */
+    graphdb_value_type_t type;  /**< Value type */
     union {
-        bool boolean;           /**< 布尔值 */
-        int64_t integer;        /**< 整数 */
-        double floating;        /**< 浮点数 */
+        bool boolean;           /**< Boolean value */
+        int64_t integer;        /**< Integer */
+        double floating;        /**< Floating point number */
         struct {
-            const char *data;   /**< 字符串数据 */
-            size_t len;         /**< 字符串长度 */
-        } string;               /**< 字符串 */
-        void *ptr;              /**< 其他类型指针 */
-    } data;                     /**< 值数据 */
+            const char *data;   /**< String data */
+            size_t len;         /**< String length */
+        } string;               /**< String */
+        void *ptr;              /**< Pointer for other types */
+    } data;                     /**< Value data */
 } graphdb_value_t;
 
 /**
- * 数据库配置结构
+ * Database configuration structure
  */
 typedef struct {
-    bool read_only;             /**< 只读模式 */
-    bool create_if_missing;     /**< 如果不存在则创建 */
-    int cache_size_mb;          /**< 缓存大小（MB） */
-    int max_open_files;         /**< 最大打开文件数 */
-    bool enable_compression;    /**< 启用压缩 */
+    bool read_only;             /**< Read-only mode */
+    bool create_if_missing;     /**< Create if missing */
+    int cache_size_mb;          /**< Cache size (MB) */
+    int max_open_files;         /**< Maximum number of open files */
+    bool enable_compression;    /**< Enable compression */
 } graphdb_config_t;
 
-/* ==================== 数据库管理 API ==================== */
+/* ==================== Database Management API ==================== */
 
 /**
- * 打开数据库
+ * Open database
  *
- * @param path 数据库文件路径（UTF-8 编码）
- * @param db 输出参数，数据库句柄
- * @return 错误码，GRAPHDB_OK 表示成功
+ * @param path Database file path (UTF-8 encoded)
+ * @param db Output parameter, database handle
+ * @return Error code, GRAPHDB_OK indicates success
  */
 int graphdb_open(const char *path, graphdb_t **db);
 
 /**
- * 打开内存数据库
+ * Open in-memory database
  *
- * @param db 输出参数，数据库句柄
- * @return 错误码，GRAPHDB_OK 表示成功
+ * @param db Output parameter, database handle
+ * @return Error code, GRAPHDB_OK indicates success
  */
 int graphdb_open_memory(graphdb_t **db);
 
 /**
- * 使用配置打开数据库
+ * Open database with configuration
  *
- * @param path 数据库文件路径（UTF-8 编码）
- * @param config 数据库配置
- * @param db 输出参数，数据库句柄
- * @return 错误码，GRAPHDB_OK 表示成功
+ * @param path Database file path (UTF-8 encoded)
+ * @param config Database configuration
+ * @param db Output parameter, database handle
+ * @return Error code, GRAPHDB_OK indicates success
  */
 int graphdb_open_config(const char *path, const graphdb_config_t *config, graphdb_t **db);
 
 /**
- * 关闭数据库
+ * Close database
  *
- * @param db 数据库句柄
- * @return 错误码，GRAPHDB_OK 表示成功
+ * @param db Database handle
+ * @return Error code, GRAPHDB_OK indicates success
  */
 int graphdb_close(graphdb_t *db);
 
 /**
- * 获取错误码
+ * Get error code
  *
- * @param db 数据库句柄
- * @return 错误码
+ * @param db Database handle
+ * @return Error code
  */
 int graphdb_errcode(graphdb_t *db);
 
 /**
- * 获取错误信息
+ * Get error message
  *
- * @param db 数据库句柄
- * @return 错误信息字符串（UTF-8 编码），如果无错误返回 NULL
+ * @param db Database handle
+ * @return Error message string (UTF-8 encoded), returns NULL if no error
  */
 const char *graphdb_errmsg(graphdb_t *db);
 
 /**
- * 获取库版本
+ * Get library version
  *
- * @return 版本字符串
+ * @return Version string
  */
 const char *graphdb_libversion(void);
 
-/* ==================== 会话管理 API ==================== */
+/* ==================== Session Management API ==================== */
 
 /**
- * 创建会话
+ * Create session
  *
- * @param db 数据库句柄
- * @param session 输出参数，会话句柄
- * @return 错误码，GRAPHDB_OK 表示成功
+ * @param db Database handle
+ * @param session Output parameter, session handle
+ * @return Error code, GRAPHDB_OK indicates success
  */
 int graphdb_session_create(graphdb_t *db, graphdb_session_t **session);
 
 /**
- * 关闭会话
+ * Close session
  *
- * @param session 会话句柄
- * @return 错误码，GRAPHDB_OK 表示成功
+ * @param session Session handle
+ * @return Error code, GRAPHDB_OK indicates success
  */
 int graphdb_session_close(graphdb_session_t *session);
 
 /**
- * 切换图空间
+ * Switch graph space
  *
- * @param session 会话句柄
- * @param space_name 图空间名称（UTF-8 编码）
- * @return 错误码，GRAPHDB_OK 表示成功
+ * @param session Session handle
+ * @param space_name Graph space name (UTF-8 encoded)
+ * @return Error code, GRAPHDB_OK indicates success
  */
 int graphdb_session_use_space(graphdb_session_t *session, const char *space_name);
 
 /**
- * 获取当前图空间
+ * Get current graph space
  *
- * @param session 会话句柄
- * @return 当前图空间名称（UTF-8 编码），如果没有则返回 NULL
+ * @param session Session handle
+ * @return Current graph space name (UTF-8 encoded), returns NULL if none
  */
 const char *graphdb_session_current_space(graphdb_session_t *session);
 
 /**
- * 设置自动提交模式
+ * Set auto-commit mode
  *
- * @param session 会话句柄
- * @param autocommit 是否自动提交
- * @return 错误码，GRAPHDB_OK 表示成功
+ * @param session Session handle
+ * @param autocommit Whether to auto-commit
+ * @return Error code, GRAPHDB_OK indicates success
  */
 int graphdb_session_set_autocommit(graphdb_session_t *session, bool autocommit);
 
 /**
- * 获取自动提交模式
+ * Get auto-commit mode
  *
- * @param session 会话句柄
- * @return 是否自动提交
+ * @param session Session handle
+ * @return Whether auto-commit is enabled
  */
 bool graphdb_session_get_autocommit(graphdb_session_t *session);
 
-/* ==================== 查询执行 API ==================== */
+/* ==================== Query Execution API ==================== */
 
 /**
- * 执行查询
+ * Execute query
  *
- * @param session 会话句柄
- * @param query 查询语句（UTF-8 编码）
- * @param result 输出参数，结果集句柄
- * @return 错误码，GRAPHDB_OK 表示成功
+ * @param session Session handle
+ * @param query Query statement (UTF-8 encoded)
+ * @param result Output parameter, result set handle
+ * @return Error code, GRAPHDB_OK indicates success
  */
 int graphdb_execute(graphdb_session_t *session, const char *query, graphdb_result_t **result);
 
 /**
- * 释放结果集
+ * Free result set
  *
- * @param result 结果集句柄
- * @return 错误码，GRAPHDB_OK 表示成功
+ * @param result Result set handle
+ * @return Error code, GRAPHDB_OK indicates success
  */
 int graphdb_result_free(graphdb_result_t *result);
 
 /**
- * 获取结果集列数
+ * Get number of columns in result set
  *
- * @param result 结果集句柄
- * @return 列数，错误返回 -1
+ * @param result Result set handle
+ * @return Number of columns, returns -1 on error
  */
 int graphdb_column_count(graphdb_result_t *result);
 
 /**
- * 获取结果集行数
+ * Get number of rows in result set
  *
- * @param result 结果集句柄
- * @return 行数，错误返回 -1
+ * @param result Result set handle
+ * @return Number of rows, returns -1 on error
  */
 int graphdb_row_count(graphdb_result_t *result);
 
 /**
- * 获取列名
+ * Get column name
  *
- * @param result 结果集句柄
- * @param index 列索引（从 0 开始）
- * @return 列名（UTF-8 编码），错误返回 NULL
+ * @param result Result set handle
+ * @param index Column index (starting from 0)
+ * @return Column name (UTF-8 encoded), returns NULL on error
  */
 const char *graphdb_column_name(graphdb_result_t *result, int index);
 
-/* ==================== 内存管理 API ==================== */
+/* ==================== Memory Management API ==================== */
 
 /**
- * 释放字符串（由 GraphDB 分配的字符串）
+ * Free string (string allocated by GraphDB)
  *
- * @param str 字符串指针
+ * @param str String pointer
  */
 void graphdb_free_string(char *str);
 
 /**
- * 释放内存（由 GraphDB 分配的内存）
+ * Free memory (memory allocated by GraphDB)
  *
- * @param ptr 内存指针
+ * @param ptr Memory pointer
  */
 void graphdb_free(void *ptr);
 

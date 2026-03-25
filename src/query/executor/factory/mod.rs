@@ -1,11 +1,11 @@
-//! 执行器工厂模块
+//! Actuator Factory Module
 //!
-//! 负责根据执行计划创建对应的执行器实例
-//! 采用模块化设计，将职责拆分为多个子模块：
-//! - parsers: 解析器，负责解析顶点ID、边方向、权重配置等
-//! - validators: 验证器，负责验证计划节点、递归检测、安全验证
-//! - builders: 构建器，负责创建各种类型的执行器
-//! - executors: 执行器执行，负责执行执行计划
+//! Responsible for creating the corresponding executor instances based on the execution plan.
+//! The design follows a modular approach, with responsibilities being divided into multiple sub-modules.
+//! Parsers: These are programs responsible for interpreting various data elements such as vertex IDs, the direction of edges, and weight configurations.
+//! Validators: Components responsible for verifying plan nodes, performing recursive checks, and ensuring security.
+//! Constructors: These are responsible for creating various types of executors.
+//! Executors: These are the components responsible for executing the execution plan.
 
 pub mod builders;
 pub mod executor_factory;
@@ -13,10 +13,10 @@ pub mod executors;
 pub mod parsers;
 pub mod validators;
 
-// 重新导出主要类型
+// Re-export the main types
 pub use executor_factory::ExecutorFactory;
 pub use executors::PlanExecutor;
 pub use validators::{RecursionDetector, SafetyValidator};
 
-// 从子模块重新导出安全配置
+// Re-export the security configuration from the sub-module.
 pub use validators::safety_validator::ExecutorSafetyConfig;

@@ -1,6 +1,6 @@
-//! 统计信息管理器模块
+//! Statistical Information Manager Module
 //!
-//! 统一管理所有统计信息，提供线程安全的访问
+//! Centralized management of all statistical information, with thread-safe access.
 
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -8,23 +8,23 @@ use std::sync::Arc;
 
 use super::{EdgeTypeStatistics, PropertyStatistics, TagStatistics};
 
-/// 统计信息管理器
+/// Statistical Information Manager
 ///
-/// 统一管理所有统计信息，提供线程安全的访问
+/// Centralized management of all statistical information, ensuring thread-safe access.
 #[derive(Debug)]
 pub struct StatisticsManager {
-    /// 标签统计信息（以标签名称为键）
+    /// Tag statistics information (with tag names as keys)
     tag_stats: Arc<RwLock<HashMap<String, TagStatistics>>>,
-    /// 标签ID到标签名称的映射
+    /// Mapping from Tag ID to Tag Name
     tag_id_to_name: Arc<RwLock<HashMap<i32, String>>>,
-    /// 边类型统计信息
+    /// Type statistics information for edges
     edge_stats: Arc<RwLock<HashMap<String, EdgeTypeStatistics>>>,
-    /// 属性统计信息
+    /// Attribute statistics information
     property_stats: Arc<RwLock<HashMap<String, PropertyStatistics>>>,
 }
 
 impl StatisticsManager {
-    /// 创建新的统计信息管理器
+    /// Create a new statistical information manager.
     pub fn new() -> Self {
         Self {
             tag_stats: Arc::new(RwLock::new(HashMap::new())),
@@ -34,66 +34,66 @@ impl StatisticsManager {
         }
     }
 
-    /// 注册标签ID到名称的映射
+    /// Mapping of registered tag IDs to their corresponding names
     pub fn register_tag_id(&self, tag_id: i32, tag_name: String) {
         self.tag_id_to_name.write().insert(tag_id, tag_name);
     }
 
-    /// 根据标签ID获取标签名称
+    /// Retrieve the tag name based on the tag ID.
     pub fn get_tag_name_by_id(&self, tag_id: i32) -> Option<String> {
         self.tag_id_to_name.read().get(&tag_id).cloned()
     }
 
-    /// 根据标签ID获取标签统计信息
+    /// Retrieve tag statistics based on the tag ID.
     pub fn get_tag_stats_by_id(&self, tag_id: i32) -> Option<TagStatistics> {
         let tag_name = self.get_tag_name_by_id(tag_id)?;
         self.get_tag_stats(&tag_name)
     }
 
-    /// 根据标签ID获取顶点数量
+    /// Get the number of vertices based on the tag ID.
     pub fn get_vertex_count_by_id(&self, tag_id: i32) -> u64 {
         self.get_tag_stats_by_id(tag_id)
             .map(|s| s.vertex_count)
             .unwrap_or(0)
     }
 
-    /// 获取标签统计信息
+    /// Obtain tag statistics information
     pub fn get_tag_stats(&self, tag_name: &str) -> Option<TagStatistics> {
         self.tag_stats.read().get(tag_name).cloned()
     }
 
-    /// 更新标签统计信息
+    /// Update the tag statistics information.
     pub fn update_tag_stats(&self, stats: TagStatistics) {
         self.tag_stats.write().insert(stats.tag_name.clone(), stats);
     }
 
-    /// 获取顶点数量
+    /// Obtain the number of vertices
     pub fn get_vertex_count(&self, tag_name: &str) -> u64 {
         self.get_tag_stats(tag_name)
             .map(|s| s.vertex_count)
             .unwrap_or(0)
     }
 
-    /// 获取边类型统计信息
+    /// Obtain statistical information about the types of edges.
     pub fn get_edge_stats(&self, edge_type: &str) -> Option<EdgeTypeStatistics> {
         self.edge_stats.read().get(edge_type).cloned()
     }
 
-    /// 更新边类型统计信息
+    /// Update the statistics information on edge types.
     pub fn update_edge_stats(&self, stats: EdgeTypeStatistics) {
         self.edge_stats
             .write()
             .insert(stats.edge_type.clone(), stats);
     }
 
-    /// 获取边数量
+    /// Obtain the number of edges
     pub fn get_edge_count(&self, edge_type: &str) -> u64 {
         self.get_edge_stats(edge_type)
             .map(|s| s.edge_count)
             .unwrap_or(0)
     }
 
-    /// 获取属性统计信息
+    /// Obtain attribute statistics information
     pub fn get_property_stats(
         &self,
         tag_name: Option<&str>,
@@ -106,7 +106,7 @@ impl StatisticsManager {
         self.property_stats.read().get(&key).cloned()
     }
 
-    /// 更新属性统计信息
+    /// Update attribute statistics information
     pub fn update_property_stats(&self, stats: PropertyStatistics) {
         let key = match &stats.tag_name {
             Some(tag) => format!("{}.{}", tag, stats.property_name),
@@ -115,7 +115,7 @@ impl StatisticsManager {
         self.property_stats.write().insert(key, stats);
     }
 
-    /// 清除所有统计信息
+    /// Clear all statistical information.
     pub fn clear_all(&self) {
         self.tag_stats.write().clear();
         self.tag_id_to_name.write().clear();
@@ -123,12 +123,12 @@ impl StatisticsManager {
         self.property_stats.write().clear();
     }
 
-    /// 获取所有标签名称
+    /// Retrieve all tag names
     pub fn get_all_tags(&self) -> Vec<String> {
         self.tag_stats.read().keys().cloned().collect()
     }
 
-    /// 获取所有边类型名称
+    /// Obtain the names of all edge types.
     pub fn get_all_edge_types(&self) -> Vec<String> {
         self.edge_stats.read().keys().cloned().collect()
     }

@@ -1,16 +1,5 @@
-//! 验证器枚举
-//! 使用枚举统一管理所有验证器类型
-//! 这是新验证器体系的核心组件，替代 Box<dyn> 的动态分发
-//!
-//! 设计原则：
-//! 1. 保留 base_validator.rs 的完整功能
-//! 2. 使用枚举避免动态分发开销
-//! 3. 统一接口，便于管理和扩展
-//!
-//! # 重构变更
-//! - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
-//! - 使用 Arc<Ast> 共享 AST 所有权，避免不必要的克隆
-//! - 验证器可以访问表达式上下文
+//! Validator Enumeration
+//! Use an enumeration to uniformly manage all types of validators.
 
 use std::sync::Arc;
 
@@ -21,7 +10,7 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 
-// 导入具体验证器
+// Import the specific validator.
 use crate::query::validator::assignment_validator::AssignmentValidator;
 use crate::query::validator::clauses::group_by_validator::GroupByValidator;
 use crate::query::validator::clauses::limit_validator::LimitValidator;
@@ -64,136 +53,136 @@ use crate::query::validator::utility::acl_validator::{
 use crate::query::validator::utility::explain_validator::{ExplainValidator, ProfileValidator};
 use crate::query::validator::utility::update_config_validator::UpdateConfigsValidator;
 
-/// 统一验证器枚举
+/// Unified Validator Enumeration
 ///
-/// 设计优势：
-/// 1. 编译期确定类型，避免动态分发开销
-/// 2. 统一接口，便于管理和扩展
-/// 3. 模式匹配支持，便于针对特定验证器处理
-/// 4. 保留完整的验证生命周期功能
+/// Design advantages:
+/// Determine the type during the compilation phase to avoid the overhead associated with dynamic distribution.
+/// 2. Unified interfaces for easier management and expansion.
+/// 3. Mode matching is supported, which facilitates the processing of specific validators.
+/// 4. Maintain the full functionality of the validation lifecycle.
 #[derive(Debug)]
 pub enum Validator {
-    // 管理类验证器
-    /// SHOW 语句验证器
+    // Management class validators
+    /// SHOW statement validator
     Show(ShowValidator),
-    /// DESCRIBE 语句验证器
+    /// The DESCRIBE statement validator
     Desc(DescValidator),
-    /// SHOW CREATE 语句验证器
+    /// SHOW CREATE statement validator
     ShowCreate(ShowCreateValidator),
-    /// SHOW CONFIGS 语句验证器
+    /// The SHOW CONFIGS statement validator
     ShowConfigs(ShowConfigsValidator),
-    /// SHOW SESSIONS 语句验证器
+    /// The SHOW SESSIONS statement validator
     ShowSessions(ShowSessionsValidator),
-    /// SHOW QUERIES 语句验证器
+    /// SHOW QUERIES statement validator
     ShowQueries(ShowQueriesValidator),
-    /// KILL QUERY 语句验证器
+    /// KILL QUERY Statement Validator
     KillQuery(KillQueryValidator),
 
-    // 权限类验证器
-    /// CREATE USER 语句验证器
+    // Permission class validator
+    /// CREATE USER statement validator
     CreateUser(CreateUserValidator),
-    /// DROP USER 语句验证器
+    /// DROP USER statement validator
     DropUser(DropUserValidator),
-    /// ALTER USER 语句验证器
+    /// ALTER USER statement validator
     AlterUser(AlterUserValidator),
-    /// CHANGE PASSWORD 语句验证器
+    /// CHANGE PASSWORD statement validator
     ChangePassword(ChangePasswordValidator),
-    /// GRANT 语句验证器
+    /// GRANT statement validator
     Grant(GrantValidator),
-    /// REVOKE 语句验证器
+    /// REVOKE statement validator
     Revoke(RevokeValidator),
-    /// DESCRIBE USER 语句验证器
+    /// The “DESCRIBE USER” statement validator ensures that the provided user information is valid and meets the required criteria. It performs various checks to verify the accuracy, completeness, and consistency of the user data, such as checking the username, password, email address, and other relevant fields. If the user data is invalid or does not meet the specified requirements, the validator generates an error message indicating the issues with the data. This validation process helps to maintain the security and integrity of the system by preventing unauthorized access to user accounts.
     DescribeUser(DescribeUserValidator),
-    /// SHOW USERS 语句验证器
+    /// SHOW USERS Statement Validator
     ShowUsers(ShowUsersValidator),
-    /// SHOW ROLES 语句验证器
+    /// SHOW ROLES statement validator
     ShowRoles(ShowRolesValidator),
 
-    // DDL 验证器
-    /// ALTER 语句验证器
+    // DDL Validator
+    /// ALTER statement validator
     Alter(AlterValidator),
-    /// DROP 语句验证器
+    /// DROP statement validator
     Drop(DropValidator),
-    /// CREATE TAG INDEX 语句验证器
+    /// CREATE TAG INDEX statement validator
     CreateTagIndex(CreateIndexValidator),
-    /// CREATE EDGE INDEX 语句验证器
+    /// CREATE EDGE INDEX statement validator
     CreateEdgeIndex(CreateIndexValidator),
-    /// CREATE 语句验证器
+    /// CREATE statement validator
     Create(CreateValidator),
 
-    // DML 验证器
-    /// USE 语句验证器
+    // DML Validator
+    /// USE statement validator
     Use(UseValidator),
-    /// SET 语句验证器
+    /// SET statement validator
     Set(SetValidator),
-    /// ASSIGNMENT 语句验证器
+    /// ASSIGNMENT Statement Validator
     Assignment(AssignmentValidator),
-    /// PIPE 语句验证器
+    /// PIPE statement validator
     Pipe(PipeValidator),
-    /// QUERY 语句验证器
+    /// QUERY Statement Validator
     Query(QueryValidator),
-    /// SET OPERATION 语句验证器
+    /// SET OPERATION statement validator
     SetOperation(SetOperationValidator),
 
-    // 查询类验证器
-    /// MATCH 语句验证器
+    // Query class validator
+    /// MATCH statement validator
     Match(MatchValidator),
-    /// LOOKUP 语句验证器
+    /// LOOKUP Statement Validator
     Lookup(LookupValidator),
-    /// GO 语句验证器
+    /// GO Statement Validator
     Go(GoValidator),
-    /// FIND PATH 语句验证器
+    /// FIND PATH Statement Validator
     FindPath(FindPathValidator),
-    /// GET SUBGRAPH 语句验证器
+    /// GET SUBGRAPH statement validator
     GetSubgraph(GetSubgraphValidator),
-    /// FETCH VERTICES 语句验证器
+    /// The FETCH VERTICES statement validator
     FetchVertices(FetchVerticesValidator),
-    /// FETCH EDGES 语句验证器
+    /// The FETCH EDGES statement validator
     FetchEdges(FetchEdgesValidator),
-    /// INSERT VERTICES 语句验证器
+    /// INSERT VERTICES statement validator
     InsertVertices(InsertVerticesValidator),
-    /// INSERT EDGES 语句验证器
+    /// INSERT EDGES statement validator
     InsertEdges(InsertEdgesValidator),
-    /// UPDATE 语句验证器
+    /// UPDATE Statement Validator
     Update(UpdateValidator),
-    /// DELETE 语句验证器
+    /// DELETE Statement Validator
     Delete(DeleteValidator),
-    /// MERGE 语句验证器
+    /// MERGE statement validator
     Merge(MergeValidator),
-    /// REMOVE 语句验证器
+    /// REMOVE Statement Validator
     Remove(RemoveValidator),
-    /// UNWIND 语句验证器
+    /// UNWIND Statement Validator
     Unwind(UnwindValidator),
 
-    // 子句类验证器
-    /// ORDER BY 语句验证器
+    // Clause type validator
+    /// ORDER BY statement validator
     OrderBy(OrderByValidator),
-    /// GROUP BY 语句验证器
+    /// GROUP BY statement validator
     GroupBy(GroupByValidator),
-    /// YIELD 语句验证器
+    /// YIELD statement validator
     Yield(YieldValidator),
-    /// RETURN 语句验证器
+    /// RETURN statement validator
     Return(ReturnValidator),
-    /// WITH 语句验证器
+    /// WITH statement validator
     With(WithValidator),
-    /// LIMIT 语句验证器
+    /// LIMIT statement validator
     Limit(LimitValidator),
-    /// SEQUENTIAL 语句验证器
+    /// SEQUENTIAL Statement Validator
     Sequential(SequentialValidator),
 
-    // 工具类验证器
-    /// EXPLAIN 语句验证器
+    // Utility class validator
+    /// EXPLAIN Statement Validator
     Explain(ExplainValidator),
-    /// PROFILE 语句验证器
+    /// PROFILE Statement Validator
     Profile(ProfileValidator),
-    /// UPDATE CONFIG 语句验证器
+    /// UPDATE CONFIG statement validator
     UpdateConfig(UpdateConfigsValidator),
-    /// CLEAR SPACE 语句验证器
+    /// CLEAR SPACE Statement Validator
     ClearSpace(ClearSpaceValidator),
 }
 
 impl Validator {
-    /// 获取验证器类型
+    /// Obtain the type of the validator.
     pub fn get_type(&self) -> StatementType {
         match self {
             Validator::Show(v) => v.statement_type(),
@@ -251,7 +240,7 @@ impl Validator {
         }
     }
 
-    /// 验证语句
+    /// Verify the statement.
     pub fn validate(&mut self, ast: Arc<Ast>, qctx: Arc<QueryContext>) -> ValidationResult {
         match self {
             Validator::Show(v) => v
@@ -413,7 +402,7 @@ impl Validator {
         }
     }
 
-    /// 获取输入列
+    /// Get the input column
     pub fn get_inputs(&self) -> Vec<ColumnDef> {
         match self {
             Validator::Show(v) => v.inputs().to_vec(),
@@ -471,7 +460,7 @@ impl Validator {
         }
     }
 
-    /// 获取输出列
+    /// Obtain the output column
     pub fn get_outputs(&self) -> Vec<ColumnDef> {
         match self {
             Validator::Show(v) => v.outputs().to_vec(),
@@ -531,20 +520,20 @@ impl Validator {
 }
 
 impl Validator {
-    /// 根据语句创建验证器
+    /// Create a validator based on the statement.
     pub fn create_from_stmt(stmt: &Stmt) -> Option<Validator> {
         let stmt_type = Self::infer_statement_type(stmt);
         Some(Self::create(stmt_type))
     }
 
-    /// 从 Arc<Ast> 创建验证器
-    /// 这是新的推荐方式，表达式上下文在 Ast 中
+    /// Create a validator from Arc<Ast>.
+    /// This is the new recommendation method; the context of the expressions is defined within Ast.
     pub fn create_from_ast(ast: &Arc<Ast>) -> Option<Validator> {
         let stmt_type = Self::infer_statement_type(&ast.stmt);
         Some(Self::create(stmt_type))
     }
 
-    /// 从语句推断语句类型
+    /// Determine the type of a sentence based on other sentences
     fn infer_statement_type(stmt: &Stmt) -> StatementType {
         match stmt {
             Stmt::Query(_) => StatementType::Query,
@@ -611,7 +600,7 @@ impl Validator {
         }
     }
 
-    /// 根据语句类型创建验证器
+    /// Create validators based on the type of statement.
     pub fn create(stmt_type: StatementType) -> Validator {
         match stmt_type {
             StatementType::Show => Validator::Show(ShowValidator::new()),
@@ -692,7 +681,7 @@ impl Validator {
         }
     }
 
-    /// 获取用户定义变量列表
+    /// Obtain a list of user-defined variables
     pub fn get_user_defined_vars(&self) -> &[String] {
         match self {
             Validator::Show(v) => v.user_defined_vars(),
@@ -750,12 +739,12 @@ impl Validator {
         }
     }
 
-    /// 获取语句类型
+    /// Determine the type of the statement
     pub fn statement_type(&self) -> StatementType {
         self.get_type()
     }
 
-    /// 获取表达式属性
+    /// Obtain the properties of the expression
     pub fn expression_props(&self) -> &ExpressionProps {
         match self {
             Validator::Show(v) => v.expression_props(),
@@ -814,7 +803,7 @@ impl Validator {
     }
 }
 
-/// 验证器集合
+/// Collection of validators
 pub struct ValidatorCollection {
     validators: Vec<Validator>,
 }

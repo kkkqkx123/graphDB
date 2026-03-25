@@ -1,6 +1,6 @@
-//! 双向BFS最短路径算法
+//! Bidirectional BFS (Broad-Search First) shortest path algorithm
 //!
-//! 使用双向广度优先搜索查找最短路径
+//! Use a bidirectional breadth-first search to find the shortest path.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -15,7 +15,7 @@ use super::types::{
     combine_npaths, has_duplicate_edges, AlgorithmStats, BidirectionalBFSState, SelfLoopDedup,
 };
 
-/// 双向BFS最短路径算法
+/// Bidirectional BFS (Broad-Search First) shortest path algorithm
 pub struct BidirectionalBFS<S: StorageClient> {
     storage: Arc<Mutex<S>>,
     stats: AlgorithmStats,
@@ -36,7 +36,7 @@ impl<S: StorageClient> BidirectionalBFS<S> {
         self
     }
 
-    /// 获取邻居节点和边
+    /// Obtaining neighbor nodes and edges
     fn get_neighbors_with_edges(
         &self,
         node_id: &Value,
@@ -57,7 +57,7 @@ impl<S: StorageClient> BidirectionalBFS<S> {
             edges
         };
 
-        // 自环边去重
+        // Remove duplicates from the self-loop edges.
         let mut dedup = SelfLoopDedup::new();
 
         let neighbors_with_edges: Vec<(Value, Edge, f64)> = filtered_edges
@@ -96,7 +96,7 @@ impl<S: StorageClient> BidirectionalBFS<S> {
         Ok(neighbors_with_edges)
     }
 
-    /// 获取顶点
+    /// Obtain the vertices
     fn get_vertex(&self, vid: &Value) -> Result<Option<Vertex>, QueryError> {
         let storage = self.storage.lock();
         storage
@@ -122,7 +122,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
         let mut left_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>> = Vec::new();
         let mut right_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>> = Vec::new();
 
-        // 初始化左向队列（从起点开始）
+        // Initialize the left-facing queue (starting from the beginning point).
         for start_id in start_ids {
             if let Ok(Some(start_vertex)) = self.get_vertex(start_id) {
                 let initial_npath = Arc::new(NPath::new(Arc::new(start_vertex)));
@@ -133,7 +133,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
             }
         }
 
-        // 初始化右向队列（从终点开始）
+        // Initialize a right-facing queue (starting from the end).
         for end_id in end_ids {
             if let Ok(Some(end_vertex)) = self.get_vertex(end_id) {
                 let initial_npath = Arc::new(NPath::new(Arc::new(end_vertex)));
@@ -156,13 +156,13 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
             left_edges.push(HashMap::new());
             let left_step_edges = left_edges.last_mut().expect("left_edges不应为空");
 
-            // 左向扩展
+            // Leftward expansion
             while let Some((current_id, current_npath)) = state.left_queue.pop_front() {
                 self.stats.increment_nodes_visited();
 
-                // 检查是否与右向路径交汇
+                // Check whether it intersects with the path going from right to left.
                 if let Some(right_npath) = visited_right.get(&current_id) {
-                    // 拼接路径：左路径 + 反转的右路径
+                    // Concatenated path: Left path + Reversed right path
                     if let Some(combined_path) = combine_npaths(&current_npath, right_npath) {
                         if !has_duplicate_edges(&combined_path) {
                             result_paths.push(combined_path);
@@ -175,7 +175,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
                     continue;
                 }
 
-                // 检查深度限制
+                // Check the depth limit.
                 if let Some(max_d) = max_depth {
                     if current_npath.len() >= max_d {
                         continue;
@@ -215,7 +215,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for BidirectionalBFS<S> {
             right_edges.push(HashMap::new());
             let right_step_edges = right_edges.last_mut().expect("right_edges不应为空");
 
-            // 右向扩展
+            // Rightward expansion
             while let Some((current_id, current_npath)) = state.right_queue.pop_front() {
                 self.stats.increment_nodes_visited();
 

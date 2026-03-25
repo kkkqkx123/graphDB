@@ -1,18 +1,18 @@
-//! 顶点获取验证器 - 新体系版本
+//! Vertex Acquisition Validator – New System Version
 //! 对应 NebulaGraph FetchVerticesValidator.h/.cpp 的功能
-//! 验证 FETCH PROP ON ... 语句
+//! Verify the FETCH PROP ON ... statement
 //!
-//! 本文件已按照新的 trait + 枚举 验证器体系重构：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 保留了完整功能：
-//!    - 验证生命周期管理
-//!    - 输入/输出列管理
-//!    - 表达式属性追踪
-//!    - 用户定义变量管理
-//!    - 权限检查
-//!    - 执行计划生成
-//! 3. 移除了生命周期参数，使用 Arc 管理 SchemaManager
-//! 4. 使用 QueryContext 统一管理上下文
+//! This document has been restructured in accordance with the new trait + enumeration validator framework.
+//! The StatementValidator trait has been implemented to provide a unified interface.
+//! 2. All functions are retained.
+//! Verify Lifecycle Management
+//! Management of input/output columns
+//! Expression property tracing
+//! User-defined variable management
+//! Permission check
+//! Execution plan generation
+//! 3. The lifecycle parameters have been removed, and the SchemaManager is now managed using Arc.
+//! 4. Use QueryContext to manage the context in a unified manner.
 
 use std::sync::Arc;
 
@@ -29,7 +29,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
-/// 验证后的顶点获取信息
+/// Verified vertex information
 #[derive(Debug, Clone)]
 pub struct ValidatedFetchVertices {
     pub space_id: u64,
@@ -40,7 +40,7 @@ pub struct ValidatedFetchVertices {
     pub is_system: bool,
 }
 
-/// 验证后的 YIELD 列
+/// The verified YIELD column
 #[derive(Debug, Clone)]
 pub struct ValidatedYieldColumn {
     pub expression: ContextualExpression,
@@ -49,28 +49,28 @@ pub struct ValidatedYieldColumn {
     pub prop_name: Option<String>,
 }
 
-/// 顶点获取验证器 - 新体系实现
+/// Vertex Acquisition Validator – New System Implementation
 ///
-/// 功能完整性保证：
-/// 1. 完整的验证生命周期
-/// 2. 输入/输出列管理
-/// 3. 表达式属性追踪
-/// 4. 用户定义变量管理
-/// 5. 权限检查（可扩展）
-/// 6. 执行计划生成（可扩展）
+/// Functionality integrity assurance:
+/// 1. Complete validation lifecycle
+/// 2. Management of input/output columns
+/// 3. Expression property tracing
+/// 4. Management of user-defined variables
+/// 5. Permission checking (scalable)
+/// 6. Generation of execution plans (scalable)
 #[derive(Debug)]
 pub struct FetchVerticesValidator {
-    // Schema 管理
+    // Schema management
     schema_manager: Option<Arc<RedbSchemaManager>>,
-    // 输入列定义
+    // Input column definition
     inputs: Vec<ColumnDef>,
-    // 输出列定义
+    // Column definition
     outputs: Vec<ColumnDef>,
-    // 表达式属性
+    // Expression properties
     expr_props: ExpressionProps,
-    // 用户定义变量
+    // User-defined variables
     user_defined_vars: Vec<String>,
-    // 缓存验证结果
+    // Cache validation results
     validated_result: Option<ValidatedFetchVertices>,
 }
 
@@ -91,12 +91,12 @@ impl FetchVerticesValidator {
         self
     }
 
-    /// 获取验证结果
+    /// Obtain the verification results.
     pub fn validated_result(&self) -> Option<&ValidatedFetchVertices> {
         self.validated_result.as_ref()
     }
 
-    /// 基础验证
+    /// Basic validation
     fn validate_fetch_vertices(&self, stmt: &FetchStmt) -> Result<(), ValidationError> {
         match &stmt.target {
             FetchTarget::Vertices { ids, properties } => {
@@ -111,7 +111,7 @@ impl FetchVerticesValidator {
         }
     }
 
-    /// 验证顶点 ID 列表
+    /// Verify the list of vertex IDs.
     fn validate_vertex_ids(
         &self,
         vertex_ids: &[ContextualExpression],
@@ -130,11 +130,11 @@ impl FetchVerticesValidator {
         Ok(())
     }
 
-    /// 验证单个顶点 ID
-    /// 使用 SchemaValidator 的统一验证方法
+    /// Verify a single vertex ID
+    /// Using the unified validation method of SchemaValidator
     fn validate_vertex_id(&self, expr: &ContextualExpression) -> Result<(), ValidationError> {
-        // 使用 SchemaValidator 进行统一验证
-        // 默认使用 String 类型，因为 FETCH VERTICES 通常使用字符串 VID
+        // Use SchemaValidator for unified validation.
+        // The default type used is the `String` class, because the `FETCH VERTICES` operation typically uses string-based VID (Vertex Identifiers).
         let vid_type = crate::core::types::DataType::String;
 
         if let Some(ref schema_manager) = self.schema_manager {
@@ -144,14 +144,14 @@ impl FetchVerticesValidator {
                 .validate_vid_expr(expr, &vid_type, "vertex")
                 .map_err(|e| ValidationError::new(e.message, e.error_type))?
         } else {
-            // 没有 schema_manager 时进行基本验证
+            // Performing basic validation in the absence of the schema_manager
             Self::basic_validate_vertex_id(expr)?;
         }
 
         Ok(())
     }
 
-    /// 基本顶点 ID 验证（无 SchemaManager 时）
+    /// Basic vertex ID verification (when no SchemaManager is available)
     fn basic_validate_vertex_id(expr: &ContextualExpression) -> Result<(), ValidationError> {
         if expr.expression().is_none() {
             return Err(ValidationError::new(
@@ -190,12 +190,12 @@ impl FetchVerticesValidator {
         ))
     }
 
-    /// 验证属性列表子句
+    /// Verify the list of attribute clauses.
     fn validate_properties_clause(
         &self,
         properties: Option<&Vec<String>>,
     ) -> Result<(), ValidationError> {
-        // 属性列表可以为空，表示获取所有属性
+        // The attribute list can be empty, which indicates that all attributes should be retrieved.
         if let Some(props) = properties {
             let mut prop_set = std::collections::HashSet::new();
             for prop in props {
@@ -210,7 +210,7 @@ impl FetchVerticesValidator {
         Ok(())
     }
 
-    /// 评估表达式为 Value
+    /// The expression is evaluated to the value “Value”.
     fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
         let expr_meta = match expr.expression() {
             Some(m) => m,
@@ -240,17 +240,17 @@ impl Default for FetchVerticesValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for FetchVerticesValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
@@ -258,7 +258,7 @@ impl StatementValidator for FetchVerticesValidator {
             ));
         }
 
-        // 2. 获取 FETCH 语句
+        // 2. Obtain the FETCH statement
         let fetch_stmt = match &ast.stmt {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
@@ -269,13 +269,13 @@ impl StatementValidator for FetchVerticesValidator {
             }
         };
 
-        // 3. 执行基础验证
+        // 3. Perform basic validation.
         self.validate_fetch_vertices(fetch_stmt)?;
 
-        // 4. 获取 space_id
+        // 4. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 5. 提取顶点信息
+        // 5. Extract vertex information
         let (vertex_ids, properties) = match &fetch_stmt.target {
             FetchTarget::Vertices { ids, properties } => (ids, properties),
             _ => {
@@ -286,18 +286,18 @@ impl StatementValidator for FetchVerticesValidator {
             }
         };
 
-        // 6. 验证并转换顶点 ID
+        // 6. Verify and convert the vertex IDs.
         let mut validated_vids = Vec::new();
         for vid_expr in vertex_ids {
             let vid = self.evaluate_expression(vid_expr)?;
             validated_vids.push(vid);
         }
 
-        // 7. 验证并转换属性列为 YIELD 列
+        // 7. Verify and convert the attribute column to the YIELD column.
         let mut validated_columns = Vec::new();
         if let Some(props) = properties {
             for prop in props {
-                // 创建 ContextualExpression 表示属性名
+                // Creating a ContextualExpression to represent the attribute name
                 let expr_meta = crate::core::types::expr::ExpressionMeta::new(
                     crate::core::Expression::Variable(prop.clone()),
                 );
@@ -315,17 +315,17 @@ impl StatementValidator for FetchVerticesValidator {
             }
         }
 
-        // 8. 创建验证结果
+        // 8. Create the verification results
         let validated = ValidatedFetchVertices {
             space_id,
-            tag_names: vec![], // FETCH VERTICES 不指定具体 tag
+            tag_names: vec![], // The `FETCH VERTICES` command does not specify a particular tag.
             tag_ids: vec![],
             vertex_ids: validated_vids,
             yield_columns: validated_columns,
             is_system: false,
         };
 
-        // 9. 设置输出列
+        // 9. Setting the output columns
         self.outputs.clear();
         for (i, col) in validated.yield_columns.iter().enumerate() {
             let col_name = if col.alias.is_empty() {
@@ -341,15 +341,15 @@ impl StatementValidator for FetchVerticesValidator {
 
         self.validated_result = Some(validated);
 
-        // 10. 构建详细的 ValidationInfo
+        // 10. Constructing detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // 添加语义信息
+        // Add semantic information
         info.semantic_info
             .referenced_tags
             .push("vertex".to_string());
 
-        // 11. 返回包含详细信息的验证结果
+        // 11. Return the verification results containing detailed information.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -366,7 +366,7 @@ impl StatementValidator for FetchVerticesValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // FETCH VERTICES 不是全局语句，需要预先选择空间
+        // The `FETCH VERTICES` command is not a global statement; it is necessary to select a specific space in advance.
         false
     }
 
@@ -414,7 +414,7 @@ mod tests {
         let result = validator.validate_vertex_ids(&[]);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert_eq!(err.message, "必须指定至少一个顶点 ID");
+        assert_eq!(err.message, "At least one vertex ID must be specified.");
     }
 
     #[test]
@@ -493,14 +493,14 @@ mod tests {
     fn test_statement_validator_trait() {
         let validator = FetchVerticesValidator::new();
 
-        // 测试 statement_type
+        // Testing the `statement_type`
         assert_eq!(validator.statement_type(), StatementType::FetchVertices);
 
-        // 测试 inputs/outputs
+        // Testing inputs/outputs
         assert!(validator.inputs().is_empty());
         assert!(validator.outputs().is_empty());
 
-        // 测试 user_defined_vars
+        // Testing user_defined_vars
         assert!(validator.user_defined_vars().is_empty());
     }
 }

@@ -1,16 +1,16 @@
-//! AllPaths 执行器
+//! The AllPaths executor
 //!
 //! 基于 Nebula 3.8.0 的 AllPathsExecutor 实现，使用 NPath 链表结构优化内存
-//! 功能特点：
-//! - 双向 BFS 算法
-//! - 使用 NPath 链表结构，共享路径前缀
-//! - 支持找到所有路径（非最短路径）
-//! - 自动环路检测，避免循环路径
-//! - 支持 limit 和 offset 限制结果数量
-//! - 支持 withProp 返回路径属性
-//! - 使用两阶段扩展（左扩展和右扩展）
-//! - 当节点数量超过阈值时使用启发式扩展
-//! - CPU 密集型操作，使用 Rayon 进行并行化
+//! Functional features:
+//! Bidirectional BFS (Breadth-First Search) algorithm
+//! Use the NPath linked list structure to share path prefixes.
+//! Supports finding all paths (not just the shortest one).
+//! Automatic loop detection to avoid circular paths.
+//! Supports the use of `limit` and `offset` to control the number of results.
+//! Support for the `withProp` function to return path attributes
+//! Use a two-stage expansion approach (left expansion and right expansion).
+//! Use heuristic expansion when the number of nodes exceeds a certain threshold.
+//! CPU-intensive operations that are parallelized using Rayon.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -26,7 +26,7 @@ use crate::query::executor::base::{
 use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::storage::StorageClient;
 
-/// 自环边去重辅助结构
+/// Auxiliary structure for removing duplicates from self-loop edges
 #[derive(Debug, Default)]
 struct SelfLoopDedup {
     seen: HashSet<(String, i64)>,
@@ -55,17 +55,17 @@ impl SelfLoopDedup {
     }
 }
 
-/// 路径结果缓存，使用 NPath 减少内存占用
+/// Caching of path results: Using NPath to reduce memory usage
 #[derive(Debug, Clone)]
 struct PathResultCache {
-    /// 使用 NPath 存储中间结果，共享前缀
+    /// Use NPath to store intermediate results and share prefixes.
     npaths: Vec<Arc<NPath>>,
 }
 
 impl PathResultCache {
     fn new(limit: usize) -> Self {
         Self {
-            npaths: Vec::with_capacity(limit.min(1024)), // 预分配容量，但不超过1024避免内存浪费
+            npaths: Vec::with_capacity(limit.min(1024)), // Pre-allocate capacity, but not more than 1024 units, to avoid memory waste.
         }
     }
 
@@ -73,17 +73,17 @@ impl PathResultCache {
         self.npaths.len()
     }
 
-    /// 添加 NPath 到缓存
+    /// Add NPath to the cache.
     fn push(&mut self, npath: Arc<NPath>) {
         self.npaths.push(npath);
     }
 
-    /// 批量转换为 Path
+    /// Batch conversion to Path format
     fn to_paths(&self) -> Vec<Path> {
         self.npaths.iter().map(|np| np.to_path()).collect()
     }
 
-    /// 并行批量转换为 Path
+    /// Parallel batch conversion to Path format
     fn to_paths_parallel(&self) -> Vec<Path> {
         const BATCH_SIZE: usize = 1000;
         if self.npaths.len() < BATCH_SIZE {
@@ -110,18 +110,18 @@ pub struct AllPathsExecutor<S: StorageClient + Send + 'static> {
     pub offset: usize,
     pub step_filter: Option<String>,
     pub filter: Option<String>,
-    pub with_loop: bool, // 是否允许自环边
+    pub with_loop: bool, // Are self-loop edges allowed?
     left_steps: usize,
     right_steps: usize,
     left_visited: HashSet<Value>,
     right_visited: HashSet<Value>,
-    /// 存储从顶点到其NPath的映射，用于路径重建
+    /// Store a mapping from the vertex to its NPath, which is used for path reconstruction.
     left_path_map: HashMap<Value, Arc<NPath>>,
     right_path_map: HashMap<Value, Arc<NPath>>,
-    /// 使用 NPath 替代 Path 存储中间结果，减少内存复制
+    /// Use NPath instead of Path to store intermediate results, thereby reducing memory copying.
     left_queue: VecDeque<(Value, Arc<NPath>)>,
     right_queue: VecDeque<(Value, Arc<NPath>)>,
-    /// 使用 NPath 缓存结果，延迟转换为 Path
+    /// Use the NPath cache results to delay the conversion to a Path object.
     result_cache: PathResultCache,
     nodes_visited: usize,
     edges_traversed: usize,
@@ -166,13 +166,13 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         }
     }
 
-    /// 设置是否允许自环边
+    /// Set whether to allow self-looping edges.
     pub fn with_loop(mut self, with_loop: bool) -> Self {
         self.with_loop = with_loop;
         self
     }
 
-    /// 设置并行计算配置
+    /// Setting up parallel computing configurations
     pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
         self.parallel_config = config;
         self
@@ -219,7 +219,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             edges
         };
 
-        // 自环边去重（根据 with_loop 配置决定是否去重）
+        // Deduplication of self-loop edges (determined based on the configuration of with_loop whether to perform deduplication or not)
         let mut dedup = SelfLoopDedup::with_loop(self.with_loop);
 
         let neighbors = filtered_edges
@@ -255,7 +255,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         Ok(neighbors)
     }
 
-    /// 左向扩展 - 使用 NPath 避免路径复制
+    /// Leftward expansion – Using NPath to avoid path duplication
     fn expand_left(&mut self) -> DBResult<()> {
         while let Some((current_id, current_npath)) = self.left_queue.pop_front() {
             if self.left_visited.contains(&current_id) {
@@ -266,7 +266,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                 .insert(current_id.clone(), current_npath.clone());
             self.nodes_visited += 1;
 
-            // 检查是否达到 limit
+            // Check whether the limit has been reached.
             if self.result_cache.len() >= self.limit {
                 return Ok(());
             }
@@ -275,7 +275,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             self.edges_traversed += neighbors.len();
 
             for (neighbor_id, edge) in neighbors {
-                // 环路检测：使用 NPath 的 contains_vertex 方法
+                // Loop detection: Using the contains_vertex method from NPath
                 if current_npath.contains_vertex(&neighbor_id) {
                     continue;
                 }
@@ -297,9 +297,9 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                         Arc::new(neighbor_vertex),
                     ));
 
-                    // 检查是否与右向搜索交汇
+                    // Check whether it intersects with the rightward search.
                     if let Some(right_npath) = self.right_path_map.get(&neighbor_id) {
-                        // 构建完整路径
+                        // Construct the complete path
                         if let Some(full_path) = self.join_paths(&new_npath, right_npath) {
                             self.result_cache.push(Arc::new(full_path));
                         }
@@ -314,7 +314,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         Ok(())
     }
 
-    /// 右向扩展 - 使用 NPath 避免路径复制
+    /// Rightward expansion – Using NPath to avoid path duplication
     fn expand_right(&mut self) -> DBResult<()> {
         while let Some((current_id, current_npath)) = self.right_queue.pop_front() {
             if self.right_visited.contains(&current_id) {
@@ -325,7 +325,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                 .insert(current_id.clone(), current_npath.clone());
             self.nodes_visited += 1;
 
-            // 检查是否达到 limit
+            // Check whether the limit has been reached.
             if self.result_cache.len() >= self.limit {
                 return Ok(());
             }
@@ -334,7 +334,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             self.edges_traversed += neighbors.len();
 
             for (neighbor_id, edge) in neighbors {
-                // 环路检测
+                // Loop detection
                 if current_npath.contains_vertex(&neighbor_id) {
                     continue;
                 }
@@ -349,16 +349,16 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     .expect("AllPathsExecutor storage not set");
                 let storage = storage.lock();
                 if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
-                    // 使用 NPath 扩展
+                    // Using the NPath extension
                     let new_npath = Arc::new(NPath::extend(
                         current_npath.clone(),
                         Arc::new(edge.clone()),
                         Arc::new(neighbor_vertex),
                     ));
 
-                    // 检查是否与左向搜索交汇
+                    // Check whether it intersects with the leftward search.
                     if let Some(left_npath) = self.left_path_map.get(&neighbor_id) {
-                        // 构建完整路径
+                        // Construct the complete path
                         if let Some(full_path) = self.join_paths(left_npath, &new_npath) {
                             self.result_cache.push(Arc::new(full_path));
                         }
@@ -373,7 +373,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         Ok(())
     }
 
-    /// 启发式扩展决策
+    /// Heuristic decision-making with extension
     fn should_expand_both(&self) -> bool {
         let left_size = self.left_visited.len();
         let right_size = self.right_visited.len();
@@ -392,14 +392,14 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         true
     }
 
-    /// 连接左右两条路径
-    /// 左路径：从起点到交汇点
-    /// 右路径：从终点到交汇点（需要反转方向）
+    /// Connect the left and right paths
+    /// Left path: From the starting point to the intersection point.
+    /// Right path: From the end point to the intersection point (the direction needs to be reversed).
     fn join_paths(&self, left_path: &NPath, right_path: &NPath) -> Option<NPath> {
         use crate::core::{Edge, Vertex};
         use std::sync::Arc;
 
-        // 获取两条路径的顶点集合
+        // Obtain the vertex sets of the two paths.
         let left_vertices: std::collections::HashSet<_> = left_path
             .iter_vertices()
             .map(|v| v.vid.as_ref().clone())
@@ -409,17 +409,17 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             .map(|v| v.vid.as_ref().clone())
             .collect();
 
-        // 检查是否有重复顶点（除交汇点外）
+        // Check for any duplicate vertices (other than the intersection points).
         let common: Vec<_> = left_vertices.intersection(&right_vertices).collect();
         if common.len() != 1 {
-            // 没有共同顶点或有多个共同顶点，无法连接或会形成环路
+            // If there are no common vertices, or if there are multiple common vertices, it is not possible to connect the elements; instead, loops may be formed.
             return None;
         }
 
-        // 获取交汇点
+        // Obtain the intersection point.
         let junction_id = common[0].clone();
 
-        // 验证交汇点是两条路径的终点
+        // Verify that the intersection point is the end point of both paths.
         if left_path.end_vertex().vid.as_ref() != &junction_id {
             return None;
         }
@@ -427,19 +427,19 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             return None;
         }
 
-        // 检查总路径长度是否超过限制
+        // Check whether the total path length exceeds the specified limit.
         let total_length = left_path.len() + right_path.len();
         if total_length > self.max_steps {
             return None;
         }
 
-        // 构建完整路径：左路径 + 反转的右路径
-        // 右路径是从终点往回走的，需要反转方向
+        // Construct the complete path: Left path + Reversed right path
+        // The right path is the one that leads back from the destination; therefore, the direction needs to be reversed.
         let mut full_path = left_path.clone();
 
-        // 收集右路径的所有步骤（边和顶点）
-        // 右路径结构：End <- ... <- A <- Junction（从终点向交汇点扩展）
-        // 需要反转为：Junction -> A -> ... -> End
+        // Collect all the steps (edges and vertices) of the right path.
+        // Right path structure: End <- ... <- A <- Junction (Extending from the end point towards the junction point)
+        // Junction -> A -> ... -> End
         let right_steps: Vec<(Arc<Edge>, Arc<Vertex>)> = right_path
             .iter()
             .filter_map(|node| {
@@ -448,13 +448,13 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             })
             .collect();
 
-        // 反转并连接（跳过交汇点本身，从它的前一个节点开始）
+        // Reverse and connect (skipping the intersection point itself, starting from the node before it).
         for (edge, vertex) in right_steps.into_iter().rev() {
-            // 跳过交汇点
+            // Skip the intersection.
             if vertex.vid.as_ref() == &junction_id {
                 continue;
             }
-            // 创建反向边（从交汇点向外）
+            // Create reverse edges (from the intersection points outwards).
             let reversed_edge = Arc::new(Edge::new(
                 vertex.vid.as_ref().clone(),
                 full_path.end_vertex().vid.as_ref().clone(),
@@ -468,7 +468,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         Some(full_path)
     }
 
-    /// 初始化队列
+    /// Initialize the queue
     fn initialize_queues(&mut self) -> DBResult<()> {
         let storage = self
             .base
@@ -477,7 +477,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             .expect("AllPathsExecutor storage not set");
         let storage = storage.lock();
 
-        // 初始化左队列
+        // Initialize the left queue
         for left_id in &self.left_start_ids {
             if let Ok(Some(vertex)) = storage.get_vertex("default", left_id) {
                 let npath = Arc::new(NPath::new(Arc::new(vertex)));
@@ -485,7 +485,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             }
         }
 
-        // 初始化右队列
+        // Initialize the right queue
         for right_id in &self.right_start_ids {
             if let Ok(Some(vertex)) = storage.get_vertex("default", right_id) {
                 let npath = Arc::new(NPath::new(Arc::new(vertex)));
@@ -496,21 +496,21 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         Ok(())
     }
 
-    /// 执行双向 BFS
+    /// Perform bidirectional BFS (Breadth-First Search).
     fn execute_bidirectional(&mut self) -> DBResult<()> {
         self.initialize_queues()?;
 
         while self.left_steps + self.right_steps < self.max_steps {
-            // 检查是否还有节点可以扩展
+            // Check to see if there are any additional nodes that can be expanded.
             if self.left_queue.is_empty() && self.right_queue.is_empty() {
                 break;
             }
 
-            // 启发式扩展决策
+            // Heuristic extension of decision-making
             let expand_both = self.should_expand_both();
 
             if expand_both {
-                // 双向扩展
+                // Bi-directional expansion
                 if !self.left_queue.is_empty() {
                     self.expand_left()?;
                 }
@@ -518,7 +518,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     self.expand_right()?;
                 }
             } else {
-                // 单侧扩展：选择节点少的一侧
+                // Unilateral expansion: Select the side with fewer nodes.
                 let left_size = self.left_visited.len();
                 let right_size = self.right_visited.len();
 
@@ -529,7 +529,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                 }
             }
 
-            // 检查是否已达到限制
+            // Check whether the limit has been reached.
             if self.result_cache.len() >= self.limit {
                 break;
             }
@@ -543,17 +543,18 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start_time = Instant::now();
 
-        // 执行双向 BFS
+        // Perform bidirectional BFS (Breadth-First Search).
         self.execute_bidirectional()?;
 
-        // 转换为 Path 结果
+        // Translate the following text:  
+“Convert to Path result”
         let paths = if self.parallel_config.enable_parallel {
             self.result_cache.to_paths_parallel()
         } else {
             self.result_cache.to_paths()
         };
 
-        // 应用 offset
+        // Applying the offset
         let paths: Vec<Path> = if self.offset > 0 && self.offset < paths.len() {
             paths.into_iter().skip(self.offset).collect()
         } else {
@@ -562,7 +563,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
 
         let execution_time = start_time.elapsed().as_millis() as u64;
 
-        // 更新统计信息
+        // Update statistical information
         self.base
             .get_stats_mut()
             .add_stat("nodes_visited".to_string(), self.nodes_visited.to_string());
@@ -631,6 +632,6 @@ mod tests {
         );
 
         assert!(dedup.should_include(&edge));
-        assert!(!dedup.should_include(&edge)); // 第二次应该返回 false
+        assert!(!dedup.should_include(&edge)); // The second attempt should return “false”.
     }
 }

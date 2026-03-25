@@ -1,6 +1,6 @@
-//! Join键求值器
+//! The Join key evaluator
 //!
-//! 专门用于Join操作的键求值，支持表达式求值到可哈希的Value类型
+//! Keys specifically designed for use in the Join operation, which support the evaluation of expressions into Value types that can be hashed.
 
 use crate::core::error::ExpressionError;
 use crate::core::types::expr::Expression;
@@ -8,10 +8,10 @@ use crate::core::Value;
 use crate::query::executor::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 
-/// Join键求值器
+/// The Join key evaluator
 ///
-/// 专门为Join操作设计的表达式求值器，将表达式求值为可哈希的Value类型
-/// 使用 unit struct 模式，零开销
+/// An expression evaluator specifically designed for the Join operation evaluates expressions to a hashable Value type.
+/// Using the unit struct pattern, with zero overhead.
 #[derive(Debug)]
 pub struct JoinKeyEvaluator;
 

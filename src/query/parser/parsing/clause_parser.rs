@@ -1,6 +1,6 @@
-//! 子句解析模块
+//! Sentence Parsing Module
 //!
-//! 负责解析各种共享子句，包括 RETURN、YIELD、SET、OVER、WHERE 等。
+//! Responsible for parsing various shared clauses, including RETURN, YIELD, SET, OVER, WHERE, etc.
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::Expression as CoreExpression;
@@ -12,7 +12,7 @@ use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::parsing::ExprParser;
 use crate::query::parser::TokenKind;
 
-/// 子句解析器
+/// Sentence parser
 pub struct ClauseParser;
 
 impl ClauseParser {
@@ -20,7 +20,7 @@ impl ClauseParser {
         Self
     }
 
-    /// 解析 RETURN 子句
+    /// Analysis of the RETURN clause
     pub fn parse_return_clause(
         &mut self,
         ctx: &mut ParseContext,
@@ -31,7 +31,7 @@ impl ClauseParser {
 
         let mut items = Vec::new();
 
-        // 检查是否是 *
+        // Check whether it is *
         if ctx.match_token(TokenKind::Star) {
             let expr = CoreExpression::variable("*");
             let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
@@ -59,7 +59,7 @@ impl ClauseParser {
             }
         }
 
-        // 解析 ORDER BY
+        // Explanation of `ORDER BY`
         let order_by = if ctx.match_token(TokenKind::Order) {
             ctx.expect_token(TokenKind::By)?;
             Some(self.parse_order_by_clause(ctx)?)
@@ -67,7 +67,7 @@ impl ClauseParser {
             None
         };
 
-        // 解析 LIMIT
+        // Analysis of the LIMIT clause
         let limit = if ctx.match_token(TokenKind::Limit) {
             let count = ctx.expect_integer_literal()? as usize;
             Some(LimitClause {
@@ -78,7 +78,7 @@ impl ClauseParser {
             None
         };
 
-        // 解析 SKIP
+        // Analysis of SKIP
         let skip = if ctx.match_token(TokenKind::Skip) {
             let count = ctx.expect_integer_literal()? as usize;
             Some(SkipClause {
@@ -100,9 +100,9 @@ impl ClauseParser {
         })
     }
 
-    /// 解析 YIELD 子句
+    /// Analyzing the YIELD clause
     ///
-    /// 假设 YIELD token 已被调用者消费，本方法只解析后续的表达式列表、WHERE、LIMIT、SKIP 等子句
+    /// Assuming that the YIELD token has been consumed by the caller, this method will only parse the subsequent list of expressions, as well as subqueries such as WHERE, LIMIT, and SKIP.
     pub fn parse_yield_clause(
         &mut self,
         ctx: &mut ParseContext,
@@ -111,9 +111,9 @@ impl ClauseParser {
 
         let mut items = Vec::new();
 
-        // 检查是否是 *
+        // Check whether it is *.
         if ctx.match_token(TokenKind::Star) {
-            // YIELD * 表示返回所有列
+            // “YIELD *” indicates that all columns should be returned.
         } else {
             loop {
                 let expr = self.parse_expression(ctx)?;
@@ -132,14 +132,14 @@ impl ClauseParser {
             }
         }
 
-        // 解析 WHERE 子句
+        // Analyzing the WHERE clause
         let where_clause = if ctx.match_token(TokenKind::Where) {
             Some(self.parse_expression(ctx)?)
         } else {
             None
         };
 
-        // 解析 ORDER BY
+        // Explanation of `ORDER BY`
         let order_by = if ctx.match_token(TokenKind::Order) {
             ctx.expect_token(TokenKind::By)?;
             Some(self.parse_order_by_clause(ctx)?)
@@ -147,7 +147,7 @@ impl ClauseParser {
             None
         };
 
-        // 解析 LIMIT
+        // Analysis of the LIMIT clause
         let limit = if ctx.match_token(TokenKind::Limit) {
             let count = ctx.expect_integer_literal()? as usize;
             Some(LimitClause {
@@ -158,7 +158,7 @@ impl ClauseParser {
             None
         };
 
-        // 解析 SKIP
+        // Analysis of SKIP
         let skip = if ctx.match_token(TokenKind::Skip) {
             let count = ctx.expect_integer_literal()? as usize;
             Some(SkipClause {
@@ -182,14 +182,14 @@ impl ClauseParser {
         })
     }
 
-    /// 解析 SET 子句
+    /// Analyzing the SET clause
     pub fn parse_set_clause(&mut self, ctx: &mut ParseContext) -> Result<SetClause, ParseError> {
         let span = ctx.current_span();
         let assignments = self.parse_set_assignments(ctx)?;
         Ok(SetClause { span, assignments })
     }
 
-    /// 解析 SET 赋值列表
+    /// Analyzing the SET assignment list
     pub fn parse_set_assignments(
         &mut self,
         ctx: &mut ParseContext,
@@ -229,13 +229,13 @@ impl ClauseParser {
         Ok(assignments)
     }
 
-    /// 解析 OVER 子句
+    /// Analysis of the OVER clause
     pub fn parse_over_clause(&mut self, ctx: &mut ParseContext) -> Result<OverClause, ParseError> {
         let span = ctx.current_span();
 
         let edge_types = self.parse_edge_types(ctx)?;
 
-        // 解析方向（可选）
+        // Analysis direction (optional)
         let direction = if ctx.match_token(TokenKind::In) {
             EdgeDirection::In
         } else if ctx.match_token(TokenKind::Bidirect) {
@@ -251,7 +251,7 @@ impl ClauseParser {
         })
     }
 
-    /// 解析边类型列表
+    /// Analyzing the list of edge types
     fn parse_edge_types(&mut self, ctx: &mut ParseContext) -> Result<Vec<String>, ParseError> {
         let mut types = Vec::new();
         types.push(ctx.expect_identifier()?);
@@ -261,7 +261,7 @@ impl ClauseParser {
         Ok(types)
     }
 
-    /// 解析 ORDER BY 子句
+    /// Analyzing the ORDER BY clause
     fn parse_order_by_clause(
         &mut self,
         ctx: &mut ParseContext,
@@ -290,7 +290,7 @@ impl ClauseParser {
         Ok(OrderByClause { span, items })
     }
 
-    /// 解析表达式
+    /// Analyzing the expression
     fn parse_expression(
         &mut self,
         ctx: &mut ParseContext,

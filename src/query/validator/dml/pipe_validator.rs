@@ -1,16 +1,16 @@
-//! 管道操作验证器
+//! Pipeline Operation Validator
 //! 对应 NebulaGraph PipeValidator.h/.cpp 的功能
-//! 验证管道操作符 `|` 连接的前后查询兼容性
+//! Verify the compatibility of the queries before and after being connected by the pipeline operator `|`.
 //!
-//! 本文件已按照新的 trait + 枚举 验证器体系重构：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 保留了原有完整功能：
-//!    - 左侧输出验证
-//!    - 右侧输入验证
-//!    - 列兼容性检查
-//!    - 管道连接验证
-//!    - 类型匹配验证
-//! 3. 使用 QueryContext 统一管理上下文
+//! This document has been restructured according to the new trait + enumeration validator framework.
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. All original functions have been retained.
+//! Left-side output verification
+//! Input validation on the right side
+//! Column compatibility check
+//! Pipeline connection verification
+//! Type matching verification
+//! 3. Use QueryContext to manage the context in a unified manner.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::Ast;
@@ -21,7 +21,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 列信息定义
+/// Column information definition
 #[derive(Debug, Clone)]
 pub struct ColumnInfo {
     pub name: String,
@@ -30,7 +30,7 @@ pub struct ColumnInfo {
 }
 
 impl ColumnInfo {
-    /// 创建新的列信息
+    /// Create new column information
     pub fn new(name: String, type_: ValueType) -> Self {
         Self {
             name,
@@ -39,7 +39,7 @@ impl ColumnInfo {
         }
     }
 
-    /// 创建带别名的列信息
+    /// Create column information with aliases
     pub fn with_alias(name: String, type_: ValueType, alias: String) -> Self {
         Self {
             name,
@@ -49,34 +49,34 @@ impl ColumnInfo {
     }
 }
 
-/// 管道验证器 - 新体系实现
+/// Pipe Validator – New System Implementation
 ///
-/// 功能完整性保证：
-/// 1. 完整的验证生命周期
-/// 2. 输入/输出列管理
-/// 3. 表达式属性追踪
-/// 4. 管道连接兼容性验证
-/// 5. 列类型匹配检查
+/// Functionality integrity assurance:
+/// 1. Complete validation lifecycle
+/// 2. Management of input/output columns
+/// 3. Expression property tracing
+/// 4. Verification of pipeline connection compatibility
+/// 5. Column type matching check
 #[derive(Debug)]
 pub struct PipeValidator {
-    // 左侧查询的输出列
+    // The output column of the query on the left side
     left_output_cols: Vec<ColumnInfo>,
-    // 右侧查询的输入列
+    // The input column for the search on the right side
     right_input_cols: Vec<ColumnInfo>,
-    // 输入列定义（用于 trait 接口）
+    // Column definition (for the trait interface)
     inputs: Vec<ColumnDef>,
-    // 输出列定义（管道操作的输出为右侧查询的输出）
+    // Column definition (the output of the pipeline operation corresponds to the output of the query on the right side)
     outputs: Vec<ColumnDef>,
-    // 表达式属性
+    // Expression properties
     expr_props: ExpressionProps,
-    // 用户定义变量
+    // User-defined variables
     user_defined_vars: Vec<String>,
-    // 验证错误列表
+    // List of validation errors
     validation_errors: Vec<ValidationError>,
 }
 
 impl PipeValidator {
-    /// 创建新的验证器实例
+    /// Create a new instance of the validator.
     pub fn new() -> Self {
         Self {
             left_output_cols: Vec::new(),
@@ -89,10 +89,10 @@ impl PipeValidator {
         }
     }
 
-    /// 设置左侧输出列
+    /// Set the left output column
     pub fn set_left_output(&mut self, cols: Vec<ColumnInfo>) {
         self.left_output_cols = cols;
-        // 同步到 inputs
+        // Synchronize with the inputs.
         self.inputs = self
             .left_output_cols
             .iter()
@@ -103,12 +103,12 @@ impl PipeValidator {
             .collect();
     }
 
-    /// 设置右侧输入列
+    /// Set the input column on the right side
     pub fn set_right_input(&mut self, cols: Vec<ColumnInfo>) {
         self.right_input_cols = cols;
     }
 
-    /// 添加左侧输出列
+    /// Add the left output column
     pub fn add_left_output(&mut self, col: ColumnInfo) {
         self.left_output_cols.push(col.clone());
         self.inputs.push(ColumnDef {
@@ -117,27 +117,27 @@ impl PipeValidator {
         });
     }
 
-    /// 添加右侧输入列
+    /// Add an input column on the right side
     pub fn add_right_input(&mut self, col: ColumnInfo) {
         self.right_input_cols.push(col);
     }
 
-    /// 获取左侧输出列
+    /// Get the output column on the left side.
     pub fn left_output_cols(&self) -> &[ColumnInfo] {
         &self.left_output_cols
     }
 
-    /// 获取右侧输入列
+    /// Obtain the data from the input column on the right side.
     pub fn right_input_cols(&self) -> &[ColumnInfo] {
         &self.right_input_cols
     }
 
-    /// 清空验证错误
+    /// Clear the verification errors.
     fn clear_errors(&mut self) {
         self.validation_errors.clear();
     }
 
-    /// 执行验证（传统方式，保持向后兼容）
+    /// Perform validation (in the traditional way, while maintaining backward compatibility).
     pub fn validate_pipe(&mut self) -> Result<(), ValidationError> {
         self.clear_errors();
         self.validate_impl()?;
@@ -229,7 +229,7 @@ impl PipeValidator {
         Ok(())
     }
 
-    /// 验证管道兼容性（静态方法，便于直接使用）
+    /// Verify pipeline compatibility (static method, for easy direct use)
     pub fn validate_pipe_compatibility(
         left_outputs: &[ColumnInfo],
         right_inputs: &[ColumnInfo],
@@ -247,10 +247,10 @@ impl Default for PipeValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
 impl StatementValidator for PipeValidator {
     fn validate(
         &mut self,
@@ -259,13 +259,13 @@ impl StatementValidator for PipeValidator {
     ) -> Result<ValidationResult, ValidationError> {
         self.clear_errors();
 
-        // 执行验证
+        // Please provide the text you would like to have translated. I will then perform the verification and provide the translated version.
         if let Err(e) = self.validate_impl() {
             return Ok(ValidationResult::failure(vec![e]));
         }
 
-        // 管道操作的输出为右侧查询的输出
-        // 如果没有右侧输入列，则输出左侧输出列
+        // The output of the pipeline operation corresponds to the output of the query on the right side.
+        // If the input column on the right side is not available, then the content from the output column on the left side should be displayed.
         self.outputs = if self.right_input_cols.is_empty() {
             self.inputs.clone()
         } else {
@@ -296,7 +296,7 @@ impl StatementValidator for PipeValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // PIPE 不是全局语句，需要预先选择空间
+        // The `PIPE` statement is not a global statement; therefore, the relevant memory space must be selected in advance.
         false
     }
 
@@ -334,7 +334,7 @@ mod tests {
     #[test]
     fn test_validate_empty_columns() {
         let mut validator = PipeValidator::new();
-        // 空管道是允许的
+        // Empty pipes are allowed.
         let result = validator.validate_pipe();
         assert!(result.is_ok());
     }

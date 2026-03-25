@@ -1,6 +1,6 @@
-//! C API 模块
+//! C API Module
 //!
-//! 提供 GraphDB 的 C 语言接口
+//! Provides a C language interface for GraphDB
 
 #[cfg(feature = "c-api")]
 pub use crate::api::embedded::c_api::*;

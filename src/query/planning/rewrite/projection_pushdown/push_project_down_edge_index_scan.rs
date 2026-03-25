@@ -1,8 +1,8 @@
-//! EdgeIndexScan 投影下推优化规则
+//! EdgeIndexScan projection push-down optimization rule
 //!
-//! 该规则将投影操作下推到 EdgeIndexScan 节点，减少数据传输量。
+//! This rule pushes the projection operation down to the EdgeIndexScan node, thereby reducing the amount of data transmitted.
 //!
-//! # 转换示例
+//! # Translation example
 //!
 //! Before:
 //! ```text
@@ -25,9 +25,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// EdgeIndexScan 投影下推规则
+/// EdgeIndexScan Projection Pushdown Rule
 ///
-/// 将投影操作下推到 EdgeIndexScan 节点
+/// Push the projection operation down to the EdgeIndexScan node.
 #[derive(Debug)]
 pub struct PushProjectDownEdgeIndexScanRule;
 
@@ -196,7 +196,7 @@ mod tests {
                 assert_eq!(node.col_names(), &["src", "dst"]);
                 assert_eq!(node.return_columns(), &["src", "dst"]);
             }
-            _ => panic!("期望 EdgeIndexScan 节点"),
+            _ => panic!("There is an expectation for the EdgeIndexScan node to be available."),
         }
     }
 

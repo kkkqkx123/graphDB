@@ -1,57 +1,57 @@
-//! 选择性校正模块
+//! Selective Correction Module
 //!
-//! 提供基于历史执行反馈动态调整选择性估计的功能。
+//! Provide the functionality to dynamically adjust selective estimates based on historical performance feedback.
 //! 使用指数加权移动平均(EWMA)算法校正选择性估计。
 
 use parking_lot::RwLock;
 use std::collections::HashMap;
 
-/// 反馈驱动的选择性校正
+/// Feedback-driven selective correction
 ///
-/// 基于历史执行反馈动态调整选择性估计。
+/// Dynamically adjust the selective estimates based on historical feedback from executions.
 /// 使用指数加权移动平均(EWMA)算法。
 ///
-/// # 示例
+/// # Example
 /// ```
 /// use graphdb::query::optimizer::stats::feedback::selectivity::FeedbackDrivenSelectivity;
 ///
 /// let mut feedback = FeedbackDrivenSelectivity::new(0.1);
 /// assert_eq!(feedback.estimated_selectivity(), 0.1);
 ///
-/// // 更新反馈
+// Update the feedback
 /// feedback.update_with_feedback(0.15);
 /// feedback.update_with_feedback(0.12);
 ///
-/// // 获取校正后的选择性
+// Obtain the corrected selective information
 /// let corrected = feedback.corrected_selectivity();
 /// assert!(corrected > 0.0 && corrected <= 0.99);
 /// ```
 #[derive(Debug, Clone)]
 pub struct FeedbackDrivenSelectivity {
-    /// 原始估计选择性
+    /// Original estimate of selectivity
     estimated_selectivity: f64,
-    /// 历史实际选择性（滑动窗口平均）
+    /// Historical Selectivity (Sliding Window Average)
     actual_selectivity_ewma: f64,
-    /// 校正因子
+    /// Correction factor
     correction_factor: f64,
-    /// 反馈次数
+    /// Number of feedbacks
     feedback_count: u64,
-    /// EWMA平滑因子
+    /// EWMA smoothing factor
     alpha: f64,
-    /// 最小校正因子
+    /// Minimum correction factor
     min_correction: f64,
-    /// 最大校正因子
+    /// Maximum correction factor
     max_correction: f64,
     /// 选择性上限（默认0.99）
     selectivity_cap: f64,
-    /// 累积估计误差（用于计算误差统计）
+    /// Cumulative estimated error (used for calculating error statistics)
     cumulative_estimation_error: f64,
-    /// 误差平方和（用于计算标准差）
+    /// Sum of the squared errors (used to calculate the standard deviation)
     error_sum_squares: f64,
 }
 
 impl FeedbackDrivenSelectivity {
-    /// 创建新的反馈驱动选择性估计
+    /// Create a new feedback-driven, selective estimation method
     pub fn new(estimated_selectivity: f64) -> Self {
         Self {
             estimated_selectivity,
@@ -67,7 +67,7 @@ impl FeedbackDrivenSelectivity {
         }
     }
 
-    /// 使用自定义参数创建
+    /// Create using custom parameters
     pub fn with_params(
         estimated_selectivity: f64,
         alpha: f64,
@@ -88,12 +88,12 @@ impl FeedbackDrivenSelectivity {
         }
     }
 
-    /// 获取原始估计选择性
+    /// Obtain the original estimate for selectivity.
     pub fn estimated_selectivity(&self) -> f64 {
         self.estimated_selectivity
     }
 
-    /// 获取校正后的选择性
+    /// Obtain the corrected version of the selective content.
     pub fn corrected_selectivity(&self) -> f64 {
         (self.estimated_selectivity * self.correction_factor).clamp(
             self.min_correction * self.estimated_selectivity,
@@ -101,28 +101,28 @@ impl FeedbackDrivenSelectivity {
         )
     }
 
-    /// 获取校正因子
+    /// Obtain the correction factor
     pub fn correction_factor(&self) -> f64 {
         self.correction_factor
     }
 
-    /// 获取反馈次数
+    /// Number of times feedback was obtained
     pub fn feedback_count(&self) -> u64 {
         self.feedback_count
     }
 
-    /// 获取选择性估计的置信度
+    /// Obtaining the confidence level for the selected estimate
     ///
-    /// 基于反馈次数计算置信度，反馈越多置信度越高。
+    /// The confidence level is calculated based on the number of feedbacks received; the more feedback, the higher the confidence level.
     /// 返回值范围：0.0 - 1.0
     pub fn estimation_confidence(&self) -> f64 {
-        // 使用sigmoid函数计算置信度
+        // Calculate the confidence using the sigmoid function.
         // 反馈次数达到100时，置信度接近0.9
         let x = self.feedback_count as f64 * 0.1;
         1.0 / (1.0 + (-x).exp())
     }
 
-    /// 获取平均估计误差
+    /// Obtain the average estimated error.
     pub fn avg_estimation_error(&self) -> f64 {
         if self.feedback_count == 0 {
             return 1.0;
@@ -130,7 +130,7 @@ impl FeedbackDrivenSelectivity {
         self.cumulative_estimation_error / self.feedback_count as f64
     }
 
-    /// 获取估计误差的标准差
+    /// Obtain the standard deviation of the estimated error
     pub fn error_std_dev(&self) -> f64 {
         if self.feedback_count < 2 {
             return 0.0;
@@ -141,7 +141,7 @@ impl FeedbackDrivenSelectivity {
         variance.max(0.0).sqrt()
     }
 
-    /// 更新校正因子（根据新反馈）
+    /// Update the correction factor (based on the new feedback).
     ///
     /// 使用指数加权移动平均(EWMA)算法。
     pub fn update_with_feedback(&mut self, actual_selectivity: f64) {
@@ -151,35 +151,35 @@ impl FeedbackDrivenSelectivity {
 
         let ratio = actual_selectivity / self.estimated_selectivity;
 
-        // 计算当前估计误差
+        // Calculate the current estimated error.
         let estimated = self.corrected_selectivity();
         let error = (actual_selectivity - estimated).abs();
         self.cumulative_estimation_error += error;
         self.error_sum_squares += error * error;
 
-        // 使用EWMA更新校正因子
+        // Use the EWMA to update the correction factor.
         self.correction_factor = (1.0 - self.alpha) * self.correction_factor + self.alpha * ratio;
 
-        // 限制校正因子范围，避免过度校正
+        // Limit the range of the correction factors to avoid excessive correction.
         self.correction_factor = self
             .correction_factor
             .clamp(self.min_correction, self.max_correction);
 
-        // 更新实际选择性EWMA
+        // Updated version of the practical selective EWMA (Exponential Moving Average)
         self.actual_selectivity_ewma =
             (1.0 - self.alpha) * self.actual_selectivity_ewma + self.alpha * actual_selectivity;
 
         self.feedback_count += 1;
     }
 
-    /// 批量更新反馈
+    /// Batch update of feedback
     pub fn update_with_batch(&mut self, actual_selectivities: &[f64]) {
         for &selectivity in actual_selectivities {
             self.update_with_feedback(selectivity);
         }
     }
 
-    /// 重置校正因子
+    /// Reset the correction factor
     pub fn reset_correction(&mut self) {
         self.correction_factor = 1.0;
         self.actual_selectivity_ewma = self.estimated_selectivity;
@@ -188,18 +188,18 @@ impl FeedbackDrivenSelectivity {
         self.error_sum_squares = 0.0;
     }
 
-    /// 设置EWMA平滑因子
+    /// Setting the EWMA smoothing factor
     pub fn set_alpha(&mut self, alpha: f64) {
         self.alpha = alpha.clamp(0.0, 1.0);
     }
 
-    /// 设置校正范围
+    /// Set the correction range
     pub fn set_correction_range(&mut self, min: f64, max: f64) {
         self.min_correction = min.max(0.01);
         self.max_correction = max.max(self.min_correction);
     }
 
-    /// 设置选择性上限
+    /// Setting a selective upper limit
     pub fn set_selectivity_cap(&mut self, cap: f64) {
         self.selectivity_cap = cap.clamp(0.5, 1.0);
     }
@@ -211,9 +211,9 @@ impl Default for FeedbackDrivenSelectivity {
     }
 }
 
-/// 选择性反馈管理器
+/// Selective Feedback Manager
 ///
-/// 管理多个条件的选择性反馈。
+/// Managing selective feedback based on multiple conditions.
 ///
 /// # 示例
 /// ```
@@ -227,18 +227,18 @@ impl Default for FeedbackDrivenSelectivity {
 /// ```
 #[derive(Debug)]
 pub struct SelectivityFeedbackManager {
-    /// 条件键到选择性校正的映射
+    /// Mapping from condition keys to selective correction
     feedbacks: RwLock<HashMap<String, FeedbackDrivenSelectivity>>,
-    /// 默认EWMA平滑因子
+    /// Default EWMA smoothing factor
     default_alpha: f64,
-    /// 默认最小校正因子
+    /// Default minimum correction factor
     default_min_correction: f64,
-    /// 默认最大校正因子
+    /// Default maximum correction factor
     default_max_correction: f64,
 }
 
 impl SelectivityFeedbackManager {
-    /// 创建新的反馈管理器
+    /// Create a new feedback manager.
     pub fn new() -> Self {
         Self {
             feedbacks: RwLock::new(HashMap::new()),
@@ -258,7 +258,7 @@ impl SelectivityFeedbackManager {
         }
     }
 
-    /// 注册条件的选择性估计
+    /// Selective estimation of registration requirements
     pub fn register_condition(&self, key: String, estimated_selectivity: f64) {
         let feedback = FeedbackDrivenSelectivity::with_params(
             estimated_selectivity,
@@ -277,7 +277,7 @@ impl SelectivityFeedbackManager {
             .map(|f| f.corrected_selectivity())
     }
 
-    /// 更新反馈
+    /// Update feedback
     pub fn update_feedback(&self, key: &str, actual_selectivity: f64) -> bool {
         let mut feedbacks = self.feedbacks.write();
         if let Some(feedback) = feedbacks.get_mut(key) {
@@ -298,32 +298,32 @@ impl SelectivityFeedbackManager {
         }
     }
 
-    /// 获取反馈信息
+    /// Obtain feedback information
     pub fn get_feedback(&self, key: &str) -> Option<FeedbackDrivenSelectivity> {
         self.feedbacks.read().get(key).cloned()
     }
 
-    /// 获取所有反馈键
+    /// Obtain all feedback keys.
     pub fn get_all_keys(&self) -> Vec<String> {
         self.feedbacks.read().keys().cloned().collect()
     }
 
-    /// 清除所有反馈
+    /// Clear all feedback.
     pub fn clear_all(&self) {
         self.feedbacks.write().clear();
     }
 
-    /// 移除特定条件的反馈
+    /// Remove feedback that meets specific criteria.
     pub fn remove_feedback(&self, key: &str) -> Option<FeedbackDrivenSelectivity> {
         self.feedbacks.write().remove(key)
     }
 
-    /// 获取反馈数量
+    /// Number of feedback requests received
     pub fn feedback_count(&self) -> usize {
         self.feedbacks.read().len()
     }
 
-    /// 设置默认参数
+    /// Set default parameters
     pub fn set_default_params(&mut self, alpha: f64, min_correction: f64, max_correction: f64) {
         self.default_alpha = alpha.clamp(0.0, 1.0);
         self.default_min_correction = min_correction.max(0.01);
@@ -357,15 +357,15 @@ mod tests {
         let mut feedback = FeedbackDrivenSelectivity::new(0.1);
         assert_eq!(feedback.estimated_selectivity(), 0.1);
 
-        // 更新反馈
+        // Updated feedback
         feedback.update_with_feedback(0.15);
         feedback.update_with_feedback(0.12);
 
-        // 校正后的选择性应该在合理范围内
+        // The corrected selectivity should be within a reasonable range.
         let corrected = feedback.corrected_selectivity();
         assert!(corrected > 0.0 && corrected <= 0.99);
 
-        // 反馈次数应该为2
+        // The number of feedback instances should be 2.
         assert_eq!(feedback.feedback_count(), 2);
     }
 
@@ -373,12 +373,12 @@ mod tests {
     fn test_feedback_correction_range() {
         let mut feedback = FeedbackDrivenSelectivity::new(0.5);
 
-        // 大量更新，测试校正因子限制
+        // Numerous updates; testing of the correction factor limitations
         for _ in 0..100 {
-            feedback.update_with_feedback(0.01); // 远低于估计值
+            feedback.update_with_feedback(0.01); // Far lower than the estimated values
         }
 
-        // 校正因子应该被限制在最小值
+        // The correction factor should be limited to its minimum value.
         assert!(feedback.correction_factor() >= 0.1);
     }
 
@@ -389,12 +389,12 @@ mod tests {
         let initial_confidence = feedback.estimation_confidence();
         assert!(initial_confidence < 0.55 && initial_confidence > 0.45);
 
-        // 添加多次反馈
+        // Add multiple feedback entries.
         for i in 0..100 {
             feedback.update_with_feedback(0.1 + (i as f64 * 0.001));
         }
 
-        assert!(feedback.estimation_confidence() > 0.9); // 反馈后置信度高
+        assert!(feedback.estimation_confidence() > 0.9); // High confidence level after receiving the feedback
     }
 
     #[test]
@@ -404,9 +404,9 @@ mod tests {
         // 无反馈时误差为1.0
         assert_eq!(feedback.avg_estimation_error(), 1.0);
 
-        // 添加反馈
-        feedback.update_with_feedback(0.5); // 无误差
-        feedback.update_with_feedback(0.6); // 有误差
+        // Add feedback
+        feedback.update_with_feedback(0.5); // No errors.
+        feedback.update_with_feedback(0.6); // There are errors.
 
         assert!(feedback.avg_estimation_error() < 1.0);
     }
@@ -419,15 +419,15 @@ mod tests {
 
         assert_eq!(manager.feedback_count(), 2);
 
-        // 更新反馈
+        // Updated feedback
         manager.update_feedback("age > 25", 0.35);
         manager.update_feedback("salary > 5000", 0.18);
 
-        // 获取校正后的选择性
+        // Obtain the corrected version of the selective content.
         let corrected_age = manager.get_corrected_selectivity("age > 25");
         assert!(corrected_age.is_some());
 
-        // 获取不存在的条件
+        // Trying to obtain a condition that does not exist…
         assert!(manager.get_corrected_selectivity("unknown").is_none());
     }
 
@@ -436,12 +436,12 @@ mod tests {
         let mut feedback = FeedbackDrivenSelectivity::new(0.9);
         feedback.set_selectivity_cap(0.95);
 
-        // 大量更新，试图使选择性超过上限
+        // Numerous updates have been made in an attempt to increase the level of selectivity beyond the maximum limit.
         for _ in 0..50 {
             feedback.update_with_feedback(1.0);
         }
 
-        // 校正后的选择性不应该超过上限
+        // The corrected selectivity should not exceed the upper limit.
         assert!(feedback.corrected_selectivity() <= 0.95);
     }
 }

@@ -1,6 +1,6 @@
-//! ORDER BY 子句规划器
+//! ORDER BY Clause Planner
 //!
-//! 负责规划 ORDER BY 子句的执行，对结果进行排序。
+//! Responsible for planning the execution of the ORDER BY clause and sorting the results.
 
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
@@ -14,9 +14,9 @@ use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// ORDER BY 子句规划器
+/// The ORDER BY clause planner
 ///
-/// 负责规划 ORDER BY 子句的执行，对结果进行排序。
+/// Responsible for planning the execution of the ORDER BY clause and sorting the results.
 #[derive(Debug)]
 pub struct OrderByClausePlanner {}
 
@@ -41,7 +41,7 @@ fn extract_order_by_items(stmt: &Stmt) -> Vec<OrderByItem> {
     Vec::new()
 }
 
-/// 将表达式转换为字符串表示
+/// Convert the expression into a string representation.
 ///
 /// 使用 Expression::to_expression_string() 方法
 fn expression_to_string(expr: &ContextualExpression) -> String {

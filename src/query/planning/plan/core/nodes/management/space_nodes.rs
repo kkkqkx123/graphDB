@@ -1,6 +1,6 @@
-//! 空间管理节点实现
+//! Implementation of the space management node
 //!
-//! 提供图空间管理相关的计划节点定义
+//! Provide definitions of the planning nodes related to graph space management.
 
 use crate::define_plan_node;
 
@@ -165,13 +165,13 @@ impl ClearSpaceNode {
     }
 }
 
-/// 空间修改选项
+/// Space modification options
 #[derive(Debug, Clone)]
 pub enum SpaceAlterOption {
     Comment(String),
 }
 
-/// 空间管理信息
+/// Space management information
 #[derive(Debug, Clone)]
 pub struct SpaceManageInfo {
     pub space_name: String,

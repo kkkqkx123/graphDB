@@ -1,11 +1,11 @@
-//! 数学函数实现
+//! Implementation of mathematical functions
 
 use crate::core::error::ExpressionError;
 use crate::core::value::NullType;
 use crate::core::Value;
 
 define_function_enum! {
-    /// 数学函数枚举
+    /// Enumeration of mathematical functions
     pub enum MathFunction {
         Abs => {
             name: "abs",
@@ -252,7 +252,7 @@ define_binary_numeric_fn!(
     "log"
 );
 
-// 新增数学函数实现
+// New implementation of mathematical functions
 define_unary_float_fn!(execute_asin, |v: f64| v.asin(), "asin");
 define_unary_float_fn!(execute_acos, |v: f64| v.acos(), "acos");
 define_unary_float_fn!(execute_atan, |v: f64| v.atan(), "atan");

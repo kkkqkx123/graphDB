@@ -35,10 +35,10 @@ mod tests {
                 let (_, _, _, values) = &edges[0];
                 assert_eq!(values.len(), 1);
             } else {
-                panic!("期望 Edge 目标");
+                panic!("Expectations for the Edge target");
             }
         } else {
-            panic!("期望 Insert 语句");
+            panic!("The expected Insert statement");
         }
     }
 
@@ -63,12 +63,12 @@ mod tests {
                 assert_eq!(edge_name, "KNOWS");
                 assert_eq!(edges.len(), 1);
                 let (_, _, rank, _) = &edges[0];
-                assert!(rank.is_some(), "rank 应该存在");
+                assert!(rank.is_some(), "The “rank” should definitely be included.");
             } else {
-                panic!("期望 Edge 目标");
+                panic!("Expectations for the Edge target");
             }
         } else {
-            panic!("期望 Insert 语句");
+            panic!("The “Expect” statement is used to specify the expected behavior or output of a system or process. It helps in verifying that the system is functioning as intended by checking whether the actual results match the expected results.");
         }
     }
 
@@ -250,10 +250,10 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.shortest, "应该是最短路径查询");
-            assert!(find_path_stmt.weight_expression.is_none(), "无权表达式");
+            assert!(find_path_stmt.shortest, "It should be the query for the shortest path.");
+            assert!(find_path_stmt.weight_expression.is_none(), "Expression with no right to be evaluated (or expressed)");
         } else {
-            panic!("期望 FindPath 语句");
+            panic!("Expectations for the FindPath statement");
         }
     }
 
@@ -271,14 +271,14 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.shortest, "应该是最短路径查询");
+            assert!(find_path_stmt.shortest, "It should be the shortest path query.");
             assert_eq!(
                 find_path_stmt.weight_expression,
                 Some("weight".to_string()),
-                "应该有weight表达式"
+                "There should be a weight expression."
             );
         } else {
-            panic!("期望 FindPath 语句");
+            panic!("The expectation for the FindPath statement");
         }
     }
 
@@ -296,14 +296,14 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.shortest, "应该是最短路径查询");
+            assert!(find_path_stmt.shortest, "It should be the query for the shortest path.");
             assert_eq!(
                 find_path_stmt.weight_expression,
                 Some("ranking".to_string()),
-                "应该有ranking权重表达式"
+                "There should be an expression for the ranking weights."
             );
         } else {
-            panic!("期望 FindPath 语句");
+            panic!("Expectation for the FindPath statement");
         }
     }
 
@@ -321,9 +321,9 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(!find_path_stmt.shortest, "应该是所有路径查询");
+            assert!(!find_path_stmt.shortest, "It should refer to all path queries.");
         } else {
-            panic!("期望 FindPath 语句");
+            panic!("Expectations for the FindPath statement");
         }
     }
 
@@ -341,10 +341,10 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.shortest, "应该是最短路径查询");
-            assert_eq!(find_path_stmt.max_steps, Some(5), "应该有最大步数5");
+            assert!(find_path_stmt.shortest, "It should be the query for the shortest path.");
+            assert_eq!(find_path_stmt.max_steps, Some(5), "There should be a maximum number of steps, which is 5.");
         } else {
-            panic!("期望 FindPath 语句");
+            panic!("Expectation for the FindPath statement");
         }
     }
 
@@ -362,10 +362,10 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.with_loop, "应该允许自环边");
-            assert!(!find_path_stmt.with_cycle, "默认不允许回路");
+            assert!(find_path_stmt.with_loop, "Self-loop edges should be allowed.");
+            assert!(!find_path_stmt.with_cycle, "By default, loops are not allowed.");
         } else {
-            panic!("期望 FindPath 语句");
+            panic!("Expectation for the FindPath statement");
         }
     }
 
@@ -383,10 +383,10 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(!find_path_stmt.with_loop, "默认不允许自环边");
-            assert!(find_path_stmt.with_cycle, "应该允许回路");
+            assert!(!find_path_stmt.with_loop, "By default, self-looping edges are not allowed.");
+            assert!(find_path_stmt.with_cycle, "The loop should be allowed.");
         } else {
-            panic!("期望 FindPath 语句");
+            panic!("The expectation for the FindPath statement");
         }
     }
 
@@ -404,10 +404,10 @@ mod tests {
         assert_eq!(stmt.kind(), "FIND PATH");
 
         if let Stmt::FindPath(find_path_stmt) = stmt {
-            assert!(find_path_stmt.with_loop, "应该允许自环边");
-            assert!(find_path_stmt.with_cycle, "应该允许回路");
+            assert!(find_path_stmt.with_loop, "Self-loop edges should be allowed.");
+            assert!(find_path_stmt.with_cycle, "The circuit should be allowed to operate (i.e., its operation should be permitted).");
         } else {
-            panic!("期望 FindPath 语句");
+            panic!("The expectation for the FindPath statement");
         }
     }
 }

@@ -1,9 +1,9 @@
-//! 消除冗余数据收集操作的规则
+//! Rules for eliminating redundant data collection operations
 //!
-//! 根据 nebula-graph 的参考实现，此规则匹配 DataCollect->Project 模式，
-//! 当 DataCollect 的 kind 为 kRowBasedMove 时，可以消除 DataCollect 节点。
+//! According to the reference implementation of nebula-graph, this rule matches the DataCollect->Project pattern.
+//! When the `kind` of `DataCollect` is `kRowBasedMove`, the `DataCollect` node can be eliminated.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before:
 //! ```text
@@ -16,15 +16,15 @@
 //!
 //! After:
 //! ```text
-//!   Project (output_var改为DataCollect的output_var)
+//! Project (replace “output_var” with “DataCollect’s output_var”)
 //!       |
 //!   ScanVertices
 //! ```
 //!
-//! # 适用条件
+//! # Applicable Conditions
 //!
-//! - DataCollect 节点的 kind 为 kRowBasedMove
-//! - DataCollect 的子节点为 Project
+//! The kind of the DataCollect node is kRowBasedMove.
+//! The child node of DataCollect is Project.
 
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::data_processing::data_processing_node::DataCollectNode;
@@ -34,20 +34,20 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 
-/// 消除冗余数据收集操作的规则
+/// Rules for eliminating redundant data collection operations
 ///
-/// 当 DataCollect 节点的 kind 为 kRowBasedMove 且子节点为 Project 时，
-/// 可以直接消除 DataCollect 节点，将 Project 的 output_var 改为 DataCollect 的 output_var
+/// When the kind of the DataCollect node is kRowBasedMove and its child node is Project,
+/// The DataCollect node can be directly removed, and the output_var of the Project can be replaced with the output_var of the DataCollect node.
 #[derive(Debug)]
 pub struct EliminateRowCollectRule;
 
 impl EliminateRowCollectRule {
-    /// 创建规则实例
+    /// Create a rule instance.
     pub fn new() -> Self {
         Self
     }
 
-    /// 检查 DataCollect 是否为 kRowBasedMove 类型
+    /// Check whether DataCollect is of the kRowBasedMove type.
     fn is_row_based_move(&self, data_collect: &DataCollectNode) -> bool {
         data_collect.collect_kind() == "kRowBasedMove"
     }
@@ -65,7 +65,7 @@ impl RewriteRule for EliminateRowCollectRule {
     }
 
     fn pattern(&self) -> Pattern {
-        // 匹配 DataCollect->Project 模式
+        // Match the DataCollect->Project pattern.
         Pattern::new_with_name("DataCollect").with_dependency_name("Project")
     }
 
@@ -74,28 +74,28 @@ impl RewriteRule for EliminateRowCollectRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 DataCollect 节点
+        // Check whether it is a DataCollect node.
         let data_collect = match node {
             PlanNodeEnum::DataCollect(n) => n,
             _ => return Ok(None),
         };
 
-        // 检查 collect_kind 是否为 kRowBasedMove
+        // Check whether `collect_kind` is equal to `kRowBasedMove`.
         if !self.is_row_based_move(data_collect) {
             return Ok(None);
         }
 
-        // 获取输入节点（应该是 Project）
+        // Obtain the input node (which should be the Project).
         let input = data_collect.input();
         let project = match input {
             PlanNodeEnum::Project(n) => n,
             _ => return Ok(None),
         };
 
-        // 创建新的 Project 节点，output_var 改为 DataCollect 的 output_var
+        // Create a new Project node, and change “output_var” to the “output_var” of DataCollect.
         let mut result = TransformResult::new();
         result.erase_curr = true;
-        // 克隆 Project 节点，保持其所有属性
+        // Clone the Project node, preserving all its attributes.
         let new_project = PlanNodeEnum::Project(project.clone());
         result.add_new_node(new_project);
 
@@ -142,7 +142,7 @@ mod tests {
     fn test_is_row_based_move() {
         let rule = EliminateRowCollectRule::new();
 
-        // 创建测试用的 DataCollectNode
+        // Create a DataCollectNode for testing purposes.
         let start_node =
             crate::query::planning::plan::core::nodes::control_flow::start_node::StartNode::new();
         let start_enum = PlanNodeEnum::Start(start_node);

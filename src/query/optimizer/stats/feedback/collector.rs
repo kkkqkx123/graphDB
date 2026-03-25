@@ -1,17 +1,17 @@
-//! 执行反馈收集器模块
+//! Feedback Collection Module
 //!
-//! 提供轻量级的执行反馈收集机制，用于收集查询执行的实际统计信息。
+//! Provide a lightweight mechanism for collecting execution feedback, used to gather actual statistical information about the execution of queries.
 
 use parking_lot::RwLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
-/// 执行反馈收集器
+/// Feedback collection tool
 ///
-/// 轻量级收集器，用于收集查询执行的实际统计信息。
-/// 使用原子操作确保线程安全。
+/// A lightweight collector used for collecting actual statistical information about the execution of queries.
+/// Use atomic operations to ensure thread safety.
 ///
-/// # 示例
+/// # Example
 /// ```
 /// use graphdb::query::optimizer::stats::feedback::collector::ExecutionFeedbackCollector;
 ///
@@ -23,16 +23,16 @@ use std::time::Instant;
 /// ```
 #[derive(Debug)]
 pub struct ExecutionFeedbackCollector {
-    /// 实际输出行数（原子计数器）
+    /// Actual number of output lines (atomic counter)
     actual_rows: AtomicU64,
-    /// 执行时间（微秒）
+    /// Execution time (in microseconds)
     execution_time_us: AtomicU64,
-    /// 开始时间
+    /// Start time
     start_time: RwLock<Option<Instant>>,
 }
 
 impl ExecutionFeedbackCollector {
-    /// 创建新的反馈收集器
+    /// Create a new feedback collector.
     pub fn new() -> Self {
         Self {
             actual_rows: AtomicU64::new(0),
@@ -41,23 +41,23 @@ impl ExecutionFeedbackCollector {
         }
     }
 
-    /// 开始收集
+    /// Start collecting
     ///
-    /// 记录当前时间为开始时间。
+    /// Record the current time as the start time.
     pub fn start(&self) {
         *self.start_time.write() = Some(Instant::now());
     }
 
-    /// 记录输出行数
+    /// Record the number of output lines.
     ///
-    /// 原子地增加输出行数计数。
+    /// Increment the count of output lines on an atomic basis (i.e., without any intermediate updates or delays).
     pub fn record_rows(&self, rows: u64) {
         self.actual_rows.fetch_add(rows, Ordering::Relaxed);
     }
 
-    /// 结束收集并返回执行时间（微秒）
+    /// End the data collection process and return the execution time (in microseconds).
     ///
-    /// 计算从开始到当前的经过时间，并存储执行时间。
+    /// Calculate the elapsed time from the start to the current moment, and store the execution time.
     pub fn finish(&self) -> u64 {
         let elapsed = self
             .start_time
@@ -68,19 +68,19 @@ impl ExecutionFeedbackCollector {
         elapsed
     }
 
-    /// 获取实际输出行数
+    /// Get the actual number of output lines.
     pub fn get_actual_rows(&self) -> u64 {
         self.actual_rows.load(Ordering::Relaxed)
     }
 
-    /// 获取执行时间（微秒）
+    /// Obtain the execution time (in microseconds).
     pub fn get_execution_time_us(&self) -> u64 {
         self.execution_time_us.load(Ordering::Relaxed)
     }
 
-    /// 重置收集器
+    /// Reset the collector.
     ///
-    /// 清除所有收集的数据，恢复到初始状态。
+    /// Clear all collected data and restore the system to its initial state.
     pub fn reset(&self) {
         self.actual_rows.store(0, Ordering::Relaxed);
         self.execution_time_us.store(0, Ordering::Relaxed);
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn test_collector_without_start() {
         let collector = ExecutionFeedbackCollector::new();
-        // 不调用start直接finish
+        // Finish directly without calling “start”.
         let time = collector.finish();
         assert_eq!(time, 0);
         assert_eq!(collector.get_execution_time_us(), 0);

@@ -1,8 +1,8 @@
-//! 属性索引查找策略
+//! Attribute index lookup strategy
 //!
-//! 基于属性条件的索引查找，支持等值、范围、前缀等查询
+//! Index searches based on attribute conditions support various types of queries, including exact matches, range searches, and searches using prefixes.
 //!
-//! 适用场景:
+//! Applicable scenarios:
 //! - MATCH (v:Person) WHERE v.age > 18
 //! - MATCH (v:Person) WHERE v.name = "Alice"
 //! - MATCH (v:Person) WHERE v.name STARTS WITH "A"
@@ -14,7 +14,7 @@ use crate::core::types::expr::visitor_collectors::OrConditionCollector;
 use crate::core::{StorageError, Value};
 use crate::storage::StorageClient;
 
-/// 属性过滤条件
+/// Attribute filtering criteria
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyPredicate {
     pub property: String,
@@ -22,7 +22,7 @@ pub struct PropertyPredicate {
     pub value: Value,
 }
 
-/// 谓词操作类型
+/// Predicate operation types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PredicateOp {
     Eq,         // =
@@ -36,7 +36,7 @@ pub enum PredicateOp {
 }
 
 impl PredicateOp {
-    /// 检查是否为范围操作
+    /// Check whether it is a range operation.
     pub fn is_range(&self) -> bool {
         matches!(
             self,
@@ -44,7 +44,7 @@ impl PredicateOp {
         )
     }
 
-    /// 检查是否为等值操作
+    /// Check whether it is an equivalent operation.
     pub fn is_equality(&self) -> bool {
         matches!(self, PredicateOp::Eq | PredicateOp::In)
     }
@@ -68,7 +68,7 @@ impl std::str::FromStr for PredicateOp {
     }
 }
 
-/// 属性索引查找策略
+/// Attribute index lookup strategy
 #[derive(Debug, Clone)]
 pub struct PropIndexSeek {
     predicates: Vec<PropertyPredicate>,
@@ -79,7 +79,7 @@ impl PropIndexSeek {
         Self { predicates }
     }
 
-    /// 从表达式列表提取属性谓词
+    /// Extract attribute predicates from the list of expressions.
     pub fn extract_predicates(expressions: &[crate::core::Expression]) -> Vec<PropertyPredicate> {
         let mut predicates = Vec::new();
 
@@ -92,7 +92,7 @@ impl PropIndexSeek {
         predicates
     }
 
-    /// 从表达式列表提取属性谓词，支持 OR 条件转换
+    /// Extract attribute predicates from the list of expressions, supporting the conversion of OR conditions.
     pub fn extract_predicates_with_or(
         expressions: &[crate::core::Expression],
     ) -> Vec<PropertyPredicate> {
@@ -122,7 +122,7 @@ impl PropIndexSeek {
         predicates
     }
 
-    /// 从单个表达式提取属性谓词
+    /// Extracting attribute predicates from a single expression
     fn extract_predicate(expr: &crate::core::Expression) -> Option<PropertyPredicate> {
         use crate::core::types::operators::BinaryOperator;
 
@@ -138,7 +138,7 @@ impl PropIndexSeek {
                     _ => return None,
                 };
 
-                // 尝试提取属性名和值
+                // Try to extract the attribute names and values.
                 if let (Some(prop), Some(val)) =
                     (Self::extract_property(left), Self::extract_value(right))
                 {
@@ -151,7 +151,7 @@ impl PropIndexSeek {
                     }
                 }
 
-                // 交换左右尝试
+                // Try swapping the left and right sides.
                 if let (Some(prop), Some(val)) =
                     (Self::extract_property(right), Self::extract_value(left))
                 {
@@ -175,7 +175,7 @@ impl PropIndexSeek {
         }
     }
 
-    /// 从表达式提取属性名
+    /// Extract attribute names from the expression.
     fn extract_property(expr: &crate::core::Expression) -> Option<String> {
         match expr {
             crate::core::Expression::Property { object, property } => {
@@ -190,7 +190,7 @@ impl PropIndexSeek {
         }
     }
 
-    /// 从表达式提取值
+    /// Extract values from the expression.
     fn extract_value(expr: &crate::core::Expression) -> Option<Value> {
         match expr {
             crate::core::Expression::Literal(val) => Some(val.clone()),
@@ -198,7 +198,7 @@ impl PropIndexSeek {
         }
     }
 
-    /// 查找适合属性谓词的索引
+    /// Find an index that is suitable for predicate statements with attributes.
     fn find_best_index<'a>(
         &'a self,
         context: &'a SeekStrategyContext,
@@ -211,7 +211,7 @@ impl PropIndexSeek {
         None
     }
 
-    /// 评估值是否满足谓词条件
+    /// Does the evaluated value satisfy the predicate condition?
     fn value_matches(&self, value: &Value, pred: &PropertyPredicate) -> bool {
         match pred.op {
             PredicateOp::Eq => value == &pred.value,
@@ -229,7 +229,7 @@ impl PropIndexSeek {
                 .map(|c| c >= 0)
                 .unwrap_or(false),
             PredicateOp::In => {
-                // IN 操作需要值是列表
+                // The IN operation requires that the value provided is a list.
                 matches!(&pred.value, Value::List(list) if list.contains(value))
             }
             PredicateOp::StartsWith => {
@@ -242,7 +242,7 @@ impl PropIndexSeek {
         }
     }
 
-    /// 比较两个值
+    /// Compare two values
     fn compare_values(left: &Value, right: &Value) -> Option<i32> {
         match (left, right) {
             (Value::Int(i1), Value::Int(i2)) => Some(i1.cmp(i2) as i32),
@@ -264,18 +264,18 @@ impl SeekStrategy for PropIndexSeek {
         let mut vertex_ids = Vec::new();
         let mut rows_scanned = 0;
 
-        // 查找最佳索引
+        // Find the best index.
         if let Some((index_info, primary_pred)) = self.find_best_index(context) {
-            // 获取标签对应的顶点
-            let space_name = "default"; // 实际应从 context 获取
+            // Retrieve the vertices corresponding to the tags.
+            let space_name = "default"; // In fact, the relevant information should be obtained from the context.
             let vertices = storage.scan_vertices_by_tag(space_name, &index_info.target_name)?;
             rows_scanned = vertices.len();
 
-            // 过滤满足所有谓词的顶点
+            // Filter the vertices that satisfy all predicates.
             for vertex in vertices {
                 let mut matches_all = true;
 
-                // 检查主谓词
+                // Check the subject and verb.
                 if let Some(prop_value) = vertex.get_property_any(&primary_pred.property) {
                     if !self.value_matches(prop_value, primary_pred) {
                         matches_all = false;
@@ -284,7 +284,7 @@ impl SeekStrategy for PropIndexSeek {
                     matches_all = false;
                 }
 
-                // 检查其他谓词
+                // Check the other predicates.
                 if matches_all {
                     for pred in &self.predicates {
                         if pred.property != primary_pred.property {
@@ -315,7 +315,7 @@ impl SeekStrategy for PropIndexSeek {
     }
 
     fn supports(&self, _context: &SeekStrategyContext) -> bool {
-        // 只要有属性谓词就支持
+        // Support is available as long as there are attribute predicates.
         !self.predicates.is_empty()
     }
 }

@@ -1,10 +1,10 @@
-//! 表达式分析上下文
+//! Expression analysis context
 //!
-//! 本模块定义 ExpressionAnalysisContext，作为跨阶段的共享上下文，
-//! 存储所有表达式的完整信息。
+//! This module defines the ExpressionAnalysisContext, which serves as a shared context across different stages.
+//! Store all the complete information about the expressions.
 //!
-//! **注意：** 此上下文用于编译时分析阶段（优化器、类型推导等）。
-//! 运行时求值请使用 `expression::evaluator::ExpressionContext` trait。
+//! Note: This context is used for the compilation-time analysis phase (optimizers, type inference, etc.).
+//! For runtime evaluation, please use the `expression::evaluator::ExpressionContext` trait.
 
 use dashmap::DashMap;
 use std::sync::Arc;
@@ -17,49 +17,49 @@ use crate::core::types::DataType;
 use crate::core::Value;
 use crate::query::optimizer::analysis::ExpressionAnalysis;
 
-/// 表达式优化状态标记
+/// Expression Optimization Status Indicator
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct OptimizationFlags {
-    /// 是否已经过类型推导
+    /// Has type inference already been performed?
     pub typed: bool,
-    /// 是否已经过常量折叠
+    /// Has constant folding already been performed?
     pub constant_folded: bool,
-    /// 是否已经过公共子表达式消除
+    /// Has the elimination of common subexpressions already been performed?
     pub cse_eliminated: bool,
 }
 
-/// 表达式分析上下文
+/// Expression analysis context
 ///
-/// 跨阶段共享的表达式信息存储，支持并发访问。
-/// 存储表达式的完整信息，包括：
-/// - 表达式注册表：存储所有表达式的完整信息
-/// - 类型信息缓存：表达式ID -> 推导出的类型
-/// - 常量折叠结果：表达式ID -> 计算出的常量值
-/// - 表达式分析结果：表达式ID -> 分析结果
-/// - 优化标记：表达式ID -> 优化状态
+/// Expression information storage that is shared across different stages, supporting concurrent access.
+/// Store the complete information of the expression, including:
+/// Expression Registry: Stores complete information about all expressions.
+/// Type information caching: Expression ID -> Derived type
+/// Constant folding result: Expression ID -> The calculated constant value
+/// Expression Analysis Results: Expression ID -> Analysis Results
+/// Optimization Status: Expression ID
 ///
-/// **注意：** 此上下文用于编译时分析阶段（优化器、类型推导等）。
-/// 运行时求值请使用 `expression::evaluator::ExpressionContext` trait。
+/// Note: This context is used for the compilation-time analysis phase (optimizers, type inference, etc.).
+/// For runtime evaluation, please use the `expression::evaluator::ExpressionContext` trait.
 #[derive(Debug, Clone)]
 pub struct ExpressionAnalysisContext {
-    /// 表达式注册表：存储所有表达式的完整信息
+    /// Expression Registry: Stores complete information about all expressions.
     expressions: Arc<DashMap<ExpressionId, Arc<ExpressionMeta>>>,
 
-    /// 类型信息缓存：表达式ID -> 推导出的类型
+    /// Type information cache: Expression ID -> Derived type
     type_cache: Arc<DashMap<ExpressionId, DataType>>,
 
-    /// 常量折叠结果：表达式ID -> 计算出的常量值
+    /// Constant folding result: Expression ID -> The calculated constant value
     constant_cache: Arc<DashMap<ExpressionId, Value>>,
 
-    /// 表达式分析结果：表达式ID -> 分析结果
+    /// Expression analysis results: Expression ID -> Analysis results
     analysis_cache: Arc<DashMap<ExpressionId, ExpressionAnalysis>>,
 
-    /// 优化标记：表达式ID -> 优化状态
+    /// Optimization flag: Expression ID -> Optimization status
     optimization_flags: Arc<DashMap<ExpressionId, OptimizationFlags>>,
 }
 
 impl ExpressionAnalysisContext {
-    /// 创建新的表达式分析上下文
+    /// Create a new context for expression analysis.
     pub fn new() -> Self {
         Self {
             expressions: Arc::new(DashMap::new()),
@@ -70,9 +70,9 @@ impl ExpressionAnalysisContext {
         }
     }
 
-    /// 注册表达式到上下文中
+    /// Register the expression in its context.
     ///
-    /// 如果表达式已有ID，使用该ID；否则生成新的ID
+    /// If the expression already has an ID, use that ID; otherwise, generate a new ID.
     pub fn register_expression(&self, expr: ExpressionMeta) -> ExpressionId {
         let id = expr
             .id()
@@ -83,12 +83,12 @@ impl ExpressionAnalysisContext {
         id
     }
 
-    /// 获取表达式
+    /// Obtain the expression
     pub fn get_expression(&self, id: &ExpressionId) -> Option<Arc<ExpressionMeta>> {
         self.expressions.get(id).map(|r| r.clone())
     }
 
-    /// 设置表达式类型
+    /// Set the expression type
     pub fn set_type(&self, id: &ExpressionId, data_type: DataType) {
         self.type_cache.insert(id.clone(), data_type);
         let mut flags = self
@@ -100,12 +100,12 @@ impl ExpressionAnalysisContext {
         self.optimization_flags.insert(id.clone(), flags);
     }
 
-    /// 获取表达式类型
+    /// Determine the type of the expression.
     pub fn get_type(&self, id: &ExpressionId) -> Option<DataType> {
         self.type_cache.get(id).map(|r| r.clone())
     }
 
-    /// 设置常量值
+    /// Setting constant values
     pub fn set_constant(&self, id: &ExpressionId, value: Value) {
         self.constant_cache.insert(id.clone(), value);
         self.optimization_flags.insert(
@@ -118,27 +118,27 @@ impl ExpressionAnalysisContext {
         );
     }
 
-    /// 获取常量值
+    /// Obtain the constant value
     pub fn get_constant(&self, id: &ExpressionId) -> Option<Value> {
         self.constant_cache.get(id).map(|r| r.clone())
     }
 
-    /// 设置优化标记
+    /// Set optimization flags
     pub fn set_optimization_flag(&self, id: &ExpressionId, flags: OptimizationFlags) {
         self.optimization_flags.insert(id.clone(), flags);
     }
 
-    /// 获取优化标记
+    /// Obtain the optimization markers.
     pub fn get_optimization_flags(&self, id: &ExpressionId) -> Option<OptimizationFlags> {
         self.optimization_flags.get(id).map(|r| *r.value())
     }
 
-    /// 检查表达式是否为常量
+    /// Check whether the expression is a constant.
     pub fn is_constant(&self, id: &ExpressionId) -> bool {
         self.constant_cache.contains_key(id)
     }
 
-    /// 检查表达式是否已经过类型推导
+    /// Check whether the expression has already undergone type inference.
     pub fn is_typed(&self, id: &ExpressionId) -> bool {
         self.optimization_flags
             .get(id)
@@ -146,7 +146,7 @@ impl ExpressionAnalysisContext {
             .unwrap_or(false)
     }
 
-    /// 检查表达式是否已经过常量折叠
+    /// Check whether the expression has undergone constant folding.
     pub fn is_constant_folded(&self, id: &ExpressionId) -> bool {
         self.optimization_flags
             .get(id)
@@ -154,7 +154,7 @@ impl ExpressionAnalysisContext {
             .unwrap_or(false)
     }
 
-    /// 检查表达式是否已经过公共子表达式消除
+    /// Check whether the expression has already undergone the elimination of common subexpressions.
     pub fn is_cse_eliminated(&self, id: &ExpressionId) -> bool {
         self.optimization_flags
             .get(id)
@@ -162,12 +162,12 @@ impl ExpressionAnalysisContext {
             .unwrap_or(false)
     }
 
-    /// 获取注册的表达式数量
+    /// Obtain the number of registered expressions.
     pub fn expression_count(&self) -> usize {
         self.expressions.len()
     }
 
-    /// 清空所有缓存（保留表达式注册表）
+    /// Clear all caches (expressions and the registry will be retained).
     pub fn clear_caches(&self) {
         self.type_cache.clear();
         self.constant_cache.clear();
@@ -175,50 +175,50 @@ impl ExpressionAnalysisContext {
         self.optimization_flags.clear();
     }
 
-    /// 清空所有数据
+    /// Clear all data.
     pub fn clear_all(&self) {
         self.expressions.clear();
         self.clear_caches();
     }
 
-    /// 设置表达式分析结果
+    /// Set the analysis results of the expression.
     ///
-    /// # 参数
-    /// - `id`: 表达式ID
-    /// - `analysis`: 分析结果
+    /// # Parameters
+    /// `id`: Expression ID
+    /// “analysis”: Results of the analysis
     pub fn set_analysis(&self, id: &ExpressionId, analysis: ExpressionAnalysis) {
         self.analysis_cache.insert(id.clone(), analysis);
     }
 
-    /// 获取表达式分析结果
+    /// Obtain the results of the expression analysis.
     ///
     /// # 参数
     /// - `id`: 表达式ID
     ///
-    /// # 返回
-    /// 分析结果（如果存在）
+    /// # Return
+    /// Analysis results (if any)
     pub fn get_analysis(&self, id: &ExpressionId) -> Option<ExpressionAnalysis> {
         self.analysis_cache.get(id).map(|r| r.clone())
     }
 
-    /// 检查表达式是否已经过分析
+    /// Check whether the expression has already been analyzed.
     ///
     /// # 参数
     /// - `id`: 表达式ID
     ///
     /// # 返回
-    /// true 如果已经分析过
+    /// “true” if the analysis has already been performed.
     pub fn is_analyzed(&self, id: &ExpressionId) -> bool {
         self.analysis_cache.contains_key(id)
     }
 
-    // ==================== 表达式重写 API ====================
-    // 以下方法用于表达式重写和组合，避免在 Rewrite 层直接操作 Expression
+    // ==================== Expression Rewriting API ====================
+    // The following methods are used for the rewriting and combination of expressions, in order to avoid direct operations on expressions at the Rewrite layer.
 
-    /// 克隆表达式并注册到上下文
+    /// Clone the expression and register it in the context.
     ///
-    /// 从现有的 ContextualExpression 中提取 Expression，创建副本并注册到上下文
-    /// 返回新的 ContextualExpression
+    /// Extract the Expression from the existing ContextualExpression, create a copy of it, and register it in the context.
+    /// Return the new ContextualExpression.
     pub fn clone_expression(
         &self,
         ctx_expr: &ContextualExpression,
@@ -230,15 +230,15 @@ impl ExpressionAnalysisContext {
         Some(ContextualExpression::new(id, ctx_expr.context().clone()))
     }
 
-    /// 组合两个表达式为二元表达式
+    /// Combine the two expressions into a binary expression.
     ///
     /// # 参数
-    /// - `op`: 二元操作符
-    /// - `left`: 左操作数的 ContextualExpression
-    /// - `right`: 右操作数的 ContextualExpression
+    /// “op”: Binary operator
+    /// “left”: The ContextualExpression of the left operand.
+    /// “right”: The ContextualExpression of the right operand
     ///
     /// # 返回
-    /// 组合后的 ContextualExpression
+    /// The combined ContextualExpression
     pub fn combine_expressions(
         &self,
         op: BinaryOperator,
@@ -259,14 +259,14 @@ impl ExpressionAnalysisContext {
         Some(ContextualExpression::new(id, left.context().clone()))
     }
 
-    /// 创建一元表达式
+    /// Create a monomial expression.
     ///
     /// # 参数
-    /// - `op`: 一元操作符
-    /// - `operand`: 操作数的 ContextualExpression
+    /// “op” stands for “unary operator”.
+    /// `operand`: The ContextualExpression of the operand.
     ///
     /// # 返回
-    /// 新的 ContextualExpression
+    /// New ContextualExpression
     pub fn create_unary_expression(
         &self,
         op: UnaryOperator,
@@ -284,11 +284,11 @@ impl ExpressionAnalysisContext {
         Some(ContextualExpression::new(id, operand.context().clone()))
     }
 
-    /// 创建属性访问表达式
+    /// Create attribute access expressions
     ///
     /// # 参数
-    /// - `object`: 对象的 ContextualExpression
-    /// - `property`: 属性名
+    /// “object”: The ContextualExpression of the object.
+    /// “property”: The name of the property.
     ///
     /// # 返回
     /// 新的 ContextualExpression
@@ -309,12 +309,12 @@ impl ExpressionAnalysisContext {
         Some(ContextualExpression::new(id, object.context().clone()))
     }
 
-    /// 创建函数调用表达式
+    /// Create a function call expression.
     ///
     /// # 参数
-    /// - `name`: 函数名
-    /// - `args`: 参数的 ContextualExpression 列表
-    /// - `ctx_expr`: 用于获取上下文的 ContextualExpression
+    /// `name`: The name of the function
+    /// `args`: A list of `ContextualExpression` objects representing the parameters.
+    /// `ctx_expr`: A `ContextualExpression` used to retrieve the context.
     ///
     /// # 返回
     /// 新的 ContextualExpression
@@ -343,9 +343,9 @@ impl ExpressionAnalysisContext {
         Some(ContextualExpression::new(id, ctx_expr.context().clone()))
     }
 
-    /// 创建 AND 表达式
+    /// Creating an AND expression
     ///
-    /// 便捷方法，用于组合两个条件表达式
+    /// A convenient method for combining two conditional expressions
     pub fn and(
         &self,
         left: &ContextualExpression,
@@ -354,7 +354,7 @@ impl ExpressionAnalysisContext {
         self.combine_expressions(BinaryOperator::And, left, right)
     }
 
-    /// 创建 OR 表达式
+    /// Creating an OR expression
     ///
     /// 便捷方法，用于组合两个条件表达式
     pub fn or(
@@ -365,9 +365,9 @@ impl ExpressionAnalysisContext {
         self.combine_expressions(BinaryOperator::Or, left, right)
     }
 
-    /// 创建 NOT 表达式
+    /// Creating a NOT expression
     ///
-    /// 便捷方法，用于创建否定表达式
+    /// A convenient method for creating negative expressions
     pub fn not(&self, operand: &ContextualExpression) -> Option<ContextualExpression> {
         self.create_unary_expression(UnaryOperator::Not, operand)
     }

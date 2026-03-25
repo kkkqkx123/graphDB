@@ -1,6 +1,6 @@
-//! 空间管理执行器
+//! Space management actuators
 //!
-//! 提供图空间的创建、删除、修改、清空、描述、列出和切换功能。
+//! Provides functions for creating, deleting, modifying, emptying, describing, listing and switching diagram spaces.
 
 pub mod alter_space;
 pub mod clear_space;

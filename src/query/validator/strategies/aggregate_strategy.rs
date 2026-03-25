@@ -1,11 +1,11 @@
-//! 聚合验证策略
-//! 负责验证聚合函数的使用和检查表达式是否包含聚合
+//! Aggregated validation strategy
+//! Responsible for verifying the use of aggregate functions and checking whether expressions contain any aggregate operations.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::operators::AggregateFunction;
 
-/// 聚合验证策略
+/// Aggregated validation strategy
 pub struct AggregateValidationStrategy;
 
 impl Default for AggregateValidationStrategy {
@@ -19,7 +19,7 @@ impl AggregateValidationStrategy {
         Self
     }
 
-    /// 检查表达式是否包含聚合函数
+    /// Check whether the expression contains aggregate functions.
     pub fn has_aggregate_expression(&self, expression: &ContextualExpression) -> bool {
         let expr_meta = match expression.expression() {
             Some(e) => e,
@@ -28,7 +28,7 @@ impl AggregateValidationStrategy {
         self.has_aggregate_expression_internal(expr_meta.inner())
     }
 
-    /// 内部方法：检查 Expression 是否包含聚合函数
+    /// Internal method: Check whether the Expression contains aggregate functions.
     fn has_aggregate_expression_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
@@ -71,7 +71,7 @@ impl AggregateValidationStrategy {
         }
     }
 
-    /// 验证UNWIND子句中不允许使用聚合函数
+    /// Verify that aggregate functions are not allowed to be used in the UNWIND clause.
     pub fn validate_unwind_aggregate(
         &self,
         unwind_expression: &ContextualExpression,
@@ -85,12 +85,12 @@ impl AggregateValidationStrategy {
         Ok(())
     }
 
-    /// 验证聚合表达式的合法性
-    /// 检查：
-    /// 1. 聚合函数名是否有效
-    /// 2. 是否有聚合函数嵌套
-    /// 3. 特殊属性（*）是否只用于COUNT
-    /// 4. 参数表达式是否合法
+    /// Verify the validity of the aggregated expression.
+    /// Check:
+    /// 1. Is the name of the aggregate function valid?
+    /// 2. Are there any aggregate functions nested?
+    /// 3. Are the special attributes (*) only used for the COUNT function?
+    /// 4. Is the parameter expression valid?
     pub fn validate_aggregate_expression(
         &self,
         expression: &ContextualExpression,
@@ -102,7 +102,7 @@ impl AggregateValidationStrategy {
         self.validate_aggregate_expression_internal(expr_meta.inner())
     }
 
-    /// 内部方法：验证聚合表达式的合法性
+    /// Internal method: Verifying the validity of aggregate expressions
     fn validate_aggregate_expression_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
@@ -113,11 +113,11 @@ impl AggregateValidationStrategy {
                 arg,
                 distinct: _,
             } => {
-                // 1. 验证聚合函数名的有效性
-                // 注意：由于现在使用枚举，这个检查可能需要调整
-                // 暂时跳过这个检查，因为枚举值总是有效的
+                // 1. Verify the validity of the aggregate function names.
+                // Since enumerations are now being used, this check may need to be adjusted.
+                // Skip this check for now, since the enumeration values are always valid.
 
-                // 2. 检查聚合函数嵌套 - 不允许聚合函数中包含聚合函数
+                // 2. Check for nested aggregate functions: It is not allowed for aggregate functions to contain other aggregate functions.
                 if self.has_aggregate_expression_internal(arg) {
                     return Err(ValidationError::new(
                         "不允许聚合函数嵌套".to_string(),
@@ -125,10 +125,10 @@ impl AggregateValidationStrategy {
                     ));
                 }
 
-                // 3. 检查特殊属性 (*.  * 只能用于COUNT)
+                // 3. Check special attributes (*. * can only be used for COUNT).
                 self.validate_wildcard_property(func, arg)?;
 
-                // 4. 递归验证参数表达式的合法性
+                // 4. Recursive verification of the validity of parameter expressions
                 self.validate_expression_in_aggregate(arg)?;
 
                 Ok(())
@@ -137,14 +137,14 @@ impl AggregateValidationStrategy {
         }
     }
 
-    /// 验证通配符属性的使用
+    /// Verify the use of wildcard attribute properties.
     ///
     /// 根据 nebula-graph 的实现，只有 COUNT 函数允许通配符属性(*)作为参数。
     ///
-    /// 验证规则：
-    /// 1. 只检查聚合函数的直接参数（不递归检查嵌套表达式）
+    /// Validation rules:
+    /// 1. Only check the direct parameters of the aggregate functions (do not recursively check nested expressions).
     /// 2. 只检查输入属性表达式（$-.prop 或 $var.prop 形式）
-    /// 3. 只有 COUNT 函数允许使用通配符属性 `*`
+    /// 3. Only the COUNT function allows the use of the wildcard attribute *.
     ///
     /// 参考：nebula-3.8.0/src/graph/util/ExpressionUtils.cpp:1199-1220
     fn validate_wildcard_property(
@@ -183,50 +183,50 @@ impl AggregateValidationStrategy {
         Ok(())
     }
 
-    /// 验证聚合函数参数表达式的合法性
-    /// 递归验证参数表达式中是否有其他不合法的嵌套结构
+    /// Verify the validity of the parameter expressions for the aggregate functions.
+    /// Recursively check whether there are any other illegal nested structures in the parameter expressions.
     ///
     /// 验证规则：
-    /// 1. 递归检查所有子表达式的合法性
-    /// 2. 确保参数表达式的结构正确
+    /// 1. Recursively check the validity of all subexpressions.
+    /// 2. Ensure that the structure of the parameter expression is correct.
     fn validate_expression_in_aggregate(
         &self,
         expression: &crate::core::types::expr::Expression,
     ) -> Result<(), ValidationError> {
         match expression {
-            // 递归检查一元操作（包括各种一元操作符）
+            // Recursive checking of unary operations (including various unary operators)
             crate::core::types::expr::Expression::Unary { operand, .. } => {
                 self.validate_expression_in_aggregate(operand)?;
             }
 
-            // 递归检查二元操作
+            // Recursive checking of binary operations
             crate::core::types::expr::Expression::Binary { left, right, .. } => {
                 self.validate_expression_in_aggregate(left)?;
                 self.validate_expression_in_aggregate(right)?;
             }
 
-            // 递归检查函数调用参数
+            // Recursive checking of function call parameters
             crate::core::types::expr::Expression::Function { args, .. } => {
                 for arg in args {
                     self.validate_expression_in_aggregate(arg)?;
                 }
             }
 
-            // 递归检查列表元素
+            // Recursively check the list elements
             crate::core::types::expr::Expression::List(items) => {
                 for item in items {
                     self.validate_expression_in_aggregate(item)?;
                 }
             }
 
-            // 递归检查Map值
+            // Recursive checking of Map values
             crate::core::types::expr::Expression::Map(items) => {
                 for (_, value) in items {
                     self.validate_expression_in_aggregate(value)?;
                 }
             }
 
-            // 递归检查类型转换表达式
+            // Recursive checking of type conversion expressions
             crate::core::types::expr::Expression::TypeCast {
                 expression: cast_expression,
                 ..
@@ -234,7 +234,7 @@ impl AggregateValidationStrategy {
                 self.validate_expression_in_aggregate(cast_expression)?;
             }
 
-            // 递归检查CASE表达式
+            // Recursive checking of CASE expressions
             crate::core::types::expr::Expression::Case {
                 test_expr,
                 conditions,
@@ -252,7 +252,7 @@ impl AggregateValidationStrategy {
                 }
             }
 
-            // 常量、属性、聚合等表达式不需要进一步递归检查
+            // Expressions such as constants, attributes, and aggregates do not require further recursive checking.
             _ => {}
         }
         Ok(())
@@ -260,7 +260,7 @@ impl AggregateValidationStrategy {
 }
 
 impl AggregateValidationStrategy {
-    /// 获取策略名称
+    /// Obtain the policy name
     pub fn strategy_name(&self) -> &'static str {
         "AggregateValidationStrategy"
     }
@@ -287,7 +287,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
-        // 测试没有聚合函数的表达式
+        // The test includes expressions that do not contain aggregate functions.
         let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
         let non_agg_meta = ExpressionMeta::new(non_agg_expr);
         let non_agg_id = expr_ctx.register_expression(non_agg_meta);
@@ -310,7 +310,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
-        // 测试没有聚合函数的UNWIND表达式
+        // UNWIND expressions that do not contain any aggregate functions
         let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
         let non_agg_meta = ExpressionMeta::new(non_agg_expr);
         let non_agg_id = expr_ctx.register_expression(non_agg_meta);
@@ -319,9 +319,9 @@ mod tests {
             .validate_unwind_aggregate(&non_agg_expression)
             .is_ok());
 
-        // 测试包含聚合函数的UNWIND表达式
-        // 注意：这里需要一个聚合表达式实例
-        // 暂时跳过这个测试，因为需要特定的聚合表达式构造
+        // The test includes UNWIND expressions that use aggregate functions.
+        // Note: The request contains a phrase that seems to refer to an example of an aggregate expression. However, without specific context or information about what an "aggregate expression" is in this particular context, I cannot provide an accurate translation. An aggregate expression is a mathematical or computational term used in databases, programming languages, or other technical contexts to summarize or group data. If you could provide more details or clarify what you mean by "an example of an aggregate expression," I would be able to assist you with the translation.
+        // Skip this test for now, as a specific construction of aggregate expressions is required.
     }
 
     #[test]
@@ -329,7 +329,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
-        // 测试嵌套表达式
+        // Testing nested expressions
         let nested_expr = Expression::Binary {
             left: Box::new(Expression::Unary {
                 op: crate::core::types::operators::UnaryOperator::Minus,
@@ -405,7 +405,7 @@ mod tests {
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 
-        // COUNT 允许通配符属性
+        // COUNT allows the use of wildcard attributes.
         assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
     }
 
@@ -426,7 +426,7 @@ mod tests {
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 
-        // SUM 不允许通配符属性
+        // The SUM function does not allow the use of wildcard attributes.
         let result = strategy.validate_aggregate_expression(&ctx_expr);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -452,7 +452,7 @@ mod tests {
             "COLLECT_SET",
         ];
 
-        // 测试各种聚合函数
+        // Testing various aggregate functions
         let valid_functions = vec![
             AggregateFunction::Count(None),
             AggregateFunction::Sum("".to_string()),
@@ -476,7 +476,7 @@ mod tests {
 
             assert!(
                 strategy.validate_aggregate_expression(&ctx_expr).is_ok(),
-                "聚合函数应该是有效的"
+                "The aggregate functions should be valid."
             );
         }
     }
@@ -495,7 +495,7 @@ mod tests {
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
 
-        // DISTINCT 聚合应该被接受
+        // The DISTINCT aggregation should be accepted.
         assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
     }
 
@@ -581,7 +581,7 @@ mod tests {
     fn test_validate_wildcard_in_nested_expression() {
         let strategy = AggregateValidationStrategy::new();
 
-        // 嵌套表达式中的通配符不应该被检查（只检查直接参数）
+        // Wildcards in nested expressions should not be checked (only the direct parameters should be checked).
         // SUM(n.* + 1) - 这里的 n.* 不是聚合函数的直接参数
         let nested_wildcard = Expression::Aggregate {
             func: AggregateFunction::Sum("".to_string()),
@@ -599,7 +599,7 @@ mod tests {
         let expr_ctx = ExpressionAnalysisContext::new();
         let id = expr_ctx.register_expression(meta);
         let ctx_expr = ContextualExpression::new(id, Arc::new(expr_ctx));
-        // 由于通配符在嵌套表达式中，不是直接参数，所以应该通过验证
+        // Since the wildcard is not a direct parameter in the nested expression, it should be verified accordingly.
         assert!(strategy.validate_aggregate_expression(&ctx_expr).is_ok());
     }
 
@@ -625,7 +625,7 @@ mod tests {
     fn test_validate_expression_in_aggregate_function_call() {
         let strategy = AggregateValidationStrategy::new();
 
-        // 测试函数调用在聚合参数中的验证
+        // Validation of function call testing in aggregate parameters
         let expression = Expression::Function {
             name: "LOWER".to_string(),
             args: vec![Expression::Property {
@@ -634,7 +634,7 @@ mod tests {
             }],
         };
 
-        // 应该通过验证
+        // Verification should be carried out.
         assert!(strategy
             .validate_expression_in_aggregate(&expression)
             .is_ok());
@@ -644,7 +644,7 @@ mod tests {
     fn test_validate_expression_in_aggregate_case() {
         let strategy = AggregateValidationStrategy::new();
 
-        // 测试CASE表达式在聚合参数中的验证
+        // Testing the validation of CASE expressions in aggregate parameters
         let expression = Expression::Case {
             test_expr: None,
             conditions: vec![(
@@ -681,7 +681,7 @@ mod tests {
             },
         ]);
 
-        // 应该通过验证
+        // Verification should be carried out.
         assert!(strategy
             .validate_expression_in_aggregate(&expression)
             .is_ok());
@@ -691,7 +691,7 @@ mod tests {
     fn test_validate_expression_in_aggregate_type_casting() {
         let strategy = AggregateValidationStrategy::new();
 
-        // 测试类型转换在聚合参数中的验证
+        // Validation of test type conversion in aggregate parameters
         let expression = Expression::TypeCast {
             expression: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("n".to_string())),
@@ -700,7 +700,7 @@ mod tests {
             target_type: DataType::Int,
         };
 
-        // 应该通过验证
+        // Verification should be carried out.
         assert!(strategy
             .validate_expression_in_aggregate(&expression)
             .is_ok());
@@ -710,7 +710,7 @@ mod tests {
     fn test_validate_aggregate_sum_valid() {
         let strategy = AggregateValidationStrategy::new();
 
-        // 测试有效的SUM聚合
+        // Testing the effectiveness of the SUM aggregation function
         let expression = Expression::Aggregate {
             func: AggregateFunction::Sum("".to_string()),
             arg: Box::new(Expression::Property {
@@ -731,7 +731,7 @@ mod tests {
     fn test_validate_aggregate_count_valid() {
         let strategy = AggregateValidationStrategy::new();
 
-        // 测试有效的COUNT聚合
+        // Testing the effectiveness of the COUNT aggregate function
         let expression = Expression::Aggregate {
             func: AggregateFunction::Count(None),
             arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),

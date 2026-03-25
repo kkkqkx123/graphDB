@@ -1,7 +1,7 @@
-//! 表达式解析模块
+//! Expression parsing module
 //!
-//! 负责解析各种表达式，包括算术表达式、逻辑表达式、函数调用等。
-//! 直接生成 Core Expression，避免 AST Expression 的冗余转换。
+//! Responsible for parsing various expressions, including arithmetic expressions, logical expressions, function calls, etc.
+//! Generate the Core Expression directly, avoiding the redundant conversion to AST Expression.
 
 use std::sync::Arc;
 
@@ -14,7 +14,7 @@ use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
-/// 表达式解析结果，包含表达式和位置信息
+/// Expression analysis results, including the expression itself and information about its location.
 pub struct ParseResult {
     pub expr: Expression,
     pub span: Span,
@@ -38,7 +38,7 @@ impl<'a> ExprParser<'a> {
         self.parse_or_expression(ctx)
     }
 
-    /// 解析表达式并返回 ContextualExpression
+    /// Parse the expression and return the ContextualExpression.
     pub fn parse_expression_with_context(
         &mut self,
         ctx: &mut ParseContext<'a>,
@@ -159,13 +159,13 @@ impl<'a> ExprParser<'a> {
             }
             TokenKind::StartsWith => {
                 ctx.next_token();
-                // 消费可选的 WITH token（STARTS WITH 是两个词的关键字）
+                // The consumption of the optional WITH token is allowed (STARTS WITH is a keyword that consists of two words).
                 ctx.match_token(TokenKind::With);
                 Some(BinaryOperator::StartsWith)
             }
             TokenKind::EndsWith => {
                 ctx.next_token();
-                // 消费可选的 WITH token（ENDS WITH 是两个词的关键字）
+                // The consumption of the optional WITH token is allowed (ENDS WITH is a keyword consisting of two words).
                 ctx.match_token(TokenKind::With);
                 Some(BinaryOperator::EndsWith)
             }
@@ -468,7 +468,7 @@ impl<'a> ExprParser<'a> {
                 if ctx.match_token(TokenKind::Dot) {
                     let prop_name = ctx.expect_identifier()?;
                     expr = Expression::property(expr, prop_name);
-                    // 更新span以包含属性访问
+                    // Update the span to include attribute access.
                     span = ctx.merge_span(start_pos, ctx.current_position());
                 }
 
@@ -482,7 +482,7 @@ impl<'a> ExprParser<'a> {
                 if ctx.match_token(TokenKind::Dot) {
                     let prop_name = ctx.expect_identifier()?;
                     expr = Expression::property(expr, prop_name);
-                    // 更新span以包含属性访问
+                    // Update the span to include attribute access.
                     span = ctx.merge_span(start_pos, ctx.current_position());
                 }
 
@@ -497,7 +497,7 @@ impl<'a> ExprParser<'a> {
                 if ctx.match_token(TokenKind::Dot) {
                     let prop_name = ctx.expect_identifier()?;
                     expr = Expression::property(expr, prop_name);
-                    // 更新span以包含属性访问
+                    // Update the `<span>` element to include access to the attributes.
                     span = ctx.merge_span(start_pos, ctx.current_position());
                 }
 
@@ -668,7 +668,7 @@ mod tests {
         let result = parser.parse_expression(ctx);
         assert!(result.is_ok());
         let parse_result = result.expect("简单表达式解析应该成功");
-        // 验证表达式结构正确，不检查具体运算符优先级
+        // Verify that the structure of the expression is correct, without checking the specific precedence of the operators.
         assert!(matches!(parse_result.expr, Expression::Binary { .. }));
     }
 
@@ -680,7 +680,7 @@ mod tests {
         let result = parser.parse_expression(ctx);
         assert!(result.is_ok());
         let parse_result = result.expect("带括号表达式解析应该成功");
-        // 验证表达式结构正确，不检查具体运算符优先级
+        // Verify that the structure of the expression is correct, without checking the specific precedence of the operators.
         assert!(matches!(parse_result.expr, Expression::Binary { .. }));
     }
 }

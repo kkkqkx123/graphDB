@@ -1,5 +1,5 @@
-//! 辅助验证工具模块
-//! 提供类型检查、变量检查、表达式检查等底层验证工具
+//! Auxiliary Verification Tool Module
+//! Provide underlying validation tools such as type checking, variable checking, and expression checking.
 
 pub mod expression_checker;
 pub mod type_checker;

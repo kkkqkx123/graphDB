@@ -1,6 +1,6 @@
-//! 查找策略模块
+//! Search Strategy Module
 //!
-//! 定义顶点查找策略和选择器，用于 MATCH 查询中确定起始顶点的查找方式
+//! Define vertex search strategies and selectors to determine the method for finding the starting vertex in MATCH queries.
 
 use crate::core::StorageError;
 use crate::storage::StorageClient;
@@ -84,7 +84,7 @@ impl SeekStrategy for AnySeekStrategy {
 }
 
 impl SeekStrategySelector {
-    /// 创建带参数的 PropIndexSeek 策略
+    /// Create a PropIndexSeek strategy with parameters
     pub fn create_prop_index_strategy(
         &self,
         predicates: Vec<super::prop_index_seek::PropertyPredicate>,
@@ -92,7 +92,7 @@ impl SeekStrategySelector {
         AnySeekStrategy::PropIndexSeek(PropIndexSeek::new(predicates))
     }
 
-    /// 创建带参数的 VariablePropIndexSeek 策略
+    /// Create a VariablePropIndexSeek strategy with parameters
     pub fn create_variable_prop_index_strategy(
         &self,
         predicates: Vec<super::variable_prop_index_seek::VariablePropertyPredicate>,
@@ -100,7 +100,7 @@ impl SeekStrategySelector {
         AnySeekStrategy::VariablePropIndexSeek(VariablePropIndexSeek::new(predicates))
     }
 
-    /// 创建带参数的 EdgeSeek 策略
+    /// Creating an EdgeSeek policy with parameters
     pub fn create_edge_strategy(&self, edge_pattern: EdgePattern) -> AnySeekStrategy {
         AnySeekStrategy::EdgeSeek(EdgeSeek::new(edge_pattern))
     }

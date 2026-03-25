@@ -1,24 +1,24 @@
-//! 查询反馈结构模块
+//! Query Feedback Structure Module
 //!
-//! 提供查询执行反馈的数据结构，包括算子反馈和查询执行反馈。
+//! A data structure that provides feedback on the execution of a query, including feedback on the operators used and details regarding the query execution itself.
 
 use std::time::Instant;
 
-/// 算子执行反馈
+/// Operator execution feedback
 ///
-/// 记录单个算子的执行统计信息。
-/// 参考PostgreSQL的EXPLAIN ANALYZE输出格式。
+/// Records statistical information about the execution of individual operators.
+/// Refer to the output format of EXPLAIN ANALYZE in PostgreSQL.
 ///
-/// # 字段说明
-/// - `operator_id`: 算子唯一标识
-/// - `operator_type`: 算子类型（如Scan, Filter, Join等）
-/// - `estimated_rows`: 优化器估计的输出行数
-/// - `actual_rows`: 实际输出行数
-/// - `estimated_time_us`: 估计执行时间（微秒）
-/// - `actual_time_us`: 实际执行时间（微秒）
-/// - `execution_loops`: 执行次数（如Nested Loop内层扫描的执行次数）
+/// # Field Description
+/// `operator_id`: The unique identifier for the operator.
+/// `operator_type`: The type of the operator (such as Scan, Filter, Join, etc.)
+/// `estimated_rows`: The number of output rows estimated by the optimizer.
+/// `actual_rows`: The actual number of rows output.
+/// estimated_time_us: Estimated execution time (in microseconds)
+/// `actual_time_us`: Actual execution time (in microseconds)
+/// `execution_loops`: The number of executions (for example, the number of times the inner loop of a Nested Loop is executed).
 ///
-/// # 示例
+/// # Example
 /// ```
 /// use graphdb::query::optimizer::stats::feedback::query::OperatorFeedback;
 ///
@@ -36,24 +36,24 @@ use std::time::Instant;
 /// ```
 #[derive(Debug, Clone)]
 pub struct OperatorFeedback {
-    /// 算子ID
+    /// Operator ID
     pub operator_id: String,
-    /// 算子类型
+    /// Operator types
     pub operator_type: String,
-    /// 估计输出行数
+    /// Estimated number of output lines
     pub estimated_rows: u64,
-    /// 实际输出行数
+    /// Number of actual lines of output
     pub actual_rows: u64,
-    /// 估计执行时间（微秒）
+    /// Estimated execution time (in microseconds)
     pub estimated_time_us: u64,
-    /// 实际执行时间（微秒）
+    /// Actual execution time (in microseconds)
     pub actual_time_us: u64,
-    /// 执行次数（如Nested Loop内层扫描的执行次数）
+    /// Number of executions (for example, the number of times the inner loop of a nested loop is executed)
     pub execution_loops: u64,
 }
 
 impl OperatorFeedback {
-    /// 创建新的算子反馈
+    /// Create new operator feedback.
     pub fn new(
         operator_id: String,
         operator_type: String,
@@ -71,9 +71,9 @@ impl OperatorFeedback {
         }
     }
 
-    /// 计算行数估计误差
+    /// Estimation error of the number of lines calculated
     ///
-    /// 返回相对误差：(实际-估计)/估计
+    /// Return the relative error: (Actual – Estimated) / Estimated
     /// 如果估计为0，返回1.0
     pub fn row_estimation_error(&self) -> f64 {
         if self.estimated_rows == 0 {
@@ -84,7 +84,7 @@ impl OperatorFeedback {
         ((actual - estimated).abs() / estimated).min(10.0)
     }
 
-    /// 计算时间估计误差
+    /// Calculating the estimated error in time measurement
     ///
     /// 返回相对误差：(实际-估计)/估计
     pub fn time_estimation_error(&self) -> f64 {
@@ -96,10 +96,10 @@ impl OperatorFeedback {
         ((actual - estimated).abs() / estimated).min(10.0)
     }
 
-    /// 获取每次执行的平均实际行数
+    /// Obtain the average number of actual rows executed in each case.
     ///
-    /// 对于多次执行的算子（如Nested Loop内层），
-    /// 返回每次执行的平均行数。
+    /// For operators that are executed multiple times (such as the inner loop in a Nested Loop),
+    /// Return the average number of lines executed per run.
     pub fn avg_rows_per_loop(&self) -> f64 {
         if self.execution_loops == 0 {
             return 0.0;
@@ -107,7 +107,7 @@ impl OperatorFeedback {
         self.actual_rows as f64 / self.execution_loops as f64
     }
 
-    /// 获取每次执行的平均实际时间（微秒）
+    /// Obtain the average actual time (in microseconds) for each execution.
     pub fn avg_time_us_per_loop(&self) -> f64 {
         if self.execution_loops == 0 {
             return 0.0;
@@ -116,9 +116,9 @@ impl OperatorFeedback {
     }
 }
 
-/// 查询执行反馈
+/// Query execution feedback
 ///
-/// 记录单次查询执行的完整反馈信息。
+/// Record the complete feedback information for each query execution.
 ///
 /// # 示例
 /// ```
@@ -134,7 +134,7 @@ impl OperatorFeedback {
 /// ```
 #[derive(Debug, Clone)]
 pub struct QueryExecutionFeedback {
-    /// 查询指纹
+    /// Querying fingerprints
     pub query_fingerprint: String,
     /// 估计输出行数
     pub estimated_rows: u64,
@@ -144,14 +144,14 @@ pub struct QueryExecutionFeedback {
     pub estimated_time_us: u64,
     /// 实际执行时间（微秒）
     pub actual_time_us: u64,
-    /// 执行时间戳
+    /// Execution timestamp
     pub execution_timestamp: Instant,
-    /// 各算子的反馈
+    /// Feedback from each operator
     pub operator_feedbacks: Vec<OperatorFeedback>,
 }
 
 impl QueryExecutionFeedback {
-    /// 创建新的查询执行反馈
+    /// Create new feedback for query execution.
     pub fn new(query_fingerprint: String) -> Self {
         Self {
             query_fingerprint,
@@ -184,24 +184,24 @@ impl QueryExecutionFeedback {
         ((actual - estimated).abs() / estimated).min(10.0)
     }
 
-    /// 添加算子反馈
+    /// Add operator feedback
     pub fn add_operator_feedback(&mut self, feedback: OperatorFeedback) {
         self.operator_feedbacks.push(feedback);
     }
 
-    /// 获取算子反馈数量
+    /// Number of operator feedbacks obtained
     pub fn operator_feedback_count(&self) -> usize {
         self.operator_feedbacks.len()
     }
 
-    /// 获取特定算子的反馈
+    /// Obtaining feedback on a specific operator
     pub fn get_operator_feedback(&self, operator_id: &str) -> Option<&OperatorFeedback> {
         self.operator_feedbacks
             .iter()
             .find(|f| f.operator_id == operator_id)
     }
 
-    /// 计算所有算子的平均行数估计误差
+    /// Calculate the average estimation error for the number of rows of all operators.
     pub fn avg_operator_row_error(&self) -> f64 {
         if self.operator_feedbacks.is_empty() {
             return 0.0;
@@ -214,7 +214,7 @@ impl QueryExecutionFeedback {
         total_error / self.operator_feedbacks.len() as f64
     }
 
-    /// 计算所有算子的平均时间估计误差
+    /// Calculate the average time estimation error for all operators.
     pub fn avg_operator_time_error(&self) -> f64 {
         if self.operator_feedbacks.is_empty() {
             return 0.0;
@@ -254,7 +254,7 @@ mod tests {
             operator_id: "nested_loop_inner".to_string(),
             operator_type: "IndexScan".to_string(),
             estimated_rows: 100,
-            actual_rows: 500, // 总共500行，执行了10次
+            actual_rows: 500, // In total, 500 lines were processed, and this operation was performed 10 times.
             estimated_time_us: 1000,
             actual_time_us: 5000,
             execution_loops: 10,
@@ -272,7 +272,7 @@ mod tests {
         feedback.estimated_time_us = 5000;
         feedback.actual_time_us = 6000;
 
-        // 添加算子反馈
+        // Add operator feedback
         let op_feedback =
             OperatorFeedback::new("scan_1".to_string(), "SeqScan".to_string(), 1000, 1200);
         feedback.add_operator_feedback(op_feedback);
@@ -286,7 +286,7 @@ mod tests {
     fn test_avg_operator_errors() {
         let mut feedback = QueryExecutionFeedback::new("fp_123".to_string());
 
-        // 添加两个算子反馈
+        // Add feedback for two operators.
         feedback.add_operator_feedback(OperatorFeedback {
             operator_id: "op1".to_string(),
             operator_type: "Scan".to_string(),

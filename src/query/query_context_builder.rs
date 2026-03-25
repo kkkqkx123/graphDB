@@ -1,6 +1,6 @@
-//! QueryContext 构建器
+//! QueryContext Builder
 //!
-//! 提供流式 API 来构建 QueryContext，简化复杂对象的创建过程。
+//! Provide a streaming API for building QueryContext, which simplifies the process of creating complex objects.
 
 use crate::core::types::CharsetInfo;
 use crate::core::types::SpaceInfo;
@@ -9,11 +9,11 @@ use crate::query::query_request_context::QueryRequestContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// QueryContext 构建器
+/// QueryContext Builder
 ///
-/// 提供流式 API 来构建 QueryContext，简化复杂对象的创建过程。
+/// A streaming API is provided to build the QueryContext, simplifying the process of creating complex objects.
 ///
-/// # 示例
+/// # Example
 ///
 /// ```rust
 /// use crate::query::query_context_builder::QueryContextBuilder;
@@ -34,7 +34,7 @@ pub struct QueryContextBuilder {
 }
 
 impl QueryContextBuilder {
-    /// 创建新的构建器
+    /// Create a new builder.
     pub fn new(rctx: Arc<QueryRequestContext>) -> Self {
         Self {
             rctx: Some(rctx),
@@ -44,25 +44,25 @@ impl QueryContextBuilder {
         }
     }
 
-    /// 设置执行管理器
+    /// Setting up the Execution Manager
     pub fn with_execution_manager(mut self, execution_manager: QueryExecutionManager) -> Self {
         self.execution_manager = Some(execution_manager);
         self
     }
 
-    /// 设置资源上下文
+    /// Setting the resource context
     pub fn with_resource_context(mut self, resource_context: QueryResourceContext) -> Self {
         self.resource_context = Some(resource_context);
         self
     }
 
-    /// 设置空间上下文
+    /// Setting the spatial context
     pub fn with_space_context(mut self, space_context: QuerySpaceContext) -> Self {
         self.space_context = Some(space_context);
         self
     }
 
-    /// 设置空间信息
+    /// Setting spatial information
     pub fn with_space_info(mut self, space_info: SpaceInfo) -> Self {
         let mut space_context = self.space_context.unwrap_or_default();
         space_context.set_space_info(space_info);
@@ -70,7 +70,7 @@ impl QueryContextBuilder {
         self
     }
 
-    /// 设置字符集信息
+    /// Setting character set information
     pub fn with_charset_info(mut self, charset_info: CharsetInfo) -> Self {
         let mut space_context = self.space_context.unwrap_or_default();
         space_context.set_charset_info(charset_info);
@@ -78,13 +78,13 @@ impl QueryContextBuilder {
         self
     }
 
-    /// 设置 ID 起始值
+    /// Set the initial value for the ID
     pub fn with_start_id(mut self, start_id: i64) -> Self {
         self.resource_context = Some(QueryResourceContext::with_config(start_id));
         self
     }
 
-    /// 构建 QueryContext
+    /// Constructing the QueryContext
     pub fn build(self) -> QueryContext {
         let rctx = self.rctx.expect("QueryRequestContext is required");
         let execution_manager = self.execution_manager.unwrap_or_default();

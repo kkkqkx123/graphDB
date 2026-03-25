@@ -1,7 +1,7 @@
-//! 将过滤条件下推到哈希左连接操作的规则
+//! Rules that push the filtering conditions to the left hash join operation
 //!
-//! 该规则识别 Filter -> HashLeftJoin 模式，
-//! 并将过滤条件下推到连接的两侧。
+//! This rule identifies the Filter -> HashLeftJoin mode.
+//! And push the filtering conditions to both sides of the connection.
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
@@ -14,9 +14,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// 将过滤条件下推到哈希左连接操作的规则
+/// Rules that push the filtering conditions to the left hash join operation
 ///
-/// # 转换示例
+/// # Conversion example
 ///
 /// Before:
 /// ```text
@@ -37,15 +37,15 @@ use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 /// Left        Right
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - 过滤条件可以分离为左右两侧的条件
-/// - 可以安全地将条件下推到两侧
+/// The filtering criteria can be separated into conditions on the left and right sides.
+/// The conditions can be safely pushed out to both sides.
 #[derive(Debug)]
 pub struct PushFilterDownHashLeftJoinRule;
 
 impl PushFilterDownHashLeftJoinRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         Self
     }
@@ -71,52 +71,52 @@ impl RewriteRule for PushFilterDownHashLeftJoinRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 Filter 节点
+        // Check whether it is a Filter node.
         let filter_node = match node {
             PlanNodeEnum::Filter(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取输入节点
+        // Obtain the input node
         let input = filter_node.input();
 
-        // 检查输入节点是否为 HashLeftJoin
+        // Check whether the input node is a HashLeftJoin.
         let join = match input {
             PlanNodeEnum::HashLeftJoin(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取过滤条件
+        // Obtain the filtering criteria
         let filter_condition = filter_node.condition();
 
-        // 获取上下文用于创建 ContextualExpression
+        // Obtaining the context is necessary for creating a ContextualExpression.
         let ctx = filter_condition.context().clone();
 
-        // 获取左右输入的列名
+        // Obtain the column names for the left and right inputs.
         let left_col_names = join.left_input().col_names().to_vec();
         let right_col_names = join.right_input().col_names().to_vec();
 
-        // 定义左侧选择器函数
+        // Define the function for the left-side selector.
         let left_picker = |expr: &Expression| -> bool { check_col_name(&left_col_names, expr) };
 
-        // 定义右侧选择器函数
+        // Define the function for the selector on the right side.
         let right_picker = |expr: &Expression| -> bool { check_col_name(&right_col_names, expr) };
 
-        // 分割过滤条件
+        // Split filter criteria
         let (left_picked, left_remained) = split_filter(filter_condition, left_picker);
         let (right_picked, right_remained) = split_filter(filter_condition, right_picker);
 
-        // 如果没有可以下推的条件，则不进行转换
+        // If there are no conditions that allow for the transformation to be performed, then no conversion will take place.
         if left_picked.is_none() && right_picked.is_none() {
             return Ok(None);
         }
 
-        // 创建新的 HashLeftJoin 节点
+        // Create a new HashLeftJoin node.
         let mut new_join = join.clone();
         let mut new_left = join.left_input().clone();
         let mut new_right = join.right_input().clone();
 
-        // 处理左侧下推
+        // Handle the push from the lower left side.
         let left_pushed = left_picked.is_some();
         if let Some(left_filter) = left_picked {
             let left_expr = match left_filter.expression() {
@@ -135,7 +135,7 @@ impl RewriteRule for PushFilterDownHashLeftJoinRule {
             new_left = PlanNodeEnum::Filter(left_filter_node);
         }
 
-        // 处理右侧下推
+        // Handle the push from the lower right corner.
         let right_pushed = right_picked.is_some();
         if let Some(right_filter) = right_picked {
             let right_expr = match right_filter.expression() {
@@ -154,14 +154,14 @@ impl RewriteRule for PushFilterDownHashLeftJoinRule {
             new_right = PlanNodeEnum::Filter(right_filter_node);
         }
 
-        // 更新 Join 节点的输入
+        // Update the input for the Join node.
         new_join.set_left_input(new_left);
         new_join.set_right_input(new_right);
 
-        // 构建转换结果
+        // Construct the translation result.
         let mut result = TransformResult::new();
 
-        // 检查是否有剩余的过滤条件
+        // Check whether there are any remaining filter conditions.
         let remaining_condition = if left_pushed && right_pushed {
             None
         } else if left_pushed {

@@ -1,6 +1,6 @@
-//! 节点工厂实现
+//! Implementation of the Node Factory
 //!
-//! 提供统一的节点创建接口
+//! Provide a unified interface for creating nodes.
 
 use crate::query::planning::plan::core::nodes::access::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
@@ -26,13 +26,13 @@ use crate::query::planning::plan::core::nodes::traversal::traversal_node::{
 };
 use crate::query::planning::plan::PlanNodeEnum;
 
-/// 节点工厂
+/// Node Factory
 ///
-/// 提供统一的节点创建接口，简化节点创建过程
+/// Provide a unified interface for node creation to simplify the process of creating nodes.
 pub struct PlanNodeFactory;
 
 impl PlanNodeFactory {
-    /// 创建过滤节点
+    /// Create a filter node.
     pub fn create_filter(
         input: PlanNodeEnum,
         condition: ContextualExpression,
@@ -42,7 +42,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Filter(filter_node))
     }
 
-    /// 创建投影节点
+    /// Create a projection node.
     pub fn create_project(
         input: PlanNodeEnum,
         columns: Vec<YieldColumn>,
@@ -52,7 +52,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Project(project_node))
     }
 
-    /// 创建内连接节点
+    /// Create an inner join node.
     pub fn create_inner_join(
         left: PlanNodeEnum,
         right: PlanNodeEnum,
@@ -65,19 +65,19 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::InnerJoin(inner_join_node))
     }
 
-    /// 创建起始节点
+    /// Create the starting node.
     pub fn create_start_node() -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError>
     {
         Ok(PlanNodeEnum::Start(StartNode::new()))
     }
 
-    /// 创建占位符节点（使用ArgumentNode作为占位符）
+    /// Create a placeholder node (using ArgumentNode as the placeholder).
     pub fn create_placeholder_node(
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::Argument(ArgumentNode::new(-1, "placeholder")))
     }
 
-    /// 创建聚合节点
+    /// Create an aggregate node.
     pub fn create_aggregate(
         input: PlanNodeEnum,
         group_keys: Vec<String>,
@@ -87,7 +87,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Aggregate(aggregate_node))
     }
 
-    /// 创建排序节点
+    /// Create a sorting node.
     pub fn create_sort(
         input: PlanNodeEnum,
         sort_items: Vec<SortItem>,
@@ -96,7 +96,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Sort(sort_node))
     }
 
-    /// 创建限制节点
+    /// Create a restricted node.
     pub fn create_limit(
         input: PlanNodeEnum,
         offset: i64,
@@ -106,7 +106,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Limit(limit_node))
     }
 
-    /// 创建获取顶点节点
+    /// Create a method to retrieve the vertex nodes
     pub fn create_get_vertices(
         space_id: u64,
         src_vids: &str,
@@ -116,7 +116,7 @@ impl PlanNodeFactory {
         )))
     }
 
-    /// 创建获取边节点
+    /// Create a function to retrieve edge nodes
     pub fn create_get_edges(
         space_id: u64,
         src: &str,
@@ -129,7 +129,7 @@ impl PlanNodeFactory {
         )))
     }
 
-    /// 创建获取邻居节点
+    /// Create a mechanism to obtain information about neighboring nodes.
     pub fn create_get_neighbors(
         space_id: u64,
         src_vids: &str,
@@ -139,14 +139,14 @@ impl PlanNodeFactory {
         )))
     }
 
-    /// 创建扫描顶点节点
+    /// Create a scan vertex node.
     pub fn create_scan_vertices(
         space_id: u64,
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::ScanVertices(ScanVerticesNode::new(space_id)))
     }
 
-    /// 创建扫描边节点
+    /// Create a node for scanning edges.
     pub fn create_scan_edges(
         space_id: u64,
         edge_type: &str,
@@ -156,7 +156,7 @@ impl PlanNodeFactory {
         )))
     }
 
-    /// 创建扩展节点
+    /// Create an extended node.
     pub fn create_expand(
         space_id: u64,
         edge_types: Vec<String>,
@@ -167,7 +167,7 @@ impl PlanNodeFactory {
         )))
     }
 
-    /// 创建扩展全部节点
+    /// Create an extension to include all nodes.
     pub fn create_expand_all(
         space_id: u64,
         edge_types: Vec<String>,
@@ -178,7 +178,7 @@ impl PlanNodeFactory {
         )))
     }
 
-    /// 创建遍历节点
+    /// Create a function to traverse the nodes.
     pub fn create_traverse(
         space_id: u64,
         start_vids: &str,
@@ -190,7 +190,7 @@ impl PlanNodeFactory {
         )))
     }
 
-    /// 创建追加顶点节点
+    /// Create additional vertex nodes.
     pub fn create_append_vertices(
         space_id: u64,
         vertex_tag: &str,
@@ -200,7 +200,7 @@ impl PlanNodeFactory {
         )))
     }
 
-    /// 创建参数节点
+    /// Create a parameter node.
     pub fn create_argument(
         id: i64,
         var: &str,
@@ -208,7 +208,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Argument(ArgumentNode::new(id, var)))
     }
 
-    /// 创建选择节点
+    /// Create a selection node.
     pub fn create_select(
         id: i64,
         condition: ContextualExpression,
@@ -216,7 +216,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Select(SelectNode::new(id, condition)))
     }
 
-    /// 创建循环节点
+    /// Create a loop node
     pub fn create_loop(
         id: i64,
         condition: ContextualExpression,
@@ -224,14 +224,14 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Loop(LoopNode::new(id, condition)))
     }
 
-    /// 创建透传节点
+    /// Create a passthrough node
     pub fn create_pass_through(
         id: i64,
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         Ok(PlanNodeEnum::PassThrough(PassThroughNode::new(id)))
     }
 
-    /// 创建联合节点
+    /// Create a joint node.
     pub fn create_union(
         input: PlanNodeEnum,
         distinct: bool,
@@ -240,7 +240,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Union(union_node))
     }
 
-    /// 创建差集节点
+    /// Create a difference set node.
     pub fn create_minus(
         input: PlanNodeEnum,
         minus_input: PlanNodeEnum,
@@ -250,7 +250,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Minus(minus_node))
     }
 
-    /// 创建交集节点
+    /// Create an intersection node.
     pub fn create_intersect(
         input: PlanNodeEnum,
         intersect_input: PlanNodeEnum,
@@ -260,7 +260,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Intersect(intersect_node))
     }
 
-    /// 创建展开节点
+    /// Create an expanded node.
     pub fn create_unwind(
         input: PlanNodeEnum,
         alias: &str,
@@ -270,7 +270,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Unwind(unwind_node))
     }
 
-    /// 创建去重节点
+    /// Create deduplication nodes.
     pub fn create_dedup(
         input: PlanNodeEnum,
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
@@ -278,7 +278,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Dedup(dedup_node))
     }
 
-    /// 创建RollUp应用节点
+    /// Create a RollUp application node.
     pub fn create_roll_up_apply(
         left_input: PlanNodeEnum,
         right_input: PlanNodeEnum,
@@ -290,7 +290,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::RollUpApply(roll_up_apply_node))
     }
 
-    /// 创建模式应用节点
+    /// Create a pattern application node.
     pub fn create_pattern_apply(
         left_input: PlanNodeEnum,
         right_input: PlanNodeEnum,
@@ -302,7 +302,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::PatternApply(pattern_apply_node))
     }
 
-    /// 创建数据收集节点
+    /// Create a data collection node.
     pub fn create_data_collect(
         input: PlanNodeEnum,
         collect_kind: &str,
@@ -311,7 +311,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::DataCollect(data_collect_node))
     }
 
-    /// 创建索引扫描节点
+    /// Create an index scanning node.
     pub fn create_index_scan(
         space_id: u64,
         tag_id: i32,
@@ -320,7 +320,7 @@ impl PlanNodeFactory {
     ) -> Result<PlanNodeEnum, crate::query::planning::planner::PlannerError> {
         use crate::query::planning::plan::core::nodes::access::{IndexScanNode, ScanType};
 
-        // 创建 IndexScan 节点
+        // Create an IndexScan node
         let index_scan_node = IndexScanNode::new(
             space_id,
             tag_id,
@@ -330,7 +330,7 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::IndexScan(index_scan_node))
     }
 
-    /// 创建边索引扫描节点
+    /// Create a border index scanning node.
     pub fn create_edge_index_scan(
         space_id: u64,
         edge_type: &str,

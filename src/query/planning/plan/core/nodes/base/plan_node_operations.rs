@@ -1,13 +1,13 @@
-//! PlanNode 操作实现
+//! Implementation of the PlanNode operation
 //!
-//! 实现 PlanNodeEnum 的各种操作方法
+//! Implementing various operation methods for PlanNodeEnum
 
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{MultipleInputNode, SingleInputNode};
 
-/// 为 PlanNodeEnum 生成 match 分支的宏（带默认值）
+/// Generate a macro for the `match` branch of `PlanNodeEnum` (including default values)
 ///
-/// 这个宏生成对所有节点类型的匹配，自动调用指定的方法，对管理节点返回默认值
+/// This macro generates matches for all node types, automatically calls the specified methods, and returns default values for management nodes.
 macro_rules! match_all_nodes_with_default {
     ($self:expr, $method:ident, $default:expr) => {
         match $self {
@@ -53,22 +53,22 @@ macro_rules! match_all_nodes_with_default {
             PlanNodeEnum::BFSShortest(node) => node.$method(),
             PlanNodeEnum::AllPaths(node) => node.$method(),
             PlanNodeEnum::ShortestPath(node) => node.$method(),
-            // 管理节点返回默认值
+            // The management node returns the default value.
             _ => $default,
         }
     };
 }
 
 impl PlanNodeEnum {
-    /// 获取节点的唯一ID
+    /// Obtaining the unique ID of a node
     pub fn id(&self) -> i64 {
         match_all_nodes_with_default!(self, id, 0)
     }
 
-    /// 获取节点类型的名称
+    /// Obtain the name of the node type.
     pub fn name(&self) -> &'static str {
         match self {
-            // 基础节点类型
+            // Basic node types
             PlanNodeEnum::Start(_) => "Start",
             PlanNodeEnum::Project(_) => "Project",
             PlanNodeEnum::Sort(_) => "Sort",
@@ -108,15 +108,15 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(_) => "AllPaths",
             PlanNodeEnum::ShortestPath(_) => "ShortestPath",
 
-            // 管理节点
+            // Management node
             _ => "AdminNode",
         }
     }
 
-    /// 获取节点的输出变量
+    /// Obtain the output variables of the node.
     pub fn output_var(&self) -> Option<&str> {
         match self {
-            // 基础节点类型 - 这些节点实现了 PlanNode trait
+            // Basic node types – These nodes implement the PlanNode trait.
             PlanNodeEnum::Start(node) => node.output_var(),
             PlanNodeEnum::Project(node) => node.output_var(),
             PlanNodeEnum::Sort(node) => node.output_var(),
@@ -156,20 +156,20 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(node) => node.output_var(),
             PlanNodeEnum::ShortestPath(node) => node.output_var(),
 
-            // 管理节点 - 无输出变量
+            // Management Node – No output variables
             _ => None,
         }
     }
 
-    /// 获取列名列表
+    /// Obtain a list of column names.
     pub fn col_names(&self) -> &[String] {
         match_all_nodes_with_default!(self, col_names, &[])
     }
 
-    /// 获取节点的依赖节点列表
+    /// Obtain the list of dependent nodes of a node.
     pub fn dependencies(&self) -> Vec<PlanNodeEnum> {
         match self {
-            // 零输入节点
+            // Zero-input node
             PlanNodeEnum::Start(_node) => vec![],
             PlanNodeEnum::GetVertices(_node) => vec![],
             PlanNodeEnum::GetEdges(_node) => vec![],
@@ -182,7 +182,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(_node) => vec![],
             PlanNodeEnum::ShortestPath(_node) => vec![],
 
-            // 单输入节点
+            // Single input node
             PlanNodeEnum::Project(node) => vec![node.input().clone()],
             PlanNodeEnum::Sort(node) => vec![node.input().clone()],
             PlanNodeEnum::Limit(node) => vec![node.input().clone()],
@@ -198,7 +198,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Unwind(node) => vec![node.input().clone()],
             PlanNodeEnum::Assign(node) => vec![node.input().clone()],
 
-            // 双输入节点
+            // Dual-input node
             PlanNodeEnum::InnerJoin(node) => {
                 vec![node.left_input().clone(), node.right_input().clone()]
             }
@@ -215,7 +215,7 @@ impl PlanNodeEnum {
                 vec![node.left_input().clone(), node.right_input().clone()]
             }
 
-            // 多输入节点
+            // Add more nodes
             PlanNodeEnum::Expand(node) => node.inputs().to_vec(),
             PlanNodeEnum::ExpandAll(node) => node.inputs().to_vec(),
             PlanNodeEnum::Traverse(node) => {
@@ -223,18 +223,18 @@ impl PlanNodeEnum {
             }
             PlanNodeEnum::AppendVertices(node) => node.inputs().to_vec(),
 
-            // 其他节点
+            // Other nodes
             PlanNodeEnum::Argument(_node) => vec![],
             PlanNodeEnum::Loop(_node) => vec![],
             PlanNodeEnum::PassThrough(_node) => vec![],
             PlanNodeEnum::Select(_node) => vec![],
 
-            // 管理节点 - 无输入依赖
+            // Management Node: No input dependencies
             _ => vec![],
         }
     }
 
-    /// 获取第一个依赖节点（如果存在）
+    /// Retrieve the first dependent node (if it exists).
     pub fn first_dependency(&self) -> Option<PlanNodeEnum> {
         let deps = self.dependencies();
         if deps.is_empty() {
@@ -244,10 +244,10 @@ impl PlanNodeEnum {
         }
     }
 
-    /// 设置节点的输出变量
+    /// Setting the output variables of the node
     pub fn set_output_var(&mut self, var: String) {
         match self {
-            // 基础节点类型 - 这些节点实现了 PlanNode trait
+            // Basic node types – These nodes implement the PlanNode trait.
             PlanNodeEnum::Start(node) => node.set_output_var(var),
             PlanNodeEnum::Project(node) => node.set_output_var(var),
             PlanNodeEnum::Sort(node) => node.set_output_var(var),
@@ -287,15 +287,15 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(node) => node.set_output_var(var),
             PlanNodeEnum::ShortestPath(node) => node.set_output_var(var),
 
-            // 管理节点 - 不需要设置输出变量
+            // Management node: There is no need to set any output variables.
             _ => {}
         }
     }
 
-    /// 设置列名
+    /// Set column names
     pub fn set_col_names(&mut self, names: Vec<String>) {
         match self {
-            // 基础节点类型 - 这些节点实现了 PlanNode trait
+            // Basic node types – These nodes implement the PlanNode trait.
             PlanNodeEnum::Start(node) => node.set_col_names(names),
             PlanNodeEnum::Project(node) => node.set_col_names(names),
             PlanNodeEnum::Sort(node) => node.set_col_names(names),
@@ -335,7 +335,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(node) => node.set_col_names(names),
             PlanNodeEnum::ShortestPath(node) => node.set_col_names(names),
 
-            // 管理节点 - 不需要设置列名
+            // Management Node: There is no need to set column names.
             _ => {}
         }
     }

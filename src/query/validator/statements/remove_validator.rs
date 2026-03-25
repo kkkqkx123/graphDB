@@ -1,5 +1,5 @@
-//! Remove 语句验证器
-//! 用于验证 REMOVE 语句（Cypher 风格的属性/标签删除）
+//! Remove the statement validator.
+//! Used to verify the REMOVE statement (deletion of properties/tagging in Cypher style)
 //! 参考 nebula-graph MutateValidator.cpp 中的删除操作验证
 
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 
-/// Remove 语句验证器
+/// Remove the statement validator.
 #[derive(Debug)]
 pub struct RemoveValidator {
     items: Vec<ContextualExpression>,
@@ -25,7 +25,7 @@ pub struct RemoveValidator {
 }
 
 impl RemoveValidator {
-    /// 创建新的 Remove 验证器
+    /// Create a new Remove validator.
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
@@ -36,7 +36,7 @@ impl RemoveValidator {
         }
     }
 
-    /// 验证移除项
+    /// Verify the removed items.
     fn validate_remove_item(&self, item: &ContextualExpression) -> Result<(), ValidationError> {
         let expr_meta = item.expression().ok_or_else(|| {
             ValidationError::new(
@@ -48,7 +48,7 @@ impl RemoveValidator {
         self.validate_remove_item_internal(expr)
     }
 
-    /// 内部方法：验证移除项
+    /// Internal method: Verify the removal of the item
     fn validate_remove_item_internal(
         &self,
         item: &crate::core::types::expr::Expression,
@@ -60,7 +60,7 @@ impl RemoveValidator {
             Expression::Property { object, property } => {
                 self.validate_property_access_internal(object, property)
             }
-            // 变量本身: REMOVE n (移除节点)
+            // The variable itself: REMOVE n (Removes the node)
             Expression::Variable(var) => self.validate_variable_remove(var),
             _ => Err(ValidationError::new(
                 format!("Invalid REMOVE expression: {:?}", item),
@@ -69,7 +69,7 @@ impl RemoveValidator {
         }
     }
 
-    /// 验证属性访问移除
+    /// Verify the removal of attribute access.
     #[allow(dead_code)]
     fn validate_property_access(
         &self,
@@ -86,7 +86,7 @@ impl RemoveValidator {
         self.validate_property_access_internal(expr, property)
     }
 
-    /// 内部方法：验证属性访问移除
+    /// Internal method: Verification of attribute access removal
     fn validate_property_access_internal(
         &self,
         object: &crate::core::types::expr::Expression,
@@ -94,9 +94,9 @@ impl RemoveValidator {
     ) -> Result<(), ValidationError> {
         use crate::core::types::expr::Expression;
 
-        // 对象必须是变量
+        // The object must be a variable.
         if let Expression::Variable(var_name) = object {
-            // 检查变量是否存在
+            // Check whether the variable exists.
             if !self.user_defined_vars.iter().any(|v| v == var_name) {
                 return Err(ValidationError::new(
                     format!("Variable '{}' not defined", var_name),
@@ -110,7 +110,7 @@ impl RemoveValidator {
             ));
         }
 
-        // 属性名不能为空
+        // The attribute name cannot be empty.
         if property.is_empty() {
             return Err(ValidationError::new(
                 "Property name cannot be empty".to_string(),
@@ -121,9 +121,9 @@ impl RemoveValidator {
         Ok(())
     }
 
-    /// 验证变量移除（删除节点/边）
+    /// Verify the removal of variables (deletion of nodes/edges)
     fn validate_variable_remove(&self, var: &str) -> Result<(), ValidationError> {
-        // 检查变量是否存在
+        // Check whether the variable exists.
         if !self.user_defined_vars.iter().any(|v| v == var) {
             return Err(ValidationError::new(
                 format!("Variable '{}' not defined", var),
@@ -135,7 +135,7 @@ impl RemoveValidator {
     }
 
     fn validate_impl(&mut self, stmt: &RemoveStmt) -> Result<(), ValidationError> {
-        // 验证至少有一个移除项
+        // Verify that there is at least one removed item.
         if stmt.items.is_empty() {
             return Err(ValidationError::new(
                 "REMOVE clause must have at least one item".to_string(),
@@ -143,31 +143,31 @@ impl RemoveValidator {
             ));
         }
 
-        // 验证每个移除项
+        // Verify each item that has been removed.
         for item in &stmt.items {
             self.validate_remove_item(item)?;
         }
 
-        // 保存信息
+        // Save the information.
         self.items = stmt.items.clone();
 
-        // 设置输出列
+        // Set the output columns
         self.setup_outputs();
 
         Ok(())
     }
 
     fn setup_outputs(&mut self) {
-        // REMOVE 语句返回被移除的项数
+        // The `REMOVE` statement returns the number of items that were removed.
         self.outputs = vec![ColumnDef {
             name: "removed_count".to_string(),
             type_: ValueType::Int,
         }];
     }
 
-    /// 设置输入列（从父查询传递的列）
+    /// Setting the input columns (the columns passed from the parent query)
     pub fn set_inputs(&mut self, inputs: Vec<ColumnDef>) {
-        // 更新可用的用户定义变量
+        // Update the available user-defined variables.
         self.user_defined_vars = inputs.iter().map(|c| c.name.clone()).collect();
         self.inputs = inputs;
     }
@@ -179,10 +179,10 @@ impl Default for RemoveValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for RemoveValidator {
     fn validate(
         &mut self,
@@ -241,7 +241,7 @@ impl StatementValidator for RemoveValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // REMOVE 不是全局语句
+        // “REMOVE” is not a global statement.
         false
     }
 
@@ -280,14 +280,14 @@ mod tests {
         let mut validator = RemoveValidator::new();
         validator.user_defined_vars.push("n".to_string());
 
-        // 有效的属性访问
+        // Effective access to attributes
         let obj = create_contextual_expr(Expression::Variable("n".to_string()));
         assert!(validator.validate_property_access(&obj, "name").is_ok());
 
-        // 无效的属性名
+        // Invalid attribute name
         assert!(validator.validate_property_access(&obj, "").is_err());
 
-        // 未定义的变量
+        // Undefined variable
         let obj2 = create_contextual_expr(Expression::Variable("m".to_string()));
         assert!(validator.validate_property_access(&obj2, "name").is_err());
     }
@@ -297,10 +297,10 @@ mod tests {
         let mut validator = RemoveValidator::new();
         validator.user_defined_vars.push("n".to_string());
 
-        // 有效的变量
+        // Effective variables
         assert!(validator.validate_variable_remove("n").is_ok());
 
-        // 未定义的变量
+        // Undefined variable
         assert!(validator.validate_variable_remove("m").is_err());
     }
 }

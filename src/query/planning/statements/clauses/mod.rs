@@ -1,4 +1,4 @@
-// 子句规划器模块
+// Sentence Planner Module
 pub mod order_by_planner;
 pub mod pagination_planner;
 pub mod return_clause_planner;
@@ -7,7 +7,7 @@ pub mod where_clause_planner;
 pub mod with_clause_planner;
 pub mod yield_planner;
 
-// 重新导出新的规划器
+// Re-export the new planner.
 pub use return_clause_planner::ReturnClausePlanner;
 pub use where_clause_planner::WhereClausePlanner;
 pub use with_clause_planner::WithClausePlanner;

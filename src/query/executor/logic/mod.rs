@@ -1,9 +1,9 @@
-//! 逻辑控制执行器模块
+//! Logical Control Actuator Module
 //!
-//! 包含所有与逻辑控制相关的执行器，包括：
-//! - LoopExecutor（通用循环控制）
-//! - WhileLoopExecutor（条件循环）
-//! - ForLoopExecutor（计数循环）
+//! Include all actuators related to logical control, including:
+//! LoopExecutor (General Loop Control)
+//! WhileLoopExecutor (conditional loop)
+//! ForLoopExecutor (counting loop)
 //!
 
 pub mod loops;

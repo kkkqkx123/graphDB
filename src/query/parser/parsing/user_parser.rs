@@ -1,6 +1,6 @@
-//! 用户管理语句解析模块
+//! User Management Statement Parsing Module
 //!
-//! 负责解析用户管理相关语句，包括 CREATE USER、ALTER USER、DROP USER、CHANGE PASSWORD 等。
+//! Responsible for parsing statements related to user management, including CREATE USER, ALTER USER, DROP USER, CHANGE PASSWORD, etc.
 
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::Span;
@@ -9,7 +9,7 @@ use crate::query::parser::core::token::TokenKindExt;
 use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
 
-/// 用户管理解析器
+/// User Management Parser
 pub struct UserParser;
 
 impl UserParser {
@@ -17,7 +17,7 @@ impl UserParser {
         Self
     }
 
-    /// 解析 CREATE USER 语句
+    /// Analysis of the CREATE USER statement
     pub fn parse_create_user_statement(
         &mut self,
         ctx: &mut ParseContext,
@@ -27,7 +27,7 @@ impl UserParser {
         self.parse_create_user_internal(ctx, start_span)
     }
 
-    /// 解析 CREATE USER 语句（CREATE token 已被消费）
+    /// Analysis of the CREATE USER statement (the CREATE token has already been consumed)
     pub fn parse_create_user_statement_after_create(
         &mut self,
         ctx: &mut ParseContext,
@@ -37,7 +37,7 @@ impl UserParser {
         self.parse_create_user_internal(ctx, start_span)
     }
 
-    /// 解析 CREATE USER 语句的内部实现
+    /// Analyzing the internal implementation of the CREATE USER statement
     fn parse_create_user_internal(
         &mut self,
         ctx: &mut ParseContext,
@@ -52,7 +52,7 @@ impl UserParser {
 
         let username = ctx.expect_identifier()?;
 
-        // 支持 WITH PASSWORD 语法
+        // Support for the WITH PASSWORD syntax
         ctx.match_token(TokenKind::With);
         ctx.expect_token(TokenKind::Password)?;
 
@@ -76,7 +76,7 @@ impl UserParser {
         }))
     }
 
-    /// 解析 ALTER USER 语句
+    /// Analysis of the ALTER USER statement
     pub fn parse_alter_user_statement(
         &mut self,
         ctx: &mut ParseContext,
@@ -86,7 +86,7 @@ impl UserParser {
         self.parse_alter_user_internal(ctx, start_span)
     }
 
-    /// 解析 ALTER USER 内部实现
+    /// Analysis of the internal implementation of the ALTER USER command
     pub fn parse_alter_user_internal(
         &mut self,
         ctx: &mut ParseContext,
@@ -100,7 +100,7 @@ impl UserParser {
         let mut new_role = None;
         let mut is_locked = None;
 
-        // 解析 WITH PASSWORD 或 SET 子句
+        // Analyzing the WITH PASSWORD or SET clause
         if ctx.match_token(TokenKind::With) {
             if ctx.match_token(TokenKind::Password) {
                 password = Some(ctx.expect_string_literal()?);
@@ -109,7 +109,7 @@ impl UserParser {
             }
         }
 
-        // 也支持 SET ROLE = ... 和 SET LOCKED = ... 语法
+        // The SET ROLE = ... and SET LOCKED = ... syntax are also supported.
         while ctx.match_token(TokenKind::Set) {
             if ctx.match_token(TokenKind::Role) {
                 ctx.expect_token(TokenKind::Eq)?;
@@ -133,7 +133,7 @@ impl UserParser {
         }))
     }
 
-    /// 解析 DROP USER 语句
+    /// Analysis of the DROP USER statement
     pub fn parse_drop_user_statement(
         &mut self,
         ctx: &mut ParseContext,
@@ -159,7 +159,7 @@ impl UserParser {
         }))
     }
 
-    /// 解析 CHANGE PASSWORD 语句
+    /// Analysis of the CHANGE PASSWORD statement
     pub fn parse_change_password_statement(
         &mut self,
         ctx: &mut ParseContext,
@@ -170,14 +170,14 @@ impl UserParser {
         self.parse_change_password_internal(ctx, start_span)
     }
 
-    /// 解析 CHANGE PASSWORD 内部实现
+    /// Analysis of the internal implementation of the “CHANGE PASSWORD” command
     pub fn parse_change_password_internal(
         &mut self,
         ctx: &mut ParseContext,
         start_span: Span,
     ) -> Result<Stmt, ParseError> {
-        // 解析可选的用户名（如果下一个 token 是标识符）
-        // 注意：此时 PASSWORD 关键字已经被消费
+        // Parse the optional username (if the next token is an identifier).
+        // At this point, the PASSWORD keyword has already been used (i.e., it has been “consumed” in the context of the program or code).
         let username = if ctx.current_token().kind.is_identifier() {
             Some(ctx.expect_identifier()?)
         } else {
@@ -199,12 +199,12 @@ impl UserParser {
         }))
     }
 
-    /// 解析 CHANGE 语句（目前只支持 CHANGE PASSWORD）
+    /// Analysis of the CHANGE statement (currently only CHANGE PASSWORD is supported)
     pub fn parse_change_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Change)?;
 
-        // 检查是否是 CHANGE PASSWORD
+        // Check whether it is “CHANGE PASSWORD”.
         if ctx.match_token(TokenKind::Password) {
             return self.parse_change_password_internal(ctx, start_span);
         }
@@ -216,7 +216,7 @@ impl UserParser {
         ))
     }
 
-    /// 解析角色类型（支持关键字形式）
+    /// Analyzing character types (supporting keyword-based searches)
     fn parse_role_type(&mut self, ctx: &mut ParseContext) -> Result<RoleType, ParseError> {
         let token = ctx.current_token();
         let role_str = match token.kind {
@@ -248,28 +248,28 @@ impl UserParser {
             .map_err(|e| ParseError::new(ParseErrorKind::SyntaxError, e, ctx.current_position()))
     }
 
-    /// 解析 GRANT 语句
-    /// 语法: GRANT ROLE <role_type> ON <space_name> TO <username>
+    /// Analysis of the GRANT statement
+    /// Syntax:  `GRANT ROLE <role_type> ON <space_name> TO <username>`
     pub fn parse_grant_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Grant)?;
 
-        // 解析 ROLE 关键字（可选）
+        // Analyzing the ROLE keyword (optional)
         let _ = ctx.match_token(TokenKind::Role);
 
-        // 解析角色类型
+        // Analyzing character types
         let role = self.parse_role_type(ctx)?;
 
-        // 解析 ON 关键字
+        // Analysis of the ON keyword
         ctx.expect_token(TokenKind::On)?;
 
-        // 解析 Space 名称
+        // Analysis of the Space name
         let space_name = ctx.expect_identifier()?;
 
-        // 解析 TO 关键字
+        // Analysis of the TO keyword
         ctx.expect_token(TokenKind::To)?;
 
-        // 解析用户名
+        // Analyzing the username
         let username = ctx.expect_identifier()?;
 
         let end_span = ctx.current_span();
@@ -283,28 +283,28 @@ impl UserParser {
         }))
     }
 
-    /// 解析 REVOKE 语句
-    /// 语法: REVOKE ROLE <role_type> ON <space_name> FROM <username>
+    /// Analysis of the REVOKE statement
+    /// Syntax: `REVOKE ROLE <role_type> ON <space_name> FROM <username>`
     pub fn parse_revoke_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Revoke)?;
 
-        // 解析 ROLE 关键字（可选）
+        // Analysis of the ROLE keyword (optional)
         let _ = ctx.match_token(TokenKind::Role);
 
-        // 解析角色类型
+        // Analyzing character types
         let role = self.parse_role_type(ctx)?;
 
-        // 解析 ON 关键字
+        // Analysis of the ON keyword
         ctx.expect_token(TokenKind::On)?;
 
-        // 解析 Space 名称
+        // Analyzing the name “Space”
         let space_name = ctx.expect_identifier()?;
 
-        // 解析 FROM 关键字
+        // Analysis of the FROM keyword
         ctx.expect_token(TokenKind::From)?;
 
-        // 解析用户名
+        // Analyzing the username
         let username = ctx.expect_identifier()?;
 
         let end_span = ctx.current_span();
@@ -318,8 +318,8 @@ impl UserParser {
         }))
     }
 
-    /// 解析 DESCRIBE USER 语句
-    /// 语法: DESCRIBE USER <username>
+    /// Analysis of the DESCRIBE USER statement
+    /// Grammar: DESCRIBE USER <username>
     pub fn parse_describe_user_statement(
         &mut self,
         ctx: &mut ParseContext,
@@ -336,8 +336,8 @@ impl UserParser {
         Ok(Stmt::DescribeUser(DescribeUserStmt { span, username }))
     }
 
-    /// 解析 SHOW USERS 语句
-    /// 语法: SHOW USERS
+    /// Analysis of the SHOW USERS statement
+    /// Syntax: SHOW USERS
     pub fn parse_show_users_statement(
         &mut self,
         ctx: &mut ParseContext,
@@ -352,7 +352,7 @@ impl UserParser {
         Ok(Stmt::ShowUsers(ShowUsersStmt { span }))
     }
 
-    /// 解析 SHOW ROLES 语句
+    /// Analysis of the SHOW ROLES statement
     /// 语法: SHOW ROLES [IN <space_name>]
     pub fn parse_show_roles_statement(
         &mut self,
@@ -362,7 +362,7 @@ impl UserParser {
         ctx.expect_token(TokenKind::Show)?;
         ctx.expect_token(TokenKind::Roles)?;
 
-        // 可选的 IN <space_name> 子句
+        // Optional IN <space_name> clause
         let space_name = if ctx.match_token(TokenKind::In) {
             Some(ctx.expect_identifier()?)
         } else {

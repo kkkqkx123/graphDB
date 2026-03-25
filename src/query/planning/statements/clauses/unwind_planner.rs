@@ -1,6 +1,6 @@
-//! UNWIND 子句规划器
+//! UNWIND Sentence Planner
 //!
-//! 负责规划 UNWIND 子句的执行，将列表展开为多行。
+//! Responsible for planning the execution of the UNWIND clause, which expands the list into multiple lines.
 
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
@@ -13,9 +13,9 @@ use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// UNWIND 子句规划器
+/// UNWIND Sentence Planner
 ///
-/// 负责将 UNWIND 子句转换为执行计划节点。
+/// Responsible for converting UNWIND clauses into execution plan nodes.
 /// UNWIND 语法：UNWIND [expression] AS [variable]
 #[derive(Debug)]
 pub struct UnwindClausePlanner;
@@ -48,7 +48,7 @@ impl ClausePlanner for UnwindClausePlanner {
     }
 }
 
-/// 从语句中提取 UNWIND 子句信息
+/// Extract the information about the UNWIND clause from the sentence.
 fn extract_unwind_info(stmt: &Stmt) -> Result<(ContextualExpression, String), PlannerError> {
     if let Stmt::Unwind(unwind_stmt) = stmt {
         return Ok((unwind_stmt.expression.clone(), unwind_stmt.variable.clone()));

@@ -1,6 +1,6 @@
-//! 边类型管理执行器
+//! Side type management actuator
 //!
-//! 提供边类型的创建、修改、描述、删除和列出功能。
+//! Provides creation, modification, description, deletion and listing functions for edge types.
 
 pub mod alter_edge;
 pub mod create_edge;

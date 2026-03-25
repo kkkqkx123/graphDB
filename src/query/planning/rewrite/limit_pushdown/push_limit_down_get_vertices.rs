@@ -1,7 +1,7 @@
-//! 将LIMIT下推到获取顶点操作的规则
+//! Push the LIMIT down to the rules that govern the operation of retrieving vertices.
 //!
-//! 该规则识别 Limit -> GetVertices 模式，
-//! 并将LIMIT值集成到GetVertices操作中。
+//! This rule identifies the “Limit -> GetVertices” mode.
+//! And integrate the LIMIT value into the GetVertices operation.
 
 use crate::query::planning::plan::core::nodes::access::graph_scan_node::GetVerticesNode;
 use crate::query::planning::plan::core::nodes::operation::sort_node::LimitNode;
@@ -9,9 +9,9 @@ use crate::query::planning::rewrite::macros::define_rewrite_pushdown_rule;
 use crate::query::planning::rewrite::result::TransformResult;
 
 define_rewrite_pushdown_rule! {
-    /// 将LIMIT下推到获取顶点操作的规则
+    /// Push the LIMIT down to the rules that govern the operation of retrieving vertices.
     ///
-    /// # 转换示例
+    /// # Conversion example
     ///
     /// Before:
     /// ```text
@@ -27,32 +27,32 @@ define_rewrite_pushdown_rule! {
     ///   GetVertices(limit=110)
     /// ```
     ///
-    /// # 适用条件
+    /// # Applicable Conditions
     ///
-    /// - 当前节点为Limit节点
-    /// - 子节点为GetVertices节点
-    /// - Limit节点只有一个子节点
-    /// - GetVertices尚未设置limit，或新limit小于现有limit
+    /// The current node is a Limit node.
+    /// The child node is a GetVertices node.
+    /// A Limit node has only one child node.
+    /// The `GetVertices` method has not had its `limit` parameter set, or the new `limit` value is less than the existing `limit` value.
     name: PushLimitDownGetVerticesRule,
     parent_node: Limit,
     child_node: GetVertices,
     apply: |_ctx, limit_node: &LimitNode, get_vertices_node: &GetVerticesNode| {
-        // 计算需要获取的总行数（offset + count）
+        // Calculate the total number of rows that need to be retrieved (offset + count).
         let limit_rows = limit_node.offset() + limit_node.count();
 
-        // 检查GetVertices是否已有更严格的limit
+        // Check whether GetVertices already has a more stringent limit in place.
         if let Some(existing_limit) = get_vertices_node.limit() {
             if limit_rows >= existing_limit {
-                // 现有limit更严格，无需转换
+                // The existing restrictions are already more stringent; no conversion is necessary.
                 return Ok(None::<TransformResult>);
             }
         }
 
-        // 创建新的GetVertices节点，设置limit
+        // Create a new GetVertices node and set the limit value.
         let mut new_get_vertices = get_vertices_node.clone();
         new_get_vertices.set_limit(limit_rows);
 
-        // 创建转换结果
+        // Create the translation result.
         let mut result = TransformResult::new();
         result.erase_all = true;
         result.add_new_node(PlanNodeEnum::GetVertices(new_get_vertices));

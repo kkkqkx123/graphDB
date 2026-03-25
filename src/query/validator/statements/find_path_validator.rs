@@ -1,6 +1,6 @@
-//! FIND PATH 语句验证器 - 新体系版本
+//! FIND PATH Statement Validator – New System Version
 //! 对应 NebulaGraph FindPathValidator.h/.cpp 的功能
-//! 验证 FIND PATH 语句的合法性
+//! Verify the validity of the FIND PATH statement.
 
 use std::sync::Arc;
 
@@ -15,7 +15,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
-/// 验证后的路径查找信息
+/// Verified path search information
 #[derive(Debug, Clone)]
 pub struct ValidatedFindPath {
     pub space_id: u64,
@@ -34,7 +34,7 @@ pub struct ValidatedFindPath {
     pub with_cycle: bool,
 }
 
-/// FIND PATH 验证器 - 新体系实现
+/// FIND PATH Validator – New System Implementation
 #[derive(Debug)]
 pub struct FindPathValidator {
     schema_manager: Option<Arc<RedbSchemaManager>>,
@@ -67,7 +67,7 @@ impl FindPathValidator {
     }
 
     fn validate_find_path(&self, stmt: &FindPathStmt) -> Result<(), ValidationError> {
-        // 验证 FROM 子句
+        // Verify the FROM clause
         if stmt.from.vertices.is_empty() {
             return Err(ValidationError::new(
                 "FIND PATH must specify source vertices in FROM clause".to_string(),
@@ -75,7 +75,7 @@ impl FindPathValidator {
             ));
         }
 
-        // 验证步数限制
+        // Verification of the step count limit
         if let Some(max_steps) = stmt.max_steps {
             if max_steps > 100 {
                 return Err(ValidationError::new(
@@ -120,17 +120,17 @@ impl Default for FindPathValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for FindPathValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
@@ -138,7 +138,7 @@ impl StatementValidator for FindPathValidator {
             ));
         }
 
-        // 2. 获取 FIND PATH 语句（拥有所有权）
+        // 2. Obtain the FIND PATH statement (with ownership rights).
         let find_path_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::FindPath(s) => s,
             _ => {
@@ -149,16 +149,16 @@ impl StatementValidator for FindPathValidator {
             }
         };
 
-        // 3. 执行基础验证
+        // 3. Perform basic validation.
         self.validate_find_path(find_path_stmt)?;
 
-        // 4. 验证 YIELD 子句
+        // 4. Verify the YIELD clause
         self.validate_yield_clause(&find_path_stmt.yield_clause)?;
 
-        // 5. 获取 space_id
+        // 5. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 6. 创建验证结果（直接移动所有权，无需 clone）
+        // 6. Create verification results (transfer ownership directly, without the need to clone).
         let validated = ValidatedFindPath {
             space_id,
             from: find_path_stmt.from.clone(),
@@ -176,7 +176,7 @@ impl StatementValidator for FindPathValidator {
             with_cycle: find_path_stmt.with_cycle,
         };
 
-        // 7. 设置输出列
+        // 7. Set the output columns
         self.outputs.clear();
         if let Some(ref yc) = validated.yield_clause {
             for item in &yc.items {
@@ -191,7 +191,7 @@ impl StatementValidator for FindPathValidator {
             }
         }
 
-        // 8. 构建 ValidationInfo
+        // 8. Constructing the ValidationInfo
         let mut info = ValidationInfo::new();
 
         if let Some(ref over_clause) = validated.over {
@@ -205,7 +205,7 @@ impl StatementValidator for FindPathValidator {
 
         self.validated_result = Some(validated);
 
-        // 9. 返回验证结果
+        // 9. Return the verification results.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -222,7 +222,7 @@ impl StatementValidator for FindPathValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // FIND PATH 不是全局语句，需要预先选择空间
+        // “FIND PATH” is not a global command; the relevant space (i.e., the context in which the command should be executed) must be selected in advance.
         false
     }
 

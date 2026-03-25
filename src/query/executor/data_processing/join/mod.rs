@@ -1,14 +1,14 @@
-//! JOIN 执行器模块
+//! JOIN Executor Module
 //!
-//! 包含所有 JOIN 操作相关的执行器，包括：
-//! - InnerJoin（内连接）
-//! - LeftJoin（左外连接）
-//! - FullOuterJoin（全外连接）
-//! - CrossJoin/CartesianProduct（笛卡尔积）
+//! Includes all executors related to JOIN operations, including:
+//! InnerJoin (inner join)
+//! LeftJoin (left outer join)
+//! FullOuterJoin
+//! CrossJoin/CartesianProduct (Cartesian product)
 //!
-//! 基于nebula-graph的join实现，使用哈希连接算法优化性能
+//! The implementation of the `join` operation is based on the `nebula-graph` framework, and the performance is optimized by using the hash join algorithm.
 //!
-//! 注意：RightJoin 已被移除，因为可以用 LeftJoin 交换表顺序实现相同功能
+//! The RightJoin has been removed because the same functionality can be achieved by swapping the order of the tables using a LeftJoin.
 
 pub mod base_join;
 pub mod cross_join;
@@ -18,7 +18,7 @@ pub mod inner_join;
 pub mod join_key_evaluator;
 pub mod left_join;
 
-// 重新导出主要类型
+// Re-export the main types
 pub use base_join::BaseJoinExecutor;
 pub use cross_join::CrossJoinExecutor;
 pub use full_outer_join::FullOuterJoinExecutor;
@@ -27,30 +27,30 @@ pub use inner_join::{HashInnerJoinExecutor, InnerJoinConfig, InnerJoinExecutor};
 pub use join_key_evaluator::JoinKeyEvaluator;
 pub use left_join::{HashLeftJoinExecutor, LeftJoinConfig, LeftJoinExecutor};
 
-// 从 core 模块导入 JoinType
+// Import the `JoinType` from the `core` module.
 pub use crate::core::types::JoinType;
 
-/// Join操作的配置
+/// Configuration of the Join operation
 #[derive(Debug, Clone)]
 pub struct JoinConfig {
-    /// Join类型
+    /// Join type
     pub join_type: JoinType,
-    /// 左输入变量名
+    /// Left input variable name
     pub left_var: String,
-    /// 右输入变量名
+    /// Enter the variable name on the right.
     pub right_var: String,
-    /// 连接键表达式列表（左表）
+    /// List of connection key expressions (left table)
     pub left_keys: Vec<String>,
-    /// 连接键表达式列表（右表）
+    /// List of connection key expressions (right table)
     pub right_keys: Vec<String>,
-    /// 输出列名
+    /// Column names
     pub output_columns: Vec<String>,
-    /// 是否启用并行处理
+    /// Should parallel processing be enabled?
     pub enable_parallel: bool,
 }
 
 impl JoinConfig {
-    /// 创建内连接配置
+    /// Create an inner join configuration.
     pub fn inner_join(
         left_var: String,
         right_var: String,
@@ -69,7 +69,7 @@ impl JoinConfig {
         }
     }
 
-    /// 创建左外连接配置
+    /// Create a left outer join configuration.
     pub fn left_join(
         left_var: String,
         right_var: String,

@@ -1,17 +1,17 @@
-//! 查询反馈历史模块
+//! Query Feedback History Module
 //!
-//! 提供查询反馈历史记录的管理功能，包括存储、检索和清理。
+//! Management functions for the history of query feedback, including storage, retrieval, and cleanup.
 
 use crate::query::optimizer::stats::feedback::query::QueryExecutionFeedback;
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::time::Instant;
 
-/// 查询反馈历史
+/// Query feedback history
 ///
-/// 管理查询执行反馈的历史记录，按查询指纹分组存储。
+/// Manage the historical records of query execution feedback, storing them in groups based on the query’s “fingerprint” (unique characteristics that identify each query).
 ///
-/// # 示例
+/// # Example
 /// ```
 /// use graphdb::query::optimizer::stats::feedback::history::QueryFeedbackHistory;
 /// use graphdb::query::optimizer::stats::feedback::query::QueryExecutionFeedback;
@@ -25,17 +25,17 @@ use std::time::Instant;
 /// ```
 #[derive(Debug)]
 pub struct QueryFeedbackHistory {
-    /// 查询指纹到反馈列表的映射
+    /// The mapping from fingerprints to the feedback list
     feedbacks: RwLock<HashMap<String, Vec<QueryExecutionFeedback>>>,
-    /// 最大历史记录数（每个查询）
+    /// Maximum number of historical records per query
     max_history_per_query: usize,
 }
 
 impl QueryFeedbackHistory {
-    /// 创建新的查询反馈历史
+    /// Create a new query feedback history.
     ///
-    /// # 参数
-    /// - `max_history_per_query`: 每个查询保留的最大历史记录数
+    /// # Parameters
+    /// `max_history_per_query`: The maximum number of historical records to be retained for each query.
     pub fn new(max_history_per_query: usize) -> Self {
         Self {
             feedbacks: RwLock::new(HashMap::new()),
@@ -43,7 +43,7 @@ impl QueryFeedbackHistory {
         }
     }
 
-    /// 添加查询执行反馈
+    /// Add feedback on the execution of the query.
     pub fn add_feedback(&self, feedback: QueryExecutionFeedback) {
         let mut feedbacks = self.feedbacks.write();
         let entry = feedbacks
@@ -52,13 +52,13 @@ impl QueryFeedbackHistory {
 
         entry.push(feedback);
 
-        // 限制历史记录数量
+        // Limit the number of historical records.
         if entry.len() > self.max_history_per_query {
             entry.remove(0);
         }
     }
 
-    /// 获取特定查询的所有反馈
+    /// Obtain all feedback for a specific query.
     pub fn get_feedback_for_query(&self, fingerprint: &str) -> Vec<QueryExecutionFeedback> {
         self.feedbacks
             .read()
@@ -67,7 +67,7 @@ impl QueryFeedbackHistory {
             .unwrap_or_default()
     }
 
-    /// 获取特定查询的反馈数量
+    /// Obtain the number of feedback responses for a specific query
     pub fn get_feedback_count(&self, fingerprint: &str) -> usize {
         self.feedbacks
             .read()
@@ -76,38 +76,38 @@ impl QueryFeedbackHistory {
             .unwrap_or(0)
     }
 
-    /// 获取所有查询指纹
+    /// Retrieve all query fingerprints.
     pub fn get_all_fingerprints(&self) -> Vec<String> {
         self.feedbacks.read().keys().cloned().collect()
     }
 
-    /// 清除特定查询的历史
+    /// Clear the history of a specific query
     pub fn clear_query_history(&self, fingerprint: &str) -> bool {
         self.feedbacks.write().remove(fingerprint).is_some()
     }
 
-    /// 清除所有历史
+    /// Clear all history.
     pub fn clear_all(&self) {
         self.feedbacks.write().clear();
     }
 
-    /// 获取历史记录总数
+    /// Obtain the total number of historical records
     pub fn total_feedback_count(&self) -> usize {
         self.feedbacks.read().values().map(|v| v.len()).sum()
     }
 
-    /// 获取查询数量
+    /// Get the number of queries
     pub fn query_count(&self) -> usize {
         self.feedbacks.read().len()
     }
 
-    /// 获取最近N条反馈
+    /// Retrieve the last N pieces of feedback.
     pub fn get_recent_feedbacks(&self, n: usize) -> Vec<QueryExecutionFeedback> {
         let feedbacks = self.feedbacks.read();
         let mut all_feedbacks: Vec<_> =
             feedbacks.values().flat_map(|v| v.iter().cloned()).collect();
 
-        // 按时间戳排序（最新的在前）
+        // Sort by timestamp (latest first)
         all_feedbacks.sort_by(|a, b| {
             b.execution_timestamp
                 .elapsed()
@@ -117,7 +117,7 @@ impl QueryFeedbackHistory {
         all_feedbacks.into_iter().take(n).collect()
     }
 
-    /// 获取查询的平均行数估计误差
+    /// Error in estimating the average number of rows in the query results
     pub fn get_avg_row_error(&self, fingerprint: &str) -> Option<f64> {
         let feedbacks = self.feedbacks.read();
         let query_feedbacks = feedbacks.get(fingerprint)?;
@@ -133,7 +133,7 @@ impl QueryFeedbackHistory {
         Some(total_error / query_feedbacks.len() as f64)
     }
 
-    /// 获取查询的平均时间估计误差
+    /// The estimated error in the average time taken to obtain the query results
     pub fn get_avg_time_error(&self, fingerprint: &str) -> Option<f64> {
         let feedbacks = self.feedbacks.read();
         let query_feedbacks = feedbacks.get(fingerprint)?;
@@ -149,7 +149,7 @@ impl QueryFeedbackHistory {
         Some(total_error / query_feedbacks.len() as f64)
     }
 
-    /// 清理过期历史（基于时间）
+    /// Clean up outdated historical data (based on time)
     pub fn cleanup_old_feedbacks(&self, max_age: std::time::Duration) {
         let mut feedbacks = self.feedbacks.write();
         let now = Instant::now();
@@ -158,11 +158,11 @@ impl QueryFeedbackHistory {
             query_feedbacks.retain(|f| now.duration_since(f.execution_timestamp) < max_age);
         }
 
-        // 移除空的条目
+        // Remove the empty entries.
         feedbacks.retain(|_, v| !v.is_empty());
     }
 
-    /// 设置最大历史记录数
+    /// Set the maximum number of historical records
     pub fn set_max_history(&self, max_history: usize) {
         let max_history = max_history.max(1);
         let mut feedbacks = self.feedbacks.write();
@@ -199,14 +199,14 @@ mod tests {
     fn test_query_feedback_history() {
         let history = QueryFeedbackHistory::new(10);
 
-        // 添加反馈
+        // Add feedback
         let feedback1 = QueryExecutionFeedback::new("fp_123".to_string());
         history.add_feedback(feedback1);
 
         let feedbacks = history.get_feedback_for_query("fp_123");
         assert_eq!(feedbacks.len(), 1);
 
-        // 添加更多反馈
+        // Add more feedback.
         let feedback2 = QueryExecutionFeedback::new("fp_123".to_string());
         history.add_feedback(feedback2);
 
@@ -219,14 +219,14 @@ mod tests {
     fn test_history_limit() {
         let history = QueryFeedbackHistory::new(3);
 
-        // 添加4条反馈（超过限制）
+        // Adding 4 feedback entries (exceeding the limit).
         for i in 0..4 {
             let mut feedback = QueryExecutionFeedback::new("fp_123".to_string());
             feedback.actual_rows = i as u64 * 100;
             history.add_feedback(feedback);
         }
 
-        // 应该只保留3条
+        // Only 3 items should be retained.
         assert_eq!(history.get_feedback_count("fp_123"), 3);
     }
 
@@ -261,15 +261,15 @@ mod tests {
     fn test_avg_errors() {
         let history = QueryFeedbackHistory::new(10);
 
-        // 添加两条有估计误差的反馈
+        // Add two pieces of feedback that include estimated errors.
         let mut feedback1 = QueryExecutionFeedback::new("fp_123".to_string());
         feedback1.estimated_rows = 100;
-        feedback1.actual_rows = 110; // 10% 误差
+        feedback1.actual_rows = 110; // 10% error
         history.add_feedback(feedback1);
 
         let mut feedback2 = QueryExecutionFeedback::new("fp_123".to_string());
         feedback2.estimated_rows = 100;
-        feedback2.actual_rows = 90; // 10% 误差
+        feedback2.actual_rows = 90; // 10% error
         history.add_feedback(feedback2);
 
         let avg_error = history.get_avg_row_error("fp_123").unwrap();

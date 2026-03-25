@@ -1,8 +1,8 @@
-//! ScanVertices 投影下推优化规则
+//! ScanVertices: Optimization rules for projection downscaling
 //!
-//! 该规则将投影操作下推到 ScanVertices 节点，减少数据传输量。
+//! This rule pushes the projection operation down to the ScanVertices node, thereby reducing the amount of data transmitted.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before:
 //! ```text
@@ -25,9 +25,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// ScanVertices 投影下推规则
+/// ScanVertices Projection Pushdown Rule
 ///
-/// 将投影操作下推到 ScanVertices 节点
+/// Push the projection operation down to the ScanVertices node.
 #[derive(Debug)]
 pub struct PushProjectDownScanVerticesRule;
 
@@ -188,7 +188,7 @@ mod tests {
             PlanNodeEnum::ScanVertices(node) => {
                 assert_eq!(node.col_names(), &["id", "name"]);
             }
-            _ => panic!("期望 ScanVertices 节点"),
+            _ => panic!("The expectation is that the ScanVertices node will be used."),
         }
     }
 

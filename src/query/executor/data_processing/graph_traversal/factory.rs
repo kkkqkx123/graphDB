@@ -9,11 +9,11 @@ use crate::query::executor::data_processing::graph_traversal::traverse::Traverse
 use crate::query::validator::context::ExpressionAnalysisContext;
 use parking_lot::Mutex;
 
-/// 图遍历执行器工厂
+/// Graph Traversal Executor Factory
 pub struct GraphTraversalExecutorFactory;
 
 impl GraphTraversalExecutorFactory {
-    /// 创建ExpandExecutor
+    /// Create an ExpandExecutor
     pub fn create_expand_executor<S: crate::storage::StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -32,7 +32,7 @@ impl GraphTraversalExecutorFactory {
         )
     }
 
-    /// 创建ExpandAllExecutor
+    /// Create the ExpandAllExecutor
     pub fn create_expand_all_executor<S: crate::storage::StorageClient + std::marker::Send>(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -53,7 +53,7 @@ impl GraphTraversalExecutorFactory {
         )
     }
 
-    /// 创建TraverseExecutor
+    /// Create a TraverseExecutor
     pub fn create_traverse_executor<S: crate::storage::StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -74,7 +74,7 @@ impl GraphTraversalExecutorFactory {
         )
     }
 
-    /// 创建ShortestPathExecutor
+    /// Create the ShortestPathExecutor
     pub fn create_shortest_path_executor<S: crate::storage::StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,

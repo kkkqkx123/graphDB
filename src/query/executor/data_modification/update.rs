@@ -1,13 +1,13 @@
-//! 更新执行器
+//! Update the executor.
 //!
-//! 负责更新现有顶点和边的属性
+//! Responsible for updating the attributes of the existing vertices and edges.
 //!
-//! 功能增强:
-//! - 支持upsert（当节点不存在时插入）
-//! - 支持RETURN子句返回更新后的属性
-//! - 支持YIELD指定返回属性
-//! - 支持条件表达式
-//! - 更好的错误处理和日志
+//! Functionality enhancements:
+//! Support for upsert (inserting a record when the node does not exist).
+//! The RETURN clause is supported to return the updated attributes.
+//! Support for specifying the attribute to be returned using the YIELD keyword.
+//! Support for conditional expressions
+//! Better error handling and logging.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -24,9 +24,9 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 更新执行器
+/// Update the executor.
 ///
-/// 负责更新顶点和边的属性
+/// Responsible for updating the properties of vertices and edges.
 pub struct UpdateExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_updates: Option<Vec<VertexUpdate>>,
@@ -38,7 +38,7 @@ pub struct UpdateExecutor<S: StorageClient> {
     space_name: String,
 }
 
-/// 顶点更新数据结构
+/// Vertex update data structure
 #[derive(Debug, Clone)]
 pub struct VertexUpdate {
     pub vertex_id: Value,
@@ -47,7 +47,7 @@ pub struct VertexUpdate {
     pub tags_to_remove: Option<Vec<String>>,
 }
 
-/// 边更新数据结构
+/// While updating the data structure…
 #[derive(Debug, Clone)]
 pub struct EdgeUpdate {
     pub src: Value,
@@ -57,7 +57,7 @@ pub struct EdgeUpdate {
     pub properties: HashMap<String, Value>,
 }
 
-/// 更新结果数据结构
+/// Update the result data structure
 #[derive(Debug, Clone)]
 pub struct UpdateResult {
     pub vertex_id: Option<Value>,
@@ -164,7 +164,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<UpdateResult>> {
         let mut results = Vec::new();
 
-        // 直接从 ContextualExpression 获取 Expression
+        // Retrieve the Expression directly from the ContextualExpression.
         let condition_expression = self.condition.as_ref().and_then(|c| c.get_expression());
 
         let mut storage = self.get_storage().lock();

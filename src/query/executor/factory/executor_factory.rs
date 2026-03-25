@@ -1,7 +1,7 @@
-//! 执行器工厂主模块
+//! Executor Factory Master Module
 //!
-//! 协调各个构建器、解析器和验证器
-//! 负责根据执行计划创建对应的执行器实例
+//! Coordinating various builders, parsers, and validators
+//! Responsible for creating the corresponding executor instances based on the execution plan.
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
@@ -13,12 +13,12 @@ use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-// 导入安全配置类型
+// Import security configuration type
 use crate::query::executor::factory::validators::safety_validator::ExecutorSafetyConfig;
 
-/// 执行器工厂
+/// Actuator Factory
 ///
-/// 负责协调各个子模块创建执行器
+/// Responsible for coordinating the creation of executors for each sub-module
 pub struct ExecutorFactory<S: StorageClient + Send + 'static> {
     pub(crate) storage: Option<Arc<Mutex<S>>>,
     pub(crate) config: ExecutorSafetyConfig,
@@ -29,7 +29,7 @@ pub struct ExecutorFactory<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
-    /// 创建新的执行器工厂
+    /// Create a new executor factory.
     pub fn new() -> Self {
         let config = ExecutorSafetyConfig::default();
         let recursion_detector = RecursionDetector::new(config.max_recursion_depth);
@@ -45,23 +45,23 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         }
     }
 
-    /// 设置存储引擎
+    /// Setting the storage engine
     pub fn with_storage(storage: Arc<Mutex<S>>) -> Self {
         let mut factory = Self::new();
         factory.storage = Some(storage);
         factory
     }
 
-    /// 分析执行计划的生命周期和安全性
+    /// Analyzing the lifecycle and security of execution plans
     ///
-    /// 使用DFS遍历执行计划树，检测循环引用并验证安全性
+    /// Traverse the execution plan tree using DFS to detect circular references and verify security.
     pub fn analyze_plan_lifecycle(&mut self, root: &PlanNodeEnum) -> Result<(), QueryError> {
         self.recursion_detector.reset();
         self.analyze_plan_node(root, 0)?;
         Ok(())
     }
 
-    /// 递归分析单个计划节点
+    /// Recursive analysis of a single planning node
     #[allow(clippy::only_used_in_recursion)]
     fn analyze_plan_node(
         &mut self,
@@ -71,12 +71,12 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         let node_id = node.id();
         let node_name = node.name();
 
-        // 验证执行器是否会导致递归
+        // Verify whether the execution of the executor will lead to recursion.
         self.recursion_detector
             .validate_executor(node_id, node_name)
             .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
 
-        // 验证计划节点的安全性
+        // Verify the security of the plan nodes.
         self.validate_plan_node(node)?;
 
         // 使用 dependencies() 方法获取所有依赖，统一处理
@@ -84,13 +84,13 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             self.analyze_plan_node(&dep, loop_layers + 1)?;
         }
 
-        // 离开当前节点
+        // Leave the current node
         self.recursion_detector.leave_executor();
 
         Ok(())
     }
 
-    /// 验证计划节点的安全性
+    /// Verify the security of the plan nodes.
     fn validate_plan_node(&self, plan_node: &PlanNodeEnum) -> Result<(), QueryError> {
         match plan_node {
             PlanNodeEnum::Expand(node) => {
@@ -115,7 +115,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         Ok(())
     }
 
-    /// 根据计划节点创建执行器
+    /// Create an executor based on the planned node.
     pub fn create_executor(
         &mut self,
         plan_node: &PlanNodeEnum,
@@ -139,7 +139,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 )))
             }
 
-            // 数据访问执行器
+            // Data Access Executor
             PlanNodeEnum::ScanVertices(node) => self
                 .builders
                 .data_access()
@@ -169,7 +169,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .data_access()
                 .build_index_scan(node, storage, context),
 
-            // 数据修改执行器
+            // Data Modification Executor
             PlanNodeEnum::InsertVertices(node) => self
                 .builders
                 .data_modification()
@@ -183,7 +183,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .data_modification()
                 .build_remove(node, storage, context),
 
-            // 数据处理执行器
+            // Data Processing Executor
             PlanNodeEnum::Filter(node) => self
                 .builders
                 .data_processing()
@@ -217,7 +217,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .data_processing()
                 .build_dedup(node, storage, context),
 
-            // 连接执行器
+            // Connect the actuator.
             PlanNodeEnum::InnerJoin(node) => self
                 .builders
                 .join()
@@ -242,7 +242,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .join()
                 .build_cross_join(node, storage, context),
 
-            // 集合操作执行器
+            // Set Operation Executor
             PlanNodeEnum::Union(node) => self
                 .builders
                 .set_operation()
@@ -256,7 +256,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .set_operation()
                 .build_intersect(node, storage, context),
 
-            // 图遍历执行器
+            // Graph Traversal Executor
             PlanNodeEnum::Expand(node) => self
                 .builders
                 .traversal()
@@ -286,7 +286,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .traversal()
                 .build_multi_shortest_path(node, storage, context),
 
-            // 数据转换执行器
+            // Data Conversion Executor
             PlanNodeEnum::Unwind(node) => self
                 .builders
                 .transformation()
@@ -312,7 +312,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .transformation()
                 .build_pattern_apply(node, storage, context),
 
-            // 控制流执行器
+            // Control Flow Executor
             PlanNodeEnum::Loop(node) => self.build_loop_executor(node, storage, context),
             PlanNodeEnum::Select(node) => self.build_select_executor(node, storage, context),
             PlanNodeEnum::Argument(node) => self
@@ -328,7 +328,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .control_flow()
                 .build_data_collect(node, storage, context),
 
-            // 管理执行器 - 空间管理
+            // Manage Executor – Space Management
             PlanNodeEnum::CreateSpace(node) => self
                 .builders
                 .admin()
@@ -346,7 +346,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .admin()
                 .build_show_spaces(node, storage, context),
 
-            // 管理执行器 - 标签管理
+            // Manage Executor – Tag Management
             PlanNodeEnum::CreateTag(node) => self
                 .builders
                 .admin()
@@ -366,7 +366,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .admin()
                 .build_show_tags(node, storage, context),
 
-            // 管理执行器 - 边管理
+            // Manage Executor – Edge Management
             PlanNodeEnum::CreateEdge(node) => self
                 .builders
                 .admin()
@@ -388,7 +388,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .admin()
                 .build_show_edges(node, storage, context),
 
-            // 管理执行器 - 标签索引管理
+            // Manage Executor – Tag Index Management
             PlanNodeEnum::CreateTagIndex(node) => self
                 .builders
                 .admin()
@@ -410,7 +410,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .admin()
                 .build_rebuild_tag_index(node, storage, context),
 
-            // 管理执行器 - 边索引管理
+            // Manage Executor – Edge Index Management
             PlanNodeEnum::CreateEdgeIndex(node) => self
                 .builders
                 .admin()
@@ -432,7 +432,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .admin()
                 .build_rebuild_edge_index(node, storage, context),
 
-            // 管理执行器 - 用户管理
+            // Manage Executor – User Management
             PlanNodeEnum::CreateUser(node) => self
                 .builders
                 .admin()
@@ -458,7 +458,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .admin()
                 .build_revoke_role(node, storage, context),
 
-            // 管理执行器 - 空间管理（补充）
+            // Manage Executor – Space Management (Supplementary)
             PlanNodeEnum::SwitchSpace(node) => self
                 .builders
                 .admin()
@@ -472,7 +472,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
                 .admin()
                 .build_clear_space(node, storage, context),
 
-            // 管理执行器 - 查询管理
+            // Management Executor – Query Management
             PlanNodeEnum::ShowStats(node) => self
                 .builders
                 .admin()
@@ -480,14 +480,14 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         }
     }
 
-    /// 构建 Loop 执行器（辅助方法，解决借用检查问题）
+    /// Building the Loop Executor (auxiliary method to address the borrowing-check issue)
     fn build_loop_executor(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::LoopNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // 先验证和检查递归
+        // First, verify and check the recursion.
         if self.config.enable_recursion_detection {
             self.recursion_detector
                 .validate_executor(node.id(), "LoopExecutor")
@@ -499,9 +499,9 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             .as_ref()
             .ok_or_else(|| QueryError::ExecutionError("Loop节点缺少body".to_string()))?;
 
-        // 临时释放 self 的借用，构建 body_executor
+        // Temporarily release the borrowing of the `self` object to construct the `bodyExecutor`.
         let body_executor = {
-            // 重新获取可变引用
+            // Re-obtain the variable reference
             let config = self.config.clone();
             let max_recursion_depth = config.max_recursion_depth;
             let safety_validator = SafetyValidator::new(config.clone());
@@ -533,14 +533,14 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
         Ok(ExecutorEnum::Loop(executor))
     }
 
-    /// 构建 Select 执行器（辅助方法，解决借用检查问题）
+    /// Constructing the Select Executor (an auxiliary method to resolve borrowing check issues)
     fn build_select_executor(
         &mut self,
         node: &crate::query::planning::plan::core::nodes::SelectNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // 先验证和检查递归
+        // First, verify and check the recursion.
         if self.config.enable_recursion_detection {
             self.recursion_detector
                 .validate_executor(node.id(), "SelectExecutor")
@@ -553,7 +553,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             .map(|meta| meta.inner().clone())
             .unwrap_or_else(|| crate::core::Expression::Literal(crate::core::Value::Bool(true)));
 
-        // 构建 if_branch
+        // Construct the `if_branch`.
         let if_branch = {
             let if_node = node
                 .if_branch()
@@ -574,7 +574,7 @@ impl<S: StorageClient + Send + 'static> ExecutorFactory<S> {
             temp_factory.create_executor(if_node, storage.clone(), context)?
         };
 
-        // 构建 else_branch
+        // Construct the `else_branch`.
         let else_branch = {
             if let Some(else_node) = node.else_branch().as_ref() {
                 let config = self.config.clone();

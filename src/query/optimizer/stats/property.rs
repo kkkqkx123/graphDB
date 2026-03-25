@@ -1,26 +1,26 @@
-//! 属性统计信息模块
+//! Attribute Statistics Information Module
 //!
-//! 提供属性级别的统计信息，用于查询优化器估算选择性
+//! Provide statistical information at the attribute level, which is used by the query optimizer to estimate selectivity.
 
 use super::histogram::Histogram;
 
-/// 属性统计信息
+/// Attribute statistics information
 #[derive(Debug, Clone)]
 pub struct PropertyStatistics {
-    /// 属性名称
+    /// Attribute name
     pub property_name: String,
-    /// 所属标签（可选）
+    /// Associated Tags (optional)
     pub tag_name: Option<String>,
-    /// 不同值数量
+    /// Number of different values
     pub distinct_values: u64,
-    /// 可选的直方图（高基数属性启用）
+    /// Optional histograms (enabled for attributes with a high cardinality)
     pub histogram: Option<Histogram>,
-    /// 是否适合使用直方图（低基数属性不需要）
+    /// Is it appropriate to use a histogram? (Histograms are not necessary for attributes with a low cardinality.)
     pub use_histogram: bool,
 }
 
 impl PropertyStatistics {
-    /// 创建新的属性统计信息
+    /// Create new attribute statistics information.
     pub fn new(property_name: String, tag_name: Option<String>) -> Self {
         Self {
             property_name,
@@ -31,14 +31,14 @@ impl PropertyStatistics {
         }
     }
 
-    /// 设置直方图
+    /// Setting up a histogram
     pub fn with_histogram(mut self, histogram: Histogram) -> Self {
         self.histogram = Some(histogram);
         self.use_histogram = true;
         self
     }
 
-    /// 判断是否使用直方图
+    /// Determine whether to use a histogram.
     pub fn should_use_histogram(&self) -> bool {
         self.use_histogram && self.histogram.is_some()
     }

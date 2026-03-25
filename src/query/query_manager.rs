@@ -1,6 +1,6 @@
-//! 查询管理器
+//! Query Manager
 //!
-//! 负责跟踪和管理正在运行的查询。
+//! Responsible for tracking and managing the queries that are currently in progress.
 
 use log::{info, warn};
 use parking_lot::Mutex;
@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::core::error::{ManagerError, ManagerResult};
 
-/// 查询状态
+/// Query status
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QueryStatus {
     Running,
@@ -18,7 +18,7 @@ pub enum QueryStatus {
     Killed,
 }
 
-/// 查询信息
+/// Query information
 #[derive(Debug, Clone)]
 pub struct QueryInfo {
     pub query_id: i64,
@@ -84,7 +84,7 @@ impl QueryInfo {
     }
 }
 
-/// 查询统计
+/// Query statistics
 #[derive(Debug, Clone, Default)]
 pub struct QueryStats {
     pub total_queries: u64,
@@ -95,7 +95,7 @@ pub struct QueryStats {
     pub avg_duration_ms: i64,
 }
 
-/// 查询管理器
+/// Query Manager
 pub struct QueryManager {
     queries: Mutex<HashMap<i64, QueryInfo>>,
     next_query_id: Mutex<i64>,
@@ -109,7 +109,7 @@ impl QueryManager {
         }
     }
 
-    /// 生成新的查询ID
+    /// Generate a new query ID.
     fn generate_query_id(&self) -> i64 {
         let mut id = self.next_query_id.lock();
         let query_id = *id;
@@ -117,7 +117,7 @@ impl QueryManager {
         query_id
     }
 
-    /// 注册新查询
+    /// Register a new query
     pub fn register_query(
         &self,
         session_id: i64,
@@ -145,7 +145,7 @@ impl QueryManager {
         query_id
     }
 
-    /// 完成查询
+    /// Complete the query.
     pub fn finish_query(&self, query_id: i64) -> ManagerResult<()> {
         let mut queries = self.queries.lock();
         if let Some(query) = queries.get_mut(&query_id) {
@@ -164,7 +164,7 @@ impl QueryManager {
         }
     }
 
-    /// 标记查询失败
+    /// The marker query failed.
     pub fn fail_query(&self, query_id: i64) -> ManagerResult<()> {
         let mut queries = self.queries.lock();
         if let Some(query) = queries.get_mut(&query_id) {
@@ -183,7 +183,7 @@ impl QueryManager {
         }
     }
 
-    /// 终止查询
+    /// Terminate the query.
     pub fn kill_query(&self, query_id: i64) -> ManagerResult<()> {
         let mut queries = self.queries.lock();
         if let Some(query) = queries.get_mut(&query_id) {
@@ -198,19 +198,19 @@ impl QueryManager {
         }
     }
 
-    /// 获取查询信息
+    /// Obtain the query information
     pub fn get_query(&self, query_id: i64) -> Option<QueryInfo> {
         let queries = self.queries.lock();
         queries.get(&query_id).cloned()
     }
 
-    /// 获取所有查询
+    /// Retrieve all queries
     pub fn get_all_queries(&self) -> Vec<QueryInfo> {
         let queries = self.queries.lock();
         queries.values().cloned().collect()
     }
 
-    /// 获取正在运行的查询
+    /// Obtain the queries that are currently running.
     pub fn get_running_queries(&self) -> Vec<QueryInfo> {
         let queries = self.queries.lock();
         queries
@@ -220,7 +220,7 @@ impl QueryManager {
             .collect()
     }
 
-    /// 获取查询统计
+    /// Obtain query statistics
     pub fn get_stats(&self) -> QueryStats {
         let queries = self.queries.lock();
         let total = queries.len() as u64;
@@ -259,12 +259,12 @@ impl QueryManager {
         }
     }
 
-    /// 获取查询统计（返回Result类型，兼容旧代码）
+    /// Retrieve query statistics (returns data of the Result type, compatible with older code)
     pub fn get_query_stats(&self) -> ManagerResult<QueryStats> {
         Ok(self.get_stats())
     }
 
-    /// 清理已完成的查询（保留最近N个）
+    /// Clean up the completed queries (retaining only the last N of them).
     pub fn cleanup_finished_queries(&self, keep_count: usize) {
         let mut queries = self.queries.lock();
         let mut finished_queries: Vec<_> = queries
@@ -273,7 +273,7 @@ impl QueryManager {
             .map(|(id, _)| *id)
             .collect();
 
-        // 按开始时间排序，保留最近的
+        // Sort by start time, keeping the most recent items at the top.
         finished_queries
             .sort_by_key(|id| queries.get(id).map(|q| q.start_time).unwrap_or(UNIX_EPOCH));
 

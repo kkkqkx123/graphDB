@@ -1,15 +1,15 @@
-//! ORDER BY 子句验证器
-//! 验证 ORDER BY 子句的排序表达式和方向
+//! ORDER BY clause validator
+//! Verify the sorting expression and direction of the ORDER BY clause.
 //!
-//! 本文件已按照新的 trait + 枚举 验证器体系重构：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 保留了原有完整功能：
-//!    - 排序列验证
-//!    - 类型检查（可比较类型）
-//!    - 输入列兼容性验证
-//!    - 表达式类型推导
-//!    - 表达式引用收集
-//! 3. 使用 QueryContext 统一管理上下文
+//! This document has been restructured in accordance with the new trait + enumeration validator framework.
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. All the original functions have been retained.
+//! Sequence verification
+//! Type checking (comparable types)
+//! Input column compatibility verification
+//! Type inference of expressions
+//! Collection of expression references
+//! 3. Use QueryContext to manage the context in a unified manner.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -23,7 +23,7 @@ use crate::query::QueryContext;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// 排序列定义
+/// Sorting column definition
 #[derive(Debug, Clone)]
 pub struct OrderColumn {
     pub expression: ContextualExpression,
@@ -31,34 +31,34 @@ pub struct OrderColumn {
     pub direction: OrderDirection,
 }
 
-/// ORDER BY 验证器 - 新体系实现
+/// ORDER BY Validator – New implementation of the system
 ///
-/// 功能完整性保证：
-/// 1. 完整的验证生命周期
-/// 2. 输入/输出列管理
-/// 3. 表达式属性追踪
-/// 4. 排序表达式验证
-/// 5. 类型兼容性检查
+/// Functionality integrity assurance:
+/// 1. Complete validation lifecycle
+/// 2. Management of input/output columns
+/// 3. Expression property tracing
+/// 4. Validation of sorting expressions
+/// 5. Type compatibility check
 #[derive(Debug)]
 pub struct OrderByValidator {
-    // 排序列列表
+    // List of sorted columns
     order_columns: Vec<OrderColumn>,
-    // 输入列定义（来自前序查询）
+    // Input column definitions (from the previous query)
     input_columns: HashMap<String, ValueType>,
-    // 输入列定义（用于 trait 接口）
+    // Input column definitions (for the trait interface)
     inputs: Vec<ColumnDef>,
-    // 输出列定义（ORDER BY 不改变输出结构）
+    // Column definition for the ORDER BY clause (ORDER BY does not change the output structure)
     outputs: Vec<ColumnDef>,
-    // 表达式属性
+    // Expression properties
     expr_props: ExpressionProps,
-    // 用户定义变量
+    // User-defined variables
     user_defined_vars: Vec<String>,
-    // 验证错误列表
+    // List of validation errors
     validation_errors: Vec<ValidationError>,
 }
 
 impl OrderByValidator {
-    /// 创建新的验证器实例
+    /// Create a new instance of the validator.
     pub fn new() -> Self {
         Self {
             order_columns: Vec::new(),
@@ -71,15 +71,15 @@ impl OrderByValidator {
         }
     }
 
-    /// 添加排序列
+    /// Add a sorting column
     pub fn add_order_column(&mut self, col: OrderColumn) {
         self.order_columns.push(col);
     }
 
-    /// 设置输入列
+    /// Set the input columns
     pub fn set_input_columns(&mut self, columns: HashMap<String, ValueType>) {
         self.input_columns = columns;
-        // 同步到 inputs
+        // Synchronize with the inputs.
         self.inputs = self
             .input_columns
             .iter()
@@ -90,22 +90,22 @@ impl OrderByValidator {
             .collect();
     }
 
-    /// 获取排序列列表
+    /// Obtain a list of sorted columns
     pub fn order_columns(&self) -> &[OrderColumn] {
         &self.order_columns
     }
 
-    /// 获取输入列
+    /// Retrieve the input column
     pub fn input_columns(&self) -> &HashMap<String, ValueType> {
         &self.input_columns
     }
 
-    /// 清空验证错误
+    /// Clear the verification errors.
     fn clear_errors(&mut self) {
         self.validation_errors.clear();
     }
 
-    /// 执行验证（传统方式，保持向后兼容）
+    /// Perform validation (in the traditional manner, while maintaining backward compatibility).
     pub fn validate_order_by(&mut self) -> Result<(), ValidationError> {
         self.clear_errors();
         self.validate_impl()?;
@@ -186,7 +186,7 @@ impl OrderByValidator {
         }
     }
 
-    /// 内部方法：检查表达式是否为空
+    /// Internal method: Check whether the expression is empty.
     fn expression_is_empty_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
@@ -214,7 +214,7 @@ impl OrderByValidator {
             Expression::Predicate { .. } => false,
             Expression::Reduce { .. } => false,
             Expression::PathBuild(_) => false,
-            // 其他表达式类型默认不为空
+            // Other types of expressions are not empty by default.
             _ => false,
         }
     }
@@ -230,7 +230,7 @@ impl OrderByValidator {
         }
     }
 
-    /// 内部方法：推导表达式类型
+    /// Internal method: Deriving the type of an expression
     fn deduce_expr_type_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
@@ -256,15 +256,15 @@ impl OrderByValidator {
                 _ => Ok(ValueType::Unknown),
             },
             Expression::Variable(name) => {
-                // 尝试从输入列中获取类型
+                // Try to obtain the type from the input column.
                 if let Some(column_type) = self.input_columns.get(name) {
                     Ok(column_type.clone())
                 } else {
-                    Ok(ValueType::Unknown) // 如果找不到对应列，则返回未知类型
+                    Ok(ValueType::Unknown) // If the corresponding column cannot be found, an unknown type is returned.
                 }
             }
             Expression::Binary { left, op, right } => {
-                // 对于比较操作，结果是布尔类型
+                // For comparison operations, the result is of the boolean type.
                 match op {
                     crate::core::BinaryOperator::Equal
                     | crate::core::BinaryOperator::NotEqual
@@ -281,7 +281,7 @@ impl OrderByValidator {
                     | crate::core::BinaryOperator::Contains
                     | crate::core::BinaryOperator::StartsWith
                     | crate::core::BinaryOperator::EndsWith => Ok(ValueType::Bool),
-                    // 算术操作通常返回数值类型
+                    // Arithmetic operations usually return values of numeric types.
                     crate::core::BinaryOperator::Add
                     | crate::core::BinaryOperator::Subtract
                     | crate::core::BinaryOperator::Multiply
@@ -291,7 +291,7 @@ impl OrderByValidator {
                         let left_type = self.deduce_expr_type_internal(left)?;
                         let right_type = self.deduce_expr_type_internal(right)?;
 
-                        // 如果任一操作数是浮点数，则结果为浮点数
+                        // If either of the operands is a floating-point number, the result will also be a floating-point number.
                         if matches!(left_type, ValueType::Float)
                             || matches!(right_type, ValueType::Float)
                         {
@@ -304,9 +304,9 @@ impl OrderByValidator {
                             Ok(ValueType::Unknown)
                         }
                     }
-                    // 字符串连接操作返回字符串
+                    // The string concatenation operation returns a string.
                     crate::core::BinaryOperator::StringConcat => Ok(ValueType::String),
-                    // 其他操作返回未知类型
+                    // Other operations return unknown types.
                     _ => Ok(ValueType::Unknown),
                 }
             }
@@ -324,7 +324,7 @@ impl OrderByValidator {
                 }
             },
             Expression::Function { name, args: _ } => {
-                // 根据函数名推断返回类型
+                // Determine the return type based on the function name.
                 match name.to_lowercase().as_str() {
                     "id" => Ok(ValueType::String),
                     "count" | "sum" | "avg" | "min" | "max" => Ok(ValueType::Float),
@@ -344,9 +344,9 @@ impl OrderByValidator {
             },
             Expression::List(_) => Ok(ValueType::List),
             Expression::Map(_) => Ok(ValueType::Map),
-            Expression::Case { .. } => Ok(ValueType::Unknown), // CASE表达式的结果类型取决于其分支
+            Expression::Case { .. } => Ok(ValueType::Unknown), // The result type of a CASE expression depends on the branch that is executed.
             Expression::TypeCast { target_type, .. } => {
-                // 根据目标类型转换
+                // Please provide the text you would like to have translated, as well as the target language you need the translation to. I will then perform the translation for you.
                 match target_type {
                     crate::core::DataType::Bool => Ok(ValueType::Bool),
                     crate::core::DataType::Int
@@ -364,7 +364,7 @@ impl OrderByValidator {
                     _ => Ok(ValueType::Unknown),
                 }
             }
-            // 属性表达式统一处理
+            // Unified processing of attribute expressions
             Expression::Property { object, property } => {
                 if let Expression::Variable(var_name) = object.as_ref() {
                     if let Some(column_type) = self.input_columns.get(var_name) {
@@ -416,7 +416,7 @@ impl OrderByValidator {
         }
     }
 
-    // 辅助函数：递归收集表达式中的列引用
+    // Auxiliary function: Recursively collect column references in expressions
     fn collect_refs_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
@@ -491,7 +491,7 @@ impl OrderByValidator {
                     self.collect_refs_internal(end_expression, refs);
                 }
             }
-            // 属性表达式统一处理
+            // Unified processing of attribute expressions
             Expression::Property { object, property } => {
                 self.collect_refs_internal(object, refs);
                 if !refs.contains(property) {
@@ -538,10 +538,10 @@ impl Default for OrderByValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>`.
 impl StatementValidator for OrderByValidator {
     fn validate(
         &mut self,
@@ -550,12 +550,12 @@ impl StatementValidator for OrderByValidator {
     ) -> Result<ValidationResult, ValidationError> {
         self.clear_errors();
 
-        // 执行验证
+        // Please provide the text you would like to have translated. I will then perform the verification and translate it into English.
         if let Err(e) = self.validate_impl() {
             return Ok(ValidationResult::failure(vec![e]));
         }
 
-        // ORDER BY 不改变输出结构，输出与输入相同
+        // The `ORDER BY` clause does not change the output structure; the output remains the same as the input.
         self.outputs = self.inputs.clone();
 
         let mut info = ValidationInfo::new();
@@ -582,7 +582,7 @@ impl StatementValidator for OrderByValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // ORDER BY 不是全局语句，需要预先选择空间
+        // The `ORDER BY` statement is not a global statement; therefore, the relevant data space must be selected in advance.
         false
     }
 

@@ -1,6 +1,6 @@
-//! ShowEdgesExecutor - 列出边类型执行器
+//! ShowEdgesExecutor – Executor for listing edge types
 //!
-//! 负责列出指定图空间中的所有边类型。
+//! Responsible for listing all edge types in the specified graph space.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -11,9 +11,9 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
-/// 列出边类型执行器
+/// List of edge type executors
 ///
-/// 该执行器负责返回指定图空间中所有边类型的列表。
+/// This executor is responsible for returning a list of all edge types in the specified graph space.
 #[derive(Debug)]
 pub struct ShowEdgesExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -21,7 +21,7 @@ pub struct ShowEdgesExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> ShowEdgesExecutor<S> {
-    /// 创建新的 ShowEdgesExecutor
+    /// Create a new ShowEdgesExecutor.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,

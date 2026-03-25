@@ -1,11 +1,11 @@
-//! 类型签名系统
+//! Type Signature System
 //!
-//! 定义函数签名中使用的值类型枚举，用于类型检查和函数重载解析
+//! Define an enumeration of value types used in function signatures, for type checking and function overloading resolution.
 
 use crate::core::Value;
 use std::fmt;
 
-/// 值类型枚举（用于函数签名）
+/// Value type enumeration (used in function signatures)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ValueType {
     Null,

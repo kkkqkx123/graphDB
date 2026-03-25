@@ -1,77 +1,77 @@
-//! 计划重写模块
+//! Plan to rewrite the module
 //!
-//! 该模块包含所有启发式优化规则，在计划生成阶段直接应用。
-//! 这些规则不依赖代价计算，总是产生更优或等价的计划。
+//! This module contains all the heuristic optimization rules, which are applied directly during the plan generation phase.
+//! These rules do not rely on cost calculations; they always generate better or equivalent plans.
 //!
-//! # 模块结构
+//! # Module Structure
 //!
-//! - `context`: 重写上下文定义
-//! - `pattern`: 模式匹配定义
-//! - `result`: 重写结果定义
-//! - `rule`: 重写规则 trait 定义
-//! - `macros`: 重写规则宏定义
-//! - `rewrite_rule`: 重写规则 trait 定义和适配器（兼容层）
-//! - `plan_rewriter`: 计划重写器实现
-//! - `predicate_pushdown`: 谓词下推规则
-//! - `merge`: 操作合并规则
-//! - `projection_pushdown`: 投影下推规则
-//! - `elimination`: 消除规则
-//! - `limit_pushdown`: LIMIT 下推规则
-//! - `aggregate`: 聚合优化规则
+//! “Rewrite the context definition” means to create a new or revised version of the definition of a particular term, concept, or situation, taking into account any changes, updates, or new information that may have become available. This could involve modifying the wording, the structure of the definition, or the overall approach used to explain the concept. The goal of rewriting the context definition is to ensure that it remains accurate, clear, and relevant in the current context.
+//! `pattern`: Definition of pattern matching
+//! “result”: Rewrite the definition of the “result” concept.
+//! “Rule”: Definition of the rewrite rule trait
+//! “macros”: Macro definitions for rewriting rules
+//! `rewrite_rule`: The definition of the `rewrite_rule` trait and the corresponding adapter (compatibility layer)
+//! `plan_rewriter`: Implementation of the plan rewriter
+//! `predicate_pushdown`: The predicate pushdown rule
+//! “merge”: The operation involves merging rules.
+//! `projection_pushdown`: The rule for projecting data downwards (i.e., applying transformations or calculations to the lower levels of a data structure)
+//! “Elimination”: elimination rule
+//! `limit_pushdown`: The rule for LIMIT pushdown operations
+//! “Aggregate”: Aggregation optimization rules.
 //!
-//! # 规则分类
+//! # Rule Classification
 //!
-//! ## 谓词下推规则 (predicate_pushdown)
-//! 将过滤条件下推到计划树的底层，减少数据处理量。
+//! ## Predicate Pushdown Rule
+//! Push the filtering conditions to the lowest level of the planning tree to reduce the amount of data processing.
 //!
-//! ## 操作合并规则 (merge)
-//! 合并多个连续的相同类型操作，减少中间结果。
+//! ## Operation merge rules
+//! Merge multiple consecutive operations of the same type to reduce the number of intermediate results.
 //!
-//! ## 投影下推规则 (projection_pushdown)
-//! 将投影操作下推到计划树底层。
+//! ## Projection Pushdown Rule
+//! Push the projection operation down to the lowest level of the planning tree.
 //!
-//! ## 消除规则 (elimination)
-//! 消除冗余的操作，包括：
-//! - 永假式过滤 (`EliminateFilterRule`)
-//! - 无操作投影 (`RemoveNoopProjectRule`)
-//! - 不必要的去重 (`DedupEliminationRule`)
-//! - 冗余的排序 (`EliminateSortRule`) - 当输入已有序时
+//! ## Elimination rules
+//! Operations to eliminate redundancy, including:
+//! Permanent filter rule (`EliminateFilterRule`)
+//! - RemoveNoopProjectRule: This rule removes any unnecessary or redundant project-related operations.
+//! Unnecessary deduplication (`DedupEliminationRule`)
+//! Redundant sorting (`EliminateSortRule`) – When the input is already sorted.
 //!
-//! ## LIMIT 下推规则 (limit_pushdown)
-//! 将 LIMIT/TOPN 操作下推。
+//! ## LIMIT Pushdown Rule (limit_pushdown)
+//! Push down the LIMIT/TOPN operations.
 //!
-//! ## 聚合优化规则 (aggregate)
-//! 优化聚合操作。
+//! ## Aggregate Optimization Rules
+//! Optimize aggregate operations.
 //!
-//! # 与基于代价的优化的关系
+//! # The relationship with cost-based optimization
 //!
-//! 本模块的规则是**启发式规则**，不依赖代价计算，总是执行。
-//! 基于代价的优化在 `strategy` 模块中实现，包括：
-//! - 排序策略选择 (`SortEliminationOptimizer`) - 基于代价决定是否转换为 TopN
-//! - 聚合策略选择 (`AggregateStrategySelector`)
-//! - 连接顺序优化 (`JoinOrderOptimizer`)
-//! - 遍历方向优化 (`TraversalDirectionOptimizer`)
-//! - 子查询去关联化 (`SubqueryUnnestingOptimizer`) - 基于分析的转换
+//! The rules of this module are **heuristic rules**; they do not rely on cost calculations and are always executed.
+//! Cost-based optimization is implemented in the `strategy` module, which includes the following aspects:
+//! Selection of sorting strategy (`SortEliminationOptimizer`) –决定是否 to convert the result to a TopN list based on the cost associated with the sorting process.
+//! Selection of the aggregation strategy (`AggregateStrategySelector`)
+//! Optimization of the connection order (`JoinOrderOptimizer`)
+//! Optimization of the traversal direction (`TraversalDirectionOptimizer`)
+//! - SubqueryUnnestingOptimizer: A transformation based on analysis
 //!
-//! 启发式规则优先执行，基于代价的优化在之后执行。
+//! Heuristic rules are executed first, followed by cost-based optimization.
 //!
-//! # 使用示例
+//! # Usage Examples
 //!
 //! ```rust
 //! use crate::query::planning::rewrite::{PlanRewriter, create_default_rewriter, rewrite_plan};
 //! use crate::query::planning::plan::ExecutionPlan;
 //!
-//! // 使用默认重写器
+// Use the default writer.
 //! let plan = ExecutionPlan::new(...);
 //! let optimized_plan = rewrite_plan(plan)?;
 //!
-//! // 自定义重写器
+// Custom rewrite器
 //! let mut rewriter = PlanRewriter::new();
 //! rewriter.add_rule(MyCustomRule);
 //! let optimized_plan = rewriter.rewrite(plan)?;
 //! ```
 
-// 核心类型模块（新）
+// Core Type Modules (New)
 pub mod context;
 pub mod expression_utils;
 pub mod pattern;
@@ -79,17 +79,17 @@ pub mod result;
 pub mod rule;
 pub mod visitor;
 
-// 宏模块
+// Macro module
 pub mod macros;
 
-// 核心 trait 和实现
+// Core trait and implementation
 pub mod plan_rewriter;
 pub mod rewrite_rule;
 
-// 静态分发规则枚举
+// Enumeration of static distribution rules
 pub mod rule_enum;
 
-// 具体规则模块
+// Specific Rules Module
 pub mod aggregate;
 pub mod elimination;
 pub mod limit_pushdown;
@@ -97,9 +97,9 @@ pub mod merge;
 pub mod predicate_pushdown;
 pub mod projection_pushdown;
 
-// ==================== 导出核心类型 ====================
+// ==================== Exporting Core Types =====================
 
-// 从新的独立模块导出
+// Export from the new independent module.
 pub use context::RewriteContext;
 pub use pattern::{
     MatchNode, NodeVisitor, NodeVisitorFinder, NodeVisitorRecorder, Pattern, PlanNodeMatcher,
@@ -111,15 +111,15 @@ pub use rule::{
 };
 pub use visitor::ChildRewriteVisitor;
 
-// 从兼容层导出
+// Export from the compatibility layer
 pub use rewrite_rule::{HeuristicRule, HeuristicRuleAdapter, IntoOptRule};
 
 pub use plan_rewriter::{create_default_rewriter, rewrite_plan, PlanRewriter};
 
-// 导出静态分发规则枚举
+// Export the enumeration of static distribution rules.
 pub use rule_enum::{RewriteRule as RewriteRuleEnum, RuleRegistry};
 
-// 统一导出所有重写规则
+// Export all rewriting rules in a unified manner.
 pub use aggregate::*;
 pub use elimination::*;
 pub use limit_pushdown::*;

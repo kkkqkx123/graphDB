@@ -1,39 +1,39 @@
-//! 执行结果类型
+//! Type of execution result
 //!
-//! 定义执行器执行结果的数据结构，支持多种结果类型。
+//! Defines the data structure of the actuator's execution result, supporting multiple result types.
 
 use crate::core::error::DBError;
 use crate::core::query_result::Result as CoreResult;
 
-/// 执行结果类型
+/// Type of execution result
 ///
-/// 统一表示所有执行器的执行结果，支持多种数据格式。
+/// Uniformly represents the execution results of all actuators and supports multiple data formats.
 #[derive(Debug, Clone)]
 pub enum ExecutionResult {
-    /// 成功执行，返回通用值列表
+    /// Successful execution returns a list of generic values
     Values(Vec<crate::core::Value>),
-    /// 成功执行，返回顶点数据
+    /// Successful execution, return vertex data
     Vertices(Vec<crate::core::Vertex>),
-    /// 成功执行，返回边数据
+    /// Successful execution, return side data
     Edges(Vec<crate::core::Edge>),
-    /// 成功执行，返回结构化数据集
+    /// Successful execution returns structured dataset
     DataSet(crate::core::DataSet),
-    /// 成功执行，返回内部 Result 对象
+    /// Successful execution, return internal Result object
     Result(CoreResult),
-    /// 成功执行，无数据返回
+    /// Successful execution, no data returned
     Empty,
-    /// 成功执行，无数据返回（别名）
+    /// Successful execution, no data returned (alias)
     Success,
-    /// 执行错误
+    /// implementation error
     Error(String),
-    /// 返回计数
+    /// Return Count
     Count(usize),
-    /// 返回路径
+    /// Return path
     Paths(Vec<crate::core::vertex_edge_path::Path>),
 }
 
 impl ExecutionResult {
-    /// 获取结果中的元素计数
+    /// Get the count of elements in the result
     pub fn count(&self) -> usize {
         match self {
             ExecutionResult::Values(v) => v.len(),
@@ -49,12 +49,12 @@ impl ExecutionResult {
         }
     }
 
-    /// 从 CoreResult 创建 ExecutionResult
+    /// Creating an ExecutionResult from a CoreResult
     pub fn from_result(result: CoreResult) -> Self {
         ExecutionResult::Result(result)
     }
 
-    /// 转换为 CoreResult
+    /// Convert to CoreResult
     pub fn to_result(&self) -> Option<CoreResult> {
         match self {
             ExecutionResult::Result(r) => Some(r.clone()),
@@ -63,10 +63,10 @@ impl ExecutionResult {
     }
 }
 
-/// 结果类型别名
+/// Result type alias
 pub type DBResult<T> = Result<T, DBError>;
 
-/// 支持转换为执行结果的 trait
+/// Support for traits that are converted to execution results
 pub trait IntoExecutionResult {
     fn into_execution_result(self) -> ExecutionResult;
 }

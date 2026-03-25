@@ -1,16 +1,16 @@
-//! 空集操作优化规则
+//! Optimization rules for set operations on the empty set
 //!
-//! 优化集合操作中的空集情况：
-//! - Minus: 如果减输入为空，直接返回主输入
-//! - Intersect: 如果任一输入为空，返回空集
+//! Optimizing the handling of the empty set in set operations:
+//! - Minus: If the value for “minus” is empty, the main input should be returned directly.
+//! **Intersect:** If either of the inputs is empty, return the empty set.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before (Minus):
 //! ```text
 //!   Minus
 //!    /   \
-//!   A   Start (空集)
+//! A. Start (Empty set)
 //! ```
 //!
 //! After:
@@ -22,12 +22,12 @@
 //! ```text
 //!   Intersect
 //!    /       \
-//!   A       Start (空集)
+//! A       Start (Empty set)
 //! ```
 //!
 //! After:
 //! ```text
-//!   Start (空集)
+//! Start (the empty set)
 //! ```
 
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
@@ -38,30 +38,30 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 
-/// 空集操作优化规则
+/// Optimization rules for set operations involving the empty set
 ///
-/// 优化集合操作中的空集情况，避免不必要的计算
+/// Optimize the handling of the empty set in set operations to avoid unnecessary calculations.
 #[derive(Debug)]
 pub struct EliminateEmptySetOperationRule;
 
 impl EliminateEmptySetOperationRule {
-    /// 创建规则实例
+    /// Create a rule instance.
     pub fn new() -> Self {
         Self
     }
 
-    /// 判断节点是否为空集节点
+    /// Determine whether a node is an empty set node.
     fn is_empty_node(&self, node: &PlanNodeEnum) -> bool {
         match node {
-            // Start 节点表示空集
+            // The “Start” node represents the empty set.
             PlanNodeEnum::Start(_) => true,
-            // Limit 为 0 的扫描操作
+            // Scan operation with a limit of 0
             PlanNodeEnum::ScanVertices(n) => n.limit() == Some(0),
             PlanNodeEnum::ScanEdges(n) => n.limit() == Some(0),
             PlanNodeEnum::GetVertices(n) => n.limit() == Some(0),
             PlanNodeEnum::GetEdges(n) => n.limit() == Some(0),
             PlanNodeEnum::Limit(n) => n.count() == 0,
-            // 递归检查单输入节点
+            // Recursive checking of a single input node
             PlanNodeEnum::Filter(n) => self.is_empty_node(n.input()),
             PlanNodeEnum::Project(n) => self.is_empty_node(n.input()),
             PlanNodeEnum::Dedup(n) => self.is_empty_node(n.input()),
@@ -69,7 +69,7 @@ impl EliminateEmptySetOperationRule {
         }
     }
 
-    /// 创建空集节点
+    /// Create an empty set node.
     fn create_empty_node(&self) -> PlanNodeEnum {
         PlanNodeEnum::Start(StartNode::new())
     }
@@ -87,7 +87,7 @@ impl RewriteRule for EliminateEmptySetOperationRule {
     }
 
     fn pattern(&self) -> Pattern {
-        // 匹配 Minus 或 Intersect 节点
+        // Match the Minus or Intersect nodes
         Pattern::multi(vec!["Minus", "Intersect"])
     }
 
@@ -97,11 +97,11 @@ impl RewriteRule for EliminateEmptySetOperationRule {
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
         match node {
-            // 处理 Minus 节点
+            // Processing the Minus node
             PlanNodeEnum::Minus(minus_node) => {
                 let minus_input = minus_node.minus_input();
 
-                // 如果减输入为空，直接返回主输入
+                // If the input for the subtraction is empty, simply return the main input.
                 if self.is_empty_node(minus_input) {
                     let mut result = TransformResult::new();
                     result.erase_curr = true;
@@ -111,12 +111,12 @@ impl RewriteRule for EliminateEmptySetOperationRule {
 
                 Ok(None)
             }
-            // 处理 Intersect 节点
+            // Processing the Intersect node
             PlanNodeEnum::Intersect(intersect_node) => {
                 let input = intersect_node.input();
                 let intersect_input = intersect_node.intersect_input();
 
-                // 如果任一输入为空，返回空集
+                // If either of the inputs is empty, return an empty set.
                 if self.is_empty_node(input) || self.is_empty_node(intersect_input) {
                     let mut result = TransformResult::new();
                     result.erase_curr = true;
@@ -174,7 +174,7 @@ mod tests {
     fn test_is_empty_node() {
         let rule = EliminateEmptySetOperationRule::new();
 
-        // Start 节点是空集
+        // The Start node is the empty set.
         let start_node = StartNode::new();
         assert!(rule.is_empty_node(&PlanNodeEnum::Start(start_node)));
     }

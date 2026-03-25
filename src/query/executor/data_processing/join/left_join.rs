@@ -1,6 +1,6 @@
-//! 左外连接执行器实现
+//! Implementation of the Left Outer Join Executor
 //!
-//! 实现基于哈希的左外连接算法，支持单键和多键连接
+//! Implement a hash-based left outer join algorithm that supports both single-key and multi-key joins.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -17,16 +17,16 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use ExpressionAnalysisContext as ExpressionContextStruct;
 
-/// 左外连接执行器
+/// Left Outer Join Executor
 pub struct LeftJoinExecutor<S: StorageClient> {
     base_executor: BaseJoinExecutor<S>,
-    /// 右侧数据集的列数（用于填充NULL值）
+    /// The number of columns in the right dataset (used to fill in NULL values)
     right_col_size: usize,
-    /// 是否使用多键连接
+    /// Should a multi-key join be used?
     use_multi_key: bool,
 }
 
-/// 左外连接执行器配置
+/// Left Outer Join Executor Configuration
 #[derive(Debug, Clone)]
 pub struct LeftJoinConfig {
     pub id: i64,
@@ -45,7 +45,7 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
     ) -> Self {
         let use_multi_key = config.hash_keys.len() > 1;
 
-        // 从 ContextualExpression 列表提取 Expression 列表
+        // Extract the list of Expressions from the list of ContextualExpressions.
         let hash_exprs = Self::extract_expressions(&config.hash_keys);
         let probe_exprs = Self::extract_expressions(&config.probe_keys);
 
@@ -64,7 +64,7 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
         }
     }
 
-    /// 从 ContextualExpression 列表提取 Expression 列表的辅助方法
+    /// An auxiliary method for extracting the Expression list from the ContextualExpression list
     fn extract_expressions(ctx_exprs: &[ContextualExpression]) -> Vec<Expression> {
         ctx_exprs
             .iter()
@@ -72,19 +72,19 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
             .collect()
     }
 
-    /// 执行单键左外连接
+    /// Perform a single-key left outer join.
     fn execute_single_key_join(
         &mut self,
         left_dataset: &DataSet,
         right_dataset: &DataSet,
     ) -> DBResult<DataSet> {
-        // 记录右侧数据集的列数
+        // Record the number of columns in the dataset on the right side.
         self.right_col_size = right_dataset.col_names.len();
 
-        // 左外连接总是以左表为驱动表，右表构建哈希表
+        // A left outer join always uses the left table as the driving table, and the right table is used to build a hash table.
         let build_dataset = right_dataset;
 
-        // 构建哈希表
+        // Constructing a hash table
         let hash_table = build_hash_table(build_dataset, self.base_executor.get_probe_keys())
             .map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
@@ -93,7 +93,7 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
                 )))
             })?;
 
-        // 构建列名到索引的映射
+        // Construct a mapping from column names to indices.
         let left_col_map: std::collections::HashMap<&str, usize> = left_dataset
             .col_names
             .iter()
@@ -101,14 +101,14 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
             .map(|(i, name)| (name.as_str(), i))
             .collect();
 
-        // 构建结果集
+        // Constructing the result set
         let mut result = DataSet::new();
         result.col_names = self.base_executor.get_col_names().clone();
 
-        // 记录已匹配的左表行索引
+        // The index of the matched row from the left table has been recorded.
         let mut matched_rows = std::collections::HashSet::new();
 
-        // 处理左表的每一行
+        // Process each row of the left table.
         for left_row in &left_dataset.rows {
             let left_key_parts = extract_key_values(
                 left_row,
@@ -119,9 +119,9 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
 
             let left_key = JoinKey::new(left_key_parts);
 
-            // 查找匹配的右表行
+            // Find the matching row in the right table.
             if let Some(right_indices) = hash_table.get(&left_key) {
-                matched_rows.insert(left_row.clone()); // 标记为已匹配
+                matched_rows.insert(left_row.clone()); // Marked as matched
 
                 for &right_idx in right_indices {
                     if right_idx < build_dataset.rows.len() {
@@ -138,11 +138,11 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
             }
         }
 
-        // 处理未匹配的左表行（填充NULL）
+        // Handle unmatched rows from the left table (fill with NULL).
         for left_row in &left_dataset.rows {
             if !matched_rows.contains(left_row) {
                 let mut new_row = left_row.clone();
-                // 为右侧列填充NULL值
+                // Fill the right column with NULL values.
                 for _ in 0..self.right_col_size {
                     new_row.push(Value::Null(NullType::Null));
                 }
@@ -153,19 +153,19 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
         Ok(result)
     }
 
-    /// 执行多键左外连接
+    /// Perform a multi-key left outer join
     fn execute_multi_key_join(
         &mut self,
         left_dataset: &DataSet,
         right_dataset: &DataSet,
     ) -> DBResult<DataSet> {
-        // 记录右侧数据集的列数
+        // Record the number of columns in the dataset on the right side.
         self.right_col_size = right_dataset.col_names.len();
 
-        // 左外连接总是以左表为驱动表，右表构建哈希表
+        // A left outer join always uses the left table as the driving table, and the right table is used to build a hash table.
         let build_dataset = right_dataset;
 
-        // 构建哈希表
+        // Constructing a hash table
         let hash_table = build_hash_table(build_dataset, self.base_executor.get_probe_keys())
             .map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
@@ -174,7 +174,7 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
                 )))
             })?;
 
-        // 构建列名到索引的映射
+        // Construct a mapping from column names to indexes.
         let left_col_map: std::collections::HashMap<&str, usize> = left_dataset
             .col_names
             .iter()
@@ -182,14 +182,14 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
             .map(|(i, name)| (name.as_str(), i))
             .collect();
 
-        // 构建结果集
+        // Constructing the result set
         let mut result = DataSet::new();
         result.col_names = self.base_executor.get_col_names().clone();
 
-        // 记录已匹配的左表行索引
+        // The index of the matched row from the left table has been recorded.
         let mut matched_rows = std::collections::HashSet::new();
 
-        // 处理左表的每一行
+        // Process each row of the left table.
         for left_row in &left_dataset.rows {
             let left_key_parts = extract_key_values(
                 left_row,
@@ -200,9 +200,9 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
 
             let left_key = JoinKey::new(left_key_parts);
 
-            // 查找匹配的右表行
+            // Find the matching row in the right table.
             if let Some(right_indices) = hash_table.get(&left_key) {
-                matched_rows.insert(left_row.clone()); // 标记为已匹配
+                matched_rows.insert(left_row.clone()); // Marked as matched
 
                 for &right_idx in right_indices {
                     if right_idx < build_dataset.rows.len() {
@@ -219,11 +219,11 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
             }
         }
 
-        // 处理未匹配的左表行（填充NULL）
+        // Handle unmatched rows from the left table (fill with NULL).
         for left_row in &left_dataset.rows {
             if !matched_rows.contains(left_row) {
                 let mut new_row = left_row.clone();
-                // 为右侧列填充NULL值
+                // Fill the right column with NULL values.
                 for _ in 0..self.right_col_size {
                     new_row.push(Value::Null(NullType::Null));
                 }
@@ -315,7 +315,7 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for LeftJoinExecutor<S> {
     }
 }
 
-/// 哈希左外连接执行器（并行版本）
+/// Hash Left Outer Join Executor (Parallel Version)
 pub struct HashLeftJoinExecutor<S: StorageClient> {
     inner: LeftJoinExecutor<S>,
 }
@@ -393,11 +393,11 @@ mod tests {
         let ctx_expr1 =
             crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
-        // 创建执行器
+        // Create an executor.
         let config = LeftJoinConfig {
             id: 1,
-            hash_keys: vec![ctx_expr1.clone()], // 左表id列作为键
-            probe_keys: vec![ctx_expr1],        // 右表id列作为键
+            hash_keys: vec![ctx_expr1.clone()], // The id column in the left table serves as the key.
+            probe_keys: vec![ctx_expr1],        // The id column in the right table serves as the key.
             left_var: "left".to_string(),
             right_var: "right".to_string(),
             col_names: vec!["id".to_string(), "name".to_string(), "age".to_string()],
@@ -405,7 +405,7 @@ mod tests {
 
         let mut executor = LeftJoinExecutor::new(storage, expr_context.clone(), config);
 
-        // 设置执行上下文
+        // Setting the execution context
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -433,16 +433,16 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行连接
+        // Establish the connection.
         let result = executor.execute().expect("Failed to execute");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 3); // 三行结果（包括未匹配的）
+                    assert_eq!(dataset.rows.len(), 3); // Three lines of results (including those that did not match)
 
-                    // 第一行：Alice匹配
+                    // First line: Alice matches
                     assert_eq!(
                         dataset.rows[0],
                         vec![
@@ -452,7 +452,7 @@ mod tests {
                         ]
                     );
 
-                    // 第二行：Bob匹配
+                    // Second line: Bob matches.
                     assert_eq!(
                         dataset.rows[1],
                         vec![
@@ -462,15 +462,15 @@ mod tests {
                         ]
                     );
 
-                    // 第三行：Charlie未匹配，age为NULL
+                    // Third line: Charlie was not matched; the value for “age” is NULL.
                     assert_eq!(dataset.rows[2][0], Value::Int(3));
                     assert_eq!(dataset.rows[2][1], Value::String("Charlie".to_string()));
                     assert_eq!(dataset.rows[2][2], Value::Null(NullType::Null));
                 } else {
-                    panic!("期望DataSet结果");
+                    panic!("Expected DataSet results");
                 }
             }
-            _ => panic!("期望Values结果"),
+            _ => panic!("Expected Values results"),
         }
     }
 
@@ -485,7 +485,7 @@ mod tests {
         let ctx_expr1 =
             crate::core::types::ContextualExpression::new(expr_id1, expr_context.clone());
 
-        // 创建执行器
+        // Create an executor.
         let config = LeftJoinConfig {
             id: 1,
             hash_keys: vec![ctx_expr1.clone()],
@@ -497,7 +497,7 @@ mod tests {
 
         let mut executor = LeftJoinExecutor::new(storage, expr_context.clone(), config);
 
-        // 设置执行上下文
+        // Setting the execution context
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -508,7 +508,7 @@ mod tests {
 
         let right_dataset = DataSet {
             col_names: vec!["id".to_string(), "age".to_string()],
-            rows: Vec::new(), // 空右表
+            rows: Vec::new(), // Empty right-hand table
         };
 
         executor.base_executor.get_base_mut().context.set_result(
@@ -521,24 +521,24 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行连接
+        // Establish the connection.
         let result = executor.execute().expect("Failed to execute");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 2); // 两行结果，都填充NULL
+                    assert_eq!(dataset.rows.len(), 2); // The results for both lines should be filled with NULL.
 
-                    // 所有行的age都应该是NULL
+                    // The value of “age” in all rows should be NULL.
                     for row in &dataset.rows {
                         assert_eq!(row[2], Value::Null(NullType::Null));
                     }
                 } else {
-                    panic!("期望DataSet结果");
+                    panic!("Expected DataSet results");
                 }
             }
-            _ => panic!("期望Values结果"),
+            _ => panic!("Expected Values results"),
         }
     }
 }

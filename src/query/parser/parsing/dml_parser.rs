@@ -1,6 +1,6 @@
-//! 数据修改语句解析模块
+//! Data Modification Statement Parsing Module
 //!
-//! 负责解析数据修改相关语句，包括 INSERT、DELETE、UPDATE、MERGE 等。
+//! Responsible for parsing statements related to data modification, including INSERT, DELETE, UPDATE, MERGE, etc.
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::Expression as CoreExpression;
@@ -14,7 +14,7 @@ use crate::query::parser::parsing::traversal_parser::TraversalParser;
 use crate::query::parser::parsing::ExprParser;
 use crate::query::parser::TokenKind;
 
-/// 数据修改解析器
+/// Data Modification Parser
 pub struct DmlParser;
 
 impl DmlParser {
@@ -22,14 +22,14 @@ impl DmlParser {
         Self
     }
 
-    /// 解析 UPDATE 语句（完整的，包括 UPDATE token）
+    /// Analyzing the UPDATE statement (in its complete form, including the UPDATE token)
     pub fn parse_update_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Update)?;
         self.parse_update_after_token(ctx, start_span)
     }
 
-    /// 解析 UPSERT 语句（完整的，包括 UPSERT token）
+    /// Analyzing the UPSERT statement (in its complete form, including the UPSERT token)
     pub fn parse_upsert_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Upsert)?;
@@ -39,7 +39,7 @@ impl DmlParser {
         result
     }
 
-    /// 在 UPDATE token 已被消费后解析 UPDATE 语句
+    /// Parse the UPDATE statement after the UPDATE token has been consumed.
     pub fn parse_update_after_token(
         &mut self,
         ctx: &mut ParseContext,
@@ -48,7 +48,7 @@ impl DmlParser {
         use crate::query::parser::ast::stmt::{SetClause, UpdateStmt, UpdateTarget};
         use crate::query::parser::parsing::clause_parser::ClauseParser;
 
-        // 检查是否是 UPSERT 语法
+        // Check whether it is UPSERT syntax.
         let is_upsert = ctx.is_upsert_mode();
 
         let target = if ctx.match_token(TokenKind::Vertex) {
@@ -56,7 +56,7 @@ impl DmlParser {
         } else if ctx.match_token(TokenKind::Edge) {
             self.parse_update_edge(ctx)?
         } else {
-            // 检查是否是 UPSERT VERTEX vid ON tag_name 语法
+            // Check whether the syntax is correct for the UPSERT VERTEX vid ON tag_name command.
             if is_upsert {
                 let vid = self.parse_expression(ctx)?;
                 if ctx.match_token(TokenKind::On) {
@@ -69,7 +69,7 @@ impl DmlParser {
                     UpdateTarget::Vertex(vid)
                 }
             } else {
-                // 默认是顶点更新
+                // By default, it is the vertex updates that are performed.
                 UpdateTarget::Vertex(self.parse_expression(ctx)?)
             }
         };
@@ -108,13 +108,13 @@ impl DmlParser {
     }
 
     fn parse_update_edge(&mut self, ctx: &mut ParseContext) -> Result<UpdateTarget, ParseError> {
-        // 检查是否是 UPSERT EDGE 语法：src -> dst @rank OF edge_type
+        // Check whether it is UPSERT EDGE syntax: src -> dst @rank OF edge_type
         // 还是 UPDATE EDGE 语法：OF edge_type FROM src TO dst [@rank]
         let is_upsert = ctx.is_upsert_mode();
 
         if is_upsert {
             // UPSERT EDGE 语法：src -> dst [@rank] OF edge_type
-            // 注意：EDGE token 已经在 parse_update_after_token 中被消费了
+            // The EDGE token has already been consumed within the `parse_update_after_token` function.
             let src = self.parse_expression(ctx)?;
             ctx.expect_token(TokenKind::Arrow)?;
             let dst = self.parse_expression(ctx)?;
@@ -138,17 +138,17 @@ impl DmlParser {
             // UPDATE EDGE 语法：OF edge_type FROM src TO dst [@rank]
             ctx.expect_token(TokenKind::Of)?;
 
-            // 解析边类型
+            // Analyzing edge types
             let edge_type = ctx.expect_identifier()?;
 
-            // 解析 src 和 dst
+            // Analyzing src and dst
             ctx.expect_token(TokenKind::From)?;
             let src = self.parse_expression(ctx)?;
 
             ctx.expect_token(TokenKind::To)?;
             let dst = self.parse_expression(ctx)?;
 
-            // 解析 @rank（可选）
+            // Analysis of @rank (optional)
             let rank = if ctx.match_token(TokenKind::At) {
                 Some(self.parse_expression(ctx)?)
             } else {
@@ -164,14 +164,14 @@ impl DmlParser {
         }
     }
 
-    /// 解析 DELETE 语句
+    /// Analysis of the DELETE statement
     pub fn parse_delete_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
 
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Delete)?;
 
-        // 检查是否有 VERTEX、EDGE 或 TAG 关键字
+        // Check whether there are any keywords such as VERTEX, EDGE, or TAG.
         let target = if ctx.match_token(TokenKind::Vertex) {
             // DELETE VERTEX vid [, vid ...]
             let mut vids = vec![];
@@ -210,11 +210,11 @@ impl DmlParser {
             // DELETE TAG tag_name [, tag_name ...] FROM vid [, vid ...]
             let mut tags = vec![];
 
-            // 检查是否是通配符 *
+            // Check whether it is a wildcard character (*).
             if ctx.match_token(TokenKind::Star) {
                 tags.push("*".to_string());
             } else {
-                // 解析标签列表
+                // Parse the list of tags
                 loop {
                     let tag_name = ctx.expect_identifier()?;
                     tags.push(tag_name);
@@ -224,10 +224,10 @@ impl DmlParser {
                 }
             }
 
-            // 期望 FROM 关键字
+            // The “FROM” keyword in a query
             ctx.expect_token(TokenKind::From)?;
 
-            // 解析顶点 ID 列表
+            // Analyzing the list of vertex IDs
             let mut vids = vec![];
             loop {
                 vids.push(self.parse_expression(ctx)?);
@@ -244,7 +244,7 @@ impl DmlParser {
                 is_all_tags,
             }
         } else {
-            // 默认解析为顶点删除
+            // The default interpretation is the deletion of vertices.
             let mut vids = vec![];
             loop {
                 vids.push(self.parse_expression(ctx)?);
@@ -266,12 +266,12 @@ impl DmlParser {
         }))
     }
 
-    /// 解析 INSERT 语句
+    /// Analyzing the INSERT statement
     pub fn parse_insert_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Insert)?;
 
-        // 检查是 VERTEX 还是 EDGE
+        // Check whether it is VERTEX or EDGE.
         let target = if ctx.match_token(TokenKind::Vertex) {
             self.parse_insert_vertex(ctx, start_span)?
         } else if ctx.match_token(TokenKind::Edge) {
@@ -287,7 +287,7 @@ impl DmlParser {
         Ok(target)
     }
 
-    /// 解析 INSERT VERTEX
+    /// Analysis of INSERT VERTEX
     fn parse_insert_vertex(
         &mut self,
         ctx: &mut ParseContext,
@@ -295,7 +295,7 @@ impl DmlParser {
     ) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget, TagInsertSpec, VertexRow};
 
-        // 解析 IF NOT EXISTS（可选）
+        // Analysis of the IF NOT EXISTS clause (optional)
         let mut if_not_exists = false;
         if ctx.match_token(TokenKind::If) {
             ctx.expect_token(TokenKind::Not)?;
@@ -303,13 +303,13 @@ impl DmlParser {
             if_not_exists = true;
         }
 
-        // 解析 TAG 列表
-        // 支持两种语法：
-        // 1. ON tag1, tag2（可选）
+        // Analyzing the TAG list
+        // Two grammatical styles are supported:
+        // 1. ON tag1, tag2 (optional)
         // 2. tag_name(prop1, prop2), tag2_name(prop3, prop4)（NebulaGraph 标准语法）
         let mut tags = vec![];
         if ctx.match_token(TokenKind::On) {
-            // 语法：ON tag1, tag2
+            // Syntax: ON tag1, tag2
             loop {
                 let tag_name = ctx.expect_identifier()?;
                 tags.push(TagInsertSpec {
@@ -328,7 +328,7 @@ impl DmlParser {
                     let tag_name = ctx.expect_identifier()?;
                     let mut prop_names = vec![];
 
-                    // 检查是否有属性名列表
+                    // Check whether there is a list of attribute names.
                     if ctx.match_token(TokenKind::LParen) {
                         loop {
                             let prop_name = ctx.expect_identifier()?;
@@ -346,7 +346,7 @@ impl DmlParser {
                         is_default_props: false,
                     });
 
-                    // 检查是否有更多标签
+                    // Check to see if there are any additional tags.
                     if !ctx.match_token(TokenKind::Comma) {
                         break;
                     }
@@ -354,18 +354,18 @@ impl DmlParser {
             }
         }
 
-        // 解析 VALUES 关键字
+        // Analysis of the VALUES keyword
         if ctx.check_token(TokenKind::Values) {
-            ctx.next_token(); // 消费 VALUES
+            ctx.next_token(); // Consumption values
         }
 
-        // 解析插入值列表
+        // Analysis of the list of inserted values
         let mut values = vec![];
         loop {
-            // 解析 vid
+            // Analyzing the video…
             let vid = self.parse_expression(ctx)?;
 
-            // 解析属性列表
+            // Parse the attribute list
             let tag_values = if ctx.match_token(TokenKind::Colon) {
                 ctx.expect_token(TokenKind::LParen)?;
                 let mut props = vec![];
@@ -399,7 +399,7 @@ impl DmlParser {
         }))
     }
 
-    /// 解析 INSERT EDGE
+    /// Analysis of INSERT EDGE
     fn parse_insert_edge(
         &mut self,
         ctx: &mut ParseContext,
@@ -407,7 +407,7 @@ impl DmlParser {
     ) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget};
 
-        // 解析边类型和属性名列表
+        // Analyzing the list of edge types and attribute names
         let edge_name = ctx.expect_identifier()?;
         let mut prop_names = vec![];
 
@@ -422,7 +422,8 @@ impl DmlParser {
             ctx.expect_token(TokenKind::RParen)?;
         }
 
-        // 解析 IF NOT EXISTS（可选）
+        // Explanation of IF NOT EXISTS (optional):  
+`IF NOT EXISTS` is a conditional statement in SQL that checks whether a specified row or record exists in a table. If the record does not exist, the statement will execute the code block that follows it; otherwise, it will skip that block. This clause is often used in scenarios where you want to perform an action only if a certain condition is not met (i.e., when the record is missing). It provides a way to handle missing data or ensure that certain operations are not performed on non-existent records, which can prevent errors or incorrect results.
         let mut if_not_exists = false;
         if ctx.match_token(TokenKind::If) {
             ctx.expect_token(TokenKind::Not)?;
@@ -430,27 +431,27 @@ impl DmlParser {
             if_not_exists = true;
         }
 
-        // 解析 VALUES 关键字
+        // Analysis of the VALUES keyword
         if ctx.check_token(TokenKind::Values) {
-            ctx.next_token(); // 消费 VALUES
+            ctx.next_token(); // Consumption values
         }
 
-        // 解析边值列表
+        // Analyzing the boundary value list
         let mut edges = vec![];
         loop {
-            // 解析 src -> dst
+            // Parse from src to dst
             let src = self.parse_expression(ctx)?;
             ctx.expect_token(TokenKind::Arrow)?;
             let dst = self.parse_expression(ctx)?;
 
-            // 解析可选的 rank
+            // Analysis of the optional rank
             let rank = if ctx.match_token(TokenKind::At) {
                 Some(self.parse_expression(ctx)?)
             } else {
                 None
             };
 
-            // 解析属性值列表
+            // Parse the list of attribute values
             let mut values = vec![];
             if ctx.match_token(TokenKind::Colon) {
                 ctx.expect_token(TokenKind::LParen)?;
@@ -485,7 +486,7 @@ impl DmlParser {
         }))
     }
 
-    /// 解析 MERGE 语句
+    /// Analyzing the MERGE statement
     pub fn parse_merge_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Merge)?;
@@ -512,7 +513,7 @@ impl DmlParser {
         }))
     }
 
-    /// 解析表达式
+    /// Analyzing the expression
     fn parse_expression(
         &mut self,
         ctx: &mut ParseContext,
@@ -521,8 +522,8 @@ impl DmlParser {
         expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 
-    /// 解析 Cypher 风格的 CREATE 数据语句（CREATE token 已被消费）
-    /// 支持语法:
+    /// Analyzing the Cypher-style CREATE data statement (the CREATE token has already been consumed)
+    /// Support for grammar:
     ///   CREATE (n:Label {prop: value})
     ///   CREATE (a)-[:Type {prop: value}]->(b)
     ///   CREATE (a:Label1)-[:Type]->(b:Label2)
@@ -531,7 +532,7 @@ impl DmlParser {
         ctx: &mut ParseContext,
         start_span: crate::query::parser::ast::types::Span,
     ) -> Result<Stmt, ParseError> {
-        // 解析模式列表（支持多个模式用逗号分隔）
+        // List of analysis modes (multiple modes can be separated by commas)
         let mut patterns = Vec::new();
 
         loop {
@@ -553,22 +554,22 @@ impl DmlParser {
         }))
     }
 
-    /// 解析 CREATE 语句中的模式
+    /// Analyzing the schema in the CREATE statement
     fn parse_create_pattern(
         &mut self,
         ctx: &mut ParseContext,
     ) -> Result<crate::query::parser::ast::pattern::Pattern, ParseError> {
         use crate::query::parser::ast::pattern::*;
 
-        // 解析起始节点
+        // Analyze the starting node.
         let start_node = self.parse_node_pattern(ctx)?;
 
-        // 检查是否有边模式（使用 Arrow 或 LeftArrow）
+        // Check whether there is a border mode (using Arrow or LeftArrow).
         if ctx.check_token(TokenKind::Arrow) || ctx.check_token(TokenKind::LeftArrow) {
             let edge = self.parse_edge_pattern(ctx)?;
             let end_node = self.parse_node_pattern(ctx)?;
 
-            // 构建路径模式
+            // Constructing path patterns
             let span = ctx.merge_span(start_node.span.start, end_node.span.end);
             let elements = vec![
                 PathElement::Node(start_node),
@@ -577,7 +578,7 @@ impl DmlParser {
             ];
             Ok(Pattern::Path(PathPattern { span, elements }))
         } else {
-            // 只有节点模式
+            // Only node mode
             Ok(Pattern::Node(start_node))
         }
     }
@@ -592,14 +593,14 @@ impl DmlParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::LParen)?;
 
-        // 可选的变量名
+        // Optional variable names
         let variable = if ctx.current_token().kind.is_identifier() {
             Some(ctx.expect_identifier()?)
         } else {
             None
         };
 
-        // 可选的标签列表
+        // List of optional tags
         let mut labels = Vec::new();
         if ctx.match_token(TokenKind::Colon) {
             loop {
@@ -610,7 +611,7 @@ impl DmlParser {
             }
         }
 
-        // 可选的属性映射
+        // Optional attribute mapping
         let properties = if ctx.match_token(TokenKind::LBrace) {
             let props = self.parse_property_map(ctx)?;
             ctx.expect_token(TokenKind::RBrace)?;
@@ -642,38 +643,38 @@ impl DmlParser {
 
         let start_span = ctx.current_span();
 
-        // 确定方向（使用 Arrow、LeftArrow、RightArrow）
+        // Determine the direction (using Arrow, LeftArrow, RightArrow)
         let direction = if ctx.match_token(TokenKind::LeftArrow) {
-            // <- 开始，表示入边
+            // <- Start indicates the beginning.
             EdgeDirection::In
         } else if ctx.match_token(TokenKind::Arrow) {
-            // -> 出边
+            // -> Outside
             EdgeDirection::Out
         } else if ctx.match_token(TokenKind::RightArrow) {
-            // => 或其他箭头
+            // Or another arrow.
             EdgeDirection::Out
         } else {
-            // 默认双向
+            // Default bidirectional functionality
             EdgeDirection::Both
         };
 
         // 解析边类型和属性 [:Type {prop: value}]
         ctx.expect_token(TokenKind::LBracket)?;
 
-        // 可选的变量名
+        // Optional variable names
         let variable = if ctx.current_token().kind.is_identifier() {
             Some(ctx.expect_identifier()?)
         } else {
             None
         };
 
-        // 可选的边类型
+        // Optional edge types
         let mut edge_types = Vec::new();
         if ctx.match_token(TokenKind::Colon) {
             edge_types.push(ctx.expect_identifier()?);
         }
 
-        // 可选的属性映射
+        // Optional attribute mapping
         let properties = if ctx.match_token(TokenKind::LBrace) {
             let props = self.parse_property_map(ctx)?;
             ctx.expect_token(TokenKind::RBrace)?;
@@ -729,7 +730,7 @@ impl DmlParser {
             }
         }
 
-        // 创建 Map 表达式并注册到上下文
+        // Create a Map expression and register it with the context.
         let expr = CoreExpression::Map(properties);
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(expr);
         let id = ctx.expression_context().register_expression(expr_meta);

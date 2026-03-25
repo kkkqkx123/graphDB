@@ -1,7 +1,7 @@
-//! 将过滤条件下推到Traverse/AppendVertices节点的规则
+//! Rules that push the filtering conditions to the Traverse/AppendVertices node
 //!
-//! 该规则识别 Traverse/AppendVertices 节点中的 vFilter，
-//! 并将可下推的过滤条件下推到数据源。
+//! This rule identifies the `vFilter` element within the Traverse/AppendVertices nodes.
+//! And push the filter conditions that can be applied “downward” (i.e., applied to the data at a lower level in the system) back to the data source.
 
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
@@ -14,9 +14,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// 将过滤条件下推到Traverse/AppendVertices节点的规则
+/// Rules that push the filtering conditions to the Traverse/AppendVertices node
 ///
-/// # 转换示例
+/// # Conversion example
 ///
 /// Before:
 /// ```text
@@ -28,15 +28,15 @@ use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 ///   Traverse(vFilter: <remained>, firstStepFilter: v.age > 18)
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - Traverse 或 AppendVertices 节点存在 vFilter
-/// - vFilter 可以部分下推到 firstStepFilter
+/// The Traverse or AppendVertices node has a vFilter attribute.
+/// The `vFilter` component can be partially delegated (or “pushed down”) to the `firstStepFilter` component.
 #[derive(Debug)]
 pub struct PushFilterDownNodeRule;
 
 impl PushFilterDownNodeRule {
-    /// 创建规则实例
+    /// Create a rule instance.
     pub fn new() -> Self {
         Self
     }
@@ -71,51 +71,51 @@ impl RewriteRule for PushFilterDownNodeRule {
 }
 
 impl PushFilterDownNodeRule {
-    /// 应用到 Traverse 节点
+    /// Apply to the Traverse node
     fn apply_to_traverse(&self, traverse: &TraverseNode) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否存在 vFilter
+        // Check whether a vFilter exists.
         let v_filter = match traverse.v_filter() {
             Some(filter) => filter,
             None => return Ok(None),
         };
 
-        // 获取列名用于判断可下推的表达式
+        // Obtaining column names is used to determine the expressions that can be pushed down (i.e., processed further in the system).
         let col_names = traverse.col_names().to_vec();
 
-        // 定义选择器：检查表达式是否只涉及当前节点的列
+        // Define a selector: Check whether the expression only refers to the columns of the current node.
         let picker = |expr: &Expression| -> bool { check_col_name(&col_names, expr) };
 
-        // 分割过滤条件
+        // Split filter criteria
         let (filter_picked, filter_remained) = split_filter(v_filter, picker);
 
-        // 如果没有可以下推的条件，则不进行转换
+        // If there are no conditions that allow for the transformation to be carried out, then no conversion will take place.
         let picked = match filter_picked {
             Some(f) => f,
             None => return Ok(None),
         };
 
-        // 创建新的 Traverse 节点
+        // Create a new Traverse node.
         let mut new_traverse = traverse.clone();
 
-        // 获取上下文用于创建 ContextualExpression
+        // Obtaining the context is necessary for creating a ContextualExpression.
         let ctx = v_filter.context().clone();
 
-        // 设置 firstStepFilter
+        // Set the firstStepFilter
         if let Some(existing) = traverse.first_step_filter() {
-            // 使用 ExpressionContext 的 and 方法组合表达式
+            // Combining expressions using the and method of ExpressionContext
             if let Some(combined_ctx_expr) = ctx.and(&picked, existing) {
                 new_traverse.set_first_step_filter(combined_ctx_expr);
             }
         } else {
-            // 克隆表达式并设置
+            // Clone the expression and set it accordingly.
             if let Some(picked_ctx_expr) = ctx.clone_expression(&picked) {
                 new_traverse.set_first_step_filter(picked_ctx_expr);
             }
         }
 
-        // 更新 vFilter
+        // Update vFilter
         if let Some(remained) = filter_remained {
-            // 克隆表达式并设置
+            // Clone the expression and set it accordingly.
             if let Some(remained_ctx_expr) = ctx.clone_expression(&remained) {
                 new_traverse.set_v_filter(remained_ctx_expr);
             }
@@ -126,7 +126,7 @@ impl PushFilterDownNodeRule {
             ));
         }
 
-        // 构建转换结果
+        // Build the conversion result.
         let mut result = TransformResult::new();
         result.erase_curr = true;
         result.add_new_node(PlanNodeEnum::Traverse(new_traverse));
@@ -134,60 +134,60 @@ impl PushFilterDownNodeRule {
         Ok(Some(result))
     }
 
-    /// 应用到 AppendVertices 节点
+    /// Apply to the AppendVertices node
     fn apply_to_append_vertices(
         &self,
         append: &AppendVerticesNode,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否存在 vFilter
+        // Check whether the vFilter exists.
         let v_filter = match append.v_filter() {
             Some(filter) => filter,
             None => return Ok(None),
         };
 
-        // 获取列名用于判断可下推的表达式
+        // Obtaining the column names is necessary to determine the expressions that can be pushed down (i.e., processed at a lower level of the system).
         let col_names = append.col_names().to_vec();
 
-        // 定义选择器：检查表达式是否只涉及当前节点的列
+        // Define a selector: Check whether the expression only refers to the columns of the current node.
         let picker = |expr: &Expression| -> bool { check_col_name(&col_names, expr) };
 
-        // 分割过滤条件
+        // Split filter criteria
         let (filter_picked, filter_remained) = split_filter(v_filter, picker);
 
-        // 如果没有可以下推的条件，则不进行转换
+        // If there are no conditions that allow for the transformation to be carried out, then no conversion will take place.
         let picked = match filter_picked {
             Some(f) => f,
             None => return Ok(None),
         };
 
-        // 创建新的 AppendVertices 节点
+        // Create a new AppendVertices node.
         let mut new_append = append.clone();
 
-        // 获取上下文用于创建 ContextualExpression
+        // Obtaining the context is necessary for creating a ContextualExpression.
         let ctx = v_filter.context().clone();
 
-        // 设置 filter
+        // Set the filter
         if let Some(existing) = append.filter() {
-            // 使用 ExpressionContext 的 and 方法组合表达式
+            // Combining expressions using the and method of ExpressionContext
             if let Some(combined_ctx_expr) = ctx.and(&picked, existing) {
                 new_append.set_filter(combined_ctx_expr);
             }
         } else {
-            // 克隆表达式并设置
+            // Clone the expression and set it accordingly.
             if let Some(picked_ctx_expr) = ctx.clone_expression(&picked) {
                 new_append.set_filter(picked_ctx_expr);
             }
         }
 
-        // 更新 vFilter
+        // Update vFilter
         if let Some(remained) = filter_remained {
-            // 克隆表达式并设置
+            // Clone the expression and set it accordingly.
             if let Some(remained_ctx_expr) = ctx.clone_expression(&remained) {
                 new_append.set_v_filter(remained_ctx_expr);
             }
         }
 
-        // 构建转换结果
+        // Construct the translation result.
         let mut result = TransformResult::new();
         result.erase_curr = true;
         result.add_new_node(PlanNodeEnum::AppendVertices(new_append));

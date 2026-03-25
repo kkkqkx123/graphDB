@@ -1,6 +1,6 @@
-//! 通用计划节点结构定义
+//! Definition of the General Plan Node Structure
 
-// 标签属性结构
+// Tag attribute structure
 #[derive(Debug, Clone)]
 pub struct TagProp {
     pub tag: String,
@@ -16,7 +16,7 @@ impl TagProp {
     }
 }
 
-// 边属性结构
+// Edge Attribute Structure
 #[derive(Debug, Clone)]
 pub struct EdgeProp {
     pub edge_type: String,

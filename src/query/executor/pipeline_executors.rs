@@ -8,9 +8,9 @@ use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// ArgumentExecutor - 参数执行器
+/// ArgumentExecutor – An argument executor
 ///
-/// 用于从另一个已执行的操作中获取命名别名
+/// Used to obtain a named alias from another already executed operation.
 pub struct ArgumentExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
     var: String,
@@ -35,12 +35,12 @@ impl<S: StorageClient + 'static> ArgumentExecutor<S> {
         &self.var
     }
 
-    /// 设置变量值到执行上下文
+    /// Set the variable values in the execution context.
     pub fn set_variable(&mut self, name: String, value: crate::core::Value) {
         self.base.context.set_variable(name, value);
     }
 
-    /// 设置中间结果到执行上下文
+    /// Set the intermediate results to the execution context.
     pub fn set_result(&mut self, name: String, result: ExecutionResult) {
         self.base.context.set_result(name, result);
     }
@@ -48,7 +48,7 @@ impl<S: StorageClient + 'static> ArgumentExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> Executor<S> for ArgumentExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 首先执行输入执行器获取结果
+        // First, execute the input executor to obtain the results.
         let _input_result = if let Some(input) = &mut self.input_executor {
             input.open()?;
             let result = input.execute()?;
@@ -58,15 +58,15 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ArgumentExecutor<S> {
             None
         };
 
-        // 从执行上下文中获取变量值
+        // Obtain the variable values from the execution context.
         if let Some(var_value) = self.base.context.get_variable(&self.var) {
-            // 将变量值包装为 ExecutionResult
+            // Wrap the variable value in an ExecutionResult.
             Ok(ExecutionResult::Values(vec![var_value.clone()]))
         } else if let Some(result) = self.base.context.get_result(&self.var) {
-            // 如果变量存储在中间结果中，返回克隆的结果
+            // If the variable is stored in an intermediate result, return the cloned result.
             Ok(result.clone())
         } else {
-            // 变量不存在，返回错误
+            // The variable does not exist; an error is returned.
             Err(crate::core::error::DBError::Internal(format!(
                 "Variable '{}' is not defined",
                 self.var
@@ -123,9 +123,9 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for ArgumentExecutor<S> {
     }
 }
 
-/// PassThroughExecutor - 直通执行器
+/// PassThroughExecutor – A direct execution engine
 ///
-/// 用于透传情况的节点，直接传递输入数据
+/// Nodes used for passthrough scenarios: They simply transmit the input data as is.
 pub struct PassThroughExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
@@ -205,9 +205,9 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for PassThroughExecutor<S>
     }
 }
 
-/// DataCollectExecutor - 数据收集执行器
+/// DataCollectExecutor – The data collection executor
 ///
-/// 用于收集和聚合数据
+/// Used for collecting and aggregating data
 pub struct DataCollectExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
@@ -318,13 +318,13 @@ mod tests {
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
         let mut executor = ArgumentExecutor::<MockStorage>::new(1, storage, "my_var", expr_context);
 
-        // 设置变量值
+        // Set the variable values
         executor.set_variable(
             "my_var".to_string(),
             Value::String("test_value".to_string()),
         );
 
-        // 执行并验证结果
+        // Execute and verify the result.
         executor.open().expect("Failed to open executor");
         let result = executor.execute().expect("Execution failed");
         executor.close().expect("Failed to close executor");
@@ -345,11 +345,11 @@ mod tests {
         let mut executor =
             ArgumentExecutor::<MockStorage>::new(1, storage, "my_result", expr_context);
 
-        // 设置中间结果
+        // Set intermediate results
         let test_result = ExecutionResult::Values(vec![Value::Int(42)]);
         executor.set_result("my_result".to_string(), test_result.clone());
 
-        // 执行并验证结果
+        // Execute and verify the result.
         executor.open().expect("打开执行器失败");
         let result = executor.execute().expect("执行失败");
         executor.close().expect("关闭执行器失败");

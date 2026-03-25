@@ -1,6 +1,6 @@
-//! 索引查找策略
+//! Index lookup strategy
 //!
-//! 使用标签或属性索引进行高效查找
+//! Use tag or attribute indexes for efficient searching.
 
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn test_index_seek_new() {
         let _ = IndexSeek::new();
-        // 测试通过到达此处即表示成功
+        // If the test is successful and you have reached this point, it means that everything has gone well.
     }
 
     #[test]

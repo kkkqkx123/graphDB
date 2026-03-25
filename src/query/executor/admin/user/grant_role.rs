@@ -1,6 +1,6 @@
-//! GrantRoleExecutor - 授予角色执行器
+//! GrantRoleExecutor – The role assignment executor
 //!
-//! 负责授予用户在指定空间的角色权限。
+//! Responsible for granting users role permissions in a specified space.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -10,9 +10,9 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 授予角色执行器
+/// Granting the role to the executor
 ///
-/// 该执行器负责授予用户在指定空间的角色权限。
+/// This executor is responsible for granting users role permissions within the specified space.
 #[derive(Debug)]
 pub struct GrantRoleExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

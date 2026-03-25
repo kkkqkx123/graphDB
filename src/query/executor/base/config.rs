@@ -1,6 +1,6 @@
-//! 执行器配置结构体
+//! Actuator Configuration Structure
 //!
-//! 本模块定义各种执行器的配置结构体，用于减少构造函数的参数数量
+//! This module defines configuration constructs for the various actuators, which are used to reduce the number of arguments to the constructors
 
 use std::sync::Arc;
 
@@ -9,9 +9,9 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 通用执行器配置
+/// Universal Actuator Configuration
 ///
-/// 封装所有执行器共有的基础配置
+/// Encapsulates the basic configuration common to all actuators
 pub struct ExecutorConfig<S: StorageClient> {
     pub id: i64,
     pub storage: Arc<Mutex<S>>,
@@ -32,7 +32,7 @@ impl<S: StorageClient> ExecutorConfig<S> {
     }
 }
 
-/// 索引扫描执行器配置
+/// Index Scanning Actuator Configuration
 pub struct IndexScanConfig {
     pub space_id: u64,
     pub tag_id: i32,
@@ -45,7 +45,7 @@ pub struct IndexScanConfig {
     pub is_edge: bool,
 }
 
-/// 路径执行器配置
+/// Path Actuator Configuration
 pub struct PathConfig {
     pub start_vertex: crate::core::Value,
     pub end_vertex: Option<crate::core::Value>,
@@ -54,14 +54,14 @@ pub struct PathConfig {
     pub direction: crate::core::types::EdgeDirection,
 }
 
-/// BFS 最短路径算法配置
+/// BFS Shortest Path Algorithm Configuration
 pub struct BfsShortestConfig {
     pub steps: usize,
     pub direction: crate::core::types::EdgeDirection,
     pub edge_types: Option<Vec<String>>,
 }
 
-/// 多起点最短路径配置
+/// Multiple Starting Point Shortest Path Configuration
 pub struct MultiShortestPathConfig {
     pub start_vids: Vec<crate::core::Value>,
     pub direction: crate::core::types::EdgeDirection,
@@ -69,7 +69,7 @@ pub struct MultiShortestPathConfig {
     pub max_steps: usize,
 }
 
-/// 所有路径配置
+/// All path configurations
 pub struct AllPathsConfig {
     pub left_start_ids: Vec<crate::core::Value>,
     pub right_start_ids: Vec<crate::core::Value>,
@@ -78,14 +78,14 @@ pub struct AllPathsConfig {
     pub direction: crate::core::types::EdgeDirection,
 }
 
-/// 最短路径配置
+/// Shortest Path Configuration
 pub struct ShortestPathConfig {
     pub start_vertex_ids: Vec<crate::core::Value>,
     pub direction: crate::core::types::EdgeDirection,
     pub edge_types: Option<Vec<String>>,
 }
 
-/// 连接执行器配置
+/// Connected Actuator Configuration
 pub struct JoinConfig {
     pub left_var: String,
     pub right_var: String,
@@ -94,7 +94,7 @@ pub struct JoinConfig {
     pub col_names: Vec<String>,
 }
 
-/// 带描述的连接执行器配置
+/// Connected actuator configuration with description
 pub struct JoinConfigWithDesc {
     pub left_var: String,
     pub right_var: String,
@@ -104,13 +104,13 @@ pub struct JoinConfigWithDesc {
     pub description: String,
 }
 
-/// 循环执行器配置
+/// Cyclic actuator configuration
 pub struct LoopConfig {
     pub loop_var: String,
     pub loop_condition: Expression,
 }
 
-/// 附加顶点执行器配置
+/// Additional Vertex Actuator Configurations
 pub struct AppendVerticesConfig {
     pub input_var: String,
     pub src_expression: Expression,
@@ -120,7 +120,7 @@ pub struct AppendVerticesConfig {
     pub need_fetch_prop: bool,
 }
 
-/// 模式应用执行器配置
+/// Mode Application Actuator Configuration
 pub struct PatternApplyConfig {
     pub left_input_var: String,
     pub right_input_var: String,
@@ -129,7 +129,7 @@ pub struct PatternApplyConfig {
     pub is_anti_predicate: bool,
 }
 
-/// 汇总应用执行器配置
+/// Summarize application actuator configurations
 pub struct RollupApplyConfig {
     pub left_input_var: String,
     pub right_input_var: String,

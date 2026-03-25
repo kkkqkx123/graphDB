@@ -1,6 +1,6 @@
-//! 查找策略基础模块
+//! Basic Module of Search Strategy Development
 //!
-//! 定义查找策略的基础类型和选择器
+//! Define the basic types of search strategies and the selectors used for their selection.
 
 use crate::core::types::expr::visitor_checkers::PropertyContainsChecker;
 use crate::core::types::Expression;
@@ -113,22 +113,22 @@ impl SeekStrategyContext {
             .find(|idx| idx.target_type == "tag" && labels.contains(&idx.target_name))
     }
 
-    /// 获取指定属性的索引
+    /// Obtain the index of the specified attribute.
     pub fn get_index_for_property(&self, property: &str) -> Option<&IndexInfo> {
         self.available_indexes
             .iter()
             .find(|idx| idx.properties.contains(&property.to_string()))
     }
 
-    /// 检查是否有属性谓词
+    /// Check whether there are any attribute predicates.
     pub fn has_property_predicates(&self) -> bool {
-        // 检查谓词中是否包含属性过滤条件
+        // Check whether the predicate contains any attribute filtering conditions.
         self.predicates
             .iter()
             .any(|pred| matches!(pred, Expression::Binary { .. }))
     }
 
-    /// 检查是否有属性索引
+    /// Check whether there is an attribute index.
     pub fn has_index_for_properties(&self) -> bool {
         !self.available_indexes.is_empty() && !self.predicates.is_empty()
     }

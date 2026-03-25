@@ -1,16 +1,16 @@
-//! 自动反馈触发模块
+//! Automatic feedback triggering module
 //!
-//! 参考PostgreSQL的ANALYZE自动触发机制，
-//! 配置何时自动更新统计信息和重新估计选择性。
+//! Refer to PostgreSQL’s ANALYZE automatic trigger mechanism.
+//! Configure when statistical information should be automatically updated and when the selection criteria should be re-evaluated.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
-/// 自动反馈触发配置
+/// Automatic feedback triggering configuration
 ///
-/// 配置何时自动触发统计更新，包括最小样本数、误差阈值和冷却时间。
+/// Configure when statistical updates should be triggered automatically, including the minimum number of samples, the error threshold, and the cooling period.
 ///
-/// # 示例
+/// # Example
 /// ```
 /// use graphdb::query::optimizer::stats::feedback::trigger::AutoFeedbackConfig;
 ///
@@ -20,31 +20,31 @@ use std::time::Instant;
 /// ```
 #[derive(Debug, Clone)]
 pub struct AutoFeedbackConfig {
-    /// 最小反馈样本数触发重新估计
+    /// The minimum number of feedback samples triggers a re-evaluation.
     pub min_samples_for_update: usize,
-    /// 误差阈值触发紧急更新（误差超过此值时立即更新）
+    /// The error threshold triggers an emergency update (the update is performed immediately when the error exceeds this value).
     pub error_threshold: f64,
-    /// 更新冷却时间（避免频繁更新）
+    /// Update the cooling time (to avoid frequent updates).
     pub update_cooldown_ms: u64,
-    /// 最大反馈历史记录数
+    /// Maximum number of feedback records in history
     pub max_feedback_history: usize,
-    /// 是否启用自动更新
+    /// Should automatic updates be enabled?
     pub enabled: bool,
 }
 
 impl AutoFeedbackConfig {
-    /// 创建默认配置
+    /// Create the default configuration.
     pub fn new() -> Self {
         Self {
             min_samples_for_update: 10,
             error_threshold: 0.5,
-            update_cooldown_ms: 60000, // 1分钟
+            update_cooldown_ms: 60000, // 1 minute
             max_feedback_history: 100,
             enabled: true,
         }
     }
 
-    /// 使用自定义参数创建
+    /// Create using custom parameters
     pub fn with_params(
         min_samples: usize,
         error_threshold: f64,
@@ -60,16 +60,16 @@ impl AutoFeedbackConfig {
         }
     }
 
-    /// 检查是否应该触发更新
+    /// Check whether an update should be triggered.
     ///
-    /// # 参数
-    /// - `feedback_count`: 当前反馈样本数
-    /// - `last_update_ms`: 上次更新时间（毫秒时间戳）
-    /// - `current_error`: 当前估计误差
+    /// # Parameters
+    /// `feedback_count`: The current number of feedback samples.
+    /// `last_update_ms`: Time of the last update (in milliseconds as a timestamp)
+    /// `current_error`: The current estimated error
     ///
-    /// # 返回
-    /// - `true`: 应该触发更新
-    /// - `false`: 不需要更新
+    /// # Return
+    /// `true`: The update should be triggered.
+    /// `false`: No update is required.
     pub fn should_trigger_update(
         &self,
         feedback_count: usize,
@@ -80,17 +80,17 @@ impl AutoFeedbackConfig {
             return false;
         }
 
-        // 检查误差阈值（紧急更新）
+        // Check the error threshold (urgent update).
         if current_error > self.error_threshold {
             return true;
         }
 
-        // 检查最小样本数
+        // Check the minimum sample size.
         if feedback_count < self.min_samples_for_update {
             return false;
         }
 
-        // 检查冷却时间
+        // Check the cooling time.
         let current_time = Instant::now().elapsed().as_millis() as u64;
         if current_time.saturating_sub(last_update_ms) < self.update_cooldown_ms {
             return false;
@@ -99,12 +99,12 @@ impl AutoFeedbackConfig {
         true
     }
 
-    /// 启用自动更新
+    /// Enable automatic updates
     pub fn enable(&mut self) {
         self.enabled = true;
     }
 
-    /// 禁用自动更新
+    /// Disable automatic updates.
     pub fn disable(&mut self) {
         self.enabled = false;
     }
@@ -116,10 +116,10 @@ impl Default for AutoFeedbackConfig {
     }
 }
 
-/// 自动反馈触发器
+/// Automatic feedback trigger
 ///
-/// 根据配置自动决定是否触发统计更新。
-/// 使用原子操作确保线程安全。
+/// Automatically determines whether to trigger a statistical update based on the configuration.
+/// Use atomic operations to ensure thread safety.
 ///
 /// # 示例
 /// ```
@@ -128,26 +128,26 @@ impl Default for AutoFeedbackConfig {
 /// let config = AutoFeedbackConfig::with_params(5, 0.5, 1000, 50);
 /// let trigger = AutoFeedbackTrigger::new(config);
 ///
-/// // 记录反馈
+// Record feedback
 /// for _ in 0..5 {
 ///     trigger.record_feedback();
 /// }
 ///
-/// // 检查是否应该触发（误差超过阈值）
+// Check whether an action should be triggered (if the error exceeds the threshold)
 /// assert!(trigger.should_trigger(0.6));
 /// ```
 #[derive(Debug)]
 pub struct AutoFeedbackTrigger {
-    /// 配置
+    /// Configuration
     config: AutoFeedbackConfig,
-    /// 上次更新时间
+    /// Last update time
     last_update_time_ms: AtomicU64,
-    /// 当前反馈计数
+    /// Current feedback count
     feedback_count: AtomicU64,
 }
 
 impl AutoFeedbackTrigger {
-    /// 创建新的触发器
+    /// Create a new trigger.
     pub fn new(config: AutoFeedbackConfig) -> Self {
         Self {
             config,
@@ -156,7 +156,7 @@ impl AutoFeedbackTrigger {
         }
     }
 
-    /// 记录反馈
+    /// Record feedback
     pub fn record_feedback(&self) {
         self.feedback_count.fetch_add(1, Ordering::Relaxed);
     }
@@ -169,7 +169,7 @@ impl AutoFeedbackTrigger {
             .should_trigger_update(count, last_update, current_error)
     }
 
-    /// 标记更新完成
+    /// The marking update has been completed.
     pub fn mark_updated(&self) {
         let current_time = Instant::now().elapsed().as_millis() as u64;
         self.last_update_time_ms
@@ -177,17 +177,17 @@ impl AutoFeedbackTrigger {
         self.feedback_count.store(0, Ordering::Relaxed);
     }
 
-    /// 获取当前反馈计数
+    /// Obtain the current count of feedback messages.
     pub fn get_feedback_count(&self) -> u64 {
         self.feedback_count.load(Ordering::Relaxed)
     }
 
-    /// 更新配置
+    /// Update the configuration.
     pub fn update_config(&mut self, config: AutoFeedbackConfig) {
         self.config = config;
     }
 
-    /// 获取配置
+    /// Obtain the configuration.
     pub fn config(&self) -> &AutoFeedbackConfig {
         &self.config
     }
@@ -209,14 +209,14 @@ mod tests {
         assert!(config.enabled);
         assert_eq!(config.min_samples_for_update, 10);
 
-        // 测试触发逻辑
-        assert!(!config.should_trigger_update(5, 0, 0.1)); // 样本不足
-        assert!(config.should_trigger_update(5, 0, 0.6)); // 误差超过阈值（紧急更新）
+        // Test trigger logic
+        assert!(!config.should_trigger_update(5, 0, 0.1)); // Insufficient sample size
+        assert!(config.should_trigger_update(5, 0, 0.6)); // The error exceeds the threshold (urgent update).
 
-        // 测试正常触发逻辑：如果程序运行时间已经超过冷却时间
+        // Test the normal triggering logic: If the program has been running for longer than the cooling period…
         let current_time = Instant::now().elapsed().as_millis() as u64;
         if current_time > config.update_cooldown_ms {
-            assert!(config.should_trigger_update(15, 0, 0.1)); // 样本足够且已过冷却时间
+            assert!(config.should_trigger_update(15, 0, 0.1)); // The sample is sufficient, and the cooling time has already passed.
         }
     }
 
@@ -225,14 +225,14 @@ mod tests {
         let config = AutoFeedbackConfig::with_params(5, 0.5, 1000, 50);
         let trigger = AutoFeedbackTrigger::new(config);
 
-        assert!(!trigger.should_trigger(0.1)); // 无反馈
+        assert!(!trigger.should_trigger(0.1)); // No feedback.
 
-        // 记录反馈
+        // Record feedback
         for _ in 0..5 {
             trigger.record_feedback();
         }
 
-        // 误差超过阈值应该触发
+        // An error exceeding the threshold should trigger a response.
         assert!(trigger.should_trigger(0.6));
 
         trigger.mark_updated();

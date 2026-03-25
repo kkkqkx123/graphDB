@@ -1,6 +1,6 @@
-//! AssignExecutor实现
+//! Implementation of AssignExecutor
 //!
-//! 负责处理变量赋值操作，将表达式的结果赋值给变量
+//! Responsible for handling variable assignment operations, assigning the results of expressions to variables.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -14,16 +14,16 @@ use crate::query::executor::expression::evaluator::expression_evaluator::Express
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// Assign执行器
-/// 用于将表达式的结果赋值给变量
+/// Assign an executor
+/// Used to assign the result of an expression to a variable
 pub struct AssignExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
-    /// 赋值项列表 (变量名, 表达式)
+    /// List of assignment items (variable name, expression)
     assign_items: Vec<(String, Expression)>,
 }
 
 impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
-    /// 创建新的AssignExecutor
+    /// Create a new AssignExecutor.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -36,7 +36,7 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
         }
     }
 
-    /// 带上下文创建AssignExecutor
+    /// Create an AssignExecutor with context.
     pub fn with_context(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -55,14 +55,14 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
         }
     }
 
-    /// 执行赋值操作
+    /// Perform an assignment operation
     fn execute_assign(&mut self) -> DBResult<()> {
-        // 直接使用 ExecutionContext，因为它现在实现了 ExpressionContext trait
-        // 这样可以避免在两个上下文之间复制变量
+        // Use `ExecutionContext` directly, as it now implements the `ExpressionContext` trait.
+        // This can prevent the need to copy variables between the two contexts.
 
-        // 执行每个赋值项
+        // Execute each assignment statement.
         for (var_name, expression) in &self.assign_items {
-            // 计算表达式的值
+            // Calculate the value of the expression.
             let value =
                 ExpressionEvaluator::evaluate(expression, &mut self.base.context).map_err(|e| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(
@@ -70,10 +70,10 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
                     ))
                 })?;
 
-            // 根据值的类型设置到执行上下文中
+            // Set according to the type of the value in the execution context.
             match &value {
                 Value::DataSet(dataset) => {
-                    // 如果是数据集，创建一个Values结果
+                    // If it is a dataset, create a “Values” result.
                     let values: Vec<Value> = dataset
                         .rows
                         .iter()
@@ -84,7 +84,7 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
                         .set_result(var_name.clone(), ExecutionResult::Values(values));
                 }
                 _ => {
-                    // 其他类型直接设置为结果
+                    // The other types are simply set as the result.
                     self.base.context.set_result(
                         var_name.clone(),
                         ExecutionResult::Values(vec![value.clone()]),
@@ -92,7 +92,7 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
                 }
             }
 
-            // 设置变量以便后续使用
+            // Set variables for subsequent use.
             self.base.context.set_variable(var_name.clone(), value);
         }
 
@@ -165,7 +165,7 @@ mod tests {
 
         let expr_context = Arc::new(ExpressionAnalysisContext::new());
 
-        // 创建赋值项
+        // Create an assignment item
         let assign_items = vec![
             ("var1".to_string(), Expression::int(42)),
             ("var2".to_string(), Expression::literal("hello")),
@@ -173,13 +173,13 @@ mod tests {
 
         let mut executor = AssignExecutor::new(1, storage, assign_items, expr_context);
 
-        // 执行赋值
+        // Performing an assignment
         let result = executor
             .execute()
             .expect("Executor should execute successfully");
         assert!(matches!(result, ExecutionResult::Success));
 
-        // 检查变量是否正确设置
+        // Check whether the variables are set correctly.
         assert_eq!(
             executor.base.context.get_variable("var1"),
             Some(&Value::Int(42))

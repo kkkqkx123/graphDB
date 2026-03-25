@@ -1,13 +1,13 @@
-//! 路径相关函数实现
+//! Implementation of path-related functions
 //!
-//! 提供路径操作函数，包括 nodes, relationships
+//! Provide functions for path operations, including nodes and relationships.
 
 use crate::core::error::ExpressionError;
 use crate::core::value::dataset::List;
 use crate::core::value::NullType;
 use crate::core::Value;
 
-/// 路径函数枚举
+/// Path function enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathFunction {
     Nodes,
@@ -15,7 +15,7 @@ pub enum PathFunction {
 }
 
 impl PathFunction {
-    /// 获取函数名称
+    /// Obtain the function name
     pub fn name(&self) -> &str {
         match self {
             Self::Nodes => "nodes",
@@ -23,17 +23,17 @@ impl PathFunction {
         }
     }
 
-    /// 获取参数数量
+    /// Determine the number of parameters
     pub fn arity(&self) -> usize {
         1
     }
 
-    /// 是否为可变参数函数
+    /// Is it a function with variable parameters?
     pub fn is_variadic(&self) -> bool {
         false
     }
 
-    /// 获取函数描述
+    /// Obtain the function description
     pub fn description(&self) -> &str {
         match self {
             Self::Nodes => "获取路径中的所有顶点",
@@ -141,20 +141,20 @@ mod tests {
             if let Value::Vertex(v) = &nodes.values[0] {
                 assert_eq!(*v.vid, Value::Int(1));
             } else {
-                panic!("第一个节点应该是顶点");
+                panic!("The first node should be the vertex.");
             }
             if let Value::Vertex(v) = &nodes.values[1] {
                 assert_eq!(*v.vid, Value::Int(2));
             } else {
-                panic!("第二个节点应该是顶点");
+                panic!("The second node should be the vertex.");
             }
             if let Value::Vertex(v) = &nodes.values[2] {
                 assert_eq!(*v.vid, Value::Int(3));
             } else {
-                panic!("第三个节点应该是顶点");
+                panic!("The third node should be the vertex.");
             }
         } else {
-            panic!("nodes函数应该返回列表");
+            panic!("The `nodes` function should return a list.");
         }
     }
 
@@ -170,15 +170,15 @@ mod tests {
             if let Value::Edge(e) = &edges.values[0] {
                 assert_eq!(e.edge_type, "knows");
             } else {
-                panic!("第一个元素应该是边");
+                panic!("The first element should be the edge.");
             }
             if let Value::Edge(e) = &edges.values[1] {
                 assert_eq!(e.edge_type, "follows");
             } else {
-                panic!("第二个元素应该是边");
+                panic!("The second element should be the edge.");
             }
         } else {
-            panic!("relationships函数应该返回列表");
+            panic!("The `relationships` function should return a list.");
         }
     }
 
@@ -193,7 +193,7 @@ mod tests {
         if let Value::List(nodes) = result {
             assert_eq!(nodes.values.len(), 1);
         } else {
-            panic!("nodes函数应该返回列表");
+            panic!("The `nodes` function should return a list.");
         }
     }
 
@@ -208,7 +208,7 @@ mod tests {
         if let Value::List(edges) = result {
             assert_eq!(edges.values.len(), 0);
         } else {
-            panic!("relationships函数应该返回列表");
+            panic!("The `relationships` function should return a list.");
         }
     }
 

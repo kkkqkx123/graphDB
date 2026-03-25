@@ -1,6 +1,6 @@
-//! DDL 语句解析模块
+//! DDL Statement Parsing Module
 //!
-//! 负责解析数据定义语言语句，包括 CREATE、DROP、ALTER、DESC 等。
+//! Responsible for parsing statements in the Data Definition Language (DDL), including CREATE, DROP, ALTER, DESC, etc.
 
 use crate::core::types::PropertyDef;
 use crate::query::parser::ast::stmt::*;
@@ -15,7 +15,7 @@ type TagEdgeDefsResult = (Vec<PropertyDef>, Option<i64>, Option<String>);
 /// Alter operations result type alias
 type AlterOpsResult = (Vec<PropertyDef>, Vec<String>, Vec<PropertyChange>);
 
-/// DDL 解析器
+/// DDL parser
 pub struct DdlParser;
 
 impl DdlParser {
@@ -23,13 +23,13 @@ impl DdlParser {
         Self
     }
 
-    /// 解析 CREATE 语句
+    /// Analysis of the CREATE statement
     pub fn parse_create_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Create)?;
 
         if ctx.match_token(TokenKind::Tag) {
-            // 解析 IF NOT EXISTS (在 TAG 之后)
+            // Analysis of the IF NOT EXISTS clause (located after the TAG)
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Not)?;
@@ -49,7 +49,7 @@ impl DdlParser {
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Edge) {
-            // 解析 IF NOT EXISTS (在 EDGE 之后)
+            // Analysis of the IF NOT EXISTS clause (following the EDGE keyword)
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Not)?;
@@ -69,7 +69,7 @@ impl DdlParser {
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Space) {
-            // 解析 CREATE SPACE
+            // Analysis of the CREATE SPACE command
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Not)?;
@@ -78,11 +78,11 @@ impl DdlParser {
             }
             let name = ctx.expect_identifier()?;
 
-            // 解析可选参数 (vid_type, comment)
+            // Analysis of the optional parameters (vid_type, comment)
             let mut vid_type = "INT64".to_string();
             let mut comment = None;
 
-            // 解析 (vid_type=INT64, comment="xxx") 格式
+            // Analysis (vid_type=INT64, comment="xxx") format
             if ctx.match_token(TokenKind::LParen) {
                 loop {
                     if ctx.check_token(TokenKind::RParen) {
@@ -98,7 +98,7 @@ impl DdlParser {
                         comment = Some(ctx.expect_string_literal()?);
                     }
 
-                    // 检查是否还有更多参数
+                    // Check to see if there are any more parameters.
                     if !ctx.match_token(TokenKind::Comma) {
                         ctx.expect_token(TokenKind::RParen)?;
                         break;
@@ -116,7 +116,7 @@ impl DdlParser {
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::User) {
-            // 解析 CREATE USER
+            // Analysis of the CREATE USER command
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Not)?;
@@ -153,14 +153,14 @@ impl DdlParser {
         }
     }
 
-    /// 解析 CREATE 语句（CREATE token 已被消费）
+    /// Analysis of the CREATE statement (the CREATE token has already been processed/used).
     pub fn parse_create_after_token(
         &mut self,
         ctx: &mut ParseContext,
         start_span: crate::query::parser::ast::types::Span,
     ) -> Result<Stmt, ParseError> {
         if ctx.match_token(TokenKind::Tag) {
-            // 解析 IF NOT EXISTS (在 TAG 之后)
+            // Analysis of the IF NOT EXISTS clause (located after the TAG)
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Not)?;
@@ -180,7 +180,7 @@ impl DdlParser {
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Edge) {
-            // 解析 IF NOT EXISTS (在 EDGE 之后)
+            // Analysis of the IF NOT EXISTS clause (used after EDGE)
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Not)?;
@@ -200,7 +200,7 @@ impl DdlParser {
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Space) {
-            // 解析 CREATE SPACE
+            // Analysis of the “CREATE SPACE” command
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Not)?;
@@ -209,11 +209,11 @@ impl DdlParser {
             }
             let name = ctx.expect_identifier()?;
 
-            // 解析可选参数 (vid_type, comment)
+            // Analysis of the optional parameters (vid_type, comment)
             let mut vid_type = "INT64".to_string();
             let mut comment = None;
 
-            // 解析 (vid_type=INT64, comment="xxx") 格式
+            // Analysis in the format (vid_type=INT64, comment="xxx")
             if ctx.match_token(TokenKind::LParen) {
                 loop {
                     if ctx.check_token(TokenKind::RParen) {
@@ -229,7 +229,7 @@ impl DdlParser {
                         comment = Some(ctx.expect_string_literal()?);
                     }
 
-                    // 检查是否还有更多参数
+                    // Check to see if there are any additional parameters.
                     if !ctx.match_token(TokenKind::Comma) {
                         ctx.expect_token(TokenKind::RParen)?;
                         break;
@@ -247,7 +247,8 @@ impl DdlParser {
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Index) {
-            // 解析 CREATE INDEX (向后兼容旧语法)
+            // Explanation of CREATE INDEX (backward compatible with old syntax):  
+The `CREATE INDEX` statement is used to create an index in a database. This statement is backward compatible with older SQL syntax, meaning that it can also be used with databases that support the older version of the SQL standard. An index is a data structure that allows for faster retrieval of data from a table by organizing the data in a way that improves the search efficiency. By creating an index on a column or a combination of columns, the database engine can quickly locate the desired records when a query is executed, reducing the amount of time required to retrieve the results.
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Not)?;
@@ -277,7 +278,7 @@ impl DdlParser {
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Tag) {
-            // 解析 CREATE TAG INDEX
+            // Analysis of CREATE TAG INDEX
             ctx.expect_token(TokenKind::Index)?;
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
@@ -308,7 +309,7 @@ impl DdlParser {
                 if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Edge) {
-            // 解析 CREATE EDGE INDEX
+            // Analysis of CREATE EDGE INDEX
             ctx.expect_token(TokenKind::Index)?;
             let mut if_not_exists = false;
             if ctx.match_token(TokenKind::If) {
@@ -347,7 +348,7 @@ impl DdlParser {
         }
     }
 
-    /// 解析 DROP 语句
+    /// Analysis of the DROP statement
     pub fn parse_drop_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Drop)?;
@@ -355,7 +356,7 @@ impl DdlParser {
         let target = if ctx.match_token(TokenKind::Space) {
             DropTarget::Space(ctx.expect_identifier()?)
         } else if ctx.match_token(TokenKind::Tag) {
-            // 解析 IF EXISTS (在 TAG 之后)
+            // Analysis of IF EXISTS (located after the TAG)
             let mut if_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Exists)?;
@@ -371,9 +372,9 @@ impl DdlParser {
                 if_exists,
             }));
         } else if ctx.check_token(TokenKind::Edge) {
-            ctx.next_token(); // 消费 EDGE
+            ctx.next_token(); // Consuming EDGE data (or services)
             if ctx.check_token(TokenKind::Index) {
-                ctx.next_token(); // 消费 INDEX
+                ctx.next_token(); // Consumption Index
                 let index_name = ctx.expect_identifier()?;
                 let space_name = if ctx.match_token(TokenKind::On) {
                     Some(ctx.expect_identifier()?)
@@ -385,7 +386,7 @@ impl DdlParser {
                     index_name,
                 }
             } else {
-                // 解析 IF EXISTS (在 EDGE 之后)
+                // Analysis of the IF EXISTS statement (used after EDGE)
                 let mut if_exists = false;
                 if ctx.match_token(TokenKind::If) {
                     ctx.expect_token(TokenKind::Exists)?;
@@ -413,7 +414,8 @@ impl DdlParser {
                 index_name,
             }
         } else if ctx.match_token(TokenKind::User) {
-            // 解析 DROP USER
+            // Explanation of "DROP USER":  
+The "DROP USER" statement is a SQL command used to remove a user from a database. Once executed, the specified user will no longer be able to access the database or any of its tables, views, procedures, functions, or triggers. Additionally, all data associated with that user (such as stored procedures, triggers, or user-defined functions) will also be deleted. It is important to note that this command is irreversible and should only be used with caution, especially when the user no longer needs access to the database or when there is no possibility of recovering the user's data.
             let mut if_exists = false;
             if ctx.match_token(TokenKind::If) {
                 ctx.expect_token(TokenKind::Exists)?;
@@ -447,12 +449,12 @@ impl DdlParser {
         }))
     }
 
-    /// 解析 DESC 语句
+    /// Analyzing the DESC statement
     pub fn parse_desc_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Desc)?;
 
-        // 检查是否是 DESCRIBE USER
+        // Check whether it is “DESCRIBE USER”.
         if ctx.check_token(TokenKind::User) {
             return self.parse_describe_user_internal(ctx, start_span);
         }
@@ -495,7 +497,7 @@ impl DdlParser {
         Ok(Stmt::Desc(DescStmt { span, target }))
     }
 
-    /// 解析 DESCRIBE USER 内部方法
+    /// Analysis of the internal methods of DESCRIBE USER
     fn parse_describe_user_internal(
         &mut self,
         ctx: &mut ParseContext,
@@ -511,7 +513,7 @@ impl DdlParser {
         Ok(Stmt::DescribeUser(DescribeUserStmt { span, username }))
     }
 
-    /// 解析 SHOW CREATE 语句
+    /// Analysis of the SHOW CREATE statement
     pub fn parse_show_create_statement(
         &mut self,
         ctx: &mut ParseContext,
@@ -542,12 +544,12 @@ impl DdlParser {
         Ok(Stmt::ShowCreate(ShowCreateStmt { span, target }))
     }
 
-    /// 解析 ALTER 语句
+    /// Analyzing the ALTER statement
     pub fn parse_alter_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Alter)?;
 
-        // 检查是否是 ALTER USER
+        // Check whether it is an ALTER USER command.
         if ctx.check_token(TokenKind::User) {
             return self.parse_alter_user_internal(ctx, start_span);
         }
@@ -594,7 +596,7 @@ impl DdlParser {
         }
     }
 
-    /// 解析 ALTER 操作（ADD/DROP/CHANGE）
+    /// Analysis of ALTER operations (ADD/DROP/CHANGE)
     fn parse_alter_operations(
         &mut self,
         ctx: &mut ParseContext,
@@ -640,7 +642,7 @@ impl DdlParser {
         Ok((additions, deletions, changes))
     }
 
-    /// 解析 ALTER USER 内部方法
+    /// Analysis of the internal methods of ALTER USER
     fn parse_alter_user_internal(
         &mut self,
         ctx: &mut ParseContext,
@@ -654,7 +656,7 @@ impl DdlParser {
         let mut new_role = None;
         let mut is_locked = None;
 
-        // 解析 WITH PASSWORD 或 SET 子句
+        // Analyzing the WITH PASSWORD or SET clauses
         if ctx.match_token(TokenKind::With) {
             if ctx.match_token(TokenKind::Password) {
                 password = Some(ctx.expect_string_literal()?);
@@ -663,7 +665,7 @@ impl DdlParser {
             }
         }
 
-        // 也支持 SET ROLE = ... 和 SET LOCKED = ... 语法
+        // The SET ROLE = ... and SET LOCKED = ... syntax are also supported.
         while ctx.match_token(TokenKind::Set) {
             if ctx.match_token(TokenKind::Role) {
                 ctx.expect_token(TokenKind::Eq)?;
@@ -687,7 +689,7 @@ impl DdlParser {
         }))
     }
 
-    /// 解析属性定义列表
+    /// Analysis of the list of attribute definitions
     pub fn parse_property_defs(
         &mut self,
         ctx: &mut ParseContext,
@@ -698,29 +700,29 @@ impl DdlParser {
                 let name = ctx.expect_identifier()?;
                 ctx.expect_token(TokenKind::Colon)?;
 
-                // 解析数据类型，支持关键字或标识符
+                // Parse data types, with support for keywords or identifiers.
                 let dtype = self.parse_data_type(ctx)?;
 
-                // 解析可选的列属性：NOT NULL / NULL
+                // Analysis of optional column attributes: NOT NULL / NULL
                 let mut nullable = true;
                 if ctx.check_token(TokenKind::Not) {
-                    // 向前查看是否是 NOT NULL
-                    ctx.next_token(); // 消费 NOT
+                    // Check whether it is NOT NULL by looking ahead.
+                    ctx.next_token(); // “Consumption NOT”
                     if ctx.check_token(TokenKind::Null) {
-                        ctx.next_token(); // 消费 NULL
+                        ctx.next_token(); // Consuming NULL
                         nullable = false;
                     }
                 } else if ctx.match_token(TokenKind::Null) {
                     nullable = true;
                 }
 
-                // 解析 DEFAULT
+                // Analysis of the term “DEFAULT”
                 let mut default = None;
                 if ctx.match_token(TokenKind::Default) {
                     default = Some(self.parse_value_literal(ctx)?);
                 }
 
-                // 解析 COMMENT
+                // Analysis of the COMMENT
                 let mut comment = None;
                 if ctx.match_token(TokenKind::Comment) {
                     comment = Some(ctx.expect_string_literal()?);
@@ -741,14 +743,14 @@ impl DdlParser {
         Ok(defs)
     }
 
-    /// 解析字面量值（用于 DEFAULT）
+    /// Parsing literal values (used for DEFAULT)
     fn parse_value_literal(
         &mut self,
         ctx: &mut ParseContext,
     ) -> Result<crate::core::Value, ParseError> {
         use crate::core::Value;
 
-        // 先获取 token 类型的副本，避免借用冲突
+        // First, obtain a copy of the token type to avoid potential conflicts when borrowing it.
         let token_kind = ctx.current_token().kind.clone();
         match token_kind {
             TokenKind::StringLiteral(s) => {
@@ -772,7 +774,7 @@ impl DdlParser {
                 Ok(Value::Null(crate::core::NullType::Null))
             }
             TokenKind::Minus => {
-                // 处理负数
+                // Working with negative numbers
                 ctx.next_token();
                 let inner_token_kind = ctx.current_token().kind.clone();
                 match inner_token_kind {
@@ -799,8 +801,8 @@ impl DdlParser {
         }
     }
 
-    /// 解析 TAG/EDGE 定义（包括属性定义和 TTL 参数）
-    /// 返回 (属性定义列表, TTL_DURATION, TTL_COL)
+    /// Analysis of TAG/EDGE definitions (including attribute definitions and TTL parameters)
+    /// Return (list of attribute definitions, TTL_DURATION, TTL_COL)
     fn parse_tag_edge_defs(
         &mut self,
         ctx: &mut ParseContext,
@@ -811,22 +813,22 @@ impl DdlParser {
 
         if ctx.match_token(TokenKind::LParen) {
             while !ctx.check_token(TokenKind::RParen) {
-                // 检查是否是 TTL 参数
+                // Check whether it is a TTL parameter.
                 if ctx.check_token(TokenKind::TtlDuration) {
-                    ctx.next_token(); // 消费 TTL_DURATION
+                    ctx.next_token(); // Consumption of TTL_duration
                     ctx.expect_token(TokenKind::Assign)?;
                     ttl_duration = Some(ctx.expect_integer_literal()?);
                 } else if ctx.check_token(TokenKind::TtlCol) {
-                    ctx.next_token(); // 消费 TTL_COL
+                    ctx.next_token(); // Consumption TTL_COL
                     ctx.expect_token(TokenKind::Assign)?;
                     ttl_col = Some(ctx.expect_identifier()?);
                 } else {
-                    // 解析普通属性定义
+                    // Analyzing the definition of common attributes
                     let prop = self.parse_single_property_def(ctx)?;
                     properties.push(prop);
                 }
 
-                // 检查是否还有更多参数
+                // Check to see if there are any additional parameters.
                 if !ctx.match_token(TokenKind::Comma) {
                     break;
                 }
@@ -837,7 +839,7 @@ impl DdlParser {
         Ok((properties, ttl_duration, ttl_col))
     }
 
-    /// 解析单个属性定义
+    /// Analyzing the definition of a single attribute
     fn parse_single_property_def(
         &mut self,
         ctx: &mut ParseContext,
@@ -845,29 +847,29 @@ impl DdlParser {
         let name = ctx.expect_identifier()?;
         ctx.expect_token(TokenKind::Colon)?;
 
-        // 解析数据类型，支持关键字或标识符
+        // Parse data types; supports keywords or identifiers.
         let dtype = self.parse_data_type(ctx)?;
 
-        // 解析可选的列属性：NOT NULL / NULL
+        // Analysis of optional column attributes: NOT NULL / NULL
         let mut nullable = true;
         if ctx.check_token(TokenKind::Not) {
-            // 向前查看是否是 NOT NULL
-            ctx.next_token(); // 消费 NOT
+            // Check whether it is NOT NULL by looking ahead.
+            ctx.next_token(); // “Consumption NOT”
             if ctx.check_token(TokenKind::Null) {
-                ctx.next_token(); // 消费 NULL
+                ctx.next_token(); // Consuming NULL
                 nullable = false;
             }
         } else if ctx.match_token(TokenKind::Null) {
             nullable = true;
         }
 
-        // 解析 DEFAULT
+        // Analysis of the term “DEFAULT”
         let mut default = None;
         if ctx.match_token(TokenKind::Default) {
             default = Some(self.parse_value_literal(ctx)?);
         }
 
-        // 解析 COMMENT
+        // Analysis of the COMMENT
         let mut comment = None;
         if ctx.match_token(TokenKind::Comment) {
             comment = Some(ctx.expect_string_literal()?);
@@ -882,11 +884,11 @@ impl DdlParser {
         })
     }
 
-    /// 解析数据类型，支持关键字（如 STRING, INT）或标识符
+    /// Parse data types, supporting keywords (such as STRING, INT) or identifiers.
     pub fn parse_data_type(&mut self, ctx: &mut ParseContext) -> Result<DataType, ParseError> {
         let token = ctx.current_token();
         match token.kind {
-            // 支持数据类型关键字
+            // Keywords for supported data types
             TokenKind::Int
             | TokenKind::Int8
             | TokenKind::Int16
@@ -947,7 +949,7 @@ impl DdlParser {
                 ctx.next_token();
                 Ok(DataType::DateTime)
             }
-            // 支持标识符形式的数据类型（如 "INT", "string" 等）
+            // Data types that support identifier formats (such as "INT", "string", etc.)
             TokenKind::Identifier(ref s) => {
                 let type_name = s.clone();
                 ctx.next_token();

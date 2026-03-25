@@ -1,14 +1,14 @@
-//! 表达式函数模块
+//! Expression Function Module
 //!
-//! 提供表达式求值过程中的函数定义和实现，包括内置函数和自定义函数
+//! Provide the function definitions and implementations during the evaluation of expressions, including both built-in functions and custom functions.
 //!
-//! ## 模块结构
+//! ## Module Structure
 //!
 //! - `signature.rs` - 类型签名系统
 //! - `registry.rs` - 函数注册表
-//! - `builtin/` - 内置函数实现
+//! `builtin/` – Implementation of built-in functions
 //!
-//! ## 使用方式
+//! ## How to use it
 //!
 //! ```rust
 //! use crate::query::executor::expression::functions::BuiltinFunction;
@@ -24,7 +24,7 @@ pub mod signature;
 pub use registry::{global_registry, global_registry_ref, FunctionRegistry};
 pub use signature::ValueType;
 
-// 从 builtin 子模块重新导出函数类型
+// Reexport the function types from the built-in submodule.
 pub use builtin::container::ContainerFunction;
 pub use builtin::conversion::ConversionFunction;
 pub use builtin::datetime::DateTimeFunction;
@@ -42,21 +42,21 @@ use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 use std::ffi::c_void;
 
-/// 函数引用枚举，用于表达式中引用函数
+/// Function reference enumeration, used to reference functions in expressions
 #[derive(Debug, Clone)]
 pub enum FunctionRef<'a> {
-    /// 内置函数引用
+    /// Reference to built-in functions
     Builtin(&'a BuiltinFunction),
-    /// 自定义函数引用
+    /// Reference to a custom function
     Custom(&'a CustomFunction),
 }
 
-/// 拥有所有权的函数引用
+/// A function reference that possesses ownership
 #[derive(Debug, Clone)]
 pub enum OwnedFunctionRef {
-    /// 内置函数引用（拥有所有权）
+    /// Reference to an internal function (with ownership)
     Builtin(BuiltinFunction),
-    /// 自定义函数引用（拥有所有权）
+    /// Reference to a custom function (with ownership)
     Custom(CustomFunction),
 }
 
@@ -84,9 +84,9 @@ impl OwnedFunctionRef {
         }
     }
 
-    /// 执行函数（带缓存）
+    /// Execute a function (with caching)
     ///
-    /// 注意：缓存功能已移除，直接调用execute
+    /// The caching function has been removed; the `execute` method is called directly.
     pub fn execute_with_cache(
         &self,
         args: &[Value],
@@ -96,48 +96,48 @@ impl OwnedFunctionRef {
     }
 }
 
-/// 表达式函数特征
+/// Expression function characteristics
 pub trait ExpressionFunction: Send + Sync {
-    /// 获取函数名称
+    /// Obtain the function name
     fn name(&self) -> &str;
 
-    /// 获取参数数量
+    /// Determine the number of parameters
     fn arity(&self) -> usize;
 
-    /// 检查是否接受可变参数
+    /// Check whether variable parameters are accepted.
     fn is_variadic(&self) -> bool;
 
-    /// 执行函数
+    /// Execute the function
     fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError>;
 
-    /// 获取函数描述
+    /// Obtain the function description
     fn description(&self) -> &str;
 }
 
-/// 内置函数类型，避免动态分发
+/// Built-in function types to avoid dynamic distribution.
 #[derive(Debug, Clone)]
 pub enum BuiltinFunction {
-    /// 数学函数
+    /// Mathematical functions
     Math(MathFunction),
-    /// 字符串函数
+    /// String functions
     String(StringFunction),
-    /// 正则表达式函数
+    /// Regular Expression Functions
     Regex(RegexFunction),
-    /// 聚合函数
+    /// Aggregate functions
     Aggregate(AggregateFunction),
-    /// 类型转换函数
+    /// Type conversion functions
     Conversion(ConversionFunction),
-    /// 日期时间函数
+    /// Date and time functions
     DateTime(DateTimeFunction),
-    /// 地理空间函数
+    /// Geospatial functions
     Geography(GeographyFunction),
-    /// 实用函数
+    /// Practical functions
     Utility(UtilityFunction),
-    /// 图相关函数
+    /// Graph-related functions
     Graph(GraphFunction),
-    /// 容器操作函数
+    /// Container operation functions
     Container(ContainerFunction),
-    /// 路径函数
+    /// Path function
     Path(PathFunction),
 }
 
@@ -232,7 +232,7 @@ impl BuiltinFunction {
 
     /// 执行函数（带缓存）
     ///
-    /// 注意：缓存功能已移除，此方法直接调用execute
+    /// The caching function has been removed; this method directly calls `execute`.
     pub fn execute_with_cache(
         &self,
         args: &[Value],
@@ -264,19 +264,19 @@ impl ExpressionFunction for BuiltinFunction {
     }
 }
 
-/// C 函数上下文结构（不透明指针）
+/// C Function Context Structure (Opaque Pointers)
 pub struct CFunctionContext {
-    /// 结果值
+    /// Result value
     pub result: Option<Value>,
-    /// 错误消息
+    /// Error message
     pub error: Option<String>,
-    /// 聚合状态（用于聚合函数）
+    /// Aggregation status (used for aggregate functions)
     pub aggregate_state: Option<Box<dyn std::any::Any + Send>>,
-    /// 用户数据指针
+    /// User data pointer
     pub user_data: usize,
-    /// 参数数量
+    /// Number of parameters
     pub argc: usize,
-    /// 参数数组（转换为 C API 格式）
+    /// Parameter array (converted to C API format)
     pub argv: Vec<crate::api::embedded::c_api::types::graphdb_value_t>,
 }
 
@@ -317,48 +317,56 @@ impl CFunctionContext {
         self.error = Some(error);
     }
 
-    /// 设置聚合状态
+    /// Set the aggregation status
     pub fn set_aggregate_state<T: std::any::Any + Send + 'static>(&mut self, state: T) {
         self.aggregate_state = Some(Box::new(state));
     }
 
-    /// 获取聚合状态
+    /// Obtain the aggregated status.
     pub fn get_aggregate_state<T: std::any::Any + Send + 'static>(&self) -> Option<&T> {
         self.aggregate_state.as_ref()?.downcast_ref::<T>()
     }
 
-    /// 获取聚合状态的可变引用
+    /// Obtain a variable reference to the aggregated status
     pub fn get_aggregate_state_mut<T: std::any::Any + Send + 'static>(&mut self) -> Option<&mut T> {
         self.aggregate_state.as_mut()?.downcast_mut::<T>()
     }
 }
 
-/// 标量函数回调类型
-pub type ScalarFunctionCallback = extern "C" fn(*mut CFunctionContext, i32, *mut crate::api::embedded::c_api::types::graphdb_value_t);
+/// Scalar function callback type
+pub type ScalarFunctionCallback = extern "C" fn(
+    *mut CFunctionContext,
+    i32,
+    *mut crate::api::embedded::c_api::types::graphdb_value_t,
+);
 
-/// 聚合步骤回调类型
-pub type AggregateStepCallback = extern "C" fn(*mut CFunctionContext, i32, *mut crate::api::embedded::c_api::types::graphdb_value_t);
+/// Aggregation step callback type
+pub type AggregateStepCallback = extern "C" fn(
+    *mut CFunctionContext,
+    i32,
+    *mut crate::api::embedded::c_api::types::graphdb_value_t,
+);
 
-/// 聚合最终回调类型
+/// Aggregate final callback type
 pub type AggregateFinalCallback = extern "C" fn(*mut CFunctionContext);
 
-/// 自定义函数实现类型
+/// Implementation of custom functions and their types
 #[derive(Clone, Copy)]
 pub enum CustomFunctionImpl {
-    /// Rust 实现的自定义函数
+    /// Custom functions implemented in Rust
     Rust(fn(&[Value]) -> Result<Value, ExpressionError>),
-    /// C 回调实现的标量函数
+    /// A scalar function implemented using a C callback
     C {
-        /// 标量函数回调（存储函数指针地址）
+        /// Scalar function callback (stores the address of the function pointer)
         scalar_callback: usize,
-        /// 用户数据（存储指针地址）
+        /// User data (storage pointer addresses)
         user_data: usize,
     },
-    /// C 回调实现的聚合函数
+    /// Aggregate functions implemented using C callbacks
     Aggregate {
-        /// 聚合步骤回调（存储函数指针地址）
+        /// Aggregation step callback (pointer address to the storage function)
         step_callback: usize,
-        /// 聚合最终回调（存储函数指针地址）
+        /// Aggregated final callback (address of the stored function pointer)
         final_callback: usize,
         /// 用户数据（存储指针地址）
         user_data: usize,
@@ -375,23 +383,23 @@ impl std::fmt::Debug for CustomFunctionImpl {
     }
 }
 
-/// 自定义函数定义
+/// Custom function definition
 #[derive(Debug, Clone)]
 pub struct CustomFunction {
-    /// 函数名称
+    /// Function name
     pub name: String,
     /// 参数数量
     pub arity: usize,
-    /// 是否接受可变参数
+    /// "Do you accept variable parameters?"
     pub is_variadic: bool,
-    /// 函数描述
+    /// Function description
     pub description: String,
-    /// 函数实现
+    /// Function implementation
     pub implementation: CustomFunctionImpl,
 }
 
 impl CustomFunction {
-    /// 创建新的 Rust 自定义函数
+    /// Create a new custom Rust function.
     pub fn new_rust(
         name: impl Into<String>,
         arity: usize,
@@ -408,7 +416,7 @@ impl CustomFunction {
         }
     }
 
-    /// 创建新的 C 回调自定义函数
+    /// Create a new custom C callback function.
     pub fn new_c(
         name: impl Into<String>,
         arity: usize,
@@ -429,7 +437,7 @@ impl CustomFunction {
         }
     }
 
-    /// 创建新的 C 回调聚合函数
+    /// Create a new C callback aggregation function
     pub fn new_c_aggregate(
         name: impl Into<String>,
         arity: usize,
@@ -452,7 +460,7 @@ impl CustomFunction {
         }
     }
 
-    /// 检查是否为聚合函数
+    /// Check whether it is an aggregate function.
     pub fn is_aggregate(&self) -> bool {
         matches!(self.implementation, CustomFunctionImpl::Aggregate { .. })
     }
@@ -465,17 +473,17 @@ impl CustomFunction {
                 scalar_callback,
                 user_data: _,
             } => {
-                // 创建 C 函数上下文
+                // Creating a C function context
                 let mut ctx = CFunctionContext::new();
                 ctx.argc = args.len();
                 ctx.argv = args.iter().map(core_value_to_graphdb).collect();
                 let ctx_ptr = &mut ctx as *mut CFunctionContext;
 
-                // 将 usize 转换回函数指针
+                // Convert a `usize` value back to a function pointer
                 let callback: ScalarFunctionCallback =
                     unsafe { std::mem::transmute(*scalar_callback) };
 
-                // 调用 C 回调
+                // Calling a C callback
                 let argv_ptr = if ctx.argv.is_empty() {
                     std::ptr::null_mut()
                 } else {
@@ -483,7 +491,7 @@ impl CustomFunction {
                 };
                 callback(ctx_ptr, args.len() as i32, argv_ptr);
 
-                // 检查错误
+                // Check for errors.
                 if let Some(error) = ctx.error {
                     return Err(ExpressionError::new(
                         ExpressionErrorType::FunctionExecutionError,
@@ -491,7 +499,7 @@ impl CustomFunction {
                     ));
                 }
 
-                // 返回结果
+                // Please provide the text you would like to have translated.
                 ctx.result.ok_or_else(|| {
                     ExpressionError::new(
                         ExpressionErrorType::FunctionExecutionError,

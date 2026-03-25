@@ -1,12 +1,12 @@
-//! 排序消除规则
+//! Sorting elimination rules
 //!
-//! 启发式规则：当输入数据已经有序时，消除不必要的排序操作。
-//! 这包括：
-//! - 索引扫描返回的数据（按索引键有序）
-//! - 已经排序的子查询结果
-//! - 有序的数据源扫描
+//! Heuristic rule: When the input data is already sorted, eliminate unnecessary sorting operations.
+//! This includes:
+//! The data returned by the index scan (sorted according to the index key)
+//! The results of the subquery, which have already been sorted.
+//! Ordered scanning of data sources
 //!
-//! # 转换示例
+//! # Translation example
 //!
 //! Before:
 //! ```text
@@ -20,11 +20,11 @@
 //!   IndexScan(idx_name)  -- 直接消除 Sort
 //! ```
 //!
-//! # 注意
+//! # Note
 //!
-//! 此规则是启发式规则，**不依赖代价计算**。
-//! 只要检测到输入有序且与排序要求匹配，就直接消除排序。
-//! 基于代价的 TopN 转换决策保留在 strategy::sort_elimination 模块中。
+//! This rule is heuristic in nature and **does not rely on cost calculations**.
+//! As soon as it is detected that the input is in order and matches the sorting requirements, the sorting process is directly canceled.
+//! The cost-based TopN conversion decision-making mechanism is still implemented in the strategy::sort_elimination module.
 
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
 use crate::query::planning::plan::core::nodes::{SortItem, SortNode};
@@ -34,64 +34,64 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 
-/// 排序消除规则
+/// Sorting elimination rules
 ///
-/// 当检测到输入数据已经有序且满足排序要求时，消除 Sort 节点。
-/// 这是启发式规则，不依赖代价计算。
+/// When it is detected that the input data is already sorted and meets the sorting requirements, the Sort node is removed.
+/// These are heuristic rules that do not rely on cost calculations.
 #[derive(Debug)]
 pub struct EliminateSortRule;
 
 impl EliminateSortRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         Self
     }
 
-    /// 检查是否可以消除排序
+    /// Check whether it is possible to eliminate the sorting.
     ///
-    /// 返回 true 如果：
-    /// 1. 输入是索引扫描，且索引顺序与排序要求匹配
-    /// 2. 输入已经是有序的（如来自另一个 Sort 或有序扫描）
+    /// Return `true` if:
+    /// The input involves an index scan, and the order of the index matches the sorting requirements.
+    /// The input is already sorted (for example, it comes from another sorting process or an ordered scan).
     fn can_eliminate_sort(&self, sort_node: &SortNode, input: &PlanNodeEnum) -> bool {
         let sort_items = sort_node.sort_items();
 
         match input {
-            // 索引扫描 - 检查索引是否匹配排序要求
+            // Index scan: Checking whether the index meets the sorting requirements.
             PlanNodeEnum::IndexScan(index_scan) => {
-                // 获取索引的排序列
-                // 简化处理：假设索引按第一个属性升序排列
-                // 实际实现中应该从索引元数据获取排序信息
+                // Obtain the sorted columns of the index
+                // Assume that the index is sorted in ascending order according to the first attribute.
+                // In actual implementation, the sorting information should be obtained from the index metadata.
                 let index_columns = vec![index_scan.index_name().to_string()];
                 self.check_order_match(sort_items, &index_columns)
             }
-            // 另一个 Sort 节点 - 检查排序键是否兼容
+            // Another Sort node – checking whether the sorting keys are compatible
             PlanNodeEnum::Sort(inner_sort) => {
                 self.check_sort_compatibility(sort_items, inner_sort.sort_items())
             }
-            // TopN 节点 - 输出是有序的
+            // TopN nodes – The output is sorted.
             PlanNodeEnum::TopN(topn) => {
                 self.check_sort_compatibility(sort_items, topn.sort_items())
             }
-            // 其他情况 - 暂时不能消除
+            // Other situations: Cannot be resolved for the time being.
             _ => false,
         }
     }
 
-    /// 检查排序要求与索引顺序是否匹配
+    /// Check whether the sorting requirements match the order of the index.
     ///
-    /// 简化版本：检查排序键是否是索引列的前缀
+    /// Check whether the sorting key is a prefix of the index column.
     fn check_order_match(&self, sort_items: &[SortItem], index_columns: &[String]) -> bool {
         if sort_items.is_empty() {
             return true;
         }
 
-        // 检查排序键是否是索引列的前缀
+        // Check whether the sort key is a prefix of the index column.
         for (i, sort_item) in sort_items.iter().enumerate() {
             if i >= index_columns.len() {
                 return false;
             }
-            // 简化：只检查列名是否匹配，假设都是升序
-            // 实际应该检查排序方向
+            // Simplify: Only check whether the column names match, assuming that the data in all columns is sorted in ascending order.
+            // In fact, the sorting direction should be checked.
             if sort_item.column != index_columns[i] {
                 return false;
             }
@@ -100,22 +100,22 @@ impl EliminateSortRule {
         true
     }
 
-    /// 检查两个排序是否兼容
+    /// Check whether the two sorts are compatible.
     ///
-    /// 如果外层排序是内层排序的前缀，则可以消除外层排序
+    /// If the outer sorting is a prefix of the inner sorting, then the outer sorting can be eliminated.
     fn check_sort_compatibility(&self, outer_items: &[SortItem], inner_items: &[SortItem]) -> bool {
         if outer_items.is_empty() {
             return true;
         }
 
-        // 外层排序必须是内层排序的前缀
+        // The outer sort must be a prefix of the inner sort.
         if outer_items.len() > inner_items.len() {
             return false;
         }
 
         for (i, outer_item) in outer_items.iter().enumerate() {
             let inner_item = &inner_items[i];
-            // 列名和方向都必须匹配
+            // Both the column names and the directions must match.
             if outer_item.column != inner_item.column
                 || outer_item.direction != inner_item.direction
             {
@@ -147,18 +147,18 @@ impl RewriteRule for EliminateSortRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 获取 Sort 节点
+        // Obtaining the Sort node
         let sort_node = match node {
             PlanNodeEnum::Sort(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取输入节点
+        // Obtain the input node
         let input = sort_node.input();
 
-        // 检查是否可以消除排序
+        // Check whether it is possible to eliminate the sorting.
         if self.can_eliminate_sort(sort_node, input) {
-            // 消除 Sort 节点，直接返回输入
+            // Remove the Sort node and return the input directly.
             let mut result = TransformResult::new();
             result.new_nodes.push(input.clone());
             return Ok(Some(result));
@@ -189,7 +189,7 @@ impl EliminationRule for EliminateSortRule {
             _ => return Ok(None),
         };
 
-        // 消除 Sort 节点，直接返回输入
+        // Remove the Sort node and return the input directly.
         let input = sort_node.input();
         let mut result = TransformResult::new();
         result.new_nodes.push(input.clone());

@@ -1,6 +1,6 @@
-//! 数据处理节点估算器
+//! Data processing node estimator
 //!
-//! 为数据处理节点提供代价估算：
+//! Provide cost estimates for data processing nodes:
 //! - Filter
 //! - Project
 //! - Unwind
@@ -19,7 +19,7 @@ use crate::query::optimizer::cost::CostCalculator;
 use crate::query::planning::plan::core::nodes::data_processing::UnwindNode;
 use crate::query::planning::plan::PlanNodeEnum;
 
-/// 数据处理节点估算器
+/// Data processing node estimator
 pub struct DataProcessingEstimator<'a> {
     cost_calculator: &'a CostCalculator,
     selectivity_estimator: &'a SelectivityEstimator,
@@ -27,7 +27,7 @@ pub struct DataProcessingEstimator<'a> {
 }
 
 impl<'a> DataProcessingEstimator<'a> {
-    /// 创建新的数据处理估算器
+    /// Create a new data processing estimator.
     pub fn new(
         cost_calculator: &'a CostCalculator,
         selectivity_estimator: &'a SelectivityEstimator,
@@ -41,7 +41,7 @@ impl<'a> DataProcessingEstimator<'a> {
         }
     }
 
-    /// 计算过滤条件数量
+    /// Calculate the number of filter conditions.
     pub fn count_filter_conditions(&self, condition: &Expression) -> usize {
         match condition {
             Expression::Binary { op, left, right } => match op {
@@ -59,17 +59,17 @@ impl<'a> DataProcessingEstimator<'a> {
         }
     }
 
-    /// 估算 Unwind 节点的列表大小
+    /// Estimate the list size of the Unwind nodes
     fn estimate_unwind_list_size(&self, node: &UnwindNode) -> f64 {
         let list_expr = node.list_expression();
 
-        // 尝试解析表达式推断列表大小
+        // Try to parse the expression to determine the size of the list.
         let expr_str = list_expr.to_expression_string();
         if let Some(size) = self.expression_parser.parse_list_size(&expr_str) {
             return size;
         }
 
-        // 使用配置默认值
+        // Use the default configuration values.
         self.expression_parser.config().default_unwind_list_size
     }
 }
@@ -88,7 +88,7 @@ impl<'a> NodeEstimator for DataProcessingEstimator<'a> {
                     None => return Ok((0.0, input_rows_val)),
                 };
                 let condition_count = self.count_filter_conditions(&condition_expr);
-                // 估算过滤后的行数
+                // Estimate the number of rows after filtering.
                 let selectivity = self
                     .selectivity_estimator
                     .estimate_from_expression(&condition_expr, None);
@@ -104,7 +104,7 @@ impl<'a> NodeEstimator for DataProcessingEstimator<'a> {
                 let cost = self
                     .cost_calculator
                     .calculate_project_cost(input_rows_val, columns);
-                // Project 不改变行数
+                // The “Project” does not change the number of lines.
                 Ok((cost, input_rows_val))
             }
             PlanNodeEnum::Unwind(n) => {
@@ -113,7 +113,7 @@ impl<'a> NodeEstimator for DataProcessingEstimator<'a> {
                 let cost = self
                     .cost_calculator
                     .calculate_unwind_cost(input_rows_val, list_size);
-                // Unwind 将每行展开为列表大小行
+                // “Unwind” will expand each line into a line of the list size.
                 let output_rows = (input_rows_val as f64 * list_size) as u64;
                 Ok((cost, output_rows.max(1)))
             }

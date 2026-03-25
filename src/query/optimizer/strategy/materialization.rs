@@ -1,21 +1,21 @@
-//! CTE 物化优化器模块
+//! CTE (Common Table Expression) Materialization Optimizer Module
 //!
-//! **基于分析的 CTE 物化优化策略**，决定是否将 CTE（Common Table Expression）物化到内存中。
+//! “Analysis-based optimization strategy for CTE materialization” – Determines whether to materialize a CTE (Common Table Expression) in memory or not.
 //!
-//! ## 优化策略
+//! ## Optimization Strategies
 //!
-//! - 将被多次引用的 CTE 物化，避免重复计算
+//! Materialize the CTE (Common Table Expression) that will be referenced multiple times to avoid duplicate calculations.
 //! - 仅物化确定性的 CTE（不含 rand(), now() 等）
-//! - 基于引用计数和结果集大小做决策
+//! Decisions are made based on the reference count and the size of the result set.
 //!
-//! ## 适用条件
+//! ## Applicable Conditions
 //!
-//! 1. CTE 被引用次数 > 1
+//! The number of citations for CTE is greater than 1.
 //! 2. CTE 不包含非确定性函数（如 rand(), now()）
-//! 3. CTE 估算行数 < 10000
-//! 4. CTE 复杂度 < 80
+//! 3. The estimated number of rows for CTE is less than 10,000.
+//! 4. The complexity of CTE (Common Table Expression) is less than 80.
 //!
-//! ## 使用示例
+//! ## Usage Examples
 //!
 //! ```rust
 //! use graphdb::query::optimizer::strategy::MaterializationOptimizer;
@@ -33,25 +33,25 @@ use crate::query::optimizer::analysis::{ExpressionAnalyzer, ReferenceCountAnalyz
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planning::plan::core::nodes::{MaterializeNode, PlanNodeEnum};
 
-/// CTE 物化决策
+/// CTE (Common Table Expression) materialization decision
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaterializationDecision {
-    /// 物化 CTE
+    /// Materialized CTE (Common Table Expression)
     Materialize {
-        /// 物化原因
+        /// Physical causes
         reason: MaterializeReason,
-        /// 引用次数
+        /// Number of citations
         reference_count: usize,
-        /// 估算结果集大小
+        /// Estimating the size of the result set
         estimated_rows: u64,
-        /// 估算物化代价
+        /// Estimating the materialization costs
         materialize_cost: f64,
-        /// 估算重复计算代价
+        /// Estimate the cost of redundant calculations
         recompute_cost: f64,
     },
-    /// 不物化
+    /// Immaterialization
     DoNotMaterialize {
-        /// 不物化原因
+        /// Reasons for non-materialization
         reason: NoMaterializeReason,
     },
 }
@@ -59,46 +59,46 @@ pub enum MaterializationDecision {
 /// 物化原因
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaterializeReason {
-    /// 被多次引用
+    /// Cited multiple times
     MultipleReferences,
-    /// 基于代价分析物化更优
+    /// The materialization based on cost analysis is more optimal.
     CostBased,
 }
 
 /// 不物化原因
 #[derive(Debug, Clone, PartialEq)]
 pub enum NoMaterializeReason {
-    /// 只被引用一次
+    /// Cited only once
     SingleReference,
-    /// 包含非确定性函数
+    /// Contains non-deterministic functions
     NonDeterministic,
-    /// 结果集太大
+    /// The result set is too large.
     TooLarge,
-    /// 表达式太复杂
+    /// The expression is too complex.
     TooComplex,
 }
 
-/// CTE 物化优化器
+/// CTE (Common Table Expression) Materialization Optimizer
 ///
-/// 基于引用计数分析、表达式分析和统计信息，决定是否物化 CTE。
+/// Decide whether to materialize a CTE (Common Table Expression) based on reference count analysis, expression analysis, and statistical information.
 #[derive(Debug, Clone)]
 pub struct MaterializationOptimizer {
-    /// 引用计数分析器
+    /// Reference Count Analyzer
     reference_count_analyzer: ReferenceCountAnalyzer,
-    /// 表达式分析器
+    /// Expression Analyzer
     expression_analyzer: ExpressionAnalyzer,
-    /// 统计信息管理器
+    /// Statistical Information Manager
     stats_manager: StatisticsManager,
-    /// 最小引用次数阈值
+    /// Threshold for the minimum number of citations
     min_reference_count: usize,
-    /// 最大结果集大小阈值
+    /// Maximum result set size threshold
     max_result_rows: u64,
-    /// 最大表达式复杂度阈值
+    /// Maximum expression complexity threshold
     max_complexity: u32,
 }
 
 impl MaterializationOptimizer {
-    /// 创建新的优化器
+    /// Create a new optimizer.
     pub fn new(
         reference_count_analyzer: &ReferenceCountAnalyzer,
         expression_analyzer: &ExpressionAnalyzer,
@@ -114,41 +114,41 @@ impl MaterializationOptimizer {
         }
     }
 
-    /// 设置最小引用次数阈值
+    /// Set a threshold for the minimum number of citations required
     pub fn with_min_reference_count(mut self, count: usize) -> Self {
         self.min_reference_count = count;
         self
     }
 
-    /// 设置最大结果集大小阈值
+    /// Set a threshold for the maximum size of the result set
     pub fn with_max_result_rows(mut self, max_rows: u64) -> Self {
         self.max_result_rows = max_rows;
         self
     }
 
-    /// 设置最大复杂度阈值
+    /// Set a threshold for the maximum complexity.
     pub fn with_max_complexity(mut self, max_complexity: u32) -> Self {
         self.max_complexity = max_complexity;
         self
     }
 
-    /// 判断是否应该物化 CTE
+    /// Determine whether it is appropriate to materialize the CTE (Common Table Expression).
     ///
-    /// # 参数
-    /// - `cte_node`: CTE 子计划根节点
-    /// - `plan_root`: 整个计划树的根节点（用于引用计数分析）
+    /// # Parameters
+    /// `cte_node`: The root node of the CTE (Common Table Expression) sub-plan.
+    /// `plan_root`: The root node of the entire plan tree (used for reference count analysis)
     ///
-    /// # 返回
-    /// 物化决策
+    /// # Return
+    /// Materialized Decision Making
     pub fn should_materialize(
         &self,
         cte_node: &PlanNodeEnum,
         plan_root: &PlanNodeEnum,
     ) -> MaterializationDecision {
-        // 1. 执行引用计数分析
+        // 1. Perform a reference counting analysis.
         let ref_analysis = self.reference_count_analyzer.analyze(plan_root);
 
-        // 2. 检查 CTE 是否被多次引用
+        // 2. Check whether CTE is referenced multiple times.
         let ref_info = match ref_analysis.node_reference_map.get(&cte_node.id()) {
             Some(info) => info,
             None => {
@@ -164,14 +164,14 @@ impl MaterializationOptimizer {
             };
         }
 
-        // 3. 检查 CTE 是否是确定性的
+        // 3. Check whether CTE is deterministic.
         if !self.is_deterministic(cte_node) {
             return MaterializationDecision::DoNotMaterialize {
                 reason: NoMaterializeReason::NonDeterministic,
             };
         }
 
-        // 4. 检查表达式复杂度
+        // 4. Check the complexity of the expression.
         let complexity = self.get_max_complexity(cte_node);
         if complexity > self.max_complexity {
             return MaterializationDecision::DoNotMaterialize {
@@ -179,7 +179,7 @@ impl MaterializationOptimizer {
             };
         }
 
-        // 5. 估算结果集大小
+        // 5. Estimating the size of the result set
         let estimated_rows = self.estimate_result_rows(cte_node);
         if estimated_rows > self.max_result_rows {
             return MaterializationDecision::DoNotMaterialize {
@@ -187,7 +187,7 @@ impl MaterializationOptimizer {
             };
         }
 
-        // 6. 代价比较
+        // 6. Comparison of costs
         let recompute_cost = self.estimate_recompute_cost(ref_info.reference_count, estimated_rows);
         let materialize_cost = self.estimate_materialize_cost(estimated_rows, complexity);
 
@@ -210,7 +210,7 @@ impl MaterializationOptimizer {
         }
     }
 
-    /// 检查节点是否确定性
+    /// Check whether the node is deterministic.
     fn is_deterministic(&self, node: &PlanNodeEnum) -> bool {
         match node {
             PlanNodeEnum::Filter(n) => {
@@ -227,8 +227,8 @@ impl MaterializationOptimizer {
                 ),
             ),
             PlanNodeEnum::Aggregate(n) => {
-                // 聚合函数通常是确定性的，除非它们的输入是非确定性的
-                // 我们通过递归检查输入节点来确保确定性
+                // Aggregate functions are usually deterministic, unless their inputs are non-deterministic.
+                // We ensure certainty by recursively checking the input nodes.
                 self.is_deterministic(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
             }
             PlanNodeEnum::Sort(n) => self.is_deterministic(
@@ -336,7 +336,7 @@ impl MaterializationOptimizer {
         }
     }
 
-    /// 获取节点中最大的表达式复杂度
+    /// Obtain the maximum expression complexity of the node.
     fn get_max_complexity(&self, node: &PlanNodeEnum) -> u32 {
         let mut max_complexity = 0u32;
 
@@ -351,7 +351,7 @@ impl MaterializationOptimizer {
                 max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
             }
             PlanNodeEnum::Aggregate(n) => {
-                // 聚合函数的复杂度由输入决定
+                // The complexity of aggregate functions is determined by the input.
                 max_complexity = max_complexity.max(self.get_max_complexity(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n)));
             }
             _ => {}
@@ -360,7 +360,7 @@ impl MaterializationOptimizer {
         max_complexity
     }
 
-    /// 估算结果集行数
+    /// Estimated number of rows in the result set
     fn estimate_result_rows(&self, node: &PlanNodeEnum) -> u64 {
         match node {
             PlanNodeEnum::ScanVertices(n) => {
@@ -425,27 +425,27 @@ impl MaterializationOptimizer {
 
     /// 估算重复计算代价
     fn estimate_recompute_cost(&self, reference_count: usize, rows: u64) -> f64 {
-        // 每次引用都要重新计算
+        // The calculation must be performed again for each citation.
         (reference_count as f64) * (rows as f64) * 0.1
     }
 
     /// 估算物化代价
     fn estimate_materialize_cost(&self, rows: u64, complexity: u32) -> f64 {
-        // 物化代价 = 计算代价 + 存储代价
+        // Materialization cost = Computational cost + Storage cost
         let compute_cost = (rows as f64) * 0.1;
-        let storage_cost = (rows as f64) * 0.05; // 存储成本
+        let storage_cost = (rows as f64) * 0.05; // Storage costs
         let complexity_overhead = (complexity as f64) * 0.01;
 
         compute_cost + storage_cost + complexity_overhead
     }
 
-    /// 执行物化转换
+    /// Perform the materialization transformation.
     ///
     /// # 参数
     /// - `cte_node`: CTE 子计划根节点
     ///
     /// # 返回
-    /// 包装了 MaterializeNode 的节点
+    /// Nodes that have the MaterializeNode package installed
     pub fn materialize(
         &self,
         cte_node: PlanNodeEnum,
@@ -503,7 +503,7 @@ mod tests {
             &stats_manager,
         );
 
-        // 简单表达式是确定性的
+        // Simple expressions are deterministic.
         let simple_expr = Expression::Literal(crate::core::Value::Int(42));
         let ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
         let meta = crate::core::types::expr::ExpressionMeta::new(simple_expr);
@@ -536,7 +536,7 @@ mod tests {
             &stats_manager,
         );
 
-        // 测试代价估算
+        // Test Cost Estimation
         let recompute_cost = _optimizer.estimate_recompute_cost(3, 1000);
         let materialize_cost = _optimizer.estimate_materialize_cost(1000, 50);
 

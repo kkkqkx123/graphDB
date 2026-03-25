@@ -1,8 +1,8 @@
-//! 代价计算器模块
+//! Cost Calculator Module
 //!
-//! 针对图数据库特性设计的轻量级代价计算
+//! Lightweight cost calculation designed for the characteristics of graph databases
 //!
-//! ## 使用示例
+//! ## Usage Examples
 //!
 //! ```rust
 //! use graphdb::query::optimizer::cost::{CostCalculator, CostModelConfig};
@@ -13,7 +13,7 @@
 //! let config = CostModelConfig::default();
 //! let calculator = CostCalculator::with_config(stats_manager, config);
 //!
-//! // 计算扫描代价
+// Calculate the scanning cost
 //! let scan_cost = calculator.calculate_scan_vertices_cost("Person");
 //! ```
 
@@ -23,9 +23,9 @@ use crate::query::optimizer::stats::StatisticsManager;
 
 use super::config::CostModelConfig;
 
-/// 代价计算器
+/// Cost Calculator
 ///
-/// 针对图数据库特性设计的轻量级代价计算
+/// Lightweight cost calculation designed for the characteristics of graph databases
 #[derive(Debug, Clone)]
 pub struct CostCalculator {
     stats_manager: Arc<StatisticsManager>,
@@ -33,7 +33,7 @@ pub struct CostCalculator {
 }
 
 impl CostCalculator {
-    /// 创建新的代价计算器（使用默认配置）
+    /// Create a new cost calculator (using the default configuration).
     pub fn new(stats_manager: Arc<StatisticsManager>) -> Self {
         Self {
             stats_manager,
@@ -41,7 +41,7 @@ impl CostCalculator {
         }
     }
 
-    /// 创建新的代价计算器（使用指定配置）
+    /// Create a new cost calculator (using the specified configuration).
     pub fn with_config(stats_manager: Arc<StatisticsManager>, config: CostModelConfig) -> Self {
         Self {
             stats_manager,
@@ -49,41 +49,41 @@ impl CostCalculator {
         }
     }
 
-    /// 获取配置
+    /// Obtain the configuration.
     pub fn config(&self) -> &CostModelConfig {
         &self.config
     }
 
-    /// 更新配置
+    /// Update the configuration.
     pub fn set_config(&mut self, config: CostModelConfig) {
         self.config = config;
     }
 
-    // ==================== 扫描操作 ====================
+    // ==================== Scanning Operation ====================
 
-    /// 计算全表扫描顶点代价
+    /// Calculate the cost of vertex operations for a full table scan
     ///
-    /// 公式：行数 × CPU处理代价
+    /// Formula: Number of rows × Cost of CPU processing
     pub fn calculate_scan_vertices_cost(&self, tag_name: &str) -> f64 {
         let row_count = self.stats_manager.get_vertex_count(tag_name);
         row_count as f64 * self.config.cpu_tuple_cost
     }
 
-    /// 计算全表扫描边代价
+    /// Calculate the cost of scanning the entire table
     ///
-    /// 公式：边数 × CPU处理代价
+    /// Formula: Number of edges × Cost of CPU processing
     pub fn calculate_scan_edges_cost(&self, edge_type: &str) -> f64 {
         let edge_count = self.stats_manager.get_edge_count(edge_type);
         edge_count as f64 * self.config.cpu_tuple_cost
     }
 
-    /// 计算索引扫描代价
+    /// Calculating the cost of index scans
     ///
-    /// 公式：索引访问代价 + 回表代价
+    /// Formula: Cost of index access + Cost of retrieving data from the table
     ///
-    /// # 参数
-    /// - `tag_name`: 标签名称
-    /// - `property_name`: 属性名称
+    /// # Parameters
+    /// `tag_name`: The name of the tag
+    /// `property_name`: The name of the property.
     /// - `selectivity`: 选择性（0.0 ~ 1.0）
     pub fn calculate_index_scan_cost(
         &self,
@@ -94,19 +94,19 @@ impl CostCalculator {
         let table_rows = self.stats_manager.get_vertex_count(tag_name);
         let matching_rows = (selectivity * table_rows as f64).max(1.0) as u64;
 
-        // 索引访问代价（顺序IO）
+        // Index access cost (sequential I/O)
         let index_pages = (matching_rows / 10).max(1);
         let index_access_cost = index_pages as f64 * self.config.seq_page_cost
             + matching_rows as f64 * self.config.cpu_index_tuple_cost;
 
-        // 回表代价（随机IO）
+        // The cost of retrieving data from the table (random I/O operations)
         let table_access_cost = matching_rows as f64 * self.config.random_page_cost
             + matching_rows as f64 * self.config.cpu_tuple_cost;
 
         index_access_cost + table_access_cost
     }
 
-    /// 计算边索引扫描代价
+    /// Calculating the cost of edge index scanning
     pub fn calculate_edge_index_scan_cost(&self, edge_type: &str, selectivity: f64) -> f64 {
         let edge_count = self.stats_manager.get_edge_count(edge_type);
         let matching_rows = (selectivity * edge_count as f64).max(1.0) as u64;
@@ -121,13 +121,13 @@ impl CostCalculator {
         index_access_cost + table_access_cost
     }
 
-    // ==================== 图遍历操作 ====================
+    // ==================== Image traversal operations ====================
 
-    /// 计算单步扩展代价
+    /// Calculate the cost of single-step expansion
     ///
     /// # 参数
-    /// - `start_nodes`: 起始节点数量
-    /// - `edge_type`: 边类型（可选）
+    /// `start_nodes`: Number of starting nodes
+    /// `edge_type`: Type of the edge (optional)
     pub fn calculate_expand_cost(&self, start_nodes: u64, edge_type: Option<&str>) -> f64 {
         let (avg_degree, is_super_node) = match edge_type {
             Some(et) => self
@@ -138,19 +138,19 @@ impl CostCalculator {
                     (s.avg_out_degree, is_super)
                 })
                 .unwrap_or((2.0, false)),
-            None => (2.0, false), // 默认平均度数
+            None => (2.0, false), // Default average degree
         };
 
         let output_rows = (start_nodes as f64 * avg_degree) as u64;
 
-        // IO代价：读取边数据（考虑缓存）
+        // IO costs: Reading edge data (cache considerations)
         let io_cost = self.calculate_io_cost(output_rows);
-        // CPU代价：边遍历代价（比顶点处理更复杂）
+        // CPU cost: The cost associated with edge traversal (more complex than vertex processing).
         let cpu_cost = output_rows as f64 * self.config.edge_traversal_cost;
 
         let base_cost = io_cost + cpu_cost;
 
-        // 超级节点额外代价惩罚
+        // Super node penalty for additional costs
         if is_super_node {
             base_cost * self.config.super_node_penalty
         } else {
@@ -158,20 +158,20 @@ impl CostCalculator {
         }
     }
 
-    /// 计算全扩展代价（ExpandAll）
+    /// Calculate the full expansion cost (ExpandAll)
     pub fn calculate_expand_all_cost(&self, start_nodes: u64, edge_type: Option<&str>) -> f64 {
-        // ExpandAll 比 Expand 返回更多数据（包括顶点信息）
+        // “ExpandAll” returns more data than “Expand” (including vertex information).
         let base_cost = self.calculate_expand_cost(start_nodes, edge_type);
-        // 额外 50% 开销用于获取顶点信息
+        // An additional 50% of the costs is used to obtain vertex information.
         base_cost * 1.5
     }
 
-    /// 计算多步遍历代价
+    /// Calculating the cost of multi-step traversals
     ///
     /// # 参数
     /// - `start_nodes`: 起始节点数量
     /// - `edge_type`: 边类型（可选）
-    /// - `steps`: 遍历步数
+    /// “steps”: The number of iterations (or steps) in a process.
     pub fn calculate_traverse_cost(
         &self,
         start_nodes: u64,
@@ -187,13 +187,13 @@ impl CostCalculator {
             None => 2.0,
         };
 
-        // 计算每步的输出行数累加（考虑多跳惩罚）
+        // Calculate the cumulative number of output lines for each step (taking into account the penalty for multiple skips).
         let mut total_cost = 0.0;
         let mut current_rows = start_nodes as f64;
 
         for step in 0..steps {
             current_rows *= avg_degree;
-            // 每多一跳，代价递增
+            // With each additional jump, the cost increases.
             let step_penalty = self.config.multi_hop_penalty.powi(step as i32);
             let step_cost = current_rows * self.config.edge_traversal_cost * step_penalty;
             let io_cost = self.calculate_io_cost(current_rows as u64);
@@ -203,13 +203,13 @@ impl CostCalculator {
         total_cost
     }
 
-    /// 计算追加顶点代价
+    /// Calculating the cost of adding additional vertices
     pub fn calculate_append_vertices_cost(&self, input_rows: u64) -> f64 {
-        // 为每行输入追加顶点信息
+        // For each line, enter additional vertex information.
         input_rows as f64 * self.config.cpu_tuple_cost * 2.0
     }
 
-    /// 计算获取邻居节点代价
+    /// Calculate the cost of obtaining neighboring nodes
     pub fn calculate_get_neighbors_cost(&self, start_nodes: u64, edge_type: Option<&str>) -> f64 {
         let avg_degree = match edge_type {
             Some(et) => self
@@ -227,81 +227,81 @@ impl CostCalculator {
         lookup_cost + io_cost
     }
 
-    /// 计算获取顶点代价
+    /// Calculate the cost of obtaining the vertices.
     pub fn calculate_get_vertices_cost(&self, vid_count: u64) -> f64 {
         vid_count as f64 * self.config.random_page_cost
     }
 
-    /// 计算获取边代价
+    /// Calculate the cost of the edges.
     pub fn calculate_get_edges_cost(&self, edge_count: u64) -> f64 {
         edge_count as f64 * self.config.random_page_cost
     }
 
-    // ==================== 过滤和投影 ====================
+    // ==================== Filtering and Projection ====================
 
-    /// 计算过滤代价
+    /// Calculating the cost of filtering
     ///
-    /// 公式：输入行数 × 条件数量 × 操作符代价
+    /// Formula: Number of input rows × Number of conditions × Cost of each operator
     ///
     /// # 参数
-    /// - `input_rows`: 输入行数
-    /// - `condition_count`: 条件数量
+    /// `input_rows`: The number of input rows
+    /// `condition_count`: Number of conditions
     pub fn calculate_filter_cost(&self, input_rows: u64, condition_count: usize) -> f64 {
         input_rows as f64 * condition_count as f64 * self.config.cpu_operator_cost
     }
 
-    /// 计算投影代价
+    /// Calculating the cost of projection
     ///
     /// # 参数
     /// - `input_rows`: 输入行数
-    /// - `columns`: 投影列数
+    /// columns: The number of columns to be projected.
     pub fn calculate_project_cost(&self, input_rows: u64, columns: usize) -> f64 {
         input_rows as f64 * columns as f64 * self.config.cpu_operator_cost
     }
 
-    // ==================== 连接操作 ====================
+    // ==================== Connection Operations ====================
 
-    /// 计算哈希内连接代价
+    /// Calculate the cost of hash-based inner joins
     ///
     /// # 参数
-    /// - `left_rows`: 左表行数
-    /// - `right_rows`: 右表行数
+    /// `left_rows`: The number of rows in the left table
+    /// `right_rows`: The number of rows in the right table
     pub fn calculate_hash_join_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
-        // 构建哈希表代价
+        // The cost of constructing a hash table
         let build_cost = left_rows as f64 * self.config.cpu_tuple_cost;
-        // 探测代价
+        // Detection cost
         let probe_cost = right_rows as f64 * self.config.cpu_tuple_cost;
-        // 哈希构建开销
+        // Hash construction overhead
         let hash_overhead =
             left_rows as f64 * self.config.hash_build_overhead * self.config.cpu_operator_cost;
 
         build_cost + probe_cost + hash_overhead
     }
 
-    /// 计算哈希左连接代价
+    /// Calculating the cost of a hash left join
     pub fn calculate_hash_left_join_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
-        // 左连接与内连接代价类似，但可能有更多输出
+        // The cost of a left join is similar to that of an inner join, but there may be more output rows.
         self.calculate_hash_join_cost(left_rows, right_rows) * 1.1
     }
 
-    /// 计算内连接代价（非哈希）
+    /// Calculate the cost of an inner join (non-hash-based).
     pub fn calculate_inner_join_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
-        // 使用嵌套循环连接的估算
+        // Estimation using nested loops
         self.calculate_nested_loop_join_cost(left_rows, right_rows)
     }
 
-    /// 计算左连接代价（非哈希）
+    /// Calculate the cost of a left join (non-hash-based).
     pub fn calculate_left_join_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
         self.calculate_nested_loop_join_cost(left_rows, right_rows) * 1.1
     }
 
-    /// 计算交叉连接代价
+    /// Calculate the cost of the cross-connection
     pub fn calculate_cross_join_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
         let output_rows = left_rows as f64 * right_rows as f64;
         output_rows * self.config.cpu_tuple_cost
     }
 
-    /// 计算嵌套循环连接代价
+    /// Calculating the cost of combining nested loops
     pub fn calculate_nested_loop_join_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
         let outer_cost = left_rows as f64 * self.config.cpu_tuple_cost;
         let inner_cost = left_rows as f64 * right_rows as f64 * self.config.cpu_tuple_cost;
@@ -309,26 +309,26 @@ impl CostCalculator {
         outer_cost + inner_cost
     }
 
-    /// 计算全外连接代价
+    /// Calculating the cost of a full outer join
     pub fn calculate_full_outer_join_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
         let base_cost = self.calculate_hash_join_cost(left_rows, right_rows);
-        base_cost * 1.5 // 全外连接更复杂
+        base_cost * 1.5 // Full outer joins are more complex.
     }
 
-    // ==================== 排序和聚合 ====================
+    // ==================== Sorting and Aggregation ====================
 
-    /// 计算排序代价
+    /// Calculating the cost of sorting
     ///
-    /// 基于实际 SortExecutor 实现：
+    /// Based on the actual implementation of SortExecutor:
     /// - 小数据量：单线程标准排序 O(n log n)
-    /// - 大数据量：Scatter-Gather 并行排序
+    /// Large amounts of data: Scatter-Gather parallel sorting
     /// - 有 LIMIT 且数据量大：使用 Top-N 算法 O(n log k)
-    /// - 超过内存阈值：外部排序
+    /// Exceeding the memory threshold: External sorting
     ///
     /// # 参数
     /// - `input_rows`: 输入行数
-    /// - `sort_columns`: 排序列数
-    /// - `limit`: 可选的 LIMIT 值（用于 Top-N 优化）
+    /// `sort_columns`: The columns to be sorted.
+    /// `limit`: An optional LIMIT value (used for Top-N optimization)
     pub fn calculate_sort_cost(
         &self,
         input_rows: u64,
@@ -341,8 +341,8 @@ impl CostCalculator {
 
         let rows = input_rows as f64;
 
-        // 检查是否可以使用 Top-N 优化
-        // 参考 SortExecutor: 如果数据量 > limit * 10，使用 Top-N 算法
+        // Check whether Top-N optimization can be used.
+        // Refer to SortExecutor: If the amount of data exceeds limit * 10, use the Top-N algorithm.
         if let Some(limit_val) = limit {
             let limit_u = limit_val.max(0) as u64;
             if limit_u > 0 && input_rows > limit_u * 10 {
@@ -363,29 +363,29 @@ impl CostCalculator {
             * self.config.cpu_operator_cost
             * self.config.sort_comparison_cost;
 
-        // 判断是否使用外部排序
+        // Determine whether to use external sorting.
         if input_rows > self.config.memory_sort_threshold {
-            // 外部排序：需要读写临时文件
-            let pages = (input_rows / 100).max(1); // 假设每页100行
-            let io_cost = pages as f64 * self.config.external_sort_page_cost * 2.0; // 读写两次
+            // External sorting: Temporary files need to be read from and written to.
+            let pages = (input_rows / 100).max(1); // Assume there are 100 lines on each page.
+            let io_cost = pages as f64 * self.config.external_sort_page_cost * 2.0; // Read and write twice
             cpu_cost + io_cost
         } else {
             cpu_cost
         }
     }
 
-    /// 计算Limit代价
+    /// Calculating the cost of implementing the “Limit” feature
     ///
-    /// 公式：实际处理的行数 × CPU操作代价
+    /// Formula: Number of rows actually processed × Cost of CPU operations
     /// Limit 只需要处理前 N 行，代价与 min(limit, input_rows) 成正比
     pub fn calculate_limit_cost(&self, input_rows: u64, limit: i64) -> f64 {
         let rows_to_process = (limit.max(0) as u64).min(input_rows);
         rows_to_process as f64 * self.config.cpu_operator_cost * 0.5
     }
 
-    /// 计算TopN代价（优先队列）
+    /// Calculating the cost of obtaining the TopN results (using a priority queue)
     ///
-    /// 比全排序更高效，使用堆实现
+    /// More efficient than full sorting; implemented using a heap.
     pub fn calculate_topn_cost(&self, input_rows: u64, limit: i64) -> f64 {
         let n = input_rows as f64;
         let k = limit as f64;
@@ -393,28 +393,28 @@ impl CostCalculator {
         n * k.log2().max(1.0) * self.config.cpu_operator_cost
     }
 
-    /// 计算聚合代价
+    /// Calculating the cost of aggregation
     ///
-    /// 基于实际 AggregateExecutor 实现：
-    /// - 使用 HashMap 存储分组状态
-    /// - 需要计算分组键（表达式求值）
-    /// - 每个聚合函数需要更新状态
+    /// Based on the actual implementation of AggregateExecutor:
+    /// Use a HashMap to store the group status.
+    /// It is necessary to calculate the grouping key (evaluation of the expression).
+    /// Each aggregate function requires an update of its status.
     ///
     /// # 参数
     /// - `input_rows`: 输入行数
-    /// - `agg_functions`: 聚合函数数量
-    /// - `group_by_keys`: GROUP BY 键数量（用于估算哈希操作代价）
+    /// `agg_functions`: The number of aggregate functions
+    /// `group_by_keys`: The number of keys used in the GROUP BY clause (used to estimate the cost of hash operations)
     pub fn calculate_aggregate_cost(
         &self,
         input_rows: u64,
         agg_functions: usize,
         group_by_keys: usize,
     ) -> f64 {
-        // 基础聚合函数处理代价
+        // The computational cost of basic aggregate functions
         let agg_cost = input_rows as f64 * agg_functions as f64 * self.config.cpu_operator_cost;
 
-        // 哈希表操作代价（插入、查找）
-        // 每个输入行都需要计算分组键并进行哈希操作
+        // Cost of hash table operations (insertion, search)
+        // For each input line, it is necessary to calculate the group key and perform a hashing operation.
         let hash_cost = if group_by_keys > 0 {
             input_rows as f64 * group_by_keys as f64 * self.config.cpu_operator_cost * 2.0
         } else {
@@ -424,150 +424,150 @@ impl CostCalculator {
         agg_cost + hash_cost
     }
 
-    /// 计算去重代价（使用哈希表）
+    /// Calculating the cost of deduplication (using a hash table)
     pub fn calculate_dedup_cost(&self, input_rows: u64) -> f64 {
-        // 哈希插入和检查的开销
+        // The overhead associated with hash insertion and checking
         input_rows as f64 * self.config.cpu_operator_cost * 2.0
     }
 
-    // ==================== 数据处理和集合操作 ====================
+    // ==================== Data Processing and Set Operations ====================
 
-    /// 计算Union代价
+    /// Calculating the cost of a Union operation
     pub fn calculate_union_cost(&self, left_rows: u64, right_rows: u64, distinct: bool) -> f64 {
         let base_cost = (left_rows + right_rows) as f64 * self.config.cpu_tuple_cost;
         if distinct {
-            // 需要去重
+            // The text needs to be deduplicated (that is, duplicate entries should be removed).
             base_cost + self.calculate_dedup_cost(left_rows + right_rows)
         } else {
             base_cost
         }
     }
 
-    /// 计算Minus代价
+    /// Calculate the cost of “Minus”.
     pub fn calculate_minus_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
         let base_cost = (left_rows + right_rows) as f64 * self.config.cpu_tuple_cost;
-        // 需要哈希集合操作
+        // Hash set operations are required.
         let set_op_cost = right_rows as f64 * self.config.cpu_operator_cost;
         base_cost + set_op_cost
     }
 
-    /// 计算Intersect代价
+    /// Calculate the Intersect cost
     pub fn calculate_intersect_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
         let base_cost = (left_rows + right_rows) as f64 * self.config.cpu_tuple_cost;
         let set_op_cost = left_rows.min(right_rows) as f64 * self.config.cpu_operator_cost;
         base_cost + set_op_cost
     }
 
-    /// 计算Unwind代价
+    /// Calculate the cost of “Unwind”
     pub fn calculate_unwind_cost(&self, input_rows: u64, avg_list_size: f64) -> f64 {
         let output_rows = input_rows as f64 * avg_list_size;
         output_rows * self.config.cpu_tuple_cost
     }
 
-    /// 计算数据收集代价
+    /// Calculating the cost of data collection
     pub fn calculate_data_collect_cost(&self, input_rows: u64) -> f64 {
         input_rows as f64 * self.config.cpu_tuple_cost
     }
 
-    /// 计算采样代价
+    /// Calculating the cost of sampling
     pub fn calculate_sample_cost(&self, input_rows: u64) -> f64 {
-        // 采样需要遍历数据
+        // Sampling requires traversing the data.
         input_rows as f64 * self.config.cpu_operator_cost
     }
 
-    // ==================== 控制流节点 ====================
+    // ==================== Control Flow Nodes ====================
 
-    /// 计算循环代价
+    /// Calculating the cost of loop iterations
     ///
     /// # 参数
-    /// - `body_cost`: 循环体代价
-    /// - `iterations`: 估计迭代次数
+    /// `body_cost`: The cost of the loop body
+    /// `iterations`: An estimate of the number of iterations required.
     pub fn calculate_loop_cost(&self, body_cost: f64, iterations: u32) -> f64 {
         body_cost * iterations as f64
     }
 
-    /// 计算选择节点代价
+    /// Calculating the cost of selecting a node
     pub fn calculate_select_cost(&self, input_rows: u64, branch_count: usize) -> f64 {
         input_rows as f64 * branch_count as f64 * self.config.cpu_operator_cost
     }
 
-    /// 计算透传节点代价
+    /// Calculating the cost of transparent nodes
     pub fn calculate_pass_through_cost(&self, input_rows: u64) -> f64 {
         input_rows as f64 * self.config.cpu_operator_cost * 0.1
     }
 
-    // ==================== 图算法 ====================
+    // ==================== Graph Algorithms ====================
 
-    /// 计算最短路径代价
+    /// Calculating the cost of the shortest path
     pub fn calculate_shortest_path_cost(&self, start_nodes: u64, max_depth: u32) -> f64 {
-        // 基于BFS的复杂度估算
-        let avg_branching = 2.0_f64; // 假设平均分支因子
+        // Complexity estimation based on BFS (Breadth-First Search)
+        let avg_branching = 2.0_f64; // Assume the average branching factor…
         let explored_nodes = start_nodes as f64 * avg_branching.powf(max_depth as f64);
         let traversal_cost = explored_nodes * self.config.edge_traversal_cost;
         let io_cost = self.calculate_io_cost(explored_nodes as u64);
 
-        // 加上基础开销
+        // Plus the basic expenses.
         traversal_cost + io_cost + self.config.shortest_path_base_cost
     }
 
-    /// 计算所有路径代价
+    /// Calculate the cost of all paths.
     pub fn calculate_all_paths_cost(&self, start_nodes: u64, max_depth: u32) -> f64 {
-        // 所有路径的复杂度比最短路径高很多
+        // The complexity of all paths is much higher than that of the shortest path.
         let base_cost = self.calculate_shortest_path_cost(start_nodes, max_depth);
         base_cost * self.config.path_enumeration_factor
     }
 
-    /// 计算多源最短路径代价
+    /// Calculating the cost of the shortest path from multiple sources
     pub fn calculate_multi_shortest_path_cost(&self, source_count: u64, max_depth: u32) -> f64 {
         self.calculate_shortest_path_cost(source_count, max_depth) * 1.5
     }
 
-    // ==================== 辅助方法 ====================
+    // ==================== Auxiliary Methods ====================
 
-    /// 获取统计信息管理器
+    /// Statistics Information Manager
     pub fn statistics_manager(&self) -> Arc<StatisticsManager> {
         self.stats_manager.clone()
     }
 
-    /// 估算标签的选择性
+    /// Estimating the selectivity of tag selection
     pub fn estimate_tag_selectivity(&self, tag_name: &str) -> f64 {
         let vertex_count = self.stats_manager.get_vertex_count(tag_name);
         if vertex_count == 0 {
             1.0
         } else {
-            // 简化估算：假设标签分布均匀
+            // Simplify the estimation: Assume that the tag distribution is uniform.
             0.1
         }
     }
 
-    /// 估算边类型的选择性
+    /// Estimating the selectivity of edge type choices
     pub fn estimate_edge_selectivity(&self, edge_type: &str) -> f64 {
         let edge_stats = self.stats_manager.get_edge_stats(edge_type);
         match edge_stats {
             Some(stats) if stats.edge_count > 0 => {
-                // 基于边数量的估算
+                // Estimation based on the number of edges
                 (1.0 / (stats.edge_count as f64).sqrt()).clamp(0.001, 1.0)
             }
             _ => 0.1,
         }
     }
 
-    // ==================== 缓存感知 IO 代价计算 ====================
+    // ==================== Calculation of the Cost of Cache-Aware I/O Operations ====================
 
-    /// 计算 IO 代价（考虑缓存）
+    /// Calculating the cost of I/O operations (taking caching into account)
     ///
-    /// 根据有效缓存大小调整 I/O 代价：
-    /// - 如果访问的数据页数 < effective_cache_pages: 大部分在缓存中
-    /// - 否则: 部分需要磁盘 IO
+    /// Adjust the I/O overhead based on the size of the effective cache:
+    /// - If the number of data pages accessed is < effective_cache_pages: Most of the pages are already in the cache.
+    /// Otherwise: Some operations require disk I/O (input/output).
     fn calculate_io_cost(&self, rows: u64) -> f64 {
-        // 假设每页 100 行
+        // Assume there are 100 lines on each page.
         let pages = (rows / 100).max(1);
 
         if pages <= self.config.effective_cache_pages {
-            // 数据可能在缓存中
+            // The data may be in the cache.
             pages as f64 * self.config.seq_page_cost * self.config.cache_hit_cost_factor
         } else {
-            // 部分数据需要从磁盘读取
+            // Some data needs to be read from the disk.
             let cached_pages = self.config.effective_cache_pages;
             let disk_pages = pages - cached_pages;
 
@@ -598,7 +598,7 @@ mod tests {
         let stats_manager = Arc::new(StatisticsManager::new());
         let calculator = CostCalculator::new(stats_manager);
 
-        // 无统计信息时应该返回 0
+        // When no statistical information is available, a value of 0 should be returned.
         let cost = calculator.calculate_scan_vertices_cost("NonExistent");
         assert_eq!(cost, 0.0);
     }
@@ -630,22 +630,22 @@ mod tests {
         let stats_manager = Arc::new(StatisticsManager::new());
         let calculator = CostCalculator::new(stats_manager);
 
-        // 测试标准排序（无 limit）
+        // Test standard sorting (with no limit)
         let cost = calculator.calculate_sort_cost(1000, 2, None);
         assert!(cost > 0.0);
 
-        // 空输入应该返回 0
+        // An empty input should return 0.
         let zero_cost = calculator.calculate_sort_cost(0, 2, None);
         assert_eq!(zero_cost, 0.0);
 
-        // 测试 Top-N 优化（数据量 > limit * 10）
+        // Testing the Top-N optimization (data volume > limit * 10)
         let topn_cost = calculator.calculate_sort_cost(1000, 2, Some(50));
-        // Top-N 应该比全排序便宜
+        // The Top-N algorithm should be cheaper than the full sorting algorithm.
         assert!(topn_cost < cost);
 
-        // 测试小 limit（不触发 Top-N）
+        // Testing the small limit (which does not trigger the Top-N result).
         let small_limit_cost = calculator.calculate_sort_cost(1000, 2, Some(200));
-        // 小 limit 应该使用标准排序
+        // The “small limit” should be sorted using the standard sorting method.
         assert!(small_limit_cost >= cost * 0.99 && small_limit_cost <= cost * 1.01);
     }
 

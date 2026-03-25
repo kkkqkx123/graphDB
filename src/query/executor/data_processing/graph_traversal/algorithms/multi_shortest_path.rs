@@ -1,6 +1,6 @@
-//! 多源最短路径算法
+//! multi-source shortest path algorithm
 //!
-//! 支持多组起点和终点同时查找最短路径
+//! Support multiple groups of start and end points to find the shortest path at the same time
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -22,10 +22,10 @@ use super::types::{
     AlgorithmStats, Interims, SelfLoopDedup, TerminationMap,
 };
 
-/// 多源最短路径执行器
+/// Multi-source shortest path actuator
 ///
 /// 同时处理多组(src, dst)路径查找请求
-/// 使用双向BFS算法，支持单条/多条最短路径
+/// Supports single/multiple shortest paths using bi-directional BFS algorithm
 pub struct MultiShortestPathExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     start_vids: Vec<Value>,
@@ -37,24 +37,24 @@ pub struct MultiShortestPathExecutor<S: StorageClient + Send + 'static> {
     single_shortest: bool,
     limit: usize,
     step: usize,
-    /// 左向历史路径
+    /// Leftward Historical Path
     history_left_paths: Interims,
-    /// 右向历史路径
+    /// Rightward History Path
     history_right_paths: Interims,
-    /// 当前左向路径
+    /// Current left path
     left_paths: Interims,
-    /// 当前右向路径
+    /// Current right path
     right_paths: Interims,
-    /// 上一步右向路径（用于奇数步交汇）
+    /// Previous step rightward path (for odd step intersections)
     pre_right_paths: Interims,
-    /// 结果路径
+    /// Result Path
     result_paths: Vec<Path>,
-    /// 统计信息
+    /// Statistical information
     stats: AlgorithmStats,
-    /// 输入执行器（用于获取边数据）
+    /// Input actuator (for acquiring side data)
     left_input: Option<Box<ExecutorEnum<S>>>,
     right_input: Option<Box<ExecutorEnum<S>>>,
-    /// 已找到路径计数
+    /// Found Paths Count
     found_count: usize,
 }
 
@@ -125,9 +125,9 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         self
     }
 
-    /// 初始化历史路径
+    /// Initializing the history path
     fn init(&mut self) {
-        // 初始化左向历史路径
+        // Initialize the leftward history path
         for src in &self.start_vids {
             let path = Path::new(Vertex::with_vid(src.clone()));
             let mut src_map = HashMap::new();
@@ -135,7 +135,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             self.history_left_paths.insert(src.clone(), src_map);
         }
 
-        // 初始化右向历史路径
+        // Initialize rightward history path
         for dst in &self.end_vids {
             let path = Path::new(Vertex::with_vid(dst.clone()));
             let mut dst_map = HashMap::new();
@@ -146,7 +146,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         }
     }
 
-    /// 从存储获取邻居边
+    /// Getting Neighbor Edges from Storage
     fn get_neighbors(
         &self,
         node_id: &Value,
@@ -174,7 +174,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             edges
         };
 
-        // 自环边去重
+        // (math.) self-loop edge de-weighting
         let mut dedup = SelfLoopDedup::new();
 
         let neighbors = filtered_edges
@@ -210,7 +210,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         Ok(neighbors)
     }
 
-    /// 创建新路径（扩展已有路径）
+    /// Creating a new path (extending an existing path)
     fn create_paths(paths: &[Path], edge: &Edge) -> Vec<Path> {
         paths
             .iter()
@@ -228,7 +228,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             .collect()
     }
 
-    /// 构建路径（从左或右输入）
+    /// Build path (enter from left or right)
     fn build_path(&mut self, reverse: bool) -> DBResult<()> {
         let history_paths = if reverse {
             &self.history_right_paths
@@ -236,7 +236,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             &self.history_left_paths
         };
 
-        // 获取需要扩展的顶点
+        // Get the vertices to be extended
         let expand_vids: Vec<Value> = if self.step == 1 {
             if reverse {
                 self.end_vids.clone()
@@ -247,7 +247,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             history_paths.keys().cloned().collect()
         };
 
-        // 先收集所有邻居信息，避免借用冲突
+        // Gather all neighbor information first to avoid borrowing conflicts
         let mut all_neighbors: Vec<(Value, Vec<(Value, Edge)>)> = Vec::new();
         for vid in &expand_vids {
             let neighbors = self.get_neighbors(vid, self.edge_direction)?;
@@ -255,10 +255,10 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             all_neighbors.push((vid.clone(), neighbors));
         }
 
-        // 处理收集到的邻居信息
+        // Processing of collected neighborhood information
         for (vid, neighbors) in all_neighbors {
             for (neighbor_id, edge) in neighbors {
-                // 跳过自环
+                // Skip self-loop
                 if neighbor_id == vid {
                     continue;
                 }
@@ -270,7 +270,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                 };
 
                 if self.step == 1 {
-                    // 第一步：创建初始路径
+                    // Step 1: Create the initial path
                     let src_vertex = Vertex::with_vid(vid.clone());
                     let dst_vertex = Vertex::with_vid(neighbor_id.clone());
                     let path = Path {
@@ -289,13 +289,13 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                     let src_paths = entry.entry(vid.clone()).or_insert_with(Vec::new);
                     src_paths.push(path);
                 } else {
-                    // 后续步骤：从历史路径扩展
+                    // Next steps: Extension from the historical path
                     if let Some(pre_paths) = history_paths.get(&vid) {
                         for (src_id, paths) in pre_paths {
-                            // 检查是否形成环路
+                            // Check for loop formation
                             if let Some(history_dst) = history_paths.get(&neighbor_id) {
                                 if history_dst.contains_key(src_id) {
-                                    continue; // 环路检测
+                                    continue; // loop detection
                                 }
                             }
 
@@ -315,7 +315,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         Ok(())
     }
 
-    /// 路径交汇（奇数步或偶数步）
+    /// Path intersection (odd or even steps)
     fn conjunct_path(&mut self, odd_step: bool) -> DBResult<bool> {
         let right_paths = if odd_step {
             &self.pre_right_paths
@@ -323,13 +323,13 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             &self.right_paths
         };
 
-        // 收集需要处理的路径对，避免借用冲突
+        // Collect path pairs that need to be processed to avoid borrowing conflicts
         let mut path_pairs: Vec<(Value, Value, Vec<Path>, Vec<Path>)> = Vec::new();
 
-        // 查找交汇点
+        // Find Intersections
         for (meet_vid, left_src_map) in &self.left_paths {
             if let Some(right_src_map) = right_paths.get(meet_vid) {
-                // 在交汇点找到匹配
+                // Find a match at the intersection
                 for (left_src, left_paths) in left_src_map {
                     for (right_src, right_paths) in right_src_map {
                         // 检查是否是有效的(src, dst)对
@@ -346,7 +346,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             }
         }
 
-        // 处理收集到的路径对
+        // Processing of collected path pairs
         for (left_src, right_src, left_paths, right_paths) in path_pairs {
             self.build_result_paths(&left_paths, &right_paths, &left_src, &right_src)?;
 
@@ -355,12 +355,12 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             }
         }
 
-        // 清理已找到的路径对
+        // Cleaning up found path pairs
         if self.single_shortest {
             cleanup_termination_map(&mut self.termination_map);
         }
 
-        // 检查是否终止
+        // Check for termination
         if is_termination_complete(&self.termination_map) {
             return Ok(true);
         }
@@ -369,7 +369,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             return Ok(true);
         }
 
-        // 检查步数限制
+        // Checking the step limit
         if self.step * 2 > self.max_steps {
             return Ok(true);
         }
@@ -386,7 +386,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         }
     }
 
-    /// 构建结果路径
+    /// Building a Results Path
     fn build_result_paths(
         &mut self,
         left_paths: &[Path],
@@ -396,15 +396,15 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
     ) -> DBResult<()> {
         for left_path in left_paths {
             for right_path in right_paths {
-                // 拼接路径
+                // splice path
                 let mut full_path = left_path.clone();
                 let mut reversed_right = right_path.clone();
                 reversed_right.reverse();
 
-                // 合并步骤
+                // Consolidation steps
                 full_path.steps.extend(reversed_right.steps);
 
-                // 检查重复边
+                // Check for repeating edges
                 if self.has_duplicate_edges(&full_path) {
                     continue;
                 }
@@ -417,7 +417,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                 }
 
                 if self.single_shortest {
-                    // 单条最短路径模式下，找到一对就停止
+                    // Single shortest path mode stops when a pair is found
                     return Ok(());
                 }
             }
@@ -425,7 +425,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         Ok(())
     }
 
-    /// 检查路径是否有重复边
+    /// Checking paths for duplicate edges
     fn has_duplicate_edges(&self, path: &Path) -> bool {
         let mut edge_set = HashSet::new();
 
@@ -439,9 +439,9 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
         false
     }
 
-    /// 更新历史路径
+    /// Update History Path
     fn update_history(&mut self) {
-        // 将当前左向路径合并到历史
+        // Merge the current left path into the history
         for (dst, src_map) in &self.left_paths {
             let history_entry = self.history_left_paths.entry(dst.clone()).or_default();
             for (src, paths) in src_map {
@@ -450,7 +450,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             }
         }
 
-        // 将当前右向路径合并到历史
+        // Merge the current right-hand path into the history
         for (dst, src_map) in &self.right_paths {
             let history_entry = self.history_right_paths.entry(dst.clone()).or_default();
             for (src, paths) in src_map {
@@ -459,43 +459,43 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             }
         }
 
-        // 保存当前右向路径供下一步使用
+        // Save the current right path for the next step
         self.pre_right_paths = self.right_paths.clone();
 
-        // 清空当前路径
+        // Clear the current path
         self.left_paths.clear();
         self.right_paths.clear();
     }
 
-    /// 执行多源最短路径查找
+    /// Perform a multi-source shortest path lookup
     pub fn execute_multi_path(&mut self) -> DBResult<Vec<Path>> {
         let start_time = Instant::now();
 
         self.init();
 
         loop {
-            // 构建左向路径
+            // Constructing a leftward path
             self.build_path(false)?;
 
-            // 构建右向路径
+            // Constructing a rightward path
             self.build_path(true)?;
 
-            // 奇数步交汇
+            // Intersection of odd-numbered steps
             if self.conjunct_path(true)? {
                 break;
             }
 
-            // 偶数步交汇
+            // Intersection of even-numbered steps
             if self.conjunct_path(false)? {
                 break;
             }
 
-            // 更新历史路径
+            // Update the historical path
             self.update_history();
 
             self.step += 1;
 
-            // 检查步数限制
+            // Check the step limit.
             if self.step * 2 > self.max_steps {
                 break;
             }
@@ -613,7 +613,7 @@ mod tests {
         let pairs = map
             .get(&Value::from("a"))
             .expect("Failed to get pairs for 'a'");
-        assert!(!pairs[0].1); // found应该被标记为false
+        assert!(!pairs[0].1); // “The word ‘found’ should be marked as ‘false’.”
     }
 
     #[test]
@@ -668,7 +668,7 @@ mod tests {
         let base_config = ExecutorConfig::new(1, storage, expr_context);
         let executor = MultiShortestPathExecutor::new(base_config, config);
 
-        // 创建路径
+        // Create a path
         let path = Path {
             src: Box::new(Vertex::with_vid(Value::from("a"))),
             steps: vec![
@@ -687,8 +687,8 @@ mod tests {
             ],
         };
 
-        // 这个测试需要实际的边数据，简化处理
-        // 实际测试应该在集成测试中进行
+        // This test requires actual edge data; the processing process needs to be simplified.
+        // The actual tests should be carried out during the integration testing phase.
         assert!(!executor.has_duplicate_edges(&path));
     }
 }

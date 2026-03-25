@@ -1,15 +1,15 @@
-//! YIELD 子句验证器 - 新体系版本
+//! YIELD clause validator – New system version
 //! 对应 NebulaGraph YieldValidator.h/.cpp 的功能
-//! 验证 YIELD 子句的表达式和列定义
+//! Verify the expressions in the YIELD clause and the column definitions.
 //!
-//! 本文件已按照新的 trait + 枚举 验证器体系重构：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 保留了原有完整功能：
-//!    - 列定义验证（至少一列、无重复列名）
-//!    - 别名验证
-//!    - 类型推导
-//!    - DISTINCT 验证
-//! 3. 使用 QueryContext 统一管理上下文
+//! This document has been restructured in accordance with the new trait + enumeration validator framework.
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. All original functions have been retained.
+//! Column definition validation: At least one column must be present, and there must be no duplicate column names.
+//! Alias verification
+//! Type inference
+//! - DISTINCT validation
+//! 3. Use QueryContext to manage the context in a unified manner.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::YieldColumn;
@@ -23,7 +23,7 @@ use crate::query::QueryContext;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// 验证后的 YIELD 信息
+/// Verified YIELD information
 #[derive(Debug, Clone)]
 pub struct ValidatedYield {
     pub columns: Vec<YieldColumn>,
@@ -31,37 +31,37 @@ pub struct ValidatedYield {
     pub output_types: Vec<ValueType>,
 }
 
-/// YIELD 验证器 - 新体系实现
+/// YIELD Validator – New System Implementation
 ///
-/// 功能完整性保证：
-/// 1. 完整的验证生命周期
-/// 2. 输入/输出列管理
-/// 3. 表达式属性追踪
-/// 4. 列别名管理
+/// Functionality integrity assurance:
+/// 1. Complete validation lifecycle
+/// 2. Management of input/output columns
+/// 3. Expression property tracing
+/// 4. Column Alias Management
 #[derive(Debug)]
 pub struct YieldValidator {
-    // YIELD 列列表
+    // List of the YIELD columns
     yield_columns: Vec<YieldColumn>,
-    // 是否去重
+    // Should duplicates be removed?
     distinct: bool,
-    // 可用别名映射
+    // Available alias mapping
     aliases_available: HashMap<String, ValueType>,
-    // 输入列定义
+    // Input column definition
     inputs: Vec<ColumnDef>,
-    // 输出列定义
+    // Column definition
     outputs: Vec<ColumnDef>,
-    // 表达式属性
+    // Expression properties
     expr_props: ExpressionProps,
-    // 用户定义变量
+    // User-defined variables
     user_defined_vars: Vec<String>,
-    // 验证错误列表
+    // List of validation errors
     validation_errors: Vec<ValidationError>,
-    // 缓存验证结果
+    // Cache validation results
     validated_result: Option<ValidatedYield>,
 }
 
 impl YieldValidator {
-    /// 创建新的验证器实例
+    /// Create a new instance of the validator.
     pub fn new() -> Self {
         Self {
             yield_columns: Vec::new(),
@@ -76,57 +76,57 @@ impl YieldValidator {
         }
     }
 
-    /// 获取验证结果
+    /// Obtain the verification results.
     pub fn validated_result(&self) -> Option<&ValidatedYield> {
         self.validated_result.as_ref()
     }
 
-    /// 获取验证错误列表
+    /// Obtain the list of verification errors.
     pub fn validation_errors(&self) -> &[ValidationError] {
         &self.validation_errors
     }
 
-    /// 添加验证错误
+    /// Add verification errors.
     fn add_error(&mut self, error: ValidationError) {
         self.validation_errors.push(error);
     }
 
-    /// 清空验证错误
+    /// Clear the verification errors.
     fn clear_errors(&mut self) {
         self.validation_errors.clear();
     }
 
-    /// 检查是否有验证错误
+    /// Check for any validation errors.
     fn has_errors(&self) -> bool {
         !self.validation_errors.is_empty()
     }
 
-    /// 添加 YIELD 列
+    /// Add a YIELD column
     pub fn add_yield_column(&mut self, col: YieldColumn) {
         self.yield_columns.push(col);
     }
 
-    /// 设置是否去重
+    /// Set whether to remove duplicates.
     pub fn set_distinct(&mut self, distinct: bool) {
         self.distinct = distinct;
     }
 
-    /// 设置可用别名
+    /// Setting available aliases
     pub fn set_aliases_available(&mut self, aliases: HashMap<String, ValueType>) {
         self.aliases_available = aliases;
     }
 
-    /// 获取 YIELD 列列表
+    /// Obtain the list of the YIELD columns.
     pub fn yield_columns(&self) -> &[YieldColumn] {
         &self.yield_columns
     }
 
-    /// 是否去重
+    /// Should duplicates be removed?
     pub fn is_distinct(&self) -> bool {
         self.distinct
     }
 
-    /// 验证 YIELD 语句（传统方式，保持向后兼容）
+    /// Verify the YIELD statement (traditional method, maintaining backward compatibility)
     pub fn validate_yield(&mut self) -> Result<ValidatedYield, ValidationError> {
         self.validate_columns()?;
         self.validate_aliases()?;
@@ -149,7 +149,7 @@ impl YieldValidator {
         Ok(result)
     }
 
-    /// 验证列定义
+    /// Verify column definitions
     fn validate_columns(&self) -> Result<(), ValidationError> {
         if self.yield_columns.is_empty() {
             return Err(ValidationError::new(
@@ -181,7 +181,7 @@ impl YieldValidator {
         Ok(())
     }
 
-    /// 验证别名
+    /// Verify the alias
     fn validate_aliases(&self) -> Result<(), ValidationError> {
         for col in &self.yield_columns {
             let alias = col.name();
@@ -196,19 +196,19 @@ impl YieldValidator {
         Ok(())
     }
 
-    /// 验证类型
+    /// Verification type
     fn validate_types(&mut self) -> Result<(), ValidationError> {
         for col in &self.yield_columns {
             let expr_type = self.deduce_expr_type(&col.expression)?;
             if expr_type == ValueType::Unknown {
-                // 类型推导失败，添加警告但不报错
-                // 在实际实现中可能需要更严格的处理
+                // Type inference failed. A warning is generated, but no error is reported.
+                // In practical implementations, more stringent processing may be required.
             }
         }
         Ok(())
     }
 
-    /// 验证 DISTINCT
+    /// Verify the use of the `DISTINCT` keyword.
     fn validate_distinct(&self) -> Result<(), ValidationError> {
         if self.distinct && self.yield_columns.len() > 1 {
             let has_non_comparable = self.yield_columns.iter().any(|col| {
@@ -230,7 +230,7 @@ impl YieldValidator {
         Ok(())
     }
 
-    /// 推导表达式类型
+    /// Determine the type of the expression.
     fn deduce_expr_type(
         &self,
         expression: &crate::core::types::expr::contextual::ContextualExpression,
@@ -242,21 +242,21 @@ impl YieldValidator {
         }
     }
 
-    /// 内部方法：推导表达式类型
+    /// Internal method: Derivation of expression types
     fn deduce_expr_type_internal(
         &self,
         _expression: &crate::core::types::expr::Expression,
     ) -> Result<ValueType, ValidationError> {
-        // 简化实现，实际应该根据表达式推导类型
+        // Simplify the implementation; in reality, the type should be determined based on the expression.
         Ok(ValueType::Unknown)
     }
 
-    /// 验证具体语句
+    /// Verify the specific sentence.
     fn validate_impl(&mut self) -> Result<(), ValidationError> {
-        // 执行 YIELD 验证
+        // Performing the YIELD verification
         let validated = self.validate_yield()?;
 
-        // 设置输出列
+        // Set the output columns
         self.outputs.clear();
         for (i, col) in validated.columns.iter().enumerate() {
             let col_type = validated
@@ -280,28 +280,28 @@ impl Default for YieldValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for YieldValidator {
     fn validate(
         &mut self,
         _ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 清空之前的状态
+        // Clear the previous state.
         self.outputs.clear();
         self.inputs.clear();
         self.expr_props = ExpressionProps::default();
         self.clear_errors();
 
-        // 执行具体验证逻辑
+        // Perform the specific validation logic.
         if let Err(e) = self.validate_impl() {
             self.add_error(e);
         }
 
-        // 如果有验证错误，返回失败结果
+        // If there are any validation errors, return a failure result.
         if self.has_errors() {
             let errors = self.validation_errors.clone();
             return Ok(ValidationResult::failure(errors));
@@ -318,7 +318,7 @@ impl StatementValidator for YieldValidator {
                 .push(format!("{:?}", column.expression));
         }
 
-        // 返回成功的验证结果
+        // Return the successful verification result.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -335,7 +335,7 @@ impl StatementValidator for YieldValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // YIELD 不是全局语句，需要预先选择空间
+        // “YIELD” is not a global statement; therefore, the relevant space must be selected in advance.
         false
     }
 
@@ -357,7 +357,7 @@ mod tests {
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
-    /// 测试辅助函数：创建简单的 ContextualExpression
+    /// Testing the auxiliary function: Creating a simple ContextualExpression
     fn create_test_contextual_expression(expr: Expression) -> ContextualExpression {
         let context = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
@@ -391,7 +391,7 @@ mod tests {
     fn test_yield_validation() {
         let mut validator = YieldValidator::new();
 
-        // 添加一列
+        // Add a column
         let col = YieldColumn::new(
             create_test_contextual_expression(Expression::Literal(Value::Int(42))),
             "result".to_string(),
@@ -410,7 +410,7 @@ mod tests {
     fn test_yield_empty_columns() {
         let mut validator = YieldValidator::new();
 
-        // 不添加任何列
+        // Do not add any columns.
         let result = validator.validate_yield();
         assert!(result.is_err());
     }
@@ -419,7 +419,7 @@ mod tests {
     fn test_yield_duplicate_column_names() {
         let mut validator = YieldValidator::new();
 
-        // 添加两列同名
+        // Add two columns with the same name.
         let col1 = YieldColumn::new(
             create_test_contextual_expression(Expression::Literal(Value::Int(1))),
             "result".to_string(),
@@ -439,7 +439,7 @@ mod tests {
     fn test_yield_invalid_alias() {
         let mut validator = YieldValidator::new();
 
-        // 添加以数字开头的别名
+        // Add aliases that start with a number.
         let col = YieldColumn::new(
             create_test_contextual_expression(Expression::Literal(Value::Int(42))),
             "1result".to_string(),
@@ -457,7 +457,7 @@ mod tests {
 
         let mut validator = YieldValidator::new();
 
-        // 添加一列并设置 DISTINCT
+        // Add a column and set the property to `DISTINCT`.
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let expr = Expression::Literal(Value::Int(42));
         let meta = ExpressionMeta::new(expr);

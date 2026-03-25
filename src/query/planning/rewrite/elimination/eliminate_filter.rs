@@ -1,9 +1,9 @@
-//! 消除永假式过滤操作的规则
+//! Rules for eliminating the "always false" filter operation
 //!
 //! 根据 nebula-graph 的参考实现，此规则处理 Filter(false) 或 Filter(null) 的情况，
-//! 将其替换为返回空集的 ValueNode。
+//! Replace it with a ValueNode that returns an empty set.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before:
 //! ```text
@@ -19,9 +19,9 @@
 //!   Start
 //! ```
 //!
-//! # 适用条件
+//! # Applicable Conditions
 //!
-//! - 过滤条件为永假式（如 FALSE、null 等）
+//! The filtering condition is a permanently false value (such as FALSE, null, etc.).
 
 use crate::core::types::operators::BinaryOperator;
 use crate::core::{Expression, Value};
@@ -32,29 +32,29 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{EliminationRule, RewriteRule};
 
-/// 消除永假式过滤操作的规则
+/// Rules for eliminating the "always false" filtering operation
 ///
-/// 当 Filter 节点的条件为 false 或 null 时，直接替换为返回空集的节点
+/// When the condition of the Filter node is false or null, it should be directly replaced with a node that returns an empty set.
 #[derive(Debug)]
 pub struct EliminateFilterRule;
 
 impl EliminateFilterRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         Self
     }
 
-    /// 检查表达式是否为永假式（false 或 null）
+    /// Check whether the expression is a permanently false value (false or null).
     fn is_contradiction(&self, expression: &Expression) -> bool {
         match expression {
-            // 布尔字面量 false
+            // Boolean literal: false
             Expression::Literal(Value::Bool(false)) => true,
-            // null 值
+            // The “null” value
             Expression::Literal(Value::Null(_)) => true,
-            // 二元表达式：检查 1 = 0 或 0 = 1 等形式
+            // Binary expression: Checks expressions of the form 1 = 0 or 0 = 1, etc.
             Expression::Binary { left, op, right } => {
                 match (left.as_ref(), op, right.as_ref()) {
-                    // 1 = 0 或 0 = 1
+                    // 1 = 0 or 0 = 1
                     (
                         Expression::Literal(Value::Int(1)),
                         BinaryOperator::Equal,
@@ -71,7 +71,7 @@ impl EliminateFilterRule {
                         BinaryOperator::NotEqual,
                         Expression::Variable(b),
                     ) if a == b => true,
-                    // a = b 其中 a 和 b 是不同的常量
+                    // a = b, where a and b are different constants.
                     (Expression::Literal(a), BinaryOperator::Equal, Expression::Literal(b))
                         if a != b =>
                     {
@@ -105,28 +105,28 @@ impl RewriteRule for EliminateFilterRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 Filter 节点
+        // Check whether it is a Filter node.
         let filter_node = match node {
             PlanNodeEnum::Filter(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取过滤条件
+        // Obtain the filtering criteria
         let condition = filter_node.condition();
 
-        // 获取底层表达式
+        // Obtain the underlying expressions
         let expr = match condition.expression() {
             Some(meta) => meta.inner().clone(),
             None => return Ok(None),
         };
 
-        // 检查条件是否为永假式
+        // Check whether the condition is a permanently false statement.
         if !self.is_contradiction(&expr) {
             return Ok(None);
         }
 
-        // 创建转换结果：用 StartNode 替换当前 Filter 节点
-        // 参考 nebula-graph 的实现，返回空集
+        // Replace the current Filter node with the StartNode.
+        // Referencing the implementation of nebula-graph, return an empty set.
         let mut result = TransformResult::new();
         result.erase_curr = true;
         result.add_new_node(PlanNodeEnum::Start(StartNode::new()));
@@ -180,25 +180,25 @@ mod tests {
     fn test_is_contradiction() {
         let rule = EliminateFilterRule::new();
 
-        // 测试 false
+        // Test: false
         assert!(rule.is_contradiction(&Expression::Literal(Value::Bool(false))));
 
-        // 测试 true（不是永假式）
+        // Test whether it is true (it is not a永假式, i.e., a statement that is always false).
         assert!(!rule.is_contradiction(&Expression::Literal(Value::Bool(true))));
 
-        // 测试 null
+        // Testing null
         assert!(rule.is_contradiction(&Expression::Literal(Value::Null(
             crate::core::value::NullType::Null
         ))));
 
-        // 测试 1 = 0
+        // Test 1 = 0
         assert!(rule.is_contradiction(&Expression::Binary {
             left: Box::new(Expression::Literal(Value::Int(1))),
             op: BinaryOperator::Equal,
             right: Box::new(Expression::Literal(Value::Int(0))),
         }));
 
-        // 测试 1 = 1（不是永假式）
+        // Test 1 = 1 (not a永假式, i.e., not a statement that is always false)
         assert!(!rule.is_contradiction(&Expression::Binary {
             left: Box::new(Expression::Literal(Value::Int(1))),
             op: BinaryOperator::Equal,

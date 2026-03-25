@@ -1,23 +1,23 @@
-//! 事务管理模块
+//! Transaction Management Module
 //!
-//! 提供GraphDB的事务管理功能，包括：
-//! - 事务生命周期管理（开始、提交、中止）
-//! - 事务统计与监控
+//! Provides transaction management functionality for GraphDB, including:
+//! - Transaction lifecycle management (start, commit, abort)
+//! - Transaction statistics and monitoring
 //!
-//! ## 使用示例
+//! ## Usage Example
 //!
 //! ```rust
 //! use graphdb::transaction::{TransactionManager, TransactionOptions};
 //!
-//! // 创建事务管理器
+//! // Create transaction manager
 //! let manager = TransactionManager::new(db, Default::default());
 //!
-//! // 开始事务
+//! // Start transaction
 //! let txn_id = manager.begin_transaction(TransactionOptions::default())?;
 //!
-//! // 执行操作...
+//! // Execute operations...
 //!
-//! // 提交事务
+//! // Commit transaction
 //! manager.commit_transaction(txn_id)?;
 //! ```
 
@@ -34,20 +34,20 @@ pub use context::TransactionContext;
 pub use manager::TransactionManager;
 pub use types::*;
 
-/// 事务管理模块版本
+/// Transaction Management Module Version
 pub const VERSION: &str = "1.0.0";
 
-/// 创建默认配置的事务管理器
+/// Create transaction manager with default configuration
 pub fn create_transaction_manager(db: std::sync::Arc<redb::Database>) -> TransactionManager {
     TransactionManager::new(db, TransactionManagerConfig::default())
 }
 
-/// 创建只读事务选项
+/// Create read-only transaction options
 pub fn readonly_options() -> TransactionOptions {
     TransactionOptions::new().read_only()
 }
 
-/// 创建高性能写事务选项（不保证立即持久化）
+/// Create high-performance write transaction options (does not guarantee immediate durability)
 pub fn high_performance_write_options() -> TransactionOptions {
     TransactionOptions::new().with_durability(DurabilityLevel::None)
 }

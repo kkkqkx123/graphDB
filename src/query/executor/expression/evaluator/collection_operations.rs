@@ -1,16 +1,16 @@
-//! 集合操作求值器
+//! Set operation evaluator
 //!
-//! 提供集合类型的求值功能，包括下标访问、范围访问和属性访问
+//! Provide functionality for evaluating collection types, including index access, range access, and property access.
 
 use crate::core::error::ExpressionError;
 use crate::core::value::dataset::List;
 use crate::core::Value;
 
-/// 集合操作求值器
+/// Set operation evaluator
 pub struct CollectionOperationEvaluator;
 
 impl CollectionOperationEvaluator {
-    /// 尝试将 Value 转换为 i64 索引
+    /// Try to convert the Value to an i64 index.
     fn value_to_i64(index: &Value) -> Option<i64> {
         match index {
             Value::Int(i) => Some(*i),
@@ -22,7 +22,7 @@ impl CollectionOperationEvaluator {
         }
     }
 
-    /// 求值下标访问
+    /// Index access for evaluation
     pub fn eval_subscript_access(
         collection: &Value,
         index: &Value,
@@ -78,7 +78,7 @@ impl CollectionOperationEvaluator {
         }
     }
 
-    /// 求值范围访问
+    /// Access to the evaluation range
     pub fn eval_range_access(
         collection: &Value,
         start: Option<&Value>,
@@ -175,7 +175,7 @@ impl CollectionOperationEvaluator {
         }
     }
 
-    /// 求值属性访问
+    /// Access to the evaluation attribute
     pub fn eval_property_access(object: &Value, property: &str) -> Result<Value, ExpressionError> {
         if object.is_null() {
             return Ok(Value::Null(crate::core::value::NullType::Null));
@@ -215,8 +215,8 @@ impl CollectionOperationEvaluator {
         }
     }
 
-    /// 求值属性访问（Attribute运算，用于BinaryOperator::Attribute）
-    /// 将右侧值格式化为字符串作为属性名
+    /// Access to evaluation attributes (Attribute operations, used for BinaryOperator::Attribute)
+    /// Format the value on the right side as a string and use it as the attribute name.
     pub fn eval_attribute_access(
         object: &Value,
         attribute: &Value,

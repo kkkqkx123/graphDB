@@ -1,6 +1,6 @@
-//! 插入操作规划器
+//! Insert Operation Planner
 //!
-//! 处理 INSERT VERTEX 和 INSERT EDGE 语句的查询规划
+//! Query planning for INSERT VERTEX and INSERT EDGE statements
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::YieldColumn;
@@ -19,23 +19,23 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 插入操作规划器
-/// 负责将 INSERT 语句转换为执行计划
+/// Insert Operation Planner
+/// Responsible for converting INSERT statements into execution plans.
 #[derive(Debug, Clone)]
 pub struct InsertPlanner;
 
 impl InsertPlanner {
-    /// 创建新的插入规划器
+    /// Create a new insertion planner.
     pub fn new() -> Self {
         Self
     }
 
-    /// 检查语句是否匹配插入操作
+    /// Check whether the statements match the insertion operations.
     pub fn match_stmt(stmt: &Stmt) -> bool {
         matches!(stmt, Stmt::Insert(_))
     }
 
-    /// 从 Stmt 提取 InsertStmt
+    /// Extract the InsertStmt from the Stmt.
     fn extract_insert_stmt(&self, stmt: &Stmt) -> Result<InsertStmt, PlannerError> {
         match stmt {
             Stmt::Insert(insert_stmt) => Ok(insert_stmt.clone()),
@@ -45,15 +45,15 @@ impl InsertPlanner {
         }
     }
 
-    /// 构建顶点插入信息
-    /// 支持多标签插入
+    /// Constructing vertex insertion information
+    /// Supports the insertion of multiple tags.
     fn build_vertex_insert_info(
         &self,
         space_name: String,
         tags: Vec<crate::query::parser::ast::TagInsertSpec>,
         values: Vec<VertexRow>,
     ) -> Result<VertexInsertInfo, PlannerError> {
-        // 转换标签规范
+        // Please provide the text you would like to have translated, as well as the specific instructions regarding the conversion of tag specifications. I will then assist you with the translation.
         let tag_specs: Vec<TagInsertSpec> = tags
             .into_iter()
             .map(|tag| TagInsertSpec {
@@ -62,8 +62,8 @@ impl InsertPlanner {
             })
             .collect();
 
-        // 将 VertexRow 转换为 (vid, Vec<Vec<Expression>>) 格式
-        // 每个标签对应一个属性值列表
+        // Convert `VertexRow` to the format `(vid, Vec<Vec(Expression>>)`
+        // Each tag corresponds to a list of attribute values.
         let converted_values: Vec<(ContextualExpression, Vec<Vec<ContextualExpression>>)> = values
             .into_iter()
             .map(|row| (row.vid, row.tag_values))
@@ -76,7 +76,7 @@ impl InsertPlanner {
         })
     }
 
-    /// 构建边插入信息
+    /// Constructing edge insertion information
     fn build_edge_insert_info(
         &self,
         space_name: String,
@@ -97,7 +97,7 @@ impl InsertPlanner {
         }
     }
 
-    /// 创建插入结果投影列
+    /// Create columns for projecting the insertion results.
     fn create_yield_columns(
         &self,
         count: usize,
@@ -115,17 +115,17 @@ impl Planner for InsertPlanner {
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        // 获取空间名称
+        // Obtain the space name
         let space_name = qctx
             .rctx()
             .space_name
             .clone()
             .unwrap_or_else(|| "default".to_string());
 
-        // 使用验证信息进行优化规划
+        // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;
 
-        // 检查语义信息
+        // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
             log::debug!("INSERT 引用的标签: {:?}", referenced_tags);
@@ -136,17 +136,17 @@ impl Planner for InsertPlanner {
             log::debug!("INSERT 引用的边类型: {:?}", referenced_edges);
         }
 
-        // 提取 INSERT 语句
+        // Extract the INSERT statement
         let insert_stmt = self.extract_insert_stmt(validated.stmt())?;
 
-        // 创建参数节点
+        // Create a Parameter Node
         let arg_node = ArgumentNode::new(next_node_id(), "insert_args");
 
-        // 根据 INSERT 目标类型创建相应的插入节点
+        // Create the corresponding insertion nodes based on the type of the INSERT target.
         let (insert_node, inserted_count) = match &insert_stmt.target {
             InsertTarget::Vertices { tags, values } => {
                 let count = values.len();
-                // 支持多标签插入
+                // Supports the insertion of multiple tags.
                 if tags.is_empty() {
                     return Err(PlannerError::PlanGenerationFailed(
                         "INSERT VERTEX must specify at least one tag".to_string(),
@@ -178,7 +178,7 @@ impl Planner for InsertPlanner {
             }
         };
 
-        // 创建投影节点来返回插入结果
+        // Create a projection node to return the insertion results.
         let yield_columns = self.create_yield_columns(inserted_count, validated.ast.expr_context());
 
         let project_node = ProjectNode::new(insert_node, yield_columns).map_err(|e| {
@@ -187,7 +187,7 @@ impl Planner for InsertPlanner {
 
         let final_node = PlanNodeEnum::Project(project_node);
 
-        // 创建 SubPlan
+        // Create a SubPlan
         let sub_plan = SubPlan::new(Some(final_node), Some(PlanNodeEnum::Argument(arg_node)));
 
         Ok(sub_plan)
@@ -237,7 +237,7 @@ mod tests {
         Arc::new(QueryContext::default())
     }
 
-    // 辅助函数：创建常量表达式
+    // Auxiliary function: Creating constant expressions
     fn lit(val: Value) -> ContextualExpression {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         ExprFactory::constant(val, ctx)
@@ -394,7 +394,7 @@ mod tests {
         let ast = create_test_stmt_with_insert(target);
         let qctx = create_test_qctx();
 
-        // 创建验证后的语句
+        // Create a verified statement.
         let validation_info = ValidationInfo::new();
         let validated = ValidatedStatement::new(ast, validation_info);
 
@@ -420,7 +420,7 @@ mod tests {
         let ast = create_test_stmt_with_insert(target);
         let qctx = create_test_qctx();
 
-        // 创建验证后的语句
+        // Create a verified statement.
         let validation_info = ValidationInfo::new();
         let validated = ValidatedStatement::new(ast, validation_info);
 
@@ -441,7 +441,7 @@ mod tests {
         let ctx = Arc::new(ExpressionAnalysisContext::new());
         let ast = Arc::new(Ast::new(stmt, ctx));
 
-        // 创建验证后的语句
+        // Create a verified statement.
         let validation_info = ValidationInfo::new();
         let validated = ValidatedStatement::new(ast, validation_info);
 

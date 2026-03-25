@@ -1,11 +1,11 @@
-//! GO语句规划器
-//! 处理Nebula GO查询的规划
+//! GO Statement Planner
+//! Planning for handling Nebula GO queries
 //!
-//! ## 改进说明
+//! ## Improvement Notes
 //!
-//! - 实现完整的表达式过滤逻辑
-//! - 改进 JOIN 键处理
-//! - 添加属性投影支持
+//! Implement the complete logic for filtering expressions.
+//! Improving the handling of JOIN operations
+//! - Add support for attribute projection.
 
 use crate::core::types::{ContextualExpression, EdgeDirection};
 use crate::query::parser::ast::{GoStmt, Stmt};
@@ -21,13 +21,13 @@ pub use crate::query::planning::plan::core::nodes::{
 };
 pub use crate::query::planning::plan::core::PlanNodeEnum;
 
-/// GO查询规划器
-/// 负责将GO语句转换为执行计划
+/// GO Query Planner
+/// Responsible for converting GO statements into execution plans.
 #[derive(Debug, Clone)]
 pub struct GoPlanner {}
 
 impl GoPlanner {
-    /// 创建新的GO规划器
+    /// Create a new GO planner.
     pub fn new() -> Self {
         Self {}
     }
@@ -50,15 +50,15 @@ impl Planner for GoPlanner {
             }
         };
 
-        // 使用验证信息进行优化规划
+        // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;
 
-        // 1. 检查优化提示
+        // 1. Check the optimization suggestions.
         for hint in &validation_info.optimization_hints {
             log::debug!("GO 优化提示: {:?}", hint);
         }
 
-        // 2. 使用路径分析信息
+        // 2. Use the path analysis information
         for path_analysis in &validation_info.path_analysis {
             if path_analysis.edge_count > 5 {
                 log::warn!(
@@ -68,7 +68,7 @@ impl Planner for GoPlanner {
             }
         }
 
-        // 3. 使用语义信息
+        // 3. Use semantic information
         let referenced_edges = &validation_info.semantic_info.referenced_edges;
         if !referenced_edges.is_empty() {
             log::debug!("GO 引用的边类型: {:?}", referenced_edges);
@@ -132,7 +132,7 @@ impl Planner for GoPlanner {
 }
 
 impl GoPlanner {
-    /// 构建YIELD列
+    /// Create the YIELD column
     fn build_yield_columns(
         go_stmt: &GoStmt,
         expr_context: &Arc<ExpressionAnalysisContext>,

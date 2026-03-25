@@ -1,5 +1,5 @@
-//! 表达式检查工具
-//! 负责验证表达式的操作合法性和结构完整性
+//! Expression checking tool
+//! Responsible for verifying the operational validity and structural integrity of expressions.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -563,7 +563,7 @@ mod tests {
     #[test]
     fn test_expression_checker_creation() {
         let _checker = ExpressionChecker::new();
-        // 测试通过到达此处即表示成功
+        // If the test is successful and you have reached this point, it means that everything has gone as planned.
     }
 
     #[test]

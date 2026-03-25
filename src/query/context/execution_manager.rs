@@ -1,26 +1,26 @@
-//! 查询执行管理器
+//! Query Execution Manager
 //!
-//! 管理查询执行过程中的执行计划和终止信号。
+//! Manage the execution plan and termination signals during the execution of queries.
 
 use crate::query::planning::plan::ExecutionPlan;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// 查询执行管理器
+/// Query Execution Manager
 ///
-/// 管理查询执行过程中的关键信息，包括：
-/// - 执行计划
-/// - 是否被终止
-/// - 其他执行相关的管理功能
+/// Manage critical information during the execution of queries, including:
+/// Execute the plan.
+/// - Was it terminated?
+/// Other management functions related to the execution of tasks.
 pub struct QueryExecutionManager {
-    /// 执行计划
+    /// Execution Plan
     plan: Option<Box<ExecutionPlan>>,
 
-    /// 是否被标记为已终止
+    /// Has it been marked as terminated?
     killed: AtomicBool,
 }
 
 impl QueryExecutionManager {
-    /// 创建新的执行管理器
+    /// Create a new Execution Manager.
     pub fn new() -> Self {
         Self {
             plan: None,
@@ -28,33 +28,33 @@ impl QueryExecutionManager {
         }
     }
 
-    /// 获取执行计划
+    /// Obtain the execution plan
     pub fn plan(&self) -> Option<ExecutionPlan> {
         self.plan.as_ref().map(|p| *p.clone())
     }
 
-    /// 设置执行计划
+    /// Setting up the execution plan
     pub fn set_plan(&mut self, plan: ExecutionPlan) {
         self.plan = Some(Box::new(plan));
     }
 
-    /// 获取执行计划 ID
+    /// Obtain the execution plan ID
     pub fn plan_id(&self) -> Option<i64> {
         self.plan.as_ref().map(|p| p.id)
     }
 
-    /// 标记为已终止
+    /// Marked as terminated
     pub fn mark_killed(&self) {
         self.killed.store(true, Ordering::SeqCst);
         log::info!("Query execution manager marked as killed");
     }
 
-    /// 检查是否被终止
+    /// Check whether it was terminated.
     pub fn is_killed(&self) -> bool {
         self.killed.load(Ordering::SeqCst)
     }
 
-    /// 重置执行管理器
+    /// Reset the Execution Manager
     pub fn reset(&mut self) {
         self.plan = None;
         self.killed.store(false, Ordering::SeqCst);

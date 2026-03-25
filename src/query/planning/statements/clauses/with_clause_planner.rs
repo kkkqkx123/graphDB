@@ -1,13 +1,13 @@
-//! WITH 子句规划器
+//! The WITH clause planner
 //!
-//! 负责规划 WITH 子句的执行，是数据流的转换点。
+//! It is responsible for planning the execution of the WITH clause and serves as a point of transformation in the data flow.
 //!
-//! WITH 子句的功能：
-//! 1. 投影：选择并可能重命名输出列
-//! 2. 过滤：通过 WHERE 子句过滤结果
-//! 3. 排序：通过 ORDER BY 对结果排序
-//! 4. 分页：通过 SKIP/LIMIT 限制结果数量
-//! 5. 作用域重置：只保留输出的变量，其他变量不可见
+//! The function of the WITH clause:
+//! Projection: Select the output columns and, if necessary, rename them.
+//! 2. Filtering: The results are filtered using the WHERE clause.
+//! 3. Sorting: Sort the results using the ORDER BY clause.
+//! 4. Pagination: The number of results can be limited using the SKIP/LIMIT parameters.
+//! 5. Scope reset: Only the variables that are output are retained; all other variables become invisible.
 
 use crate::core::types::expr::common_utils::extract_group_info;
 use crate::core::YieldColumn;
@@ -23,25 +23,25 @@ use crate::query::QueryContext;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// WITH 子句规划器
+/// WITH clause planner
 #[derive(Debug)]
 pub struct WithClausePlanner {}
 
 impl WithClausePlanner {
-    /// 创建新的 WITH 子句规划器
+    /// Create a new planner for the WITH clause.
     pub fn new() -> Self {
         Self {}
     }
 
-    /// 规划 WITH 子句
+    /// Planning with the WITH clause
     ///
-    /// # 参数
-    /// - `with_ctx`: WITH 子句上下文，包含投影列、WHERE条件、排序、分页等信息
-    /// - `input_plan`: 输入计划
+    /// # Parameters
+    /// `with_ctx`: The context of the WITH clause, which includes information such as the projected columns, WHERE conditions, sorting criteria, and pagination options.
+    /// `input_plan`: Input plan
     ///
-    /// # 返回
-    /// - 成功：生成的子计划
-    /// - 失败：规划错误
+    /// # Return
+    /// Success: The generated sub-plan has been successfully created.
+    /// Failure: Incorrect planning.
     pub fn plan_with_clause(
         &self,
         with_ctx: &WithClauseContext,
@@ -49,14 +49,14 @@ impl WithClausePlanner {
     ) -> Result<SubPlan, PlannerError> {
         let mut current_plan = input_plan.clone();
 
-        // 1. 构建投影节点（如果有具体的输出列）
+        // 1. Construct the projection node (if there are specific output columns).
         if !with_ctx.yield_clause.yield_columns.is_empty() {
             let project_node =
                 self.create_project_node(&current_plan, &with_ctx.yield_clause.yield_columns)?;
             current_plan = SubPlan::new(Some(project_node), current_plan.tail.clone());
         }
 
-        // 2. 处理 WHERE 条件过滤
+        // 2. Processing the WHERE clause for filtering data
         if let Some(ref where_ctx) = with_ctx.where_clause {
             if let Some(ref filter) = where_ctx.filter {
                 let filter_node = self.create_filter_node(&current_plan, filter)?;
@@ -64,17 +64,17 @@ impl WithClausePlanner {
             }
         }
 
-        // 3. 处理 ORDER BY 排序
+        // 3. Handling the ORDER BY sorting
         if let Some(ref order_by_ctx) = with_ctx.order_by {
             current_plan = self.apply_order_by(current_plan, order_by_ctx)?;
         }
 
-        // 4. 处理分页（SKIP/LIMIT）
+        // 4. Handling pagination (SKIP/LIMIT)
         if let Some(ref pagination) = with_ctx.pagination {
             current_plan = self.apply_pagination(current_plan, pagination)?;
         }
 
-        // 5. 处理 DISTINCT（去重）
+        // 5. Handling DISTINCT (removing duplicates)
         if with_ctx.distinct {
             current_plan = self.apply_distinct(current_plan)?;
         }
@@ -82,7 +82,7 @@ impl WithClausePlanner {
         Ok(current_plan)
     }
 
-    /// 创建投影节点
+    /// Create a projection node.
     fn create_project_node(
         &self,
         input_plan: &SubPlan,
@@ -98,7 +98,7 @@ impl WithClausePlanner {
             .map(PlanNodeEnum::Project)
     }
 
-    /// 创建过滤节点
+    /// Create a filter node.
     fn create_filter_node(
         &self,
         input_plan: &SubPlan,
@@ -114,9 +114,9 @@ impl WithClausePlanner {
             .map(PlanNodeEnum::Filter)
     }
 
-    /// 应用 ORDER BY 排序
+    /// Use the ORDER BY clause to sort the data.
     ///
-    /// 将 OrderByClauseContext 中的索引排序因子转换为排序字段名和方向
+    /// Convert the sorting factors in the OrderByClauseContext into the names of the sorting fields and the direction of sorting.
     fn apply_order_by(
         &self,
         input_plan: SubPlan,
@@ -127,12 +127,12 @@ impl WithClausePlanner {
             .as_ref()
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
-        // 获取输入节点的列名
+        // Obtain the column names of the input node.
         let col_names = input_node.col_names();
 
-        // 将索引排序因子转换为排序项（包含列名和方向）
-        // 注意：这里假设索引对应于列名列表中的位置
-        // 如果索引超出范围，使用占位符名称
+        // Convert the index sorting factor into sorting items (which include column names and the direction of sorting).
+        // It is assumed that the indices correspond to the positions in the list of column names.
+        // If the index is out of range, use a placeholder name.
         let sort_items: Vec<crate::query::planning::plan::core::nodes::SortItem> = order_by_ctx
             .indexed_order_factors
             .iter()
@@ -146,11 +146,11 @@ impl WithClausePlanner {
             .collect();
 
         if sort_items.is_empty() {
-            // 如果没有有效的排序项，直接返回输入计划
+            // If there are no valid sorting criteria, simply return the input plan as is.
             return Ok(input_plan);
         }
 
-        // 创建排序节点
+        // Create a sorting node.
         let sort_node = crate::query::planning::plan::core::nodes::SortNode::new(
             input_node.clone(),
             sort_items,
@@ -163,7 +163,7 @@ impl WithClausePlanner {
         ))
     }
 
-    /// 应用分页
+    /// Application pagination
     fn apply_pagination(
         &self,
         input_plan: SubPlan,
@@ -183,14 +183,14 @@ impl WithClausePlanner {
         ))
     }
 
-    /// 应用 DISTINCT（去重）
+    /// Using the DISTINCT keyword (to remove duplicates)
     fn apply_distinct(&self, input_plan: SubPlan) -> Result<SubPlan, PlannerError> {
         let input_node = input_plan
             .root()
             .as_ref()
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
-        // 创建去重节点（使用 AggregateNode 的简化版本）
+        // Create a deduplication node (using a simplified version of AggregateNode)
         let dedup_node = crate::query::planning::plan::core::nodes::DedupNode::new(
             input_node.clone(),
         )
@@ -220,14 +220,14 @@ impl ClausePlanner for WithClausePlanner {
 }
 
 impl WithClausePlanner {
-    /// 从语句中提取 WITH 子句上下文
+    /// Extract the context of the WITH clause from the sentence.
     ///
-    /// 完善后的实现包括：
-    /// - 从 Stmt::With 提取完整的 WITH 子句信息
-    /// - 构建 YieldClauseContext
-    /// - 处理 ORDER BY 和分页
-    /// - 收集别名信息
-    /// - 处理聚合表达式和分组键
+    /// The improved implementation includes:
+    /// Extract the complete information of the WITH clause from Stmt::With.
+    /// Constructing the YieldClauseContext
+    /// - Handling ORDER BY and pagination
+    /// Collecting information about aliases
+    /// Handling aggregate expressions and grouping keys
     fn extract_with_context(stmt: &Stmt) -> Result<WithClauseContext, PlannerError> {
         use crate::core::YieldColumn;
         use crate::query::parser::ast::Stmt;
@@ -244,7 +244,7 @@ impl WithClausePlanner {
             }
         };
 
-        // 转换 ReturnItem 到 YieldColumn
+        // Convert `ReturnItem` to `YieldColumn`
         let mut yield_columns = Vec::new();
         let mut has_agg = false;
         let mut aliases_generated = HashMap::new();
@@ -262,7 +262,7 @@ impl WithClausePlanner {
                         is_matched: false,
                     });
 
-                    // 收集生成的别名
+                    // Collect the generated aliases.
                     if !col_alias.is_empty() && col_alias != "*" {
                         let alias_type = Self::deduce_alias_type(expression);
                         aliases_generated.insert(col_alias, alias_type);
@@ -275,14 +275,14 @@ impl WithClausePlanner {
             }
         }
 
-        // 提取分组键和聚合项
+        // Extract the group keys and the aggregation items.
         let (group_keys, group_items) = if has_agg {
             extract_group_info(&yield_columns)
         } else {
             (vec![], vec![])
         };
 
-        // 构建 ORDER BY 上下文
+        // Constructing the context for the ORDER BY clause
         let order_by = with_stmt
             .order_by
             .as_ref()
@@ -295,7 +295,7 @@ impl WithClausePlanner {
                     .collect(),
             });
 
-        // 构建分页上下文
+        // Building the pagination context
         let pagination = if with_stmt.skip.is_some() || with_stmt.limit.is_some() {
             Some(PaginationContext {
                 skip: with_stmt.skip.unwrap_or(0) as i64,
@@ -305,10 +305,10 @@ impl WithClausePlanner {
             None
         };
 
-        // 构建 YieldClauseContext
+        // Constructing a YieldClauseContext
         let yield_clause = YieldClauseContext {
             yield_columns: yield_columns.clone(),
-            aliases_available: HashMap::new(), // 从输入计划获取的别名在规划阶段填充
+            aliases_available: HashMap::new(), // The aliases obtained from the input plan are filled in during the planning phase.
             aliases_generated: aliases_generated.clone(),
             distinct: with_stmt.distinct,
             has_agg,
@@ -328,7 +328,7 @@ impl WithClausePlanner {
 
         Ok(WithClauseContext {
             yield_clause,
-            aliases_available: HashMap::new(), // 从输入计划获取的别名在规划阶段填充
+            aliases_available: HashMap::new(), // The aliases obtained from the input plan are filled in during the planning phase.
             aliases_generated,
             where_clause: with_stmt.where_clause.clone().map(|condition| {
                 crate::query::validator::structs::WhereClauseContext {
@@ -348,21 +348,21 @@ impl WithClausePlanner {
         })
     }
 
-    /// 推断别名类型
+    /// Determine the type of alias
     ///
-    /// 根据表达式推断别名类型
-    /// 参考 NebulaGraph 的 DeduceAliasTypeVisitor 实现
+    /// Determine the alias type based on the expression.
+    /// Refer to the implementation of DeduceAliasTypeVisitor in NebulaGraph.
     fn deduce_alias_type(
         expression: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> AliasType {
         Self::deduce_alias_type_from_contextual(expression)
     }
 
-    /// 从 ContextualExpression 推断别名类型（辅助方法）
+    /// Infer the alias type from the ContextualExpression (auxiliary method)
     fn deduce_alias_type_from_contextual(
         expression: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> AliasType {
-        // 大多数表达式无法推断类型，默认返回 Runtime
+        // For most expressions, it is not possible to determine their type; therefore, the default value returned is “Runtime”.
         if expression.is_literal()
             || expression.is_unary()
             || expression.is_type_cast()
@@ -379,23 +379,23 @@ impl WithClausePlanner {
             return AliasType::Runtime;
         }
 
-        // 变量引用 - 默认返回 Variable，实际类型需要从 aliases_available 中获取
+        // Variable reference: By default, the Variable is returned; the actual type must be obtained from aliases_available.
         if expression.is_variable() {
             return AliasType::Variable;
         }
 
-        // 属性访问 - 尝试从对象推断类型
+        // Property access – Attempting to infer the type of an object from its properties
         if expression.is_property() {
-            // 属性访问的类型无法直接推断，需要从 aliases_available 中获取
+            // The type of attribute access cannot be determined directly; it is necessary to obtain this information from the `aliases_available` source.
             return AliasType::Runtime;
         }
 
-        // 路径构建表达式
+        // Path construction expressions
         if expression.is_path_build() || expression.is_path() {
             return AliasType::Path;
         }
 
-        // 函数调用 - 根据函数名推断类型
+        // Function call – Inferring the type based on the function name
         if let Some(name) = expression.as_function_name() {
             let name_lower = name.to_lowercase();
             match name_lower.as_str() {
@@ -407,22 +407,22 @@ impl WithClausePlanner {
             }
         }
 
-        // 下标访问 - 递归推断集合类型
+        // Subscript access – Recursive inference of set types
         if expression.is_subscript() {
-            // 下标访问的类型无法直接推断，需要从 aliases_available 中获取
+            // The type of access via the subscript cannot be determined directly; it is necessary to obtain this information from the `aliases_available` list.
             return AliasType::Runtime;
         }
 
-        // 范围表达式 - 递归推断集合类型
+        // Range expressions – Recursive inference of set types
         if expression.is_range() {
-            // 范围表达式的类型无法直接推断，需要从 aliases_available 中获取
+            // The type of the range expression cannot be determined directly; it is necessary to obtain the information from `aliases_available`.
             return AliasType::Runtime;
         }
 
         AliasType::Runtime
     }
 
-    /// 生成默认别名
+    /// Generate default aliases
     fn generate_default_alias(
         expression: &crate::core::types::expr::contextual::ContextualExpression,
     ) -> String {

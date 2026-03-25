@@ -7,14 +7,14 @@ use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::parsing::stmt_parser::StmtParser;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
-/// Parser 解析结果，包含 AST（语句 + 表达式上下文）
+/// Parser analysis results, including the AST (Statement + Expression Context).
 ///
-/// # 重构变更
-/// - 使用 Arc<Ast> 替代分开的 stmt 和 expr_context
-/// - Ast 包含 Stmt 和 ExpressionAnalysisContext
+/// # Refactoring changes
+/// Replace the separate `stmt` and `expr_context` with `Arc<Ast>`.
+/// The `Ast` class contains both `Stmt` and `ExpressionAnalysisContext` objects.
 #[derive(Debug, Clone)]
 pub struct ParserResult {
-    /// 解析后的 AST（使用 Arc 共享所有权）
+    /// Parsed AST (using Arc for shared ownership)
     pub ast: Arc<Ast>,
 }
 
@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
         stmt_parser.parse_statement(&mut self.ctx)
     }
 
-    /// 解析表达式并返回 ContextualExpression
+    /// Parse the expression and return the ContextualExpression.
     pub fn parse_expression_contextual(
         &mut self,
     ) -> Result<ContextualExpression, crate::query::parser::core::error::ParseError> {
@@ -77,12 +77,12 @@ impl<'a> Parser<'a> {
         expr_parser.parse_expression_with_context(&mut self.ctx, self.expr_context.clone())
     }
 
-    /// 获取表达式上下文
+    /// Obtain the context of the expression.
     pub fn expression_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expr_context
     }
 
-    /// 获取表达式上下文的克隆
+    /// Obtain a clone of the context in which the expression is used.
     pub fn expression_context_clone(&self) -> Arc<ExpressionAnalysisContext> {
         self.expr_context.clone()
     }

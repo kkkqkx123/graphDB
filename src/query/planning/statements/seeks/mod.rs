@@ -1,6 +1,6 @@
-//! 查找策略模块
+//! Search Strategy Module
 //!
-//! 定义顶点查找策略和选择器，用于 MATCH 查询中确定起始顶点的查找方式
+//! Define vertex search strategies and selectors to determine the method for finding the starting vertex in MATCH queries.
 
 pub mod edge_seek;
 pub mod index_seek;

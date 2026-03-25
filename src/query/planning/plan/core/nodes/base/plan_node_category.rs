@@ -1,30 +1,30 @@
-//! 计划节点分类定义
+//! Definition of Plan Node Classification
 //!
-//! 根据功能特性对 PlanNode 进行分类，便于优化器决策和代码组织
+//! Classify PlanNodes based on their functional characteristics to facilitate decision-making by the optimizer and to improve the organization of the code.
 
-/// 计划节点分类枚举
+/// Plan node classification enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanNodeCategory {
-    /// 访问层 - 从存储层读取数据
+    /// Access layer – Reads data from the storage layer
     Access,
-    /// 操作层 - 数据转换和过滤
+    /// Operation Layer – Data Conversion and Filtering
     Operation,
-    /// 连接层 - 多数据流连接
+    /// Connection layers – Multi-data stream connections
     Join,
-    /// 遍历层 - 图遍历和扩展
+    /// Traversal layer – Image traversal and expansion
     Traversal,
-    /// 控制流层 - 执行流程控制
+    /// Controlling the stratosphere – Managing the execution of processes
     ControlFlow,
-    /// 数据处理层 - 复杂数据操作
+    /// Data processing layer – Complex data operations
     DataProcessing,
-    /// 算法层 - 图算法执行
+    /// Algorithm Layer – Execution of Graph Algorithms
     Algorithm,
-    /// 管理/DDL层 - 元数据管理
+    /// Management/DDL Layer – Metadata Management
     Management,
 }
 
 impl PlanNodeCategory {
-    /// 获取分类名称
+    /// Obtain the category names
     pub fn name(&self) -> &'static str {
         match self {
             PlanNodeCategory::Access => "Access",
@@ -38,7 +38,7 @@ impl PlanNodeCategory {
         }
     }
 
-    /// 获取中文描述
+    /// Please provide the text that needs to be translated into Chinese.
     pub fn description(&self) -> &'static str {
         match self {
             PlanNodeCategory::Access => "访问层 - 从存储层读取数据",
@@ -52,12 +52,12 @@ impl PlanNodeCategory {
         }
     }
 
-    /// 判断是否为叶子节点（无数据依赖）
+    /// Determine whether it is a leaf node (with no data dependencies).
     pub fn is_leaf(&self) -> bool {
         matches!(self, PlanNodeCategory::Access)
     }
 
-    /// 判断是否为根节点（无下游依赖）
+    /// Determine whether it is a root node (with no downstream dependencies).
     pub fn is_root(&self) -> bool {
         matches!(
             self,
@@ -65,7 +65,7 @@ impl PlanNodeCategory {
         )
     }
 
-    /// 判断是否支持并行执行
+    /// Determine whether parallel execution is supported.
     pub fn supports_parallelism(&self) -> bool {
         matches!(
             self,

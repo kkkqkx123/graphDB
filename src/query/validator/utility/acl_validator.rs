@@ -1,11 +1,11 @@
-//! 权限控制类语句验证器
-//! 对应 NebulaGraph ACLValidator 的功能
-//! 验证 CREATE USER, DROP USER, ALTER USER, GRANT, REVOKE 等权限类语句
+//! Permission control class statement validator
+//! Corresponding to the functionality of NebulaGraph ACLValidator
+//! Verify statements related to privilege management, such as CREATE USER, DROP USER, ALTER USER, GRANT, and REVOKE.
 //!
-//! 设计原则：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 所有权限类语句都是全局语句，不需要预先选择空间
-//! 3. 验证用户存在性和角色合法性
+//! Design principles:
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. All statements related to permission classes are global in nature; there is no need to pre-select a specific scope (i.e., a specific “space” in the programming context) for them.
+//! 3. Verify the user's existence and the legitimacy of their role.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{
@@ -19,14 +19,14 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 验证后的用户信息
+/// Verified user information
 #[derive(Debug, Clone)]
 pub struct ValidatedUser {
     pub username: String,
     pub role: Option<String>,
 }
 
-/// CREATE USER 语句验证器
+/// CREATE USER statement validator
 #[derive(Debug)]
 pub struct CreateUserValidator {
     username: String,
@@ -62,7 +62,7 @@ impl CreateUserValidator {
         self.role = stmt.role.clone();
         self.if_not_exists = stmt.if_not_exists;
 
-        // 验证用户名非空
+        // Verify that the username is not empty.
         if self.username.is_empty() {
             return Err(ValidationError::new(
                 "Username cannot be empty".to_string(),
@@ -70,7 +70,7 @@ impl CreateUserValidator {
             ));
         }
 
-        // 验证密码非空
+        // The password must not be empty.
         if self.password.is_empty() {
             return Err(ValidationError::new(
                 "Password cannot be empty".to_string(),
@@ -78,7 +78,7 @@ impl CreateUserValidator {
             ));
         }
 
-        // 验证角色合法性
+        // Verify the legitimacy of the role
         if let Some(ref role) = self.role {
             Self::validate_role(role)?;
         }
@@ -104,10 +104,10 @@ impl CreateUserValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method takes `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for CreateUserValidator {
     fn validate(
         &mut self,
@@ -162,7 +162,7 @@ impl Default for CreateUserValidator {
     }
 }
 
-/// DROP USER 语句验证器
+/// DROP USER statement validator
 #[derive(Debug)]
 pub struct DropUserValidator {
     username: String,
@@ -192,7 +192,7 @@ impl DropUserValidator {
         self.username = stmt.username.clone();
         self.if_exists = stmt.if_exists;
 
-        // 验证用户名非空
+        // Verify that the username is not empty.
         if self.username.is_empty() {
             return Err(ValidationError::new(
                 "Username cannot be empty".to_string(),
@@ -269,7 +269,7 @@ impl Default for DropUserValidator {
     }
 }
 
-/// ALTER USER 语句验证器
+/// ALTER USER statement validator
 #[derive(Debug)]
 pub struct AlterUserValidator {
     username: String,
@@ -305,7 +305,7 @@ impl AlterUserValidator {
         self.new_role = stmt.new_role.clone();
         self.is_locked = stmt.is_locked;
 
-        // 验证用户名非空
+        // Verify that the username is not empty.
         if self.username.is_empty() {
             return Err(ValidationError::new(
                 "Username cannot be empty".to_string(),
@@ -313,7 +313,7 @@ impl AlterUserValidator {
             ));
         }
 
-        // 验证至少有一个修改项
+        // Verify that there is at least one modification.
         if self.password.is_none() && self.new_role.is_none() && self.is_locked.is_none() {
             return Err(ValidationError::new(
                 "At least one modification is required".to_string(),
@@ -321,7 +321,7 @@ impl AlterUserValidator {
             ));
         }
 
-        // 验证角色合法性
+        // Verify the legitimacy of the role
         if let Some(ref role) = self.new_role {
             CreateUserValidator::validate_role(role)?;
         }
@@ -395,7 +395,7 @@ impl Default for AlterUserValidator {
     }
 }
 
-/// CHANGE PASSWORD 语句验证器
+/// CHANGE PASSWORD statement validator
 #[derive(Debug)]
 pub struct ChangePasswordValidator {
     username: Option<String>,
@@ -428,7 +428,7 @@ impl ChangePasswordValidator {
         self.old_password = stmt.old_password.clone();
         self.new_password = stmt.new_password.clone();
 
-        // 验证旧密码非空
+        // Verify that the old password is not empty.
         if self.old_password.is_empty() {
             return Err(ValidationError::new(
                 "Old password cannot be empty".to_string(),
@@ -436,7 +436,7 @@ impl ChangePasswordValidator {
             ));
         }
 
-        // 验证新密码非空
+        // Verify that the new password is not empty.
         if self.new_password.is_empty() {
             return Err(ValidationError::new(
                 "New password cannot be empty".to_string(),
@@ -444,7 +444,7 @@ impl ChangePasswordValidator {
             ));
         }
 
-        // 验证新旧密码不同
+        // Verify that the new password is different from the old one.
         if self.old_password == self.new_password {
             return Err(ValidationError::new(
                 "New password must be different from old password".to_string(),
@@ -516,7 +516,7 @@ impl Default for ChangePasswordValidator {
     }
 }
 
-/// 验证后的权限信息
+/// Verified permission information
 #[derive(Debug, Clone)]
 pub struct ValidatedGrant {
     pub role: RoleType,
@@ -524,7 +524,7 @@ pub struct ValidatedGrant {
     pub username: String,
 }
 
-/// GRANT 语句验证器
+/// The GRANT statement validator
 #[derive(Debug)]
 pub struct GrantValidator {
     role: RoleType,
@@ -557,7 +557,7 @@ impl GrantValidator {
         self.space_name = stmt.space_name.clone();
         self.username = stmt.username.clone();
 
-        // 验证空间名非空
+        // Verify that the space name is not empty.
         if self.space_name.is_empty() {
             return Err(ValidationError::new(
                 "Space name cannot be empty".to_string(),
@@ -565,7 +565,7 @@ impl GrantValidator {
             ));
         }
 
-        // 验证用户名非空
+        // Verify that the username is not empty.
         if self.username.is_empty() {
             return Err(ValidationError::new(
                 "Username cannot be empty".to_string(),
@@ -643,7 +643,7 @@ impl Default for GrantValidator {
     }
 }
 
-/// REVOKE 语句验证器
+/// REVOKE statement validator
 #[derive(Debug)]
 pub struct RevokeValidator {
     role: RoleType,
@@ -676,7 +676,7 @@ impl RevokeValidator {
         self.space_name = stmt.space_name.clone();
         self.username = stmt.username.clone();
 
-        // 验证空间名非空
+        // Verify that the space name is not empty.
         if self.space_name.is_empty() {
             return Err(ValidationError::new(
                 "Space name cannot be empty".to_string(),
@@ -684,7 +684,7 @@ impl RevokeValidator {
             ));
         }
 
-        // 验证用户名非空
+        // Verify that the username is not empty.
         if self.username.is_empty() {
             return Err(ValidationError::new(
                 "Username cannot be empty".to_string(),
@@ -762,7 +762,7 @@ impl Default for RevokeValidator {
     }
 }
 
-/// DESCRIBE USER 语句验证器
+/// “DESCRIBE USER” statement validator
 #[derive(Debug)]
 pub struct DescribeUserValidator {
     username: String,
@@ -795,7 +795,7 @@ impl DescribeUserValidator {
     fn validate_impl(&mut self, stmt: &DescribeUserStmt) -> Result<(), ValidationError> {
         self.username = stmt.username.clone();
 
-        // 验证用户名非空
+        // Verify that the username is not empty.
         if self.username.is_empty() {
             return Err(ValidationError::new(
                 "Username cannot be empty".to_string(),
@@ -865,7 +865,7 @@ impl Default for DescribeUserValidator {
     }
 }
 
-/// SHOW USERS 语句验证器
+/// SHOW USERS Statement Validator
 #[derive(Debug)]
 pub struct ShowUsersValidator {
     inputs: Vec<ColumnDef>,
@@ -952,7 +952,7 @@ impl Default for ShowUsersValidator {
     }
 }
 
-/// SHOW ROLES 语句验证器
+/// SHOW ROLES statement validator
 #[derive(Debug)]
 pub struct ShowRolesValidator {
     space_name: Option<String>,

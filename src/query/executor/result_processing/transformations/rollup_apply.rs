@@ -1,6 +1,6 @@
-//! RollUpApplyExecutor实现
+//! Implementation of RollUpApplyExecutor
 //!
-//! 负责处理聚合操作，将右输入中的值根据左输入的键进行聚合
+//! Responsible for handling aggregation operations, which involve aggregating the values from the right input based on the keys from the left input.
 
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -17,8 +17,8 @@ use crate::query::executor::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::expression::DefaultExpressionContext;
 use crate::storage::StorageClient;
 
-/// RollUpApply执行器
-/// 用于将右输入中的值根据左输入的键进行聚合
+/// RollUpApply executor
+/// Used to aggregate the values from the right input based on the keys from the left input.
 pub struct RollUpApplyExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     left_input_var: String,

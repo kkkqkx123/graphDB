@@ -1,6 +1,6 @@
-//! 扫描查找策略
+//! Scan and Search Strategy
 //!
-//! 全表扫描策略，作为无法使用索引时的回退方案
+//! The “full table scan” strategy serves as a backup option when indexes cannot be used.
 
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{NodePattern, SeekResult, SeekStrategyContext, SeekStrategyType};
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn test_scan_seek_new() {
         let _seek = ScanSeek::new();
-        // 测试通过到达此处即表示成功
+        // The test has been successful; reaching this point indicates that the goal has been achieved.
     }
 
     #[test]

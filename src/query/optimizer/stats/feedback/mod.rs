@@ -1,16 +1,16 @@
-//! 运行时统计反馈模块
+//! Runtime statistics feedback module
 //!
-//! 提供轻量级的执行反馈收集机制，用于动态调整选择性估计模型。
+//! Provide a lightweight mechanism for collecting execution feedback, which can be used to dynamically adjust selective estimation models.
 //! 使用指数加权移动平均(EWMA)算法校正选择性估计。
 //!
-//! ## 模块结构
+//! ## Module Structure
 //!
-//! - `fingerprint` - 查询指纹生成和归一化
-//! - `collector` - 执行反馈收集器
-//! - `trigger` - 自动反馈触发机制
-//! - `selectivity` - 选择性校正和管理
-//! - `query` - 查询执行反馈结构
-//! - `history` - 查询反馈历史管理
+//! “Fingerprint” – Refers to the process of generating and normalizing fingerprints (digital representations of unique patterns).
+//! “Collector” – The component responsible for executing the feedback collection process.
+//! “Trigger” – A mechanism for automatically triggering feedback.
+//! “Selectivity” refers to the process of carefully selecting and applying appropriate corrections or measures in a targeted manner. In other words, it involves managing various factors or elements in a way that is tailored to achieve specific goals or outcomes.
+//! `query` – The structure that contains feedback regarding the execution of the query.
+//! “History” – Querying the feedback history management system.
 
 pub mod collector;
 pub mod fingerprint;
@@ -19,7 +19,7 @@ pub mod query;
 pub mod selectivity;
 pub mod trigger;
 
-// 重新导出主要类型，保持向后兼容
+// Re-export the main types while maintaining backward compatibility.
 pub use collector::ExecutionFeedbackCollector;
 pub use fingerprint::{generate_query_fingerprint, normalize_query};
 pub use history::QueryFeedbackHistory;
@@ -33,7 +33,7 @@ mod tests {
 
     #[test]
     fn test_module_integration() {
-        // 测试模块集成
+        // Integration of the testing module
         let collector = ExecutionFeedbackCollector::new();
         collector.start();
         collector.record_rows(100);
@@ -45,12 +45,12 @@ mod tests {
         let query_feedback = QueryExecutionFeedback::new("fp_123".to_string());
 
         let history = QueryFeedbackHistory::new(10);
-        // 添加反馈来验证history工作正常
+        // Add feedback to verify that the “history” functionality is working properly.
         history.add_feedback(query_feedback.clone());
 
         let config = AutoFeedbackConfig::new();
 
-        // 所有模块都能正常工作
+        // All modules are functioning properly.
         assert_eq!(collector.get_actual_rows(), 100);
         assert!(selectivity.corrected_selectivity() > 0.0);
         assert_eq!(query_feedback.query_fingerprint, "fp_123");

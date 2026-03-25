@@ -1,6 +1,6 @@
-//! 通用删除执行器
+//! Universal Deletion Executor
 //!
-//! 负责删除顶点和边的属性、标签等
+//! Responsible for deleting attributes, labels, and other information associated with vertices and edges.
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -19,29 +19,29 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 删除项
+/// Deleted items
 #[derive(Debug, Clone)]
 pub struct RemoveItem {
     pub item_type: RemoveItemType,
     pub expression: ContextualExpression,
 }
 
-/// 删除项类型
+/// Type of item to be deleted
 #[derive(Debug, Clone, PartialEq)]
 pub enum RemoveItemType {
     Property,
     Tag,
 }
 
-/// 删除结果
+/// Please provide the text you would like to have translated. I will then assist you with deleting the corresponding content from the system.
 #[derive(Debug, Clone)]
 pub struct RemoveResult {
     pub removed_count: i64,
 }
 
-/// 通用删除执行器
+/// Universal Deletion Executor
 ///
-/// 负责删除顶点和边的属性、标签等
+/// Responsible for deleting attributes, labels, and other information associated with vertices and edges.
 pub struct RemoveExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
     remove_items: Vec<RemoveItem>,

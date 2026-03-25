@@ -1,8 +1,8 @@
-//! 聚合策略选择器模块
+//! Aggregation Policy Selector Module
 //!
-//! 基于代价的聚合策略选择，在哈希聚合和排序聚合之间选择最优策略
+//! Cost-based selection of aggregation strategies: determining the optimal approach between hash aggregation and sort aggregation
 //!
-//! ## 使用示例
+//! ## Usage Examples
 //!
 //! ```rust
 //! use graphdb::query::optimizer::strategy::AggregateStrategySelector;
@@ -26,22 +26,22 @@ use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::decision::OptimizationDecision;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
-/// 聚合策略类型
+/// Aggregation policy type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AggregateStrategy {
-    /// 哈希聚合 - 使用 HashMap 存储分组状态
-    /// 适用于：分组键基数高、内存充足
+    /// Hash Aggregation – Storing Group Status Using a HashMap
+    /// Applicable to: cases where the number of group keys is high and there is sufficient memory available.
     HashAggregate,
-    /// 排序聚合 - 先排序再聚合
-    /// 适用于：输入已排序或接近排序、内存受限
+    /// Sorting and Aggregation: First sort the data, then perform the aggregation.
+    /// Applicable to: inputs that are already sorted or nearly sorted, and in cases where memory is limited.
     SortAggregate,
-    /// 流式聚合 - 输入已排序时的优化聚合
-    /// 适用于：输入数据已经按分组键排序
+    /// Stream Aggregation – An optimized aggregation method when the input data is already sorted.
+    /// Applicable to: The input data has already been sorted according to the grouping key.
     StreamingAggregate,
 }
 
 impl AggregateStrategy {
-    /// 获取策略名称
+    /// Obtain the policy name
     pub fn name(&self) -> &'static str {
         match self {
             AggregateStrategy::HashAggregate => "HashAggregate",
@@ -51,75 +51,75 @@ impl AggregateStrategy {
     }
 }
 
-/// 聚合策略决策
+/// Aggregation policy decision-making
 #[derive(Debug, Clone)]
 pub struct AggregateStrategyDecision {
-    /// 选择的聚合策略
+    /// Selected Aggregation Strategy
     pub strategy: AggregateStrategy,
-    /// 估计的输出行数
+    /// Estimated number of output lines
     pub estimated_output_rows: u64,
-    /// 估计的代价
+    /// Estimated cost
     pub estimated_cost: f64,
-    /// 估计的内存使用（字节）
+    /// Estimated memory usage (in bytes)
     pub estimated_memory_bytes: u64,
-    /// 选择原因
+    /// Reason for the choice
     pub reason: SelectionReason,
 }
 
-/// 策略选择原因
+/// Reasons for the choice of strategy
 #[derive(Debug, Clone)]
 pub enum SelectionReason {
-    /// 输入已排序，使用流式聚合
+    /// The input is already sorted, and stream aggregation is being used.
     InputAlreadySorted,
-    /// 分组键基数高，哈希聚合更优
+    /// A high cardinality of the grouping key results in better performance for hash aggregation.
     HighCardinality,
-    /// 分组键基数低，排序聚合更优
+    /// The base value of the grouping key is low, which makes sorting and aggregation more efficient.
     LowCardinality,
-    /// 内存受限，选择排序聚合
+    /// Memory is limited; choose the sorting algorithm for aggregation.
     MemoryConstrained,
-    /// 小数据量，哈希聚合更简单
+    /// With small amounts of data, hash aggregation is much simpler.
     SmallDataSet,
-    /// 大数据量，排序聚合避免内存溢出
+    /// Large volumes of data: Sorting and aggregation should be performed to avoid memory overflow.
     LargeDataSet,
-    /// 基于代价计算的选择
+    /// Cost-based decision-making
     CostBased { hash_cost: f64, sort_cost: f64 },
 }
 
-/// 聚合策略选择器
+/// Aggregation Policy Selector
 ///
-/// 基于代价模型选择最优的聚合执行策略
+/// Selecting the optimal aggregation execution strategy based on a cost model
 #[derive(Debug)]
 pub struct AggregateStrategySelector {
     cost_calculator: Arc<CostCalculator>,
-    /// 表达式分析器，用于分析聚合表达式的特性
+    /// Expression analyzer, used to analyze the characteristics of aggregate expressions
     expression_analyzer: ExpressionAnalyzer,
-    /// 表达式上下文，用于缓存分析结果
+    /// Expression context, used for caching analysis results
     expression_context: Arc<ExpressionAnalysisContext>,
 }
 
-/// 聚合策略选择的上下文信息
+/// Contextual information for the selection of aggregation strategies
 #[derive(Debug, Clone)]
 pub struct AggregateContext {
-    /// 输入行数
+    /// Number of input lines
     pub input_rows: u64,
-    /// 分组键列表
+    /// List of grouping keys
     pub group_keys: Vec<String>,
-    /// 聚合函数数量
+    /// Number of aggregate functions
     pub agg_function_count: usize,
-    /// 内存限制（字节，0表示无限制）
+    /// Memory limit (in bytes; 0 indicates no limit)
     pub memory_limit: u64,
-    /// 输入数据是否已排序
+    /// Are the input data already sorted?
     pub input_is_sorted: bool,
-    /// 排序键是否与分组键匹配
+    /// Does the sorting key match the grouping key?
     pub sort_keys_match_group_keys: bool,
-    /// 聚合表达式是否确定性
+    /// Are aggregate expressions deterministic?
     pub is_deterministic: bool,
-    /// 聚合表达式复杂度评分
+    /// Aggregation expression complexity score
     pub complexity_score: u32,
 }
 
 impl AggregateContext {
-    /// 创建新的聚合上下文
+    /// Create a new aggregation context.
     pub fn new(input_rows: u64, group_keys: Vec<String>, agg_function_count: usize) -> Self {
         Self {
             input_rows,
@@ -133,20 +133,20 @@ impl AggregateContext {
         }
     }
 
-    /// 设置内存限制
+    /// Setting memory limits
     pub fn with_memory_limit(mut self, memory_limit: u64) -> Self {
         self.memory_limit = memory_limit;
         self
     }
 
-    /// 设置输入已排序
+    /// Set the input to be sorted.
     pub fn with_sorted_input(mut self, sort_keys_match: bool) -> Self {
         self.input_is_sorted = true;
         self.sort_keys_match_group_keys = sort_keys_match;
         self
     }
 
-    /// 设置表达式特性
+    /// Setting expression properties
     pub fn with_expression_analysis(
         mut self,
         is_deterministic: bool,
@@ -159,7 +159,7 @@ impl AggregateContext {
 }
 
 impl AggregateStrategySelector {
-    /// 创建新的聚合策略选择器
+    /// Create a new selector for aggregating policies.
     pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
         Self {
             cost_calculator,
@@ -168,7 +168,7 @@ impl AggregateStrategySelector {
         }
     }
 
-    /// 创建带表达式分析器的聚合策略选择器
+    /// Create an aggregate policy selector with an expression analyzer
     pub fn with_analyzer(
         cost_calculator: Arc<CostCalculator>,
         expression_analyzer: ExpressionAnalyzer,
@@ -180,7 +180,7 @@ impl AggregateStrategySelector {
         }
     }
 
-    /// 创建带表达式上下文的聚合策略选择器
+    /// Create an aggregate policy selector that includes the context of the expressions.
     pub fn with_context(
         cost_calculator: Arc<CostCalculator>,
         expression_analyzer: ExpressionAnalyzer,
@@ -193,10 +193,10 @@ impl AggregateStrategySelector {
         }
     }
 
-    /// 分析聚合表达式并创建上下文
+    /// Analyze aggregate expressions and create context.
     ///
-    /// 使用表达式分析器分析聚合表达式的特性，创建完整的聚合上下文
-    /// 分析结果会缓存在 ExpressionContext 中，避免重复分析
+    /// Use an expression analyzer to analyze the characteristics of aggregate expressions and create a complete aggregate context.
+    /// The analysis results will be cached in the ExpressionContext to avoid duplicate analyses.
     pub fn analyze_and_create_context(
         &self,
         input_rows: u64,
@@ -206,17 +206,17 @@ impl AggregateStrategySelector {
     ) -> AggregateContext {
         let mut context = AggregateContext::new(input_rows, group_keys, agg_function_count);
 
-        // 分析所有聚合表达式
+        // Analyze all aggregate expressions.
         for ctx_expr in ctx_expressions {
             let expr_id = ctx_expr.id();
             if let Some(analysis) = self.expression_context.get_analysis(expr_id) {
-                // 使用缓存的分析结果
+                // Using the cached analysis results
                 if !analysis.is_deterministic {
                     context.is_deterministic = false;
                 }
                 context.complexity_score += analysis.complexity_score;
             } else {
-                // 分析表达式并缓存结果
+                // Analyze the expression and cache the result.
                 let analysis = self.expression_analyzer.analyze(ctx_expr);
                 self.expression_context
                     .set_analysis(expr_id, analysis.clone());
@@ -231,20 +231,20 @@ impl AggregateStrategySelector {
         context
     }
 
-    /// 选择最优聚合策略
+    /// Selecting the optimal aggregation strategy
     ///
-    /// # 参数
-    /// - `context`: 聚合操作的上下文信息
+    /// # Parameters
+    /// Context: Information about the context in which the aggregation operation is taking place.
     ///
-    /// # 返回
-    /// 聚合策略决策，包含选择的策略和估计代价
+    /// # Return
+    /// Aggregation policy decision-making, including the selected policy and the estimated cost.
     pub fn select_strategy(&self, context: &AggregateContext) -> AggregateStrategyDecision {
-        // 如果输入已排序且排序键匹配分组键，优先使用流式聚合
+        // If the input is already sorted and the sorting key matches the grouping key, stream aggregation should be used preferentially.
         if context.input_is_sorted && context.sort_keys_match_group_keys {
             return self.create_streaming_aggregate_decision(context);
         }
 
-        // 如果表达式非确定性，优先使用哈希聚合（避免排序带来的不确定性）
+        // If the expression is non-deterministic, hash aggregation should be used preferentially (to avoid the uncertainties associated with sorting).
         if !context.is_deterministic {
             let group_by_cardinality = self.estimate_group_by_cardinality(context);
             let hash_cost = self.calculate_hash_aggregate_cost(context, group_by_cardinality);
@@ -256,37 +256,37 @@ impl AggregateStrategySelector {
                 estimated_memory_bytes: hash_memory,
                 reason: SelectionReason::CostBased {
                     hash_cost,
-                    sort_cost: hash_cost * 1.5, // 假设排序代价更高
+                    sort_cost: hash_cost * 1.5, // Assume that the cost of sorting is higher.
                 },
             };
         }
 
-        // 估算分组键基数
+        // Estimating the cardinality of the group key
         let group_by_cardinality = self.estimate_group_by_cardinality(context);
 
-        // 计算各策略的代价
+        // Calculate the cost of each strategy.
         let hash_cost = self.calculate_hash_aggregate_cost(context, group_by_cardinality);
         let sort_cost = self.calculate_sort_aggregate_cost(context);
 
-        // 检查内存限制
+        // Check the memory limitations.
         let hash_memory = self.estimate_hash_memory_usage(context, group_by_cardinality);
         let memory_constrained = context.memory_limit > 0 && hash_memory > context.memory_limit;
 
-        // 决策逻辑
+        // Decision-making logic
         let (strategy, reason) = if memory_constrained {
-            // 内存受限，优先选择排序聚合
+            // Memory is limited; priority should be given to sorting and aggregation operations.
             (
                 AggregateStrategy::SortAggregate,
                 SelectionReason::MemoryConstrained,
             )
         } else if context.input_rows < 1000 {
-            // 小数据量，哈希聚合更简单高效
+            // With small amounts of data, hash aggregation is simpler and more efficient.
             (
                 AggregateStrategy::HashAggregate,
                 SelectionReason::SmallDataSet,
             )
         } else if group_by_cardinality < 100 {
-            // 低基数，排序聚合可能更优（排序后数据局部性好）
+            // With a small base size, sorting and aggregation may be more advantageous (as the data becomes more localized after sorting).
             if sort_cost < hash_cost * 1.2 {
                 (
                     AggregateStrategy::SortAggregate,
@@ -302,13 +302,13 @@ impl AggregateStrategySelector {
                 )
             }
         } else if group_by_cardinality > context.input_rows / 10 {
-            // 高基数（接近唯一值），哈希聚合更优
+            // For high cardinalities (close to unique values), hash aggregation is more advantageous.
             (
                 AggregateStrategy::HashAggregate,
                 SelectionReason::HighCardinality,
             )
         } else {
-            // 基于代价比较
+            // Based on cost comparison
             if hash_cost <= sort_cost {
                 (
                     AggregateStrategy::HashAggregate,
@@ -351,7 +351,7 @@ impl AggregateStrategySelector {
         }
     }
 
-    /// 快速选择策略（简化版本，用于决策缓存）
+    /// Rapid selection strategy (simplified version, for use in decision-making caching)
     pub fn select_strategy_quick(
         &self,
         input_rows: u64,
@@ -362,7 +362,7 @@ impl AggregateStrategySelector {
             return AggregateStrategy::HashAggregate;
         }
 
-        // 估算分组键基数
+        // Estimating the cardinality of the grouping key
         let cardinality = self.estimate_cardinality_quick(input_rows, group_key_count);
 
         if cardinality < 100 {
@@ -372,26 +372,26 @@ impl AggregateStrategySelector {
         }
     }
 
-    /// 估算分组键基数
+    /// Estimating the cardinality of the grouping key
     fn estimate_group_by_cardinality(&self, context: &AggregateContext) -> u64 {
         self.estimate_cardinality_quick(context.input_rows, context.group_keys.len())
     }
 
-    /// 快速估算基数
+    /// Quick estimation of the base number
     fn estimate_cardinality_quick(&self, input_rows: u64, key_count: usize) -> u64 {
         if key_count == 0 {
             return 1;
         }
 
-        // 启发式公式：基数随键数量增加而减少
-        // 假设每增加一个键，基数除以2
+        // Heuristic formula: The base number decreases as the number of keys increases.
+        // Assume that for each additional key added, the base value is divided by 2.
         let divisor = 2_u64.saturating_pow(key_count as u32).max(1);
         let estimated = (input_rows / divisor).max(10);
 
         estimated.min(input_rows).max(1)
     }
 
-    /// 计算哈希聚合代价
+    /// Calculating the cost of hash aggregation
     fn calculate_hash_aggregate_cost(
         &self,
         context: &AggregateContext,
@@ -404,63 +404,63 @@ impl AggregateStrategySelector {
         )
     }
 
-    /// 计算排序聚合代价
+    /// Calculating the cost of sorting and aggregation operations
     fn calculate_sort_aggregate_cost(&self, context: &AggregateContext) -> f64 {
-        // 排序代价 + 聚合代价
+        // Sorting cost + Aggregation cost
         let sort_cost = self.cost_calculator.calculate_sort_cost(
             context.input_rows,
             context.group_keys.len(),
             None,
         );
 
-        // 排序后的聚合代价较低（数据已分组）
+        // The aggregated cost after sorting is lower (the data has been grouped).
         let agg_cost = context.input_rows as f64
             * context.agg_function_count as f64
             * self.cost_calculator.config().cpu_operator_cost
-            * 0.5; // 排序后聚合代价减半
+            * 0.5; // The cost of aggregation is reduced by half after sorting.
 
         sort_cost + agg_cost
     }
 
-    /// 计算流式聚合代价
+    /// Calculating the cost of stream aggregation
     fn calculate_streaming_aggregate_cost(&self, context: &AggregateContext) -> f64 {
-        // 流式聚合只需要聚合代价，无需排序
+        // Stream aggregation only requires the cost of aggregation; sorting is not necessary.
         context.input_rows as f64
             * context.agg_function_count as f64
             * self.cost_calculator.config().cpu_operator_cost
     }
 
-    /// 估算哈希聚合内存使用
+    /// Estimating the memory usage of hash aggregation
     fn estimate_hash_memory_usage(
         &self,
         context: &AggregateContext,
         group_by_cardinality: u64,
     ) -> u64 {
-        // 哈希表条目大小估算（键 + 聚合状态）
-        let key_size = context.group_keys.len() as u64 * 16; // 假设每个键16字节
-        let agg_state_size = context.agg_function_count as u64 * 24; // 假设每个聚合状态24字节
-        let entry_overhead = 16; // 哈希表开销
+        // Estimation of the size of a hash table entry (key + aggregation state)
+        let key_size = context.group_keys.len() as u64 * 16; // Assume that each key is 16 bytes in size.
+        let agg_state_size = context.agg_function_count as u64 * 24; // Assume that each aggregated state occupies 24 bytes.
+        let entry_overhead = 16; // Hash table overhead
 
         let entry_size = key_size + agg_state_size + entry_overhead;
         group_by_cardinality * entry_size.max(64)
     }
 
-    /// 估算排序聚合内存使用
+    /// Estimating the memory usage for sorting and aggregation operations
     fn estimate_sort_memory_usage(&self, context: &AggregateContext) -> u64 {
-        // 排序可能需要缓存所有数据
-        let row_size = 64; // 假设每行64字节
+        // Sorting may require caching all the data.
+        let row_size = 64; // Assume that each line contains 64 bytes.
         context.input_rows * row_size
     }
 
-    /// 估算流式聚合内存使用
+    /// Estimating the memory usage of stream aggregation
     fn estimate_streaming_memory_usage(&self, context: &AggregateContext) -> u64 {
-        // 流式聚合只需要维护当前分组的状态
+        // Stream aggregation only requires maintaining the state of the current group.
         let key_size = context.group_keys.len() as u64 * 16;
         let agg_state_size = context.agg_function_count as u64 * 24;
-        (key_size + agg_state_size) * 2 // 双缓冲
+        (key_size + agg_state_size) * 2 // Double buffering
     }
 
-    /// 创建流式聚合决策
+    /// Creating streaming aggregation decisions
     fn create_streaming_aggregate_decision(
         &self,
         context: &AggregateContext,
@@ -477,12 +477,12 @@ impl AggregateStrategySelector {
         }
     }
 
-    /// 更新优化决策中的聚合策略信息
+    /// Update and optimize the information on the aggregation strategies used in decision-making processes.
     pub fn update_decision(&self, decision: &mut OptimizationDecision, context: &AggregateContext) {
         let strategy_decision = self.select_strategy(context);
 
-        // 将聚合策略信息编码到决策的 rewrite_rules 中
-        // 使用特定的规则ID表示聚合策略选择
+        // Encode the aggregation policy information into the `rewrite_rules` used for decision-making.
+        // Use a specific rule ID to indicate the selection of the aggregation policy.
         let rule_id = match strategy_decision.strategy {
             AggregateStrategy::HashAggregate => {
                 crate::query::optimizer::decision::RewriteRuleId::AggregateOptimization
@@ -557,7 +557,7 @@ mod tests {
             input_rows: 100000,
             group_keys: vec!["category".to_string(), "subcategory".to_string()],
             agg_function_count: 3,
-            memory_limit: 1024, // 1KB 内存限制（非常小）
+            memory_limit: 1024, // Memory limit of 1 KB (very small)
             input_is_sorted: false,
             sort_keys_match_group_keys: false,
             is_deterministic: true,
@@ -573,15 +573,15 @@ mod tests {
     fn test_quick_selection() {
         let selector = create_test_selector();
 
-        // 小数据量应该选哈希聚合
+        // For small amounts of data, hash aggregation should be chosen.
         let strategy = selector.select_strategy_quick(500, 1, 1);
         assert_eq!(strategy, AggregateStrategy::HashAggregate);
 
-        // 大数据量且多键（低基数）应该选排序聚合
+        // For large amounts of data with multiple keys (and a low cardinality), sorting and aggregation should be chosen as the appropriate methods for processing the data.
         let strategy = selector.select_strategy_quick(100000, 10, 1);
         assert_eq!(strategy, AggregateStrategy::SortAggregate);
 
-        // 大数据量且单键（高基数）应该选哈希聚合
+        // For large volumes of data with a high number of unique keys (high cardinality), hash aggregation should be chosen.
         let strategy = selector.select_strategy_quick(100000, 1, 1);
         assert_eq!(strategy, AggregateStrategy::HashAggregate);
     }
@@ -590,15 +590,15 @@ mod tests {
     fn test_cardinality_estimation() {
         let selector = create_test_selector();
 
-        // 无分组键应该返回1
+        // If there is no grouping key, the result should be 1.
         let cardinality = selector.estimate_cardinality_quick(1000, 0);
         assert_eq!(cardinality, 1);
 
-        // 单个键的基数应该较高
+        // The cardinality of a single key should be high.
         let cardinality = selector.estimate_cardinality_quick(10000, 1);
         assert!(cardinality > 100);
 
-        // 多个键的基数应该较低
+        // The cardinality of multiple keys should be relatively low.
         let cardinality = selector.estimate_cardinality_quick(10000, 5);
         assert!(cardinality < 1000);
     }

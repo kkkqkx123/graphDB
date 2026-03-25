@@ -1,6 +1,6 @@
-//! LIMIT 子句验证器
+//! LIMIT clause validator
 //! 对应 NebulaGraph LimitValidator.h/.cpp 的功能
-//! 验证 LIMIT 和 SKIP 子句的表达式
+//! Verify the expressions of the LIMIT and SKIP clauses.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -13,7 +13,7 @@ use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use std::sync::Arc;
 
-/// 验证后的 LIMIT 信息
+/// Verified LIMIT information
 #[derive(Debug, Clone)]
 pub struct ValidatedLimit {
     pub space_id: u64,
@@ -70,13 +70,13 @@ impl LimitValidator {
         self
     }
 
-    /// 验证 SKIP 表达式
+    /// Verify the SKIP expression
     fn validate_skip(
         &self,
         skip: &Option<ContextualExpression>,
     ) -> Result<Option<u64>, ValidationError> {
         if let Some(skip_expr) = skip {
-            // 验证类型是否为整数
+            // Verify whether the type is an integer.
             if !self.is_integer_expression(skip_expr) {
                 return Err(ValidationError::new(
                     "SKIP value must be integer type".to_string(),
@@ -84,7 +84,7 @@ impl LimitValidator {
                 ));
             }
 
-            // 评估表达式
+            // Evaluating an expression
             let skip_val = self.evaluate_expression(skip_expr)?;
             if skip_val < 0 {
                 return Err(ValidationError::new(
@@ -98,13 +98,13 @@ impl LimitValidator {
         }
     }
 
-    /// 验证 LIMIT 表达式
+    /// Verify the LIMIT expression
     fn validate_limit(
         &self,
         limit: &Option<ContextualExpression>,
     ) -> Result<Option<u64>, ValidationError> {
         if let Some(limit_expr) = limit {
-            // 验证类型是否为整数
+            // Verify whether the type is an integer.
             if !self.is_integer_expression(limit_expr) {
                 return Err(ValidationError::new(
                     "LIMIT value must be integer type".to_string(),
@@ -112,7 +112,7 @@ impl LimitValidator {
                 ));
             }
 
-            // 评估表达式
+            // Evaluating an expression
             let limit_val = self.evaluate_expression(limit_expr)?;
             if limit_val < 0 {
                 return Err(ValidationError::new(
@@ -126,7 +126,7 @@ impl LimitValidator {
         }
     }
 
-    /// 验证范围
+    /// Verification scope
     fn validate_range(&self, skip: Option<u64>, limit: Option<u64>) -> Result<(), ValidationError> {
         let skip_val = skip.unwrap_or(0);
         let limit_val = limit.unwrap_or(0);
@@ -141,7 +141,7 @@ impl LimitValidator {
         Ok(())
     }
 
-    /// 验证 count
+    /// Verify the count.
     fn validate_count(&self, count: Option<u64>) -> Result<(), ValidationError> {
         if let Some(c) = count {
             if c > u64::MAX / 2 {
@@ -154,7 +154,7 @@ impl LimitValidator {
         Ok(())
     }
 
-    /// 检查表达式是否为整数类型
+    /// Check whether the expression is of the integer type.
     fn is_integer_expression(&self, expr: &ContextualExpression) -> bool {
         if let Some(e) = expr.get_expression() {
             self.is_integer_expression_internal(&e)
@@ -163,7 +163,7 @@ impl LimitValidator {
         }
     }
 
-    /// 内部方法：检查表达式是否为整数类型
+    /// Internal method: Checks whether the expression is of the integer type.
     fn is_integer_expression_internal(&self, expr: &crate::core::types::expr::Expression) -> bool {
         use crate::core::types::expr::Expression;
 
@@ -180,12 +180,12 @@ impl LimitValidator {
                     | crate::core::Value::UInt32(_)
                     | crate::core::Value::UInt64(_)
             ),
-            Expression::Variable(_) => true, // 变量在运行时检查
+            Expression::Variable(_) => true, // Variables are checked during runtime.
             _ => false,
         }
     }
 
-    /// 评估表达式
+    /// Evaluating an expression
     fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<i64, ValidationError> {
         if let Some(e) = expr.get_expression() {
             self.evaluate_expression_internal(&e)
@@ -197,7 +197,7 @@ impl LimitValidator {
         }
     }
 
-    /// 内部方法：评估表达式
+    /// Internal method: Evaluating expressions
     fn evaluate_expression_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -222,7 +222,7 @@ impl LimitValidator {
                 }
                 Ok(*n as i64)
             }
-            Expression::Variable(_) => Ok(0), // 变量在运行时解析
+            Expression::Variable(_) => Ok(0), // Variables are parsed at runtime.
             _ => Err(ValidationError::new(
                 "Cannot evaluate expression".to_string(),
                 ValidationErrorType::SemanticError,
@@ -230,7 +230,7 @@ impl LimitValidator {
         }
     }
 
-    /// 生成输出列
+    /// Generate a column of outputs.
     fn generate_output_columns(&mut self) {
         self.outputs.clear();
         self.outputs.push(ColumnDef {
@@ -246,17 +246,17 @@ impl Default for LimitValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for LimitValidator {
     fn validate(
         &mut self,
         _ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
@@ -264,26 +264,26 @@ impl StatementValidator for LimitValidator {
             ));
         }
 
-        // 2. 获取 LIMIT 语句（如果存在）
-        // QueryStmt 没有 skip/limit 字段，使用验证器预设的值
+        // 2. Retrieve the LIMIT statement (if it exists).
+        // The QueryStmt does not contain the skip/limit fields; therefore, the default values set by the validator are used.
         let (skip_opt, limit_opt) = (self.skip_expr.clone(), self.limit_expr.clone());
 
-        // 3. 验证 SKIP
+        // 3. Verify SKIP
         let skip_val = self.validate_skip(&skip_opt)?;
 
-        // 4. 验证 LIMIT
+        // 4. Verify the LIMIT
         let limit_val = self.validate_limit(&limit_opt)?;
 
-        // 5. 验证范围
+        // 5. Scope of verification
         self.validate_range(skip_val, limit_val)?;
 
-        // 6. 验证 count
+        // 6. Verify the count
         self.validate_count(self.count)?;
 
-        // 7. 获取 space_id
+        // 7. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 8. 创建验证结果
+        // 8. Create the validation results
         let validated = ValidatedLimit {
             space_id,
             skip: skip_val,
@@ -293,10 +293,10 @@ impl StatementValidator for LimitValidator {
 
         self.validated_result = Some(validated);
 
-        // 9. 生成输出列
+        // 9. Generate an output column.
         self.generate_output_columns();
 
-        // 10. 构建 ValidationInfo
+        // 10. Constructing ValidationInfo
         let mut info = ValidationInfo::new();
 
         if let Some(skip) = skip_val {
@@ -307,7 +307,7 @@ impl StatementValidator for LimitValidator {
             info.semantic_info.pagination_limit = Some(limit as usize);
         }
 
-        // 11. 返回验证结果
+        // 11. Return the verification results.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -324,7 +324,7 @@ impl StatementValidator for LimitValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // LIMIT 不是全局语句，需要预先选择空间
+        // The `LIMIT` statement is not a global statement; it is necessary to select a specific area (or “space”) in advance before using it.
         false
     }
 
@@ -346,7 +346,7 @@ mod tests {
     use crate::query::query_request_context::QueryRequestContext;
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
 
-    /// 创建测试用的 QueryContext，带有有效的 space_id
+    /// Create a QueryContext for testing purposes, which should contain a valid space_id.
     fn create_test_query_context() -> Arc<QueryContext> {
         let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
         let mut qctx = QueryContext::new(rctx);

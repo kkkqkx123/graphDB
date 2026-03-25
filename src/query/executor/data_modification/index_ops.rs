@@ -1,6 +1,6 @@
-//! 索引操作执行器
+//! Indexing Operation Actuator
 //!
-//! 负责创建和删除索引
+//! Responsible for creating and deleting indexes
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -14,9 +14,9 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 创建索引执行器
+/// Creating an Indexing Executor
 ///
-/// 负责在存储层创建索引
+/// Responsible for creating indexes in the storage tier
 pub struct CreateIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     index_name: String,
@@ -136,9 +136,9 @@ impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
     }
 }
 
-/// 删除索引执行器
+/// Delete Index Executor
 ///
-/// 负责从存储层删除索引
+/// Responsible for deleting indexes from the storage tier
 pub struct DropIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     _index_name: String,

@@ -1,32 +1,32 @@
-//! 排序节点实现
+//! Implementation of sorting nodes
 //!
-//! SortNode 用于对输入数据进行排序操作
+//! The `SortNode` is used to perform sorting operations on the input data.
 
 use crate::core::types::graph_schema::OrderDirection;
 use crate::define_plan_node_with_deps;
 
-/// 排序项定义
-/// 包含列名和排序方向
+/// Sorting item definition
+/// Includes column names and sorting direction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SortItem {
-    /// 排序列名
+    /// Sort column names
     pub column: String,
-    /// 排序方向
+    /// Sorting direction
     pub direction: OrderDirection,
 }
 
 impl SortItem {
-    /// 创建新的排序项
+    /// Create a new sorting item.
     pub fn new(column: String, direction: OrderDirection) -> Self {
         Self { column, direction }
     }
 
-    /// 创建升序排序项
+    /// Create items for ascending sorting.
     pub fn asc(column: String) -> Self {
         Self::new(column, OrderDirection::Asc)
     }
 
-    /// 创建降序排序项
+    /// Create descending order sorting items
     pub fn desc(column: String) -> Self {
         Self::new(column, OrderDirection::Desc)
     }
@@ -42,7 +42,7 @@ define_plan_node_with_deps! {
 }
 
 impl SortNode {
-    /// 创建新的排序节点
+    /// Create a new sorting node.
     pub fn new(
         input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         sort_items: Vec<SortItem>,
@@ -60,17 +60,17 @@ impl SortNode {
         })
     }
 
-    /// 获取排序字段
+    /// Obtain the sorted fields
     pub fn sort_items(&self) -> &[SortItem] {
         &self.sort_items
     }
 
-    /// 获取限制数量
+    /// Obtain a limited quantity.
     pub fn limit(&self) -> Option<i64> {
         self.limit
     }
 
-    /// 设置限制数量
+    /// Set a limit on the number of items.
     pub fn set_limit(&mut self, limit: i64) {
         self.limit = Some(limit);
     }
@@ -86,7 +86,7 @@ define_plan_node_with_deps! {
 }
 
 impl LimitNode {
-    /// 创建新的限制节点
+    /// Create a new restriction node.
     pub fn new(
         input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         offset: i64,
@@ -105,12 +105,12 @@ impl LimitNode {
         })
     }
 
-    /// 获取偏移量
+    /// Obtain the offset value.
     pub fn offset(&self) -> i64 {
         self.offset
     }
 
-    /// 获取计数
+    /// Obtain the count.
     pub fn count(&self) -> i64 {
         self.count
     }
@@ -126,7 +126,7 @@ define_plan_node_with_deps! {
 }
 
 impl TopNNode {
-    /// 创建新的TopN节点
+    /// Create new TopN nodes.
     pub fn new(
         input: crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum,
         sort_items: Vec<SortItem>,

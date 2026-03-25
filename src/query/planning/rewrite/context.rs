@@ -1,7 +1,7 @@
-//! 重写上下文定义
+//! Rework the definition of the context.
 //!
-//! 定义 RewriteContext 结构体，管理重写过程中的状态。
-//! 这是从 optimizer 层独立出来的简化版本，专注于启发式重写规则的需求。
+//! Define the RewriteContext structure to manage the state during the rewriting process.
+//! This is a simplified version that has been separated from the optimizer layer, focusing on the requirements for heuristic rewriting rules.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -11,26 +11,26 @@ use std::sync::Arc;
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
-/// 重写上下文
+/// Rewrite the context
 ///
-/// 管理重写过程中的状态和节点信息。
-/// 相比 optimizer 的 OptContext，这是一个轻量级版本，
-/// 不包含统计信息缓存、代价计算等优化器特有功能。
+/// Manage the status and node information during the rewriting process.
+/// Compared to the OptContext of the optimizer, this is a lightweight version.
+/// It does not include features specific to optimizers, such as caches for statistical information or cost calculations.
 #[derive(Debug)]
 pub struct RewriteContext {
-    /// 节点ID计数器 - 生成唯一节点ID
+    /// Node ID Counter – Generates unique node IDs
     node_id_counter: usize,
-    /// 计划节点到ID的映射
+    /// Mapping of plan nodes to IDs
     plan_node_to_id: RefCell<HashMap<usize, usize>>,
-    /// ID到计划节点的映射
+    /// Mapping from IDs to planned nodes
     nodes_by_id: RefCell<HashMap<usize, Rc<RefCell<PlanNodeWrapper>>>>,
-    /// 表达式上下文
+    /// Expression context
     expr_context: Arc<ExpressionAnalysisContext>,
 }
 
-/// 计划节点包装器
+/// Plan Node Wrapper
 ///
-/// 包装 PlanNodeEnum 并添加重写所需的元数据
+/// Wrap the PlanNodeEnum and add the necessary metadata for the override.
 #[derive(Debug, Clone)]
 pub struct PlanNodeWrapper {
     pub id: usize,
@@ -60,12 +60,12 @@ impl Default for RewriteContext {
 }
 
 impl RewriteContext {
-    /// 创建新的重写上下文（使用默认的 ExpressionContext）
+    /// Create a new rewriting context (using the default ExpressionContext).
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 创建新的重写上下文（使用指定的 ExpressionContext）
+    /// Create a new rewriting context (using the specified ExpressionContext).
     pub fn with_expr_context(expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self {
             node_id_counter: 0,
@@ -75,14 +75,14 @@ impl RewriteContext {
         }
     }
 
-    /// 分配新的节点ID
+    /// Assign a new node ID
     pub fn allocate_node_id(&mut self) -> usize {
         let id = self.node_id_counter;
         self.node_id_counter += 1;
         id
     }
 
-    /// 注册计划节点
+    /// Register a plan node
     pub fn register_node(
         &mut self,
         node_id: usize,
@@ -95,29 +95,29 @@ impl RewriteContext {
         wrapper
     }
 
-    /// 通过ID查找节点
+    /// Find a node by its ID
     pub fn find_node_by_id(&self, id: usize) -> Option<Rc<RefCell<PlanNodeWrapper>>> {
         self.nodes_by_id.borrow().get(&id).cloned()
     }
 
-    /// 添加节点映射
+    /// Add node mapping
     pub fn add_plan_node_mapping(&self, plan_node_id: usize, rewrite_node_id: usize) {
         self.plan_node_to_id
             .borrow_mut()
             .insert(plan_node_id, rewrite_node_id);
     }
 
-    /// 通过计划节点ID查找重写节点ID
+    /// Find the rewrite node ID by using the planned node ID.
     pub fn find_rewrite_id_by_plan_id(&self, plan_node_id: usize) -> Option<usize> {
         self.plan_node_to_id.borrow().get(&plan_node_id).copied()
     }
 
-    /// 获取当前节点计数
+    /// Get the current node count.
     pub fn node_count(&self) -> usize {
         self.node_id_counter
     }
 
-    /// 获取表达式上下文
+    /// Obtain the context of the expression.
     pub fn expr_context(&self) -> Arc<ExpressionAnalysisContext> {
         self.expr_context.clone()
     }

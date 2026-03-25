@@ -1,20 +1,20 @@
-//! 安全验证器
+//! Security Validator
 //!
-//! 负责验证执行器的安全性配置
+//! Responsible for verifying the security configuration of the executor.
 
 use crate::core::error::QueryError;
 use crate::storage::StorageClient;
 
-/// 执行器安全配置
+/// Actuator safety configuration
 #[derive(Debug, Clone)]
 pub struct ExecutorSafetyConfig {
-    /// 最大递归深度
+    /// Maximum recursion depth
     pub max_recursion_depth: usize,
-    /// 最大循环迭代次数
+    /// Maximum number of loop iterations
     pub max_loop_iterations: usize,
-    /// 是否启用递归检测
+    /// Should recursive detection be enabled?
     pub enable_recursion_detection: bool,
-    /// 最大执行器数量
+    /// Maximum number of executors
     pub max_executor_count: usize,
 }
 
@@ -29,7 +29,7 @@ impl Default for ExecutorSafetyConfig {
     }
 }
 
-/// 安全验证器
+/// Security Validator
 #[derive(Clone)]
 pub struct SafetyValidator<S: StorageClient + Send + 'static> {
     config: ExecutorSafetyConfig,
@@ -37,7 +37,7 @@ pub struct SafetyValidator<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient + 'static> SafetyValidator<S> {
-    /// 创建新的安全验证器
+    /// Create a new security validator.
     pub fn new(config: ExecutorSafetyConfig) -> Self {
         Self {
             config,
@@ -45,12 +45,12 @@ impl<S: StorageClient + 'static> SafetyValidator<S> {
         }
     }
 
-    /// 获取配置
+    /// Obtain the configuration.
     pub fn config(&self) -> &ExecutorSafetyConfig {
         &self.config
     }
 
-    /// 验证扩展配置
+    /// Verify the extended configuration settings.
     pub fn validate_expand_config(&self, step_limit: usize) -> Result<(), QueryError> {
         if step_limit > self.config.max_recursion_depth {
             return Err(QueryError::ExecutionError(format!(
@@ -61,7 +61,7 @@ impl<S: StorageClient + 'static> SafetyValidator<S> {
         Ok(())
     }
 
-    /// 验证最短路径配置
+    /// Verify the configuration of the shortest path.
     pub fn validate_shortest_path_config(&self, max_step: usize) -> Result<(), QueryError> {
         if max_step > self.config.max_recursion_depth {
             return Err(QueryError::ExecutionError(format!(

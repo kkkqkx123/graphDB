@@ -1,19 +1,19 @@
-//! AST 模块
+//! AST module
 //!
-//! 本模块提供基于枚举的 AST 设计，减少样板代码和运行时开销。
+//! This module provides an AST (Abstract Syntax Tree) design based on enumerations, which reduces the amount of样板 code and the runtime overhead.
 
-// 基础类型定义
+// Definition of basic types
 pub mod types;
 pub use types::*;
 
-// 语句定义
+// Statement definition
 pub mod stmt;
 pub use stmt::*;
 
-// 模式定义
+// Pattern definition
 pub mod pattern;
 pub use pattern::*;
 
-// 工具函数
+// Utility functions
 pub mod utils;
 pub use utils::*;

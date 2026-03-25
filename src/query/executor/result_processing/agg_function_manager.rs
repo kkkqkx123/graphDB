@@ -1,7 +1,7 @@
-//! 聚合函数管理器模块
+//! Aggregation Function Manager Module
 //!
-//! 参考 nebula-graph 的 AggFunctionManager 设计
-//! 统一管理内置聚合函数，支持动态注册和获取
+//! Refer to the design of AggFunctionManager in nebula-graph.
+//! Unified management of built-in aggregate functions, with support for dynamic registration and retrieval.
 
 use super::agg_data::AggData;
 use crate::core::error::{DBError, QueryError};
@@ -10,19 +10,19 @@ use crate::core::value::{NullType, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// 聚合函数类型
+/// Types of aggregate functions
 pub type AggFunction = Arc<dyn Fn(&mut AggData, &Value) -> Result<(), DBError> + Send + Sync>;
 
-/// 聚合函数管理器
+/// Aggregate Function Manager
 ///
-/// 管理所有聚合函数，提供统一的获取和执行接口
+/// Manage all aggregate functions and provide a unified interface for retrieval and execution.
 #[derive(Clone)]
 pub struct AggFunctionManager {
     functions: HashMap<String, AggFunction>,
 }
 
 impl AggFunctionManager {
-    /// 创建新的聚合函数管理器并注册内置函数
+    /// Create a new Aggregate Function Manager and register the built-in functions.
     pub fn new() -> Self {
         let mut manager = Self {
             functions: HashMap::new(),
@@ -31,14 +31,14 @@ impl AggFunctionManager {
         manager
     }
 
-    /// 获取单例实例
+    /// Obtaining a singleton instance
     pub fn instance() -> Self {
         Self::new()
     }
 
-    /// 注册内置聚合函数
+    /// Registering built-in aggregate functions
     fn register_builtin_functions(&mut self) {
-        // COUNT 函数
+        // COUNT function
         self.functions.insert(
             "COUNT".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
@@ -59,7 +59,7 @@ impl AggFunctionManager {
             }),
         );
 
-        // SUM 函数
+        // SUM function
         self.functions.insert(
             "SUM".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
@@ -86,11 +86,11 @@ impl AggFunctionManager {
             }),
         );
 
-        // AVG 函数
+        // AVG function
         self.functions.insert(
             "AVG".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
-                // 首先检查 result 是否为 BadNull
+                // First, check whether the result is `BadNull`.
                 if agg_data.result().is_bad_null() {
                     return Ok(());
                 }
@@ -102,14 +102,14 @@ impl AggFunctionManager {
                     return Ok(());
                 }
 
-                // 初始化
+                // Initialization
                 if agg_data.result().is_null() {
                     *agg_data.result_mut() = Value::Float(0.0);
                     *agg_data.sum_mut() = Value::Float(0.0);
                     *agg_data.cnt_mut() = Value::Float(0.0);
                 }
 
-                // 更新 sum
+                // Update the sum
                 let sum = agg_data.sum_mut();
                 match sum.add(val) {
                     Ok(new_sum) => *sum = new_sum,
@@ -119,13 +119,13 @@ impl AggFunctionManager {
                     }
                 }
 
-                // 更新 count
+                // Update the count
                 let cnt = agg_data.cnt_mut();
                 if let Value::Float(n) = cnt {
                     *cnt = Value::Float(*n + 1.0);
                 }
 
-                // 计算 avg = sum / count
+                // Calculate: avg = sum / count
                 let sum = agg_data.sum().clone();
                 let cnt = agg_data.cnt().clone();
                 if let Value::Float(c) = cnt {
@@ -140,7 +140,7 @@ impl AggFunctionManager {
             }),
         );
 
-        // MAX 函数
+        // MAX function
         self.functions.insert(
             "MAX".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
@@ -162,7 +162,7 @@ impl AggFunctionManager {
             }),
         );
 
-        // MIN 函数
+        // The MIN function
         self.functions.insert(
             "MIN".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
@@ -184,11 +184,11 @@ impl AggFunctionManager {
             }),
         );
 
-        // STD 函数（标准差）
+        // STD function (Standard Deviation)
         self.functions.insert(
             "STD".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
-                // 首先检查 result 是否为 BadNull
+                // First, check whether the result is `BadNull`.
                 if agg_data.result().is_bad_null() {
                     return Ok(());
                 }
@@ -200,14 +200,14 @@ impl AggFunctionManager {
                     return Ok(());
                 }
 
-                // 获取数值
+                // Obtain the value
                 let val_f64 = match val {
                     Value::Int(v) => *v as f64,
                     Value::Float(v) => *v,
                     _ => return Ok(()),
                 };
 
-                // 初始化
+                // Initialization
                 if agg_data.result().is_null() {
                     *agg_data.result_mut() = Value::Float(0.0);
                     *agg_data.cnt_mut() = Value::Float(0.0);
@@ -215,14 +215,14 @@ impl AggFunctionManager {
                     *agg_data.deviation_mut() = Value::Float(0.0);
                 }
 
-                // 获取当前值
+                // Get the current value
                 let cnt = agg_data.cnt().clone();
                 let avg = agg_data.avg().clone();
                 let deviation = agg_data.deviation().clone();
 
                 if let (Value::Float(c), Value::Float(a), Value::Float(d)) = (cnt, avg, deviation) {
                     let new_cnt = c + 1.0;
-                    // Welford 算法计算标准差
+                    // The Welford algorithm is used to calculate the standard deviation.
                     let delta = val_f64 - a;
                     let new_avg = a + delta / new_cnt;
                     let delta2 = val_f64 - new_avg;
@@ -241,7 +241,7 @@ impl AggFunctionManager {
             }),
         );
 
-        // BIT_AND 函数
+        // BIT_AND function
         self.functions.insert(
             "BIT_AND".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
@@ -267,7 +267,7 @@ impl AggFunctionManager {
             }),
         );
 
-        // BIT_OR 函数
+        // BIT_OR function
         self.functions.insert(
             "BIT_OR".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
@@ -293,7 +293,7 @@ impl AggFunctionManager {
             }),
         );
 
-        // BIT_XOR 函数
+        // BIT_XOR function
         self.functions.insert(
             "BIT_XOR".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
@@ -319,7 +319,7 @@ impl AggFunctionManager {
             }),
         );
 
-        // COLLECT 函数
+        // The COLLECT function
         self.functions.insert(
             "COLLECT".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
@@ -342,7 +342,7 @@ impl AggFunctionManager {
             }),
         );
 
-        // COLLECT_SET 函数（对应 nebula-graph 的 COLLECT_SET）
+        // The COLLECT_SET function (corresponding to COLLECT_SET in nebula-graph)
         self.functions.insert(
             "COLLECT_SET".to_string(),
             Arc::new(|agg_data: &mut AggData, val: &Value| {
@@ -366,17 +366,17 @@ impl AggFunctionManager {
         );
     }
 
-    /// 获取聚合函数
+    /// Obtaining aggregate functions
     pub fn get(&self, name: &str) -> Option<AggFunction> {
         self.functions.get(&name.to_uppercase()).cloned()
     }
 
-    /// 检查聚合函数是否存在
+    /// Check whether aggregate functions exist.
     pub fn find(&self, name: &str) -> bool {
         self.functions.contains_key(&name.to_uppercase())
     }
 
-    /// 注册自定义聚合函数
+    /// Registering custom aggregate functions
     pub fn register(&mut self, name: &str, func: AggFunction) -> Result<(), DBError> {
         let upper_name = name.to_uppercase();
         if self.functions.contains_key(&upper_name) {
@@ -407,18 +407,18 @@ mod tests {
 
         let mut agg_data = AggData::new();
 
-        // 测试空值 - COUNT 应该初始化为 0
+        // Testing for null values: The COUNT function should be initialized to 0.
         count_func(&mut agg_data, &Value::Null(NullType::Null)).expect("COUNT函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(0));
 
-        // 测试正常值
+        // Normal test values
         count_func(&mut agg_data, &Value::Int(1)).expect("COUNT函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(1));
 
         count_func(&mut agg_data, &Value::Int(2)).expect("COUNT函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(2));
 
-        // 测试 NULL 不计数
+        // Testing NULL cases is not counted.
         count_func(&mut agg_data, &Value::Null(NullType::Null)).expect("COUNT函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(2));
     }
@@ -436,7 +436,7 @@ mod tests {
         sum_func(&mut agg_data, &Value::Int(20)).expect("SUM函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(30));
 
-        // 测试 NULL 不加入
+        // Test: NULL should not be included.
         sum_func(&mut agg_data, &Value::Null(NullType::Null)).expect("SUM函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(30));
     }
@@ -455,7 +455,7 @@ mod tests {
         if let Value::Set(set) = agg_data.result() {
             assert_eq!(set.len(), 2);
         } else {
-            panic!("结果应该是 Set 类型");
+            panic!("The result should be of the Set type.");
         }
     }
 }

@@ -1,6 +1,6 @@
-//! 数据修改执行器构建器
+//! Data Modification Executor Builder
 //!
-//! 负责创建数据修改类型的执行器（InsertVertices, InsertEdges, Remove）
+//! Responsible for creating executors for data modification operations (InsertVertices, InsertEdges, Remove).
 
 use crate::core::error::QueryError;
 use crate::core::vertex_edge_path::Tag;
@@ -14,53 +14,53 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// 数据修改执行器构建器
+/// Data Modification Executor Builder
 pub struct DataModificationBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
-    /// 创建新的数据修改构建器
+    /// Create a new data modification builder.
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
     }
 
-    /// 构建 InsertVertices 执行器
+    /// Constructing the InsertVertices executor
     pub fn build_insert_vertices(
         &self,
         node: &InsertVerticesNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // 将节点数据转换为顶点数据
+        // Convert node data into vertex data.
         let mut vertices = Vec::new();
 
         for (vid_expr, tag_values_list) in node.values() {
-            // 获取顶点ID表达式
+            // Obtain the vertex ID expression
             let _vid_expr = vid_expr
                 .get_expression()
                 .ok_or_else(|| QueryError::ExecutionError("顶点ID表达式不存在".to_string()))?;
 
-            // 获取标签名称
+            // Obtain the tag name
             let tag_names = node.tag_names();
 
-            // 创建标签列表
+            // Create a list of tags.
             let mut tags = Vec::new();
 
-            // 添加标签和属性
+            // Add tags and attributes
             for (tag_idx, tag_values) in tag_values_list.iter().enumerate() {
                 if let Some(tag_name) = tag_names.get(tag_idx) {
-                    // 创建标签属性映射
+                    // Create a mapping of tag attributes.
                     let mut tag_props = HashMap::new();
 
-                    // 添加属性
+                    // Add attributes
                     if let Some(prop_names) = node.prop_names() {
                         for (prop_idx, prop_value) in tag_values.iter().enumerate() {
                             if let Some(prop_name) = prop_names.get(prop_idx) {
                                 if let Some(_value_expr) = prop_value.get_expression() {
-                                    // 将表达式转换为值（这里简化处理，实际应该求值）
+                                    // Convert the expression into a value (a simplification is done here; in reality, an evaluation should be performed).
                                     tag_props.insert(
                                         prop_name.clone(),
                                         Value::Null(crate::core::NullType::Null),
@@ -70,13 +70,13 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                         }
                     }
 
-                    // 创建标签
+                    // Create tags
                     let tag = Tag::new(tag_name.clone(), tag_props);
                     tags.push(tag);
                 }
             }
 
-            // 创建顶点（使用占位ID，实际执行时会求值）
+            // Create vertices (using placeholder IDs, which will be evaluated during the actual execution).
             let vid = Value::Null(crate::core::NullType::Null);
             let vertex = Vertex::new(vid, tags);
             vertices.push(vertex);
@@ -92,7 +92,7 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
         Ok(ExecutorEnum::InsertVertices(executor))
     }
 
-    /// 构建 InsertEdges 执行器
+    /// Constructing the InsertEdges executor
     pub fn build_insert_edges(
         &self,
         node: &InsertEdgesNode,
@@ -102,17 +102,17 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
         let mut edges = Vec::new();
 
         for (src_expr, dst_expr, rank_expr, prop_values) in node.edges() {
-            // 获取源顶点ID表达式
+            // Obtain the expression for the ID of the source vertex.
             let _src_expr = src_expr
                 .get_expression()
                 .ok_or_else(|| QueryError::ExecutionError("源顶点ID表达式不存在".to_string()))?;
 
-            // 获取目标顶点ID表达式
+            // Obtain the expression for the target vertex ID.
             let _dst_expr = dst_expr
                 .get_expression()
                 .ok_or_else(|| QueryError::ExecutionError("目标顶点ID表达式不存在".to_string()))?;
 
-            // 获取rank（可选），默认为0
+            // Obtain the rank (optional); the default value is 0.
             let rank = rank_expr
                 .as_ref()
                 .and_then(|e| e.get_expression())
@@ -122,19 +122,19 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
                 })
                 .unwrap_or(0);
 
-            // 创建边属性映射
+            // Create a mapping of edge attributes.
             let mut props = HashMap::new();
             let prop_names = node.prop_names();
             for (prop_idx, prop_value) in prop_values.iter().enumerate() {
                 if let Some(prop_name) = prop_names.get(prop_idx) {
                     if let Some(_value_expr) = prop_value.get_expression() {
-                        // 将表达式转换为值（这里简化处理，实际应该求值）
+                        // Convert the expression into a value (a simplified approach is used here; in reality, the expression should be evaluated).
                         props.insert(prop_name.clone(), Value::Null(crate::core::NullType::Null));
                     }
                 }
             }
 
-            // 创建边（使用占位ID，实际执行时会求值）
+            // Create an edge (using a placeholder ID, which will be evaluated during the actual execution).
             let src = Value::Null(crate::core::NullType::Null);
             let dst = Value::Null(crate::core::NullType::Null);
             let edge = Edge::new(src, dst, node.edge_name().to_string(), rank, props);
@@ -152,14 +152,14 @@ impl<S: StorageClient + Send + 'static> DataModificationBuilder<S> {
         Ok(ExecutorEnum::InsertEdges(executor))
     }
 
-    /// 构建 Remove 执行器
+    /// Building the Remove Executor
     pub fn build_remove(
         &self,
         node: &RemoveNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // 转换remove_items
+        // Translate: `remove_items`
         let remove_items: Vec<RemoveItem> = node
             .remove_items()
             .iter()

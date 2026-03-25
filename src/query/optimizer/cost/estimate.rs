@@ -1,23 +1,23 @@
-//! 节点代价估算结果
+//! Results of the node cost estimation
 //!
-//! 定义节点代价估算的数据结构，包含：
-//! - 节点自身代价（不包含子节点）
-//! - 累计代价（包含所有子节点）
-//! - 估算的输出行数
+//! A data structure for estimating the cost of nodes, which includes:
+//! The cost of the node itself (excluding its child nodes)
+//! Cumulative cost (including all child nodes)
+//! Estimated number of output lines
 
-/// 节点代价和行数估算结果
+/// Estimates of node costs and the number of rows
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NodeCostEstimate {
-    /// 节点自身代价（不包含子节点）
+    /// The cost of the node itself (excluding its child nodes)
     pub node_cost: f64,
-    /// 累计代价（包含所有子节点）
+    /// Total cost (including all child nodes)
     pub total_cost: f64,
-    /// 估算的输出行数
+    /// Estimated number of output lines
     pub output_rows: u64,
 }
 
 impl NodeCostEstimate {
-    /// 创建新的估算结果
+    /// Create a new estimate.
     pub fn new(node_cost: f64, total_cost: f64, output_rows: u64) -> Self {
         Self {
             node_cost,
@@ -26,7 +26,7 @@ impl NodeCostEstimate {
         }
     }
 
-    /// 创建叶子节点的估算结果（无子节点）
+    /// Estimated results for creating leaf nodes (without child nodes)
     pub fn leaf(node_cost: f64, output_rows: u64) -> Self {
         Self {
             node_cost,
@@ -35,7 +35,7 @@ impl NodeCostEstimate {
         }
     }
 
-    /// 创建零代价估算结果
+    /// Create a zero-cost estimation result.
     pub fn zero() -> Self {
         Self {
             node_cost: 0.0,
@@ -44,7 +44,7 @@ impl NodeCostEstimate {
         }
     }
 
-    /// 合并多个子节点的估算结果
+    /// Combining the estimated results of multiple child nodes
     pub fn combine_children(children: &[Self], node_cost: f64, output_rows: u64) -> Self {
         let child_total_cost: f64 = children.iter().map(|e| e.total_cost).sum();
         Self {
@@ -54,7 +54,7 @@ impl NodeCostEstimate {
         }
     }
 
-    /// 获取代价比率（节点代价/累计代价）
+    /// Obtain the cost ratio (node cost/total cost).
     pub fn cost_ratio(&self) -> f64 {
         if self.total_cost == 0.0 {
             0.0
@@ -63,7 +63,7 @@ impl NodeCostEstimate {
         }
     }
 
-    /// 检查估算结果是否有效
+    /// Check whether the estimated results are valid.
     pub fn is_valid(&self) -> bool {
         self.node_cost >= 0.0 && self.total_cost >= 0.0
     }

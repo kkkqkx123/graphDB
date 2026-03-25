@@ -1,6 +1,6 @@
-//! 验证器模块
+//! Validator module
 //!
-//! 负责验证计划节点、递归检测、安全验证
+//! Responsible for verifying plan nodes, performing recursive detection, and conducting security checks.
 
 pub mod plan_validator;
 pub mod recursion_detector;

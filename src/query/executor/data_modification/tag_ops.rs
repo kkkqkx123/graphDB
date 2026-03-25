@@ -1,6 +1,6 @@
-//! 标签操作执行器
+//! Label Operated Actuators
 //!
-//! 负责从顶点删除标签
+//! Responsible for removing labels from vertices
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -12,9 +12,9 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 删除标签执行器
+/// Delete Label Enforcer
 ///
-/// 负责从顶点删除标签
+/// Responsible for removing labels from vertices
 pub struct DeleteTagExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     tag_names: Vec<String>,
@@ -45,7 +45,7 @@ impl<S: StorageClient> DeleteTagExecutor<S> {
         self
     }
 
-    /// 设置删除所有标签模式
+    /// Setting the Delete All Tabs Mode
     pub fn delete_all_tags(mut self) -> Self {
         self.delete_all_tags = true;
         self
@@ -109,7 +109,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
         let mut storage = self.get_storage().lock();
 
         for vertex_id in &self.vertex_ids {
-            // 如果是删除所有标签模式，先获取顶点的所有标签名
+            // If you are in delete all labels mode, first get all label names of the vertices
             let tag_names_to_delete = if self.delete_all_tags {
                 match storage.get_vertex(&self.space_name, vertex_id) {
                     Ok(Some(vertex)) => vertex
@@ -118,7 +118,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
                         .map(|tag| tag.name.clone())
                         .collect::<Vec<_>>(),
                     Ok(None) => {
-                        // 顶点不存在，跳过
+                        // Vertex does not exist, skip
                         continue;
                     }
                     Err(e) => {
@@ -135,7 +135,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
                     total_deleted += deleted_count;
                 }
                 Err(e) => {
-                    // 记录错误但继续处理其他顶点
+                    // Logging errors but continuing to process other vertices
                     eprintln!("删除顶点 {:?} 的标签失败: {:?}", vertex_id, e);
                 }
             }

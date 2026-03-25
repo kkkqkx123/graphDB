@@ -1,6 +1,6 @@
-//! 聚合相关规则
+//! Aggregate relevant rules
 //!
-//! 这些规则负责优化聚合操作
+//! These rules are responsible for optimizing aggregate operations.
 
 pub mod push_filter_down_aggregate;
 

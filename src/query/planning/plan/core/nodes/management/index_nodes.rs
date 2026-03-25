@@ -1,6 +1,6 @@
-//! 索引管理节点实现
+//! Implementation of the index management node
 //!
-//! 提供索引管理相关的计划节点定义
+//! Provide definitions for the planning nodes related to index management.
 
 use crate::define_plan_node;
 
@@ -274,7 +274,7 @@ impl RebuildEdgeIndexNode {
     }
 }
 
-/// 索引管理信息
+/// Index management information
 #[derive(Debug, Clone)]
 pub struct IndexManageInfo {
     pub space_name: String,

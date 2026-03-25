@@ -1,6 +1,6 @@
-//! 统计信息节点实现
+//! Implementation of the statistical information node
 //!
-//! 提供统计信息查询相关的计划节点定义
+//! Provide definitions of the planning nodes related to statistical information queries.
 
 use crate::define_plan_node;
 
@@ -27,11 +27,11 @@ impl ShowStatsNode {
     }
 }
 
-/// 显示统计类型
+/// Display the statistical type.
 #[derive(Debug, Clone)]
 pub enum ShowStatsType {
-    /// 显示存储统计
+    /// Display storage statistics
     Storage,
-    /// 显示空间统计
+    /// Display space statistics
     Space,
 }

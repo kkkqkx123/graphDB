@@ -1,8 +1,8 @@
-//! GetNeighbors 投影下推优化规则
+//! The “GetNeighbors” projection implements optimization rules for the downcasting process.
 //!
-//! 该规则将投影操作下推到 GetNeighbors 节点，减少数据传输量。
+//! This rule pushes the projection operation down to the GetNeighbors node, thereby reducing the amount of data transmitted.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before:
 //! ```text
@@ -25,9 +25,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// GetNeighbors 投影下推规则
+/// GetNeighbors projection pushdown rule
 ///
-/// 将投影操作下推到 GetNeighbors 节点
+/// Push the projection operation down to the GetNeighbors node.
 #[derive(Debug)]
 pub struct PushProjectDownGetNeighborsRule;
 
@@ -189,7 +189,7 @@ mod tests {
             PlanNodeEnum::GetNeighbors(node) => {
                 assert_eq!(node.col_names(), &["neighbor"]);
             }
-            _ => panic!("期望 GetNeighbors 节点"),
+            _ => panic!("Expectations for the GetNeighbors node"),
         }
     }
 

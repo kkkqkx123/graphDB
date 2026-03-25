@@ -1,6 +1,6 @@
-//! ShowSpacesExecutor - 列出图空间执行器
+//! ShowSpacesExecutor – Lists the image space executors
 //!
-//! 负责列出所有已创建的图空间。
+//! Responsible for listing all created graph spaces.
 
 use std::sync::Arc;
 
@@ -11,16 +11,16 @@ use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 列出图空间执行器
+/// List the executors that run in the graph space
 ///
-/// 该执行器负责返回所有已创建图空间的列表。
+/// This executor is responsible for returning a list of all the created graph spaces.
 #[derive(Debug)]
 pub struct ShowSpacesExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
 }
 
 impl<S: StorageClient> ShowSpacesExecutor<S> {
-    /// 创建新的 ShowSpacesExecutor
+    /// Create a new ShowSpacesExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,

@@ -17,10 +17,10 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// TraverseExecutor - 完整图遍历执行器
+/// TraverseExecutor – A complete executor for traversing and executing graphs
 ///
-/// 执行完整的图遍历操作，支持多跳和条件过滤
-/// 结合了 ExpandExecutor 的功能，支持更复杂的遍历需求
+/// Perform a complete graph traversal operation, supporting multiple jumps and conditional filtering.
+/// Combines the functionality of ExpandExecutor, supporting more complex traversal requirements.
 pub struct TraverseExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
@@ -29,11 +29,11 @@ pub struct TraverseExecutor<S: StorageClient + Send + 'static> {
 
     conditions: Option<String>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    /// 使用 NPath 存储当前遍历路径，减少内存复制
+    /// Use NPath to store the current traversal path, in order to reduce memory copying.
     current_npaths: Vec<Arc<NPath>>,
-    /// 使用 NPath 存储已完成路径
+    /// Use NPath to store the completed paths.
     completed_npaths: Vec<Arc<NPath>>,
-    /// 最终输出时转换为 Path
+    /// Final output should be in the format of "Path".
     current_paths: Vec<Path>,
     completed_paths: Vec<Path>,
     pub visited_nodes: HashSet<Value>,
@@ -93,13 +93,13 @@ impl<S: StorageClient> TraverseExecutor<S> {
         }
     }
 
-    /// 设置是否跟踪前一个路径
+    /// Set whether to track the previous path.
     pub fn with_track_prev_path(mut self, track_prev_path: bool) -> Self {
         self.track_prev_path = track_prev_path;
         self
     }
 
-    /// 设置是否生成路径
+    /// Set whether to generate paths.
     pub fn with_generate_path(mut self, generate_path: bool) -> Self {
         self.generate_path = generate_path;
         self
@@ -112,17 +112,17 @@ impl<S: StorageClient> TraverseExecutor<S> {
             node_id,
             self.edge_direction,
             &self.edge_types,
-            false, // 默认不允许自环边
+            false, // By default, self-looping edges are not allowed.
         )
         .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
-    /// 检查条件是否满足
+    /// Check whether the conditions are met.
     ///
-    /// 参考nebula-graph的TraverseExecutor::expand实现
+    /// Refer to the implementation of TraverseExecutor::expand in nebula-graph.
     /// 支持顶点过滤(vFilter)和边过滤(eFilter)
     fn check_conditions(&self, path: &Path, edge: &Edge, vertex: &Vertex) -> bool {
-        // 检查边过滤条件
+        // Check the edge filtering conditions.
         if let Some(ref e_filter) = self.e_filter {
             let mut context = DefaultExpressionContext::new();
             context.set_variable("edge".to_string(), Value::Edge(edge.clone()));
@@ -131,7 +131,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
                 Value::Vertex(Box::new(vertex.clone())),
             );
 
-            // 如果路径不为空，添加上下文
+            // If the path is not empty, add the relevant context.
             if !path.steps.is_empty() {
                 let last_step = path.steps.last().expect("Path should have steps");
                 context.set_variable("src".to_string(), Value::Vertex(last_step.dst.clone()));
@@ -146,7 +146,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             }
         }
 
-        // 检查顶点过滤条件（仅在第一步应用）
+        // Check the vertex filtering conditions (applied only in the first step).
         if path.steps.is_empty() {
             if let Some(ref v_filter) = self.v_filter {
                 let mut context = DefaultExpressionContext::new();
@@ -162,7 +162,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             }
         }
 
-        // 检查通用过滤条件
+        // Check the general filtering criteria.
         if let Some(ref filter) = self.filter {
             let mut context = DefaultExpressionContext::new();
             context.set_variable("edge".to_string(), Value::Edge(edge.clone()));
@@ -188,19 +188,19 @@ impl<S: StorageClient> TraverseExecutor<S> {
         true
     }
 
-    /// 设置顶点过滤条件
+    /// Set vertex filtering criteria
     pub fn with_v_filter(mut self, filter: Expression) -> Self {
         self.v_filter = Some(filter);
         self
     }
 
-    /// 设置边过滤条件
+    /// Set edge filtering criteria
     pub fn with_e_filter(mut self, filter: Expression) -> Self {
         self.e_filter = Some(filter);
         self
     }
 
-    /// 设置通用过滤条件
+    /// Set common filtering criteria
     pub fn with_filter(mut self, filter: Expression) -> Self {
         self.filter = Some(filter);
         self
@@ -208,10 +208,10 @@ impl<S: StorageClient> TraverseExecutor<S> {
 }
 
 impl<S: StorageClient> TraverseExecutor<S> {
-    /// 执行单步遍历
+    /// Perform a step-by-step traversal.
     fn traverse_step(&mut self, current_depth: usize, max_depth: usize) -> Result<(), QueryError> {
         if current_depth >= max_depth {
-            // 将剩余的 current_npaths 移到 completed_npaths
+            // Move the remaining elements from `current_npaths` to `completed_npaths`.
             self.completed_npaths.extend(self.current_npaths.clone());
             self.current_npaths.clear();
             return Ok(());
@@ -229,23 +229,23 @@ impl<S: StorageClient> TraverseExecutor<S> {
         let mut completed_this_step: Vec<Arc<NPath>> = Vec::new();
 
         for npath in &self.current_npaths {
-            // 获取当前路径的最后一个节点
+            // Get the last node of the current path.
             let current_node = &npath.vertex().vid;
 
-            // 获取邻居节点和边
+            // Obtaining neighbor nodes and edges
             let neighbors_with_edges = self.get_neighbors_with_edges(current_node)?;
 
             for (neighbor_id, edge) in neighbors_with_edges {
-                // 获取邻居节点的完整信息
+                // Obtain the complete information of the neighboring nodes.
                 let storage = self.get_storage().lock();
                 let neighbor_vertex = storage
                     .get_vertex("default", &neighbor_id)
                     .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
                 if let Some(vertex) = neighbor_vertex {
-                    // 将 NPath 转换为 Path 用于条件检查
+                    // Convert NPath to Path for use in conditional checks
                     let path = npath.to_path();
-                    // 检查条件
+                    // Check conditions
                     if !self.check_conditions(&path, &edge, &vertex) {
                         continue;
                     }
@@ -257,7 +257,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
                         Arc::new(vertex),
                     ));
 
-                    // 检查是否达到最大深度
+                    // Check whether the maximum depth has been reached.
                     if current_depth + 1 >= max_depth {
                         completed_this_step.push(new_npath);
                     } else {
@@ -279,7 +279,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
         self.completed_paths.clear();
         self.visited_nodes.clear();
 
-        // 为每个输入节点创建初始 NPath
+        // Create an initial NPath for each input node.
         for vertex in input_nodes {
             let vid = vertex.vid.clone();
             let initial_npath = Arc::new(NPath::new(Arc::new(vertex)));
@@ -290,9 +290,9 @@ impl<S: StorageClient> TraverseExecutor<S> {
         Ok(())
     }
 
-    /// 构建遍历结果
+    /// Constructing the traversal results
     fn build_traversal_result(&self) -> ExecutionResult {
-        // 将 NPath 转换为 Path 用于输出
+        // Convert NPath to Path for output.
         let completed_paths: Vec<Path> = self
             .completed_npaths
             .iter()
@@ -300,16 +300,16 @@ impl<S: StorageClient> TraverseExecutor<S> {
             .collect();
 
         if self.generate_path {
-            // 返回路径结果
+            // Return path result
             let mut path_values = Vec::new();
 
             for path in &completed_paths {
                 let mut path_value = Vec::new();
 
-                // 添加起始节点
+                // Add a starting node
                 path_value.push(Value::Vertex(path.src.clone()));
 
-                // 添加每一步的边和节点
+                // Add the edges and nodes for each step.
                 for step in &path.steps {
                     path_value.push(Value::Edge((*step.edge).clone()));
                     path_value.push(Value::Vertex(step.dst.clone()));
@@ -320,18 +320,18 @@ impl<S: StorageClient> TraverseExecutor<S> {
 
             ExecutionResult::Values(path_values)
         } else {
-            // 返回顶点结果
+            // Return the vertex results.
             let mut vertices = Vec::new();
             let mut visited_vertices = HashSet::new();
 
             for path in &completed_paths {
-                // 添加起始节点
+                // Add a starting node.
                 if !visited_vertices.contains(&path.src.vid) {
                     vertices.push((*path.src).clone());
                     visited_vertices.insert(path.src.vid.clone());
                 }
 
-                // 添加路径中的所有节点
+                // Add all nodes in the path.
                 for step in &path.steps {
                     if !visited_vertices.contains(&step.dst.vid) {
                         vertices.push((*step.dst).clone());
@@ -357,19 +357,19 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for TraverseExecutor<S>
 
 impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 首先执行输入执行器（如果存在）
+        // First, execute the input executor (if it exists).
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute()?
         } else {
-            // 如果没有输入执行器，返回空结果
+            // If no actuator is specified, return an empty result.
             ExecutionResult::Vertices(Vec::new())
         };
 
-        // 提取输入节点
+        // Extract the input nodes.
         let input_nodes = match input_result {
             ExecutionResult::Vertices(vertices) => vertices,
             ExecutionResult::Edges(edges) => {
-                // 从边中提取节点
+                // Extract nodes from the edges.
                 let mut nodes = Vec::new();
                 let mut visited = HashSet::new();
                 for edge in edges {
@@ -388,14 +388,14 @@ impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
                 nodes
             }
             ExecutionResult::Values(values) => {
-                // 从值中提取节点
+                // Extract nodes from the values.
                 let mut vertices = Vec::new();
                 let storage = self.get_storage().lock();
                 for value in values {
                     match value {
                         Value::Vertex(vertex) => vertices.push(*vertex),
                         Value::String(id_str) => {
-                            // 尝试将字符串作为节点ID获取节点
+                            // Try to obtain the node by using the string as the node ID.
                             let node_id = Value::String(id_str);
                             if let Ok(Some(vertex)) = storage.get_vertex("default", &node_id) {
                                 vertices.push(vertex);
@@ -413,28 +413,28 @@ impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
             return Ok(ExecutionResult::Vertices(Vec::new()));
         }
 
-        // 初始化遍历
+        // Initialize the traversal
         self.initialize_traversal(input_nodes)
             .map_err(DBError::from)?;
 
-        // 确定最大深度
-        let max_depth = self.max_depth.unwrap_or(3); // 默认深度为3
+        // Determine the maximum depth.
+        let max_depth = self.max_depth.unwrap_or(3); // The default depth is 3.
 
-        // 执行遍历
+        // Perform the traversal.
         for current_depth in 0..max_depth {
             self.traverse_step(current_depth, max_depth)
                 .map_err(DBError::from)?;
 
-            // 如果没有更多路径可以扩展，提前结束
+            // If there are no additional paths available for expansion, the process should be terminated in advance.
             if self.current_paths.is_empty() {
                 break;
             }
         }
 
-        // 将剩余的当前路径添加到完成路径中
+        // Add the remaining parts of the current path to the complete path.
         self.completed_paths.extend(self.current_paths.clone());
 
-        // 构建结果
+        // Build the results.
         Ok(self.build_traversal_result())
     }
 

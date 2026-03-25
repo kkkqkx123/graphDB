@@ -1,6 +1,6 @@
-//! 核心查询模块
+//! Core Query Module
 //!
-//! 提供查询系统的基础类型定义和通用功能。
+//! Provide definitions of the basic types of query systems and their common functions.
 
 mod execution_state;
 mod node_type;

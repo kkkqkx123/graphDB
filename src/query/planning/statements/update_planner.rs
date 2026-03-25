@@ -1,6 +1,6 @@
-//! 更新操作规划器
+//! Update Operation Planner
 //!
-//! 处理 UPDATE VERTEX/EDGE 语句的查询规划
+//! Query planning for processing UPDATE VERTEX/EDGE statements
 
 use crate::core::types::ContextualExpression;
 use crate::core::YieldColumn;
@@ -14,18 +14,18 @@ use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement}
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 更新操作规划器
-/// 负责将 UPDATE 语句转换为执行计划
+/// Update Operation Planner
+/// Responsible for converting UPDATE statements into execution plans.
 #[derive(Debug, Clone)]
 pub struct UpdatePlanner;
 
 impl UpdatePlanner {
-    /// 创建新的更新规划器
+    /// Create a new update planner.
     pub fn new() -> Self {
         Self
     }
 
-    /// 从 Stmt 提取 UpdateStmt
+    /// Extract the UpdateStmt from the Stmt.
     fn extract_update_stmt(&self, stmt: &Stmt) -> Result<UpdateStmt, PlannerError> {
         match stmt {
             Stmt::Update(update_stmt) => Ok(update_stmt.clone()),
@@ -44,10 +44,10 @@ impl Planner for UpdatePlanner {
     ) -> Result<SubPlan, PlannerError> {
         let _ = qctx;
 
-        // 使用验证信息进行优化规划
+        // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;
 
-        // 检查语义信息
+        // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
             log::debug!("UPDATE 引用的标签: {:?}", referenced_tags);
@@ -65,11 +65,11 @@ impl Planner for UpdatePlanner {
 
         let update_stmt = self.extract_update_stmt(validated.stmt())?;
 
-        // 创建参数节点作为输入
+        // Create a parameter node as the input.
         let arg_node = ArgumentNode::new(next_node_id(), "update_input");
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
-        // 根据更新目标类型构建输出列
+        // Construct the output column based on the type of update target.
         let target_name = match &update_stmt.target {
             UpdateTarget::Vertex(..) => "vertex",
             UpdateTarget::Edge { .. } => "edge",
@@ -89,14 +89,14 @@ impl Planner for UpdatePlanner {
             is_matched: false,
         }];
 
-        // 创建投影节点输出更新结果
+        // Create a projection node to output the updated results.
         let project_node = ProjectNode::new(arg_node_enum.clone(), yield_columns).map_err(|e| {
             PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
         })?;
 
         let final_node = PlanNodeEnum::Project(project_node);
 
-        // 创建 SubPlan
+        // Create a SubPlan
         let sub_plan = SubPlan::new(Some(final_node), Some(arg_node_enum));
 
         Ok(sub_plan)

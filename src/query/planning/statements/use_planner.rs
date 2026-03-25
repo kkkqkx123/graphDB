@@ -1,6 +1,6 @@
-//! USE 语句规划器
+//! USE Statement Planner
 //!
-//! 处理 USE <space> 语句的查询规划
+//! Query planning for handling the USE <space> statement
 
 use crate::query::parser::ast::{Stmt, UseStmt};
 use crate::query::planning::plan::core::{
@@ -12,18 +12,18 @@ use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement}
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// USE 语句规划器
-/// 负责将 USE 语句转换为执行计划
+/// USE Statement Planner
+/// Responsible for converting USE statements into execution plans
 #[derive(Debug, Clone)]
 pub struct UsePlanner;
 
 impl UsePlanner {
-    /// 创建新的 USE 规划器
+    /// Create a new USE planner.
     pub fn new() -> Self {
         Self
     }
 
-    /// 从 Stmt 提取 UseStmt
+    /// Extract the UseStmt from the Stmt.
     fn extract_use_stmt(&self, stmt: &Stmt) -> Result<UseStmt, PlannerError> {
         match stmt {
             Stmt::Use(use_stmt) => Ok(use_stmt.clone()),
@@ -42,16 +42,16 @@ impl Planner for UsePlanner {
     ) -> Result<SubPlan, PlannerError> {
         let use_stmt = self.extract_use_stmt(validated.stmt())?;
 
-        // 创建参数节点作为输入
+        // Create a parameter node as input.
         let arg_node = ArgumentNode::new(next_node_id(), "use_input");
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
-        // 创建 SwitchSpace 节点
+        // Create a SwitchSpace node
         let switch_space_node = SwitchSpaceNode::new(next_node_id(), use_stmt.space.clone());
 
         let final_node = PlanNodeEnum::SwitchSpace(switch_space_node);
 
-        // 创建 SubPlan
+        // Create a SubPlan
         let sub_plan = SubPlan::new(Some(final_node), Some(arg_node_enum));
 
         Ok(sub_plan)

@@ -1,14 +1,14 @@
-//! 图遍历方向优化器模块
+//! Image traversal direction optimizer module
 //!
-//! 基于边统计信息选择最优的遍历方向（正向或反向）
+//! Select the optimal traversal direction (forward or backward) based on edge statistics.
 //!
-//! ## 优化策略
+//! ## Optimization Strategies
 //!
-//! - 选择度数较小的方向以减少中间结果
-//! - 考虑超级节点的影响
-//! - 支持基于代价的方向选择
+//! Choose the direction with a smaller degree value in order to reduce the intermediate results.
+//! Consider the impact of super nodes.
+//! Support for cost-based direction selection
 //!
-//! ## 使用示例
+//! ## Usage Examples
 //!
 //! ```rust
 //! use graphdb::query::optimizer::strategy::TraversalDirectionOptimizer;
@@ -25,22 +25,22 @@ use crate::core::types::EdgeDirection;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::stats::EdgeTypeStatistics;
 
-/// 遍历方向决策
+/// Decision on the direction of traversal
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TraversalDirection {
-    /// 正向遍历（出边方向）
-    /// 从源顶点遍历到目标顶点
+    /// Forward traversal (outward direction)
+    /// Traverse from the source vertex to the target vertex.
     Forward,
-    /// 反向遍历（入边方向）
-    /// 从目标顶点遍历到源顶点
+    /// Reverse traversal (inward direction)
+    /// Traverse from the target vertex to the source vertex.
     Backward,
-    /// 双向遍历
-    /// 同时考虑两个方向
+    /// Bidirectional traversal
+    /// Consider both directions at the same time.
     Bidirectional,
 }
 
 impl TraversalDirection {
-    /// 获取方向名称
+    /// Obtain the name of the direction
     pub fn name(&self) -> &'static str {
         match self {
             TraversalDirection::Forward => "Forward",
@@ -49,7 +49,7 @@ impl TraversalDirection {
         }
     }
 
-    /// 转换为 EdgeDirection
+    /// Convert to EdgeDirection
     pub fn to_edge_direction(&self) -> EdgeDirection {
         match self {
             TraversalDirection::Forward => EdgeDirection::Out,
@@ -58,7 +58,7 @@ impl TraversalDirection {
         }
     }
 
-    /// 从 EdgeDirection 转换
+    /// Conversion from EdgeDirection
     pub fn from_edge_direction(direction: &EdgeDirection) -> Self {
         match direction {
             EdgeDirection::Out => TraversalDirection::Forward,
@@ -68,111 +68,111 @@ impl TraversalDirection {
     }
 }
 
-/// 方向选择原因
+/// Reasons for the choice of direction
 #[derive(Debug, Clone)]
 pub enum DirectionSelectionReason {
-    /// 出度小于入度
+    /// Outdegree is less than indegree.
     OutDegreeLower { out_degree: f64, in_degree: f64 },
-    /// 入度小于出度
+    /// The in-degree is less than the out-degree.
     InDegreeLower { in_degree: f64, out_degree: f64 },
-    /// 度数相等或接近
+    /// The degrees are equal or very similar.
     DegreesEqual { out_degree: f64, in_degree: f64 },
-    /// 基于代价比较的选择
+    /// Selection based on cost comparison
     CostBased {
         forward_cost: f64,
         backward_cost: f64,
     },
-    /// 避免超级节点
+    /// Avoid using super nodes.
     AvoidSuperNode {
         super_node_direction: TraversalDirection,
         threshold: f64,
     },
-    /// 统计信息不可用，使用默认方向
+    /// Statistical information is not available; the default orientation will be used.
     StatsUnavailable,
-    /// 显式指定方向
+    /// Explicitly specifying the direction
     ExplicitDirection,
 }
 
-/// 遍历方向决策结果
+/// Decision on the traversal direction
 #[derive(Debug, Clone)]
 pub struct TraversalDirectionDecision {
-    /// 选择的方向
+    /// The chosen direction
     pub direction: TraversalDirection,
-    /// 估计的输出行数
+    /// Estimated number of output lines
     pub estimated_output_rows: u64,
-    /// 估计的代价
+    /// Estimated cost
     pub estimated_cost: f64,
-    /// 选择原因
+    /// Reason for the choice
     pub reason: DirectionSelectionReason,
-    /// 平均度数（选择的方向）
+    /// Average degree (selected direction)
     pub avg_degree: f64,
-    /// 是否涉及超级节点
+    /// Does it involve super nodes?
     pub involves_super_node: bool,
 }
 
-/// 遍历方向优化器
+/// Traversal Direction Optimizer
 ///
-/// 基于边的统计信息选择最优遍历方向
+/// Selecting the optimal traversal direction based on edge-based statistical information
 #[derive(Debug)]
 pub struct TraversalDirectionOptimizer {
     cost_calculator: Arc<CostCalculator>,
-    /// 超级节点阈值（度数超过此值视为超级节点）
+    /// Super Node Threshold (A node is considered a super node if its degree exceeds this value.)
     super_node_threshold: f64,
-    /// 度数差异阈值（差异小于此值视为相等）
+    /// Threshold for degree difference: Differences smaller than this value are considered equal.
     degree_equality_threshold: f64,
 }
 
-/// 方向优化上下文
+/// Direction optimization context
 #[derive(Debug, Clone)]
 pub struct DirectionContext {
-    /// 边类型
+    /// Edge type
     pub edge_type: String,
-    /// 起始节点数量
+    /// Number of starting nodes
     pub start_nodes: u64,
-    /// 显式指定的方向（如果有）
+    /// The explicitly specified direction (if any)
     pub explicit_direction: Option<TraversalDirection>,
-    /// 是否允许双向遍历
+    /// Is bidirectional traversal allowed?
     pub allow_bidirectional: bool,
-    /// 遍历步数
+    /// Number of iterations
     pub steps: u32,
 }
 
 impl TraversalDirectionOptimizer {
-    /// 创建新的遍历方向优化器
+    /// Create a new optimizer for optimizing traversal directions.
     pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
         Self {
             cost_calculator,
-            super_node_threshold: 1000.0,   // 默认超级节点阈值
-            degree_equality_threshold: 0.1, // 10% 差异视为相等
+            super_node_threshold: 1000.0,   // Default super node threshold
+            degree_equality_threshold: 0.1, // A difference of 10% is considered equivalent (i.e., the two values are considered to be the same).
         }
     }
 
-    /// 设置超级节点阈值
+    /// Setting the threshold for super nodes
     pub fn with_super_node_threshold(mut self, threshold: f64) -> Self {
         self.super_node_threshold = threshold;
         self
     }
 
-    /// 设置度数相等阈值
+    /// Set a threshold for equal degrees
     pub fn with_equality_threshold(mut self, threshold: f64) -> Self {
         self.degree_equality_threshold = threshold;
         self
     }
 
-    /// 优化遍历方向
+    /// Optimize the direction of the traversal
     ///
-    /// # 参数
-    /// - `context`: 方向优化上下文
+    /// # Parameters
+    /// “Direction optimization context”
     ///
-    /// # 返回
-    /// 方向决策结果
+    /// # Return
+    /// Directional decision-making outcome
     pub fn optimize_direction(&self, context: &DirectionContext) -> TraversalDirectionDecision {
-        // 如果有显式指定的方向，优先使用
+        // If a specific direction is explicitly specified, that direction should be given priority.
         if let Some(explicit) = context.explicit_direction {
             return self.create_explicit_decision(context, explicit);
         }
 
-        // 获取边统计信息
+        // Obtain edge statistics information
         let stats = self
             .cost_calculator
             .statistics_manager()
@@ -184,7 +184,7 @@ impl TraversalDirectionOptimizer {
         }
     }
 
-    /// 基于统计信息优化方向
+    /// Optimization directions based on statistical information
     fn optimize_with_stats(
         &self,
         context: &DirectionContext,
@@ -193,11 +193,11 @@ impl TraversalDirectionOptimizer {
         let out_degree = stats.avg_out_degree;
         let in_degree = stats.avg_in_degree;
 
-        // 检查是否涉及超级节点
+        // Check whether super nodes are involved.
         let forward_is_super = out_degree > self.super_node_threshold;
         let backward_is_super = in_degree > self.super_node_threshold;
 
-        // 如果两个方向都是超级节点，选择度数较小的
+        // If both directions involve super nodes, choose the one with the smaller degree (i.e., the one with fewer connections).
         if forward_is_super && backward_is_super {
             let direction = if out_degree <= in_degree {
                 TraversalDirection::Forward
@@ -228,7 +228,7 @@ impl TraversalDirectionOptimizer {
             };
         }
 
-        // 如果只有一个方向是超级节点，避免该方向
+        // If there is only one direction in which the node is a super node, avoid that direction.
         if forward_is_super {
             return TraversalDirectionDecision {
                 direction: TraversalDirection::Backward,
@@ -257,15 +257,15 @@ impl TraversalDirectionOptimizer {
             };
         }
 
-        // 基于度数比较选择方向
+        // Choosing the direction based on the comparison of degrees
         let degree_diff = (out_degree - in_degree).abs();
         let degree_ratio = degree_diff / ((out_degree + in_degree) / 2.0);
 
         if degree_ratio < self.degree_equality_threshold {
-            // 度数接近，基于代价计算选择
+            // The degrees are close; the choice is made based on cost calculations.
             self.select_by_cost(context, out_degree, in_degree)
         } else if out_degree < in_degree {
-            // 出度较小，选择正向
+            // The degree of deviation is small; therefore, the positive option should be chosen.
             TraversalDirectionDecision {
                 direction: TraversalDirection::Forward,
                 estimated_output_rows: (context.start_nodes as f64 * out_degree) as u64,
@@ -292,7 +292,7 @@ impl TraversalDirectionOptimizer {
         }
     }
 
-    /// 基于代价选择方向
+    /// Choosing the direction based on cost
     fn select_by_cost(
         &self,
         context: &DirectionContext,
@@ -321,7 +321,7 @@ impl TraversalDirectionOptimizer {
         }
     }
 
-    /// 计算遍历代价
+    /// Calculating the cost of traversal
     fn calculate_cost(&self, context: &DirectionContext, is_super: bool) -> f64 {
         let base_cost = self
             .cost_calculator
@@ -334,13 +334,13 @@ impl TraversalDirectionOptimizer {
         }
     }
 
-    /// 创建显式方向的决策
+    /// Making decisions that involve a clear direction
     fn create_explicit_decision(
         &self,
         context: &DirectionContext,
         direction: TraversalDirection,
     ) -> TraversalDirectionDecision {
-        // 尝试获取统计信息
+        // Try to obtain statistical information.
         let avg_degree = self
             .cost_calculator
             .statistics_manager()
@@ -364,12 +364,12 @@ impl TraversalDirectionOptimizer {
         }
     }
 
-    /// 创建默认决策（统计信息不可用）
+    /// Create a default decision (statistical information not available).
     fn create_default_decision(&self, context: &DirectionContext) -> TraversalDirectionDecision {
         let default_degree = 2.0;
 
         TraversalDirectionDecision {
-            direction: TraversalDirection::Forward, // 默认正向
+            direction: TraversalDirection::Forward, // Default forward direction
             estimated_output_rows: (context.start_nodes as f64 * default_degree) as u64,
             estimated_cost: self.calculate_cost(context, false),
             reason: DirectionSelectionReason::StatsUnavailable,
@@ -378,7 +378,7 @@ impl TraversalDirectionOptimizer {
         }
     }
 
-    /// 快速方向选择（简化版本，用于决策缓存）
+    /// Quick direction selection (simplified version, for decision-making caching)
     pub fn select_direction_quick(&self, edge_type: &str) -> TraversalDirection {
         let stats = self
             .cost_calculator
@@ -404,7 +404,7 @@ impl TraversalDirectionOptimizer {
         }
     }
 
-    /// 获取边的度数信息
+    /// Obtaining the degree information of the edges
     pub fn get_degree_info(&self, edge_type: &str) -> Option<DegreeInfo> {
         self.cost_calculator
             .statistics_manager()
@@ -420,20 +420,20 @@ impl TraversalDirectionOptimizer {
     }
 }
 
-/// 度数信息
+/// Degree information
 #[derive(Debug, Clone)]
 pub struct DegreeInfo {
-    /// 平均出度
+    /// Average attendance
     pub avg_out_degree: f64,
-    /// 平均入度
+    /// Average Indegree
     pub avg_in_degree: f64,
-    /// 最大出度
+    /// Maximum Outdegree
     pub max_out_degree: u64,
-    /// 最大入度
+    /// Maximum In-degree
     pub max_in_degree: u64,
-    /// 出度方向是否为超级节点
+    /// Is the outbound direction a super node?
     pub is_out_super: bool,
-    /// 入度方向是否为超级节点
+    /// Is the inbound direction a super node?
     pub is_in_super: bool,
 }
 
@@ -526,7 +526,7 @@ mod tests {
     #[test]
     fn test_degree_info() {
         let optimizer = create_test_optimizer();
-        // 未知边类型应该返回 None
+        // The unknown edge type should return None.
         let info = optimizer.get_degree_info("UNKNOWN");
         assert!(info.is_none());
     }

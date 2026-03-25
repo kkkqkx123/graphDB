@@ -1,13 +1,13 @@
-//! 统一 MATCH 语句规划器
+//! Unified MATCH Statement Planner
 //!
-//! 实现 StatementPlanner 接口，处理完整的 MATCH 查询规划。
-//! 整合了以下功能：
-//! - 节点和边模式匹配（支持多路径）
-//! - WHERE 条件过滤
-//! - RETURN 投影
-//! - ORDER BY 排序
-//! - LIMIT/SKIP 分页
-//! - 智能扫描策略选择（索引扫描、属性扫描、全表扫描）
+//! Implement the StatementPlanner interface to handle the complete planning of MATCH queries.
+//! It integrates the following functions:
+//! Node and edge pattern matching (supports multiple paths)
+//! WHERE condition filtering
+//! - RETURN Projection
+//! ORDER BY: Sorting
+//! “LIMIT/SKIP” – Pagination options
+//! Selection of intelligent scanning strategies (index scanning, attribute scanning, full table scanning)
 
 use crate::core::types::ContextualExpression;
 use crate::core::YieldColumn;
@@ -30,17 +30,17 @@ use crate::query::validator::ValidationInfo;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 分页信息结构体
+/// Pagination Information Structure
 #[derive(Debug, Clone)]
 pub struct PaginationInfo {
     pub skip: usize,
     pub limit: usize,
 }
 
-/// MATCH 语句规划器
+/// MATCH Statement Planner
 ///
-/// 负责将 MATCH 查询转换为可执行的执行计划。
-/// 实现 StatementPlanner 接口，提供统一的规划入口。
+/// Responsible for converting MATCH queries into executable execution plans.
+/// Implement the StatementPlanner interface to provide a unified planning entry point.
 #[derive(Debug, Clone)]
 pub struct MatchStatementPlanner {
     config: MatchPlannerConfig,
@@ -88,18 +88,18 @@ impl Planner for MatchStatementPlanner {
     ) -> Result<SubPlan, PlannerError> {
         let space_id = qctx.space_id().unwrap_or(1);
 
-        // 使用验证信息进行优化规划
+        // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;
 
-        // 设置 expr_context
+        // Set expr_context
         self.expr_context = Some(validated.ast.expr_context().clone());
 
-        // 检查优化提示
+        // Check the optimization suggestions.
         for hint in &validation_info.optimization_hints {
             log::debug!("优化提示: {:?}", hint);
         }
 
-        // 使用别名映射优化规划
+        // Optimize the planning using alias mapping.
         self.plan_match_pattern(validated, space_id, validation_info, &qctx)
     }
 }
@@ -132,31 +132,31 @@ impl MatchStatementPlanner {
         let stmt = validated.stmt();
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
-                // 使用验证信息优化规划
-                // 使用索引提示
+                // Optimize the planning using the verification information.
+                // Use the index hints.
                 for hint in &validation_info.index_hints {
                     if hint.estimated_selectivity < 0.1 {
                         log::debug!("使用高选择性索引: {}", hint.index_name);
                     }
                 }
 
-                // 使用语义信息优化连接顺序
+                // Optimize the order of connections using semantic information.
                 let referenced_tags = &validation_info.semantic_info.referenced_tags;
                 if !referenced_tags.is_empty() {
                     log::debug!("引用的标签: {:?}", referenced_tags);
                 }
 
-                // 处理路径模式
+                // Handle path pattern
                 let mut plan = if match_stmt.patterns.is_empty() {
-                    // 没有路径模式时使用默认节点扫描
+                    // Use the default node scanning when no path pattern is available.
                     self.plan_node_pattern(space_id)?
                 } else {
-                    // 处理第一个路径模式
+                    // Process the first path pattern.
                     let first_pattern = &match_stmt.patterns[0];
                     self.plan_path_pattern(first_pattern, space_id, validation_info, qctx)?
                 };
 
-                // 处理额外的路径模式（使用交叉连接）
+                // Handling additional path patterns (using cross-connections)
                 for pattern in match_stmt.patterns.iter().skip(1) {
                     let path_plan =
                         self.plan_path_pattern(pattern, space_id, validation_info, qctx)?;
@@ -187,7 +187,7 @@ impl MatchStatementPlanner {
         }
     }
 
-    /// 规划路径模式
+    /// Planning Path Mode
     fn plan_path_pattern(
         &self,
         pattern: &Pattern,
@@ -207,7 +207,7 @@ impl MatchStatementPlanner {
                 for element in path.elements.iter() {
                     match element {
                         PathElement::Node(node) => {
-                            // 规划节点扫描
+                            // Planning the node scanning process
                             let node_plan = self.plan_pattern_node(node, space_id)?;
 
                             plan = if let Some(existing_root) = plan.root.take() {
@@ -236,7 +236,7 @@ impl MatchStatementPlanner {
                             prev_node_alias = node.variable.clone();
                         }
                         PathElement::Edge(edge) => {
-                            // 规划边扩展
+                            // Planning while expanding
                             if prev_node_alias.is_none() {
                                 return Err(PlannerError::PlanGenerationFailed(
                                     "边模式必须跟随节点模式".to_string(),
@@ -254,7 +254,7 @@ impl MatchStatementPlanner {
                             };
                         }
                         PathElement::Alternative(patterns) => {
-                            // 处理替代路径：将多个路径选项合并为并集
+                            // Handle alternative paths: Combine multiple path options into a union set.
                             let alt_plan = self.plan_alternative_patterns(
                                 patterns,
                                 space_id,
@@ -272,7 +272,7 @@ impl MatchStatementPlanner {
                             };
                         }
                         PathElement::Optional(elem) => {
-                            // 处理可选路径：使用左连接保留左侧所有数据
+                            // Handle optional paths: Use a left join to retain all data from the left side.
                             let opt_plan = self.plan_optional_element(
                                 elem,
                                 space_id,
@@ -290,7 +290,7 @@ impl MatchStatementPlanner {
                             };
                         }
                         PathElement::Repeated(elem, rep_type) => {
-                            // 处理重复路径：使用循环节点实现可变长度路径
+                            // Handling duplicate paths: Implementing variable-length paths using loop nodes
                             let rep_plan = self.plan_repeated_element(
                                 elem,
                                 *rep_type,
@@ -317,22 +317,22 @@ impl MatchStatementPlanner {
 
                 Ok(plan)
             }
-            // 非路径模式委托给 plan_pattern 处理
+            // Delegations in non-path mode are processed by plan_pattern.
             _ => self.plan_pattern(pattern, space_id, validation_info, qctx),
         }
     }
 
-    /// 规划模式节点
+    /// Planning Mode Node
     fn plan_pattern_node(
         &self,
         node: &crate::query::parser::ast::pattern::NodePattern,
         space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
-        // 创建节点扫描
+        // Create a node scanning process.
         let scan_node = ScanVerticesNode::new(space_id);
         let mut plan = SubPlan::from_root(scan_node.into_enum());
 
-        // 如果有标签过滤，添加过滤器
+        // If there is a label filtering option, please add the filter.
         if !node.labels.is_empty() {
             let expr_ctx = self
                 .expr_context
@@ -348,7 +348,7 @@ impl MatchStatementPlanner {
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
 
-        // 如果有属性过滤，添加过滤器
+        // If there is attribute filtering, add the filter.
         if let Some(ref props) = node.properties {
             let filter_node = FilterNode::new(
                 plan.root.as_ref().expect("plan的root应该存在").clone(),
@@ -358,7 +358,7 @@ impl MatchStatementPlanner {
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
 
-        // 如果有谓词过滤，添加过滤器
+        // If there is predicate filtering, add the filter.
         if !node.predicates.is_empty() {
             for pred in &node.predicates {
                 let filter_node = FilterNode::new(
@@ -373,7 +373,7 @@ impl MatchStatementPlanner {
         Ok(plan)
     }
 
-    /// 规划模式边
+    /// Planning mode sidebar
     fn plan_pattern_edge(
         &self,
         edge: &crate::query::parser::ast::pattern::EdgePattern,
@@ -398,7 +398,7 @@ impl MatchStatementPlanner {
 
         let mut plan = SubPlan::from_root(expand_node.into_enum());
 
-        // 如果有属性过滤，添加过滤器
+        // If there is attribute filtering, add the filter.
         if let Some(ref props) = edge.properties {
             let filter_node = FilterNode::new(
                 plan.root.as_ref().expect("plan的root应该存在").clone(),
@@ -408,7 +408,7 @@ impl MatchStatementPlanner {
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
 
-        // 如果有谓词过滤，添加过滤器
+        // If there is predicate filtering, add the filter.
         if !edge.predicates.is_empty() {
             for pred in &edge.predicates {
                 let filter_node = FilterNode::new(
@@ -423,7 +423,7 @@ impl MatchStatementPlanner {
         Ok(plan)
     }
 
-    /// 交叉连接两个计划
+    /// Interconnecting two plans
     fn cross_join_plans(&self, left: SubPlan, right: SubPlan) -> Result<SubPlan, PlannerError> {
         use crate::query::planning::plan::core::nodes::CrossJoinNode;
 
@@ -446,9 +446,9 @@ impl MatchStatementPlanner {
         })
     }
 
-    /// 连接两个节点计划（基于别名）
+    /// Plan to connect two nodes (based on aliases)
     ///
-    /// 当存在前一个节点别名时，使用哈希内连接基于节点 ID 进行连接。
+    /// When there is an alias for the previous node, a hash-based internal connection is used to establish the connection based on the node ID.
     /// 这用于处理路径模式中的连续节点，如 MATCH (a)-[]->(b) 中 a 和 b 的连接。
     fn join_node_plans(
         &self,
@@ -472,21 +472,21 @@ impl MatchStatementPlanner {
 
         let ctx = expr_context.clone();
 
-        // 构建哈希键和探测键表达式
-        // 左表使用已存在的别名作为哈希键
+        // Constructing hash key and probe key expressions
+        // The left table uses existing aliases as hash keys.
         let hash_key_expr = crate::core::Expression::variable(left_alias);
         let hash_key_meta = crate::core::types::expr::ExpressionMeta::new(hash_key_expr);
         let hash_key_id = ctx.register_expression(hash_key_meta);
         let hash_keys = vec![ContextualExpression::new(hash_key_id, ctx.clone())];
 
-        // 右表使用新节点的变量名或默认名称作为探测键
+        // The right table uses the variable name of the new node or the default name as the detection key.
         let probe_alias = right_alias.as_deref().unwrap_or("n");
         let probe_key_expr = crate::core::Expression::variable(probe_alias);
         let probe_key_meta = crate::core::types::expr::ExpressionMeta::new(probe_key_expr);
         let probe_key_id = ctx.register_expression(probe_key_meta);
         let probe_keys = vec![ContextualExpression::new(probe_key_id, ctx)];
 
-        // 创建哈希内连接节点
+        // Create a Hashne connection node.
         let join_node =
             HashInnerJoinNode::new(left_root.clone(), right_root.clone(), hash_keys, probe_keys)
                 .map_err(|e| PlannerError::JoinFailed(format!("哈希内连接失败: {}", e)))?;
@@ -660,9 +660,9 @@ impl MatchStatementPlanner {
         }
     }
 
-    /// 规划替代路径模式
+    /// Planning Alternative Paths Pattern
     ///
-    /// 将多个路径选项转换为并集操作
+    /// Convert multiple path options into a union operation.
     /// 例如: (a)-[:KNOWS|WORKS_WITH]->(b) 表示 KNOWS 或 WORKS_WITH 两种关系
     fn plan_alternative_patterns(
         &self,
@@ -678,10 +678,10 @@ impl MatchStatementPlanner {
             ));
         }
 
-        // 规划第一个路径选项
+        // Plan the first path option
         let mut plan = self.plan_pattern(&patterns[0], space_id, validation_info, qctx)?;
 
-        // 将剩余路径选项通过并集合并
+        // Merge the remaining path options using the union operation.
         for pattern in patterns.iter().skip(1) {
             let pattern_plan = self.plan_pattern(pattern, space_id, validation_info, qctx)?;
             plan = self.union_plans(plan, pattern_plan)?;
@@ -690,7 +690,7 @@ impl MatchStatementPlanner {
         Ok(plan)
     }
 
-    /// 规划单个模式（节点、边或路径）
+    /// Planning a single pattern (node, edge, or path)
     fn plan_pattern(
         &self,
         pattern: &Pattern,
@@ -706,31 +706,31 @@ impl MatchStatementPlanner {
         }
     }
 
-    /// 规划变量模式
+    /// Planning Variable Pattern
     ///
-    /// 变量模式引用之前定义的变量，使用 ArgumentNode 作为数据源
-    /// 参考 nebula-graph 的 VariableVertexIdSeek 实现
+    /// The variable pattern references a previously defined variable, using an ArgumentNode as the data source.
+    /// Refer to the implementation of VariableVertexIdSeek in nebula-graph.
     ///
-    /// # 设计说明
+    /// # Design Specifications
     ///
-    /// 变量模式用于引用之前 MATCH 子句中定义的变量，例如：
+    /// The variable pattern is used to reference variables that were defined in a previous MATCH clause, for example:
     /// ```cypher
     /// MATCH (a), a RETURN a
     /// ```
-    /// 在这个例子中，第二个 `a` 是变量模式，引用第一个 `(a)` 定义的节点。
+    /// In this example, the second “a” represents a variable pattern that refers to the node defined by the first “(a)”.
     ///
-    /// # 执行流程
+    /// # Execution Process
     ///
-    /// 1. 创建 ArgumentNode 来标记需要从执行上下文中获取变量
-    /// 2. 在执行阶段，ArgumentExecutor 从 ExecutionContext 中获取变量值
-    /// 3. 如果变量不存在，返回执行错误
+    /// 1. Create an `ArgumentNode` to indicate that a variable needs to be retrieved from the execution context.
+    /// 2. During the execution phase, the ArgumentExecutor retrieves the variable values from the ExecutionContext.
+    /// 3. If the variable does not exist, return an execution error.
     fn plan_variable_pattern(
         &self,
         var: &crate::query::parser::ast::pattern::VariablePattern,
         _space_id: u64,
         validation_info: &ValidationInfo,
     ) -> Result<SubPlan, PlannerError> {
-        // 使用 ValidationInfo 的 alias_map 验证变量是否存在
+        // Use the alias_map of ValidationInfo to verify whether the variable exists.
         if !validation_info.alias_map.contains_key(&var.name) {
             return Err(PlannerError::PlanGenerationFailed(format!(
                 "变量 '{}' 未定义",
@@ -738,17 +738,17 @@ impl MatchStatementPlanner {
             )));
         }
 
-        // 创建 ArgumentNode 来引用变量
-        // ArgumentNode 表示从外部变量输入数据，用于子查询或模式引用
+        // Create an ArgumentNode to reference the variable.
+        // The `ArgumentNode` represents data input from external variables, which is used for subqueries or schema references.
         let argument_node = ArgumentNode::new(0, &var.name);
 
-        // 创建 SubPlan，只包含 ArgumentNode
+        // Create a SubPlan that contains only the ArgumentNode.
         let sub_plan = SubPlan::from_root(argument_node.into_enum());
 
         Ok(sub_plan)
     }
 
-    /// 合并两个计划为并集
+    /// Merge the two plans into a union.
     fn union_plans(&self, left: SubPlan, right: SubPlan) -> Result<SubPlan, PlannerError> {
         let left_root = match left.root {
             Some(ref r) => r,
@@ -760,10 +760,10 @@ impl MatchStatementPlanner {
             None => return Ok(left),
         };
 
-        // 创建并集节点，去重
+        // Create an union node to remove duplicates.
         let union_node = UnionNode::new(
             left_root.clone(),
-            true, // distinct = true，去重
+            true, // `distinct = true` – to remove duplicates.
         )
         .map_err(|e| PlannerError::PlanGenerationFailed(format!("并集操作失败: {}", e)))?;
 
@@ -773,9 +773,9 @@ impl MatchStatementPlanner {
         })
     }
 
-    /// 规划可选路径元素
+    /// Planning of optional path elements
     ///
-    /// 使用左连接实现可选匹配，保留左侧所有数据
+    /// Use a left join to achieve an optional match, retaining all data from the left side.
     /// 例如: (a)-[:KNOWS]->(b)? 表示 KNOWS 关系是可选的
     fn plan_optional_element(
         &self,
@@ -785,7 +785,7 @@ impl MatchStatementPlanner {
         _validation_info: &ValidationInfo,
         _qctx: &Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        // 规划可选元素
+        // Planning for optional elements
         let opt_plan = match element {
             PathElement::Node(node) => self.plan_pattern_node(node, space_id)?,
             PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
@@ -799,7 +799,7 @@ impl MatchStatementPlanner {
         Ok(opt_plan)
     }
 
-    /// 左连接两个计划
+    /// The left join connects two plans.
     fn left_join_plans(&self, left: SubPlan, right: SubPlan) -> Result<SubPlan, PlannerError> {
         let left_root = match left.root {
             Some(ref r) => r,
@@ -811,7 +811,7 @@ impl MatchStatementPlanner {
             None => return Ok(left),
         };
 
-        // 创建左连接节点
+        // Create a left join node.
         let join_node = LeftJoinNode::new(
             left_root.clone(),
             right_root.clone(),
@@ -826,9 +826,9 @@ impl MatchStatementPlanner {
         })
     }
 
-    /// 规划重复路径元素
+    /// Planning for repeated path elements
     ///
-    /// 使用循环节点实现可变长度路径
+    /// Implementing variable-length paths using loop nodes
     /// 例如: (a)-[:KNOWS*1..3]->(b) 表示 1 到 3 跳 KNOWS 关系
     fn plan_repeated_element(
         &self,
@@ -839,7 +839,7 @@ impl MatchStatementPlanner {
         _validation_info: &ValidationInfo,
         expr_context: &Arc<ExpressionAnalysisContext>,
     ) -> Result<SubPlan, PlannerError> {
-        // 规划重复元素的基本计划
+        // Basic plan for planning repeated elements
         let base_plan = match element {
             PathElement::Node(node) => self.plan_pattern_node(node, space_id)?,
             PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
@@ -850,7 +850,7 @@ impl MatchStatementPlanner {
             }
         };
 
-        // 根据重复类型确定循环条件
+        // Determine the loop condition based on the type of repetition.
         let condition_str = match rep_type {
             RepetitionType::ZeroOrMore => "loop_count >= 0".to_string(),
             RepetitionType::OneOrMore => "loop_count >= 1".to_string(),
@@ -861,17 +861,17 @@ impl MatchStatementPlanner {
             }
         };
 
-        // 创建循环条件表达式
+        // Create a loop condition expression
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(
             crate::core::Expression::Variable(condition_str),
         );
         let id = expr_context.register_expression(expr_meta);
         let ctx_expr = ContextualExpression::new(id, expr_context.clone());
 
-        // 创建循环节点
+        // Create a loop node
         let mut loop_node = LoopNode::new(-1, ctx_expr);
 
-        // 设置循环体
+        // Setting up the loop body
         if let Some(base_root) = base_plan.root {
             loop_node.set_body(base_root);
         }
@@ -882,9 +882,9 @@ impl MatchStatementPlanner {
         })
     }
 
-    /// 构建标签过滤表达式
+    /// Constructing tag filtering expressions
     ///
-    /// 将节点标签列表转换为表达式，用于过滤具有指定标签的节点
+    /// Convert the list of node labels into an expression that can be used to filter nodes with the specified labels.
     /// 例如: 标签 ["Person", "Actor"] 转换为: labels(n) CONTAINS "Person" AND labels(n) CONTAINS "Actor"
     fn build_label_filter_expression(
         variable: &Option<String>,

@@ -1,11 +1,11 @@
-//! 字符串函数实现
+//! Implementation of string functions
 
 use crate::core::error::ExpressionError;
 use crate::core::value::NullType;
 use crate::core::Value;
 
 define_function_enum! {
-    /// 字符串函数枚举
+    /// String function enumeration
     pub enum StringFunction {
         Length => {
             name: "length",

@@ -1,4 +1,4 @@
-//! 折叠多个投影操作的规则
+//! Rules for combining multiple projection operations
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::Expression;
@@ -15,9 +15,9 @@ use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
-/// 折叠多个投影操作的规则
+/// Rules for combining multiple projection operations
 ///
-/// # 转换示例
+/// # Conversion example
 ///
 /// Before:
 /// ```text
@@ -35,21 +35,21 @@ use std::sync::Arc;
 ///   ScanVertices
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - 当前节点为Project节点
-/// - 子节点也为Project节点
-/// - 上层Project的列引用可以解析为下层Project的输入
+/// The current node is a Project node.
+/// The child node is also a Project node.
+/// The column references from the upper-level project can be parsed as inputs for the lower-level project.
 #[derive(Debug)]
 pub struct CollapseProjectRule;
 
 impl CollapseProjectRule {
-    /// 创建规则实例
+    /// Create a rule instance.
     pub fn new() -> Self {
         Self
     }
 
-    /// 检查表达式是否为简单的属性引用
+    /// Check whether the expression represents a simple property reference.
     fn is_property_expr(expr: &ContextualExpression) -> bool {
         let expr_meta = match expr.expression() {
             Some(e) => e,
@@ -62,7 +62,7 @@ impl CollapseProjectRule {
         )
     }
 
-    /// 收集表达式中所有的属性引用
+    /// Collect all attribute references in the expression.
     fn collect_property_refs(expr: &ContextualExpression, refs: &mut Vec<String>) {
         let expr_meta = match expr.expression() {
             Some(e) => e,
@@ -80,7 +80,7 @@ impl CollapseProjectRule {
                 }
             }
             Expression::Binary { left, right, .. } => {
-                // 需要创建 ContextualExpression 来递归
+                // A ContextualExpression needs to be created in order to perform the recursion.
                 let left_meta = ExpressionMeta::new((**left).clone());
                 let right_meta = ExpressionMeta::new((**right).clone());
                 let left_ctx = Arc::new(ExpressionAnalysisContext::new());
@@ -200,13 +200,13 @@ impl RewriteRule for CollapseProjectRule {
         let parent_cols = parent_proj.columns();
         let child_cols = child_proj.columns();
 
-        // 收集上层Project中所有的属性引用
+        // Collect all property references from the upper-level Project.
         let mut all_prop_refs: Vec<String> = Vec::new();
         for col in parent_cols {
             Self::collect_property_refs(&col.expression, &mut all_prop_refs);
         }
 
-        // 检查是否有重复引用
+        // Check for any duplicate citations.
         let mut unique_refs = std::collections::HashSet::new();
         let mut multi_ref_cols = std::collections::HashSet::new();
         for prop_ref in &all_prop_refs {
@@ -215,14 +215,14 @@ impl RewriteRule for CollapseProjectRule {
             }
         }
 
-        // 构建重写映射：列名 -> ContextualExpression
+        // Construct a rewrite mapping: Column name -> ContextualExpression
         let mut rewrite_map = std::collections::HashMap::new();
         let child_col_names = child_proj.col_names();
 
         for (i, col_name) in child_col_names.iter().enumerate() {
             if unique_refs.contains(col_name) {
                 let col_expr = &child_cols[i].expression;
-                // 如果列被多次引用且不是简单属性表达式，则禁用此优化
+                // If a column is referenced multiple times and does not represent a simple attribute expression, then this optimization should be disabled.
                 if !Self::is_property_expr(col_expr) && multi_ref_cols.contains(col_name) {
                     return Ok(None);
                 }
@@ -232,7 +232,7 @@ impl RewriteRule for CollapseProjectRule {
 
         let expr_context = ctx.expr_context();
 
-        // 重写上层Project的列
+        // Rewrite the columns of the upper-level Project
         let new_columns: Vec<YieldColumn> = parent_cols
             .iter()
             .map(|col| YieldColumn {
@@ -246,7 +246,7 @@ impl RewriteRule for CollapseProjectRule {
             })
             .collect();
 
-        // 创建新的Project节点，输入为下层Project的输入
+        // Create a new Project node, and enter the information for the subordinate Project as the input.
         let new_input = child_proj.input().clone();
         let new_proj = match ProjectNode::new(new_input, new_columns) {
             Ok(node) => node,
@@ -303,7 +303,7 @@ mod tests {
         let start = PlanNodeEnum::Start(StartNode::new());
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
-        // 下层Project: col1
+        // Lower-level Project: col1
         let child_expr = Expression::Variable("a".to_string());
         let child_meta = ExpressionMeta::new(child_expr);
         let child_id = expr_ctx.register_expression(child_meta);
@@ -317,7 +317,7 @@ mod tests {
         let child_proj = ProjectNode::new(start, child_columns).expect("创建ProjectNode失败");
         let child_node = PlanNodeEnum::Project(child_proj);
 
-        // 上层Project: col2 = col1
+        // Upper-level project: col2 = col1
         let parent_expr = Expression::Variable("col1".to_string());
         let parent_meta = ExpressionMeta::new(parent_expr);
         let parent_id = expr_ctx.register_expression(parent_meta);
@@ -332,11 +332,11 @@ mod tests {
             ProjectNode::new(child_node.clone(), parent_columns).expect("创建ProjectNode失败");
         let parent_node = PlanNodeEnum::Project(parent_proj);
 
-        // 应用规则
+        // Apply the rules.
         let rule = CollapseProjectRule::new();
         let mut ctx = RewriteContext::new();
         let result = rule.apply(&mut ctx, &parent_node).expect("应用规则失败");
 
-        assert!(result.is_some(), "应该成功折叠两个Project节点");
+        assert!(result.is_some(), "The folding of the two Project nodes should succeed.");
     }
 }

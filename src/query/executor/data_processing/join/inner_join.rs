@@ -1,6 +1,6 @@
-//! 内连接执行器实现
+//! Implementation of the internal connection executor
 //!
-//! 实现基于哈希的内连接算法，支持单键和多键连接
+//! Implement an inner join algorithm based on hashing, which supports both single-key and multi-key joins.
 
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -18,7 +18,7 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use ExpressionAnalysisContext as ExpressionContextStruct;
 
-/// 内连接执行器
+/// Internal connection executor
 pub struct InnerJoinExecutor<S: StorageClient> {
     base_executor: BaseJoinExecutor<S>,
     single_key_hash_table: Option<HashMap<Value, Vec<Vec<Value>>>>,
@@ -26,7 +26,7 @@ pub struct InnerJoinExecutor<S: StorageClient> {
     use_multi_key: bool,
 }
 
-/// 内连接执行器配置
+/// Internal Connector Executor Configuration
 #[derive(Debug, Clone)]
 pub struct InnerJoinConfig {
     pub id: i64,
@@ -59,7 +59,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
     ) -> Self {
         let use_multi_key = config.hash_keys.len() > 1;
 
-        // 从 ContextualExpression 列表提取 Expression 列表
+        // Extract the Expression list from the ContextualExpression list.
         let hash_exprs = Self::extract_expressions(&config.hash_keys);
         let probe_exprs = Self::extract_expressions(&config.probe_keys);
 
@@ -79,7 +79,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         }
     }
 
-    /// 从 ContextualExpression 列表提取 Expression 列表的辅助方法
+    /// Auxiliary method for extracting the Expression list from the ContextualExpression list
     fn extract_expressions(ctx_exprs: &[ContextualExpression]) -> Vec<Expression> {
         ctx_exprs
             .iter()
@@ -87,7 +87,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
             .collect()
     }
 
-    /// 执行单键内连接（使用表达式求值）
+    /// Perform a single-key inner join (using expression evaluation).
     fn execute_single_key_join(
         &mut self,
         left_dataset: &DataSet,
@@ -163,7 +163,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         Ok(result)
     }
 
-    /// 根据输出列名构建连接结果行
+    /// Construct the rows of the connection result based on the column names in the output column.
     fn build_join_result_row(
         left_row: &[Value],
         right_row: &[Value],
@@ -188,7 +188,7 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
         result
     }
 
-    /// 执行多键内连接（使用表达式求值）
+    /// Perform multiple key inner joins (using expression evaluation)
     fn execute_multi_key_join(
         &mut self,
         left_dataset: &DataSet,
@@ -481,10 +481,10 @@ mod tests {
                     assert_eq!(dataset.rows[1][1], Value::String("Bob".to_string()));
                     assert_eq!(dataset.rows[1][2], Value::Int(30));
                 } else {
-                    panic!("期望DataSet结果");
+                    panic!("Expected DataSet results");
                 }
             }
-            _ => panic!("期望Values结果"),
+            _ => panic!("Expected Values results"),
         }
     }
 
@@ -567,10 +567,10 @@ mod tests {
                     assert_eq!(dataset.rows[1][2], Value::String("Bob".to_string()));
                     assert_eq!(dataset.rows[1][3], Value::Int(30));
                 } else {
-                    panic!("期望DataSet结果");
+                    panic!("Expected result from the DataSet");
                 }
             }
-            _ => panic!("期望Values结果"),
+            _ => panic!("Expected Values results"),
         }
     }
 
@@ -623,10 +623,10 @@ mod tests {
                 if let Some(Value::DataSet(dataset)) = values.first() {
                     assert_eq!(dataset.rows.len(), 0);
                 } else {
-                    panic!("期望DataSet结果");
+                    panic!("Expected DataSet results");
                 }
             }
-            _ => panic!("期望Values结果"),
+            _ => panic!("Expected Values results"),
         }
     }
 
@@ -671,10 +671,10 @@ mod tests {
                 if let Some(Value::DataSet(dataset)) = values.first() {
                     assert_eq!(dataset.rows.len(), 2);
                 } else {
-                    panic!("期望DataSet结果");
+                    panic!("Expected DataSet results");
                 }
             }
-            _ => panic!("期望Values结果"),
+            _ => panic!("Expected Values results"),
         }
     }
 }

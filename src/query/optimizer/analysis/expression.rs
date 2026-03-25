@@ -1,9 +1,9 @@
-//! 表达式分析模块
+//! Expression Analysis Module
 //!
-//! 提供表达式特性分析功能，包括：
-//! - 确定性检查（是否包含非确定性函数）
-//! - 复杂度评分
-//! - 属性/变量/函数提取
+//! Provides a feature for analyzing the properties of expressions, including:
+//! Deterministic check (whether non-deterministic functions are contained)
+//! Complexity score
+//! Attribute/variable/function extraction
 
 use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::expr::visitor_collectors::{
@@ -12,64 +12,64 @@ use crate::core::types::expr::visitor_collectors::{
 use crate::core::types::ContextualExpression;
 use crate::core::Expression;
 
-/// 表达式分析结果
+/// Expression analysis results
 #[derive(Debug, Clone, Default)]
 pub struct ExpressionAnalysis {
     /// 是否确定性（不含rand()、now()等非确定性函数）
     pub is_deterministic: bool,
-    /// 复杂度评分（0-100）
+    /// Complexity score (0-100)
     pub complexity_score: u32,
-    /// 引用的属性列表
+    /// List of attributes for the citation
     pub referenced_properties: Vec<String>,
-    /// 引用的变量列表
+    /// List of referenced variables
     pub referenced_variables: Vec<String>,
-    /// 调用的函数列表
+    /// List of called functions
     pub called_functions: Vec<String>,
-    /// 是否包含聚合函数
+    /// Does it contain aggregate functions?
     pub contains_aggregate: bool,
-    /// 是否包含子查询
+    /// Does it contain subqueries?
     pub contains_subquery: bool,
-    /// 节点数量
+    /// Number of nodes
     pub node_count: u32,
 }
 
 impl ExpressionAnalysis {
-    /// 创建空的分析结果
+    /// Create an empty analysis result.
     pub fn new() -> Self {
         Self {
-            is_deterministic: true, // 默认假设是确定性的
+            is_deterministic: true, // The default assumption is one of certainty.
             ..Default::default()
         }
     }
 }
 
-/// 表达式分析模式
+/// Expression Analysis Pattern
 ///
-/// 预设的分析模式，简化配置。
+/// Predefined analysis modes simplify the configuration process.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnalysisMode {
-    /// 完整分析（默认）
+    /// Complete analysis (default)
     Full,
-    /// 只检查确定性
+    /// Check only for certainty.
     DeterministicOnly,
-    /// 只提取属性引用
+    /// Extract only the attribute references:
     PropertyExtractor,
-    /// 只提取变量引用
+    /// Extract only the variable references.
     VariableExtractor,
 }
 
-/// 表达式分析选项
+/// Expression Analysis Options
 #[derive(Debug, Clone)]
 pub struct AnalysisOptions {
-    /// 分析确定性
+    /// Analyzing certainty
     pub check_deterministic: bool,
-    /// 分析复杂度
+    /// Analyzing complexity
     pub check_complexity: bool,
-    /// 提取属性引用
+    /// Extract attribute references.
     pub extract_properties: bool,
-    /// 提取变量引用
+    /// Extract variable references
     pub extract_variables: bool,
-    /// 统计函数调用
+    /// Statistical function calls
     pub count_functions: bool,
 }
 
@@ -86,7 +86,7 @@ impl Default for AnalysisOptions {
 }
 
 impl AnalysisOptions {
-    /// 从分析模式创建选项
+    /// Create options from the analysis mode.
     fn from_mode(mode: AnalysisMode) -> Self {
         match mode {
             AnalysisMode::Full => AnalysisOptions {
@@ -121,95 +121,95 @@ impl AnalysisOptions {
     }
 }
 
-/// 非确定性函数检查
+/// Non-deterministic function checking
 ///
-/// 使用编译时静态匹配而非运行时HashMap，提高性能。
+/// Improve performance by using compile-time static matching instead of runtime HashMaps.
 /// 非确定性函数每次调用可能返回不同结果（如rand()、now()等）。
 pub struct NondeterministicChecker;
 
 impl NondeterministicChecker {
-    /// 检查函数是否非确定性
+    /// Check whether the function is non-deterministic.
     ///
-    /// 使用match进行编译时优化，比HashMap查找更高效
+    /// Using the `match` method for compilation optimization is more efficient than using the `HashMap` for lookups.
     pub fn is_nondeterministic(func_name: &str) -> bool {
         match func_name {
-            // 时间相关函数
+            // Time-related functions
             "now" | "current_time" | "current_date" | "current_timestamp" | "localtime"
             | "localtimestamp" => true,
 
-            // 随机数函数
+            // Random number function
             "rand" | "random" | "uuid" => true,
 
-            // 窗口函数（结果依赖于行位置）
+            // Window functions (the result depends on the row position)
             "row_number" | "rank" | "dense_rank" | "percent_rank" | "cume_dist" => true,
 
-            // 其他非确定性函数
+            // Other non-deterministic functions
             "last_insert_id" | "connection_id" | "current_user" | "session_user" => true,
 
-            // 确定性函数
+            // Deterministic function
             _ => false,
         }
     }
 }
 
-/// 表达式分析器
+/// Expression Analyzer
 ///
-/// 分析表达式的各种特性，支持按需分析（通过预设模式配置）。
+/// Analyze various characteristics of the expression, with the option to perform analysis on demand (by configuring using predefined modes).
 #[derive(Debug, Clone)]
 pub struct ExpressionAnalyzer {
-    /// 分析选项
+    /// Analyze the options
     options: AnalysisOptions,
 }
 
 impl ExpressionAnalyzer {
-    /// 创建默认的表达式分析器（完整分析模式）
+    /// Create a default expression analyzer (full analysis mode).
     pub fn new() -> Self {
         Self {
             options: AnalysisOptions::default(),
         }
     }
 
-    /// 创建带选项的表达式分析器
+    /// Create an expression analyzer with options
     pub fn with_options(options: AnalysisOptions) -> Self {
         Self { options }
     }
 
-    /// 创建只检查确定性的分析器
+    /// Create an analyzer that only checks for certainty.
     pub fn deterministic_only() -> Self {
         Self {
             options: AnalysisOptions::from_mode(AnalysisMode::DeterministicOnly),
         }
     }
 
-    /// 创建只提取属性引用的分析器
+    /// Create an analyzer that only extracts references to attributes.
     pub fn property_extractor() -> Self {
         Self {
             options: AnalysisOptions::from_mode(AnalysisMode::PropertyExtractor),
         }
     }
 
-    /// 创建只提取变量引用的分析器
+    /// Create an analyzer that only extracts variable references.
     pub fn variable_extractor() -> Self {
         Self {
             options: AnalysisOptions::from_mode(AnalysisMode::VariableExtractor),
         }
     }
 
-    /// 分析表达式（接受 ContextualExpression）
+    /// Analyze the expression (accepts a ContextualExpression)
     ///
-    /// # 参数
-    /// - `ctx_expr`: 要分析的上下文表达式
+    /// # Parameters
+    /// `ctx_expr`: The context expression that needs to be analyzed.
     ///
-    /// # 返回
-    /// 表达式的分析结果
+    /// # Return
+    /// Analysis results of the expression
     pub fn analyze(&self, ctx_expr: &ContextualExpression) -> ExpressionAnalysis {
         let mut analysis = ExpressionAnalysis::new();
 
-        // 通过 ContextualExpression 获取 Expression
+        // Obtain the Expression using ContextualExpression.
         if let Some(expr_meta) = ctx_expr.expression() {
             let expr = expr_meta.inner();
 
-            // 使用现有的 Collector 收集信息
+            // Use the existing Collector to collect information.
             if self.options.extract_properties {
                 let mut collector = PropertyCollector::new();
                 collector.visit(expr);
@@ -228,7 +228,7 @@ impl ExpressionAnalyzer {
                 analysis.called_functions = collector.functions;
             }
 
-            // 使用自定义 Visitor 进行复杂度和确定性分析
+            // Using a custom Visitor for complexity and certainty analysis
             let mut visitor = AnalysisVisitor::new(&mut analysis, self.options.clone());
             visitor.visit(expr);
         }
@@ -236,28 +236,28 @@ impl ExpressionAnalyzer {
         analysis
     }
 
-    /// 快速检查表达式是否确定性
+    /// Quickly check whether the expression is deterministic.
     pub fn is_deterministic(&self, ctx_expr: &ContextualExpression) -> bool {
         let analysis = self.analyze(ctx_expr);
         analysis.is_deterministic
     }
 
-    /// 快速提取表达式引用的属性
+    /// Quickly extract the attributes referenced by the expression.
     pub fn extract_properties(&self, ctx_expr: &ContextualExpression) -> Vec<String> {
         let analysis = self.analyze(ctx_expr);
         analysis.referenced_properties
     }
 
-    /// 快速提取表达式引用的变量
+    /// Quickly extract the variables referenced by the expressions.
     pub fn extract_variables(&self, ctx_expr: &ContextualExpression) -> Vec<String> {
         let analysis = self.analyze(ctx_expr);
         analysis.referenced_variables
     }
 }
 
-/// 表达式分析 Visitor
+/// Expression analysis: “Visitor”
 ///
-/// 使用 Visitor 模式进行复杂度和确定性分析
+/// Using the Visitor pattern for complexity and certainty analysis
 struct AnalysisVisitor<'a> {
     analysis: &'a mut ExpressionAnalysis,
     options: AnalysisOptions,
@@ -548,7 +548,7 @@ mod tests {
     #[test]
     fn test_expression_analyzer_new() {
         let _analyzer = ExpressionAnalyzer::new();
-        // 验证创建成功
+        // Verification of successful creation.
     }
 
     #[test]
@@ -624,7 +624,7 @@ mod tests {
     #[test]
     fn test_complexity_score() {
         let analyzer = ExpressionAnalyzer::new();
-        // 简单表达式
+        // Simple expressions
         let simple = Expression::Literal(Value::Int(1));
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let simple_meta = crate::core::types::expr::ExpressionMeta::new(simple);
@@ -634,7 +634,7 @@ mod tests {
         let simple_analysis = analyzer.analyze(&simple_ctx_expr);
         assert!(simple_analysis.complexity_score < 10);
 
-        // 复杂表达式
+        // Complex expressions
         let complex = Expression::Function {
             name: "coalesce".to_string(),
             args: vec![

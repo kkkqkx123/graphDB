@@ -14,7 +14,7 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use ExpressionAnalysisContext as ExpressionContextStruct;
 
-/// 全外连接配置
+/// Full Outer Join Configuration
 #[derive(Debug, Clone)]
 pub struct FullOuterJoinConfig {
     pub hash_keys: Vec<ContextualExpression>,
@@ -24,8 +24,8 @@ pub struct FullOuterJoinConfig {
     pub output_columns: Vec<String>,
 }
 
-/// 全外连接执行器
-/// 实现全外连接操作：保留左右表的所有记录，没有匹配的部分用NULL填充
+/// Full Outer Join Executor
+/// Implement a full outer join operation: Retain all records from both the left and right tables, and fill in the unmatched parts with NULL.
 pub struct FullOuterJoinExecutor<S: StorageClient + Send + 'static> {
     base: BaseJoinExecutor<S>,
 }
@@ -54,7 +54,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         }
     }
 
-    /// 从 ContextualExpression 列表提取 Expression 列表的辅助方法
+    /// An auxiliary method for extracting the Expression list from the ContextualExpression list
     fn extract_expressions(ctx_exprs: &[ContextualExpression]) -> Vec<Expression> {
         ctx_exprs
             .iter()
@@ -63,7 +63,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
     }
 
     fn execute_full_outer_join(&mut self) -> DBResult<ExecutionResult> {
-        // 获取左右输入结果
+        // Obtain the input results from the left and right sides.
         let left_result = self
             .base
             .base
@@ -90,7 +90,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
             })?
             .clone();
 
-        // 转换为数据集
+        // Convert into a dataset
         let left_dataset = match left_result {
             ExecutionResult::DataSet(ds) => ds,
             _ => {
@@ -113,7 +113,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
             }
         };
 
-        // 预先构建列名到索引的映射
+        // Pre-built mapping of column names to indexes
         let left_col_map: HashMap<&str, usize> = left_dataset
             .col_names
             .iter()
@@ -128,7 +128,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
             .map(|(i, name)| (name.as_str(), i))
             .collect();
 
-        // 构建左表哈希表：以左表连接键作为键，行索引作为值
+        // Create a hash table for the left table: Use the join key from the left table as the key, and the row index as the value.
         let left_hash_table_indices = build_hash_table(&left_dataset, self.base.hash_keys())
             .map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
@@ -137,7 +137,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
                 )))
             })?;
 
-        // 转换为带匹配标志的哈希表
+        // Convert to a hash table with matching indicators
         let mut left_hash_table: HashMap<JoinKey, Vec<(usize, bool)>> = HashMap::new();
         for (key, indices) in left_hash_table_indices {
             left_hash_table
@@ -146,7 +146,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
                 .extend(indices.into_iter().map(|idx| (idx, false)));
         }
 
-        // 构建右表哈希表：以右表连接键作为键，行索引作为值
+        // Construct a hash table for the right table: Use the join key from the right table as the key, and the row index as the value.
         let right_hash_table_indices = build_hash_table(&right_dataset, self.base.probe_keys())
             .map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(format!(
@@ -155,7 +155,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
                 )))
             })?;
 
-        // 转换为带匹配标志的哈希表
+        // Convert to a hash table with matching indicators
         let mut right_hash_table: HashMap<JoinKey, Vec<(usize, bool)>> = HashMap::new();
         for (key, indices) in right_hash_table_indices {
             right_hash_table
@@ -164,13 +164,13 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
                 .extend(indices.into_iter().map(|idx| (idx, false)));
         }
 
-        // 构建结果数据集
+        // Constructing the resulting dataset
         let mut result_dataset = DataSet {
             col_names: self.base.col_names().clone(),
             rows: Vec::new(),
         };
 
-        // 处理左表的每一行
+        // Process each row of the left table.
         for row in left_dataset.rows.iter() {
             let key_parts = extract_key_values(
                 row,
@@ -181,10 +181,10 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
 
             let key = JoinKey::new(key_parts);
 
-            // 如果右表有匹配的行
+            // If there is a matching row in the right table…
             if let Some(right_indices) = right_hash_table.get_mut(&key) {
                 for (right_idx, ref mut matched) in right_indices {
-                    *matched = true; // 标记为已匹配
+                    *matched = true; // Marked as matched
                     if *right_idx < right_dataset.rows.len() {
                         let right_row = &right_dataset.rows[*right_idx];
                         let mut joined_row = row.clone();
@@ -193,7 +193,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
                     }
                 }
             } else {
-                // 没有匹配的右表行，用NULL填充右表部分
+                // No matching rows in the right table were found; the right table column should be filled with NULL.
                 let mut null_right_row = Vec::new();
                 for _ in 0..right_dataset.col_names.len() {
                     null_right_row.push(Value::Null(crate::core::value::NullType::Null));
@@ -205,21 +205,21 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
             }
         }
 
-        // 添加右表中没有匹配的行
+        // Add rows that do not have a match in the right table.
         for (key, right_entries) in &right_hash_table {
             for (right_idx, matched) in right_entries {
                 if !matched {
-                    // 找对应的左表键，如果存在未处理的左表行
+                    // Find the corresponding left table key; if there are any unprocessed rows in the left table, handle them accordingly.
                     if *right_idx < right_dataset.rows.len() {
                         let right_row = &right_dataset.rows[*right_idx];
 
-                        // 检查是否有左表行匹配当前右表行的键
+                        // Check whether there is a row in the left table that matches the key of the current row in the right table.
                         let has_left_match = left_hash_table.get(key).is_some_and(|left_entries| {
                             left_entries.iter().any(|(_left_idx, matched)| !matched)
                         });
 
                         if !has_left_match {
-                            // 没有匹配的左表行，用NULL填充左表部分
+                            // No matching rows in the left table were found; the left table column should be filled with NULL.
                             let mut null_left_row = Vec::new();
                             for _ in 0..left_dataset.col_names.len() {
                                 null_left_row.push(Value::Null(crate::core::value::NullType::Null));

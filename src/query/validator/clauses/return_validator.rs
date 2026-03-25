@@ -1,5 +1,5 @@
-//! Return 语句验证器
-//! 用于验证 RETURN 语句（Cypher 风格的返回子句）
+//! Return Statement Validator
+//! Used to validate the RETURN statement (the return clause in Cypher style)
 //! 参考 nebula-graph MatchValidator.cpp 中的 Return 子句验证
 
 use crate::core::error::{ValidationError, ValidationErrorType};
@@ -12,7 +12,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// Return 语句验证器
+/// Return Statement Validator
 #[derive(Debug)]
 pub struct ReturnValidator {
     items: Vec<ReturnItem>,
@@ -27,7 +27,7 @@ pub struct ReturnValidator {
 }
 
 impl ReturnValidator {
-    /// 创建新的 Return 验证器
+    /// Create a new Return validator.
     pub fn new() -> Self {
         Self {
             items: Vec::new(),
@@ -42,20 +42,20 @@ impl ReturnValidator {
         }
     }
 
-    /// 验证返回项
+    /// Verify the returned items.
     fn validate_return_item(&self, item: &ReturnItem) -> Result<ColumnDef, ValidationError> {
         match item {
             ReturnItem::Expression { expression, alias } => {
-                // 验证表达式
+                // Verify the expression
                 self.validate_expression(expression)?;
 
-                // 确定列名
+                // Determine the column names.
                 let name = alias
                     .clone()
                     .or_else(|| self.infer_column_name(expression))
                     .unwrap_or_else(|| "column".to_string());
 
-                // 推断类型
+                // Inference type
                 let type_ = self.infer_expression_type(expression);
 
                 Ok(ColumnDef { name, type_ })
@@ -63,7 +63,7 @@ impl ReturnValidator {
         }
     }
 
-    /// 验证表达式
+    /// Verify the expression
     fn validate_expression(
         &self,
         expr: &crate::core::types::expr::contextual::ContextualExpression,
@@ -78,7 +78,7 @@ impl ReturnValidator {
         }
     }
 
-    /// 内部方法：验证表达式
+    /// Internal method: Verifying expressions
     fn validate_expression_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -88,7 +88,7 @@ impl ReturnValidator {
         match expr {
             Expression::Literal(_) => Ok(()),
             Expression::Variable(var) => {
-                // 检查变量是否存在
+                // Check whether the variable exists.
                 if !self.user_defined_vars.iter().any(|v| v == var) {
                     return Err(ValidationError::new(
                         format!("Variable '{}' not defined", var),
@@ -117,13 +117,13 @@ impl ReturnValidator {
         }
     }
 
-    /// 验证函数调用（内部实现）
+    /// Verification of function calls (internal implementation)
     fn validate_function_call_internal(
         &self,
         name: &str,
         args: &[crate::core::types::expr::Expression],
     ) -> Result<(), ValidationError> {
-        // 验证函数名
+        // Verify the function name
         if name.is_empty() {
             return Err(ValidationError::new(
                 "Function name cannot be empty".to_string(),
@@ -131,7 +131,7 @@ impl ReturnValidator {
             ));
         }
 
-        // 验证参数
+        // Verify parameters
         for arg in args {
             self.validate_expression_internal(arg)?;
         }
@@ -139,7 +139,7 @@ impl ReturnValidator {
         Ok(())
     }
 
-    /// 推断列名
+    /// Infer the column names
     fn infer_column_name(
         &self,
         expr: &crate::core::types::expr::contextual::ContextualExpression,
@@ -151,7 +151,7 @@ impl ReturnValidator {
         }
     }
 
-    /// 内部方法：推断列名
+    /// Internal method: Inferring column names
     fn infer_column_name_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -166,7 +166,7 @@ impl ReturnValidator {
         }
     }
 
-    /// 推断表达式类型
+    /// Determine the type of the expression
     fn infer_expression_type(
         &self,
         expr: &crate::core::types::expr::contextual::ContextualExpression,
@@ -178,7 +178,7 @@ impl ReturnValidator {
         }
     }
 
-    /// 内部方法：推断表达式类型
+    /// Internal method: Inferring the type of an expression
     fn infer_expression_type_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -208,7 +208,7 @@ impl ReturnValidator {
         }
     }
 
-    /// 验证 ORDER BY 子句
+    /// Verify the ORDER BY clause
     fn validate_order_by(
         &self,
         order_by: &crate::query::parser::ast::stmt::OrderByClause,
@@ -219,7 +219,7 @@ impl ReturnValidator {
         Ok(())
     }
 
-    /// 验证 SKIP 和 LIMIT
+    /// Verify SKIP and LIMIT
     fn validate_skip_limit(
         &self,
         skip: Option<usize>,
@@ -247,7 +247,7 @@ impl ReturnValidator {
     }
 
     fn validate_impl(&mut self, stmt: &ReturnStmt) -> Result<(), ValidationError> {
-        // 验证返回项
+        // Verify the returned items.
         if stmt.items.is_empty() {
             return Err(ValidationError::new(
                 "RETURN clause must have at least one item".to_string(),
@@ -260,15 +260,15 @@ impl ReturnValidator {
             self.outputs.push(col);
         }
 
-        // 验证 ORDER BY
+        // Verify the `ORDER BY` clause.
         if let Some(ref order_by) = stmt.order_by {
             self.validate_order_by(order_by)?;
         }
 
-        // 验证 SKIP 和 LIMIT
+        // Verify SKIP and LIMIT
         self.validate_skip_limit(stmt.skip, stmt.limit)?;
 
-        // 保存信息
+        // Save the information.
         self.items = stmt.items.clone();
         self.distinct = stmt.distinct;
         self.order_by = stmt.order_by.clone();
@@ -278,9 +278,9 @@ impl ReturnValidator {
         Ok(())
     }
 
-    /// 设置输入列（从父查询传递的列）
+    /// Setting the input columns (the columns passed from the parent query)
     pub fn set_inputs(&mut self, inputs: Vec<ColumnDef>) {
-        // 更新可用的用户定义变量
+        // Update the available user-defined variables.
         self.user_defined_vars = inputs.iter().map(|c| c.name.clone()).collect();
         self.inputs = inputs;
     }
@@ -292,10 +292,10 @@ impl Default for ReturnValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for ReturnValidator {
     fn validate(
         &mut self,
@@ -345,7 +345,7 @@ impl StatementValidator for ReturnValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // RETURN 不是全局语句
+        // “RETURN” is not a global statement.
         false
     }
 
@@ -397,11 +397,11 @@ mod tests {
     fn test_validate_skip_limit() {
         let validator = ReturnValidator::new();
 
-        // 有效值
+        // Valid values
         assert!(validator.validate_skip_limit(Some(10), Some(100)).is_ok());
         assert!(validator.validate_skip_limit(None, None).is_ok());
 
-        // 超过最大值
+        // Exceeds the maximum value.
         assert!(validator
             .validate_skip_limit(Some(2_000_000), None)
             .is_err());

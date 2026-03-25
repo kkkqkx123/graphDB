@@ -1,6 +1,6 @@
-//! 语句 AST 定义 (v2)
+//! AST statement definition (v2)
 //!
-//! 基于枚举的简化语句定义，支持所有图数据库操作语句。
+//! Based on a simplified statement definition using enumerations, all graph database operation statements are supported.
 
 use std::sync::Arc;
 
@@ -11,41 +11,41 @@ use crate::core::types::expr::utils::collect_variables_from_contextual;
 use crate::core::types::PropertyDef;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
-/// AST 包装类型 - 包含语句和表达式上下文
+/// AST Packaging Type – Contains the context of statements and expressions
 ///
-/// # 重构说明
-/// 将表达式上下文合并到 AST 中，避免在 ParserResult 和 QueryContext 中分别传递
+/// # Explanation of the reconstruction process
+/// Merge the expression context into the AST to avoid passing it separately in the ParserResult and QueryContext.
 #[derive(Debug, Clone)]
 pub struct Ast {
-    /// 语句
+    /// Please provide the text you would like to have translated.
     pub stmt: Stmt,
-    /// 表达式上下文
+    /// Expression context
     pub expr_context: Arc<ExpressionAnalysisContext>,
 }
 
 impl Ast {
-    /// 创建新的 AST
+    /// Create a new AST.
     pub fn new(stmt: Stmt, expr_context: Arc<ExpressionAnalysisContext>) -> Self {
         Self { stmt, expr_context }
     }
 
-    /// 获取语句引用
+    /// Obtain statement references
     pub fn stmt(&self) -> &Stmt {
         &self.stmt
     }
 
-    /// 获取表达式上下文
+    /// Obtain the context of the expression.
     pub fn expr_context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.expr_context
     }
 
-    /// 获取语句的所有权
+    /// Acquiring ownership of a statement
     pub fn into_stmt(self) -> Stmt {
         self.stmt
     }
 }
 
-/// 语句枚举 - 所有图数据库操作语句
+/// Statement Enumeration – All database operation statements for graph databases
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Query(QueryStmt),
@@ -96,7 +96,7 @@ pub enum Stmt {
 }
 
 impl Stmt {
-    /// 获取语句的位置信息
+    /// Obtain the location information of the statement.
     pub fn span(&self) -> Span {
         match self {
             Stmt::Query(s) => s.span,
@@ -147,7 +147,7 @@ impl Stmt {
         }
     }
 
-    /// 获取语句类型名称
+    /// Obtain the names of the statement type categories
     pub fn kind(&self) -> &'static str {
         match self {
             Stmt::Query(_) => "QUERY",
@@ -198,7 +198,7 @@ impl Stmt {
         }
     }
 
-    // 类型转换方法
+    // Type conversion methods
     pub fn as_query(&self) -> Option<&QueryStmt> {
         match self {
             Stmt::Query(s) => Some(s),
@@ -465,7 +465,7 @@ impl Stmt {
     }
 }
 
-/// 查询语句
+/// Query statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct QueryStmt {
     pub span: Span,
@@ -478,7 +478,7 @@ impl QueryStmt {
     }
 }
 
-/// CREATE 语句
+/// The CREATE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateStmt {
     pub span: Span,
@@ -486,7 +486,7 @@ pub struct CreateStmt {
     pub if_not_exists: bool,
 }
 
-/// 创建目标
+/// Create the target.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CreateTarget {
     /// Cypher 风格的节点创建: CREATE (n:Label {props})
@@ -506,7 +506,7 @@ pub enum CreateTarget {
     },
     /// Cypher 风格的完整路径创建: CREATE (a)-[:FRIEND]->(b)
     Path { patterns: Vec<Pattern> },
-    /// Schema 定义 - TAG
+    /// Schema definition – TAG
     Tag {
         name: String,
         properties: Vec<PropertyDef>,
@@ -538,7 +538,7 @@ pub enum IndexType {
     Edge,
 }
 
-/// MATCH 语句
+/// The MATCH statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct MatchStmt {
     pub span: Span,
@@ -551,7 +551,7 @@ pub struct MatchStmt {
     pub optional: bool,
 }
 
-/// 返回子句
+/// Return the subquery.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReturnClause {
     pub span: Span,
@@ -563,7 +563,7 @@ pub struct ReturnClause {
     pub sample: Option<super::types::SampleClause>,
 }
 
-/// 返回项
+/// Return items
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReturnItem {
     Expression {
@@ -572,31 +572,31 @@ pub enum ReturnItem {
     },
 }
 
-/// 排序子句
+/// Sorting clause
 #[derive(Debug, Clone, PartialEq)]
 pub struct OrderByClause {
     pub span: Span,
     pub items: Vec<OrderByItem>,
 }
 
-/// 排序项
+/// Sorting items
 #[derive(Debug, Clone, PartialEq)]
 pub struct OrderByItem {
     pub expression: ContextualExpression,
     pub direction: OrderDirection,
 }
 
-/// DELETE 语句
+/// The DELETE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeleteStmt {
     pub span: Span,
     pub target: DeleteTarget,
     pub where_clause: Option<ContextualExpression>,
-    pub with_edge: bool, // 是否同时删除关联边
+    pub with_edge: bool, // Should the associated edges also be deleted simultaneously?
 }
 
 impl DeleteStmt {
-    /// 创建新的DELETE语句
+    /// Create a new DELETE statement.
     pub fn new(target: DeleteTarget, span: Span) -> Self {
         Self {
             span,
@@ -606,14 +606,14 @@ impl DeleteStmt {
         }
     }
 
-    /// 设置是否删除关联边
+    /// Set whether to delete the associated edges.
     pub fn with_edge(mut self, with_edge: bool) -> Self {
         self.with_edge = with_edge;
         self
     }
 }
 
-/// 删除目标
+/// Delete the target.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DeleteTarget {
     Vertices(Vec<ContextualExpression>),
@@ -625,7 +625,7 @@ pub enum DeleteTarget {
             Option<ContextualExpression>,
         )>,
     },
-    /// 删除标签 - 包含标签名列表和顶点ID列表
+    /// Remove tags – This includes a list of tag names and a list of vertex IDs.
     Tags {
         tag_names: Vec<String>,
         vertex_ids: Vec<ContextualExpression>,
@@ -634,7 +634,7 @@ pub enum DeleteTarget {
     Index(String),
 }
 
-/// UPDATE 语句
+/// UPDATE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct UpdateStmt {
     pub span: Span,
@@ -645,7 +645,7 @@ pub struct UpdateStmt {
     pub yield_clause: Option<YieldClause>,
 }
 
-/// 更新目标
+/// Update target
 #[derive(Debug, Clone, PartialEq)]
 pub enum UpdateTarget {
     Vertex(ContextualExpression),
@@ -656,28 +656,28 @@ pub enum UpdateTarget {
         rank: Option<ContextualExpression>,
     },
     Tag(String),
-    /// 指定 Tag 的顶点更新: UPDATE VERTEX <vid> ON <tag> SET ...
+    /// Update of vertices with the specified tag: UPDATE VERTEX <vid> ON <tag> SET ...
     TagOnVertex {
         vid: Box<ContextualExpression>,
         tag_name: String,
     },
 }
 
-/// SET 子句
+/// SET clause
 #[derive(Debug, Clone, PartialEq)]
 pub struct SetClause {
     pub span: Span,
     pub assignments: Vec<Assignment>,
 }
 
-/// 赋值操作
+/// Assignment operation
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assignment {
     pub property: String,
     pub value: ContextualExpression,
 }
 
-/// GO 语句
+/// GO statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct GoStmt {
     pub span: Span,
@@ -688,7 +688,7 @@ pub struct GoStmt {
     pub yield_clause: Option<YieldClause>,
 }
 
-/// 步数定义
+/// Step definition
 #[derive(Debug, Clone, PartialEq)]
 pub enum Steps {
     Fixed(usize),
@@ -696,28 +696,28 @@ pub enum Steps {
     Variable(String),
 }
 
-/// STEP 子句
+/// STEP clause
 #[derive(Debug, Clone, PartialEq)]
 pub struct StepClause {
     pub span: Span,
     pub steps: Steps,
 }
 
-/// WHERE 子句
+/// The WHERE clause
 #[derive(Debug, Clone, PartialEq)]
 pub struct WhereClause {
     pub span: Span,
     pub condition: ContextualExpression,
 }
 
-/// FROM 子句
+/// FROM clause
 #[derive(Debug, Clone, PartialEq)]
 pub struct FromClause {
     pub span: Span,
     pub vertices: Vec<ContextualExpression>,
 }
 
-/// OVER 子句
+/// OVER clause
 #[derive(Debug, Clone, PartialEq)]
 pub struct OverClause {
     pub span: Span,
@@ -725,7 +725,7 @@ pub struct OverClause {
     pub direction: EdgeDirection,
 }
 
-/// YIELD 子句
+/// YIELD clause
 #[derive(Debug, Clone, PartialEq)]
 pub struct YieldClause {
     pub span: Span,
@@ -737,21 +737,21 @@ pub struct YieldClause {
     pub sample: Option<super::types::SampleClause>,
 }
 
-/// YIELD 项
+/// The “YIELD” field
 #[derive(Debug, Clone, PartialEq)]
 pub struct YieldItem {
     pub expression: ContextualExpression,
     pub alias: Option<String>,
 }
 
-/// FETCH 语句
+/// The FETCH statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct FetchStmt {
     pub span: Span,
     pub target: FetchTarget,
 }
 
-/// 获取目标
+/// Obtain the target.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FetchTarget {
     Vertices {
@@ -767,21 +767,21 @@ pub enum FetchTarget {
     },
 }
 
-/// USE 语句
+/// USE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct UseStmt {
     pub span: Span,
     pub space: String,
 }
 
-/// SHOW 语句
+/// The SHOW statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShowStmt {
     pub span: Span,
     pub target: ShowTarget,
 }
 
-/// 显示目标
+/// Display the target.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ShowTarget {
     Spaces,
@@ -796,7 +796,8 @@ pub enum ShowTarget {
     Stats,
 }
 
-/// EXPLAIN 格式类型
+/// The “EXPLAIN” format type is used to provide detailed information about the execution of a SQL query. When a SQL statement is executed, the database system generates various statistics and logs that can be used to analyze how the query was processed. The “EXPLAIN” statement allows users to view these statistics and logs in a structured manner, which helps in understanding the query’s behavior, identifying potential performance issues, and optimizing the query for better performance.
+In summary, the “EXPLAIN” format type is used to obtain insights into the way a SQL query is executed by the database system, which can be useful for debugging, optimizing queries, and improving database performance.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum ExplainFormat {
     #[default]
@@ -804,7 +805,7 @@ pub enum ExplainFormat {
     Dot,
 }
 
-/// EXPLAIN 语句
+/// The “EXPLAIN” statement is used in SQL databases to provide a detailed explanation of the query that was executed. It shows the steps that the database followed to process the query and the results that were obtained. This information can be very useful for troubleshooting issues, understanding the performance of the query, or optimizing the query to improve its efficiency. The “EXPLAIN” statement can be used on both select and update queries. When executed, it returns a result set that contains information about the table columns that were accessed, the join operations that were performed, the filtering conditions that were applied, and any subqueries that were used in the query. By analyzing this information, developers and database administrators can identify potential problems and make necessary adjustments to improve the query’s performance.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExplainStmt {
     pub span: Span,
@@ -812,7 +813,7 @@ pub struct ExplainStmt {
     pub format: ExplainFormat,
 }
 
-/// PROFILE 语句
+/// PROFILE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProfileStmt {
     pub span: Span,
@@ -820,7 +821,7 @@ pub struct ProfileStmt {
     pub format: ExplainFormat,
 }
 
-/// GROUP BY 语句
+/// The GROUP BY statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct GroupByStmt {
     pub span: Span,
@@ -829,7 +830,7 @@ pub struct GroupByStmt {
     pub having_clause: Option<ContextualExpression>,
 }
 
-/// LOOKUP 语句（新增）
+/// LOOKUP statement (newly added)
 #[derive(Debug, Clone, PartialEq)]
 pub struct LookupStmt {
     pub span: Span,
@@ -838,14 +839,14 @@ pub struct LookupStmt {
     pub yield_clause: Option<YieldClause>,
 }
 
-/// LOOKUP 目标
+/// LOOKUP target
 #[derive(Debug, Clone, PartialEq)]
 pub enum LookupTarget {
     Tag(String),
     Edge(String),
 }
 
-/// SUBGRAPH 语句（新增）
+/// The SUBGRAPH statement (newly added)
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubgraphStmt {
     pub span: Span,
@@ -856,7 +857,7 @@ pub struct SubgraphStmt {
     pub yield_clause: Option<YieldClause>,
 }
 
-/// FIND PATH 语句（新增）
+/// The “FIND PATH” statement (newly added)
 #[derive(Debug, Clone, PartialEq)]
 pub struct FindPathStmt {
     pub span: Span,
@@ -870,12 +871,12 @@ pub struct FindPathStmt {
     pub offset: Option<usize>,
     pub yield_clause: Option<YieldClause>,
     pub weight_expression: Option<String>,
-    pub heuristic_expression: Option<String>,
-    pub with_loop: bool,  // 是否允许自环
+    pub heuristic_expressi// Is self-looping allowed?
+    pub with_loop: bool,  // Is it allowed for loops (repeated visits to the same vertex within the path)?
     pub with_cycle: bool, // 是否允许回路（路径中重复访问顶点）
 }
 
-/// INSERT 语句
+/// INSERT statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct InsertStmt {
     pub span: Span,
@@ -883,7 +884,7 @@ pub struct InsertStmt {
     pub if_not_exists: bool,
 }
 
-/// INSERT 目标
+/// INSERT target
 #[derive(Debug, Clone, PartialEq)]
 pub enum InsertTarget {
     Vertices {
@@ -902,7 +903,7 @@ pub enum InsertTarget {
     },
 }
 
-/// Tag 插入规范
+/// Tag insertion specifications
 #[derive(Debug, Clone, PartialEq)]
 pub struct TagInsertSpec {
     pub tag_name: String,
@@ -910,14 +911,14 @@ pub struct TagInsertSpec {
     pub is_default_props: bool,
 }
 
-/// 顶点行数据
+/// Vertex row data
 #[derive(Debug, Clone, PartialEq)]
 pub struct VertexRow {
     pub vid: ContextualExpression,
     pub tag_values: Vec<Vec<ContextualExpression>>,
 }
 
-/// MERGE 语句
+/// The MERGE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct MergeStmt {
     pub span: Span,
@@ -926,19 +927,19 @@ pub struct MergeStmt {
     pub on_match: Option<SetClause>,
 }
 
-/// SHOW SESSIONS 语句
+/// The `SHOW SESSIONS` statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShowSessionsStmt {
     pub span: Span,
 }
 
-/// SHOW QUERIES 语句
+/// The SHOW QUERIES statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShowQueriesStmt {
     pub span: Span,
 }
 
-/// KILL QUERY 语句
+/// KILL QUERY statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct KillQueryStmt {
     pub span: Span,
@@ -946,14 +947,14 @@ pub struct KillQueryStmt {
     pub plan_id: i64,
 }
 
-/// SHOW CONFIGS 语句
+/// The `SHOW CONFIGS` statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShowConfigsStmt {
     pub span: Span,
     pub module: Option<String>, // 可选的模块名过滤
 }
 
-/// UPDATE CONFIGS 语句
+/// The “UPDATE CONFIGS” statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct UpdateConfigsStmt {
     pub span: Span,
@@ -962,7 +963,7 @@ pub struct UpdateConfigsStmt {
     pub config_value: ContextualExpression,
 }
 
-/// 变量赋值语句
+/// Variable assignment statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct AssignmentStmt {
     pub span: Span,
@@ -970,7 +971,7 @@ pub struct AssignmentStmt {
     pub statement: Box<Stmt>,
 }
 
-/// 集合操作类型
+/// Types of set operations
 #[derive(Debug, Clone, PartialEq)]
 pub enum SetOperationType {
     Union,
@@ -979,7 +980,7 @@ pub enum SetOperationType {
     Minus,
 }
 
-/// 集合操作语句
+/// Set operation statements
 #[derive(Debug, Clone, PartialEq)]
 pub struct SetOperationStmt {
     pub span: Span,
@@ -988,7 +989,7 @@ pub struct SetOperationStmt {
     pub right: Box<Stmt>,
 }
 
-/// UNWIND 语句
+/// UNWIND statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnwindStmt {
     pub span: Span,
@@ -996,7 +997,7 @@ pub struct UnwindStmt {
     pub variable: String,
 }
 
-/// RETURN 语句
+/// The RETURN statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReturnStmt {
     pub span: Span,
@@ -1007,7 +1008,7 @@ pub struct ReturnStmt {
     pub limit: Option<usize>,
 }
 
-/// WITH 语句
+/// The `WITH` statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct WithStmt {
     pub span: Span,
@@ -1019,7 +1020,7 @@ pub struct WithStmt {
     pub limit: Option<usize>,
 }
 
-/// YIELD 语句
+/// The YIELD statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct YieldStmt {
     pub span: Span,
@@ -1031,21 +1032,21 @@ pub struct YieldStmt {
     pub limit: Option<usize>,
 }
 
-/// SET 语句
+/// SET statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct SetStmt {
     pub span: Span,
     pub assignments: Vec<Assignment>,
 }
 
-/// REMOVE 语句
+/// “REMOVE” statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct RemoveStmt {
     pub span: Span,
     pub items: Vec<ContextualExpression>,
 }
 
-/// PIPE 语句
+/// The PIPE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct PipeStmt {
     pub span: Span,
@@ -1053,7 +1054,7 @@ pub struct PipeStmt {
     pub right: Box<Stmt>,
 }
 
-/// MATCH 子句（用于 MATCH 语句中的子句）
+/// MATCH clause (used within the MATCH statement)
 #[derive(Debug, Clone, PartialEq)]
 pub struct MatchClause {
     pub span: Span,
@@ -1061,7 +1062,7 @@ pub struct MatchClause {
     pub optional: bool,
 }
 
-/// WITH 子句（用于子查询管道）
+/// The WITH clause (used for subquery pipelines)
 #[derive(Debug, Clone, PartialEq)]
 pub struct WithClause {
     pub span: Span,
@@ -1073,7 +1074,7 @@ pub struct WithClause {
 pub struct StmtUtils;
 
 impl StmtUtils {
-    /// 获取语句中使用的所有变量
+    /// Retrieve all the variables used in the statement.
     pub fn find_variables(stmt: &Stmt) -> Vec<String> {
         let mut variables = Vec::new();
         Self::find_variables_recursive(stmt, &mut variables);
@@ -1201,7 +1202,7 @@ impl StmtUtils {
     }
 }
 
-/// DROP 语句 - 删除空间、标签、边类型或索引
+/// DROP statement – Deletes spaces, tags, edge types, or indexes
 #[derive(Debug, Clone, PartialEq)]
 pub struct DropStmt {
     pub span: Span,
@@ -1209,7 +1210,7 @@ pub struct DropStmt {
     pub if_exists: bool,
 }
 
-/// DROP 目标
+/// DROP target
 #[derive(Debug, Clone, PartialEq)]
 pub enum DropTarget {
     Space(String),
@@ -1225,14 +1226,14 @@ pub enum DropTarget {
     },
 }
 
-/// DESCRIBE 语句 - 描述空间、标签或边类型
+/// The `DESCRIBE` statement is used to describe the type of a space, tag, or edge.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DescStmt {
     pub span: Span,
     pub target: DescTarget,
 }
 
-/// DESCRIBE 目标
+/// Describe the target.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DescTarget {
     Space(String),
@@ -1246,14 +1247,14 @@ pub enum DescTarget {
     },
 }
 
-/// ALTER 语句 - 修改标签或边类型
+/// ALTER statement – Modifies the type of tags or edges
 #[derive(Debug, Clone, PartialEq)]
 pub struct AlterStmt {
     pub span: Span,
     pub target: AlterTarget,
 }
 
-/// 属性修改定义 (用于 CHANGE 操作)
+/// Attribute modification definition (used for the CHANGE operation)
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyChange {
     pub old_name: String,
@@ -1261,7 +1262,7 @@ pub struct PropertyChange {
     pub data_type: super::types::DataType,
 }
 
-/// ALTER 目标
+/// ALTER target
 #[derive(Debug, Clone, PartialEq)]
 pub enum AlterTarget {
     Tag {
@@ -1282,7 +1283,7 @@ pub enum AlterTarget {
     },
 }
 
-/// CREATE USER 语句
+/// The `CREATE USER` statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateUserStmt {
     pub span: Span,
@@ -1292,7 +1293,7 @@ pub struct CreateUserStmt {
     pub if_not_exists: bool,
 }
 
-/// ALTER USER 语句
+/// The `ALTER USER` statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct AlterUserStmt {
     pub span: Span,
@@ -1302,7 +1303,7 @@ pub struct AlterUserStmt {
     pub is_locked: Option<bool>,
 }
 
-/// DROP USER 语句
+/// The `DROP USER` statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct DropUserStmt {
     pub span: Span,
@@ -1310,7 +1311,7 @@ pub struct DropUserStmt {
     pub if_exists: bool,
 }
 
-/// CHANGE PASSWORD 语句
+/// The “CHANGE PASSWORD” statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChangePasswordStmt {
     pub span: Span,
@@ -1319,7 +1320,7 @@ pub struct ChangePasswordStmt {
     pub new_password: String,
 }
 
-/// 角色类型 - 用于GRANT/REVOKE语句
+/// Role types – used in GRANT/REVOKE statements
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RoleType {
     God,
@@ -1356,7 +1357,7 @@ impl std::str::FromStr for RoleType {
     }
 }
 
-/// GRANT 语句
+/// The `GRANT` statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct GrantStmt {
     pub span: Span,
@@ -1365,7 +1366,7 @@ pub struct GrantStmt {
     pub username: String,
 }
 
-/// REVOKE 语句
+/// The REVOKE statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct RevokeStmt {
     pub span: Span,
@@ -1374,34 +1375,34 @@ pub struct RevokeStmt {
     pub username: String,
 }
 
-/// DESCRIBE USER 语句
+/// “DESCRIBE USER” statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct DescribeUserStmt {
     pub span: Span,
     pub username: String,
 }
 
-/// SHOW USERS 语句
+/// The “SHOW USERS” statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShowUsersStmt {
     pub span: Span,
 }
 
-/// SHOW ROLES 语句
+/// The `SHOW ROLES` statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShowRolesStmt {
     pub span: Span,
     pub space_name: Option<String>,
 }
 
-/// SHOW CREATE 语句
+/// The `SHOW CREATE` statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShowCreateStmt {
     pub span: Span,
     pub target: ShowCreateTarget,
 }
 
-/// SHOW CREATE 目标
+/// The SHOW CREATE statement is used to display information about the creation of a database object, such as a table, index, view, or procedure.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ShowCreateTarget {
     Space(String),
@@ -1410,7 +1411,7 @@ pub enum ShowCreateTarget {
     Index(String),
 }
 
-/// CLEAR SPACE 语句
+/// The “CLEAR SPACE” statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClearSpaceStmt {
     pub span: Span,

@@ -1,6 +1,6 @@
-//! RETURN 语句规划器
+//! RETURN Statement Planner
 //!
-//! 处理 RETURN 语句的查询规划
+//! Query planning for statements that handle the RETURN command
 
 use crate::core::YieldColumn;
 use crate::query::parser::ast::{ReturnItem, ReturnStmt, Stmt};
@@ -13,18 +13,18 @@ use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement}
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// RETURN 语句规划器
-/// 负责将 RETURN 语句转换为执行计划
+/// RETURN statement planner
+/// Responsible for converting the RETURN statement into an execution plan.
 #[derive(Debug, Clone)]
 pub struct ReturnPlanner;
 
 impl ReturnPlanner {
-    /// 创建新的 RETURN 规划器
+    /// Create a new RETURN planner.
     pub fn new() -> Self {
         Self
     }
 
-    /// 从 Stmt 提取 ReturnStmt
+    /// Extract the ReturnStmt from the Stmt.
     fn extract_return_stmt(&self, stmt: &Stmt) -> Result<ReturnStmt, PlannerError> {
         match stmt {
             Stmt::Return(return_stmt) => Ok(return_stmt.clone()),
@@ -34,7 +34,7 @@ impl ReturnPlanner {
         }
     }
 
-    /// 将 ReturnItem 转换为 YieldColumn
+    /// Convert “ReturnItem” to “YieldColumn”.
     fn convert_return_item_to_yield_column(
         &self,
         item: &ReturnItem,
@@ -65,10 +65,10 @@ impl Planner for ReturnPlanner {
     ) -> Result<SubPlan, PlannerError> {
         let _ = qctx;
 
-        // 使用验证信息进行优化规划
+        // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;
 
-        // 检查语义信息
+        // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
             log::debug!("RETURN 引用的标签: {:?}", referenced_tags);
@@ -81,24 +81,25 @@ impl Planner for ReturnPlanner {
 
         let return_stmt = self.extract_return_stmt(validated.stmt())?;
 
-        // 创建参数节点作为输入
+        // Create a parameter node as the input.
         let arg_node = ArgumentNode::new(next_node_id(), "return_input");
         let mut current_node = PlanNodeEnum::Argument(arg_node.clone());
 
-        // 转换返回项为投影列
+        // Translate the given text into English:  
+“Convert the returned items into projection columns.”
         let yield_columns: Vec<YieldColumn> = return_stmt
             .items
             .iter()
             .map(|item| self.convert_return_item_to_yield_column(item, validated))
             .collect();
 
-        // 创建投影节点
+        // Create a projection node.
         let project_node = ProjectNode::new(current_node.clone(), yield_columns).map_err(|e| {
             PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
         })?;
         current_node = PlanNodeEnum::Project(project_node);
 
-        // 如果需要去重，创建去重节点
+        // If deduplication is required, create a deduplication node.
         if return_stmt.distinct {
             let dedup_node = DedupNode::new(current_node.clone()).map_err(|e| {
                 PlannerError::PlanGenerationFailed(format!("Failed to create DedupNode: {}", e))
@@ -106,7 +107,7 @@ impl Planner for ReturnPlanner {
             current_node = PlanNodeEnum::Dedup(dedup_node);
         }
 
-        // 如果有 ORDER BY 子句，创建排序节点
+        // If there is an ORDER BY clause, create a sorting node.
         if let Some(order_by) = &return_stmt.order_by {
             let sort_items: Vec<crate::query::planning::plan::core::nodes::SortItem> = order_by
                 .items
@@ -130,7 +131,7 @@ impl Planner for ReturnPlanner {
             current_node = PlanNodeEnum::Sort(sort_node);
         }
 
-        // 如果有 SKIP 子句，创建限制节点
+        // If there is a SKIP clause, create a restriction node.
         if let Some(skip) = return_stmt.skip {
             let limit_node = LimitNode::new(current_node.clone(), skip as i64, 0).map_err(|e| {
                 PlannerError::PlanGenerationFailed(format!("Failed to create LimitNode: {}", e))
@@ -138,7 +139,7 @@ impl Planner for ReturnPlanner {
             current_node = PlanNodeEnum::Limit(limit_node);
         }
 
-        // 如果有 LIMIT 子句，创建限制节点
+        // If there is a LIMIT clause, create a limit node.
         if let Some(limit) = return_stmt.limit {
             let limit_node =
                 LimitNode::new(current_node.clone(), 0, limit as i64).map_err(|e| {
@@ -147,7 +148,7 @@ impl Planner for ReturnPlanner {
             current_node = PlanNodeEnum::Limit(limit_node);
         }
 
-        // 创建 SubPlan
+        // Create a SubPlan
         let sub_plan = SubPlan::new(Some(current_node), Some(PlanNodeEnum::Argument(arg_node)));
 
         Ok(sub_plan)

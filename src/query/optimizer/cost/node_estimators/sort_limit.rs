@@ -1,6 +1,6 @@
-//! 排序和限制操作估算器
+//! Sorting and Limiting Operations Estimator
 //!
-//! 为排序限制节点提供代价估算：
+//! Provide a cost estimate for the nodes that are subject to sorting restrictions:
 //! - Sort
 //! - Limit
 //! - TopN
@@ -9,9 +9,9 @@
 //! - Sample
 //!
 //! 基于实际执行器实现（参考 aggregation.rs, sort.rs, limit.rs）：
-//! - Aggregate: 使用 HashMap 存储分组状态，代价包括聚合函数处理和哈希操作
-//! - Sort: 支持 Top-N 优化（当数据量 > limit * 10 时使用堆排序）
-//! - Limit: 简单的内存操作，代价与 offset + limit 成正比
+//! **Aggregate:** The group status is stored using a `HashMap`. The associated costs include the processing of aggregate functions and the performance overhead of hash operations.
+//! Sort: Supports Top-N optimization (heap sorting is used when the amount of data exceeds limit * 10).
+//! Limit: Simple memory operations; the cost is proportional to the sum of the offset and the limit value.
 
 use super::{get_input_rows, NodeEstimator};
 use crate::core::error::optimize::CostError;
@@ -19,30 +19,30 @@ use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::planning::plan::PlanNodeEnum;
 
-/// 排序和限制操作估算器
+/// Sorting and Limiting Operations Estimator
 pub struct SortLimitEstimator<'a> {
     cost_calculator: &'a CostCalculator,
 }
 
 impl<'a> SortLimitEstimator<'a> {
-    /// 创建新的排序限制估算器
+    /// Create a new estimator for sorting constraints.
     pub fn new(cost_calculator: &'a CostCalculator) -> Self {
         Self { cost_calculator }
     }
 
-    /// 估算 GROUP BY 键的基数
+    /// Estimating the cardinality of the GROUP BY column
     ///
-    /// 基于实际 AggregateExecutor 实现（使用 HashMap）：
-    /// - 如果没有 GROUP BY，返回 1（全局聚合）
-    /// - 否则基于键的数量和输入行数进行估算
+    /// Based on the actual implementation of AggregateExecutor (using a HashMap):
+    /// If there is no GROUP BY, return 1 (global aggregation).
+    /// Otherwise, the estimation is based on the number of keys and the number of input lines.
     fn estimate_group_by_cardinality(&self, group_keys: &[String], input_rows: u64) -> u64 {
         if group_keys.is_empty() {
             // 全局聚合，只返回一行（如 COUNT(*)）
             return 1;
         }
 
-        // 基于 GROUP BY 键的数量估算基数
-        // 键越多，分组越细，输出行数越多
+        // Estimating the cardinality based on the number of GROUP BY keys
+        // The more keys there are, the more detailed the grouping will be, and the greater the number of output rows will be.
         // 使用启发式公式：min(input_rows, max(10, input_rows / (2 ^ key_count)))
         let key_count = group_keys.len() as u32;
         let divisor = 2_u64.saturating_pow(key_count).max(1);
@@ -62,17 +62,17 @@ impl<'a> NodeEstimator for SortLimitEstimator<'a> {
             PlanNodeEnum::Sort(n) => {
                 let input_rows_val = get_input_rows(child_estimates, 0);
                 let sort_keys = n.sort_items().len();
-                // Sort 节点本身没有 limit，但如果有子 Limit 节点，可以传递 limit 进行优化
+                // The Sort node itself does not have a limit, but if there are child Limit nodes, a limit value can be passed through for optimization purposes.
                 let cost =
                     self.cost_calculator
                         .calculate_sort_cost(input_rows_val, sort_keys, None);
-                // Sort 不改变行数
+                // The “Sort” function does not change the number of lines in the text.
                 Ok((cost, input_rows_val))
             }
             PlanNodeEnum::Limit(n) => {
                 let input_rows_val = get_input_rows(child_estimates, 0);
                 let limit = n.count();
-                // 基于实际 LimitExecutor 实现：代价与 offset + limit 成正比
+                // Based on the actual implementation of LimitExecutor: The cost is directly proportional to the sum of the offset and the limit value.
                 let offset = n.offset();
                 let rows_to_process = ((limit.max(0) + offset.max(0)) as u64).min(input_rows_val);
                 let cost = self
@@ -97,15 +97,15 @@ impl<'a> NodeEstimator for SortLimitEstimator<'a> {
                 let agg_funcs = n.aggregation_functions().len();
                 let group_keys = n.group_keys().len();
 
-                // 基于实际 AggregateExecutor 实现计算代价
-                // 包括聚合函数处理和哈希表操作
+                // The calculation cost is based on the actual implementation of the AggregateExecutor.
+                // This includes the processing of aggregate functions as well as operations on hash tables.
                 let cost = self.cost_calculator.calculate_aggregate_cost(
                     input_rows_val,
                     agg_funcs,
                     group_keys,
                 );
 
-                // 聚合输出行数基于 GROUP BY 键的基数（HashMap 键的数量）
+                // The number of aggregated output rows is based on the cardinality of the GROUP BY key (the number of keys in the HashMap).
                 let output_rows =
                     self.estimate_group_by_cardinality(n.group_keys(), input_rows_val);
                 Ok((cost, output_rows))
@@ -113,16 +113,16 @@ impl<'a> NodeEstimator for SortLimitEstimator<'a> {
             PlanNodeEnum::Dedup(_) => {
                 let input_rows_val = get_input_rows(child_estimates, 0);
                 let cost = self.cost_calculator.calculate_dedup_cost(input_rows_val);
-                // 去重后行数减少（假设为输入的 70%）
+                // The number of rows has decreased after deduplication (by approximately 70% of the original number of rows).
                 let output_rows = (input_rows_val as f64 * 0.7).max(1.0) as u64;
                 Ok((cost, output_rows))
             }
             PlanNodeEnum::Sample(n) => {
                 let input_rows_val = get_input_rows(child_estimates, 0);
-                // SampleNode 使用 count 指定采样数量
+                // SampleNode uses the `count` parameter to specify the number of samples to be taken.
                 let sample_count = n.count().max(0) as u64;
                 let cost = self.cost_calculator.calculate_sample_cost(input_rows_val);
-                // 输出行为采样数量（不超过输入行数）
+                // Number of behavior samples collected (not exceeding the number of input rows)
                 let output_rows = sample_count.min(input_rows_val);
                 Ok((cost, output_rows.max(1)))
             }

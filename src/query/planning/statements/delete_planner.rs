@@ -1,6 +1,6 @@
-//! 删除操作规划器
+//! Deletion Operation Planner
 //!
-//! 处理 DELETE VERTEX/EDGE/TAG 语句的查询规划
+//! Query planning for handling DELETE VERTEX/EDGE/TAG statements
 
 use crate::core::types::ContextualExpression;
 use crate::core::YieldColumn;
@@ -14,18 +14,18 @@ use crate::query::planning::planner::{Planner, PlannerError, ValidatedStatement}
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 删除操作规划器
-/// 负责将 DELETE 语句转换为执行计划
+/// Deletion Operation Planner
+/// Responsible for converting DELETE statements into execution plans.
 #[derive(Debug, Clone)]
 pub struct DeletePlanner;
 
 impl DeletePlanner {
-    /// 创建新的删除规划器
+    /// Create a new deletion planner.
     pub fn new() -> Self {
         Self
     }
 
-    /// 从 Stmt 提取 DeleteStmt
+    /// Extract the DeleteStmt from the Stmt.
     fn extract_delete_stmt(&self, stmt: &Stmt) -> Result<DeleteStmt, PlannerError> {
         match stmt {
             Stmt::Delete(delete_stmt) => Ok(delete_stmt.clone()),
@@ -44,10 +44,10 @@ impl Planner for DeletePlanner {
     ) -> Result<SubPlan, PlannerError> {
         let _ = qctx;
 
-        // 使用验证信息进行优化规划
+        // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;
 
-        // 检查语义信息
+        // Check the semantic information.
         let referenced_tags = &validation_info.semantic_info.referenced_tags;
         if !referenced_tags.is_empty() {
             log::debug!("DELETE 引用的标签: {:?}", referenced_tags);
@@ -60,11 +60,11 @@ impl Planner for DeletePlanner {
 
         let delete_stmt = self.extract_delete_stmt(validated.stmt())?;
 
-        // 创建参数节点作为输入
+        // Create a parameter node as the input.
         let arg_node = ArgumentNode::new(next_node_id(), "delete_input");
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
-        // 根据删除目标类型构建不同的计划
+        // Develop different plans depending on the type of content that needs to be deleted.
         let yield_columns = match &delete_stmt.target {
             DeleteTarget::Vertices(..) => {
                 let expr_meta = crate::core::types::expr::ExpressionMeta::new(
@@ -116,14 +116,14 @@ impl Planner for DeletePlanner {
             }
         };
 
-        // 创建投影节点输出删除结果
+        // Create a projection node to output the deletion results.
         let project_node = ProjectNode::new(arg_node_enum.clone(), yield_columns).map_err(|e| {
             PlannerError::PlanGenerationFailed(format!("Failed to create ProjectNode: {}", e))
         })?;
 
         let final_node = PlanNodeEnum::Project(project_node);
 
-        // 创建 SubPlan
+        // Create a SubPlan
         let sub_plan = SubPlan::new(Some(final_node), Some(arg_node_enum));
 
         Ok(sub_plan)

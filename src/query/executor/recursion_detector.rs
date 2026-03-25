@@ -1,9 +1,9 @@
-//! 递归检测器 - 防止执行器循环引用
+//! Recursive detector – Prevents the executor from making circular references.
 
 use crate::core::error::{DBError, DBResult};
 use std::collections::HashSet;
 
-/// 递归检测器
+/// Recursive detector
 #[derive(Debug, Clone)]
 pub struct RecursionDetector {
     max_depth: usize,
@@ -13,7 +13,7 @@ pub struct RecursionDetector {
 }
 
 impl RecursionDetector {
-    /// 创建新的递归检测器
+    /// Create a new recursive detector.
     pub fn new(max_depth: usize) -> Self {
         Self {
             max_depth,
@@ -23,9 +23,9 @@ impl RecursionDetector {
         }
     }
 
-    /// 验证执行器是否会导致递归
+    /// Verify whether the execution of the executor will lead to recursion.
     pub fn validate_executor(&mut self, executor_id: i64, executor_name: &str) -> DBResult<()> {
-        // 检查访问深度
+        // Check the depth of access.
         if self.visited_stack.len() >= self.max_depth {
             return Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(format!(
@@ -36,7 +36,7 @@ impl RecursionDetector {
             ));
         }
 
-        // 检查循环引用
+        // Check for circular references.
         if self.visited_set.contains(&executor_id) {
             return Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError(format!(
@@ -48,7 +48,7 @@ impl RecursionDetector {
             ));
         }
 
-        // 记录访问
+        // Record visits
         self.visited_stack.push(executor_id);
         self.visited_set.insert(executor_id);
         self.recursion_path
@@ -57,7 +57,7 @@ impl RecursionDetector {
         Ok(())
     }
 
-    /// 离开当前执行器
+    /// Leave the current executor.
     pub fn leave_executor(&mut self) {
         if let Some(id) = self.visited_stack.pop() {
             self.visited_set.remove(&id);
@@ -65,67 +65,67 @@ impl RecursionDetector {
         self.recursion_path.pop();
     }
 
-    /// 获取递归路径
+    /// Obtain the recursive path
     pub fn get_recursion_path(&self) -> Vec<String> {
         self.recursion_path.clone()
     }
 
-    /// 重置检测器状态
+    /// Reset the detector status.
     pub fn reset(&mut self) {
         self.visited_stack.clear();
         self.visited_set.clear();
         self.recursion_path.clear();
     }
 
-    /// 获取当前深度
+    /// Get the current depth.
     pub fn current_depth(&self) -> usize {
         self.visited_stack.len()
     }
 
-    /// 检查执行器是否已被访问
+    /// Check whether the executor has been accessed.
     pub fn is_visited(&self, executor_id: i64) -> bool {
         self.visited_set.contains(&executor_id)
     }
 }
 
-/// 执行器验证trait
+/// Executor Verification Trait
 pub trait ExecutorValidator {
     fn validate_no_recursion(&self, detector: &mut RecursionDetector) -> DBResult<()>;
 }
 
-/// 并行计算配置
+/// Parallel computing configuration
 ///
-/// 参考nebula-graph的FLAGS_max_job_size和FLAGS_min_batch_size
+/// Refer to `FLAGS_max_job_size` and `FLAGS_min_batch_size` from `nebula-graph`.
 #[derive(Debug, Clone)]
 pub struct ParallelConfig {
-    /// 最大并行任务数（参考nebula-graph的FLAGS_max_job_size）
+    /// Maximum number of parallel tasks (refer to nebula-graph’s FLAGS_max_job_size)
     pub max_job_size: usize,
-    /// 最小批处理大小（参考nebula-graph的FLAGS_min_batch_size）
+    /// Minimum batch size (refer to FLAGS_min_batch_size in nebula-graph)
     pub min_batch_size: usize,
-    /// 是否启用并行计算
+    /// Should parallel computing be enabled?
     pub enable_parallel: bool,
-    /// 并行计算阈值：数据量超过此值才使用并行（参考nebula-graph的traverse_parallel_threshold_rows）
+    /// Parallel computing threshold: Parallel processing is only used when the amount of data exceeds this value (refer to traverse_parallel_threshold_rows in nebula-graph).
     pub parallel_threshold: usize,
-    /// 单线程处理的最大数据量
+    /// The maximum amount of data that can be processed by a single-threaded system
     pub single_thread_limit: usize,
 }
 
 impl Default for ParallelConfig {
     fn default() -> Self {
         Self {
-            max_job_size: 4,           // 默认4个并行任务
-            min_batch_size: 1000,      // 最小批处理1000行
-            enable_parallel: true,     // 默认启用并行
-            parallel_threshold: 10000, // 数据量超过10000行才并行
-            single_thread_limit: 1000, // 少于1000行使用单线程
+            max_job_size: 4,           // By default, 4 parallel tasks are executed.
+            min_batch_size: 1000,      // Minimum batch size: 1000 lines
+            enable_parallel: true,     // Parallel processing is enabled by default.
+            parallel_threshold: 10000, // Parallel processing is only enabled when the amount of data exceeds 10,000 rows.
+            single_thread_limit: 1000, // Use a single thread for texts with less than 1000 lines.
         }
     }
 }
 
 impl ParallelConfig {
-    /// 计算批处理大小
+    /// Calculating the batch size
     ///
-    /// 参考nebula-graph的Executor::getBatchSize实现
+    /// Refer to the implementation of Executor::getBatchSize in nebula-graph.
     /// batch size = max(min_batch_size, ceil(total_size / max_job_size))
     pub fn calculate_batch_size(&self, total_size: usize) -> usize {
         if total_size == 0 {
@@ -135,12 +135,12 @@ impl ParallelConfig {
         batch_size_tmp.max(self.min_batch_size)
     }
 
-    /// 判断是否使用并行计算
+    /// Determine whether to use parallel computing.
     pub fn should_use_parallel(&self, total_size: usize) -> bool {
         self.enable_parallel && total_size >= self.parallel_threshold
     }
 
-    /// 创建适合小数据量的配置
+    /// Create a configuration suitable for small amounts of data.
     pub fn for_small_data() -> Self {
         Self {
             max_job_size: 2,
@@ -151,7 +151,7 @@ impl ParallelConfig {
         }
     }
 
-    /// 创建适合大数据量的配置
+    /// Create a configuration suitable for large amounts of data.
     pub fn for_large_data() -> Self {
         Self {
             max_job_size: 8,
@@ -163,7 +163,7 @@ impl ParallelConfig {
     }
 }
 
-/// 执行器安全配置
+/// Actuator safety configuration
 #[derive(Debug, Clone)]
 pub struct ExecutorSafetyConfig {
     pub max_recursion_depth: usize,
@@ -186,7 +186,7 @@ impl Default for ExecutorSafetyConfig {
     }
 }
 
-/// 执行器安全验证器
+/// Actuator Safety Validator
 #[derive(Debug)]
 pub struct ExecutorSafetyValidator {
     config: ExecutorSafetyConfig,
@@ -194,7 +194,7 @@ pub struct ExecutorSafetyValidator {
 }
 
 impl ExecutorSafetyValidator {
-    /// 创建新的安全验证器
+    /// Create a new security verifier
     pub fn new(config: ExecutorSafetyConfig) -> Self {
         Self {
             recursion_detector: RecursionDetector::new(config.max_recursion_depth),
@@ -202,7 +202,7 @@ impl ExecutorSafetyValidator {
         }
     }
 
-    /// 验证执行器链的安全性
+    /// Verify the security of the executor chain.
     pub fn validate_executor_chain(
         &mut self,
         executor_id: i64,
@@ -215,7 +215,7 @@ impl ExecutorSafetyValidator {
         Ok(())
     }
 
-    /// 验证循环配置
+    /// Verify the configuration of the loop.
     pub fn validate_loop_config(&self, max_iterations: Option<usize>) -> DBResult<()> {
         if let Some(iterations) = max_iterations {
             if iterations > self.config.max_loop_iterations {
@@ -230,7 +230,7 @@ impl ExecutorSafetyValidator {
         Ok(())
     }
 
-    /// 验证扩展配置
+    /// Verify the extended configuration.
     pub fn validate_expand_config(&self, max_depth: Option<usize>) -> DBResult<()> {
         if let Some(depth) = max_depth {
             if depth > self.config.max_expand_depth {
@@ -245,12 +245,12 @@ impl ExecutorSafetyValidator {
         Ok(())
     }
 
-    /// 重置验证器状态
+    /// Reset the verifier status.
     pub fn reset(&mut self) {
         self.recursion_detector.reset();
     }
 
-    /// 获取当前递归深度
+    /// Get the current recursion depth
     pub fn current_depth(&self) -> usize {
         self.recursion_detector.current_depth()
     }
@@ -270,11 +270,11 @@ mod tests {
     fn test_recursion_detection() {
         let mut detector = RecursionDetector::new(10);
 
-        // 正常情况
+        // Under normal circumstances
         assert!(detector.validate_executor(1, "TestExecutor").is_ok());
         assert!(detector.validate_executor(2, "AnotherExecutor").is_ok());
 
-        // 循环引用检测
+        // Circular Reference Detection
         assert!(detector.validate_executor(1, "TestExecutor").is_err());
     }
 
@@ -282,12 +282,12 @@ mod tests {
     fn test_max_depth_protection() {
         let mut detector = RecursionDetector::new(3);
 
-        // 正常深度
+        // Normal depth
         assert!(detector.validate_executor(1, "E1").is_ok());
         assert!(detector.validate_executor(2, "E2").is_ok());
         assert!(detector.validate_executor(3, "E3").is_ok());
 
-        // 超过最大深度
+        // Exceeding the maximum depth
         assert!(detector.validate_executor(4, "E4").is_err());
     }
 
@@ -295,15 +295,15 @@ mod tests {
     fn test_leave_executor() {
         let mut detector = RecursionDetector::new(10);
 
-        // 进入执行器
+        // Enter the actuator.
         assert!(detector.validate_executor(1, "E1").is_ok());
         assert_eq!(detector.current_depth(), 1);
 
-        // 离开执行器
+        // Leave the actuator.
         detector.leave_executor();
         assert_eq!(detector.current_depth(), 0);
 
-        // 可以重新进入
+        // It is possible to re-enter.
         assert!(detector.validate_executor(1, "E1").is_ok());
     }
 
@@ -311,14 +311,14 @@ mod tests {
     fn test_reset_detector() {
         let mut detector = RecursionDetector::new(3);
 
-        // 进入多个执行器
+        // Access to multiple actuators
         assert!(detector.validate_executor(1, "E1").is_ok());
         assert!(detector.validate_executor(2, "E2").is_ok());
 
-        // 重置
+        // Reset
         detector.reset();
 
-        // 现在应该可以重新进入
+        // It should be possible to re-enter now.
         assert!(detector.validate_executor(1, "E1").is_ok());
         assert!(detector.validate_executor(2, "E2").is_ok());
     }
@@ -327,11 +327,11 @@ mod tests {
     fn test_safety_validator_loop_config() {
         let validator = ExecutorSafetyValidator::default();
 
-        // 正常配置
+        // Normal configuration
         assert!(validator.validate_loop_config(Some(100)).is_ok());
         assert!(validator.validate_loop_config(None).is_ok());
 
-        // 超过限制
+        // Exceeding the limit
         assert!(validator.validate_loop_config(Some(20000)).is_err());
     }
 
@@ -339,11 +339,11 @@ mod tests {
     fn test_safety_validator_expand_config() {
         let validator = ExecutorSafetyValidator::default();
 
-        // 正常配置
+        // Normal configuration
         assert!(validator.validate_expand_config(Some(50)).is_ok());
         assert!(validator.validate_expand_config(None).is_ok());
 
-        // 超过限制
+        // Exceeding the limits
         assert!(validator.validate_expand_config(Some(200)).is_err());
     }
 

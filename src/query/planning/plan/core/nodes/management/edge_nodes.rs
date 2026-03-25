@@ -1,6 +1,6 @@
-//! 边类型管理节点实现
+//! Implementation of the edge type management node
 //!
-//! 提供边类型管理相关的计划节点定义
+//! Provide definitions for the planning nodes related to edge type management.
 
 use crate::core::types::PropertyDef;
 use crate::define_plan_node;
@@ -142,7 +142,7 @@ impl ShowEdgesNode {
     }
 }
 
-/// 边类型管理信息
+/// Edge Type Management Information
 #[derive(Debug, Clone)]
 pub struct EdgeManageInfo {
     pub space_name: String,
@@ -165,7 +165,7 @@ impl EdgeManageInfo {
     }
 }
 
-/// 边类型修改信息
+/// Information on changes to the border type
 #[derive(Debug, Clone)]
 pub struct EdgeAlterInfo {
     pub space_name: String,

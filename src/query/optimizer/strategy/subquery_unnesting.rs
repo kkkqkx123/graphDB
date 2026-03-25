@@ -1,20 +1,20 @@
-//! 子查询去关联化优化器模块
+//! Subquery de-association optimization module
 //!
-//! **基于分析的子查询去关联化优化策略**，将简单的 PatternApply 子查询转换为 HashInnerJoin。
+//! “Analysis-based subquery deserialization optimization strategy” – This strategy converts simple PatternApply subqueries into HashInnerJoin operations.
 //!
-//! ## 优化策略
+//! ## Optimization Strategies
 //!
-//! - 将符合条件的 PatternApply 子查询转换为 HashInnerJoin
-//! - 避免重复执行子查询
+//! Convert the eligible PatternApply subquery into a HashInnerJoin.
+//! Avoid executing subqueries repeatedly.
 //!
-//! ## 适用条件
+//! ## Applicable Conditions
 //!
-//! 1. PatternApply 的右输入是简单查询（单表扫描 + 等值过滤）
+//! The right input for PatternApply is a simple query (single-table scan + equality filtering).
 //! 2. 过滤条件是确定性的（不含 rand(), now() 等）
-//! 3. 表达式复杂度 < 50（避免复杂表达式）
-//! 4. 子查询估算行数 < 1000（基于统计信息）
+//! 3. The complexity of the expressions should be less than 50 (avoid using complex expressions).
+//! 4. The subquery estimates that the number of rows is less than 1000 (based on statistical information).
 //!
-//! ## 使用示例
+//! ## Usage Examples
 //!
 //! ```rust
 //! use graphdb::query::optimizer::strategy::SubqueryUnnestingOptimizer;
@@ -37,21 +37,24 @@ use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::{HashInnerJoinNode, PatternApplyNode};
 use crate::query::validator::context::ExpressionAnalysisContext;
 
-/// 子查询去关联化决策
+/// Decentralized decision-making using subqueries
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnnestDecision {
-    /// 转换为 HashInnerJoin
+    /// Convert to HashInnerJoin
     ShouldUnnest {
-        /// 转换原因
+        /// The text to be translated is:  “You are a professional translator.”  
+
+**Translation:**  
+“You are a professional translator.”
         reason: UnnestReason,
-        /// 估算的原始代价
+        /// Estimated original cost
         original_cost: f64,
-        /// 估算的转换后代价
+        /// Estimated cost after the conversion
         unnested_cost: f64,
     },
-    /// 保持 PatternApply
+    /// Please provide the text you would like to have translated. I will then perform the translation and ensure that the format and structure of the original text are preserved in the target language.
     KeepPatternApply {
-        /// 保留原因
+        /// Reason for retention
         reason: KeepReason,
     },
 }
@@ -59,42 +62,42 @@ pub enum UnnestDecision {
 /// 转换原因
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnnestReason {
-    /// 简单子查询，转换更优
+    /// Simple subquery; the conversion is more efficient.
     SimpleSubquery,
-    /// 基于代价分析
+    /// Based on cost analysis
     CostBased,
 }
 
 /// 保留原因
 #[derive(Debug, Clone, PartialEq)]
 pub enum KeepReason {
-    /// 子查询太复杂
+    /// The subquery is too complex.
     TooComplex,
-    /// 子查询包含非确定性函数
+    /// The subquery contains a non-deterministic function.
     NonDeterministic,
-    /// 子查询估算行数过大
+    /// The number of rows estimated by the subquery is too large.
     TooManyRows,
-    /// 子查询包含复杂条件
+    /// The subquery contains complex conditions.
     ComplexCondition,
 }
 
-/// 子查询去关联化优化器
+/// Subquery desaggregation optimizer
 ///
-/// 基于表达式分析和统计信息，决定是否将 PatternApply 转换为 HashInnerJoin。
+/// Based on expression analysis and statistical information, a decision is made as to whether to convert PatternApply to HashInnerJoin.
 #[derive(Debug, Clone)]
 pub struct SubqueryUnnestingOptimizer {
-    /// 表达式分析器
+    /// Expression Analyzer
     expression_analyzer: ExpressionAnalyzer,
-    /// 统计信息管理器
+    /// Statistics Information Manager
     stats_manager: StatisticsManager,
-    /// 最大允许的子查询估算行数
+    /// The maximum number of estimated rows allowed for a subquery
     max_subquery_rows: u64,
-    /// 最大允许的表达式复杂度
+    /// The maximum allowable complexity of the expression
     max_complexity: u32,
 }
 
 impl SubqueryUnnestingOptimizer {
-    /// 创建新的优化器
+    /// Create a new optimizer.
     pub fn new(
         expression_analyzer: &ExpressionAnalyzer,
         stats_manager: &StatisticsManager,
@@ -107,44 +110,44 @@ impl SubqueryUnnestingOptimizer {
         }
     }
 
-    /// 设置最大子查询行数阈值
+    /// Set a threshold for the maximum number of rows in subqueries
     pub fn with_max_rows(mut self, max_rows: u64) -> Self {
         self.max_subquery_rows = max_rows;
         self
     }
 
-    /// 设置最大复杂度阈值
+    /// Set a threshold for the maximum complexity.
     pub fn with_max_complexity(mut self, max_complexity: u32) -> Self {
         self.max_complexity = max_complexity;
         self
     }
 
-    /// 判断是否应该去关联化
+    /// Determine whether decoupling should be performed.
     ///
-    /// # 参数
-    /// - `pattern_apply`: PatternApply 节点
+    /// # Parameters
+    /// `pattern_apply`: The PatternApply node
     ///
-    /// # 返回
-    /// 去关联化决策
+    /// // 1. Check whether the subquery is simple (including checks for certainty and complexity).
+    /// De-associative decision-making
     pub fn should_unnest(&self, pattern_apply: &PatternApplyNode) -> UnnestDecision {
         // 1. 检查子查询是否简单（包含确定性、复杂度检查）
         if !self.is_simple_subquery(pattern_apply.right_input()) {
             return UnnestDecision::KeepPatternApply {
                 reason: KeepReason::TooComplex,
-            };
-        }
+        // 2. Check whether the connection key is deterministic.
+        // The current `key_cols` is a `Vec<ContextualExpression>`, and it can be analyzed using the `ExpressionAnalyzer`.
 
-        // 2. 检查连接键是否是确定性的
+        // 2// Pass the `ContextualExpression` directly to the `ExpressionAnalyzer`.
         // 现在的 key_cols 是 Vec<ContextualExpression>，可以使用 ExpressionAnalyzer 分析
         for key_col in pattern_apply.key_cols() {
-            // 直接传递 ContextualExpression 给 ExpressionAnalyzer
+            // Check the certainty.textualExpression 给 ExpressionAnalyzer
             let analysis = self.expression_analyzer.analyze(key_col);
 
             // 检查确定性
             if !analysis.is_deterministic {
                 return UnnestDecision::KeepPatternApply {
                     reason: KeepReason::NonDeterministic,
-                };
+            // Check the complexity
             }
 
             // 检查复杂度
@@ -152,7 +155,7 @@ impl SubqueryUnnestingOptimizer {
                 return UnnestDecision::KeepPatternApply {
                     reason: KeepReason::ComplexCondition,
                 };
-            }
+        // 3. Check the estimated number of rows returned by the subquery.
         }
 
         // 3. 检查子查询估算行数
@@ -160,7 +163,7 @@ impl SubqueryUnnestingOptimizer {
         if estimated_rows > self.max_subquery_rows {
             return UnnestDecision::KeepPatternApply {
                 reason: KeepReason::TooManyRows,
-            };
+        // 4. Comparison of costs (simplified version)
         }
 
         // 4. 代价比较（简化版本）
@@ -182,46 +185,46 @@ impl SubqueryUnnestingOptimizer {
         }
     }
 
-    /// 检查子查询是否简单（单表扫描 + 等值过滤）
+    /// Chec// Single-table scanbquery is simple (involving a scan of a single table and equality filtering).
     fn is_simple_subquery(&self, node: &PlanNodeEnum) -> bool {
         match node {
             // 单表扫描
             PlanNodeEnum::ScanVertices(_) => true,
-            PlanNodeEnum::ScanEdges(_) => true,
+            // Simple filteringanEdges(_) => true,
             PlanNodeEnum::IndexScan(_) => true,
 
             // 简单过滤
-            PlanNodeEnum::Filter(n) => {
+            Plan// Pass the `ContextualExpression` directly to the `ExpressionAnalyzer`.
                 // 检查过滤条件是否是等值比较
                 let condition = n.condition();
-                // 直接传递 ContextualExpression 给 ExpressionAnalyzer
+                // Check the certainty.textualExpression 给 ExpressionAnalyzer
                 let analysis = self.expression_analyzer.analyze(condition);
 
                 // 检查确定性
                 if !analysis.is_deterministic {
-                    return false;
+                // Check the complexity.
                 }
 
                 // 检查复杂度
                 if analysis.complexity_score > self.max_complexity {
-                    return false;
+                // Check whether it is a simple equality comparison.
                 }
 
                 // 检查是否是简单的等值比较
                 if let Some(expr_meta) = condition.expression() {
                     if !self.is_simple_equality_condition(expr_meta.inner()) {
-                        return false;
+                // Perform a recursive check on the input.
                     }
                 }
                 // 递归检查输入
-                self.is_simple_subquery(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
+            // Simple projectionle_subquery(crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(n))
             }
 
             // 简单投影
             PlanNodeEnum::Project(n) => self.is_simple_subquery(
                 crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode::input(
                     n,
-                ),
+            // Other situations are not supported.
             ),
 
             // 其他情况不支持
@@ -229,15 +232,15 @@ impl SubqueryUnnestingOptimizer {
         }
     }
 
-    /// 检查条件是否是简单的等值比较
+    /// Check whether the condition is a simple equality comparison.
     fn is_simple_equality_condition(&self, expr: &Expression) -> bool {
         match expr {
-            Expression::Binary { op, left, right } => {
+            Expression::// Equivalence comparison: Check whether both sides are simple property references.
                 match op {
                     BinaryOperator::Equal => {
                         // 等值比较，检查两边是否都是简单的属性引用
                         self.is_simple_expression(left.as_ref())
-                            && self.is_simple_expression(right.as_ref())
+                        // AND condition: Check both sidesion(right.as_ref())
                     }
                     BinaryOperator::And => {
                         // AND 条件，检查两边
@@ -251,7 +254,7 @@ impl SubqueryUnnestingOptimizer {
         }
     }
 
-    /// 检查表达式是否简单（字面量、变量、属性）
+    /// Check whether the expression is simple (consisting of literals, variables, or properties).
     fn is_simple_expression(&self, expr: &Expression) -> bool {
         matches!(
             expr,
@@ -259,20 +262,20 @@ impl SubqueryUnnestingOptimizer {
         )
     }
 
-    /// 估算子查询输出行数
-    fn estimate_subquery_rows(&self, node: &PlanNodeEnum) -> u64 {
+    /// Estimating the number of rows returned by a subquery
+    fn estimate_// Obtain the number of label vertices from the statistical information.) -> u64 {
         match node {
             PlanNodeEnum::ScanVertices(n) => {
                 // 从统计信息获取标签顶点数
                 if let Some(tag_name) = n.tag() {
-                    if let Some(stats) = self.stats_manager.get_tag_stats(tag_name) {
+                    if let So// Default valueelf.stats_manager.get_tag_stats(tag_name) {
                         stats.vertex_count
                     } else {
-                        1000 // 默认值
+                        1// Default value值
                     }
                 } else {
                     1000 // 默认值
-                }
+                // The estimated number of rows after filtering is 30% of the original number of rows.
             }
             PlanNodeEnum::Filter(n) => {
                 // 过滤后估算为原始行数的 30%
@@ -287,26 +290,26 @@ impl SubqueryUnnestingOptimizer {
         }
     }
 
-    /// 估算 PatternApply 的代价
+    /// Estimate the cost of applying the PatternApply method
     fn estimate_pattern_apply_cost(
         &self,
-        _pattern_apply: &PatternApplyNode,
-        subquery_rows: u64,
+        // Simplified estimation: Nested loops, with the subquery being executed in each iteration.
+        // Assume that the left table contains an average of 100 rows.
     ) -> f64 {
-        // 简化估算：嵌套循环，每次都执行子查询
+        // 简化估算：嵌套循环，每次都// Cost of initiating the subquery + Cost of executing the subquery
         // 假设左表平均 100 行
         let left_rows = 100.0;
         left_rows * (subquery_rows as f64 * 0.1) // 子查询启动代价 + 执行代价
     }
 
-    /// 估算 HashJoin 的代价
+    /// Estimating the cost of a HashJoin operation
     fn estimate_hash_join_cost(
         &self,
-        _pattern_apply: &PatternApplyNode,
+        // Simplified estimation: Hash joinde,
         subquery_rows: u64,
     ) -> f64 {
         // 简化估算：哈希连接
-        let left_rows = 100.0;
+        // Cost of building a hash table + Cost of detection
         let right_rows = subquery_rows as f64;
 
         // 构建哈希表代价 + 探测代价
@@ -316,21 +319,21 @@ impl SubqueryUnnestingOptimizer {
         build_cost + probe_cost
     }
 
-    /// 执行去关联化转换
+    /// Perform the de-association transformation.
     ///
     /// # 参数
     /// - `pattern_apply`: PatternApply 节点
     ///
     /// # 返回
-    /// 转换后的 HashInnerJoin 节点
+    /// The transformed HashInnerJoin node
     pub fn unnest(
         &self,
         pattern_apply: PatternApplyNode,
     ) -> Result<
-        crate::query::planning::plan::core::nodes::PlanNodeEnum,
+        // Obtain the connection key (which is already of the ContextualExpression type).
         crate::query::planning::planner::PlannerError,
     > {
-        // 获取连接键（已经是 ContextualExpression 类型）
+        // Obtain the variable names for the left and right inputs.textualExpression 类型）
         let key_cols = pattern_apply.key_cols().to_vec();
 
         // 获取左右输入的变量名
@@ -340,28 +343,28 @@ impl SubqueryUnnestingOptimizer {
             .unwrap_or_else(|| "left".to_string());
         let right_var = pattern_apply
             .right_input_var()
-            .cloned()
+        // Create the context for the expression.
             .unwrap_or_else(|| "right".to_string());
 
-        // 创建表达式上下文
+        // Create `hash_keys` and `probe_keys`.
         let expr_ctx = std::sync::Arc::new(ExpressionAnalysisContext::new());
 
         // 创建 hash_keys 和 probe_keys
         let mut hash_keys = Vec::new();
-        let mut probe_keys = Vec::new();
+        let // Obtain the original expression();
 
         for key_col in &key_cols {
             // 获取原始表达式
-            if let Some(expr_meta) = key_col.expression() {
-                let original_expr = expr_meta.inner();
+            if l// Create the left-click expression (from the left input).
+                // Replace all variable references in the original expression with `left_var`.
 
                 // 创建左侧键表达式（来自左输入）
                 // 将原始表达式中的所有变量引用替换为 left_var
                 let left_key_expr = self.replace_all_variables(original_expr, &left_var);
                 let left_key_meta = ExpressionMeta::new(left_key_expr);
                 let left_key_id = expr_ctx.register_expression(left_key_meta);
-                let left_key_contextual = ContextualExpression::new(left_key_id, expr_ctx.clone());
-                hash_keys.push(left_key_contextual);
+                // Create a right-click expression (from the right-side input).ew(left_key_id, expr_ctx.clone());
+                // Replace all variable references in the original expression with `right_var`.
 
                 // 创建右侧键表达式（来自右输入）
                 // 将原始表达式中的所有变量引用替换为 right_var
@@ -371,7 +374,7 @@ impl SubqueryUnnestingOptimizer {
                 let right_key_contextual =
                     ContextualExpression::new(right_key_id, expr_ctx.clone());
                 probe_keys.push(right_key_contextual);
-            }
+        // Create a HashInnerJoin node.
         }
 
         // 创建 HashInnerJoin 节点
@@ -384,18 +387,18 @@ impl SubqueryUnnestingOptimizer {
         Ok(crate::query::planning::plan::core::nodes::PlanNodeEnum::HashInnerJoin(hash_join_node))
     }
 
-    /// 替换表达式中的所有变量引用为指定变量
+    /// Replace all variable references in the expression with the specified variables.
     ///
-    /// 这个方法递归遍历表达式树，将所有 Variable 节点替换为指定的变量名。
-    /// 这用于在将 PatternApply 转换为 HashInnerJoin 时，将原始表达式中的变量
-    /// 引用（通常是 "_"）替换为左右输入的变量名。
+    /// This method recursively traverses the expression tree and replaces all Variable nodes with the specified variable name.
+    /// This is used to convert the variables in the original expression when transforming PatternApply to HashInnerJoin.
+    /// The placeholders (usually “_”) should be replaced with the variable names provided on the left and on the right.
     ///
     /// # 参数
-    /// - `expr`: 要转换的表达式
-    /// - `new_var`: 新的变量名
+    /// `expr`: The expression that needs to be converted.
+    /// `new_var`: The name of the new variable
     ///
     /// # 返回
-    /// 转换后的表达式
+    /// Of course! Please provide the text you would like to have translated.
     fn replace_all_variables(&self, expr: &Expression, new_var: &str) -> Expression {
         match expr {
             Expression::Variable(_) => Expression::Variable(new_var.to_string()),
@@ -560,7 +563,7 @@ mod tests {
 
     #[test]
     fn test_optimizer_creation() {
-        let expression_analyzer = ExpressionAnalyzer::new();
+        // The optimization optimizer was created successfully.ssionAnalyzer::new();
         let stats_manager = StatisticsManager::new();
         let optimizer = SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager);
         // 验证优化器创建成功
@@ -572,7 +575,7 @@ mod tests {
     fn test_optimizer_with_config() {
         let expression_analyzer = ExpressionAnalyzer::new();
         let stats_manager = StatisticsManager::new();
-        let _optimizer = SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager)
+        // Verify that the configuration has been applied.UnnestingOptimizer::new(&expression_analyzer, &stats_manager)
             .with_max_rows(500)
             .with_max_complexity(30);
         // 验证配置已应用
@@ -581,22 +584,22 @@ mod tests {
     #[test]
     fn test_simple_expression_check() {
         let expression_analyzer = ExpressionAnalyzer::new();
-        let stats_manager = StatisticsManager::new();
+        // Literal valueager = StatisticsManager::new();
         let optimizer = SubqueryUnnestingOptimizer::new(&expression_analyzer, &stats_manager);
 
         // 字面量
-        let literal = Expression::Literal(crate::core::Value::Int(42));
+        // variablel = Expression::Literal(crate::core::Value::Int(42));
         assert!(optimizer.is_simple_expression(&literal));
 
         // 变量
-        let variable = Expression::Variable("n".to_string());
+        // Attributele = Expression::Variable("n".to_string());
         assert!(optimizer.is_simple_expression(&variable));
 
         // 属性
         let property = Expression::Property {
             object: Box::new(Expression::Variable("n".to_string())),
             property: "name".to_string(),
-        };
+        // Binary expression
         assert!(optimizer.is_simple_expression(&property));
 
         // 二元表达式

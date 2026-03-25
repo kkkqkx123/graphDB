@@ -1,5 +1,5 @@
-//! 分页验证策略
-//! 负责验证SKIP、LIMIT和分页相关的表达式
+//! Pagination validation strategy
+//! Responsible for verifying expressions related to SKIP, LIMIT, and pagination.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -7,7 +7,7 @@ use crate::core::types::expr::utils::is_evaluable;
 use crate::core::YieldColumn;
 use crate::query::validator::structs::{MatchStepRange, OrderByClauseContext, PaginationContext};
 
-/// 分页验证策略
+/// Pagination validation strategy
 pub struct PaginationValidationStrategy;
 
 impl Default for PaginationValidationStrategy {
@@ -21,14 +21,14 @@ impl PaginationValidationStrategy {
         Self
     }
 
-    /// 验证分页参数的有效性
+    /// Verify the validity of the pagination parameters.
     pub fn validate_pagination(
         &self,
         skip_expression: Option<&ContextualExpression>,
         limit_expression: Option<&ContextualExpression>,
         context: &PaginationContext,
     ) -> Result<(), ValidationError> {
-        // 验证分页参数的有效性
+        // Verify the validity of the paging parameters.
         if context.skip < 0 {
             return Err(ValidationError::new(
                 "SKIP不能为负数".to_string(),
@@ -42,12 +42,12 @@ impl PaginationValidationStrategy {
             ));
         }
 
-        // 验证 SKIP 表达式
+        // Verify the SKIP expression
         if let Some(expr) = skip_expression {
             self.validate_pagination_expression(expr, "SKIP")?;
         }
 
-        // 验证 LIMIT 表达式
+        // Verify the LIMIT expression
         if let Some(expr) = limit_expression {
             self.validate_pagination_expression(expr, "LIMIT")?;
         }
@@ -55,7 +55,7 @@ impl PaginationValidationStrategy {
         Ok(())
     }
 
-    /// 验证分页表达式
+    /// Verify the pagination expression
     fn validate_pagination_expression(
         &self,
         expression: &ContextualExpression,
@@ -75,7 +75,7 @@ impl PaginationValidationStrategy {
         self.validate_pagination_expression_internal(expr, clause_name)
     }
 
-    /// 内部方法：验证分页表达式
+    /// Internal method: Verifying the pagination expression
     fn validate_pagination_expression_internal(
         &self,
         expression: &crate::core::types::expr::Expression,
@@ -132,7 +132,7 @@ impl PaginationValidationStrategy {
         }
     }
 
-    /// 验证步数范围
+    /// Verify the range of step numbers
     pub fn validate_step_range(&self, range: &MatchStepRange) -> Result<(), ValidationError> {
         if range.min > range.max {
             return Err(ValidationError::new(
@@ -146,14 +146,14 @@ impl PaginationValidationStrategy {
         Ok(())
     }
 
-    /// 验证排序子句
+    /// Verify the sorting clause
     pub fn validate_order_by(
         &self,
-        _factors: &[ContextualExpression], // 排序因子
+        _factors: &[ContextualExpression], // Sorting factor
         yield_columns: &[YieldColumn],
         context: &OrderByClauseContext,
     ) -> Result<(), ValidationError> {
-        // 验证OrderBy子句
+        // Verify theOrderBy clause
         for &(index, _) in &context.indexed_order_factors {
             if index >= yield_columns.len() {
                 return Err(ValidationError::new(
@@ -168,7 +168,7 @@ impl PaginationValidationStrategy {
 }
 
 impl PaginationValidationStrategy {
-    /// 获取策略名称
+    /// Obtain the policy name
     pub fn strategy_name(&self) -> &'static str {
         "PaginationValidationStrategy"
     }
@@ -182,7 +182,7 @@ mod tests {
     use crate::query::validator::context::expression_context::ExpressionAnalysisContext;
     use std::sync::Arc;
 
-    /// 从 Expression 创建 ContextualExpression
+    /// Create a ContextualExpression from an Expression.
     fn create_contextual_expression(expr: Expression) -> ContextualExpression {
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
         let meta = ExpressionMeta::new(expr);
@@ -200,7 +200,7 @@ mod tests {
     fn test_validate_pagination() {
         let strategy = PaginationValidationStrategy::new();
 
-        // 测试有效的分页表达式
+        // Testing valid pagination expressions
         let skip_expression =
             create_contextual_expression(Expression::Literal(crate::core::Value::Int(1)));
         let limit_expression =
@@ -215,7 +215,7 @@ mod tests {
             )
             .is_ok());
 
-        // 测试无效的分页参数
+        // Testing invalid pagination parameters
         let invalid_pagination_ctx = PaginationContext {
             skip: -1,
             limit: 10,
@@ -234,11 +234,11 @@ mod tests {
     fn test_validate_step_range() {
         let strategy = PaginationValidationStrategy::new();
 
-        // 测试有效的范围（min <= max）
+        // Test the valid range (min <= max).
         let valid_range = MatchStepRange::new(1, 3);
         assert!(strategy.validate_step_range(&valid_range).is_ok());
 
-        // 测试无效的范围（min > max）
+        // The range for which the test is invalid (min > max)
         let invalid_range = MatchStepRange::new(3, 1);
         assert!(strategy.validate_step_range(&invalid_range).is_err());
     }
@@ -247,7 +247,7 @@ mod tests {
     fn test_validate_order_by() {
         let strategy = PaginationValidationStrategy::new();
 
-        // 创建测试数据
+        // Create test data
         let yield_columns = vec![
             YieldColumn::new(
                 create_contextual_expression(Expression::Literal(crate::core::Value::Int(1))),
@@ -270,9 +270,9 @@ mod tests {
             .validate_order_by(&[], &yield_columns, &valid_context)
             .is_ok());
 
-        // 测试无效的索引
+        // Testing invalid indexes
         let invalid_context = OrderByClauseContext {
-            indexed_order_factors: vec![(5, crate::core::types::OrderDirection::Asc)], // 索引超出范围
+            indexed_order_factors: vec![(5, crate::core::types::OrderDirection::Asc)], // The index is out of range.
         };
 
         assert!(strategy
@@ -284,7 +284,7 @@ mod tests {
     fn test_pagination_expr_validation() {
         let strategy = PaginationValidationStrategy::new();
 
-        // 测试有效的整数表达式
+        // Test valid integer expressions.
         let int_expression =
             create_contextual_expression(Expression::Literal(crate::core::Value::Int(10)));
         assert!(strategy
@@ -303,7 +303,7 @@ mod tests {
     fn test_edge_cases() {
         let strategy = PaginationValidationStrategy::new();
 
-        // 测试边界情况
+        // Testing boundary cases
         let zero_pagination = PaginationContext { skip: 0, limit: 0 };
         assert!(strategy
             .validate_pagination(None, None, &zero_pagination)

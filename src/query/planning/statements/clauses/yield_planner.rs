@@ -1,7 +1,7 @@
-//! YIELD 子句规划器
+//! The YIELD clause planner
 //!
-//! 负责将 YIELD 子句转换为执行计划节点
-//! 支持 YIELD ... WHERE ... 语法
+//! Responsible for converting the YIELD clause into an execution plan node.
+//! Support for the YIELD ... WHERE ... syntax
 
 use crate::core::YieldColumn;
 use crate::query::parser::ast::Stmt;
@@ -24,7 +24,7 @@ type YieldInfoResult = Result<
     PlannerError,
 >;
 
-/// YIELD 子句规划器
+/// The YIELD clause planner
 #[derive(Debug)]
 pub struct YieldClausePlanner {}
 
@@ -33,12 +33,12 @@ impl YieldClausePlanner {
         Self {}
     }
 
-    /// 规划 YIELD 子句
+    /// Planning the YIELD clause
     ///
-    /// 处理流程：
-    /// 1. 构建投影节点（YIELD 列）
-    /// 2. 如有 WHERE 条件，添加 Filter 节点
-    /// 3. 如有 LIMIT/SKIP，添加分页节点
+    /// Processing procedure:
+    /// 1. Constructing the projection node (YIELD column)
+    /// 2. If there are WHERE conditions, add a Filter node.
+    /// 3. If there are LIMIT/SKIP settings, add pagination nodes.
     pub fn plan_yield_clause(
         &self,
         yield_columns: &[YieldColumn],
@@ -49,19 +49,19 @@ impl YieldClausePlanner {
     ) -> Result<SubPlan, PlannerError> {
         let mut current_plan = input_plan.clone();
 
-        // 1. 构建投影节点（如果有具体的 YIELD 列）
+        // 1. Build the projection node (if there is a specific YIELD column).
         if !yield_columns.is_empty() {
             let project_node = self.create_project_node(&current_plan, yield_columns)?;
             current_plan = SubPlan::new(Some(project_node), current_plan.tail.clone());
         }
 
-        // 2. 如有 WHERE 条件，添加 Filter 节点
+        // 2. If there are WHERE conditions, add a Filter node.
         if let Some(ref filter_condition) = filter_condition {
             let filter_node = self.create_filter_node(&current_plan, filter_condition.clone())?;
             current_plan = SubPlan::new(Some(filter_node), current_plan.tail.clone());
         }
 
-        // 3. 处理分页（LIMIT/SKIP）
+        // 3. Handling pagination (LIMIT/SKIP)
         if limit.is_some() || skip.is_some() {
             current_plan = self.apply_pagination(current_plan, skip, limit)?;
         }
@@ -69,7 +69,7 @@ impl YieldClausePlanner {
         Ok(current_plan)
     }
 
-    /// 创建投影节点
+    /// Create a projection node.
     fn create_project_node(
         &self,
         input_plan: &SubPlan,
@@ -85,7 +85,7 @@ impl YieldClausePlanner {
             .map(PlanNodeEnum::Project)
     }
 
-    /// 创建过滤节点
+    /// Create a filter node.
     fn create_filter_node(
         &self,
         input_plan: &SubPlan,
@@ -101,7 +101,7 @@ impl YieldClausePlanner {
             .map(PlanNodeEnum::Filter)
     }
 
-    /// 应用分页
+    /// Application pagination
     fn apply_pagination(
         &self,
         input_plan: SubPlan,
@@ -137,7 +137,7 @@ impl ClausePlanner for YieldClausePlanner {
         stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        // 从语句中提取 YIELD 子句信息
+        // Extract the information from the YIELD clause in the sentence.
         let (yield_columns, filter_condition, skip, limit) = Self::extract_yield_info(stmt)?;
 
         self.plan_yield_clause(&yield_columns, filter_condition, skip, limit, &input_plan)
@@ -145,24 +145,24 @@ impl ClausePlanner for YieldClausePlanner {
 }
 
 impl YieldClausePlanner {
-    /// 从语句中提取 YIELD 子句信息
+    /// Extract the information from the YIELD clause in the sentence.
     ///
-    /// 完善后的实现包括：
-    /// - 支持多种语句类型中的 YIELD 子句
-    /// - YieldItem 到 YieldColumn 的完整转换
-    /// - 聚合表达式检测
-    /// - 别名处理
+    /// The improved implementation includes:
+    /// Support for the YIELD clause in various statement types
+    /// The complete conversion from YieldItem to YieldColumn
+    /// Aggregation expression detection
+    /// Alias handling
     fn extract_yield_info(stmt: &Stmt) -> YieldInfoResult {
         use crate::query::parser::ast::Stmt;
 
-        // YIELD 可能作为独立语句或子句出现在其他语句中
+        // The “YIELD” keyword can appear either as an independent statement or as a clause within other statements.
         match stmt {
             Stmt::Yield(yield_stmt) => {
                 let yield_columns = Self::convert_yield_items(&yield_stmt.items)?;
                 Ok((yield_columns, yield_stmt.where_clause.clone(), None, None))
             }
             Stmt::Go(go_stmt) => {
-                // 从 GO 语句中提取 YIELD 子句
+                // Extract the YIELD clause from the GO statement.
                 if let Some(ref yield_clause) = go_stmt.yield_clause {
                     let yield_columns = Self::convert_yield_items(&yield_clause.items)?;
                     let skip = yield_clause.skip.as_ref().map(|s| s.count);
@@ -178,17 +178,17 @@ impl YieldClausePlanner {
                 }
             }
             Stmt::Fetch(_fetch_stmt) => {
-                // FETCH 语句可能有隐式的 YIELD
+                // The FETCH statement may have an implicit YIELD.
                 Ok((vec![], None, None, None))
             }
             _ => {
-                // 其他语句类型暂不支持 YIELD 提取
+                // Other statement types are not currently supported for extracting the YIELD value.
                 Ok((vec![], None, None, None))
             }
         }
     }
 
-    /// 转换 YieldItem 列表到 YieldColumn 列表
+    /// Convert the YieldItem list to the YieldColumn list.
     fn convert_yield_items(
         items: &[crate::query::parser::ast::stmt::YieldItem],
     ) -> Result<Vec<YieldColumn>, PlannerError> {
@@ -212,9 +212,9 @@ impl YieldClausePlanner {
         Ok(yield_columns)
     }
 
-    /// 生成默认别名
+    /// Generate default aliases
     ///
-    /// 当用户没有指定别名时，根据表达式生成默认别名
+    /// When the user does not specify an alias, a default alias is generated based on the expression.
     fn generate_default_alias(expression: &crate::core::Expression) -> String {
         use crate::core::Expression;
 
@@ -233,16 +233,16 @@ impl YieldClausePlanner {
         }
     }
 
-    /// 检查表达式是否包含聚合函数
+    /// Check whether the expression contains aggregate functions.
     ///
-    /// 用于确定是否需要聚合处理
+    /// Used to determine whether aggregation processing is required.
     #[allow(dead_code)]
     fn has_aggregate_expression(expression: &crate::core::Expression) -> bool {
         use crate::core::Expression;
 
         match expression {
             Expression::Function { name, .. } => {
-                // 常见的聚合函数
+                // Common aggregate functions
                 let agg_functions = ["count", "sum", "avg", "min", "max", "collect"];
                 agg_functions.contains(&name.to_lowercase().as_str())
             }

@@ -1,31 +1,31 @@
-//! 优化决策类型定义
+//! Optimize the definition of decision types
 //!
-//! 定义从 AST 到物理执行计划的中间表示——优化决策。
-//! 这些决策是基于代价的优化选择，但不包含具体的计划树结构。
+//! Defining the intermediate representation that converts from the AST (Abstract Syntax Tree) to the physical execution plan – the basis for optimization decisions.
+//! These decisions are based on cost-optimized choices, but they do not include the specific structure of the plan tree.
 
 use std::time::Instant;
 
-/// 完整的优化决策
+/// The complete optimization decision
 #[derive(Debug, Clone, PartialEq)]
 pub struct OptimizationDecision {
-    /// 遍历起点选择决策
+    /// Traverse the starting point and make a decision
     pub traversal_start: TraversalStartDecision,
-    /// 索引选择决策
+    /// Index selection decision
     pub index_selection: IndexSelectionDecision,
-    /// 连接顺序决策
+    /// Decision on the order of connections
     pub join_order: JoinOrderDecision,
-    /// 适用的重写规则序列
+    /// Sequence of applicable rewriting rules
     pub rewrite_rules: Vec<RewriteRuleId>,
-    /// 决策时的统计信息版本
+    /// Statistical information version for decision-making
     pub stats_version: u64,
-    /// 决策时的索引版本
+    /// Index version used during decision-making
     pub index_version: u64,
-    /// 决策时间戳
+    /// Decision Timestamp
     pub created_at: Instant,
 }
 
 impl OptimizationDecision {
-    /// 创建新的优化决策
+    /// Create new optimization decisions
     pub fn new(
         traversal_start: TraversalStartDecision,
         index_selection: IndexSelectionDecision,
@@ -44,12 +44,12 @@ impl OptimizationDecision {
         }
     }
 
-    /// 检查决策是否仍然有效
+    /// Check whether the decision is still valid.
     pub fn is_valid(&self, current_stats_version: u64, current_index_version: u64) -> bool {
         self.stats_version == current_stats_version && self.index_version == current_index_version
     }
 
-    /// 获取决策年龄（秒）
+    /// Obtain the decision-making age (in seconds)
     pub fn age_secs(&self) -> u64 {
         self.created_at.elapsed().as_secs()
     }
@@ -58,18 +58,18 @@ impl OptimizationDecision {
 /// 遍历起点选择决策
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TraversalStartDecision {
-    /// 起始节点变量名
+    /// Name of the starting node variable
     pub start_variable: String,
-    /// 访问路径类型
+    /// Access path type
     pub access_path: AccessPath,
-    /// 估计的选择性（以整数表示，避免浮点精度问题）
-    pub estimated_selectivity_scaled: u64, // 实际值 = 此值 / 1_000_000
-    /// 估计的代价（以整数表示）
-    pub estimated_cost_scaled: u64, // 实际值 = 此值 / 1_000_000
+    /// Estimated selectivity (represented as an integer to avoid issues with floating-point precision)
+    pub estimated_selectivity_scaled: u64, // Actual value = This value / 1,000,000
+    /// Estimated cost (expressed as an integer)
+    pub estimated_cost_scaled: u64, // Actual value = This value / 1,000,000
 }
 
 impl TraversalStartDecision {
-    /// 创建新的遍历起点决策
+    /// Making a decision to establish a new starting point for the traversal process
     pub fn new(
         start_variable: String,
         access_path: AccessPath,
@@ -84,12 +84,12 @@ impl TraversalStartDecision {
         }
     }
 
-    /// 获取估计选择性
+    /// Obtain an estimate of the selectivity
     pub fn estimated_selectivity(&self) -> f64 {
         self.estimated_selectivity_scaled as f64 / 1_000_000.0
     }
 
-    /// 获取估计代价
+    /// Obtain the estimated cost
     pub fn estimated_cost(&self) -> f64 {
         self.estimated_cost_scaled as f64 / 1_000_000.0
     }
@@ -98,33 +98,33 @@ impl TraversalStartDecision {
 /// 访问路径类型
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AccessPath {
-    /// 显式VID指定
+    /// Explicit VID specification
     ExplicitVid {
-        /// VID表达式描述（简化表示）
+        /// Description of the VID expression (simplified representation)
         vid_description: String,
     },
-    /// 索引扫描
+    /// Index scan
     IndexScan {
-        /// 索引名称
+        /// Index name
         index_name: String,
-        /// 属性名称
+        /// Attribute name
         property_name: String,
-        /// 谓词描述
+        /// Predicate description
         predicate_description: String,
     },
-    /// 标签索引
+    /// Tag Index
     TagIndex {
-        /// 标签名称
+        /// Tag name
         tag_name: String,
     },
-    /// 全表扫描
+    /// Full table scan
     FullScan {
-        /// 实体类型
+        /// Entity type
         entity_type: EntityType,
     },
-    /// 变量绑定
+    /// Variable binding
     VariableBinding {
-        /// 源变量名
+        /// Name of the source variable
         source_variable: String,
     },
 }
@@ -132,14 +132,14 @@ pub enum AccessPath {
 /// 实体类型
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EntityType {
-    /// 顶点
+    /// vertex
     Vertex {
-        /// 标签名称（可选）
+        /// Tag name (optional)
         tag_name: Option<String>,
     },
-    /// 边
+    /// edge
     Edge {
-        /// 边类型（可选）
+        /// Edge type (optional)
         edge_type: Option<String>,
     },
 }
@@ -147,37 +147,37 @@ pub enum EntityType {
 /// 索引选择决策
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IndexSelectionDecision {
-    /// 每个实体类型的索引选择
+    /// Index selection for each entity type
     pub entity_indexes: Vec<EntityIndexChoice>,
 }
 
 impl IndexSelectionDecision {
-    /// 创建空的索引选择决策
+    /// Create an empty index selection decision
     pub fn empty() -> Self {
         Self {
             entity_indexes: Vec::new(),
         }
     }
 
-    /// 添加实体索引选择
+    /// Add entity index selection option
     pub fn add_choice(&mut self, choice: EntityIndexChoice) {
         self.entity_indexes.push(choice);
     }
 }
 
-/// 实体索引选择
+/// Entity index selection
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EntityIndexChoice {
-    /// 实体类型（标签或边类型）
+    /// Entity type (label or edge type)
     pub entity_name: String,
-    /// 选择的索引
+    /// Selected index
     pub selected_index: IndexChoice,
-    /// 估计的选择性（缩放值）
+    /// Estimated selectiveivity (scaling values)
     pub selectivity_scaled: u64,
 }
 
 impl EntityIndexChoice {
-    /// 创建新的实体索引选择
+    /// Option to create a new entity index
     pub fn new(entity_name: String, selected_index: IndexChoice, selectivity: f64) -> Self {
         Self {
             entity_name,
@@ -186,46 +186,46 @@ impl EntityIndexChoice {
         }
     }
 
-    /// 获取选择性
+    /// Obtain selectivity
     pub fn selectivity(&self) -> f64 {
         self.selectivity_scaled as f64 / 1_000_000.0
     }
 }
 
-/// 索引选择
+/// Index selection
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IndexChoice {
-    /// 主键索引
+    /// Primary key index
     PrimaryKey,
-    /// 属性索引
+    /// Attribute index
     PropertyIndex {
         /// 属性名称
         property_name: String,
         /// 索引名称
         index_name: String,
     },
-    /// 复合索引
+    /// Composite index
     CompositeIndex {
-        /// 属性名称列表
+        /// List of attribute names
         property_names: Vec<String>,
         /// 索引名称
         index_name: String,
     },
-    /// 无可用索引
+    /// No available index.
     None,
 }
 
 /// 连接顺序决策
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct JoinOrderDecision {
-    /// 连接顺序（变量名序列）
+    /// Connection order (sequence of variable names)
     pub join_order: Vec<String>,
-    /// 每个连接的算法选择
+    /// The choice of algorithm for each connection
     pub join_algorithms: Vec<JoinAlgorithm>,
 }
 
 impl JoinOrderDecision {
-    /// 创建空的连接顺序决策
+    /// Create an empty decision-making process for determining the order of connections.
     pub fn empty() -> Self {
         Self {
             join_order: Vec::new(),
@@ -233,51 +233,51 @@ impl JoinOrderDecision {
         }
     }
 
-    /// 添加连接步骤
+    /// Add the connection steps
     pub fn add_join_step(&mut self, variable: String, algorithm: JoinAlgorithm) {
         self.join_order.push(variable);
         self.join_algorithms.push(algorithm);
     }
 }
 
-/// 连接算法
+/// Connection algorithms
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum JoinAlgorithm {
-    /// 哈希连接
+    /// Hash link
     HashJoin {
-        /// 构建侧变量名
+        /// Constructing the names for the side variables
         build_side: String,
-        /// 探测侧变量名
+        /// Variable name on the detection side
         probe_side: String,
     },
-    /// 嵌套循环连接
+    /// Nested loop connection
     NestedLoopJoin {
-        /// 外表变量名
+        /// Variable name for the appearance
         outer: String,
-        /// 内表变量名
+        /// Internal table variable name
         inner: String,
     },
-    /// 索引连接
+    /// Index join
     IndexJoin {
-        /// 有索引的一侧变量名
+        /// Variable name on the side with the index
         indexed_side: String,
     },
 }
 
-/// 重写规则ID
+/// Rewrite Rule ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RewriteRuleId {
-    /// 谓词下推
+    /// Predicate Pushdown
     PushFilterDown,
-    /// 投影下推
+    /// Projection pushdown
     PushProjectDown,
-    /// LIMIT下推
+    /// LIMIT push-down
     PushLimitDown,
-    /// 操作合并
+    /// Operation merge
     MergeOperations,
-    /// 冗余消除
+    /// Redundancy elimination
     EliminateRedundancy,
-    /// 聚合优化
+    /// Aggregation optimization
     AggregateOptimization,
 }
 

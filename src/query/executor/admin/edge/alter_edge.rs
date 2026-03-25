@@ -1,6 +1,6 @@
-//! AlterEdgeExecutor - 修改边类型执行器
+//! AlterEdgeExecutor - Alter Edge Type Executor
 //!
-//! 负责修改已存在边类型的属性定义。
+//! Responsible for modifying attribute definitions for already existing edge types.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 边类型修改操作类型
+/// Edge type modification operation type
 #[derive(Debug, Clone)]
 pub enum AlterEdgeOp {
     Add,
@@ -18,7 +18,7 @@ pub enum AlterEdgeOp {
     Change,
 }
 
-/// 边类型修改项
+/// Side Type Modifiers
 #[derive(Debug, Clone)]
 pub struct AlterEdgeItem {
     pub op: AlterEdgeOp,
@@ -44,7 +44,7 @@ impl AlterEdgeItem {
     }
 }
 
-/// 边类型修改信息
+/// Edge type modification information
 #[derive(Debug, Clone)]
 pub struct AlterEdgeInfo {
     pub space_name: String,
@@ -74,9 +74,9 @@ impl AlterEdgeInfo {
     }
 }
 
-/// 修改边类型执行器
+/// Modify edge type actuator
 ///
-/// 该执行器负责修改已存在边类型的属性定义。
+/// This executor is responsible for modifying the attribute definitions of already existing edge types.
 #[derive(Debug)]
 pub struct AlterEdgeExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -84,7 +84,7 @@ pub struct AlterEdgeExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> AlterEdgeExecutor<S> {
-    /// 创建新的 AlterEdgeExecutor
+    /// Creating a new AlterEdgeExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,

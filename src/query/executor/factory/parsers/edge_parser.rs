@@ -1,10 +1,10 @@
-//! 边解析器
+//! Edge Parser
 //!
-//! 负责解析边方向字符串
+//! Responsible for parsing edge direction strings
 
 use crate::core::EdgeDirection;
 
-/// 解析边方向字符串为 EdgeDirection 枚举
+/// Parse a string representing an edge direction into the EdgeDirection enumeration.
 pub fn parse_edge_direction(direction_str: &str) -> EdgeDirection {
     match direction_str.to_uppercase().as_str() {
         "OUT" => EdgeDirection::Out,

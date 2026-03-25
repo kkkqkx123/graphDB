@@ -1,21 +1,21 @@
-//! 重写规则 trait 定义
+//! Rewriting the definition of a trait
 //!
-//! 该模块提供启发式重写规则的 trait 定义。
-//! 启发式规则不依赖代价计算，总是产生更优或等价的计划。
+//! This module provides the definition of a trait that encompasses heuristic rules for rewriting code.
+//! Heuristic rules do not rely on cost calculations and always generate either better or equivalent plans.
 //!
-//! 这是从 optimizer 层独立出来的版本，专注于 planner 层的需求。
+//! This is a version that has been separated from the optimizer layer and focuses on the requirements of the planner layer.
 
 use crate::query::planning::plan::PlanNodeEnum;
 use crate::query::planning::rewrite::context::RewriteContext;
 use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{MatchedResult, RewriteResult, TransformResult};
 
-/// 重写规则 trait
+/// Rewrite the rule for the `trait`.
 ///
-/// 所有启发式重写规则必须实现此 trait。
-/// 规则通过模式匹配识别计划树的特定结构，然后应用转换。
+/// All heuristic rewriting rules must implement this trait.
+/// The rules identify specific structures in the plan tree through pattern matching, and then the transformations are applied.
 ///
-/// # 示例
+/// # Example
 /// ```rust
 /// use crate::query::planning::rewrite::rule::RewriteRule;
 ///
@@ -30,27 +30,27 @@ use crate::query::planning::rewrite::result::{MatchedResult, RewriteResult, Tran
 ///     }
 ///     
 ///     fn apply(&self, ctx: &mut RewriteContext, node: &PlanNodeEnum) -> RewriteResult<Option<TransformResult>> {
-///         // 实现规则逻辑
+// Implement the rule logic
 ///         Ok(None)
 ///     }
 /// }
 /// ```
 pub trait RewriteRule: std::fmt::Debug + Send + Sync {
-    /// 规则名称
+    /// Rule Name
     fn name(&self) -> &'static str;
 
-    /// 返回规则的模式
+    /// Return the pattern of the rule.
     ///
-    /// 用于匹配计划树的特定结构
+    /// Used for matching the specific structure of the planning tree
     fn pattern(&self) -> Pattern;
 
-    /// 应用重写规则
+    /// Apply the rule for rewriting the text.
     ///
-    /// # 参数
-    /// - `ctx`: 重写上下文
-    /// - `node`: 当前计划节点
+    /// # Parameters
+    /// `ctx`: Rewrite the context.
+    /// `node`: The current planned node.
     ///
-    /// # 返回
+    /// # Return
     /// - `Ok(Some(result))`: 重写成功，返回转换结果
     /// - `Ok(None)`: 不匹配，保持原节点
     /// - `Err(e)`: 重写失败
@@ -60,15 +60,15 @@ pub trait RewriteRule: std::fmt::Debug + Send + Sync {
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>>;
 
-    /// 匹配模式
+    /// Matching pattern
     ///
-    /// 检查当前节点是否匹配规则的模式
+    /// Check whether the current node matches the pattern specified by the rule.
     fn match_pattern(&self, node: &PlanNodeEnum) -> RewriteResult<Option<MatchedResult>> {
         if self.pattern().matches(node) {
             let mut result = MatchedResult::new();
             result.add_node(node.clone());
 
-            // 添加依赖节点
+            // Add dependency nodes
             for dep in node.dependencies() {
                 result.add_dependency(dep.clone());
             }
@@ -80,27 +80,27 @@ pub trait RewriteRule: std::fmt::Debug + Send + Sync {
         }
     }
 
-    /// 检查规则是否匹配
+    /// Check whether the rules are matched.
     ///
-    /// 便捷方法，只返回是否匹配，不返回详细信息
+    /// Convenient method: It only returns a signal indicating whether a match was found or not; no detailed information is provided.
     fn matches(&self, node: &PlanNodeEnum) -> bool {
         self.pattern().matches(node)
     }
 }
 
-/// 基础重写规则 trait
+/// Basic rewriting rules for traits
 ///
-/// 标记 trait，用于标识基础重写规则
+/// The `trait` is used to identify the basic overriding rules.
 pub trait BaseRewriteRule: RewriteRule {}
 
-/// 合并规则 trait
+/// Merging Rules Trait
 ///
-/// 用于合并两个连续操作的规则
+/// Rules for merging two consecutive operations
 pub trait MergeRule: RewriteRule {
-    /// 检查是否可以合并
+    /// Check whether it is possible to merge these elements.
     fn can_merge(&self, parent: &PlanNodeEnum, child: &PlanNodeEnum) -> bool;
 
-    /// 创建合并后的节点
+    /// Create a merged node.
     fn create_merged_node(
         &self,
         ctx: &mut RewriteContext,
@@ -109,14 +109,14 @@ pub trait MergeRule: RewriteRule {
     ) -> RewriteResult<Option<TransformResult>>;
 }
 
-/// 下推规则 trait
+/// “Push Down Rule” trait
 ///
-/// 用于将操作下推到计划树底层的规则
+/// Rules used to push operations down to the lowest level of the planning tree
 pub trait PushDownRule: RewriteRule {
-    /// 检查是否可以下推
+    /// Check whether it is possible to perform a push-down operation.
     fn can_push_down(&self, node: &PlanNodeEnum, target: &PlanNodeEnum) -> bool;
 
-    /// 执行下推操作
+    /// Perform the push-down operation.
     fn push_down(
         &self,
         ctx: &mut RewriteContext,
@@ -125,14 +125,14 @@ pub trait PushDownRule: RewriteRule {
     ) -> RewriteResult<Option<TransformResult>>;
 }
 
-/// 消除规则 trait
+/// Remove the “rule” trait.
 ///
-/// 用于消除冗余操作的规则
+/// Rules for eliminating redundant operations
 pub trait EliminationRule: RewriteRule {
-    /// 检查是否可以消除
+    /// Check whether it is possible to eliminate this element/aspect.
     fn can_eliminate(&self, node: &PlanNodeEnum) -> bool;
 
-    /// 执行消除操作
+    /// Perform the elimination operation.
     fn eliminate(
         &self,
         ctx: &mut RewriteContext,
@@ -140,9 +140,9 @@ pub trait EliminationRule: RewriteRule {
     ) -> RewriteResult<Option<TransformResult>>;
 }
 
-/// 规则包装器
+/// Rule Packaging Container
 ///
-/// 用于将具体规则类型包装为统一接口
+/// Used to wrap specific rule types into a unified interface
 #[derive(Debug)]
 pub struct RuleWrapper<T: RewriteRule> {
     inner: T,
@@ -176,9 +176,9 @@ impl<T: RewriteRule> RewriteRule for RuleWrapper<T> {
     }
 }
 
-/// 规则适配器 trait
+/// Rule Adaptation Adapter trait
 ///
-/// 允许将具体规则转换为包装器
+/// It is allowed to convert specific rules into wrappers.
 pub trait IntoRuleWrapper: RewriteRule + Sized {
     fn into_wrapper(self) -> RuleWrapper<Self> {
         RuleWrapper::new(self)

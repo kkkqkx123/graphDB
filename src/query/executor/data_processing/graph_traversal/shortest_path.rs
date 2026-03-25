@@ -1,7 +1,7 @@
-//! 最短路径执行器
+//! Shortest Path Executor
 //!
-//! 使用算法模块中的具体算法实现最短路径查找
-//! 负责执行器的生命周期管理和算法调度
+//! Implement the search for the shortest path using a specific algorithm from the algorithm module.
+//! Responsible for the lifecycle management of actuators and the scheduling of algorithms
 
 use std::sync::Arc;
 
@@ -16,15 +16,15 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-// 引入算法模块
+// Introducing the algorithm module
 use super::algorithms::{
     AStar, AlgorithmStats, BidirectionalBFS, Dijkstra, EdgeWeightConfig, HeuristicFunction,
     ShortestPathAlgorithm, ShortestPathAlgorithmType,
 };
 
-/// 最短路径执行器
+/// Shortest Path Executor
 ///
-/// 负责管理最短路径查询的执行生命周期，并调用具体的算法实现
+/// Responsible for managing the execution lifecycle of shortest path queries and invoking the specific algorithms for their implementation.
 pub struct ShortestPathExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     start_vertex_ids: Vec<Value>,
@@ -136,7 +136,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         self.end_vertex_ids = ids;
     }
 
-    /// 执行最短路径算法
+    /// Implement the shortest path algorithm
     fn execute_algorithm(&mut self) -> Result<Vec<Path>, QueryError> {
         let storage = self.base.storage.clone().expect("存储未初始化");
         let edge_types = self.edge_types.as_deref();
@@ -190,7 +190,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         }
     }
 
-    /// 更新执行器统计信息
+    /// Update executor statistics.
     fn update_stats(&mut self, algorithm_stats: &AlgorithmStats) {
         self.nodes_visited = algorithm_stats.nodes_visited;
         self.edges_traversed = algorithm_stats.edges_traversed;
@@ -217,7 +217,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShortestPathExecu
         self.execution_time_ms = start_time.elapsed().as_millis() as u64;
         self.shortest_paths = paths.clone();
 
-        // 更新最大深度
+        // Update the maximum depth.
         for path in &paths {
             if path.steps.len() > self.max_depth_reached {
                 self.max_depth_reached = path.steps.len();

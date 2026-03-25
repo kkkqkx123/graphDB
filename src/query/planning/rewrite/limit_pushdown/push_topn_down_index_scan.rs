@@ -1,7 +1,7 @@
-//! 将TopN下推到索引扫描操作的规则
+//! Rules for pushing the TopN results down to the index scanning operation
 //!
-//! 该规则识别 TopN -> IndexScan 模式，
-//! 并将TopN的限制和排序信息集成到IndexScan操作中。
+//! This rule identifies the TopN -> IndexScan mode.
+//! Integrate the limitations of TopN and the sorting information into the IndexScan operation.
 
 use crate::query::planning::plan::core::nodes::access::{IndexScanNode, OrderByItem};
 use crate::query::planning::plan::core::nodes::operation::sort_node::TopNNode;
@@ -9,9 +9,9 @@ use crate::query::planning::rewrite::macros::define_rewrite_pushdown_rule;
 use crate::query::planning::rewrite::result::TransformResult;
 
 define_rewrite_pushdown_rule! {
-    /// 将TopN下推到索引扫描操作的规则
+    /// Rules for pushing the TopN results down to the index scanning operation
     ///
-    /// # 转换示例
+    /// # Conversion example
     ///
     /// Before:
     /// ```text
@@ -27,47 +27,47 @@ define_rewrite_pushdown_rule! {
     ///   IndexScan(limit=100, order_by=[age DESC])
     /// ```
     ///
-    /// # 适用条件
+    /// # Applicable Conditions
     ///
-    /// - 当前节点为TopN节点
-    /// - 子节点为IndexScan节点
-    /// - TopN节点只有一个子节点
-    /// - IndexScan尚未设置limit，或新limit小于现有limit
-    /// - IndexScan尚未设置order_by
+    /// The current node is one of the TopN nodes.
+    /// The child node is an IndexScan node.
+    /// The TopN nodes each have only one child node.
+    /// The `IndexScan` has not yet had a `limit` set, or the new `limit` is smaller than the existing `limit`.
+    /// The `order_by` parameter has not been set for `IndexScan`.
     name: PushTopNDownIndexScanRule,
     parent_node: TopN,
     child_node: IndexScan,
     apply: |_ctx, topn_node: &TopNNode, index_scan_node: &IndexScanNode| {
-        // 计算需要获取的总行数（TopN没有offset，只有limit）
+        // Calculate the total number of rows that need to be retrieved (for TopN, there is no offset, only a limit).
         let limit_rows = topn_node.limit();
 
-        // 检查IndexScan是否已有更严格的limit
+        // Check whether there is a more stringent limit already in place for IndexScan.
         if let Some(existing_limit) = index_scan_node.limit() {
             if limit_rows >= existing_limit {
-                // 现有limit更严格，无需转换
+                // The existing restrictions are already more stringent; no conversion is required.
                 return Ok(None::<TransformResult>);
             }
         }
 
-        // 检查IndexScan是否已有排序条件
+        // Check whether IndexScan already has a sorting condition.
         if !index_scan_node.order_by().is_empty() {
-            // 已有排序条件，避免重复下推
+            // Sorting criteria are already in place to prevent duplicate entries from being generated.
             return Ok(None::<TransformResult>);
         }
 
-        // 将TopN的排序项转换为IndexScan的OrderByItem
+        // Convert the sorting items of TopN into the OrderByItem of IndexScan.
         let order_by_items: Vec<OrderByItem> = topn_node
             .sort_items()
             .iter()
             .map(|item| OrderByItem::new(item.column.clone(), item.direction))
             .collect();
 
-        // 创建新的IndexScan节点，设置limit和order_by
+        // Create a new IndexScan node and set the `limit` and `order_by` parameters.
         let mut new_index_scan = index_scan_node.clone();
         new_index_scan.set_limit(limit_rows);
         new_index_scan.set_order_by(order_by_items);
 
-        // 创建转换结果
+        // Create the translation result.
         let mut result = TransformResult::new();
         result.erase_all = true;
         result.add_new_node(PlanNodeEnum::IndexScan(new_index_scan));

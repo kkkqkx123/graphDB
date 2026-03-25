@@ -1,7 +1,7 @@
-//! 将过滤条件下推到AllPaths操作的规则
+//! Rules that push the filtering conditions up to the AllPaths operation
 //!
-//! 该规则识别 Filter -> AllPaths 模式，
-//! 并将过滤条件下推到 AllPaths 节点中。
+//! This rule identifies the Filter -> AllPaths mode.
+//! And push the filtering conditions up to the AllPaths node.
 
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 use crate::query::planning::plan::core::nodes::base::plan_node_traits::SingleInputNode;
@@ -10,9 +10,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// 将过滤条件下推到AllPaths操作的规则
+/// Push the filtering criteria to the rules that are applied by the AllPaths operation.
 ///
-/// # 转换示例
+/// # Conversion example
 ///
 /// Before:
 /// ```text
@@ -26,16 +26,16 @@ use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 ///   AllPaths(filter: e.likeness > 78)
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - AllPaths 节点获取边属性
-/// - AllPaths 的最小步数等于最大步数
-/// - 过滤条件可以下推到存储层
+/// The AllPaths node retrieves the properties of the edges.
+/// The minimum number of steps for AllPaths is equal to the maximum number of steps.
+/// The filtering criteria can be pushed down to the storage layer.
 #[derive(Debug)]
 pub struct PushFilterDownAllPathsRule;
 
 impl PushFilterDownAllPathsRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         Self
     }
@@ -61,31 +61,31 @@ impl RewriteRule for PushFilterDownAllPathsRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 Filter 节点
+        // Check whether it is a Filter node.
         let filter_node = match node {
             PlanNodeEnum::Filter(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取输入节点
+        // Obtain the input node
         let input = filter_node.input();
 
-        // 检查输入节点是否为 AllPaths
+        // Check whether the input node is of the AllPaths type.
         let all_paths = match input {
             PlanNodeEnum::AllPaths(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取过滤条件
+        // Obtain the filtering criteria
         let filter_condition = filter_node.condition();
 
-        // 创建新的 AllPaths 节点
+        // Create a new AllPaths node.
         let mut new_all_paths = all_paths.clone();
 
-        // 设置 filter
+        // Set the filter
         new_all_paths.set_filter(filter_condition.clone());
 
-        // 构建转换结果
+        // Construct the translation result.
         let mut result = TransformResult::new();
         result.erase_curr = true;
         result.add_new_node(PlanNodeEnum::AllPaths(new_all_paths));

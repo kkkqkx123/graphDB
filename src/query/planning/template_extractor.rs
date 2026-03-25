@@ -1,7 +1,7 @@
-//! 查询模板提取器
+//! Query Template Extractor
 //!
-//! 本模块提供查询参数化和模板提取功能，用于计划缓存。
-//! 将具体参数值替换为占位符，使语义等价的查询共享缓存。
+//! This module provides functions for parameterizing query requests and extracting templates, which are used for planning the caching process.
+//! Replace the specific parameter values with placeholders, so that queries with semantically equivalent content can share the cache.
 
 use crate::core::types::expr::{ContextualExpression, Expression};
 use crate::core::{NullType, Value};
@@ -10,14 +10,14 @@ use crate::query::parser::ast::{
     ReturnClause, ReturnItem, SetClause, Stmt, UpdateStmt, YieldClause,
 };
 
-/// 参数化结果
+/// Parameterized results
 #[derive(Debug, Clone)]
 pub struct ParameterizedResult {
-    /// 参数化后的表达式
+    /// Parameterized expression
     pub expression: Expression,
-    /// 提取的参数值列表
+    /// List of extracted parameter values
     pub parameters: Vec<Value>,
-    /// 参数计数器
+    /// Parameter counter
     param_count: usize,
 }
 
@@ -42,9 +42,9 @@ impl ParameterizedResult {
     }
 }
 
-/// 表达式参数化转换器
+/// Expression Parameterized Translator
 ///
-/// 遍历表达式树，将所有字面量替换为参数占位符
+/// Traverse the expression tree and replace all literals with parameter placeholders.
 pub struct ParameterizingTransformer;
 
 impl ParameterizingTransformer {
@@ -52,7 +52,7 @@ impl ParameterizingTransformer {
         Self
     }
 
-    /// 参数化单个 ContextualExpression
+    /// Parameterizing a single ContextualExpression
     pub fn parameterize(&mut self, expr: &ContextualExpression) -> ParameterizedResult {
         let inner_expr = match expr.get_expression() {
             Some(e) => e,
@@ -66,7 +66,7 @@ impl ParameterizingTransformer {
         result
     }
 
-    /// 参数化单个 Expression（兼容旧接口）
+    /// Parameterizing a single Expression (compatible with older interfaces)
     pub fn parameterize_expression(&mut self, expr: &Expression) -> ParameterizedResult {
         let mut result = ParameterizedResult::new();
         let new_expr = self.transform_with_params(expr, &mut result);
@@ -74,7 +74,7 @@ impl ParameterizingTransformer {
         result
     }
 
-    /// 参数化多个表达式
+    /// Parameterizing multiple expressions
     pub fn parameterize_many(
         &mut self,
         exprs: &[ContextualExpression],
@@ -89,7 +89,7 @@ impl ParameterizingTransformer {
     ) -> Expression {
         match expr {
             Expression::Literal(value) => {
-                // 将字面量替换为参数变量
+                // Replace the literals with parameter variables.
                 let param_name = result.add_parameter(value.clone());
                 Expression::Variable(param_name)
             }
@@ -283,7 +283,7 @@ impl ParameterizingTransformer {
                     .collect();
                 Expression::PathBuild(new_exprs)
             }
-            // 以下类型不包含需要参数化的字面量
+            // The following types do not contain literals that require parameterization.
             Expression::Variable(_)
             | Expression::Label(_)
             | Expression::TagProperty { .. }
@@ -299,13 +299,13 @@ impl Default for ParameterizingTransformer {
     }
 }
 
-/// 模板提取器
+/// Template extractor
 ///
-/// 从语句中提取参数化模板
+/// Extract the parametric template from the sentence.
 pub struct TemplateExtractor;
 
 impl TemplateExtractor {
-    /// 从语句提取模板
+    /// Extract templates from the sentences.
     pub fn extract(stmt: &Stmt) -> String {
         match stmt {
             Stmt::Match(m) => Self::extract_match_template(m),
@@ -319,29 +319,29 @@ impl TemplateExtractor {
         }
     }
 
-    /// 提取 MATCH 语句模板
+    /// Extract the MATCH statement template.
     fn extract_match_template(stmt: &MatchStmt) -> String {
         let mut transformer = ParameterizingTransformer::new();
         let mut parts = Vec::new();
 
-        // 处理模式
+        // Processing mode
         let pattern_template = Self::patterns_to_template(&stmt.patterns);
         parts.push(format!("MATCH {}", pattern_template));
 
-        // 处理 WHERE 子句
+        // Processing the WHERE clause
         if let Some(ref where_expr) = stmt.where_clause {
             let result = transformer.parameterize(where_expr);
             let where_template = Self::expr_to_template_string(&result.expression);
             parts.push(format!("WHERE {}", where_template));
         }
 
-        // 处理 RETURN 子句
+        // Handling the RETURN clause
         if let Some(ref return_clause) = stmt.return_clause {
             let return_template = Self::return_clause_to_template(return_clause, &mut transformer);
             parts.push(return_template);
         }
 
-        // 处理 ORDER BY
+        // Handling the `ORDER BY` clause
         if let Some(ref order_by) = stmt.order_by {
             let order_items: Vec<String> = order_by
                 .items
@@ -359,17 +359,17 @@ impl TemplateExtractor {
             parts.push(format!("ORDER BY {}", order_items.join(", ")));
         }
 
-        // 处理 SKIP
+        // Handle the SKIP command.
         if let Some(skip) = stmt.skip {
             parts.push(format!("SKIP ${}", skip));
         }
 
-        // 处理 LIMIT
+        // Handling the LIMIT clause
         if let Some(limit) = stmt.limit {
             parts.push(format!("LIMIT ${}", limit));
         }
 
-        // 处理 OPTIONAL
+        // Handle the optional case.
         if stmt.optional {
             parts.insert(0, "OPTIONAL".to_string());
         }
@@ -377,12 +377,12 @@ impl TemplateExtractor {
         parts.join(" ")
     }
 
-    /// 提取 GO 语句模板
+    /// Extract GO statement templates
     fn extract_go_template(stmt: &GoStmt) -> String {
         let mut transformer = ParameterizingTransformer::new();
         let mut parts = Vec::new();
 
-        // 步数
+        // Number of steps
         let step_template = match &stmt.steps {
             crate::query::parser::ast::Steps::Fixed(n) => format!("{} STEPS", n),
             crate::query::parser::ast::Steps::Range { min, max } => {
@@ -392,11 +392,11 @@ impl TemplateExtractor {
         };
         parts.push(format!("GO {}", step_template));
 
-        // FROM 子句
+        // FROM clause
         let from_template = Self::from_clause_to_template(&stmt.from, &mut transformer);
         parts.push(from_template);
 
-        // OVER 子句
+        // OVER clause
         if let Some(ref over) = stmt.over {
             let edge_types = over.edge_types.join(", ");
             let dir_str = match over.direction {
@@ -407,14 +407,14 @@ impl TemplateExtractor {
             parts.push(format!("OVER {}{}", dir_str, edge_types));
         }
 
-        // WHERE 子句
+        // The WHERE clause
         if let Some(ref where_expr) = stmt.where_clause {
             let result = transformer.parameterize(where_expr);
             let where_template = Self::expr_to_template_string(&result.expression);
             parts.push(format!("WHERE {}", where_template));
         }
 
-        // YIELD 子句
+        // YIELD clause
         if let Some(ref yield_clause) = stmt.yield_clause {
             let yield_template = Self::yield_clause_to_template(yield_clause, &mut transformer);
             parts.push(yield_template);
@@ -423,26 +423,26 @@ impl TemplateExtractor {
         parts.join(" ")
     }
 
-    /// 提取 LOOKUP 语句模板
+    /// Extract the LOOKUP statement template.
     fn extract_lookup_template(stmt: &LookupStmt) -> String {
         let mut transformer = ParameterizingTransformer::new();
         let mut parts = Vec::new();
 
-        // 目标
+        // Of course! Please provide the text you would like to have translated.
         let target_str = match &stmt.target {
             crate::query::parser::ast::LookupTarget::Tag(name) => format!("ON {}", name),
             crate::query::parser::ast::LookupTarget::Edge(name) => format!("ON {}", name),
         };
         parts.push(format!("LOOKUP {}", target_str));
 
-        // WHERE 子句
+        // The WHERE clause
         if let Some(ref where_expr) = stmt.where_clause {
             let result = transformer.parameterize(where_expr);
             let where_template = Self::expr_to_template_string(&result.expression);
             parts.push(format!("WHERE {}", where_template));
         }
 
-        // YIELD 子句
+        // YIELD clause
         if let Some(ref yield_clause) = stmt.yield_clause {
             let yield_template = Self::yield_clause_to_template(yield_clause, &mut transformer);
             parts.push(yield_template);
@@ -451,7 +451,7 @@ impl TemplateExtractor {
         parts.join(" ")
     }
 
-    /// 提取 FETCH 语句模板
+    /// Extract the FETCH statement template.
     fn extract_fetch_template(stmt: &FetchStmt) -> String {
         let mut transformer = ParameterizingTransformer::new();
         let mut parts = Vec::new();
@@ -460,7 +460,7 @@ impl TemplateExtractor {
             crate::query::parser::ast::FetchTarget::Vertices { ids, properties } => {
                 parts.push("FETCH VERTEX".to_string());
 
-                // 参数化顶点ID
+                // Parameterized vertex IDs
                 let id_templates: Vec<String> = ids
                     .iter()
                     .map(|id| {
@@ -470,7 +470,7 @@ impl TemplateExtractor {
                     .collect();
                 parts.push(id_templates.join(", "));
 
-                // 属性列表
+                // Attribute list
                 if let Some(props) = properties {
                     parts.push(format!("YIELD {}", props.join(", ")));
                 }
@@ -484,7 +484,7 @@ impl TemplateExtractor {
             } => {
                 parts.push(format!("FETCH EDGE ON {}", edge_type));
 
-                // 参数化源和目标
+                // Parameterized source and target
                 let src_result = transformer.parameterize(src);
                 let dst_result = transformer.parameterize(dst);
                 parts.push(format!(
@@ -493,7 +493,7 @@ impl TemplateExtractor {
                     Self::expr_to_template_string(&dst_result.expression)
                 ));
 
-                // 排序
+                // Sorting
                 if let Some(r) = rank {
                     let rank_result = transformer.parameterize(r);
                     parts.push(format!(
@@ -502,7 +502,7 @@ impl TemplateExtractor {
                     ));
                 }
 
-                // 属性列表
+                // Attribute list
                 if let Some(props) = properties {
                     parts.push(format!("YIELD {}", props.join(", ")));
                 }
@@ -512,7 +512,7 @@ impl TemplateExtractor {
         parts.join(" ")
     }
 
-    /// 提取 INSERT 语句模板
+    /// Extract the INSERT statement template
     fn extract_insert_template(stmt: &InsertStmt) -> String {
         let mut transformer = ParameterizingTransformer::new();
         let mut parts = Vec::new();
@@ -521,11 +521,11 @@ impl TemplateExtractor {
             crate::query::parser::ast::InsertTarget::Vertices { tags, values } => {
                 parts.push("INSERT VERTEX".to_string());
 
-                // Tag 列表
+                // Tag list
                 let tag_names: Vec<String> = tags.iter().map(|t| t.tag_name.clone()).collect();
                 parts.push(tag_names.join(", "));
 
-                // 属性名
+                // Attribute name
                 for tag in tags {
                     if !tag.prop_names.is_empty() {
                         parts.push(format!("({})", tag.prop_names.join(", ")));
@@ -535,7 +535,7 @@ impl TemplateExtractor {
                 // VALUES
                 parts.push("VALUES".to_string());
 
-                // 参数化值
+                // Parameterized values
                 for row in values {
                     let vid_result = transformer.parameterize(&row.vid);
                     let vid_template = Self::expr_to_template_string(&vid_result.expression);
@@ -569,7 +569,7 @@ impl TemplateExtractor {
             } => {
                 parts.push(format!("INSERT EDGE {}", edge_name));
 
-                // 属性名
+                // Attribute name
                 if !prop_names.is_empty() {
                     parts.push(format!("({})", prop_names.join(", ")));
                 }
@@ -577,7 +577,7 @@ impl TemplateExtractor {
                 // VALUES
                 parts.push("VALUES".to_string());
 
-                // 参数化边值
+                // Parametric boundary values
                 for (src, dst, rank, values) in edges {
                     let src_result = transformer.parameterize(src);
                     let dst_result = transformer.parameterize(dst);
@@ -620,7 +620,7 @@ impl TemplateExtractor {
         parts.join(" ")
     }
 
-    /// 提取 DELETE 语句模板
+    /// Extract the DELETE statement template.
     fn extract_delete_template(stmt: &DeleteStmt) -> String {
         let mut transformer = ParameterizingTransformer::new();
         let mut parts = Vec::new();
@@ -691,7 +691,7 @@ impl TemplateExtractor {
             }
         }
 
-        // WHERE 子句
+        // The WHERE clause
         if let Some(ref where_expr) = stmt.where_clause {
             let result = transformer.parameterize(where_expr);
             let where_template = Self::expr_to_template_string(&result.expression);
@@ -705,14 +705,14 @@ impl TemplateExtractor {
         parts.join(" ")
     }
 
-    /// 提取 UPDATE 语句模板
+    /// Extract the UPDATE statement template.
     fn extract_update_template(stmt: &UpdateStmt) -> String {
         let mut transformer = ParameterizingTransformer::new();
         let mut parts = Vec::new();
 
         parts.push("UPDATE".to_string());
 
-        // 目标
+        // Of course! Please provide the text you would like to have translated.
         match &stmt.target {
             crate::query::parser::ast::UpdateTarget::Vertex(expr) => {
                 let result = transformer.parameterize(expr);
@@ -763,11 +763,11 @@ impl TemplateExtractor {
             }
         }
 
-        // SET 子句
+        // SET clause
         let set_template = Self::set_clause_to_template(&stmt.set_clause, &mut transformer);
         parts.push(set_template);
 
-        // WHERE 子句
+        // The WHERE clause
         if let Some(ref where_expr) = stmt.where_clause {
             let result = transformer.parameterize(where_expr);
             let where_template = Self::expr_to_template_string(&result.expression);
@@ -778,7 +778,7 @@ impl TemplateExtractor {
             parts.push("UPSERT".to_string());
         }
 
-        // YIELD 子句
+        // The YIELD clause
         if let Some(ref yield_clause) = stmt.yield_clause {
             let yield_template = Self::yield_clause_to_template(yield_clause, &mut transformer);
             parts.push(yield_template);
@@ -787,9 +787,9 @@ impl TemplateExtractor {
         parts.join(" ")
     }
 
-    // 辅助方法
+    // Auxiliary methods
 
-    /// 将模式列表转换为模板字符串
+    /// Convert the list of patterns into template strings.
     fn patterns_to_template(patterns: &[Pattern]) -> String {
         patterns
             .iter()
@@ -798,7 +798,7 @@ impl TemplateExtractor {
             .join(", ")
     }
 
-    /// 将单个模式转换为模板字符串
+    /// Convert a single pattern into a template string.
     fn pattern_to_template(pattern: &Pattern) -> String {
         match pattern {
             Pattern::Node(node) => {
@@ -886,7 +886,7 @@ impl TemplateExtractor {
         }
     }
 
-    /// 将路径元素转换为模板字符串
+    /// Convert the path elements into template strings.
     fn path_element_to_template(elem: &crate::query::parser::ast::PathElement) -> String {
         match elem {
             crate::query::parser::ast::PathElement::Node(n) => {
@@ -899,7 +899,7 @@ impl TemplateExtractor {
         }
     }
 
-    /// 将表达式转换为模板字符串
+    /// Translate the following text into a template string:
     fn expr_to_template_string(expr: &Expression) -> String {
         match expr {
             Expression::Variable(name) if name.starts_with('$') => name.clone(),
@@ -999,7 +999,7 @@ impl TemplateExtractor {
         }
     }
 
-    /// 将 RETURN 子句转换为模板字符串
+    /// Convert the RETURN statement into a template string.
     fn return_clause_to_template(
         clause: &ReturnClause,
         transformer: &mut ParameterizingTransformer,
@@ -1030,7 +1030,7 @@ impl TemplateExtractor {
         format!("RETURN {}", parts.join(" "))
     }
 
-    /// 将 YIELD 子句转换为模板字符串
+    /// Convert the YIELD clause into a template string.
     fn yield_clause_to_template(
         clause: &YieldClause,
         transformer: &mut ParameterizingTransformer,
@@ -1064,7 +1064,7 @@ impl TemplateExtractor {
         parts.join(" ").to_string()
     }
 
-    /// 将 FROM 子句转换为模板字符串
+    /// Convert the FROM clause into a template string.
     fn from_clause_to_template(
         clause: &FromClause,
         transformer: &mut ParameterizingTransformer,
@@ -1081,7 +1081,7 @@ impl TemplateExtractor {
         format!("FROM {}", vertex_strs.join(", "))
     }
 
-    /// 将 SET 子句转换为模板字符串
+    /// Convert the SET statement into a template string.
     fn set_clause_to_template(
         clause: &SetClause,
         transformer: &mut ParameterizingTransformer,

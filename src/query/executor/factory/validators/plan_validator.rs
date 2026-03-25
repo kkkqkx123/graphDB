@@ -1,20 +1,20 @@
-//! 计划验证器
+//! Plan Validator
 //!
-//! 负责验证计划节点的有效性，检查计划节点的约束条件
+//! Responsible for verifying the validity of the planned nodes and checking the constraints associated with these nodes.
 
 use crate::core::error::QueryError;
 use crate::query::planning::plan::core::nodes::base::plan_node_enum::PlanNodeEnum;
 
-/// 计划验证器
+/// Plan Validator
 pub struct PlanValidator;
 
 impl PlanValidator {
-    /// 创建新的计划验证器
+    /// Create a new plan validator.
     pub fn new() -> Self {
         Self
     }
 
-    /// 验证计划节点
+    /// Verify the plan nodes.
     pub fn validate(&self, plan_node: &PlanNodeEnum) -> Result<(), QueryError> {
         match plan_node {
             PlanNodeEnum::Expand(node) => {

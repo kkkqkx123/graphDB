@@ -1,6 +1,6 @@
-//! 数据处理执行器构建器
+//! Data Processing Executor Builder
 //!
-//! 负责创建数据处理类型的执行器（Filter, Project, Limit, Sort, TopN, Sample, Aggregate, Dedup）
+//! Responsible for creating executors of data processing types (Filter, Project, Limit, Sort, TopN, Sample, Aggregate, Dedup).
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
@@ -17,42 +17,42 @@ use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// 数据处理执行器构建器
+/// Data Processing Executor Builder
 pub struct DataProcessingBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
-    /// 创建新的数据处理构建器
+    /// Create a new data processing builder.
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
     }
 
-    /// 构建 Filter 执行器
+    /// Building a Filter Executor
     pub fn build_filter(
         &self,
         node: &FilterNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // FilterExecutor::new 需要 ContextualExpression
+        // The `FilterExecutor::new` method requires a `ContextualExpression`.
         let condition = node.condition().clone();
 
         let executor = FilterExecutor::new(node.id(), storage, condition);
         Ok(ExecutorEnum::Filter(executor))
     }
 
-    /// 构建 Project 执行器
+    /// Building the Project Executor
     pub fn build_project(
         &self,
         node: &ProjectNode,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // 将 YieldColumn 转换为 ProjectionColumn
-        // YieldColumn 的 expression 字段是 ContextualExpression
+        // Convert YieldColumn to ProjectionColumn.
+        // The expression field of the YieldColumn is a ContextualExpression.
         let columns: Vec<ProjectionColumn> = node
             .columns()
             .iter()
@@ -68,14 +68,14 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
         Ok(ExecutorEnum::Project(executor))
     }
 
-    /// 构建 Limit 执行器
+    /// Building the Limit executor
     pub fn build_limit(
         &self,
         node: &LimitNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // LimitExecutor::new 参数: id, storage, limit, offset
+        // Parameters of LimitExecutor::new: id, storage, limit, offset
         // 注意：LimitNode 的 offset() 和 count() 返回 i64，需要转换
         let executor = LimitExecutor::new(
             node.id(),
@@ -86,14 +86,14 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
         Ok(ExecutorEnum::Limit(executor))
     }
 
-    /// 构建 Sort 执行器
+    /// Building the Sort executor
     pub fn build_sort(
         &self,
         node: &SortNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // SortItem 包含 column (String) 和 direction (OrderDirection)
+        // The `SortItem` class contains two properties: `column` (of type `String`) and `direction` (of type `OrderDirection`).
         let sort_keys: Vec<SortKey> = node
             .sort_items()
             .iter()
@@ -122,21 +122,21 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
         Ok(ExecutorEnum::Sort(executor))
     }
 
-    /// 构建 TopN 执行器
+    /// Building a TopN executor
     pub fn build_topn(
         &self,
         node: &TopNNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // TopNExecutor::new 参数: id, storage, n, sort_columns, ascending
-        // sort_columns 是 Vec<String>，不是 Vec<SortKey>
+        // TopNExecutor::new parameters: id, storage, n, sort_columns, ascending
+        // `sort_columns` is a `Vec<String>`, not a `Vec<SortKey>`.
         let sort_columns: Vec<String> = node
             .sort_items()
             .iter()
             .map(|item| item.column.clone())
             .collect();
-        // 假设所有排序方向一致，使用第一个排序项的方向
+        // Assume that all sorting directions are consistent; use the direction of the first sorting criterion.
         let ascending = node
             .sort_items()
             .first()
@@ -153,14 +153,14 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
         Ok(ExecutorEnum::TopN(executor))
     }
 
-    /// 构建 Sample 执行器
+    /// Building the Sample Executor
     pub fn build_sample(
         &self,
         node: &SampleNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // SampleExecutor::new 参数: id, storage, method, count, seed
+        // Parameters for SampleExecutor::new: id, storage, method, count, seed
         let executor = SampleExecutor::new(
             node.id(),
             storage,
@@ -171,21 +171,21 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
         Ok(ExecutorEnum::Sample(executor))
     }
 
-    /// 构建 Aggregate 执行器
+    /// Building the Aggregate Executor
     pub fn build_aggregate(
         &self,
         node: &AggregateNode,
         storage: Arc<Mutex<S>>,
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
-        // group_keys 是 Vec<String>，直接转换为 Expression::Variable
+        // `group_keys` is a `Vec<String>`, so it can be directly converted to an `Expression::Variable`.
         let group_keys: Vec<crate::core::Expression> = node
             .group_keys()
             .iter()
             .map(|key| crate::core::Expression::Variable(key.clone()))
             .collect();
 
-        // AggregateFunction 需要转换为 Vec<AggregateFunctionSpec>
+        // The `AggregateFunction` needs to be converted to `Vec<AggregateFunctionSpec>`.
         let aggregate_functions: Vec<AggregateFunctionSpec> = node
             .aggregation_functions()
             .iter()
@@ -199,12 +199,12 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
             })
             .collect();
 
-        // AggregateExecutor::new 只需要4个参数: id, storage, aggregate_functions, group_keys
+        // The `AggregateExecutor::new` method requires only 4 parameters: `id`, `storage`, `aggregate_functions`, and `group_keys`.
         let executor = AggregateExecutor::new(node.id(), storage, aggregate_functions, group_keys);
         Ok(ExecutorEnum::Aggregate(executor))
     }
 
-    /// 构建 Dedup 执行器
+    /// Building a Dedup Executor
     pub fn build_dedup(
         &self,
         node: &DedupNode,
@@ -212,14 +212,14 @@ impl<S: StorageClient + Send + 'static> DataProcessingBuilder<S> {
         _context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         use crate::query::executor::result_processing::dedup::DedupStrategy;
-        // DedupNode 没有 keys 字段，使用完全去重策略
+        // The DedupNode does not have a “keys” field and uses a strategy for complete data deduplication (i.e., removing all duplicate data).
         let strategy = DedupStrategy::Full;
 
         let executor = DedupExecutor::new(
             node.id(),
             storage,
             strategy,
-            None, // 使用默认内存限制
+            None, // Use the default memory limit.
         );
         Ok(ExecutorEnum::Dedup(executor))
     }

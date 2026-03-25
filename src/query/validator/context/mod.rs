@@ -1,6 +1,6 @@
-//! 验证器上下文模块
+//! Validator Context Module
 //!
-//! 提供验证阶段所需的上下文信息。
+//! Provide the contextual information required for the verification phase.
 
 pub mod expression_context;
 

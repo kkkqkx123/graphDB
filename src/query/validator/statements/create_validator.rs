@@ -1,18 +1,18 @@
-//! CREATE 语句验证器（Cypher 风格）- 新体系版本
+//! CREATE Statement Validator (Cypher style) – New version of the system
 //! 对应 Cypher CREATE (n:Label {prop: value}) 语法的验证
-//! 支持自动 Schema 推断和创建
+//! Supports automatic schema inference and creation.
 //!
-//! 本文件已按照新的 trait + 枚举 验证器体系重构：
-//! 1. 实现了 StatementValidator trait，统一接口
+//! This document has been restructured in accordance with the new trait + enumeration validator framework.
+//! The StatementValidator trait has been implemented to unify the interface.
 //! 2. 保留了 base_validator.rs 的完整功能：
-//!    - 验证生命周期管理
-//!    - 输入/输出列管理
-//!    - 表达式属性追踪
-//!    - 用户定义变量管理
-//!    - 权限检查
-//!    - 执行计划生成
-//! 3. 移除了生命周期参数，使用 Arc 管理 SchemaManager
-//! 4. 使用 QueryContext 统一管理上下文
+//! Verify Lifecycle Management
+//! Management of input/output columns
+//! Expression property tracking
+//! User-defined variable management
+//! Permission check
+//! Execution plan generation
+//! 3. The lifecycle parameters have been removed, and the SchemaManager is now managed using Arc.
+//! 4. Use QueryContext to manage the context in a unified manner.
 
 use std::sync::Arc;
 
@@ -34,7 +34,7 @@ use crate::query::QueryContext;
 use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
-/// 验证后的创建信息
+/// Verified creation information
 #[derive(Debug, Clone)]
 pub struct ValidatedCreate {
     pub space_id: u64,
@@ -45,7 +45,7 @@ pub struct ValidatedCreate {
     pub missing_edge_types: Vec<String>,
 }
 
-/// 验证后的模式
+/// Verified pattern
 #[derive(Debug, Clone)]
 pub enum ValidatedPattern {
     Node(ValidatedNodeCreate),
@@ -53,14 +53,14 @@ pub enum ValidatedPattern {
     Path(Box<ValidatedPathCreate>),
 }
 
-/// 属性条目
+/// Attribute entry
 #[derive(Debug, Clone)]
 pub struct PropertyEntry {
     pub name: String,
     pub value: Value,
 }
 
-/// 验证后的节点创建
+/// Creation of verified nodes
 #[derive(Debug, Clone)]
 pub struct ValidatedNodeCreate {
     pub variable: Option<String>,
@@ -68,7 +68,7 @@ pub struct ValidatedNodeCreate {
     pub properties: Vec<PropertyEntry>,
 }
 
-/// 验证后的边创建
+/// Verified edge creation
 #[derive(Debug, Clone)]
 pub struct ValidatedEdgeCreate {
     pub variable: Option<String>,
@@ -79,14 +79,14 @@ pub struct ValidatedEdgeCreate {
     pub direction: EdgeDirection,
 }
 
-/// 验证后的路径创建
+/// The verified path has been created.
 #[derive(Debug, Clone)]
 pub struct ValidatedPathCreate {
     pub nodes: Vec<ValidatedNodeCreate>,
     pub edges: Vec<ValidatedEdgeCreate>,
 }
 
-/// 边验证上下文
+/// While verifying the context…
 #[derive(Debug)]
 pub struct EdgeValidationContext<'a> {
     pub space_name: &'a str,
@@ -94,7 +94,7 @@ pub struct EdgeValidationContext<'a> {
     pub missing_edge_types: &'a mut Vec<String>,
 }
 
-/// 边定义
+/// Side definition
 #[derive(Debug)]
 pub struct EdgeDefinition<'a> {
     pub variable: &'a Option<String>,
@@ -105,39 +105,39 @@ pub struct EdgeDefinition<'a> {
     pub direction: &'a EdgeDirection,
 }
 
-/// CREATE 语句验证器 - 新体系实现
+/// CREATE Statement Validator – New Implementation
 ///
-/// 功能完整性保证：
+/// Functionality integrity assurance:
 /// 1. 完整的验证生命周期（参考 base_validator.rs）
-/// 2. 输入/输出列管理
-/// 3. 表达式属性追踪
-/// 4. 用户定义变量管理
-/// 5. 权限检查（可扩展）
-/// 6. 执行计划生成（可扩展）
+/// 2. Management of input/output columns
+/// 3. Expression property tracking
+/// 4. Management of user-defined variables
+/// 5. Permission checking (scalable)
+/// 6. Generation of execution plans (scalable)
 #[derive(Debug)]
 pub struct CreateValidator {
-    // Schema 管理
+    // Schema management
     schema_manager: Option<Arc<RedbSchemaManager>>,
-    // 是否自动创建 Schema
+    // Should the Schema be created automatically?
     auto_create_schema: bool,
-    // 输入列定义
+    // Input column definition
     inputs: Vec<ColumnDef>,
-    // 输出列定义
+    // Column definition
     outputs: Vec<ColumnDef>,
-    // 表达式属性
+    // Expression properties
     expr_props: ExpressionProps,
-    // 用户定义变量
+    // User-defined variables
     user_defined_vars: Vec<String>,
-    // 缓存验证结果
+    // Cache validation results
     validated_result: Option<ValidatedCreate>,
-    // 验证错误列表
+    // List of verification errors
     validation_errors: Vec<ValidationError>,
-    // 是否不需要空间（用于 CREATE SPACE）
+    // Is it not necessary to have any space available (for the “CREATE SPACE” operation)?
     no_space_required: bool,
 }
 
 impl CreateValidator {
-    /// 创建新的验证器实例
+    /// Create a new instance of the validator.
     pub fn new() -> Self {
         Self {
             schema_manager: None,
@@ -152,44 +152,44 @@ impl CreateValidator {
         }
     }
 
-    /// 设置 SchemaManager
+    /// Setting up SchemaManager
     pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
 
-    /// 设置是否自动创建 Schema
+    /// Set whether to automatically create a Schema.
     pub fn with_auto_create_schema(mut self, auto_create: bool) -> Self {
         self.auto_create_schema = auto_create;
         self
     }
 
-    /// 获取验证结果
+    /// Obtain the verification results.
     pub fn validated_result(&self) -> Option<&ValidatedCreate> {
         self.validated_result.as_ref()
     }
 
-    /// 获取验证错误列表
+    /// Obtain the list of verification errors.
     pub fn validation_errors(&self) -> &[ValidationError] {
         &self.validation_errors
     }
 
-    /// 添加验证错误
+    /// Add verification errors
     fn add_error(&mut self, error: ValidationError) {
         self.validation_errors.push(error);
     }
 
-    /// 清空验证错误
+    /// Clear the verification errors.
     fn clear_errors(&mut self) {
         self.validation_errors.clear();
     }
 
-    /// 检查是否有验证错误
+    /// Check for any validation errors.
     fn has_errors(&self) -> bool {
         !self.validation_errors.is_empty()
     }
 
-    /// 验证 CREATE 语句（传统方式，保持向后兼容）
+    /// Verify the CREATE statement (traditional method, maintaining backward compatibility)
     pub fn validate_create(
         &mut self,
         stmt: &CreateStmt,
@@ -202,7 +202,7 @@ impl CreateValidator {
             )
         })?;
 
-        // 获取空间信息
+        // Obtaining spatial information
         let space = schema_manager
             .as_ref()
             .get_space(space_name)
@@ -223,7 +223,7 @@ impl CreateValidator {
         let mut missing_tags = Vec::new();
         let mut missing_edge_types = Vec::new();
 
-        // 验证目标
+        // Verify the target.
         let patterns = match &stmt.target {
             CreateTarget::Path { patterns } => self.validate_patterns(
                 patterns,
@@ -286,13 +286,13 @@ impl CreateValidator {
             missing_edge_types,
         };
 
-        // 缓存结果
+        // Cached results
         self.validated_result = Some(result.clone());
 
         Ok(result)
     }
 
-    /// 验证模式列表
+    /// List of verification modes
     fn validate_patterns(
         &self,
         patterns: &[Pattern],
@@ -341,7 +341,7 @@ impl CreateValidator {
         Ok(validated)
     }
 
-    /// 验证节点模式
+    /// Verify node mode
     fn validate_node_pattern(
         &self,
         node: &NodePattern,
@@ -349,7 +349,7 @@ impl CreateValidator {
         schema_manager: &RedbSchemaManager,
         missing_tags: &mut Vec<String>,
     ) -> Result<ValidatedNodeCreate, ValidationError> {
-        // 验证标签
+        // Verify the tags.
         for label in &node.labels {
             if let Ok(None) = schema_manager.get_tag(space_name, label) {
                 if !self.auto_create_schema {
@@ -364,7 +364,7 @@ impl CreateValidator {
             }
         }
 
-        // 提取属性
+        // Extract attributes
         let props = if let Some(ref props_expr) = node.properties {
             self.extract_properties(props_expr)?
         } else {
@@ -378,7 +378,7 @@ impl CreateValidator {
         })
     }
 
-    /// 验证边模式
+    /// Verify the border mode
     fn validate_edge_pattern(
         &self,
         edge: &EdgePattern,
@@ -386,7 +386,7 @@ impl CreateValidator {
         schema_manager: &RedbSchemaManager,
         missing_edge_types: &mut Vec<String>,
     ) -> Result<ValidatedEdgeCreate, ValidationError> {
-        // 验证边类型（取第一个边类型）
+        // Verify the edge type (select the first edge type)
         let edge_type = edge.edge_types.first().ok_or_else(|| {
             ValidationError::new(
                 "Edge must specify at least one edge type".to_string(),
@@ -406,7 +406,7 @@ impl CreateValidator {
             }
         }
 
-        // 提取属性
+        // Extract attributes
         let props = if let Some(ref props_expr) = edge.properties {
             self.extract_properties(props_expr)?
         } else {
@@ -423,7 +423,7 @@ impl CreateValidator {
         })
     }
 
-    /// 验证路径模式
+    /// Verify the path pattern.
     fn validate_path_pattern(
         &self,
         path: &PathPattern,
@@ -477,7 +477,7 @@ impl CreateValidator {
         Ok(ValidatedPathCreate { nodes, edges })
     }
 
-    /// 验证单个节点创建（简化版）
+    /// Verification of the creation of a single node (simplified version)
     fn validate_single_node(
         &self,
         variable: &Option<String>,
@@ -487,7 +487,7 @@ impl CreateValidator {
         schema_manager: &RedbSchemaManager,
         missing_tags: &mut Vec<String>,
     ) -> Result<ValidatedPattern, ValidationError> {
-        // 验证标签
+        // Verify the tags.
         for label in labels {
             if let Ok(None) = schema_manager.get_tag(space_name, label) {
                 if !self.auto_create_schema {
@@ -502,7 +502,7 @@ impl CreateValidator {
             }
         }
 
-        // 提取属性
+        // Extract attributes
         let props = if let Some(ref props_expr) = properties {
             self.extract_properties(props_expr)?
         } else {
@@ -576,7 +576,7 @@ impl CreateValidator {
         })))
     }
 
-    /// 从表达式中提取属性键值对
+    /// Extract attribute key-value pairs from the expression.
     fn extract_properties(
         &self,
         expr: &ContextualExpression,
@@ -591,7 +591,7 @@ impl CreateValidator {
         }
     }
 
-    /// 内部方法：从表达式中提取属性键值对
+    /// Internal method: Extracting attribute key-value pairs from expressions
     fn extract_properties_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -617,7 +617,7 @@ impl CreateValidator {
         }
     }
 
-    /// 内部方法：求值表达式（简化版）
+    /// Internal method: Evaluation of expressions (simplified version)
     fn evaluate_expression_internal(&self, expr: &Expression) -> Result<Value, ValidationError> {
         match expr {
             Expression::Literal(value) => Ok(value.clone()),
@@ -634,9 +634,9 @@ impl CreateValidator {
         create_stmt: &CreateStmt,
         space_name: &str,
     ) -> Result<(), ValidationError> {
-        // 根据 CreateTarget 类型处理
+        // Process according to the type of the CreateTarget class.
         match &create_stmt.target {
-            // CREATE SPACE: 是全局语句，不需要空间
+            // “CREATE SPACE” is a global statement that does not require any additional space (i.e., no spaces need to be added before or after it).
             CreateTarget::Space {
                 name,
                 vid_type,
@@ -644,7 +644,7 @@ impl CreateValidator {
             } => {
                 self.no_space_required = true;
 
-                // 获取 SchemaManager
+                // Obtain the SchemaManager
                 let schema_manager = self.schema_manager.as_ref().ok_or_else(|| {
                     ValidationError::new(
                         "Schema manager not initialized".to_string(),
@@ -652,7 +652,7 @@ impl CreateValidator {
                     )
                 })?;
 
-                // 验证空间名称是否已存在
+                // Verify whether the space name already exists.
                 let existing_space = schema_manager.get_space(name).map_err(|e| {
                     ValidationError::new(
                         format!("Failed to check space existence: {}", e),
@@ -667,7 +667,7 @@ impl CreateValidator {
                     ));
                 }
 
-                // 验证 vid_type 是否合法
+                // Verify whether vid_type is valid.
                 let valid_vid_types = ["INT64", "INT32", "INT16", "INT8", "FIXEDSTRING", "STRING"];
                 let vid_type_upper = vid_type.to_uppercase();
                 let is_valid_vid_type = valid_vid_types
@@ -684,14 +684,14 @@ impl CreateValidator {
                     ));
                 }
 
-                // 设置输出列 - CREATE SPACE 返回执行结果
+                // Setting the output columns: The command “CREATE SPACE” returns the execution results.
                 self.outputs.clear();
                 self.outputs.push(ColumnDef {
                     name: "Execution Result".to_string(),
                     type_: ValueType::String,
                 });
 
-                // 缓存验证结果
+                // Cache validation results
                 let result = ValidatedCreate {
                     space_id: 0,
                     space_name: name.clone(),
@@ -704,17 +704,17 @@ impl CreateValidator {
 
                 Ok(())
             }
-            // CREATE TAG/EDGE: 需要空间，但当前验证器不支持
+            // CREATE TAG/EDGE: This operation requires additional space, but the current validator does not support it.
             CreateTarget::Tag { .. } | CreateTarget::EdgeType { .. } => Err(ValidationError::new(
                 "CreateValidator 不支持 CREATE TAG/EDGE，请使用 DDL 验证器".to_string(),
                 ValidationErrorType::SemanticError,
             )),
-            // CREATE INDEX 现在由专门的 CreateIndexValidator 处理
+            // The CREATE INDEX command is now processed by a dedicated component called CreateIndexValidator.
             CreateTarget::Index { .. } => Err(ValidationError::new(
                 "CreateIndexValidator 不支持此类 CREATE 语句".to_string(),
                 ValidationErrorType::SemanticError,
             )),
-            // CREATE Node/Edge/Path: 需要空间，执行 DML 验证
+            // CREATE Node/Edge/Path: This operation requires additional storage space and involves the execution of DML (Data Manipulation Language) validation processes.
             CreateTarget::Node { .. } | CreateTarget::Edge { .. } | CreateTarget::Path { .. } => {
                 if space_name.is_empty() {
                     return Err(ValidationError::new(
@@ -723,10 +723,10 @@ impl CreateValidator {
                     ));
                 }
 
-                // 执行验证
+                // Please provide the text you would like to have translated. I will then perform the verification and provide the translated version.
                 let result = self.validate_create(create_stmt, space_name)?;
 
-                // 设置输出列 - 根据实际类型设置
+                // Set the output columns – based on the actual type.
                 self.outputs.clear();
                 for (i, pattern) in result.patterns.iter().enumerate() {
                     let (col_name, col_type) = match pattern {
@@ -752,7 +752,7 @@ impl CreateValidator {
                     });
                 }
 
-                // 缓存验证结果
+                // Cache validation results
                 self.validated_result = Some(result);
 
                 Ok(())
@@ -767,24 +767,24 @@ impl Default for CreateValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
 /// 完整实现验证生命周期（参考 base_validator.rs）：
-/// 1. 检查是否需要空间（is_global_statement）
-/// 2. 执行具体验证逻辑（validate_impl）
-/// 3. 权限检查（check_permission）
-/// 4. 生成执行计划（to_plan）
-/// 5. 同步输入/输出到 AstContext
+/// 1. Check whether space is required (is_global_statement)
+/// 2. Execute the specific validation logic (validate_impl).
+/// 3. Permission check (check_permission)
+/// 4. Generate the execution plan (to_plan)
+/// 5. Synchronous input/output to AstContext
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for CreateValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 清空之前的状态
+        // Clear the previous state.
         self.outputs.clear();
         self.inputs.clear();
         self.expr_props = ExpressionProps::default();
@@ -792,7 +792,7 @@ impl StatementValidator for CreateValidator {
         self.clear_errors();
         self.no_space_required = false;
 
-        // 获取 CREATE 语句
+        // Obtaining the CREATE statement
         let create_stmt = match &ast.stmt {
             crate::query::parser::ast::Stmt::Create(create_stmt) => create_stmt,
             _ => {
@@ -803,7 +803,7 @@ impl StatementValidator for CreateValidator {
             }
         };
 
-        // 步骤 1: 检查是否需要空间
+        // Step 1: Check whether space is required.
         let is_global = matches!(&create_stmt.target, CreateTarget::Space { .. });
 
         if !is_global && qctx.space_id().is_none() {
@@ -813,24 +813,24 @@ impl StatementValidator for CreateValidator {
             ));
         }
 
-        // 步骤 2: 获取空间名称
+        // Step 2: Obtain the name of the space.
         let space_name = qctx.space_name().unwrap_or_default();
 
-        // 步骤 3: 执行具体验证逻辑
+        // Step 3: Execute the specific validation logic
         if let Err(e) = self.validate_impl(create_stmt, &space_name) {
             self.add_error(e);
         }
 
-        // 如果有验证错误，返回失败结果
+        // If there are any validation errors, return a failure result.
         if self.has_errors() {
             let errors = self.validation_errors.clone();
             return Ok(ValidationResult::failure(errors));
         }
 
-        // 构建详细的 ValidationInfo
+        // Constructing detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // 添加别名映射和语义信息
+        // Add alias mappings and semantic information.
         if let Some(ref result) = self.validated_result {
             for pattern in &result.patterns {
                 match pattern {
@@ -888,7 +888,7 @@ impl StatementValidator for CreateValidator {
             }
         }
 
-        // 返回包含详细信息的验证结果
+        // Return the verification results including detailed information.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -905,7 +905,7 @@ impl StatementValidator for CreateValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // CREATE 不是全局语句，需要预先选择空间
+        // The `CREATE` statement is not a global statement; it is necessary to select a specific space in advance.
         false
     }
 
@@ -943,7 +943,7 @@ mod tests {
     fn test_statement_validator_trait() {
         let validator = CreateValidator::new();
 
-        // 测试 trait 方法
+        // Testing the trait method
         assert_eq!(validator.statement_type(), StatementType::Create);
         assert_eq!(validator.validator_name(), "CREATEValidator");
     }

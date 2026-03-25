@@ -1,12 +1,12 @@
-//! PATH查询规划器
-//! 处理Nebula PATH查询的规划
+//! PATH Query Planner
+//! Planning for handling Nebula PATH query requests
 //!
-//! ## 改进说明
+//! ## Explanation of the improvements
 //!
-//! - 实现最短路径规划
-//! - 实现所有路径规划
-//! - 支持带权最短路径
-//! - 完善路径过滤逻辑
+//! Implementing shortest path planning
+//! Implement all path planning functions.
+//! Support for the shortest path with weights
+//! Improve the logic for path filtering.
 
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::core::nodes::traversal::{AllPathsNode, ShortestPathNode};
@@ -21,13 +21,13 @@ pub use crate::query::planning::plan::core::nodes::{
 };
 pub use crate::query::planning::plan::core::PlanNodeEnum;
 
-/// PATH查询规划器
-/// 负责将PATH查询转换为执行计划
+/// PATH Query Planner
+/// Responsible for converting PATH queries into execution plans.
 #[derive(Debug, Clone)]
 pub struct PathPlanner {}
 
 impl PathPlanner {
-    /// 创建新的PATH规划器
+    /// Create a new PATH planner.
     pub fn new() -> Self {
         Self {}
     }
@@ -48,19 +48,19 @@ impl Planner for PathPlanner {
             }
         };
 
-        // 创建起始节点
+        // Create the starting node.
         let start_node = StartNode::new();
         let start_node_enum = PlanNodeEnum::Start(start_node);
 
         let edge_types = self.get_edge_types_from_stmt(find_path_stmt);
         let max_steps = self.get_max_steps_from_stmt(find_path_stmt);
 
-        // 根据查询类型选择不同的计划策略
+        // Select different planning strategies depending on the type of query.
         let root_node = if self.is_shortest_path_stmt(find_path_stmt) {
-            // 最短路径查询
+            // Shortest path query
             self.build_shortest_path_plan(start_node_enum.clone(), edge_types, max_steps)?
         } else {
-            // 所有路径查询
+            // All path queries
             self.build_all_paths_plan(start_node_enum.clone(), edge_types, max_steps)?
         };
 
@@ -78,36 +78,36 @@ impl Planner for PathPlanner {
 }
 
 impl PathPlanner {
-    /// 构建最短路径计划
+    /// Constructing the shortest path plan
     fn build_shortest_path_plan(
         &self,
         left_input: PlanNodeEnum,
         edge_types: Vec<String>,
         max_steps: usize,
     ) -> Result<PlanNodeEnum, PlannerError> {
-        // 创建右侧输入节点（终点）
+        // Create the input node (destination) on the right side.
         let right_node = StartNode::new();
         let right_node_enum = PlanNodeEnum::Start(right_node);
 
-        // 创建ShortestPath计划节点
+        // Create a ShortestPath plan node.
         let shortest_path_node =
             ShortestPathNode::new(left_input, right_node_enum, edge_types, max_steps);
 
         Ok(shortest_path_node.into_enum())
     }
 
-    /// 构建所有路径计划
+    /// Construct all path plans.
     fn build_all_paths_plan(
         &self,
         left_input: PlanNodeEnum,
         edge_types: Vec<String>,
         max_steps: usize,
     ) -> Result<PlanNodeEnum, PlannerError> {
-        // 创建右侧输入节点（终点）
+        // Create the input node (destination) on the right side.
         let right_node = StartNode::new();
         let right_node_enum = PlanNodeEnum::Start(right_node);
 
-        // 创建AllPaths计划节点
+        // Create an AllPaths plan node.
         let all_paths_node = AllPathsNode::new(
             left_input,
             right_node_enum,
@@ -121,12 +121,12 @@ impl PathPlanner {
         Ok(all_paths_node.into_enum())
     }
 
-    /// 判断是否为最短路径查询
+    /// Determine whether it is a query for the shortest path.
     fn is_shortest_path_stmt(&self, stmt: &crate::query::parser::ast::FindPathStmt) -> bool {
         stmt.shortest
     }
 
-    /// 从语句获取边类型
+    /// Extract the edge type from the statement.
     fn get_edge_types_from_stmt(
         &self,
         stmt: &crate::query::parser::ast::FindPathStmt,
@@ -137,7 +137,7 @@ impl PathPlanner {
             .unwrap_or_default()
     }
 
-    /// 从语句获取最大步数
+    /// Extract the maximum number of steps from the statement.
     fn get_max_steps_from_stmt(&self, stmt: &crate::query::parser::ast::FindPathStmt) -> usize {
         stmt.max_steps.unwrap_or(10)
     }

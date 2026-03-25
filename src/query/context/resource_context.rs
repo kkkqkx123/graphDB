@@ -1,44 +1,44 @@
-//! 查询资源上下文
+//! Query the resource context.
 //!
-//! 管理查询执行过程中需要的资源，包括 ID 生成器等。
+//! Manage the resources required during the execution of queries, including ID generators, etc.
 
 use crate::utils::IdGenerator;
 
-/// 查询资源上下文
+/// Query the resource context.
 ///
-/// 管理查询执行过程中需要的资源，包括：
-/// - ID 生成器（用于生成唯一的 ID）
+/// Managing the resources required during the execution of queries, including:
+/// ID Generator (used for generating unique IDs)
 pub struct QueryResourceContext {
-    /// ID 生成器
+    /// ID Generator
     id_gen: IdGenerator,
 }
 
 impl QueryResourceContext {
-    /// 创建新的资源上下文
+    /// Create a new resource context.
     pub fn new() -> Self {
         Self {
             id_gen: IdGenerator::new(0),
         }
     }
 
-    /// 创建带自定义配置的资源上下文
+    /// Create a resource context with custom configurations.
     pub fn with_config(start_id: i64) -> Self {
         Self {
             id_gen: IdGenerator::new(start_id),
         }
     }
 
-    /// 生成 ID
+    /// Generate an ID.
     pub fn gen_id(&self) -> i64 {
         self.id_gen.id()
     }
 
-    /// 获取当前 ID 值（不递增）
+    /// Retrieve the current ID value (without incrementing it).
     pub fn current_id(&self) -> i64 {
         self.id_gen.current_value()
     }
 
-    /// 重置资源上下文
+    /// Reset the resource context
     pub fn reset(&mut self) {
         self.id_gen.reset(0);
         log::info!("查询资源上下文已重置");

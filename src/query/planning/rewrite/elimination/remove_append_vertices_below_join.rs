@@ -1,10 +1,10 @@
-//! 移除连接下方的添加顶点操作的规则
+//! Remove the rule that adds a vertex at the bottom of the connection.
 //!
-//! 根据 nebula-graph 的参考实现，此规则匹配以下模式：
+//! According to the reference implementation of nebula-graph, this rule matches the following patterns:
 //! HashInnerJoin/HashLeftJoin -> ... -> Project -> AppendVertices -> Traverse
-//! 当满足特定条件时，可以移除 AppendVertices 节点。
+//! The AppendVertices node can be removed when certain conditions are met.
 //!
-//! # 转换示例
+//! # Conversion example
 //!
 //! Before:
 //! ```text
@@ -26,10 +26,10 @@
 //! Left          Traverse(e)
 //! ```
 //!
-//! # 适用条件
+//! # Applicable Conditions
 //!
-//! - Join 的右分支为 Project->AppendVertices->Traverse
-//! - AppendVertices 的 nodeAlias 只被引用一次
+//! The right branch of “Join” is “Project->AppendVertices->Traverse”.
+//! The `nodeAlias` of the `AppendVertices` function is only referenced once.
 //! - Join 的 hash keys 匹配 id() 或 _joinkey() 模式
 
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -54,19 +54,19 @@ use crate::query::planning::rewrite::rule::RewriteRule;
 use crate::query::validator::context::ExpressionAnalysisContext;
 use std::sync::Arc;
 
-/// 移除连接下方的添加顶点操作的规则
+/// Remove the rule that adds a vertex at the bottom of the connection.
 ///
-/// 当 Join 的右分支包含 AppendVertices 且满足特定条件时，移除 AppendVertices
+/// When the right branch of the Join operation contains the AppendVertices function and certain conditions are met, the AppendVertices function should be removed.
 #[derive(Debug)]
 pub struct RemoveAppendVerticesBelowJoinRule;
 
 impl RemoveAppendVerticesBelowJoinRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         Self
     }
 
-    /// 从表达式中收集所有属性名
+    /// Collect all attribute names from the expression.
     fn collect_all_property_names(&self, expr: &Expression) -> Vec<String> {
         let mut collector = PropertyCollector::new();
         ExpressionVisitor::visit(&mut collector, expr);
@@ -84,7 +84,7 @@ impl RemoveAppendVerticesBelowJoinRule {
                 Expression::Function { name, args }
                     if (name == "id" || name == "_joinkey") && args.len() == 1 =>
                 {
-                    // 创建新的 ContextualExpression 包装参数
+                    // Create new ContextualExpression packaging parameters.
                     let ctx = expr.context().clone();
                     let meta = ExpressionMeta::new(args[0].clone());
                     let id = ctx.register_expression(meta);
@@ -97,7 +97,7 @@ impl RemoveAppendVerticesBelowJoinRule {
         }
     }
 
-    /// 检查表达式是否引用指定属性
+    /// Check whether the expression references the specified attribute.
     fn expr_references_alias(&self, expr: &ContextualExpression, alias: &str) -> bool {
         if let Some(expr_meta) = expr.expression() {
             let inner_expr = expr_meta.inner();
@@ -108,7 +108,7 @@ impl RemoveAppendVerticesBelowJoinRule {
         }
     }
 
-    /// 计算 avNodeAlias 在表达式列表中的引用次数
+    /// Count the number of occurrences of `avNodeAlias` in the list of expressions.
     fn count_alias_references(&self, exprs: &[ContextualExpression], alias: &str) -> usize {
         exprs
             .iter()
@@ -116,7 +116,7 @@ impl RemoveAppendVerticesBelowJoinRule {
             .count()
     }
 
-    /// 计算 avNodeAlias 在 YieldColumn 列表中的引用次数
+    /// Count the number of occurrences of avNodeAlias in the YieldColumn list.
     fn count_alias_references_in_columns(&self, columns: &[YieldColumn], alias: &str) -> usize {
         columns
             .iter()
@@ -124,7 +124,7 @@ impl RemoveAppendVerticesBelowJoinRule {
             .count()
     }
 
-    /// 查找包含指定别名的列索引
+    /// Find the column index that contains the specified alias.
     fn find_column_with_alias(&self, columns: &[YieldColumn], alias: &str) -> Option<usize> {
         for (idx, col) in columns.iter().enumerate() {
             if let Some(expr_meta) = col.expression.expression() {
@@ -154,7 +154,7 @@ impl RemoveAppendVerticesBelowJoinRule {
         None
     }
 
-    /// 检查表达式是否包含指定变量引用
+    /// Check whether the expression contains references to the specified variables.
     fn expr_contains_variable(&self, expr: &ContextualExpression, var_name: &str) -> bool {
         if let Some(expr_meta) = expr.expression() {
             let inner_expr = expr_meta.inner();
@@ -164,7 +164,7 @@ impl RemoveAppendVerticesBelowJoinRule {
         }
     }
 
-    /// 创建 none_direct_dst 函数调用表达式
+    /// Create the expression for calling the none_direct_dst function.
     fn create_none_direct_dst_expr(
         &self,
         edge_alias: &str,
@@ -183,7 +183,7 @@ impl RemoveAppendVerticesBelowJoinRule {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建变量引用表达式
+    /// Create a variable reference expression.
     fn create_variable_expr(&self, var_name: &str) -> ContextualExpression {
         let expr = Expression::Variable(var_name.to_string());
         let ctx = Arc::new(ExpressionAnalysisContext::new());
@@ -205,7 +205,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
     }
 
     fn pattern(&self) -> Pattern {
-        // 匹配 HashInnerJoin 或 HashLeftJoin
+        // Match either HashInnerJoin or HashLeftJoin.
         Pattern::multi(vec!["HashInnerJoin", "HashLeftJoin"])
     }
 
@@ -214,7 +214,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为哈希连接节点
+        // Check whether it is a hash-linked node.
         let (hash_keys, probe_keys, left_input, right_input) = match node {
             PlanNodeEnum::HashInnerJoin(n) => (
                 n.hash_keys().to_vec(),
@@ -231,40 +231,40 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
             _ => return Ok(None),
         };
 
-        // 检查右输入是否为 Project
+        // Check whether the content entered on the right is a Project.
         let project = match right_input {
             PlanNodeEnum::Project(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取 Project 的输入节点
+        // Obtain the input nodes of the Project
         let project_input = project.input();
 
-        // 检查是否为 AppendVertices
+        // Check whether it is an operation to AppendVertices.
         let append_vertices = match project_input {
             PlanNodeEnum::AppendVertices(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取 AppendVertices 的 node_alias
+        // Obtain the `node_alias` for the `AppendVertices` method.
         let av_node_alias = match append_vertices.node_alias() {
             Some(alias) => alias,
             None => return Ok(None),
         };
 
-        // 获取 AppendVertices 的输入节点
+        // Obtaining the input nodes for the AppendVertices function
         let append_inputs = append_vertices.inputs();
         if append_inputs.is_empty() {
             return Ok(None);
         }
 
-        // 检查是否为 Traverse
+        // Check whether it is Traverse.
         let traverse = match &append_inputs[0] {
             PlanNodeEnum::Traverse(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取 Traverse 的 edge_alias 和 vertex_alias
+        // Obtain the `edge_alias` and `vertex_alias` for Traverse.
         let tv_edge_alias = match traverse.edge_alias() {
             Some(alias) => alias,
             None => return Ok(None),
@@ -274,20 +274,20 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
             None => return Ok(None),
         };
 
-        // 检查 avNodeAlias 在 probe keys 中的引用次数
+        // Check the number of occurrences of avNodeAlias in the probe keys.
         let probe_ref_count = self.count_alias_references(&probe_keys, av_node_alias);
         if probe_ref_count > 1 {
-            // 如果被引用多次，不能移除 AppendVertices
+            // If it is referenced multiple times, the AppendVertices function cannot be removed.
             return Ok(None);
         }
 
-        // 查找匹配的 probe key 索引
+        // Search for the index that matches the probe key.
         let probe_key_idx = match self.find_matching_probe_key(&probe_keys, av_node_alias) {
             Some(idx) => idx,
             None => return Ok(None),
         };
 
-        // 检查对应的 hash key 是否匹配
+        // Check whether the corresponding hash key matches.
         if probe_key_idx >= hash_keys.len() {
             return Ok(None);
         }
@@ -297,20 +297,20 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
             return Ok(None);
         }
 
-        // 检查 avNodeAlias 在 Project columns 中的引用次数
+        // Check the number of occurrences of avNodeAlias in the Project columns.
         let columns = project.columns();
         let col_ref_count = self.count_alias_references_in_columns(columns, av_node_alias);
         if col_ref_count > 1 {
             return Ok(None);
         }
 
-        // 查找 Project 中包含 avNodeAlias 的列索引
+        // Find the column index in the Project that contains the `avNodeAlias`.
         let prj_idx = match self.find_column_with_alias(columns, av_node_alias) {
             Some(idx) => idx,
             None => return Ok(None),
         };
 
-        // 创建新的 Project 列
+        // Create a new Project column
         let mut new_columns: Vec<YieldColumn> = columns.to_vec();
         let none_direct_dst_expr = self.create_none_direct_dst_expr(tv_edge_alias, _tv_node_alias);
         new_columns[prj_idx] = YieldColumn {
@@ -319,15 +319,15 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
             is_matched: false,
         };
 
-        // 创建新的 Project 节点
+        // Create a new Project node.
         let new_project = ProjectNode::new(append_inputs[0].clone(), new_columns)
             .map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?;
 
-        // 创建新的 probe keys
+        // Create new probe keys.
         let mut new_probe_keys: Vec<ContextualExpression> = probe_keys.clone();
         new_probe_keys[probe_key_idx] = self.create_variable_expr(av_node_alias);
 
-        // 创建新的 Join 节点
+        // Create a new Join node.
         let new_join: PlanNodeEnum = match node {
             PlanNodeEnum::HashInnerJoin(_) => PlanNodeEnum::HashInnerJoin(
                 HashInnerJoinNode::new(
@@ -350,7 +350,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
             _ => unreachable!(),
         };
 
-        // 构建转换结果
+        // Construct the translation result.
         let mut result = TransformResult::new();
         result.erase_curr = true;
         result.add_new_node(new_join);

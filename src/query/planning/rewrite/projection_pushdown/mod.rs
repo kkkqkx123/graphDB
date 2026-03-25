@@ -1,6 +1,6 @@
-//! 投影下推优化规则
+//! Projection Downward Optimization Rules
 //!
-//! 这些规则负责将投影操作推向数据源，减少数据传输量
+//! These rules are responsible for pushing the projection operations towards the data source, thereby reducing the amount of data that needs to be transmitted.
 
 pub mod push_project_down_edge_index_scan;
 pub mod push_project_down_get_edges;

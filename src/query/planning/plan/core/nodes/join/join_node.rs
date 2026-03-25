@@ -1,6 +1,6 @@
-//! 连接节点实现
+//! Implementation of connection nodes
 //!
-//! 包含各种连接节点类型，如内连接、左连接等
+//! It includes various types of join nodes, such as inner joins, left joins, etc.
 
 use crate::core::types::ContextualExpression;
 use crate::define_binary_input_node;

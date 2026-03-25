@@ -1,53 +1,53 @@
-//! 查询验证器模块
-//! 对应 NebulaGraph src/graph/validator 的功能
-//! 用于验证 AST 的合法性
+//! Query Validator Module
+//! Corresponds to the functionality of NebulaGraph’s src/graph/validator.
+//! Used to verify the legitimacy of the AST (Abstract Syntax Tree).
 //!
-//! 设计说明：
-//! 采用 trait + 枚举模式管理验证器
-//! - trait 定义统一接口
-//! - 枚举实现静态分发
-//! - 工厂模式创建验证器
+//! Design Description:
+//! Using the trait + enum pattern to manage validators
+//! The “trait” defines a unified interface.
+//! Implementation of static distribution using enumeration
+//! The Factory Pattern is used to create validators.
 
-// 上下文模块
+// Context module
 pub mod context;
 
-// 数据结构模块
+// Data Structures Module
 pub mod structs;
 
-// 验证策略子模块
+// Validation Policy Submodule
 pub mod strategies;
 
-// 语句级验证器
+// Statement-level validator
 pub mod statements;
 
-// 子句级验证器
+// Sentence-level validator
 pub mod clauses;
 
-// DDL 验证器
+// DDL Validator
 pub mod ddl;
 
-// DML 验证器
+// DML Validator
 pub mod dml;
 
-// 工具验证器
+// Tool Validator
 pub mod utility;
 
-// 辅助工具
+// Auxiliary tools
 pub mod helpers;
 
-// 验证器 trait 定义
+// Definition of the `Validator` trait
 pub mod validator_trait;
 
-// 验证器枚举
+// Validator Enumeration
 pub mod validator_enum;
 
-// assignment 验证器
+// Assignment Validator
 pub mod assignment_validator;
 
-// 表达式分析器
+// Expression Analyzer
 pub mod expression_analyzer;
 
-// 导出数据结构
+// Export data structure
 pub use structs::{
     AggregateCallInfo, AliasType, ClauseKind, HintSeverity, IndexHint, MatchClauseContext,
     MatchStepRange, OptimizationHint, PaginationContext, Path, PathAnalysis, QueryPart,
@@ -55,17 +55,17 @@ pub use structs::{
     WhereClauseContext, WithClauseContext, YieldClauseContext,
 };
 
-// 从 core 重新导出 YieldColumn
+// Re-export the YieldColumn from the core.
 pub use crate::core::YieldColumn;
 
-// 导出新的验证器体系（trait + 枚举）
+// Exporting a new verifier system (trait + enumeration)
 pub use validator_enum::{Validator, ValidatorCollection};
 pub use validator_trait::{
     is_global_statement_type, ColumnDef, EdgeProperty, ExpressionProps, InputProperty,
     StatementType, StatementValidator, TagProperty, ValidationResult, ValueType, VarProperty,
 };
 
-// 导出语句级验证器
+// Export a statement-level verifier
 pub use statements::{
     CreateValidator, DeleteValidator, FetchEdgesValidator, FetchVerticesValidator,
     FindPathValidator, GetSubgraphValidator, GoValidator, InsertEdgesValidator,
@@ -74,14 +74,14 @@ pub use statements::{
     ValidatedSetItem, ValidatedUnwind,
 };
 
-// 导出子句级验证器
+// Export the clause-level validator
 pub use clauses::{
     GroupByValidator, LimitValidator, OrderByValidator, OrderColumn, ReturnValidator,
     SequentialStatement, SequentialValidator, ValidatedGroupBy, ValidatedYield, WithValidator,
     YieldValidator,
 };
 
-// 导出 DDL 验证器
+// Export the DDL validator.
 pub use ddl::{
     AlterTargetType, AlterValidator, ClearSpaceValidator, DescTargetType, DescValidator,
     DropTargetType, DropValidator, KillQueryValidator, ShowConfigsValidator, ShowCreateValidator,
@@ -89,13 +89,13 @@ pub use ddl::{
     ValidatedDesc, ValidatedDrop, ValidatedShow,
 };
 
-// 导出 DML 验证器
+// Export the DML validator
 pub use dml::{
     ColumnInfo, PipeValidator, QueryValidator, SetOperationValidator, UseValidator,
     ValidatedSetOperation, ValidatedUse,
 };
 
-// 导出工具验证器
+// Export Tool Validator
 pub use utility::{
     AlterUserValidator, ChangePasswordValidator, CreateUserValidator, DescribeUserValidator,
     DropUserValidator, ExplainValidator, GrantValidator, ProfileValidator, RevokeValidator,
@@ -103,11 +103,11 @@ pub use utility::{
     ValidatedGrant, ValidatedUser,
 };
 
-// 导出辅助工具
+// Export assistance tools
 pub use helpers::SchemaValidator;
 
-// 导出 assignment 验证器
+// Export the assignment validator.
 pub use assignment_validator::{AssignmentValidator, ValidatedAssignment};
 
-// 导出表达式分析器
+// Export Expression Analyzer
 pub use expression_analyzer::{ExpressionAnalysisResult, ExpressionAnalyzer};

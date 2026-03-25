@@ -1,11 +1,11 @@
-//! 集合操作语句验证器
-//! 对应 NebulaGraph SetValidator 的功能
-//! 验证 UNION, UNION ALL, INTERSECT, MINUS 等集合操作语句
+//! Set operation statement validator
+//! Corresponding to the functionality of NebulaGraph SetValidator
+//! Verify set operation statements such as UNION, UNION ALL, INTERSECT, and MINUS.
 //!
-//! 设计原则：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 验证左右子查询的列数和数据类型兼容性
-//! 3. 支持多种集合操作类型
+//! Design Principles:
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. Verify the compatibility of the number of columns and data types in the left and right subqueries.
+//! 3. Support for various types of set operations
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{Ast, SetOperationStmt, SetOperationType};
@@ -17,7 +17,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 验证后的集合操作信息
+/// Verified set operation information
 #[derive(Debug, Clone)]
 pub struct ValidatedSetOperation {
     pub op_type: SetOperationType,
@@ -26,7 +26,7 @@ pub struct ValidatedSetOperation {
     pub output_col_names: Vec<String>,
 }
 
-/// 集合操作验证器
+/// Set operation validator
 #[derive(Debug)]
 pub struct SetOperationValidator {
     op_type: SetOperationType,
@@ -54,7 +54,7 @@ impl SetOperationValidator {
     fn validate_impl(&mut self, stmt: &SetOperationStmt) -> Result<(), ValidationError> {
         self.op_type = stmt.op_type.clone();
 
-        // 创建左子查询验证器
+        // Create a left subquery validator
         self.left_validator = Some(Box::new(
             Validator::create_from_stmt(&stmt.left).ok_or_else(|| {
                 ValidationError::new(
@@ -64,7 +64,7 @@ impl SetOperationValidator {
             })?,
         ));
 
-        // 创建右子查询验证器
+        // Create a right subquery validator
         self.right_validator = Some(Box::new(
             Validator::create_from_stmt(&stmt.right).ok_or_else(|| {
                 ValidationError::new(
@@ -82,7 +82,7 @@ impl SetOperationValidator {
         left_outputs: &[ColumnDef],
         right_outputs: &[ColumnDef],
     ) -> Result<(), ValidationError> {
-        // 验证列数相同
+        // Verify that the number of columns is the same.
         if left_outputs.len() != right_outputs.len() {
             return Err(ValidationError::new(
                 format!(
@@ -94,9 +94,9 @@ impl SetOperationValidator {
             ));
         }
 
-        // 验证列名兼容性（可选：可以要求列名相同或自动映射）
+        // Verify column name compatibility (optional): You can require that the column names be the same or allow for automatic mapping.
         for (i, (left, right)) in left_outputs.iter().zip(right_outputs.iter()).enumerate() {
-            // 验证数据类型兼容性
+            // Verify the compatibility of data types
             if !Self::types_compatible(&left.type_, &right.type_) {
                 return Err(ValidationError::new(
                     format!(
@@ -114,22 +114,22 @@ impl SetOperationValidator {
     }
 
     fn types_compatible(left: &ValueType, right: &ValueType) -> bool {
-        // 相同类型兼容
+        // Compatibility with the same type
         if left == right {
             return true;
         }
 
-        // Unknown 类型与任何类型兼容
+        // The “Unknown” type is compatible with any type.
         if matches!(left, ValueType::Unknown) || matches!(right, ValueType::Unknown) {
             return true;
         }
 
-        // Null 类型与任何类型兼容
+        // The Null type is compatible with any type.
         if matches!(left, ValueType::Null) || matches!(right, ValueType::Null) {
             return true;
         }
 
-        // 数值类型之间兼容
+        // Compatibility between numeric data types
         let left_is_numeric = matches!(left, ValueType::Int | ValueType::Float);
         let right_is_numeric = matches!(right, ValueType::Int | ValueType::Float);
         if left_is_numeric && right_is_numeric {
@@ -140,8 +140,8 @@ impl SetOperationValidator {
     }
 
     fn merge_outputs(&mut self, left_outputs: &[ColumnDef], right_outputs: &[ColumnDef]) {
-        // 集合操作的输出列使用左子查询的列名
-        // 但类型需要是兼容后的类型
+        // The output column of the set operation uses the column names from the left subquery.
+        // However, the type must be the compatible version of the type in question.
         self.outputs = left_outputs
             .iter()
             .zip(right_outputs.iter())
@@ -157,7 +157,7 @@ impl SetOperationValidator {
             return left.clone();
         }
 
-        // 如果一个是 Unknown，使用另一个
+        // If one is “Unknown”, use the other one.
         if matches!(left, ValueType::Unknown) {
             return right.clone();
         }
@@ -165,28 +165,28 @@ impl SetOperationValidator {
             return left.clone();
         }
 
-        // 数值类型合并为 Float
+        // The numeric types have been merged into a single `Float` type.
         let left_is_numeric = matches!(left, ValueType::Int | ValueType::Float);
         let right_is_numeric = matches!(right, ValueType::Int | ValueType::Float);
         if left_is_numeric && right_is_numeric {
             return ValueType::Float;
         }
 
-        // 默认返回 Unknown
+        // The default response is “Unknown”.
         ValueType::Unknown
     }
 
-    /// 获取操作类型
+    /// Obtain the operation type
     pub fn op_type(&self) -> &SetOperationType {
         &self.op_type
     }
 
-    /// 获取左子查询验证器
+    /// Obtain the left subquery validator.
     pub fn left_validator(&self) -> Option<&Validator> {
         self.left_validator.as_deref()
     }
 
-    /// 获取右子查询验证器
+    /// Obtain the right subquery validator.
     pub fn right_validator(&self) -> Option<&Validator> {
         self.right_validator.as_deref()
     }
@@ -209,10 +209,10 @@ impl SetOperationValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for SetOperationValidator {
     fn validate(
         &mut self,
@@ -229,13 +229,13 @@ impl StatementValidator for SetOperationValidator {
             }
         };
 
-        // 提取左右子查询语句
+        // Extract the left and right subquery statements.
         let left_stmt = *set_op_stmt.left.clone();
         let right_stmt = *set_op_stmt.right.clone();
 
         self.validate_impl(set_op_stmt)?;
 
-        // 验证左右子查询
+        // Verify the left and right subqueries
         let left_outputs = if let Some(ref mut left) = self.left_validator {
             let result = left.validate(
                 Arc::new(Ast::new(left_stmt, ast.expr_context.clone())),
@@ -274,13 +274,13 @@ impl StatementValidator for SetOperationValidator {
             Vec::new()
         };
 
-        // 验证兼容性
+        // Verify compatibility
         self.validate_compatibility(&left_outputs, &right_outputs)?;
 
-        // 合并输出列
+        // Merge the output columns
         self.merge_outputs(&left_outputs, &right_outputs);
 
-        // 收集用户定义变量
+        // Collecting user-defined variables
         if let Some(ref left) = self.left_validator {
             for var in left.get_user_defined_vars() {
                 if !self.user_defined_vars.contains(&var.to_string()) {
@@ -314,7 +314,7 @@ impl StatementValidator for SetOperationValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // 集合操作是否为全局语句取决于左右子查询
+        // Whether a set operation is a global statement depends on the left and right subqueries.
         let left_global = self
             .left_validator
             .as_ref()

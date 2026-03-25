@@ -186,7 +186,7 @@ impl From<super::super::lexing::LexError> for ParseError {
             lex_error.message,
             lex_error.position,
         );
-        // 保留 offset 信息
+        // Retain the offset information.
         if let Some(offset) = lex_error.offset {
             parse_error = parse_error.with_offset(offset);
         }
@@ -197,7 +197,7 @@ impl From<super::super::lexing::LexError> for ParseError {
 impl From<ParseError> for QueryError {
     fn from(parse_error: ParseError) -> Self {
         let message: String = parse_error.message.into();
-        // 如果有 offset 信息，保留它
+        // If there is offset information, please retain it.
         if let Some(offset) = parse_error.offset {
             QueryError::ParseErrorWithOffset { message, offset }
         } else {

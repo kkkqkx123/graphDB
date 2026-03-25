@@ -1,6 +1,6 @@
-//! 用户管理节点实现
+//! Implementation of the user management node
 //!
-//! 提供用户管理相关的计划节点定义
+//! Provide definitions for the planning nodes related to user management.
 
 use crate::core::types::PasswordInfo;
 use crate::define_plan_node;

@@ -1,17 +1,17 @@
-//! 代价计算模块
+//! Cost Calculation Module
 //!
-//! 提供查询优化器所需的代价计算功能
+//! Provide the cost calculation functionality required by the query optimizer.
 //!
-//! ## 模块结构
+//! ## Module Structure
 //!
-//! - `calculator` - 代价计算器，计算各种操作的代价
-//! - `selectivity` - 选择性估计器，估算查询条件的选择性
-//! - `config` - 代价模型配置
-//! - `assigner` - 代价赋值器，为执行计划节点赋值代价
-//! - `estimate` - 节点代价估算结果
-//! - `child_accessor` - 子节点访问器
-//! - `expression_parser` - 表达式解析器
-//! - `node_estimators` - 各类节点估算器
+//! “Calculator” refers to a cost estimator that calculates the costs of various operations.
+//! “Selectivity” refers to an estimator that measures the selectiveness of the query conditions used in a data retrieval process. In other words, it assesses how well the query criteria filter out irrelevant data and only retrieve the relevant records. This property is particularly important in database systems, as it can significantly impact the performance and efficiency of data queries.
+//! `config` – Configuration of the cost model
+//! “Assigner” is a cost assigner that assigns costs to the nodes in the execution plan.
+//! “Estimate” refers to the result of the cost estimation for a node.
+//! `child_accessor` – Accessor for child nodes
+//! `expression_parser` – An expression parser
+//! `node_estimators` – Estimators for different types of nodes
 
 pub mod assigner;
 pub mod calculator;

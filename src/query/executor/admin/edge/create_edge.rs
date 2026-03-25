@@ -1,6 +1,6 @@
-//! CreateEdgeExecutor - 创建边类型执行器
+//! CreateEdgeExecutor – Creates an executor for edge types
 //!
-//! 负责在指定图空间中创建新的边类型。
+//! Responsible for creating new edge types in the specified graph space.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -35,7 +35,7 @@ impl EdgeTypeSchema {
     }
 }
 
-/// 边类型信息（执行器内部使用）
+/// Edge type information (used internally by the executor)
 #[derive(Debug, Clone)]
 pub struct ExecutorEdgeInfo {
     pub space_name: String,
@@ -65,9 +65,9 @@ impl ExecutorEdgeInfo {
     }
 }
 
-/// 创建边类型执行器
+/// Create an edge type executor.
 ///
-/// 该执行器负责在指定图空间中创建新的边类型。
+/// This executor is responsible for creating new edge types in the specified graph space.
 #[derive(Debug)]
 pub struct CreateEdgeExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -76,7 +76,7 @@ pub struct CreateEdgeExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> CreateEdgeExecutor<S> {
-    /// 创建新的 CreateEdgeExecutor
+    /// Create a new instance of the CreateEdgeExecutor class.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -90,7 +90,7 @@ impl<S: StorageClient> CreateEdgeExecutor<S> {
         }
     }
 
-    /// 创建带 IF NOT EXISTS 选项的 CreateEdgeExecutor
+    /// Create an instance of CreateEdgeExecutor with the IF NOT EXISTS option enabled
     pub fn with_if_not_exists(
         id: i64,
         storage: Arc<Mutex<S>>,

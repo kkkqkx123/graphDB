@@ -1,21 +1,21 @@
-//! 查询指纹模块
+//! Fingerprint recognition module
 //!
-//! 提供查询归一化和指纹生成功能。
-//! 参考PostgreSQL的pg_stat_statements模块实现。
+//! Provide functions for query normalization and fingerprint generation.
+//! Refer to the implementation of the pg_stat_statements module in PostgreSQL.
 
-/// 查询指纹归一化
+/// Query on fingerprint normalization
 ///
-/// 将查询字符串归一化为标准形式，用于生成查询指纹。
-/// 参考PostgreSQL的pg_stat_statements模块实现。
+/// Normalize the query string into a standard format for generating a query fingerprint.
+/// Refer to the implementation of the pg_stat_statements module in PostgreSQL.
 ///
-/// # 归一化规则
-/// 1. 去除首尾空白
-/// 2. 将多个空白字符替换为单个空格
+/// # Normalization Rules
+/// Remove the spaces at the beginning and end.
+/// 2. Replace multiple blank characters with a single space.
 /// 3. 将字符串常量替换为占位符($1, $2, ...)
-/// 4. 将数字常量替换为占位符
-/// 5. 统一转换为小写
+/// 4. Replace the numeric constants with placeholders.
+/// 5. Convert all text to lowercase.
 ///
-/// # 示例
+/// # Example
 /// ```
 /// use graphdb::query::optimizer::stats::feedback::fingerprint::normalize_query;
 ///
@@ -24,13 +24,13 @@
 /// assert_eq!(normalized, "select * from users where id = $1");
 /// ```
 pub fn normalize_query(query: &str) -> String {
-    // 1. 去除首尾空白
+    // Remove the leading and trailing spaces.
     let trimmed = query.trim();
 
-    // 2. 将多个空白字符替换为单个空格
+    // 2. Replace multiple whitespace characters with a single space.
     let normalized_whitespace = trimmed.split_whitespace().collect::<Vec<_>>().join(" ");
 
-    // 3. 将字符串常量替换为占位符
+    // 3. Replace the string constants with placeholders.
     let mut result = String::new();
     let mut in_string = false;
     let mut param_count = 0;
@@ -42,17 +42,17 @@ pub fn normalize_query(query: &str) -> String {
         let c = chars[i];
 
         if !in_string {
-            // 检查字符串开始
+            // Check if the string starts with...
             if c == '\'' || c == '"' {
                 in_string = true;
                 param_count += 1;
                 result.push_str(&format!("${}", param_count));
-                // 跳过直到字符串结束
+                // Skip until the end of the string.
                 let string_char = c;
                 i += 1;
                 while i < chars.len() {
                     if chars[i] == string_char {
-                        // 检查是否是转义
+                        // Check whether it is an escape sequence.
                         if i + 1 < chars.len() && chars[i + 1] == string_char {
                             i += 2;
                             continue;
@@ -62,16 +62,16 @@ pub fn normalize_query(query: &str) -> String {
                     i += 1;
                 }
             } else if c.is_ascii_digit() {
-                // 将数字常量替换为占位符
+                // Replace the numeric constants with placeholders.
                 param_count += 1;
                 result.push_str(&format!("${}", param_count));
-                // 跳过连续的数字
+                // Skip consecutive numbers.
                 while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') {
                     i += 1;
                 }
                 continue;
             } else {
-                // 统一转换为小写
+                // Convert all text to lowercase.
                 result.push(c.to_ascii_lowercase());
             }
         }
@@ -82,10 +82,10 @@ pub fn normalize_query(query: &str) -> String {
     result
 }
 
-/// 生成查询指纹
+/// Generate a query fingerprint
 ///
-/// 基于归一化后的查询字符串生成唯一指纹。
-/// 使用FNV-1a哈希算法。
+/// Generate a unique fingerprint based on the normalized query string.
+/// Use the FNV-1a hash algorithm.
 ///
 /// # 示例
 /// ```
@@ -95,12 +95,12 @@ pub fn normalize_query(query: &str) -> String {
 /// let query2 = "SELECT * FROM users WHERE id = 2";
 /// let fp1 = generate_query_fingerprint(query1);
 /// let fp2 = generate_query_fingerprint(query2);
-/// // 相同结构的不同查询应该有相同的指纹
+/// Different queries with the same structure should have the same “fingerprint” (i.e., the same result when analyzed using a specific algorithm or method).
 /// assert_eq!(fp1, fp2);
 /// ```
 pub fn generate_query_fingerprint(query: &str) -> String {
     let normalized = normalize_query(query);
-    // 使用简单的FNV-1a哈希算法
+    // Use the simple FNV-1a hashing algorithm.
     const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
     const FNV_PRIME: u64 = 0x100000001b3;
 
@@ -121,8 +121,8 @@ mod tests {
     fn test_normalize_query() {
         let query1 = "SELECT * FROM users WHERE age > 25 AND name = 'John'";
         let normalized1 = normalize_query(query1);
-        assert!(normalized1.contains("$1")); // 数字常量被替换
-        assert!(normalized1.contains("$2")); // 字符串常量被替换
+        assert!(normalized1.contains("$1")); // The numeric constants have been replaced.
+        assert!(normalized1.contains("$2")); // The string constant has been replaced.
         assert!(normalized1.starts_with("select * from users where"));
 
         let query2 = "  SELECT   id  FROM   t   WHERE  x = 100  ";
@@ -144,10 +144,10 @@ mod tests {
         let query2 = "SELECT * FROM users WHERE id = 2";
         let fp1 = generate_query_fingerprint(query1);
         let fp2 = generate_query_fingerprint(query2);
-        // 相同结构的不同查询应该有相同的指纹
+        // Different queries with the same structure should have the same “fingerprint” (i.e., the same set of characteristics that identify them as belonging to the same category).
         assert_eq!(fp1, fp2);
 
-        // 不同结构的查询应该有不同的指纹
+        // Queries with different structures should have different “fingerprints” (unique identifiers or characteristics that distinguish them from each other).
         let query3 = "SELECT * FROM orders WHERE id = 1";
         let fp3 = generate_query_fingerprint(query3);
         assert_ne!(fp1, fp3);

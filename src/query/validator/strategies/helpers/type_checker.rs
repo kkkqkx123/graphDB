@@ -1,5 +1,5 @@
-//! 类型检查工具
-//! 负责表达式类型推导、类型验证和类型兼容性检查
+//! Type checking tools
+//! Responsible for the derivation of expression types, type validation, and type compatibility checks.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::DataType;

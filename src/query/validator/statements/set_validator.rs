@@ -1,15 +1,15 @@
-//! SET/GET/SHOW 语句验证器 - 新体系版本
+//! SET/GET/SHOW statement validator – New system version
 //! 对应 NebulaGraph SetValidator.h/.cpp 的功能
-//! 验证 SET/GET/SHOW 语句的合法性
+//! Verify the validity of SET/GET/SHOW statements
 //!
-//! 本文件已按照新的 trait + 枚举 验证器体系重构：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 保留了原有完整功能：
-//!    - SET 变量验证
-//!    - SET Tag/Edge 属性验证
-//!    - SET 优先级验证
-//!    - 表达式验证
-//! 3. 使用 AstContext 统一管理上下文
+//! This document has been restructured in accordance with the new trait + enumeration validator framework.
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. All original functions have been retained.
+//! SET variable validation
+//! SET Tag/Edge property validation
+//! - SET priority verification
+//! Expression validation
+//! 3. Use AstContext to manage contexts in a unified manner.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -25,7 +25,7 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 
-/// SET 语句类型
+/// Types of SET statements
 #[derive(Debug, Clone, PartialEq)]
 pub enum SetStatementType {
     SetVariable,
@@ -34,7 +34,7 @@ pub enum SetStatementType {
     SetPriority,
 }
 
-/// SET 项定义
+/// SET item definition
 #[derive(Debug, Clone)]
 pub struct SetItem {
     pub statement_type: SetStatementType,
@@ -43,7 +43,7 @@ pub struct SetItem {
 }
 
 impl SetItem {
-    /// 创建新的 SET 项
+    /// Create a new SET item.
     pub fn new(
         statement_type: SetStatementType,
         target: ContextualExpression,
@@ -57,14 +57,14 @@ impl SetItem {
     }
 }
 
-/// 验证后的 SET 信息
+/// Verified SET information
 #[derive(Debug, Clone)]
 pub struct ValidatedSet {
     pub items: Vec<ValidatedSetItem>,
     pub variables: HashMap<String, ContextualExpression>,
 }
 
-/// 验证后的 SET 项
+/// Verified SET items
 #[derive(Debug, Clone)]
 pub struct ValidatedSetItem {
     pub statement_type: SetStatementType,
@@ -72,35 +72,35 @@ pub struct ValidatedSetItem {
     pub value: ContextualExpression,
 }
 
-/// SET 验证器 - 新体系实现
+/// SET Validator – New Implementation of the System
 ///
-/// 功能完整性保证：
-/// 1. 完整的验证生命周期
-/// 2. 输入/输出列管理
-/// 3. 表达式属性追踪
-/// 4. 变量管理
+/// Functionality integrity assurance:
+/// 1. Complete validation lifecycle
+/// 2. Management of input/output columns
+/// 3. Expression property tracking
+/// 4. Variable Management
 #[derive(Debug)]
 pub struct SetValidator {
-    // SET 项列表
+    // List of SET items
     set_items: Vec<SetItem>,
-    // 变量映射
+    // Variable mapping
     variables: HashMap<String, ContextualExpression>,
-    // 输入列定义
+    // Column definition
     inputs: Vec<ColumnDef>,
-    // 输出列定义
+    // Column definition
     outputs: Vec<ColumnDef>,
-    // 表达式属性
+    // Expression properties
     expr_props: ExpressionProps,
-    // 用户定义变量
+    // User-defined variables
     user_defined_vars: Vec<String>,
-    // 验证错误列表
+    // List of validation errors
     validation_errors: Vec<ValidationError>,
-    // 缓存验证结果
+    // Cache validation results
     validated_result: Option<ValidatedSet>,
 }
 
 impl SetValidator {
-    /// 创建新的验证器实例
+    /// Create a new instance of the validator.
     pub fn new() -> Self {
         Self {
             set_items: Vec::new(),
@@ -114,37 +114,37 @@ impl SetValidator {
         }
     }
 
-    /// 获取验证结果
+    /// Obtain the verification results.
     pub fn validated_result(&self) -> Option<&ValidatedSet> {
         self.validated_result.as_ref()
     }
 
-    /// 获取验证错误列表
+    /// Retrieve the list of verification errors.
     pub fn validation_errors(&self) -> &[ValidationError] {
         &self.validation_errors
     }
 
-    /// 添加验证错误
+    /// Add validation errors.
     fn add_error(&mut self, error: ValidationError) {
         self.validation_errors.push(error);
     }
 
-    /// 清空验证错误
+    /// Clear the verification errors.
     fn clear_errors(&mut self) {
         self.validation_errors.clear();
     }
 
-    /// 检查是否有验证错误
+    /// Check for any validation errors.
     fn has_errors(&self) -> bool {
         !self.validation_errors.is_empty()
     }
 
-    /// 添加 SET 项
+    /// Add a SET item
     pub fn add_set_item(&mut self, item: SetItem) {
         self.set_items.push(item);
     }
 
-    /// 设置变量
+    /// Setting variables
     pub fn set_variable(&mut self, name: String, value: ContextualExpression) {
         self.variables.insert(name.clone(), value);
         if !self.user_defined_vars.contains(&name) {
@@ -152,17 +152,17 @@ impl SetValidator {
         }
     }
 
-    /// 获取 SET 项列表
+    /// Obtain a list of SET items
     pub fn set_items(&self) -> &[SetItem] {
         &self.set_items
     }
 
-    /// 获取变量映射
+    /// Obtain the variable mapping.
     pub fn variables(&self) -> &HashMap<String, ContextualExpression> {
         &self.variables
     }
 
-    /// 验证 SET 语句（传统方式，保持向后兼容）
+    /// Verify the SET statement (traditional method, maintaining backward compatibility)
     pub fn validate_set(&mut self) -> Result<ValidatedSet, ValidationError> {
         let mut validated_items = Vec::new();
 
@@ -186,7 +186,7 @@ impl SetValidator {
         Ok(result)
     }
 
-    /// 验证单个 SET 项
+    /// Verify a single item in a SET
     fn validate_set_item(&self, item: &SetItem) -> Result<(), ValidationError> {
         match item.statement_type {
             SetStatementType::SetVariable => {
@@ -205,7 +205,7 @@ impl SetValidator {
         Ok(())
     }
 
-    /// 验证 SET 变量
+    /// Verify the SET variable
     fn validate_set_variable(
         &self,
         target: &ContextualExpression,
@@ -247,7 +247,7 @@ impl SetValidator {
         }
     }
 
-    /// 验证 SET Tag
+    /// Verify the SET Tag
     fn validate_set_tag(
         &self,
         target: &ContextualExpression,
@@ -269,7 +269,7 @@ impl SetValidator {
         Ok(())
     }
 
-    /// 验证 SET Edge
+    /// Verify the SET Edge configuration.
     fn validate_set_edge(
         &self,
         target: &ContextualExpression,
@@ -291,7 +291,7 @@ impl SetValidator {
         Ok(())
     }
 
-    /// 验证 SET 优先级
+    /// Verify the SET priority
     fn validate_set_priority(&self, value: &ContextualExpression) -> Result<(), ValidationError> {
         let expr_meta = match value.expression() {
             Some(m) => m,
@@ -328,7 +328,7 @@ impl SetValidator {
         }
     }
 
-    /// 验证变量
+    /// Verify the variable
     fn validate_variables(&self) -> Result<(), ValidationError> {
         for (name, value) in &self.variables {
             if name.is_empty() {
@@ -343,7 +343,7 @@ impl SetValidator {
                     ValidationErrorType::SemanticError,
                 ));
             }
-            // 验证变量值表达式
+            // Verify the variable value expression
             if let Some(expr_meta) = value.expression() {
                 self.validate_expression(expr_meta.inner())?;
             }
@@ -351,7 +351,7 @@ impl SetValidator {
         Ok(())
     }
 
-    /// 验证表达式
+    /// Verify the expression
     fn validate_expression(&self, expression: &Expression) -> Result<(), ValidationError> {
         match expression {
             Expression::Binary { left, right, .. } => {
@@ -419,16 +419,16 @@ impl SetValidator {
         Ok(())
     }
 
-    /// 验证具体语句
+    /// Verify the specific sentence.
     ///
-    /// # 重构变更
-    /// - 移除 AstContext 参数
-    /// - 接收 Arc<QueryContext> 参数
+    /// # Refactoring Changes
+    /// Remove the AstContext parameter.
+    /// - Receive the Arc<QueryContext> parameter
     fn validate_impl(&mut self, _qctx: Arc<QueryContext>) -> Result<(), ValidationError> {
-        // 执行 SET 验证
+        // Performing the SET validation
         self.validate_set()?;
 
-        // SET 语句的输出是设置的变量
+        // The output of the SET statement is the value assigned to the variable.
         self.outputs.clear();
         for name in self.variables.keys() {
             self.outputs.push(ColumnDef {
@@ -447,29 +447,29 @@ impl Default for SetValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
 /// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
-/// - 移除 AstContext 相关操作
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
+/// Remove operations related to AstContext.
 impl StatementValidator for SetValidator {
     fn validate(
         &mut self,
         _ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 清空之前的状态
+        // Clear the previous state.
         self.outputs.clear();
         self.inputs.clear();
         self.expr_props = ExpressionProps::default();
         self.clear_errors();
 
-        // 执行具体验证逻辑
+        // Perform the specific validation logic.
         if let Err(e) = self.validate_impl(qctx) {
             self.add_error(e);
         }
 
-        // 如果有验证错误，返回失败结果
+        // If there are any validation errors, return a failure result.
         if self.has_errors() {
             let errors = self.validation_errors.clone();
             return Ok(ValidationResult::failure(errors));
@@ -486,7 +486,7 @@ impl StatementValidator for SetValidator {
             }
         }
 
-        // 返回成功的验证结果
+        // Return the successful verification result.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -503,7 +503,7 @@ impl StatementValidator for SetValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // SET 是全局语句，不需要预先选择空间
+        // The `SET` statement is a global statement; therefore, there is no need to pre-select a specific scope (i.e., a specific database or table) for its execution.
         true
     }
 
@@ -557,7 +557,7 @@ mod tests {
     fn test_set_variable_validation() {
         let mut validator = SetValidator::new();
 
-        // 测试有效的变量设置
+        // Testing the effectiveness of the variable settings
         let item = SetItem::new(
             SetStatementType::SetVariable,
             create_contextual_expr(Expression::Variable("$var".to_string())),
@@ -573,7 +573,7 @@ mod tests {
     fn test_set_variable_invalid_name() {
         let mut validator = SetValidator::new();
 
-        // 测试无效的变量名（不以 $ 开头）
+        // Test invalid variable names (those that do not start with $).
         let item = SetItem::new(
             SetStatementType::SetVariable,
             create_contextual_expr(Expression::Variable("var".to_string())),
@@ -589,7 +589,7 @@ mod tests {
     fn test_set_priority_validation() {
         let mut validator = SetValidator::new();
 
-        // 测试有效的优先级设置
+        // Testing the effectiveness of the priority settings
         let item = SetItem::new(
             SetStatementType::SetPriority,
             create_contextual_expr(Expression::Variable("$priority".to_string())),
@@ -605,7 +605,7 @@ mod tests {
     fn test_set_priority_negative() {
         let mut validator = SetValidator::new();
 
-        // 测试无效的优先级（负数）
+        // Testing invalid priorities (negative numbers)
         let item = SetItem::new(
             SetStatementType::SetPriority,
             create_contextual_expr(Expression::Variable("$priority".to_string())),

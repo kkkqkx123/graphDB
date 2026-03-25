@@ -1,6 +1,6 @@
-//! DescSpaceExecutor - 描述图空间执行器
+//! DescSpaceExecutor - describes the graph space executor
 //!
-//! 负责查看指定图空间的详细信息。
+//! Responsible for viewing the details of the specified graph space.
 
 use std::sync::Arc;
 
@@ -11,7 +11,7 @@ use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 图空间详情
+/// Figure space details
 #[derive(Debug, Clone)]
 pub struct SpaceDesc {
     pub id: i32,
@@ -33,9 +33,9 @@ impl SpaceDesc {
     }
 }
 
-/// 描述图空间执行器
+/// Describe the graph space actuator
 ///
-/// 该执行器负责返回指定图空间的详细信息。
+/// This executor is responsible for returning detailed information about the specified graph space.
 #[derive(Debug)]
 pub struct DescSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -43,7 +43,7 @@ pub struct DescSpaceExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> DescSpaceExecutor<S> {
-    /// 创建新的 DescSpaceExecutor
+    /// Creating a new DescSpaceExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,

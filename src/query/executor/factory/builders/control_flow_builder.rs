@@ -1,6 +1,6 @@
-//! 控制流执行器构建器
+//! Control Flow Executor Builder
 //!
-//! 负责创建控制流类型的执行器（Loop, Select, Argument, PassThrough, DataCollect）
+//! Responsible for creating executors of different control flow types (Loop, Select, Argument, PassThrough, DataCollect).
 
 use crate::core::error::QueryError;
 use crate::query::executor::base::ExecutionContext;
@@ -23,20 +23,20 @@ type CreateExecutorFn<S> = dyn FnMut(
     &ExecutionContext,
 ) -> Result<ExecutorEnum<S>, QueryError>;
 
-/// 控制流执行器构建器
+/// Control Flow Executor Builder
 pub struct ControlFlowBuilder<S: StorageClient + Send + 'static> {
     _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
-    /// 创建新的控制流构建器
+    /// Create a new control flow builder.
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
     }
 
-    /// 构建 Loop 执行器
+    /// Constructing a Loop Executor
     pub fn build_loop(
         &self,
         node: &LoopNode,
@@ -67,7 +67,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         Ok(ExecutorEnum::Loop(executor))
     }
 
-    /// 构建 Select 执行器
+    /// Building the Select Executor
     pub fn build_select(
         &self,
         node: &SelectNode,
@@ -105,7 +105,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         Ok(ExecutorEnum::Select(executor))
     }
 
-    /// 构建 Argument 执行器
+    /// Constructing an Argument Executor
     pub fn build_argument(
         &self,
         node: &ArgumentNode,
@@ -121,7 +121,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         Ok(ExecutorEnum::Argument(executor))
     }
 
-    /// 构建 PassThrough 执行器
+    /// Constructing a PassThrough executor
     pub fn build_pass_through(
         &self,
         node: &PassThroughNode,
@@ -133,7 +133,7 @@ impl<S: StorageClient + Send + 'static> ControlFlowBuilder<S> {
         Ok(ExecutorEnum::PassThrough(executor))
     }
 
-    /// 构建 DataCollect 执行器
+    /// Building the DataCollect executor
     pub fn build_data_collect(
         &self,
         node: &DataCollectNode,

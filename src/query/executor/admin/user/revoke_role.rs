@@ -1,6 +1,6 @@
-//! RevokeRoleExecutor - 撤销角色执行器
+//! RevokeRoleExecutor – The role executor that is used to revoke roles.
 //!
-//! 负责撤销用户在指定空间的角色权限。
+//! Responsible for revoking user role permissions in a specified space.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -9,9 +9,9 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 撤销角色执行器
+/// Cancel the role executor.
 ///
-/// 该执行器负责撤销用户在指定空间的角色权限。
+/// This executor is responsible for revoking the role permissions of users in the specified space.
 #[derive(Debug)]
 pub struct RevokeRoleExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

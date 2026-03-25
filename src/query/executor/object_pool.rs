@@ -1,7 +1,7 @@
-//! 对象池模块
+//! Object Pool Module
 //!
-//! 提供执行器对象池，减少频繁的内存分配和释放
-//! 提高查询执行性能
+//! Provide an executor object pool to reduce the frequent allocation and release of memory.
+//! Improving the performance of query execution
 
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
@@ -9,12 +9,12 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// 对象池配置
+/// Object pool configuration
 #[derive(Debug, Clone)]
 pub struct ObjectPoolConfig {
-    /// 每种类型执行器的最大缓存数量
+    /// The maximum number of caches for each type of executor
     pub max_pool_size: usize,
-    /// 对象池是否启用
+    /// Is the object pool enabled?
     pub enabled: bool,
 }
 
@@ -27,30 +27,30 @@ impl Default for ObjectPoolConfig {
     }
 }
 
-/// 对象池 - 缓存执行器实例
+/// Object pool: A cache for executor instances
 ///
-/// 使用对象池模式重用执行器实例，减少内存分配开销
+/// Reuse executor instances by using the object pool pattern to reduce the overhead associated with memory allocation.
 pub struct ExecutorObjectPool<S: StorageClient + 'static> {
     config: ObjectPoolConfig,
     pools: HashMap<String, Vec<ExecutorEnum<S>>>,
     stats: PoolStats,
 }
 
-/// 对象池统计信息
+/// Object pool statistics
 #[derive(Debug, Clone, Default)]
 pub struct PoolStats {
-    /// 总获取次数
+    /// Total number of acquisitions
     pub total_acquires: usize,
-    /// 总释放次数
+    /// Total number of releases
     pub total_releases: usize,
-    /// 缓存命中次数
+    /// Number of cache hits
     pub cache_hits: usize,
-    /// 缓存未命中次数
+    /// Number of cache misses
     pub cache_misses: usize,
 }
 
 impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
-    /// 创建新的对象池
+    /// Create a new object pool.
     pub fn new(config: ObjectPoolConfig) -> Self {
         Self {
             config,
@@ -59,15 +59,15 @@ impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
         }
     }
 
-    /// 创建默认配置的对象池
+    /// Create an object pool with default configuration.
     pub fn default_pool() -> Self {
         Self::new(ObjectPoolConfig::default())
     }
 
-    /// 从对象池获取执行器
+    /// Obtain an executor from the object pool.
     ///
-    /// 如果池中有可用的执行器，则返回缓存的实例
-    /// 否则返回None，调用者需要创建新实例
+    /// If there are available executors in the pool, the cached instance is returned.
+    /// Otherwise, return `None`. The caller will need to create a new instance.
     pub fn acquire(&mut self, executor_type: &str) -> Option<ExecutorEnum<S>> {
         if !self.config.enabled {
             return None;
@@ -87,10 +87,10 @@ impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
         None
     }
 
-    /// 将执行器释放回对象池
+    /// Release the executor back to the object pool.
     ///
-    /// 如果池未满，则将执行器放回池中
-    /// 否则丢弃执行器
+    /// If the pool is not full, the executor will be returned to the pool.
+    /// Otherwise, discard the actuator.
     pub fn release(&mut self, executor_type: &str, executor: ExecutorEnum<S>) {
         if !self.config.enabled {
             return;
@@ -105,27 +105,27 @@ impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
         }
     }
 
-    /// 清空对象池
+    /// Clear the object pool.
     pub fn clear(&mut self) {
         self.pools.clear();
     }
 
-    /// 获取对象池统计信息
+    /// Obtain object pool statistics information
     pub fn stats(&self) -> &PoolStats {
         &self.stats
     }
 
-    /// 获取对象池配置
+    /// Obtaining the object pool configuration
     pub fn config(&self) -> &ObjectPoolConfig {
         &self.config
     }
 
-    /// 更新对象池配置
+    /// Update the object pool configuration.
     pub fn set_config(&mut self, config: ObjectPoolConfig) {
         self.config = config;
     }
 
-    /// 获取指定类型的池大小
+    /// Obtain the pool size of the specified type.
     pub fn pool_size(&self, executor_type: &str) -> usize {
         self.pools
             .get(executor_type)
@@ -133,26 +133,26 @@ impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
             .unwrap_or(0)
     }
 
-    /// 获取总池大小
+    /// Obtain the total size of the pool.
     pub fn total_size(&self) -> usize {
         self.pools.values().map(|pool| pool.len()).sum()
     }
 }
 
-/// 对象池包装器 - 提供线程安全的对象池
+/// Object pool wrapper – Provides a thread-safe object pool.
 pub struct ThreadSafeExecutorPool<S: StorageClient + 'static> {
     inner: Arc<Mutex<ExecutorObjectPool<S>>>,
 }
 
 impl<S: StorageClient + 'static> ThreadSafeExecutorPool<S> {
-    /// 创建新的线程安全对象池
+    /// Create a new thread-safe object pool.
     pub fn new(config: ObjectPoolConfig) -> Self {
         Self {
             inner: Arc::new(Mutex::new(ExecutorObjectPool::new(config))),
         }
     }
 
-    /// 创建默认配置的线程安全对象池
+    /// Create a thread-safe object pool with default configuration.
     pub fn default_pool() -> Self {
         Self::new(ObjectPoolConfig::default())
     }
@@ -244,8 +244,8 @@ mod tests {
     fn test_object_pool_release_and_acquire() {
         let pool = ExecutorObjectPool::<MockStorage>::default_pool();
 
-        // 由于没有实际的执行器实现，这里只测试接口
-        // 在实际使用中，会释放真实的执行器实例
+        // Since there is no actual implementation of the actuator, only the interface is being tested here.
+        // In practical use, real executor instances will be released.
         assert_eq!(pool.pool_size("TestExecutor"), 0);
     }
 

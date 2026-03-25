@@ -1,35 +1,35 @@
-//! PlanNode 统一特征定义
+//! Unified feature definition for PlanNode
 //!
-//! 定义所有计划节点需要实现的基础特征
+//! Define the basic characteristics that need to be implemented for all planned nodes.
 //!
-//! # 重构变更
-//! - 移除对 ast::Variable 的依赖，使用 String 替代
+//! # Refactoring Changes
+//! Remove the dependency on `ast::Variable` and use `String` instead.
 
-/// PlanNode 基础特征
+/// Basic Features of PlanNode
 pub trait PlanNode {
-    /// 获取节点的唯一ID
+    /// Obtain the unique ID of the node.
     fn id(&self) -> i64;
 
-    /// 获取节点类型的名称
+    /// Obtain the name of the node type.
     fn name(&self) -> &'static str;
 
-    /// 获取节点的输出变量名
+    /// Obtain the names of the output variables of the node.
     fn output_var(&self) -> Option<&str>;
 
-    /// 获取列名列表
+    /// Obtain a list of column names.
     fn col_names(&self) -> &[String];
 
-    /// 设置节点的输出变量名
+    /// Set the name of the output variable for the node.
     fn set_output_var(&mut self, var: String);
 
-    /// 设置列名
+    /// Set column names
     fn set_col_names(&mut self, names: Vec<String>);
 
-    /// 转换为 PlanNodeEnum
+    /// Convert to PlanNodeEnum
     fn into_enum(self) -> PlanNodeEnum;
 }
 
-/// 为引用类型实现 PlanNode trait
+/// Implementing the PlanNode trait for reference types
 impl<T: PlanNode + ?Sized> PlanNode for &T {
     fn id(&self) -> i64 {
         (**self).id()
@@ -48,66 +48,66 @@ impl<T: PlanNode + ?Sized> PlanNode for &T {
     }
 
     fn set_output_var(&mut self, _var: String) {
-        panic!("无法通过引用修改输出变量")
+        panic!("It is not possible to modify the output variable by using a reference.")
     }
 
     fn set_col_names(&mut self, _names: Vec<String>) {
-        panic!("无法通过引用修改列名")
+        panic!("It is not possible to modify column names by using references.")
     }
 
     fn into_enum(self) -> PlanNodeEnum {
-        panic!("无法将引用转换为 PlanNodeEnum")
+        panic!("It is not possible to convert the reference into a PlanNodeEnum.")
     }
 }
 
-/// 单输入节点特征
+/// Single-input node feature
 ///
-/// 适用于只有一个输入的节点
+/// Applicable to nodes that have only one input.
 pub trait SingleInputNode: PlanNode {
-    /// 获取输入节点
+    /// Obtain the input node
     fn input(&self) -> &PlanNodeEnum;
 
-    /// 获取输入节点的可变引用
+    /// Obtain a variable reference to the input node.
     fn input_mut(&mut self) -> &mut PlanNodeEnum;
 
-    /// 设置输入节点
+    /// Setting the input node
     fn set_input(&mut self, input: PlanNodeEnum);
 
-    /// 获取输入数量（始终为1）
+    /// Get the number of inputs (which is always 1).
     fn input_count(&self) -> usize {
         1
     }
 }
 
-/// 双输入节点特征
+/// Features of dual-input nodes
 ///
-/// 适用于有两个输入的节点（如连接操作）
+/// Applicable to nodes with two inputs (such as a join operation).
 pub trait BinaryInputNode: PlanNode {
-    /// 获取左输入节点
+    /// Obtain the left input node.
     fn left_input(&self) -> &PlanNodeEnum;
 
-    /// 获取右输入节点
+    /// Obtain the right input node
     fn right_input(&self) -> &PlanNodeEnum;
 
-    /// 获取左输入节点的可变引用
+    /// Obtain a variable reference to the left input node.
     fn left_input_mut(&mut self) -> &mut PlanNodeEnum;
 
-    /// 获取右输入节点的可变引用
+    /// Obtain a variable reference to the right input node.
     fn right_input_mut(&mut self) -> &mut PlanNodeEnum;
 
-    /// 设置左输入节点
+    /// Set the left input node
     fn set_left_input(&mut self, input: PlanNodeEnum);
 
-    /// 设置右输入节点
+    /// Set the right input node
     fn set_right_input(&mut self, input: PlanNodeEnum);
 
-    /// 获取输入数量（始终为2）
+    /// Get the number of inputs (always 2).
     fn input_count(&self) -> usize {
         2
     }
 }
 
-/// 为引用类型实现 BinaryInputNode trait
+/// Implement the BinaryInputNode trait for reference types
 impl<T: BinaryInputNode + ?Sized> BinaryInputNode for &T {
     fn left_input(&self) -> &PlanNodeEnum {
         (**self).left_input()
@@ -118,35 +118,35 @@ impl<T: BinaryInputNode + ?Sized> BinaryInputNode for &T {
     }
 
     fn left_input_mut(&mut self) -> &mut PlanNodeEnum {
-        panic!("无法通过引用修改输入节点")
+        panic!("It is not possible to modify the input node by using references.")
     }
 
     fn right_input_mut(&mut self) -> &mut PlanNodeEnum {
-        panic!("无法通过引用修改输入节点")
+        panic!("It is not possible to modify the input node by using references.")
     }
 
     fn set_left_input(&mut self, _input: PlanNodeEnum) {
-        panic!("无法通过引用修改输入节点")
+        panic!("It is not possible to modify the input node by using references.")
     }
 
     fn set_right_input(&mut self, _input: PlanNodeEnum) {
-        panic!("无法通过引用修改输入节点")
+        panic!("It is not possible to modify the input node by using references.")
     }
 }
 
-/// 连接节点特征
+/// Connection node features
 ///
-/// 适用于所有类型的连接操作（内连接、左连接、交叉连接等）
-/// 统一了连接节点的接口，便于在执行器工厂中统一处理
+/// Applicable to all types of join operations (inner join, left join, cross join, etc.)
+/// The interfaces for connecting the nodes have been unified, which facilitates consistent processing within the executor factory.
 pub trait JoinNode: BinaryInputNode {
-    /// 获取哈希键（用于构建哈希表）
+    /// Obtaining the hash key (used to construct a hash table)
     fn hash_keys(&self) -> &[crate::core::types::expr::contextual::ContextualExpression];
 
-    /// 获取探测键（用于探测哈希表）
+    /// Obtain the detection key (used for probing the hash table)
     fn probe_keys(&self) -> &[crate::core::types::expr::contextual::ContextualExpression];
 }
 
-/// 为引用类型实现 JoinNode trait
+/// Implement the JoinNode trait for reference types
 impl<T: JoinNode + ?Sized> JoinNode for &T {
     fn hash_keys(&self) -> &[crate::core::types::expr::contextual::ContextualExpression] {
         (**self).hash_keys()
@@ -157,46 +157,46 @@ impl<T: JoinNode + ?Sized> JoinNode for &T {
     }
 }
 
-/// 多输入节点特征
+/// Input more node features.
 ///
-/// 适用于有多个输入的节点（如Union）
+/// Applicable to nodes with multiple inputs (such as Union)
 pub trait MultipleInputNode: PlanNode {
-    /// 获取所有输入节点
+    /// Obtain all the input nodes.
     fn inputs(&self) -> &[PlanNodeEnum];
 
-    /// 获取所有输入节点的可变引用
+    /// Obtain variable references to all input nodes.
     fn inputs_mut(&mut self) -> &mut Vec<PlanNodeEnum>;
 
-    /// 添加输入节点
+    /// Add an input node.
     fn add_input(&mut self, input: PlanNodeEnum);
 
-    /// 移除指定索引的输入节点
+    /// Remove the input node at the specified index.
     fn remove_input(&mut self, index: usize) -> Result<(), String>;
 
-    /// 获取输入数量
+    /// Obtain the number of inputs
     fn input_count(&self) -> usize {
         self.inputs().len()
     }
 }
 
-/// 无输入节点特征
+/// No input node features available.
 ///
-/// 适用于没有输入的节点（如Start）
+/// Applicable to nodes for which no input has been provided (such as “Start”).
 pub trait ZeroInputNode: PlanNode {
-    /// 获取输入数量（始终为0）
+    /// Get the number of inputs (which is always 0).
     fn input_count(&self) -> usize {
         0
     }
 }
 
-/// PlanNode 可克隆特征
+/// The PlanNode feature can be cloned.
 pub trait PlanNodeClonable {
-    /// 克隆节点
+    /// Cloned node
     fn clone_plan_node(&self) -> PlanNodeEnum;
 
-    /// 克隆节点并分配新的ID
+    /// Clone the node and assign it a new ID.
     fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum;
 }
 
-// 前向声明
+// Forward declaration
 use super::plan_node_enum::PlanNodeEnum;

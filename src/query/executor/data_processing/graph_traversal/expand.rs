@@ -12,25 +12,25 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// ExpandExecutor - 路径扩展执行器
+/// ExpandExecutor – An executor for path expansion (i.e., the process of extending or modifying paths in a given context)
 ///
-/// 从当前节点按照指定的边类型和方向扩展，获取相邻节点
-/// 支持多步扩展和采样，通常用于图遍历和路径查询
+/// Expand from the current node in the specified direction along the given edge type to obtain the adjacent nodes.
+/// Supports multi-step expansion and sampling, and is commonly used for graph traversal and path querying.
 pub struct ExpandExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
-    pub max_depth: Option<usize>,        // 最大扩展深度
-    pub step_limits: Option<Vec<usize>>, // 每步的扩展限制
-    pub sample: bool,                    // 是否启用采样
-    pub sample_limit: Option<usize>,     // 采样限制
-    pub with_loop: bool,                 // 是否允许自环边
+    pub max_depth: Option<usize>,        // Maximum expansion depth
+    pub step_limits: Option<Vec<usize>>, // Expansion limits for each step
+    pub sample: bool,                    // Should sampling be enabled?
+    pub sample_limit: Option<usize>,     // Sampling limitations
+    pub with_loop: bool,                 // Are self-loop edges allowed?
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    // 缓存已访问的节点，用于避免循环
+    // The cache stores the nodes that have been accessed, in order to avoid loops.
     pub visited_nodes: HashSet<Value>,
-    // 邻接关系缓存
+    // Adjacency relationship cache
     adjacency_cache: HashMap<Value, Vec<Value>>,
-    // 当前扩展步数
+    // Current number of expansion steps
     current_step: usize,
 }
 
@@ -74,20 +74,20 @@ impl<S: StorageClient> ExpandExecutor<S> {
         }
     }
 
-    /// 设置每步的扩展限制
+    /// Set the expansion limits for each step
     pub fn with_step_limits(mut self, step_limits: Vec<usize>) -> Self {
         self.step_limits = Some(step_limits);
         self
     }
 
-    /// 启用采样
+    /// Enable sampling
     pub fn with_sampling(mut self, sample_limit: usize) -> Self {
         self.sample = true;
         self.sample_limit = Some(sample_limit);
         self
     }
 
-    /// 设置是否允许自环边
+    /// Set whether to allow self-looping edges.
     pub fn with_loop(mut self, with_loop: bool) -> Self {
         self.with_loop = with_loop;
         self
@@ -101,28 +101,28 @@ impl<S: StorageClient> ExpandExecutor<S> {
         for step in 0..max_steps {
             self.current_step = step;
 
-            // 检查每步的限制
+            // Check the restrictions for each step.
             if let Some(ref step_limits) = self.step_limits {
                 if step < step_limits.len() && current_nodes.len() > step_limits[step] {
-                    // 应用采样
+                    // Application sampling
                     current_nodes = self.apply_sampling(&current_nodes, step_limits[step])?;
                 }
             }
 
-            // 执行单步扩展
+            // Execute single-step expansion.
             current_nodes = self.expand_step(current_nodes)?;
 
-            // 检查是否还有节点可以扩展
+            // Check whether there are any additional nodes that can be expanded.
             if current_nodes.is_empty() {
                 break;
             }
 
-            // 记录扩展的节点
+            // Record the extended nodes.
             for node in &current_nodes {
                 all_expanded.insert(node.clone());
             }
 
-            // 更新统计信息
+            // Update statistical information
             self.base.get_stats_mut().add_stat(
                 format!("step_{}_count", step),
                 current_nodes.len().to_string(),
@@ -132,13 +132,13 @@ impl<S: StorageClient> ExpandExecutor<S> {
         Ok(all_expanded.into_iter().collect())
     }
 
-    /// 应用水库采样算法
+    /// Application of the reservoir sampling algorithm
     fn apply_sampling(&self, nodes: &[Value], limit: usize) -> Result<Vec<Value>, QueryError> {
         if nodes.len() <= limit {
             return Ok(nodes.to_vec());
         }
 
-        // 使用水库采样算法
+        // Use the reservoir sampling algorithm
         let mut sampled = Vec::with_capacity(limit);
         for (i, node) in nodes.iter().enumerate() {
             if i < limit {
@@ -166,27 +166,27 @@ impl<S: StorageClient> ExpandExecutor<S> {
         .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
-    /// 执行单步扩展
+    /// Execute single-step expansion.
     fn expand_step(&mut self, input_nodes: Vec<Value>) -> Result<Vec<Value>, QueryError> {
         let mut expanded_nodes = Vec::new();
 
         for node_id in input_nodes {
-            // 检查是否已访问过该节点
+            // Check whether the node has been accessed before.
             if self.visited_nodes.contains(&node_id) {
                 continue;
             }
 
-            // 标记为已访问
+            // Marked as visited
             self.visited_nodes.insert(node_id.clone());
 
-            // 获取邻居节点
+            // Obtaining neighbor nodes
             let neighbors = self.get_neighbors(&node_id)?;
 
-            // 缓存邻接关系
+            // Cache of adjacency relationships
             self.adjacency_cache
                 .insert(node_id.clone(), neighbors.clone());
 
-            // 添加未访问的邻居节点
+            // Add unvisited neighbor nodes
             for neighbor in neighbors {
                 if !self.visited_nodes.contains(&neighbor) {
                     expanded_nodes.push(neighbor);
@@ -197,9 +197,9 @@ impl<S: StorageClient> ExpandExecutor<S> {
         Ok(expanded_nodes)
     }
 
-    /// 构建扩展结果
+    /// Construct the extended result.
     fn build_expansion_result(&self, expanded_nodes: Vec<Value>) -> ExecutionResult {
-        // 将节点ID转换为顶点对象
+        // Convert the node ID into a vertex object.
         let mut vertices = Vec::new();
         let storage = self.get_storage().lock();
 
@@ -227,15 +227,15 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
 
-        // 首先执行输入执行器（如果存在）
+        // First, execute the input executor (if it exists).
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute()?
         } else {
-            // 如果没有输入执行器，返回空结果
+            // If no actuator is specified, return an empty result.
             ExecutionResult::Vertices(Vec::new())
         };
 
-        // 提取输入节点
+        // Extract the input node.
         let input_nodes = match input_result {
             ExecutionResult::Vertices(vertices) => vertices.into_iter().map(|v| *v.vid).collect(),
             ExecutionResult::Edges(edges) => {
@@ -261,17 +261,17 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandExecutor<S> {
             _ => Vec::new(),
         };
 
-        // 执行扩展操作
+        // Perform the expansion operation.
         let expanded_nodes = if self.max_depth.unwrap_or(1) > 1 {
             self.expand_multi_step(input_nodes).map_err(DBError::from)?
         } else {
             self.expand_step(input_nodes).map_err(DBError::from)?
         };
 
-        // 构建结果
+        // Build the results.
         let result = self.build_expansion_result(expanded_nodes);
 
-        // 更新统计信息
+        // Update statistical information
         self.base.get_stats_mut().add_row(result.count());
         self.base.get_stats_mut().add_exec_time(start.elapsed());
         self.base.get_stats_mut().add_total_time(start.elapsed());
@@ -280,7 +280,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandExecutor<S> {
     }
 
     fn open(&mut self) -> DBResult<()> {
-        // 初始化扩展所需的任何资源
+        // Initialize any resources required for the extension.
         self.visited_nodes.clear();
         self.adjacency_cache.clear();
         self.current_step = 0;
@@ -292,7 +292,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandExecutor<S> {
     }
 
     fn close(&mut self) -> DBResult<()> {
-        // 清理资源
+        // Clean up resources
         self.visited_nodes.clear();
         self.adjacency_cache.clear();
         self.current_step = 0;

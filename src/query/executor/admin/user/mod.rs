@@ -1,6 +1,6 @@
-//! 用户管理执行器
+//! User management actuator
 //!
-//! 提供用户管理功能（支持多用户，5级权限模型）。
+//! Provide user management function (support multi-user, 5-level permission model).
 
 pub mod alter_user;
 pub mod change_password;

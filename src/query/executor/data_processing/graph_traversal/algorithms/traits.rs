@@ -1,27 +1,27 @@
-//! 图算法 trait 定义
+//! Definition of the `Graph Algorithms` trait
 //!
-//! 定义各种图算法的统一接口
+//! Define a unified interface for various graph algorithms
 
 use super::types::AlgorithmStats;
 use crate::core::{Path, Value};
 use crate::query::QueryError;
 
-/// 最短路径算法接口
+/// Shortest Path Algorithm Interface
 ///
-/// 所有最短路径算法实现此 trait
+/// All implementations of shortest path algorithms adhere to this trait.
 pub trait ShortestPathAlgorithm {
-    /// 查找最短路径
+    /// Find the shortest path.
     ///
-    /// # 参数
-    /// - `start_ids`: 起始顶点ID列表
-    /// - `end_ids`: 目标顶点ID列表
-    /// - `edge_types`: 边类型过滤（None表示不过滤）
-    /// - `max_depth`: 最大搜索深度（None表示无限制）
-    /// - `single_shortest`: 是否只返回一条最短路径
-    /// - `limit`: 返回路径数量限制
+    /// # Parameters
+    /// `start_ids`: List of starting vertex IDs
+    /// `end_ids`: List of target vertex IDs
+    /// `edge_types`: Filter by edge type (None indicates no filtering).
+    /// `max_depth`: The maximum search depth (None indicates no limit).
+    /// `single_shortest`: Whether to return only the shortest path.
+    /// `limit`: Returns the limit on the number of paths that can be returned.
     ///
-    /// # 返回
-    /// 找到的路径列表
+    /// # Return
+    /// List of found paths
     fn find_paths(
         &mut self,
         start_ids: &[Value],
@@ -32,26 +32,26 @@ pub trait ShortestPathAlgorithm {
         limit: usize,
     ) -> Result<Vec<Path>, QueryError>;
 
-    /// 获取算法统计信息
+    /// Obtain algorithm statistics information
     fn stats(&self) -> &AlgorithmStats;
 
-    /// 获取可变的算法统计信息
+    /// Obtaining variable algorithmic statistics information
     fn stats_mut(&mut self) -> &mut AlgorithmStats;
 }
 
-/// 路径查找算法接口（用于查找所有路径，不只是最短路径）
+/// Pathfinding algorithm interface (used to find all paths, not just the shortest one)
 pub trait PathFindingAlgorithm {
-    /// 查找所有路径
+    /// Find all paths.
     ///
     /// # 参数
     /// - `start_ids`: 起始顶点ID列表
     /// - `end_ids`: 目标顶点ID列表
-    /// - `edge_types`: 边类型过滤
-    /// - `max_depth`: 最大搜索深度
+    /// `edge_types`: Filter by edge type
+    /// `max_depth`: The maximum depth of the search.
     /// - `limit`: 返回路径数量限制
     ///
     /// # 返回
-    /// 找到的所有路径列表
+    /// List of all found paths
     fn find_all_paths(
         &mut self,
         start_ids: &[Value],
@@ -65,18 +65,18 @@ pub trait PathFindingAlgorithm {
     fn stats(&self) -> &AlgorithmStats;
 }
 
-/// 图遍历算法接口
+/// Graph Traversal Algorithm Interface
 pub trait TraversalAlgorithm {
-    /// 遍历图
+    /// Traverse a graph
     ///
     /// # 参数
     /// - `start_ids`: 起始顶点ID列表
     /// - `edge_types`: 边类型过滤
-    /// - `max_depth`: 最大遍历深度
-    /// - `limit`: 返回顶点数量限制
+    /// `max_depth`: The maximum depth of the traversal.
+    /// `limit`: Returns the limit on the number of vertices.
     ///
     /// # 返回
-    /// 遍历到的顶点列表
+    /// List of vertices that have been traversed
     fn traverse(
         &mut self,
         start_ids: &[Value],
@@ -89,20 +89,20 @@ pub trait TraversalAlgorithm {
     fn stats(&self) -> &AlgorithmStats;
 }
 
-/// 算法上下文
+/// Algorithm context
 ///
-/// 提供算法执行所需的上下文信息
+/// Provide the contextual information required for the execution of the algorithm.
 #[derive(Debug, Clone)]
 pub struct AlgorithmContext {
-    /// 最大搜索深度
+    /// Maximum search depth
     pub max_depth: Option<usize>,
-    /// 结果数量限制
+    /// Limit on the number of results
     pub limit: usize,
-    /// 是否只返回单条最短路径
+    /// Should only the shortest path be returned?
     pub single_shortest: bool,
-    /// 是否允许回路（路径中重复访问顶点）
+    /// Is it allowed for loops (repeated visits to the same vertex within the path)?
     pub with_cycle: bool,
-    /// 是否允许自环边（A->A）
+    /// Are self-loop edges (A->A) allowed?
     pub with_loop: bool,
 }
 

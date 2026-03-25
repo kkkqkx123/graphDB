@@ -1,10 +1,10 @@
-//! 规划器注册机制
-//! 使用类型安全的枚举实现静态注册，完全消除动态分发
+//! Planner registration mechanism
+//! Implement static registration using type-safe enumerations to completely eliminate dynamic distribution.
 //!
-//! # 重构说明
+//! # Explanation of the reconstruction process
 //!
-//! 本模块已完全重构，删除了旧的 SentenceKind 字符串匹配机制。
-//! 现在使用直接的枚举模式匹配从 Stmt 创建规划器。
+//! This module has been completely restructured, and the old mechanism for matching SentenceKind strings has been removed.
+//! Now, use the direct enumeration mode to match the planner created from the Stmt.
 
 use std::sync::Arc;
 
@@ -13,7 +13,7 @@ use crate::query::planning::plan::ExecutionPlan;
 use crate::query::planning::plan::SubPlan;
 use crate::query::QueryContext;
 
-// 公开导出 ValidatedStatement，供 planner 实现使用
+// The ValidatedStatement is publicly exported for use by the planner implementation.
 pub use crate::query::validator::ValidatedStatement;
 
 use crate::query::planning::rewrite::{rewrite_plan, RewriteError};
@@ -38,7 +38,7 @@ use crate::query::planning::statements::user_management_planner::UserManagementP
 use crate::query::planning::statements::with_planner::WithPlanner;
 use crate::query::planning::statements::yield_planner::YieldPlanner;
 
-/// 规划器配置
+///  Planner Configuration
 #[derive(Debug, Clone)]
 pub struct PlannerConfig {
     pub max_plan_depth: usize,
@@ -56,30 +56,30 @@ impl Default for PlannerConfig {
     }
 }
 
-/// 匹配函数类型
+/// Match function type
 pub type MatchFunc = fn(&Stmt) -> bool;
 
-/// 规划器特征
+///  Planner Features
 ///
-/// # 设计原则
-/// - transform 方法接收 Arc<QueryContext> 和 &ValidatedStatement
-/// - match_planner 方法接收 &Stmt 用于匹配判断
+/// # Design Principles
+/// The `transform` method accepts an `Arc<QueryContext>` and a `&ValidatedStatement`.
+/// The `match_planner` method receives an `&Stmt` object, which is used for matching and making judgments.
 pub trait Planner: std::fmt::Debug {
-    /// 转换验证后的语句为执行子计划
+    /// Translate the verified sentence into English: “Execute the sub-plan.”
     ///
-    /// # 参数
-    /// - `validated`: 验证后的语句，包含 ValidationInfo 和 Ast
-    /// - `qctx`: 查询上下文
+    /// # Parameters
+    /// Validated: A verified statement that contains ValidationInfo and Ast.
+    /// `qctx`: Query context
     fn transform(
         &mut self,
         validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError>;
 
-    /// 检查此规划器是否能处理给定的语句
+    /// Check whether this planner can handle the given sentence.
     fn match_planner(&self, stmt: &Stmt) -> bool;
 
-    /// 使用验证后的语句进行完整转换
+    /// Use the verified statements to complete the translation.
     fn transform_with_full_context(
         &mut self,
         qctx: Arc<QueryContext>,
@@ -88,7 +88,7 @@ pub trait Planner: std::fmt::Debug {
         let sub_plan = self.transform(validated, qctx)?;
         let plan = ExecutionPlan::new(sub_plan.root().clone());
 
-        // 应用计划重写优化
+        // Application plan rewrite and optimization
         let plan = rewrite_plan(plan)?;
 
         Ok(plan)
@@ -100,11 +100,11 @@ pub trait Planner: std::fmt::Debug {
 }
 
 // ============================================================================
-// 静态注册实现 - 完全消除动态分发
+// Implementation of static registration – complete elimination of dynamic distribution
 // ============================================================================
 
-/// 规划器枚举 - 静态分发核心
-/// 完全消除动态分发，使用编译时多态
+/// Planner Enumeration – Core for Static Distribution
+/// Eliminate dynamic distribution completely and use compile-time polymorphism instead.
 #[derive(Debug, Clone)]
 pub enum PlannerEnum {
     Match(MatchStatementPlanner),
@@ -130,8 +130,8 @@ pub enum PlannerEnum {
 }
 
 impl PlannerEnum {
-    /// 直接从 Arc<Stmt> 创建规划器（推荐方式）
-    /// 使用枚举模式匹配，完全消除字符串匹配
+    /// Create a planner directly from Arc<Stmt> (the recommended method).
+    /// Use the enumeration pattern for matching to completely eliminate the need for string matching.
     pub fn from_stmt(stmt: &Arc<Stmt>) -> Option<Self> {
         match stmt.as_ref() {
             Stmt::Match(_) => Some(PlannerEnum::Match(MatchStatementPlanner::new())),
@@ -158,7 +158,7 @@ impl PlannerEnum {
             Stmt::With(_) => Some(PlannerEnum::With(WithPlanner::new())),
             Stmt::Return(_) => Some(PlannerEnum::Return(ReturnPlanner::new())),
             Stmt::Yield(_) => Some(PlannerEnum::Yield(YieldPlanner::new())),
-            // DDL/DML 操作使用 Maintain 规划器
+            // DDL/DML operations use the Maintain planner.
             Stmt::Create(_)
             | Stmt::Drop(_)
             | Stmt::Show(_)
@@ -180,18 +180,18 @@ impl PlannerEnum {
             | Stmt::ShowConfigs(_)
             | Stmt::UpdateConfigs(_)
             | Stmt::ClearSpace(_) => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
-            // 以下语句类型暂不支持直接规划
+            // The type of the following sentence does not currently support direct planning.
             _ => None,
         }
     }
 
-    /// 从 Arc<Ast> 创建规划器
-    /// 这是新的推荐方式，表达式上下文在 Ast 中
+    /// Create a planner from Arc<Ast>.
+    /// This is the new recommendation method; the context of the expressions is defined within Ast.
     pub fn from_ast(ast: &Arc<crate::query::parser::ast::stmt::Ast>) -> Option<Self> {
         Self::from_stmt(&Arc::new(ast.stmt.clone()))
     }
 
-    /// 将验证后的语句转换为执行计划
+    /// Convert the verified statement into an execution plan.
     pub fn transform(
         &mut self,
         validated: &ValidatedStatement,
@@ -221,7 +221,7 @@ impl PlannerEnum {
         }
     }
 
-    /// 获取规划器名称
+    /// Obtain the name of the planner.
     pub fn name(&self) -> &'static str {
         match self {
             PlannerEnum::Match(_) => "MatchPlanner",
@@ -247,7 +247,7 @@ impl PlannerEnum {
         }
     }
 
-    /// 检查是否匹配
+    /// Check whether there is a match.
     pub fn matches(&self, stmt: &Stmt) -> bool {
         match self {
             PlannerEnum::Match(planner) => planner.match_planner(stmt),
@@ -274,7 +274,7 @@ impl PlannerEnum {
     }
 }
 
-/// 错误处理宏
+/// Error handling macros
 #[macro_export]
 macro_rules! ng_return_if_error {
     ($expr:expr) => {
@@ -285,7 +285,7 @@ macro_rules! ng_return_if_error {
     };
 }
 
-/// 错误处理宏变体
+/// Error handling macro variants
 #[macro_export]
 macro_rules! ng_ok_or_err {
     ($expr:expr, $msg:expr) => {
@@ -296,7 +296,7 @@ macro_rules! ng_ok_or_err {
     };
 }
 
-/// 规划器错误类型
+/// Planner error type
 #[derive(Debug, thiserror::Error)]
 pub enum PlannerError {
     #[error("No suitable planner found: {0}")]
@@ -324,14 +324,14 @@ pub enum PlannerError {
     InvalidOperation(String),
 }
 
-// 为 DBError 实现 From 转换
+// Implement the From conversion for the DBError class.
 impl From<crate::core::error::DBError> for PlannerError {
     fn from(err: crate::core::error::DBError) -> Self {
         PlannerError::PlanGenerationFailed(err.to_string())
     }
 }
 
-// 为 RewriteError 实现 From 转换
+// Implement the From conversion for the RewriteError
 impl From<RewriteError> for PlannerError {
     fn from(err: RewriteError) -> Self {
         PlannerError::PlanGenerationFailed(format!("Plan rewrite failed: {}", err))
@@ -344,7 +344,7 @@ mod tests {
 
     #[test]
     fn test_planner_enum_from_stmt() {
-        // 测试从 Stmt 创建规划器
+        // Testing the creation of a planner from a Stmt
         let match_stmt = Stmt::Match(crate::query::parser::ast::MatchStmt {
             span: crate::core::types::Span::default(),
             patterns: vec![],

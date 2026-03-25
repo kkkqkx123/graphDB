@@ -1,6 +1,6 @@
-//! AlterTagExecutor - 修改标签执行器
+//! AlterTagExecutor – The tag modification executor
 //!
-//! 负责修改已存在标签的属性定义。
+//! Responsible for modifying the attribute definitions of existing tags.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 标签修改操作类型
+/// Type of label modification operation
 #[derive(Debug, Clone)]
 pub enum AlterTagOp {
     Add,
@@ -18,7 +18,7 @@ pub enum AlterTagOp {
     Change,
 }
 
-/// 标签修改项
+/// Tag modification items
 #[derive(Debug, Clone)]
 pub struct AlterTagItem {
     pub op: AlterTagOp,
@@ -44,7 +44,7 @@ impl AlterTagItem {
     }
 }
 
-/// 标签修改信息
+/// Tag modification information
 #[derive(Debug, Clone)]
 pub struct AlterTagInfo {
     pub space_name: String,
@@ -74,9 +74,9 @@ impl AlterTagInfo {
     }
 }
 
-/// 修改标签执行器
+/// Modify the Tag Executor
 ///
-/// 该执行器负责修改已存在标签的属性定义。
+/// This executor is responsible for modifying the attribute definitions of existing tags.
 #[derive(Debug)]
 pub struct AlterTagExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -84,7 +84,7 @@ pub struct AlterTagExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> AlterTagExecutor<S> {
-    /// 创建新的 AlterTagExecutor
+    /// Create a new AlterTagExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,

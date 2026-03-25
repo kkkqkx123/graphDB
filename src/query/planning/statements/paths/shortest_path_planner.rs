@@ -1,6 +1,6 @@
-//! 最短路径规划器
+//! Shortest Path Planner
 //!
-//! 负责规划最短路径查询，支持 BFS 等算法
+//! Responsible for planning shortest path queries, supporting algorithms such as BFS (Breadth-First Search).
 
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::{Edge, StorageError, Value, Vertex};
@@ -817,7 +817,7 @@ mod tests {
     #[test]
     fn test_shortest_path_planner_new() {
         let _planner = ShortestPathPlanner::new();
-        // 测试通过到达此处即表示成功
+        // The test has been successful; reaching this point indicates that the goal has been achieved.
     }
 
     #[test]
@@ -827,6 +827,6 @@ mod tests {
             direction: Some(EdgeDirection::Out),
             properties: vec![],
         };
-        // 测试通过到达此处即表示成功
+        // The test has been successful; reaching this point indicates that the goal has been achieved.
     }
 }

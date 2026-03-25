@@ -1,32 +1,32 @@
-//! 统一执行状态枚举定义
+//! Unified implementation of the status enumeration definition
 //!
-//! 此模块提供查询执行过程中的统一状态枚举，整合分散在各处的状态定义。
-//! 采用分层状态机设计，区分不同层次的状态管理。
+//! This module provides a unified status enumeration for the query execution process, integrating the status definitions that were previously scattered in various locations.
+//! The design adopts a hierarchical state machine to manage states at different levels separately.
 
 use std::fmt;
 
-/// 查询执行状态 - 顶层执行流程状态
+/// Query execution status – Top-level execution process status
 ///
-/// 表示整个查询执行的生命周期状态，用于查询流程管理。
+/// Indicates the lifecycle status of the entire query execution, which is used for query process management.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum QueryExecutionState {
-    /// 查询已创建，等待执行
+    /// The query has been created and is waiting to be executed.
     #[default]
     Pending,
-    /// 查询正在执行中
+    /// The query is currently being executed.
     Running,
-    /// 查询执行完成
+    /// The query execution has been completed.
     Completed,
-    /// 查询执行失败
+    /// The query execution failed.
     Failed,
-    /// 查询被取消
+    /// The query has been cancelled.
     Cancelled,
-    /// 查询执行超时
+    /// Query execution timed out.
     Timeout,
 }
 
 impl QueryExecutionState {
-    /// 检查状态是否为终态
+    /// Check whether the status is final.
     pub fn is_terminal(&self) -> bool {
         matches!(
             self,
@@ -37,7 +37,7 @@ impl QueryExecutionState {
         )
     }
 
-    /// 检查状态是否允许取消
+    /// Check whether the status allows cancellation.
     pub fn can_cancel(&self) -> bool {
         matches!(
             self,
@@ -45,7 +45,7 @@ impl QueryExecutionState {
         )
     }
 
-    /// 获取状态的中文描述
+    /// Obtain the Chinese description of the status.
     pub fn description(&self) -> &'static str {
         match self {
             QueryExecutionState::Pending => "等待执行",
@@ -64,44 +64,44 @@ impl fmt::Display for QueryExecutionState {
     }
 }
 
-/// 执行器状态 - 单个执行器的运行状态
+/// Actuator Status – The operating status of a single actuator
 ///
-/// 表示单个执行器实例的执行状态，用于执行器生命周期管理。
+/// Indicates the execution status of a single executor instance, which is used for the management of the executor's lifecycle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ExecutorState {
-    /// 执行器已创建，未开始执行
+    /// The executor has been created, but the execution has not yet begun.
     #[default]
     Initialized,
-    /// 执行器正在执行
+    /// The actuator is currently in operation (i.e., it is performing its intended function).
     Executing,
-    /// 执行器执行完成
+    /// The actuator has completed its execution.
     Completed,
-    /// 执行器执行失败
+    /// The execution of the actuator failed.
     Failed,
-    /// 执行器被取消
+    /// The actuator has been canceled.
     Cancelled,
-    /// 执行器被暂停（用于断点调试）
+    /// The executor has been paused (for breakpoint debugging purposes).
     Paused,
 }
 
 impl ExecutorState {
-    /// 检查状态是否允许转换为目标状态
+    /// Check whether the current status allows the transition to the target status.
     pub fn can_transition_to(&self, target: ExecutorState) -> bool {
         match (self, target) {
-            // 初始化状态可以转换到执行中、失败或取消
+            // The initial state can be changed to either “Executing”, “Failed”, or “Canceled”.
             (ExecutorState::Initialized, ExecutorState::Executing) => true,
             (ExecutorState::Initialized, ExecutorState::Failed) => true,
             (ExecutorState::Initialized, ExecutorState::Cancelled) => true,
-            // 执行中可以转换到完成、失败、取消或暂停
+            // During the process, the status can be changed to Complete, Failed, Cancel, or Pause.
             (ExecutorState::Executing, ExecutorState::Completed) => true,
             (ExecutorState::Executing, ExecutorState::Failed) => true,
             (ExecutorState::Executing, ExecutorState::Cancelled) => true,
             (ExecutorState::Executing, ExecutorState::Paused) => true,
-            // 暂停可以恢复执行、失败或取消
+            // A pause can be used to resume the execution of a process, or to cancel or terminate it if it has failed.
             (ExecutorState::Paused, ExecutorState::Executing) => true,
             (ExecutorState::Paused, ExecutorState::Failed) => true,
             (ExecutorState::Paused, ExecutorState::Cancelled) => true,
-            // 终态不能再转换
+            // The final state cannot be changed again.
             (ExecutorState::Completed, _) => false,
             (ExecutorState::Failed, _) => false,
             (ExecutorState::Cancelled, _) => false,
@@ -128,26 +128,26 @@ impl fmt::Display for ExecutorState {
     }
 }
 
-/// 循环执行状态 - 循环控制专用状态
+/// Loop execution state – A status specifically used for loop control
 ///
-/// 专门用于循环执行器（LoopExecutor）的状态管理。
+/// Specifically designed for state management of the LoopExecutor.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum LoopExecutionState {
-    /// 循环未开始
+    /// The loop has not started yet.
     #[default]
     NotStarted,
-    /// 循环执行中
+    /// In the process of cyclic execution…
     Running { iteration: usize },
-    /// 循环正常结束
+    /// The loop has ended normally.
     Finished,
-    /// 循环因错误终止
+    /// The loop was terminated due to an error.
     Error(String),
-    /// 循环因达到最大迭代次数而终止
+    /// The loop terminates because the maximum number of iterations has been reached.
     MaxIterationsReached { max: usize },
 }
 
 impl LoopExecutionState {
-    /// 获取当前迭代次数
+    /// Get the current iteration count.
     pub fn iteration(&self) -> Option<usize> {
         match self {
             LoopExecutionState::Running { iteration } => Some(*iteration),
@@ -155,7 +155,7 @@ impl LoopExecutionState {
         }
     }
 
-    /// 检查循环是否已结束
+    /// Check whether the loop has ended.
     pub fn is_finished(&self) -> bool {
         matches!(
             self,
@@ -187,29 +187,29 @@ impl fmt::Display for LoopExecutionState {
     }
 }
 
-/// 结果行状态 - 单行数据处理状态
+/// Result Line Status – Status of single-line data processing
 ///
-/// 表示单条数据记录的处理结果状态。
+/// Indicates the status of the processing result for a single data record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum RowStatus {
-    /// 正常数据
+    /// Normal data
     #[default]
     Valid,
-    /// 数据被过滤掉
+    /// The data has been filtered out.
     Filtered,
-    /// 数据无效
+    /// The data is invalid.
     Invalid,
-    /// 标签被过滤
+    /// The tags have been filtered out.
     TagFiltered,
 }
 
 impl RowStatus {
-    /// 检查是否为有效数据
+    /// Check whether the data is valid.
     pub fn is_valid(&self) -> bool {
         matches!(self, RowStatus::Valid)
     }
 
-    /// 转换为整数表示（用于兼容旧代码）
+    /// Convert to an integer representation (for compatibility with old code)
     pub fn to_i32(&self) -> i32 {
         match self {
             RowStatus::Valid => 0,
@@ -223,36 +223,36 @@ impl RowStatus {
 impl fmt::Display for RowStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RowStatus::Valid => write!(f, "有效"),
-            RowStatus::Filtered => write!(f, "已过滤"),
-            RowStatus::Invalid => write!(f, "无效"),
-            RowStatus::TagFiltered => write!(f, "标签过滤"),
+            RowStatus::Valid => write!(f, "Effective"),
+            RowStatus::Filtered => write!(f, "Filtered"),
+            RowStatus::Invalid => write!(f, "Invalid"),
+            RowStatus::TagFiltered => write!(f, "Tag filtering"),
         }
     }
 }
 
-/// 优化阶段状态 - 查询优化过程状态
+/// Optimization Stage Status - Queries the status of the optimization process
 ///
-/// 表示查询优化器的工作阶段。
+/// Indicates the stage of the query optimizer's work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OptimizationState {
-    /// 未开始优化
+    /// Optimization not started
     #[default]
     NotStarted,
-    /// 重写阶段
+    /// rewrite phase
     Rewriting,
-    /// 逻辑优化阶段
+    /// Logic optimization phase
     LogicalOptimizing,
-    /// 物理优化阶段
+    /// Physical optimization phase
     PhysicalOptimizing,
-    /// 优化完成
+    /// Optimization completed
     Completed,
-    /// 优化失败
+    /// Optimization Failure
     Failed,
 }
 
 impl OptimizationState {
-    /// 获取阶段的中文描述
+    /// Chinese description of the acquisition phase
     pub fn description(&self) -> &'static str {
         match self {
             OptimizationState::NotStarted => "未开始",
@@ -264,7 +264,7 @@ impl OptimizationState {
         }
     }
 
-    /// 检查是否处于优化阶段
+    /// Check if it is in the optimization phase
     pub fn is_optimizing(&self) -> bool {
         matches!(
             self,
@@ -281,18 +281,18 @@ impl fmt::Display for OptimizationState {
     }
 }
 
-/// 优化阶段 - 用于优化规则分类
+/// Optimization phase - used to optimize rule classification
 ///
-/// 表示优化规则所属的阶段，用于控制规则的执行顺序。
+/// Indicates the phase to which the optimization rule belongs and is used to control the order in which the rule is executed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OptimizationPhase {
-    /// 重写阶段 - 逻辑重写规则
+    /// Rewrite Phase - Logical Rewrite Rules
     Rewrite,
-    /// 逻辑优化阶段 - 逻辑计划优化
+    /// Logic Optimization Phase - Logic Plan Optimization
     Logical,
-    /// 物理优化阶段 - 物理计划优化
+    /// Physical Optimization Phase - Physical Plan Optimization
     Physical,
-    /// 未知阶段
+    /// unknown stage
     #[default]
     Unknown,
 }
@@ -308,7 +308,7 @@ impl OptimizationPhase {
         }
     }
 
-    /// 检查是否为逻辑优化阶段
+    /// Check if it is a logical optimization phase
     pub fn is_logical(&self) -> bool {
         matches!(
             self,
@@ -316,7 +316,7 @@ impl OptimizationPhase {
         )
     }
 
-    /// 检查是否为物理优化阶段
+    /// Check if it is a physical optimization phase
     pub fn is_physical(&self) -> bool {
         matches!(self, OptimizationPhase::Physical)
     }

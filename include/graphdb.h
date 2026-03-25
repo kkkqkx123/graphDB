@@ -596,10 +596,10 @@ const char *graphdb_error_string(int32_t code);
 /**
  * Retrieve the string description corresponding to the error code (similar to sqlite3_errstr in SQLite).
  *
- * # 参数
- * - `code`: 错误码
+ * # Parameter
+ * - `code`: Error Code
  *
- * # 返回
+ * # Return
  * Error description string (static lifecycle; no need for release)
  */
 const char *graphdb_errstr(int32_t code);
@@ -607,7 +607,7 @@ const char *graphdb_errstr(int32_t code);
 /**
  * Retrieve the last error message.
  *
- * # 返回
+ * # Return
  * Pointer to the error message string (thread-local storage; does not need to be freed)
  */
 const char *graphdb_get_last_error_message(void);
@@ -615,10 +615,10 @@ const char *graphdb_get_last_error_message(void);
 /**
  * Get the location of the SQL error (in terms of character offset).
  *
- * # 参数
+ * # Parameters
  * - `session`: session handle
  *
- * # 返回
+ * # Returns
  * - Character offset of the error location, if there is no error or invalid session return -1
  */
 int graphdb_error_offset(struct graphdb_session_t *session);
@@ -626,10 +626,10 @@ int graphdb_error_offset(struct graphdb_session_t *session);
 /**
  * Get Extended Error Code
  *
- * # 参数
- * - `session`: 会话句柄
+ * # Parameters
+ * - `session`: session handle
  *
- * # 返回
+ * # Returns
  * - Extended error code, returns 0 if no error or invalid session (GRAPHDB_EXTENDED_NONE)
  */
 int graphdb_extended_errcode(struct graphdb_session_t *session);

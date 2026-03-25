@@ -1,24 +1,24 @@
-//! 直方图统计模块
+//! Histogram Statistics Module
 //!
-//! 使用等深直方图（equi-depth histogram）记录属性值分布
-//! 每个直方图包含固定数量的桶，每个桶记录相同数量的元组
+//! Use an equi-depth histogram to record the distribution of attribute values.
+//! Each histogram contains a fixed number of bins, and each bin records the same number of tuples.
 
 use crate::core::value::Value;
 use std::time::Instant;
 
-/// 直方图桶
+/// Histogram bins
 #[derive(Debug, Clone)]
 pub struct HistogramBucket {
-    /// 桶上界（包含）
+    /// Upper bound of the bucket (inclusive)
     pub upper_bound: Value,
-    /// 桶内元组数量
+    /// Number of tuples in the bucket
     pub count: u64,
-    /// 不同值数量（NDV）
+    /// Number of Different Values (NDV)
     pub distinct_values: u64,
 }
 
 impl HistogramBucket {
-    /// 创建新的直方图桶
+    /// Create new histogram buckets.
     pub fn new(upper_bound: Value, count: u64, distinct_values: u64) -> Self {
         Self {
             upper_bound,
@@ -28,38 +28,38 @@ impl HistogramBucket {
     }
 }
 
-/// 范围条件类型
+/// Range condition types
 #[derive(Debug, Clone)]
 pub enum RangeCondition {
-    /// 小于
+    /// less than
     Lt(Value),
-    /// 小于等于
+    /// Less than or equal to
     Le(Value),
-    /// 大于
+    /// greater than
     Gt(Value),
-    /// 大于等于
+    /// greater than or equal to
     Ge(Value),
-    /// 范围 [low, high)
+    /// Range [low, high)
     Range { low: Value, high: Value },
 }
 
-/// 等深直方图
+/// Isobathic histogram
 #[derive(Debug, Clone)]
 pub struct Histogram {
-    /// 桶列表（按上界排序）
+    /// Bucket list (sorted by upper bound)
     buckets: Vec<HistogramBucket>,
-    /// 空值比例
+    /// Proportion of null values
     null_fraction: f64,
-    /// 总不同值数量
+    /// Total number of different values
     total_distinct_values: u64,
-    /// 总记录数
+    /// Total number of records
     total_count: u64,
-    /// 最后更新时间
+    /// Last update time
     last_updated: Instant,
 }
 
 impl Histogram {
-    /// 创建空的直方图
+    /// Create an empty histogram.
     pub fn empty() -> Self {
         Self {
             buckets: Vec::new(),
@@ -70,22 +70,22 @@ impl Histogram {
         }
     }
 
-    /// 从采样数据构建等深直方图
+    /// Constructing an isobathic histogram from the sampled data
     ///
-    /// # 参数
-    /// - `samples`: 采样值列表
-    /// - `num_buckets`: 桶数量
-    /// - `total_count`: 总记录数（用于计算空值比例）
+    /// # Parameters
+    /// “samples”: A list of sampled values
+    /// `num_buckets`: The number of buckets
+    /// `total_count`: The total number of records (used to calculate the proportion of null values).
     ///
-    /// # 说明
-    /// 等深直方图确保每个桶包含大致相同数量的样本
+    /// # Description
+    /// An isochore plot ensures that each bin contains approximately the same number of samples.
     pub fn from_samples(samples: Vec<Value>, num_buckets: usize, total_count: u64) -> Self {
         if samples.is_empty() || num_buckets == 0 {
             return Self::empty();
         }
 
         let mut sorted_samples = samples;
-        // 分离空值和非空值
+        // Separate null values from non-null values
         let null_count = sorted_samples.iter().filter(|v| v.is_null()).count();
         sorted_samples.retain(|v| !v.is_null());
 
@@ -99,13 +99,13 @@ impl Histogram {
             };
         }
 
-        // 按值排序
+        // Sort by value
         sorted_samples.sort_by(compare_values);
 
-        // 计算不同值数量
+        // Calculating the number of different values
         let distinct_values = calculate_distinct_values(&sorted_samples);
 
-        // 构建等深直方图
+        // Constructing an isohyetic histogram
         let non_null_count = sorted_samples.len();
         let bucket_size = non_null_count / num_buckets;
         let remainder = non_null_count % num_buckets;
@@ -140,37 +140,37 @@ impl Histogram {
         }
     }
 
-    /// 估计等值查询选择性
+    /// Estimated equivalence query selectivity
     ///
     /// # 说明
-    /// 找到包含该值的桶，使用桶内均匀分布假设：1 / 桶内NDV
+    /// Find the bucket that contains that value, using the assumption of a uniform distribution within the bucket: 1 / the number of unique values (NDV) in the bucket.
     pub fn estimate_equality_selectivity(&self, value: &Value) -> f64 {
         if value.is_null() {
             return self.null_fraction;
         }
 
         if self.buckets.is_empty() {
-            return 0.1; // 默认选择性
+            return 0.1; // Default selection option
         }
 
-        // 找到对应的桶
+        // Find the corresponding bucket.
         match self.find_bucket(value) {
             Some(bucket_idx) => {
                 let bucket = &self.buckets[bucket_idx];
-                // 桶内均匀分布假设
+                // The assumption of uniform distribution within the barrel
                 let bucket_selectivity = 1.0 / bucket.distinct_values.max(1) as f64;
-                // 考虑桶在整体中的比例
+                // Consider the proportion of the barrel in the overall structure.
                 let bucket_ratio = bucket.count as f64 / self.total_count.max(1) as f64;
                 bucket_selectivity * bucket_ratio
             }
             None => {
-                // 值超出直方图范围，使用最小选择性估计
+                // The value exceeds the range of the histogram; therefore, the minimum selective estimation method is used.
                 1.0 / self.total_distinct_values.max(1) as f64
             }
         }
     }
 
-    /// 估计范围查询选择性
+    /// Selective query within the estimated range
     pub fn estimate_range_selectivity(&self, range: &RangeCondition) -> f64 {
         match range {
             RangeCondition::Lt(value) | RangeCondition::Le(value) => {
@@ -187,10 +187,10 @@ impl Histogram {
         }
     }
 
-    /// 估计小于条件的选择性
+    /// Estimated selectivity that is less than the specified condition
     fn estimate_less_than_selectivity(&self, value: &Value) -> f64 {
         if self.buckets.is_empty() {
-            return 0.333; // 默认范围选择性
+            return 0.333; // Default range selection
         }
 
         let mut selectivity = 0.0;
@@ -198,27 +198,27 @@ impl Histogram {
 
         for bucket in &self.buckets {
             if compare_values(value, &bucket.upper_bound) != std::cmp::Ordering::Greater {
-                // 值在当前桶范围内
-                // 假设桶内均匀分布，估计小于value的比例
+                // The value is within the current bucket range.
+                // Assuming the contents of the barrel are evenly distributed, estimate the proportion of items that are smaller than the given value.
                 let bucket_ratio = bucket.count as f64 / self.total_count.max(1) as f64;
-                selectivity += bucket_ratio * 0.5; // 简化估计：取桶的一半
+                selectivity += bucket_ratio * 0.5; // Simplified estimate: Take half of the bucket.
                 found = true;
                 break;
             } else {
-                // 整个桶都小于value
+                // The entire bucket contains less than the value specified.
                 selectivity += bucket.count as f64 / self.total_count.max(1) as f64;
             }
         }
 
         if !found {
-            // value大于所有桶的上界
+            // The value is greater than the upper limit of all buckets.
             selectivity = 1.0 - self.null_fraction;
         }
 
         selectivity.min(1.0 - self.null_fraction)
     }
 
-    /// 查找值所在的桶索引
+    /// Find the bucket index where the value is located.
     fn find_bucket(&self, value: &Value) -> Option<usize> {
         for (idx, bucket) in self.buckets.iter().enumerate() {
             if compare_values(value, &bucket.upper_bound) != std::cmp::Ordering::Greater {
@@ -228,33 +228,33 @@ impl Histogram {
         None
     }
 
-    /// 获取桶数量
+    /// Obtain the number of buckets
     pub fn bucket_count(&self) -> usize {
         self.buckets.len()
     }
 
-    /// 获取空值比例
+    /// Obtain the proportion of null values
     pub fn null_fraction(&self) -> f64 {
         self.null_fraction
     }
 
-    /// 获取总记录数
+    /// Get the total number of records.
     pub fn total_count(&self) -> u64 {
         self.total_count
     }
 
-    /// 获取不同值数量
+    /// Obtaining different numbers of values
     pub fn distinct_values(&self) -> u64 {
         self.total_distinct_values
     }
 
-    /// 获取最后更新时间
+    /// Get the last update time.
     pub fn last_updated(&self) -> Instant {
         self.last_updated
     }
 }
 
-/// 比较两个Value
+/// Compare two values
 fn compare_values(a: &Value, b: &Value) -> std::cmp::Ordering {
     use std::cmp::Ordering;
 
@@ -265,11 +265,11 @@ fn compare_values(a: &Value, b: &Value) -> std::cmp::Ordering {
         (Value::Float(a), Value::Int(b)) => a.partial_cmp(&(*b as f64)).unwrap_or(Ordering::Equal),
         (Value::String(a), Value::String(b)) => a.cmp(b),
         (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
-        // 不同类型按类型排序（使用类型ID作为排序依据）
+        // Different types are sorted by their type (using the type ID as the sorting criterion).
         _ => {
             let type_a = std::mem::discriminant(a);
             let type_b = std::mem::discriminant(b);
-            // 使用地址比较作为稳定的排序依据
+            // Using address comparison as a stable basis for sorting.
             let ptr_a = &type_a as *const _ as usize;
             let ptr_b = &type_b as *const _ as usize;
             ptr_a.cmp(&ptr_b)
@@ -277,13 +277,13 @@ fn compare_values(a: &Value, b: &Value) -> std::cmp::Ordering {
     }
 }
 
-/// 计算不同值数量
+/// Calculating the number of different values
 fn calculate_distinct_values(values: &[Value]) -> u64 {
     use std::collections::HashSet;
 
     let mut seen = HashSet::new();
     for value in values {
-        // 使用值的字符串表示作为哈希键
+        // Use a string representation of the value as the hash key.
         let key = format!("{:?}", value);
         seen.insert(key);
     }
@@ -334,7 +334,7 @@ mod tests {
     #[test]
     fn test_null_handling() {
         let mut samples: Vec<Value> = (1..=90).map(Value::Int).collect();
-        // 添加10个空值
+        // Add 10 empty values.
         for _ in 0..10 {
             samples.push(Value::Null(crate::core::value::NullType::Null));
         }

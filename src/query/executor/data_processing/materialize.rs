@@ -1,7 +1,7 @@
-//! MaterializeExecutor - 物化执行器
+//! MaterializeExecutor – The materialization executor
 //!
-//! 将输入数据物化（缓存）到内存中，用于优化多次引用的CTE或子查询
-//! 避免重复计算，提高查询性能
+//! Materialize (cache) the input data in memory to optimize the use of Common Table Expressions (CTEs) or subqueries that are referenced multiple times.
+//! Avoid duplicate calculations to improve query performance.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -11,40 +11,40 @@ use crate::query::executor::base::{BaseExecutor, DBResult, ExecutionResult, Exec
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
 
-/// 物化状态
+/// Physical state
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaterializeState {
-    /// 尚未物化
+    /// Not yet materialized
     Uninitialized,
-    /// 已物化，数据可用
+    /// Materialized; the data is now available.
     Materialized,
-    /// 物化失败
+    /// The materialization process failed.
     Failed(String),
 }
 
-/// MaterializeExecutor - 物化执行器
+/// MaterializeExecutor – The materialization executor
 ///
-/// 将输入数据缓存到内存中，支持多次读取
-/// 主要用于优化被多次引用的CTE或子查询
+/// Cache the input data in memory; multiple reads are supported.
+/// Mainly used for optimizing CTEs (Common Table Expressions) or subqueries that are referenced multiple times.
 pub struct MaterializeExecutor<S: StorageClient + Send + 'static> {
-    /// 基础执行器
+    /// Basic Executor
     base: BaseExecutor<S>,
-    /// 输入执行器
+    /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
     /// 物化状态
     state: MaterializeState,
-    /// 物化的数据
+    /// Materialized data
     materialized_data: Option<ExecutionResult>,
-    /// 内存限制（字节）
+    /// Memory limit (in bytes)
     memory_limit: usize,
-    /// 当前内存使用量
+    /// Current memory usage
     current_memory_usage: usize,
-    /// 是否已消耗（用于单次消费模式）
+    /// Has it been consumed (for the one-time consumption mode)?
     consumed: bool,
 }
 
 impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
-    /// 创建新的物化执行器
+    /// Create a new materialized executor.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -58,39 +58,39 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
             input_executor: None,
             state: MaterializeState::Uninitialized,
             materialized_data: None,
-            memory_limit: memory_limit.unwrap_or(100 * 1024 * 1024), // 默认100MB
+            memory_limit: memory_limit.unwrap_or(100 * 1024 * 1024), // Default size: 100 MB
             current_memory_usage: 0,
             consumed: false,
         }
     }
 
-    /// 设置内存限制
+    /// Setting memory limits
     pub fn with_memory_limit(mut self, limit: usize) -> Self {
         self.memory_limit = limit;
         self
     }
 
-    /// 获取物化状态
+    /// Obtaining the materialized state
     pub fn state(&self) -> &MaterializeState {
         &self.state
     }
 
-    /// 检查是否已物化
+    /// Check whether it has been materialized.
     pub fn is_materialized(&self) -> bool {
         matches!(self.state, MaterializeState::Materialized)
     }
 
-    /// 获取物化数据（如果已物化）
+    /// Obtain the materialized data (if it has already been materialized).
     pub fn get_materialized_data(&self) -> Option<&ExecutionResult> {
         self.materialized_data.as_ref()
     }
 
-    /// 重置消费状态，允许重新读取物化数据
+    /// Reset the consumption status to allow the re-reading of the materialized data.
     pub fn reset_consumed(&mut self) {
         self.consumed = false;
     }
 
-    /// 物化输入数据
+    /// Materialized input data
     fn materialize_input(&mut self) -> DBResult<()> {
         if self.is_materialized() {
             return Ok(());
@@ -104,7 +104,7 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
 
         let result = input.execute()?;
 
-        // 估算内存使用量
+        // Estimating memory usage
         self.current_memory_usage = self.estimate_memory_usage(&result);
 
         if self.current_memory_usage > self.memory_limit {
@@ -123,7 +123,7 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
         Ok(())
     }
 
-    /// 估算执行结果的内存使用量
+    /// Estimate the memory usage of the execution results.
     fn estimate_memory_usage(&self, result: &ExecutionResult) -> usize {
         match result {
             ExecutionResult::Empty => 0,
@@ -132,22 +132,22 @@ impl<S: StorageClient + Send + 'static> MaterializeExecutor<S> {
             ExecutionResult::Edges(edges) => edges.iter().map(std::mem::size_of_val).sum(),
             ExecutionResult::Paths(paths) => paths.iter().map(std::mem::size_of_val).sum(),
             ExecutionResult::DataSet(_dataset) => {
-                // 估算数据集大小
-                1024 // 简化估算
+                // Estimating the size of a dataset
+                1024 // Simplify the estimation.
             }
-            _ => 1024, // 默认估算
+            _ => 1024, // Default estimate
         }
     }
 }
 
 impl<S: StorageClient + Send + 'static> Executor<S> for MaterializeExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 如果尚未物化，先物化数据
+        // If the data has not yet been materialized, materialize it first.
         if !self.is_materialized() {
             self.materialize_input()?;
         }
 
-        // 返回物化数据的克隆
+        // Cloning of the materialized data
         self.materialized_data.clone().ok_or_else(|| {
             crate::core::DBError::Query(crate::core::QueryError::ExecutionError(
                 "物化数据不可用".to_string(),
@@ -166,7 +166,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for MaterializeExecutor<S> {
         if let Some(ref mut input) = self.input_executor {
             input.close()?;
         }
-        // 清理物化数据以释放内存
+        // Clean up physicalized data to free up memory.
         self.materialized_data = None;
         self.state = MaterializeState::Uninitialized;
         self.current_memory_usage = 0;
@@ -213,6 +213,6 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for MaterializeExecutor
 
 #[cfg(test)]
 mod tests {
-    // 由于需要 StorageClient，这里只进行编译时检查
-    // 实际测试应该在集成测试中进行
+    // Since the StorageClient is required, only compile-time checks are performed here.
+    // The actual tests should be carried out during the integration testing.
 }

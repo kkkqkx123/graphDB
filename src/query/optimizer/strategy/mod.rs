@@ -1,20 +1,20 @@
-//! 优化策略模块
+//! Optimization Strategy Module
 //!
-//! 提供查询优化策略，包括遍历起点选择、索引选择和基于代价的优化策略
+//! Provide query optimization strategies, including the selection of the starting point for traversal, the selection of appropriate indexes, and cost-based optimization techniques.
 //!
-//! ## 模块结构
+//! ## Module Structure
 //!
-//! - `traversal_start` - 遍历起点选择器
-//! - `index` - 索引选择器
-//! - `aggregate_strategy` - 聚合策略选择器
-//! - `join_order` - 连接顺序优化器
-//! - `traversal_direction` - 图遍历方向优化器
-//! - `bidirectional_traversal` - 双向遍历优化器
-//! - `topn_optimization` - TopN 优化器（Sort + Limit 到 TopN 的转换）
-//! - `subquery_unnesting` - 子查询去关联化优化器
-//! - `materialization` - CTE 物化优化器
+//! ` traversal_start` – Selector for the starting point of the traversal
+//! `index` – Index selector
+//! `aggregate_strategy` – Selector for the aggregation strategy
+//! `join_order` – An optimizer for the order of database table joins
+//! `traversal_direction` – An optimizer for the direction of graph traversal
+//! `bidirectional_traversal` – An optimizer for bidirectional traversal (traversal in both directions)
+//! `topn_optimization` – TopN optimizer (conversion from Sort + Limit to the TopN result set)
+//! `subquery_unnesting` – An optimizer for deassociating subqueries
+//! “Materialization” – The optimization mechanism for materialized CTEs (Common Table Expressions)
 //!
-//! 注意：CTE结果缓存管理器已移至 `crate::query::cache` 模块
+//! The CTE (Common Table Expression) result cache manager has been moved to the `crate::query::cache` module.
 
 pub mod aggregate_strategy;
 pub mod bidirectional_traversal;
@@ -63,7 +63,7 @@ pub use materialization::{
     MaterializationDecision, MaterializationOptimizer, MaterializeReason, NoMaterializeReason,
 };
 
-// 从cache模块重新导出CTE缓存类型（向后兼容）
+// Re-export the CTE cache type from the cache module (for backward compatibility)
 pub use crate::query::cache::{
     CteCacheConfig, CteCacheDecision, CteCacheDecisionMaker, CteCacheEntry, CteCacheManager,
     CteCacheStats,

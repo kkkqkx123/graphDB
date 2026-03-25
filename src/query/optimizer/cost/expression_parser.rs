@@ -1,43 +1,44 @@
-//! 表达式解析器
+//! Expression parser
 //!
-//! 提供表达式解析功能，用于：
-//! - 估算 Unwind 节点的列表大小
-//! - 估算 Loop 节点的迭代次数
-//! - 解析各种表达式模式
-//! - 表达式常量折叠优化
+//! Provide an expression parsing function for:
+//! Estimate the size of the list of Unwind nodes.
+//! Estimate the number of iterations of the Loop node.
+//! Analyze various expression patterns
+//! Expression constant folding optimization
 
 use crate::core::types::{BinaryOperator, Expression, UnaryOperator};
 use crate::core::value::Value;
 use crate::query::optimizer::cost::config::CostModelConfig;
 
-/// 表达式解析器
+/// Expression parser
 ///
-/// 用于从表达式字符串中解析出有用的信息，如列表大小、迭代次数等
+/// Used to parse useful information from expression strings, such as the size of a list, the number of iterations, etc.
 #[derive(Debug, Clone)]
 pub struct ExpressionParser {
-    /// 配置（内部使用）
+    /// Configuration (for internal use)
     config: CostModelConfig,
 }
 
 impl ExpressionParser {
-    /// 获取配置
+    /// Obtain the configuration.
     pub fn config(&self) -> &CostModelConfig {
         &self.config
     }
 }
 
 impl ExpressionParser {
-    /// 创建新的表达式解析器
+    /// Create a new expression parser.
     pub fn new(config: CostModelConfig) -> Self {
         Self { config }
     }
 
-    /// 尝试从表达式字符串解析列表大小
+    /// Try to parse the list size from the expression string.
     ///
-    /// 支持以下模式：
+    /// The following modes are supported:
     /// - 数组字面量：[a, b, c] -> 3
     /// - range 函数：range(1, 10) -> 9, range(1, 10, 2) -> 5
-    /// - 范围表达式：1..10 -> 9, 0..=5 -> 6
+    /// Range expressions:  1..10 -> 9  
+0..=5 -> 6
     /// - 集合函数：keys(map), values(map), nodes(path), relationships(path)
     /// - 字符串分割：split(str, ",")（估算）
     /// - 集合操作：collect(set)（估算）
@@ -70,7 +71,7 @@ impl ExpressionParser {
         }
 
         // 尝试解析 collect 函数（通常用于聚合）
-        if expr.starts_with("collect(") {
+        if e// The size of the result produced by the collect function depends on the input data; a conservative estimate should be used.
             // collect 函数的结果大小取决于输入数据，使用保守估计
             return Some(self.config.default_unwind_list_size * 2.0);
         }
@@ -80,16 +81,16 @@ impl ExpressionParser {
 
     // ==================== 常量折叠优化 ====================
 
-    /// 尝试折叠表达式中的常量
+    /// Try to fold the constants within the expression.
     ///
-    /// 对表达式进行递归遍历，将所有可以计算的常量表达式替换为字面量
-    /// 例如：1 + 2 -> 3, "hello" + "world" -> "helloworld"
+    /// Perform a recursive traversal of the expression, and replace all constant expressions that can be evaluated with their literal values.
+    /// For example: 1 + 2 -> 3, “hello” + “world” -> “helloworld”.
     ///
-    /// # 参数
-    /// - `expr`: 输入表达式
+    /// # Parameters
+    /// `expr`: The input expression
     ///
-    /// # 返回值
-    /// 折叠后的表达式
+    /// # Return value
+    /// The folded expression
     pub fn fold_constants(&self, expr: &Expression) -> Expression {
         match expr {
             Expression::Binary { left, op, right } => {
@@ -164,13 +165,13 @@ impl ExpressionParser {
                     .map(|(k, v)| (k.clone(), self.fold_constants(v)))
                     .collect();
                 Expression::Map(folded_entries)
-            }
+            // Other types of expressions remain unchanged.
             // 其他表达式类型保持不变
             _ => expr.clone(),
         }
     }
 
-    /// 评估二元操作
+    /// Evaluating binary operations
     fn evaluate_binary_op(
         &self,
         op: &BinaryOperator,
@@ -215,7 +216,7 @@ impl ExpressionParser {
         }
     }
 
-    /// 评估一元操作
+    /// Evaluating a unary operation
     fn evaluate_unary_op(&self, op: &UnaryOperator, operand: &Value) -> Option<Value> {
         match op {
             UnaryOperator::Not => match operand {
@@ -233,7 +234,7 @@ impl ExpressionParser {
         }
     }
 
-    /// 评估函数
+    /// Evaluation function
     fn evaluate_function(&self, name: &str, args: &[&Value]) -> Option<Value> {
         let name_lower = name.to_lowercase();
 
@@ -367,15 +368,15 @@ impl ExpressionParser {
         }
     }
 
-    /// 估算 Loop 节点的迭代次数
+    /// Estimating the number of iterations of the Loop node
     ///
-    /// 尝试从条件字符串中解析迭代次数，支持以下模式：
-    /// - 数字直接量："10" -> 10
+    /// Try to parse the number of iterations from the conditional string. The following patterns are supported:
+    /// Digital direct value: “10” → 10
     /// - 范围表达式："1..10" 或 "range(1, 10)" -> 9
-    /// - 比较表达式："i < 10", "i <= 10" -> 10
-    /// - 集合大小："items" -> 使用集合大小估算
+    /// Comparison expressions: “i < 10”, “i <= 10” → 10
+    /// Set size: "Items" – Use the set size to make an estimate.
     ///
-    /// 如果无法解析，则使用配置默认值
+    /// If the content cannot be parsed, use the default values configured in the system.
     pub fn parse_loop_iterations(&self, condition: &str) -> Option<u32> {
         let condition = condition.trim();
 
@@ -407,18 +408,18 @@ impl ExpressionParser {
         None
     }
 
-    /// 解析数组字面量
+    /// Analyzing array literals
     fn parse_array_literal(&self, expr: &str) -> Option<f64> {
         let inner = &expr[1..expr.len() - 1];
         if inner.trim().is_empty() {
             return Some(0.0);
-        }
+        // Working with nested arrays and complex expressions
         // 处理嵌套数组和复杂表达式
         let count = self.count_top_level_commas(inner) as f64;
         Some(count)
     }
 
-    /// 计算顶层逗号数量（用于处理嵌套结构）
+    /// Count the number of commas at the top level (used for processing nested structures)
     fn count_top_level_commas(&self, s: &str) -> usize {
         let mut count = 0;
         let mut depth = 0;
@@ -436,7 +437,7 @@ impl ExpressionParser {
         count + 1 // 逗号数量 + 1 = 元素数量
     }
 
-    /// 解析 range 函数
+    /// Analyzing the range function
     fn parse_range_function(&self, expr: &str) -> Option<f64> {
         let args_str = &expr[6..expr.len() - 1];
         let args: Vec<&str> = args_str.split(',').map(|s| s.trim()).collect();
@@ -458,7 +459,7 @@ impl ExpressionParser {
         None
     }
 
-    /// 解析 range 函数（返回 u32）
+    /// Analysis of the range function (which returns a u32 value)
     fn parse_range_function_u32(&self, expr: &str) -> Option<u32> {
         let inner = &expr[6..expr.len() - 1]; // 去掉 "range(" 和 ")"
         let args: Vec<&str> = inner.split(',').map(|s| s.trim()).collect();
@@ -480,7 +481,7 @@ impl ExpressionParser {
         None
     }
 
-    /// 解析范围表达式
+    /// Analyzing the range expression
     fn parse_range_expression(&self, expr: &str) -> Option<f64> {
         if let Some(pos) = expr.find("..") {
             let start_str = expr[..pos].trim();
@@ -506,8 +507,8 @@ impl ExpressionParser {
         None
     }
 
-    /// 解析范围表达式（返回 u32）
-    fn parse_range_expression_u32(&self, expr: &str) -> Option<u32> {
+    /// Parse the range expression (return an u32 value)
+    fn p// Process the format of rows 1 to 10 (excluding the last row).) -> Option<u32> {
         // 处理 1..10 格式（不包含结束）
         if let Some(pos) = expr.find("..") {
             let start_str = expr[..pos].trim();
@@ -535,17 +536,17 @@ impl ExpressionParser {
         None
     }
 
-    /// 解析比较表达式（如 "i < 10", "count <= 100"）
-    fn parse_comparison_expression(&self, expr: &str) -> Option<u32> {
+    /// Analyzing comparative expressions (such as "i < 10", "count <= 100")
+    fn p// Matching patterns: var < num, var <= num, var > num, var >= num
         // 匹配模式：var < num, var <= num, var > num, var >= num
         let operators = [("<", 0u32), ("<=", 0u32), (">", 0u32), (">=", 0u32)];
 
         for (op, _) in &operators {
             if let Some(pos) = expr.find(op) {
                 let right_side = &expr[pos + op.len()..];
-                if let Ok(num) = right_side.trim().parse::<u32>() {
+                if l// For the <operator>, the actual number of iterations is num (if num > 0).
                     // 对于 < 操作符，实际迭代次数是 num（如果 num > 0）
-                    let iterations = if *op == ">" || *op == ">=" {
+                    let // It is not possible to determine the starting value; therefore, a conservative estimate will be used.
                         // 无法确定起始值，使用保守估计
                         num + 10
                     } else {
@@ -558,12 +559,12 @@ impl ExpressionParser {
         None
     }
 
-    /// 解析集合函数（keys, values, nodes, relationships）
+    /// Analyzing set functions (keys, values, nodes, relationships)
     fn parse_collection_function(&self, expr: &str) -> Option<f64> {
         let expr_lower = expr.to_lowercase();
 
         // keys(map) 或 map.keys() - 返回 map 的键列表
-        if expr_lower.starts_with("keys(") || expr_lower.contains(".keys()") {
+        if e// It is not possible to determine the size of the map; therefore, the default estimate is used.ntains(".keys()") {
             // 无法确定 map 大小，使用默认估计
             return Some(self.config.default_unwind_list_size);
         }
@@ -574,31 +575,31 @@ impl ExpressionParser {
         }
 
         // nodes(path) - 返回路径中的节点列表
-        if expr_lower.starts_with("nodes(") {
+        if e// The length of the path is unknown; the default estimate is being used.
             // 路径长度未知，使用默认估计
             return Some(self.config.default_unwind_list_size);
         }
 
         // relationships(path) 或 rels(path) - 返回路径中的关系列表
-        if expr_lower.starts_with("relationships(") || expr_lower.starts_with("rels(") {
+        if expr_lower.starts_with("relationships(") || expr_lower.sta// The number of relationship values is usually one less than the number of nodes.
             return Some(self.config.default_unwind_list_size - 1.0); // 关系数通常比节点数少1
         }
 
         // labels(node) - 返回标签列表（通常很小）
-        if expr_lower.starts_with("labels(") {
+        if expr_lower.starts_w// Typically, a node has only 1-2 tags.
             return Some(1.0); // 通常一个节点只有1-2个标签
         }
 
         None
     }
 
-    /// 解析字符串分割函数
+    /// Analysis of the string splitting function
     fn parse_split_function(&self, expr: &str) -> Option<f64> {
         let expr_lower = expr.to_lowercase();
 
         // split(string, delimiter) 或 string.split(delimiter)
-        if expr_lower.starts_with("split(") || expr_lower.contains(".split(") {
-            // 无法确定分割后的数量，基于字符串长度估算
+        if e// It is not possible to determine the number of parts resulting from the segmentation. An estimate is made based on the length of the string.") {
+            // Assume that the average length of each element is 5 characters.串长度估算
             // 假设平均每个元素长度为5个字符
             return Some(self.config.default_unwind_list_size);
         }
@@ -611,7 +612,7 @@ impl ExpressionParser {
         let inner = &expr[1..expr.len() - 1];
         if inner.trim().is_empty() {
             return 0;
-        }
+        // Perform a simple calculation: count the number of commas and then add 1.
         // 简单计算逗号数量 + 1
         let count = inner.split(',').count() as u32;
         count.max(1)
@@ -653,7 +654,7 @@ mod tests {
     #[test]
     fn test_parse_loop_iterations_number() {
         let parser = ExpressionParser::default();
-        assert_eq!(parser.parse_loop_iterations("10"), Some(10));
+        assert_eq!(parser.parse_loop_iterations("10"), Some(10))// At least once
         assert_eq!(parser.parse_loop_iterations("0"), Some(1)); // 至少1次
     }
 

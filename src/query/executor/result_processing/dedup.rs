@@ -1,7 +1,7 @@
-//! DedupExecutor - 去重执行器
+//! DedupExecutor – An executor for removing duplicates
 //!
-//! 实现数据去重功能，支持基于指定键的去重策略
-//! CPU 密集型操作，使用 Rayon 进行并行化
+//! Implement a data deduplication function that supports deduplication strategies based on specified keys.
+//! CPU-intensive operations are parallelized using Rayon.
 
 use parking_lot::Mutex;
 use std::collections::HashSet;
@@ -18,35 +18,35 @@ use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::storage::iterator::Row;
 use crate::storage::StorageClient;
 
-/// 去重策略
+/// Duplicacy removal strategy
 #[derive(Debug, Clone, PartialEq)]
 pub enum DedupStrategy {
-    /// 完全去重，基于整个对象的值
+    /// Complete deduplication, based on the values of the entire object
     Full,
-    /// 基于指定键去重
+    /// Dedupe based on a specified key
     ByKeys(Vec<String>),
-    /// 基于顶点ID去重（仅对顶点有效）
+    /// Deduplication based on vertex IDs (only effective for vertices)
     ByVertexId,
-    /// 基于边的源、目标和类型去重（仅对边有效）
+    /// Deduplication of sources, targets, and types based on edges (only effective for edges)
     ByEdgeKey,
 }
 
-/// DedupExecutor - 去重执行器
+/// DedupExecutor – An executor for removing duplicates
 ///
-/// 实现数据去重功能，支持多种去重策略
-/// CPU 密集型操作，使用 Rayon 进行并行化
+/// Implement a data deduplication function that supports multiple deduplication strategies.
+/// CPU-intensive operations are parallelized using Rayon.
 pub struct DedupExecutor<S: StorageClient + Send + 'static> {
-    /// 基础处理器
+    /// Basic processor
     base: BaseResultProcessor<S>,
-    /// 输入执行器
+    /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
     /// 去重策略
     strategy: DedupStrategy,
-    /// 内存限制（字节）
+    /// Memory limit (in bytes)
     memory_limit: usize,
-    /// 当前内存使用量
+    /// Current memory usage
     current_memory_usage: usize,
-    /// 并行计算配置
+    /// Parallel computing configuration
     parallel_config: ParallelConfig,
 }
 
@@ -68,13 +68,13 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
             base,
             input_executor: None,
             strategy,
-            memory_limit: memory_limit.unwrap_or(100 * 1024 * 1024), // 默认100MB
+            memory_limit: memory_limit.unwrap_or(100 * 1024 * 1024), // Default size: 100 MB
             current_memory_usage: 0,
             parallel_config: ParallelConfig::default(),
         }
     }
 
-    /// 设置并行计算配置
+    /// Setting up the parallel computing configuration
     pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
         self.parallel_config = config;
         self
@@ -105,7 +105,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         }
     }
 
-    /// 值去重
+    /// Value deduplication
     fn dedup_values(&mut self, values: Vec<Value>) -> Result<Vec<Value>, crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => self.hash_based_dedup(values, |value| format!("{:?}", value)),
@@ -162,11 +162,11 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         }
     }
 
-    /// 数据集去重
+    /// Data set deduplication
     ///
-    /// 根据数据量选择去重方式：
-    /// - 数据量小于阈值：单线程哈希去重
-    /// - 数据量大：使用 Rayon 并行分区去重
+    /// Choose the deduplication method based on the amount of data:
+    /// Data volume is below the threshold: Single-threaded hash-based deduplication
+    /// Large amount of data: Rayon is used to perform parallel partitioning and deduplication.
     fn dedup_dataset(
         &mut self,
         dataset: &mut crate::core::value::DataSet,
@@ -180,7 +180,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         }
     }
 
-    /// 顺序执行的去重
+    /// Duplication removal with sequential execution
     fn dedup_dataset_sequential(
         &mut self,
         dataset: &mut crate::core::value::DataSet,
@@ -229,13 +229,13 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         }
     }
 
-    /// 并行执行的去重（使用 Rayon）
+    /// Deduplication performed in parallel (using Rayon)
     ///
-    /// 使用分区策略：
-    /// 1. 并行计算每行的去重键
-    /// 2. 根据键的哈希值分区
-    /// 3. 每区本地去重
-    /// 4. 合并各区结果
+    /// Use a partitioning strategy:
+    /// Parallel computing of the unique keys in each row
+    /// 2. Partitioning based on the hash value of the key
+    /// 3. Deduplication of local data within each region
+    /// 4. Combine the results from each district
     fn dedup_dataset_parallel(
         &mut self,
         dataset: &mut crate::core::value::DataSet,
@@ -332,11 +332,11 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
             let key = key_extractor(&item);
 
             if !seen.contains(&key) {
-                // 估算内存使用
+                // Estimating memory usage
                 let item_size = std::mem::size_of::<T>() + key.len();
                 memory_usage += item_size;
 
-                // 检查内存限制
+                // Check the memory limitations.
                 if self.current_memory_usage + memory_usage > self.memory_limit {
                     return Err(crate::query::QueryError::ExecutionError(
                         "内存限制超出".to_string(),
@@ -387,7 +387,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         Ok(())
     }
 
-    /// 从值中提取键（静态方法）
+    /// Extracting keys from values (static method)
     fn extract_keys_from_value_static(value: &Value, keys: &[String]) -> String {
         match value {
             Value::Map(map) => keys
@@ -400,7 +400,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         }
     }
 
-    /// 从顶点中提取键（静态方法）
+    /// Extract keys from the vertices (static method)
     fn extract_keys_from_vertex_static(vertex: &Vertex, keys: &[String]) -> String {
         let mut key_values = Vec::new();
 
@@ -408,7 +408,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
             if key == "id" {
                 key_values.push(format!("{:?}", vertex.vid));
             } else {
-                // 在顶点的标签中查找属性
+                // Search for the attribute in the tag of the vertex.
                 for tag in &vertex.tags {
                     if let Some(value) = tag.properties.get(key) {
                         key_values.push(format!("{:?}", value));
@@ -425,7 +425,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         }
     }
 
-    /// 从边中提取键（静态方法）
+    /// Extract keys from the edges (static method)
     fn extract_keys_from_edge_static(edge: &Edge, keys: &[String]) -> String {
         let mut key_values = Vec::new();
 
@@ -450,12 +450,12 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         }
     }
 
-    /// 获取当前内存使用量
+    /// Get the current memory usage
     pub fn current_memory_usage(&self) -> usize {
         self.current_memory_usage
     }
 
-    /// 重置内存使用量
+    /// Reset the memory usage
     pub fn reset_memory_usage(&mut self) {
         self.current_memory_usage = 0;
     }
@@ -463,7 +463,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
 
 impl<S: StorageClient + Send + 'static> ResultProcessor<S> for DedupExecutor<S> {
     fn process(&mut self, _input: ExecutionResult) -> DBResult<ExecutionResult> {
-        // 重置内存使用量
+        // Reset the memory usage.
         self.reset_memory_usage();
 
         // 从 input_executor 或 base.input 获取输入
@@ -475,7 +475,7 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for DedupExecutor<S> 
             return Ok(ExecutionResult::Values(Vec::new()));
         };
 
-        // 执行去重操作
+        // Perform the deduplication operation.
         self.execute_dedup(input).map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
                 e.to_string(),
@@ -588,31 +588,31 @@ mod tests {
 
         let mut executor = DedupExecutor::new(1, storage.clone(), DedupStrategy::Full, None);
 
-        // 设置测试数据（包含重复值）
+        // Set up test data (including duplicate values)
         let test_data = vec![
             Value::Int(1),
             Value::Int(2),
-            Value::Int(1), // 重复
+            Value::Int(1), // Repeat
             Value::Int(3),
-            Value::Int(2), // 重复
+            Value::Int(2), // Repeat
         ];
 
         let input_result = ExecutionResult::Values(test_data);
 
-        // 使用 ResultProcessor trait 的 set_input 方法
+        // Use the set_input method of the ResultProcessor trait.
         <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<
             MockStorage,
         >>::set_input(&mut executor, input_result);
 
-        // 执行去重
+        // Remove duplicates.
         let result = executor
             .process(ExecutionResult::Values(Vec::new()))
             .expect("Failed to process dedup");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::Values(values) => {
-                assert_eq!(values.len(), 3); // 应该去重为3个值
+                assert_eq!(values.len(), 3); // The duplicates should be removed to leave only 3 values.
                 let mut sorted_values = values.clone();
                 sorted_values.sort_by(|a, b| match (a, b) {
                     (Value::Int(a), Value::Int(b)) => a.cmp(b),
@@ -638,7 +638,7 @@ mod tests {
             None,
         );
 
-        // 设置测试数据（包含相同ID的不同对象）
+        // Set up test data (including different objects with the same ID).
         let test_data = vec![
             Value::Map(HashMap::from([
                 ("id".to_string(), Value::Int(1)),
@@ -649,25 +649,25 @@ mod tests {
                 ("name".to_string(), Value::String("Bob".to_string())),
             ])),
             Value::Map(HashMap::from([
-                ("id".to_string(), Value::Int(1)), // 重复ID
+                ("id".to_string(), Value::Int(1)), // Duplicate ID
                 ("name".to_string(), Value::String("Alice2".to_string())),
             ])),
         ];
 
-        // 使用 set_input 方法设置输入数据
+        // Use the `set_input` method to set the input data.
         <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<
             MockStorage,
         >>::set_input(&mut executor, ExecutionResult::Values(test_data));
 
-        // 处理去重
+        // Handle deduplication.
         let result = executor
             .process(ExecutionResult::Values(Vec::new()))
             .expect("Failed to process dedup");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::Values(values) => {
-                assert_eq!(values.len(), 2); // 应该基于ID去重为2个值
+                assert_eq!(values.len(), 2); // The duplication should be removed based on the ID, resulting in two unique values.
             }
             _ => panic!("Expected Values result"),
         }

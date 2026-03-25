@@ -1,12 +1,12 @@
-//! LOOKUP语句规划器
-//! 处理Nebula LOOKUP查询的规划
+//! LOOKUP Statement Planner
+//! Planning for handling the Nebula LOOKUP queries
 //!
-//! ## 改进说明
+//! ## Explanation of the improvements
 //!
-//! - 统一导入路径
-//! - 完善表达式解析
-//! - 添加属性索引选择逻辑
-//! - 使用 IndexSelector 自动选择最优索引
+//! Unified import path
+//! Improve the expression parsing mechanism.
+//! Add logic for selecting attribute indexes.
+//! Use IndexSelector to automatically select the optimal index.
 
 use crate::core::types::Index;
 use crate::core::value::types::NullType;
@@ -24,13 +24,13 @@ pub use crate::query::planning::plan::core::nodes::{
 };
 pub use crate::query::planning::plan::core::PlanNodeEnum;
 
-/// LOOKUP查询规划器
-/// 负责将LOOKUP语句转换为执行计划
+/// LOOKUP Query Planner
+/// Responsible for converting the LOOKUP statement into an execution plan.
 #[derive(Debug, Clone)]
 pub struct LookupPlanner {}
 
 impl LookupPlanner {
-    /// 创建新的LOOKUP规划器
+    /// Create a new LOOKUP planner.
     pub fn new() -> Self {
         Self {}
     }
@@ -59,15 +59,15 @@ impl Planner for LookupPlanner {
             ));
         }
 
-        // 使用验证信息进行优化规划
+        // Use the verification information to optimize the planning process.
         let validation_info = &validated.validation_info;
 
-        // 1. 检查优化提示
+        // 1. Check the optimization suggestions.
         for hint in &validation_info.optimization_hints {
             log::debug!("LOOKUP 优化提示: {:?}", hint);
         }
 
-        // 2. 检查索引提示
+        // 2. Check the index suggestions.
         let mut selected_index: Option<Index> = None;
         let mut scan_limits: Vec<crate::query::planning::plan::core::nodes::access::IndexLimit> =
             Vec::new();
@@ -77,7 +77,7 @@ impl Planner for LookupPlanner {
             let hint = &validation_info.index_hints[0];
             log::debug!("LOOKUP 使用索引提示: {:?}", hint);
 
-            // 使用验证器提供的索引提示
+            // Use the index hints provided by the validator.
             let index_fields: Vec<crate::core::types::IndexField> = hint
                 .columns
                 .iter()
@@ -105,7 +105,7 @@ impl Planner for LookupPlanner {
 
             scan_type = ScanType::Range;
 
-            // 将列名转换为 IndexLimit
+            // Convert the column names to IndexLimit.
             for column in &hint.columns {
                 scan_limits.push(
                     crate::query::planning::plan::core::nodes::access::IndexLimit::equal(
@@ -116,11 +116,11 @@ impl Planner for LookupPlanner {
             }
         }
 
-        // 3. 如果没有索引提示，获取可用的索引列表
+        // 3. If there is no index suggestion, obtain the list of available indexes.
         if selected_index.is_none() {
             let available_indexes: Vec<Index> = vec![];
 
-            // 使用简单启发式选择索引（选择第一个可用索引）
+            // Use a simple heuristic to select the index (choose the first available index).
             if !available_indexes.is_empty() {
                 let index = available_indexes.first().cloned();
                 selected_index = index;
@@ -130,10 +130,10 @@ impl Planner for LookupPlanner {
 
         let index_id = selected_index.as_ref().map(|idx| idx.id).unwrap_or(0);
 
-        // 4. 创建 IndexScan 节点
+        // 4. Create an IndexScan node
         let mut index_scan_node = IndexScanNode::new(space_id, 0, index_id, scan_type);
 
-        // 5. 设置扫描限制和返回列
+        // 5. Setting scan limitations and the columns to be returned
         index_scan_node.set_scan_limits(scan_limits);
 
         let mut current_node: PlanNodeEnum = PlanNodeEnum::IndexScan(index_scan_node);
@@ -166,7 +166,7 @@ impl Planner for LookupPlanner {
 }
 
 impl LookupPlanner {
-    /// 构建YIELD列
+    /// Construct the YIELD column
     fn build_yield_columns(
         lookup_stmt: &LookupStmt,
         validated: &ValidatedStatement,
@@ -199,7 +199,7 @@ impl LookupPlanner {
         Ok(columns)
     }
 
-    /// 解析YIELD表达式
+    /// Analyzing the YIELD expression
     fn _parse_yield_expression(name: &str) -> Result<Expression, PlannerError> {
         if name.contains(".") {
             let parts: Vec<&str> = name.split(".").collect();

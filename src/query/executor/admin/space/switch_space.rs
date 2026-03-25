@@ -1,6 +1,6 @@
-//! SwitchSpaceExecutor - 切换空间执行器
+//! SwitchSpaceExecutor - SwitchSpaceExecutor
 //!
-//! 负责切换当前会话的空间。
+//! Responsible for switching the space of the current session.
 
 use std::sync::Arc;
 
@@ -9,9 +9,9 @@ use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 切换空间执行器
+/// Switching space actuators
 ///
-/// 该执行器负责切换当前会话的空间。
+/// This executor is responsible for switching the space of the current session.
 #[derive(Debug)]
 pub struct SwitchSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

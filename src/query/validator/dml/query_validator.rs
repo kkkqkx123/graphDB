@@ -1,6 +1,6 @@
-//! Query 语句验证器
-//! 用于验证顶层查询语句（QueryStmt）
-//! Query 语句是一个包装器，包含实际的查询语句
+//! Query Statement Validator
+//! Used to validate the top-level query statement (QueryStmt)
+//! The “Query” statement is a wrapper that contains the actual query statement.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::parser::ast::stmt::{Ast, QueryStmt};
@@ -12,7 +12,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// Query 语句验证器
+/// Query Statement Validator
 #[derive(Debug)]
 pub struct QueryValidator {
     inner_validator: Option<Box<crate::query::validator::validator_enum::Validator>>,
@@ -23,7 +23,7 @@ pub struct QueryValidator {
 }
 
 impl QueryValidator {
-    /// 创建新的 Query 验证器
+    /// Create a new Query validator.
     pub fn new() -> Self {
         Self {
             inner_validator: None,
@@ -60,8 +60,8 @@ impl QueryValidator {
     }
 
     fn setup_outputs(&mut self) {
-        // Query 语句的输出与内部语句相同
-        // 在验证后从内部验证器复制
+        // The output of the query statement is the same as the output of the internal statements.
+        // Copy from the internal validator after verification.
         if let Some(ref inner) = self.inner_validator {
             self.outputs = inner.get_outputs().to_vec();
         }
@@ -74,10 +74,10 @@ impl Default for QueryValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for QueryValidator {
     fn validate(
         &mut self,
@@ -94,10 +94,10 @@ impl StatementValidator for QueryValidator {
             }
         };
 
-        // 验证实现（在移动 query_stmt 之前）
+        // Verify the implementation (before executing the query_stmt on the mobile device).
         self.validate_impl(query_stmt)?;
 
-        // 提取第一个语句
+        // Extract the first sentence.
         let first_stmt = query_stmt
             .statements
             .first()
@@ -197,7 +197,7 @@ mod tests {
             })],
         };
 
-        // 验证实现应该成功创建内部验证器
+        // The verification implementation should successfully create the internal validator.
         assert!(validator.validate_impl(&query_stmt).is_ok());
         assert!(validator.inner_validator.is_some());
     }

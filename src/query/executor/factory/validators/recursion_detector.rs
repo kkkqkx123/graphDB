@@ -1,23 +1,23 @@
-//! 递归检测器
+//! Recursive detector
 //!
-//! 负责检测执行计划中的循环引用，防止无限递归
+//! Responsible for detecting circular references in the execution plan to prevent infinite recursion.
 
 use crate::core::error::DBError;
 use std::collections::HashSet;
 
-/// 递归检测器
+/// Recursive detector
 #[derive(Debug, Clone)]
 pub struct RecursionDetector {
-    /// 访问栈，用于检测循环
+    /// The access stack is used to detect loops.
     visit_stack: Vec<(i64, &'static str)>,
-    /// 已访问的节点集合
+    /// Set of visited nodes
     visited: HashSet<i64>,
-    /// 最大递归深度
+    /// Maximum recursion depth
     max_depth: usize,
 }
 
 impl RecursionDetector {
-    /// 创建新的递归检测器
+    /// Create a new recursive detector.
     pub fn new(max_depth: usize) -> Self {
         Self {
             visit_stack: Vec::new(),
@@ -26,19 +26,19 @@ impl RecursionDetector {
         }
     }
 
-    /// 重置检测器状态
+    /// Reset the detector status.
     pub fn reset(&mut self) {
         self.visit_stack.clear();
         self.visited.clear();
     }
 
-    /// 验证执行器是否会导致递归
+    /// Verify whether the execution of the executor will lead to recursion.
     pub fn validate_executor(
         &mut self,
         node_id: i64,
         node_name: &'static str,
     ) -> Result<(), DBError> {
-        // 检查是否超过最大深度
+        // Check whether the maximum depth has been exceeded.
         if self.visit_stack.len() >= self.max_depth {
             return Err(DBError::Internal(format!(
                 "执行计划深度超过最大限制 {}: 当前节点 {}({})",
@@ -46,7 +46,7 @@ impl RecursionDetector {
             )));
         }
 
-        // 检查循环引用
+        // Check for circular references.
         if self.visit_stack.iter().any(|(id, _)| *id == node_id) {
             let cycle_path: Vec<String> = self
                 .visit_stack
@@ -61,24 +61,24 @@ impl RecursionDetector {
             )));
         }
 
-        // 将当前节点压入栈
+        // Push the current node onto the stack.
         self.visit_stack.push((node_id, node_name));
         self.visited.insert(node_id);
 
         Ok(())
     }
 
-    /// 离开当前节点（出栈）
+    /// Leave the current node (pop from the stack)
     pub fn leave_executor(&mut self) {
         self.visit_stack.pop();
     }
 
-    /// 获取当前深度
+    /// Get the current depth
     pub fn current_depth(&self) -> usize {
         self.visit_stack.len()
     }
 
-    /// 是否已访问过该节点
+    /// Has this node been visited before?
     pub fn is_visited(&self, node_id: i64) -> bool {
         self.visited.contains(&node_id)
     }

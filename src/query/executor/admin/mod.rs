@@ -1,7 +1,7 @@
-//! 管理执行器模块
+//! Managing actuator modules
 //!
-//! 提供数据库管理功能，包括空间管理、标签管理、边类型管理、索引管理、数据变更、用户管理、查询管理等。
-//! 针对单节点部署进行了简化，移除了分布式相关功能。
+//! Provide database management functions, including space management, label management, edge type management, index management, data change, user management, query management and so on.
+//! Simplified for single-node deployments, removing distribution-related functionality.
 
 pub mod analyze;
 pub mod edge;

@@ -1,6 +1,6 @@
-//! 查询统计执行器
+//! Query Statistics Executor
 //!
-//! 提供查询统计功能。
+//! Provide a query statistics function.
 
 pub mod show_stats;
 

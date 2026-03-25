@@ -1,27 +1,27 @@
-//! 集合运算执行器模块
+//! Set Operation Executor Module
 //!
-//! 包含所有集合运算相关的执行器，包括：
-//! - Union（并集，去重）
-//! - UnionAll（并集，保留重复）
-//! - Intersect（交集）
-//! - Minus/Except（差集）
+//! Include all executors related to set operations, including:
+//! Union (union set, with duplicates removed)
+//! UnionAll (Union; duplicates are retained)
+//! Intersect (intersection)
+//! “Minus/Except” refers to the mathematical concept of the difference set (also known as the set difference). In set theory, the difference set of two sets A and B, denoted by A ∆ B, consists of all elements that are in set A but not in set B. In other words, it contains the elements that are common to both sets A and B (i.e., A ∩ B) and the elements that are only in set A.
 
-// 基础集合操作执行器
+// Basic Set Operations Executor
 pub mod base;
 pub use base::SetExecutor;
 
-// Union操作（并集，去重）
+// Union operations (union, deduplication)
 pub mod union;
 pub use union::UnionExecutor;
 
-// UnionAll操作（并集，保留重复）
+// The UnionAll operation (union, with duplicates retained)
 pub mod union_all;
 pub use union_all::UnionAllExecutor;
 
-// Intersect操作（交集）
+// The Intersect operation
 pub mod intersect;
 pub use intersect::IntersectExecutor;
 
-// Minus操作（差集）
+// The “Minus” operation (difference set)
 pub mod minus;
 pub use minus::MinusExecutor;

@@ -1,6 +1,6 @@
-//! AnalyzeExecutor - 分析执行器
+//! AnalyzeExecutor – An analysis executor
 //!
-//! 负责收集和更新数据库统计信息，用于查询优化。
+//! Responsible for collecting and updating statistical information in the database, which is used for query optimization.
 
 use std::sync::Arc;
 
@@ -13,26 +13,26 @@ use crate::query::optimizer::stats::{EdgeTypeStatistics, StatisticsManager, TagS
 use crate::query::validator::context::ExpressionAnalysisContext;
 use crate::storage::StorageClient;
 
-/// 分析目标类型
+/// Analysis of the target type
 #[derive(Debug, Clone)]
 pub enum AnalyzeTarget {
-    /// 分析所有对象
+    /// Analyze all objects.
     All,
-    /// 分析指定标签
+    /// Analyze the specified tags
     Tag(String),
-    /// 分析指定边类型
+    /// Analyze the specified edge type
     EdgeType(String),
-    /// 分析指定属性
+    /// Analyze the specified attribute
     Property {
         tag: Option<String>,
         property: String,
     },
 }
 
-/// 分析执行器
+/// Analysis of the executor
 ///
-/// 该执行器负责收集数据库统计信息，用于查询优化器的代价计算。
-/// 通过 ANALYZE 命令触发执行。
+/// This executor is responsible for collecting statistical information from the database, which is used for the cost calculation of the query optimizer.
+/// The execution is triggered by the ANALYZE command.
 #[derive(Debug)]
 pub struct AnalyzeExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -41,7 +41,7 @@ pub struct AnalyzeExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> AnalyzeExecutor<S> {
-    /// 创建新的 AnalyzeExecutor
+    /// Create a new AnalyzeExecutor.
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -54,7 +54,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
         }
     }
 
-    /// 创建带目标的 AnalyzeExecutor
+    /// Create an AnalyzeExecutor with a specified goal
     pub fn with_target(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -68,17 +68,17 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
         }
     }
 
-    /// 设置分析目标
+    /// Set analysis objectives
     pub fn set_target(&mut self, target: AnalyzeTarget) {
         self.target = target;
     }
 
-    /// 获取统计信息管理器
+    /// Statistics Information Manager
     pub fn stats_manager(&self) -> Arc<Mutex<StatisticsManager>> {
         self.stats_manager.clone()
     }
 
-    /// 收集标签统计信息
+    /// Collecting tag statistics information
     fn collect_tag_stats(
         &self,
         storage: &S,
@@ -87,12 +87,12 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
     ) -> Result<TagStatistics, crate::core::StorageError> {
         let mut stats = TagStatistics::new(tag_name.to_string());
 
-        // 扫描该标签的所有顶点
+        // Scan all the vertices of that tag.
         let vertices = storage.scan_vertices_by_tag(space, tag_name)?;
         stats.vertex_count = vertices.len() as u64;
 
         if stats.vertex_count > 0 {
-            // 计算平均度数
+            // Calculate the average degree.
             let (avg_out, avg_in) = self.calculate_average_degrees(storage, space, &vertices)?;
             stats.avg_out_degree = avg_out;
             stats.avg_in_degree = avg_in;
@@ -101,7 +101,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
         Ok(stats)
     }
 
-    /// 计算顶点的平均出度和入度
+    /// Calculate the average outdegree and indegree of the vertices.
     fn calculate_average_degrees(
         &self,
         storage: &S,
@@ -112,11 +112,11 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
         let mut total_in_degree: usize = 0;
 
         for vertex in vertices {
-            // 获取出边
+            // Get it out (of somewhere).
             let out_edges = storage.get_node_edges(space, vertex.vid(), EdgeDirection::Out)?;
             total_out_degree += out_edges.len();
 
-            // 获取入边
+            // Get the content inside.
             let in_edges = storage.get_node_edges(space, vertex.vid(), EdgeDirection::In)?;
             total_in_degree += in_edges.len();
         }
@@ -136,7 +136,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
         Ok((avg_out, avg_in))
     }
 
-    /// 收集边类型统计信息
+    /// Collecting statistical information on edge types
     fn collect_edge_stats(
         &self,
         storage: &S,
@@ -145,12 +145,12 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
     ) -> Result<EdgeTypeStatistics, crate::core::StorageError> {
         let mut stats = EdgeTypeStatistics::new(edge_type.to_string());
 
-        // 扫描该类型的所有边
+        // Scan all the edges of this type.
         let edges = storage.scan_edges_by_type(space, edge_type)?;
         stats.edge_count = edges.len() as u64;
 
         if stats.edge_count > 0 {
-            // 计算唯一源顶点和目标顶点数
+            // Calculate the number of unique source vertices and target vertices.
             let mut unique_src = std::collections::HashSet::new();
             let mut unique_dst = std::collections::HashSet::new();
 
@@ -162,7 +162,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
             stats.unique_src_vertices = unique_src.len() as u64;
             let unique_dst_count = unique_dst.len() as u64;
 
-            // 计算平均出度和入度
+            // Calculate the average outdegree and indegree.
             stats.avg_out_degree = if stats.unique_src_vertices > 0 {
                 stats.edge_count as f64 / stats.unique_src_vertices as f64
             } else {
@@ -178,7 +178,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
         Ok(stats)
     }
 
-    /// 执行分析并返回结果数据集
+    /// Perform the analysis and return the resulting dataset.
     fn execute_analysis(&self, space: &str) -> crate::query::executor::base::DBResult<DataSet> {
         let storage = self.get_storage();
         let storage_guard = storage.lock();
@@ -187,13 +187,13 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
 
         match &self.target {
             AnalyzeTarget::All => {
-                // 获取所有标签
+                // Retrieve all tags
                 let tags = storage_guard.list_tags(space)?;
                 for tag_info in &tags {
                     let stats =
                         self.collect_tag_stats(&*storage_guard, space, &tag_info.tag_name)?;
 
-                    // 更新统计信息管理器
+                    // Update the Statistics Information Manager
                     {
                         let manager = self.stats_manager.lock();
                         manager.update_tag_stats(stats.clone());
@@ -208,7 +208,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
                     ]);
                 }
 
-                // 获取所有边类型
+                // Retrieve all edge types
                 let edge_types = storage_guard.list_edge_types(space)?;
                 for edge_type_info in &edge_types {
                     let stats = self.collect_edge_stats(
@@ -217,7 +217,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
                         &edge_type_info.edge_type_name,
                     )?;
 
-                    // 更新统计信息管理器
+                    // Update the Statistics Information Manager
                     {
                         let manager = self.stats_manager.lock();
                         manager.update_edge_stats(stats.clone());
@@ -235,7 +235,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
             AnalyzeTarget::Tag(tag_name) => {
                 let stats = self.collect_tag_stats(&*storage_guard, space, tag_name)?;
 
-                // 更新统计信息管理器
+                // Update the Statistics Information Manager
                 {
                     let manager = self.stats_manager.lock();
                     manager.update_tag_stats(stats.clone());
@@ -252,7 +252,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
             AnalyzeTarget::EdgeType(edge_type) => {
                 let stats = self.collect_edge_stats(&*storage_guard, space, edge_type)?;
 
-                // 更新统计信息管理器
+                // Update the Statistics Information Manager
                 {
                     let manager = self.stats_manager.lock();
                     manager.update_edge_stats(stats.clone());
@@ -267,8 +267,8 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
                 ]);
             }
             AnalyzeTarget::Property { tag, property } => {
-                // 属性统计信息收集
-                // 目前简化实现，返回基本信息
+                // Collection of attribute statistics information
+                // For the current simplified implementation, only basic information is returned.
                 rows.push(vec![
                     Value::String("PROPERTY".to_string()),
                     Value::String(format!("{}.{}", tag.as_deref().unwrap_or("*"), property)),
@@ -294,7 +294,7 @@ impl<S: StorageClient> AnalyzeExecutor<S> {
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AnalyzeExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
-        // 获取当前空间名称，从上下文变量中获取
+        // Get the current space name from the context variable.
         let space = self
             .base
             .context

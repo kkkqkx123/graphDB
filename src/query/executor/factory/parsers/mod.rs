@@ -1,6 +1,6 @@
-//! 解析器模块
+//! Parser module
 //!
-//! 负责解析顶点ID、边方向、权重配置等
+//! Responsible for parsing vertex IDs, edge directions, weight configurations, and more.
 
 pub mod config_parser;
 pub mod edge_parser;

@@ -1,6 +1,6 @@
-//! MATCH 路径规划器
+//! MATCH Route Planner
 //!
-//! 负责规划 MATCH 查询中的路径模式，生成遍历计划
+//! Responsible for planning the path patterns in MATCH queries and generating the traversal plans.
 
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::{StorageError, Value};
@@ -776,7 +776,7 @@ mod tests {
     #[test]
     fn test_match_path_planner_new() {
         let _planner = MatchPathPlanner::new();
-        // 测试通过到达此处即表示成功
+        // If the test is successful and you have reached this point, it means that everything has gone as planned.
     }
 
     #[test]
@@ -798,7 +798,7 @@ mod tests {
                 properties: vec![],
             },
         );
-        // 测试通过到达此处即表示成功
+        // If the test is successful and you have reached this point, it means that everything has gone as planned.
     }
 
     #[test]
@@ -822,6 +822,6 @@ mod tests {
             Some(1),
             Some(5),
         );
-        // 测试通过到达此处即表示成功
+        // If the test is successful and you have reached this point, it means that everything has gone well.
     }
 }

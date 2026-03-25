@@ -1,6 +1,6 @@
-//! 分析模块集成测试
+//! Analysis module integration testing
 //!
-//! 测试分析模块各个组件之间的集成功能
+//! Testing the integration capabilities between the various components of the analysis module.
 
 use std::sync::Arc;
 
@@ -15,7 +15,7 @@ use crate::query::planning::plan::core::nodes::{
 };
 use crate::query::validator::context::ExpressionAnalysisContext;
 
-/// 创建测试用的表达式上下文
+/// Create an expression context for testing purposes.
 fn create_test_context(expr: Expression) -> crate::core::types::ContextualExpression {
     let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
     let expr_meta = ExpressionMeta::new(expr);
@@ -27,7 +27,7 @@ fn create_test_context(expr: Expression) -> crate::core::types::ContextualExpres
 fn test_expression_analyzer_integration() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 测试复杂表达式的分析
+    // Analysis of testing complex expressions
     let complex_expr = Expression::Binary {
         left: Box::new(Expression::Property {
             object: Box::new(Expression::Variable("n".to_string())),
@@ -50,7 +50,7 @@ fn test_expression_analyzer_integration() {
 fn test_nondeterministic_expression_analysis() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 测试包含非确定性函数的表达式
+    // The test includes expressions that contain non-deterministic functions.
     let nondeterministic_expr = Expression::Function {
         name: "rand".to_string(),
         args: vec![],
@@ -65,7 +65,7 @@ fn test_nondeterministic_expression_analysis() {
 
 #[test]
 fn test_expression_analyzer_options() {
-    // 测试只检查确定性的分析器
+    // The test only checks the analyzers that provide deterministic results.
     let deterministic_analyzer = ExpressionAnalyzer::deterministic_only();
     let expr = Expression::Literal(Value::Int(42));
     let ctx_expr = create_test_context(expr);
@@ -75,7 +75,7 @@ fn test_expression_analyzer_options() {
     assert_eq!(analysis.referenced_properties.len(), 0);
     assert_eq!(analysis.referenced_variables.len(), 0);
 
-    // 测试只提取属性的分析器
+    // An analyzer that only extracts attributes during testing
     let property_analyzer = ExpressionAnalyzer::property_extractor();
     let prop_expr = Expression::Property {
         object: Box::new(Expression::Variable("n".to_string())),
@@ -93,21 +93,21 @@ fn test_expression_analyzer_options() {
 fn test_fingerprint_calculator_integration() {
     let calculator = FingerprintCalculator::new();
 
-    // 创建两个结构相同的计划节点
+    // Create two plan nodes with the same structure.
     let node1 = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "Person"));
     let node2 = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "Person"));
 
     let fp1 = calculator.calculate_fingerprint(&node1);
     let fp2 = calculator.calculate_fingerprint(&node2);
 
-    // 相同结构的节点应该产生相同的指纹
+    // Nodes with the same structure should produce the same “fingerprint”.
     assert_eq!(fp1, fp2);
 
-    // 创建不同结构的节点
+    // Creating nodes with different structures
     let node3 = PlanNodeEnum::Start(crate::query::planning::plan::core::nodes::StartNode::new());
     let fp3 = calculator.calculate_fingerprint(&node3);
 
-    // 不同结构的节点应该产生不同的指纹
+    // Nodes with different structures should produce different “fingerprints”.
     assert_ne!(fp1, fp3);
 }
 
@@ -115,7 +115,7 @@ fn test_fingerprint_calculator_integration() {
 fn test_fingerprint_stability() {
     let calculator = FingerprintCalculator::new();
 
-    // 多次计算同一节点的指纹应该产生相同的结果
+    // Repeating the calculation of the fingerprint for the same node should always produce the same result.
     let node = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "Test"));
 
     let fp1 = calculator.calculate_fingerprint(&node);
@@ -130,13 +130,13 @@ fn test_fingerprint_stability() {
 fn test_reference_count_analyzer_integration() {
     let analyzer = ReferenceCountAnalyzer::new();
 
-    // 创建一个简单的计划树
+    // Create a simple plan tree.
     let start_node =
         PlanNodeEnum::Start(crate::query::planning::plan::core::nodes::StartNode::new());
 
     let analysis = analyzer.analyze(&start_node);
 
-    // 简单计划不应该有重复的子计划
+    // A simple plan should not contain duplicate sub-plans.
     assert_eq!(analysis.repeated_count(), 0);
 }
 
@@ -144,12 +144,12 @@ fn test_reference_count_analyzer_integration() {
 fn test_expression_complexity_scoring() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 简单表达式
+    // Simple expressions
     let simple_expr = Expression::Literal(Value::Int(1));
     let ctx_simple = create_test_context(simple_expr);
     let simple_analysis = analyzer.analyze(&ctx_simple);
 
-    // 复杂表达式
+    // Complex expressions
     let complex_expr = Expression::Binary {
         left: Box::new(Expression::Function {
             name: "abs".to_string(),
@@ -173,7 +173,7 @@ fn test_expression_complexity_scoring() {
     let ctx_complex = create_test_context(complex_expr);
     let complex_analysis = analyzer.analyze(&ctx_complex);
 
-    // 复杂表达式的复杂度评分应该高于简单表达式
+    // The complexity score of complex expressions should be higher than that of simple expressions.
     assert!(complex_analysis.complexity_score > simple_analysis.complexity_score);
 }
 
@@ -181,7 +181,7 @@ fn test_expression_complexity_scoring() {
 fn test_expression_aggregate_detection() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 包含聚合函数的表达式
+    // Expressions that contain aggregate functions
     let aggregate_expr = Expression::Aggregate {
         func: crate::core::types::operators::AggregateFunction::Count(None),
         arg: Box::new(Expression::Variable("n".to_string())),
@@ -198,7 +198,7 @@ fn test_expression_aggregate_detection() {
 fn test_expression_depth_and_node_count() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 嵌套表达式
+    // Nested expressions
     let nested_expr = Expression::Binary {
         left: Box::new(Expression::Binary {
             left: Box::new(Expression::Binary {
@@ -216,7 +216,7 @@ fn test_expression_depth_and_node_count() {
     let ctx_expr = create_test_context(nested_expr);
     let analysis = analyzer.analyze(&ctx_expr);
 
-    // 验证节点计数
+    // Verify the number of nodes
     assert!(analysis.node_count > 0);
 }
 
@@ -224,7 +224,7 @@ fn test_expression_depth_and_node_count() {
 fn test_multiple_function_calls() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 包含多个函数调用的表达式
+    // An expression that contains multiple function calls
     let multi_func_expr = Expression::Function {
         name: "coalesce".to_string(),
         args: vec![
@@ -252,7 +252,7 @@ fn test_multiple_function_calls() {
 fn test_expression_analyzer_with_case_expression() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // CASE 表达式
+    // CASE expression
     let case_expr = Expression::Case {
         test_expr: None,
         conditions: vec![
@@ -289,7 +289,7 @@ fn test_expression_analyzer_with_case_expression() {
 fn test_plan_fingerprint_with_filter() {
     let calculator = FingerprintCalculator::new();
 
-    // 创建带过滤条件的计划节点
+    // Create a plan node with filtering criteria
     let condition_expr = Expression::Binary {
         left: Box::new(Expression::Property {
             object: Box::new(Expression::Variable("n".to_string())),
@@ -311,7 +311,7 @@ fn test_plan_fingerprint_with_filter() {
 
     let fp = calculator.calculate_fingerprint(&filter_node);
 
-    // 验证指纹生成成功
+    // Verification that fingerprint generation was successful.
     assert!(fp.value() != 0);
 }
 
@@ -319,10 +319,10 @@ fn test_plan_fingerprint_with_filter() {
 fn test_plan_fingerprint_with_project() {
     let calculator = FingerprintCalculator::new();
 
-    // 创建带投影的计划节点
+    // Create a planning node with a projection
     let input_node = PlanNodeEnum::GetVertices(GetVerticesNode::new(1, "Person"));
 
-    // 创建 YieldColumn
+    // Create a YieldColumn
     let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
     let expr1 = Expression::Property {
         object: Box::new(Expression::Variable("n".to_string())),
@@ -351,7 +351,7 @@ fn test_plan_fingerprint_with_project() {
 
     let fp = calculator.calculate_fingerprint(&project_node);
 
-    // 验证指纹生成成功
+    // Verify that the fingerprint generation was successful.
     assert!(fp.value() != 0);
 }
 
@@ -359,7 +359,7 @@ fn test_plan_fingerprint_with_project() {
 fn test_expression_analyzer_with_list_expression() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 列表表达式
+    // List expression
     let list_expr = Expression::List(vec![
         Expression::Literal(Value::Int(1)),
         Expression::Literal(Value::Int(2)),
@@ -377,7 +377,7 @@ fn test_expression_analyzer_with_list_expression() {
 fn test_expression_analyzer_with_map_expression() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 映射表达式
+    // Mapping expression
     let map_expr = Expression::Map(vec![
         ("key1".to_string(), Expression::Literal(Value::Int(1))),
         (
@@ -397,7 +397,7 @@ fn test_expression_analyzer_with_map_expression() {
 fn test_expression_analyzer_with_type_cast() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 类型转换表达式
+    // Type conversion expressions
     let cast_expr = Expression::TypeCast {
         expression: Box::new(Expression::Literal(Value::String("123".to_string()))),
         target_type: crate::core::types::DataType::Int,
@@ -414,7 +414,7 @@ fn test_expression_analyzer_with_type_cast() {
 fn test_expression_analyzer_with_subscript() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 下标访问表达式
+    // Subscript access expression
     let subscript_expr = Expression::Subscript {
         collection: Box::new(Expression::Variable("arr".to_string())),
         index: Box::new(Expression::Literal(Value::Int(0))),
@@ -431,7 +431,7 @@ fn test_expression_analyzer_with_subscript() {
 fn test_expression_analyzer_with_unary_operator() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 一元运算表达式
+    // A unary operation expression
     let unary_expr = Expression::Unary {
         op: crate::core::types::UnaryOperator::Minus,
         operand: Box::new(Expression::Literal(Value::Int(5))),
@@ -448,7 +448,7 @@ fn test_expression_analyzer_with_unary_operator() {
 fn test_expression_analyzer_with_range() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 范围表达式
+    // Range expressions
     let range_expr = Expression::Range {
         collection: Box::new(Expression::Variable("list".to_string())),
         start: Some(Box::new(Expression::Literal(Value::Int(0)))),
@@ -466,7 +466,7 @@ fn test_expression_analyzer_with_range() {
 fn test_expression_analyzer_with_label_tag_property() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 标签属性动态访问
+    // Dynamic access to tag attributes
     let label_tag_prop_expr = Expression::LabelTagProperty {
         tag: Box::new(Expression::Variable("tagName".to_string())),
         property: "propertyName".to_string(),
@@ -485,7 +485,7 @@ fn test_expression_analyzer_with_label_tag_property() {
 fn test_expression_analyzer_with_tag_property() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 标签属性访问
+    // Access to tag attributes
     let tag_prop_expr = Expression::TagProperty {
         tag_name: "Person".to_string(),
         property: "name".to_string(),
@@ -501,7 +501,7 @@ fn test_expression_analyzer_with_tag_property() {
 fn test_expression_analyzer_with_edge_property() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 边属性访问
+    // Edge attribute access
     let edge_prop_expr = Expression::EdgeProperty {
         edge_name: "FRIEND".to_string(),
         property: "since".to_string(),
@@ -517,7 +517,7 @@ fn test_expression_analyzer_with_edge_property() {
 fn test_expression_analyzer_with_parameter() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 查询参数表达式
+    // Query parameter expression
     let param_expr = Expression::Parameter("userId".to_string());
 
     let ctx_expr = create_test_context(param_expr);
@@ -531,7 +531,7 @@ fn test_expression_analyzer_with_parameter() {
 fn test_expression_analyzer_with_path() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 路径表达式
+    // Path expression
     let path_expr = Expression::Path(vec![
         Expression::Variable("v1".to_string()),
         Expression::Variable("e1".to_string()),
@@ -551,7 +551,7 @@ fn test_expression_analyzer_with_path() {
 fn test_expression_analyzer_with_label() {
     let analyzer = ExpressionAnalyzer::new();
 
-    // 标签表达式
+    // Tag expressions
     let label_expr = Expression::Label("Person".to_string());
 
     let ctx_expr = create_test_context(label_expr);
@@ -596,7 +596,7 @@ fn test_expression_analyzer_clone() {
     let analyzer = ExpressionAnalyzer::new();
     let _analyzer_clone = analyzer.clone();
 
-    // 验证克隆成功
+    // Verify that the cloning was successful.
 }
 
 #[test]
@@ -604,7 +604,7 @@ fn test_fingerprint_calculator_clone() {
     let calculator = FingerprintCalculator::new();
     let _calculator_clone = calculator.clone();
 
-    // 验证克隆成功
+    // Verify that the cloning was successful.
 }
 
 #[test]
@@ -612,7 +612,7 @@ fn test_reference_count_analyzer_clone() {
     let analyzer = ReferenceCountAnalyzer::new();
     let _analyzer_clone = analyzer.clone();
 
-    // 验证克隆成功
+    // Verify that the cloning was successful.
 }
 
 #[test]

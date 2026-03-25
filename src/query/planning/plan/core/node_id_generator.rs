@@ -1,38 +1,38 @@
-//! 节点ID生成器
+//! Node ID generator
 //!
-//! 提供全局唯一的计划节点ID分配机制
+//! Provide a mechanism for the allocation of globally unique plan node IDs.
 
 use std::sync::atomic::{AtomicI64, Ordering};
 
-/// 节点ID生成器
+/// Node ID generator
 ///
-/// 使用单例模式提供全局唯一的节点ID分配
+/// Using the singleton pattern to provide a globally unique node ID assignment.
 pub struct NodeIdGenerator {
     counter: AtomicI64,
 }
 
 impl NodeIdGenerator {
-    /// 获取全局单例实例
+    /// Obtain a global singleton instance.
     pub fn instance() -> &'static Self {
         static INSTANCE: NodeIdGenerator = NodeIdGenerator {
-            counter: AtomicI64::new(1), // 从1开始，0保留为无效ID
+            counter: AtomicI64::new(1), // Starting from 1, 0 is reserved as an invalid ID.
         };
         &INSTANCE
     }
 
-    /// 获取下一个唯一ID
+    /// Obtain the next unique ID.
     pub fn next_id(&self) -> i64 {
         self.counter.fetch_add(1, Ordering::SeqCst)
     }
 
-    /// 重置计数器（仅用于测试）
+    /// Reset the counter (for testing purposes only)
     #[cfg(test)]
     pub fn reset(&self) {
         self.counter.store(1, Ordering::SeqCst);
     }
 }
 
-/// 为节点分配新ID的便捷函数
+/// A convenient function for assigning new IDs to nodes
 pub fn next_node_id() -> i64 {
     NodeIdGenerator::instance().next_id()
 }

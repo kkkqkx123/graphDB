@@ -1,6 +1,6 @@
-//! 集合操作节点实现
+//! Implementation of set operation nodes
 //!
-//! 提供集合操作相关的计划节点定义
+//! Provide definitions for the planning nodes related to set operations.
 
 use crate::define_plan_node_with_deps;
 

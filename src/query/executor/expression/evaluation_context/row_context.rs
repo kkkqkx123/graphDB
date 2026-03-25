@@ -1,29 +1,29 @@
-//! 行表达式上下文实现
+//! Implementation in the context of row expressions
 //!
-//! 为Join操作和行级表达式求值提供专用的上下文实现
-//! 支持按列名和列索引访问行数据
+//! Provide dedicated context implementations for the Join operation and the evaluation of row-level expressions.
+//! Support accessing row data by column name and column index.
 
 use crate::core::Value;
 use std::collections::HashMap;
 
-/// 行表达式上下文
+/// Context of the expression line
 ///
-/// 专门用于在行数据上求值表达式的上下文实现
-/// 支持两种访问模式：
-/// 1. 按列名访问：通过 col_name_index 映射
-/// 2. 按变量名访问：通过 variables 映射
+/// A context implementation specifically designed for evaluating expressions on row data
+/// Two access modes are supported:
+/// Access by column name: via the col_name_index mapping
+/// 2. Access by variable name: via the variables mapping
 #[derive(Debug, Clone)]
 pub struct RowExpressionContext {
-    /// 当前行数据
+    /// Data from the current row
     row: Vec<Value>,
-    /// 列名索引映射（快速查找）
+    /// Column name index mapping (for quick searching)
     col_name_index: HashMap<String, usize>,
-    /// 额外变量（用于存储计算中间结果）
+    /// Extra variables (used to store intermediate results of calculations)
     variables: HashMap<String, Value>,
 }
 
 impl RowExpressionContext {
-    /// 创建新的行上下文
+    /// Create a new line context.
     pub fn new(row: Vec<Value>, col_names: Vec<String>) -> Self {
         let col_name_index: HashMap<String, usize> = col_names
             .into_iter()
@@ -38,12 +38,12 @@ impl RowExpressionContext {
         }
     }
 
-    /// 从现有数据创建上下文
+    /// Create a context based on the existing data.
     pub fn from_dataset(row: &[Value], col_names: &[String]) -> Self {
         Self::new(row.to_vec(), col_names.to_vec())
     }
 
-    /// 按列名获取值
+    /// Retrieve values based on column names.
     pub fn get_value_by_name(&self, name: &str) -> Option<&Value> {
         self.col_name_index
             .get(name)
@@ -55,12 +55,12 @@ impl crate::query::executor::expression::evaluator::traits::ExpressionContext
     for RowExpressionContext
 {
     fn get_variable(&self, name: &str) -> Option<Value> {
-        // 首先检查变量映射
+        // First, check the variable mapping.
         if let Some(value) = self.variables.get(name) {
             return Some(value.clone());
         }
 
-        // 然后检查列名（支持将列名作为变量访问）
+        // Then check the column names (it is possible to access the column names as variables).
         if let Some(value) = self.get_value_by_name(name) {
             return Some(value.clone());
         }

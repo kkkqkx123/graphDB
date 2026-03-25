@@ -1,6 +1,6 @@
-//! Insert Edges 语句验证器
-//! 对应 NebulaGraph InsertEdgesValidator 的功能
-//! 验证 INSERT EDGES 语句的语义正确性
+//! Edges Statement Validator
+//! Corresponding to the functionality of NebulaGraph InsertEdgesValidator
+//! Verify the semantic correctness of the INSERT EDGES statement.
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -16,7 +16,7 @@ use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-/// 验证后的边插入信息
+/// Verified edge insertion information
 #[derive(Debug, Clone)]
 pub struct ValidatedInsertEdges {
     pub space_id: u64,
@@ -62,7 +62,7 @@ impl InsertEdgesValidator {
         self
     }
 
-    /// 验证边类型存在
+    /// Verify the existence of the edge type.
     fn validate_edge_type_exists(&self, edge_name: &str) -> Result<(), ValidationError> {
         if edge_name.is_empty() {
             return Err(ValidationError::new(
@@ -73,7 +73,7 @@ impl InsertEdgesValidator {
         Ok(())
     }
 
-    /// 验证属性名
+    /// Verify the attribute name.
     fn validate_property_names(&self, prop_names: &[String]) -> Result<(), ValidationError> {
         let mut seen = HashSet::new();
         for prop_name in prop_names {
@@ -87,8 +87,8 @@ impl InsertEdgesValidator {
         Ok(())
     }
 
-    /// 验证顶点ID格式
-    /// 使用 SchemaValidator 的统一验证方法
+    /// Verify the vertex ID format.
+    /// Using the unified validation method of SchemaValidator
     fn validate_vertex_id_format(
         &self,
         expr: &ContextualExpression,
@@ -103,12 +103,12 @@ impl InsertEdgesValidator {
                 .validate_vid_expr(expr, &vid_type, role)
                 .map_err(|e| ValidationError::new(e.message, e.error_type))
         } else {
-            // 没有 schema_manager 时进行基本验证
+            // Performing basic validation in the absence of the schema_manager
             Self::basic_validate_vertex_id_format(expr, role)
         }
     }
 
-    /// 基本顶点 ID 验证（无 SchemaManager 时）
+    /// Basic vertex ID verification (when no SchemaManager is available)
     fn basic_validate_vertex_id_format(
         expr: &ContextualExpression,
         role: &str,
@@ -132,7 +132,7 @@ impl InsertEdgesValidator {
                         ValidationErrorType::SemanticError,
                     ));
                 }
-                // 检查空字符串
+                // Check the empty string.
                 if let Value::String(s) = value {
                     if s.is_empty() {
                         return Err(ValidationError::new(
@@ -142,7 +142,7 @@ impl InsertEdgesValidator {
                     }
                     return Ok(());
                 }
-                // 只接受字符串字面量
+                // Please provide the text you would like to have translated.
                 return Err(ValidationError::new(
                     format!("{} vertex ID must be a string constant or variable", role),
                     ValidationErrorType::SemanticError,
@@ -156,7 +156,7 @@ impl InsertEdgesValidator {
         ))
     }
 
-    /// 验证 rank
+    /// Verify the rank.
     fn validate_rank(&self, rank: &Option<ContextualExpression>) -> Result<(), ValidationError> {
         if let Some(rank_expr) = rank {
             if rank_expr.expression().is_none() {
@@ -171,7 +171,7 @@ impl InsertEdgesValidator {
                     ValidationErrorType::SemanticError,
                 ));
             }
-            // 检查字面量是否为整数
+            // Check whether the literal value is an integer.
             if rank_expr.is_literal() {
                 if let Some(value) = rank_expr.as_literal() {
                     if !matches!(value, Value::Int(_)) {
@@ -186,7 +186,7 @@ impl InsertEdgesValidator {
         Ok(())
     }
 
-    /// 验证值数量
+    /// Number of validation values
     fn validate_values_count(
         &self,
         prop_names: &[String],
@@ -205,7 +205,7 @@ impl InsertEdgesValidator {
         Ok(())
     }
 
-    /// 验证属性值
+    /// Verify the attribute values
     fn validate_property_values(
         &self,
         _edge_name: &str,
@@ -226,7 +226,7 @@ impl InsertEdgesValidator {
         Ok(())
     }
 
-    /// 验证单个属性值
+    /// Verify the value of a single attribute
     fn validate_property_value(
         &self,
         _prop_name: &str,
@@ -239,18 +239,18 @@ impl InsertEdgesValidator {
             ));
         }
 
-        // 字面量和变量总是有效的
+        // Literals and variables are always valid.
         if value.is_literal() || value.is_variable() {
             return Ok(());
         }
 
-        // 函数调用需要参数
-        // 注意：这里需要更详细的验证，但 ContextualExpression 没有提供访问函数参数的方法
-        // 暂时接受所有其他表达式类型
+        // The function call requires parameters.
+        // Note: More detailed verification is required in this case, but ContextualExpression does not provide a way to access the function parameters.
+        // Temporarily accept all other types of expressions.
         Ok(())
     }
 
-    /// 生成输出列
+    /// Generate a column of outputs.
     fn generate_output_columns(&mut self) {
         self.outputs.clear();
         self.outputs.push(ColumnDef {
@@ -259,7 +259,7 @@ impl InsertEdgesValidator {
         });
     }
 
-    /// 评估表达式为值
+    /// Evaluating an expression to obtain a value
     fn evaluate_expression(&self, expr: &ContextualExpression) -> Result<Value, ValidationError> {
         if expr.expression().is_none() {
             return Ok(Value::Null(NullType::Null));
@@ -276,7 +276,7 @@ impl InsertEdgesValidator {
         Ok(Value::Null(NullType::Null))
     }
 
-    /// 评估 rank 表达式
+    /// Evaluating the rank expression
     fn evaluate_rank(&self, rank: &Option<ContextualExpression>) -> Result<i64, ValidationError> {
         if let Some(rank_expr) = rank {
             if let Some(Value::Int(n)) = rank_expr.as_literal() {
@@ -293,17 +293,17 @@ impl Default for InsertEdgesValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for InsertEdgesValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 1. 检查是否需要空间
+        // 1. Check whether additional space is needed.
         if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
@@ -311,7 +311,7 @@ impl StatementValidator for InsertEdgesValidator {
             ));
         }
 
-        // 2. 获取 INSERT 语句
+        // 2. Obtain the INSERT statement
         let insert_stmt = match &ast.stmt {
             Stmt::Insert(insert_stmt) => insert_stmt,
             _ => {
@@ -322,7 +322,7 @@ impl StatementValidator for InsertEdgesValidator {
             }
         };
 
-        // 3. 验证语句类型
+        // 3. Verify the statement type
         let (edge_name, prop_names, edges) = match &insert_stmt.target {
             InsertTarget::Edge {
                 edge_name,
@@ -337,13 +337,13 @@ impl StatementValidator for InsertEdgesValidator {
             }
         };
 
-        // 4. 验证边类型存在
+        // 4. Verify that the edge type exists.
         self.validate_edge_type_exists(&edge_name)?;
 
-        // 5. 验证属性名
+        // 5. Verify the attribute names
         self.validate_property_names(&prop_names)?;
 
-        // 6. 验证每条边
+        // 6. Verify each edge.
         let mut validated_edges = Vec::new();
         for (src, dst, rank, values) in &edges {
             self.validate_vertex_id_format(src, "source")?;
@@ -352,7 +352,7 @@ impl StatementValidator for InsertEdgesValidator {
             self.validate_values_count(&prop_names, values)?;
             self.validate_property_values(&edge_name, &prop_names, values)?;
 
-            // 评估并转换
+            // Evaluate and convert
             let src_id = self.evaluate_expression(src)?;
             let dst_id = self.evaluate_expression(dst)?;
             let rank_val = self.evaluate_rank(rank)?;
@@ -369,10 +369,10 @@ impl StatementValidator for InsertEdgesValidator {
             });
         }
 
-        // 7. 获取 space_id
+        // 7. Obtain the space_id
         let space_id = qctx.space_id().unwrap_or(0);
 
-        // 8. 创建验证结果
+        // 8. Create the verification results
         let validated = ValidatedInsertEdges {
             space_id,
             edge_name: edge_name.clone(),
@@ -384,18 +384,18 @@ impl StatementValidator for InsertEdgesValidator {
 
         self.validated_result = Some(validated);
 
-        // 9. 生成输出列
+        // 9. Generate an output column
         self.generate_output_columns();
 
-        // 10. 构建详细的 ValidationInfo
+        // 10. Constructing detailed ValidationInfo
         let mut info = ValidationInfo::new();
 
-        // 添加语义信息
+        // Add semantic information
         if !info.semantic_info.referenced_edges.contains(&edge_name) {
             info.semantic_info.referenced_edges.push(edge_name.clone());
         }
 
-        // 11. 返回包含详细信息的验证结果
+        // 11. Return the verification results containing detailed information.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -412,7 +412,7 @@ impl StatementValidator for InsertEdgesValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // INSERT EDGES 不是全局语句，需要预先选择空间
+        // The `INSERT EDGES` command is not a global statement; it is necessary to select a specific space in advance before using it.
         false
     }
 
@@ -443,7 +443,7 @@ mod tests {
         ContextualExpression::new(id, ctx)
     }
 
-    /// 创建测试用的 QueryContext，带有有效的 space_id
+    /// Create a QueryContext for testing purposes, which should contain a valid space_id.
     fn create_test_query_context() -> Arc<QueryContext> {
         let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
         let mut qctx = QueryContext::new(rctx);

@@ -1,13 +1,13 @@
-//! 解析器模块
+//! Parser module
 //!
-//! 负责解析查询语句的顶层结构，包括语句、表达式、模式等。
+//! Responsible for parsing the top-level structure of query statements, including statements, expressions, patterns, etc.
 
 mod expr_parser;
 mod parse_context;
 mod parser;
 mod stmt_parser;
 
-// 子模块解析器
+// Sub-module parser
 mod clause_parser;
 mod ddl_parser;
 mod dml_parser;
@@ -23,7 +23,7 @@ pub use parse_context::ParseContext;
 pub use parser::{Parser, ParserResult};
 pub use stmt_parser::StmtParser;
 
-// 导出子模块解析器
+// Export Submodule Parser
 pub use clause_parser::ClauseParser;
 pub use ddl_parser::DdlParser;
 pub use dml_parser::DmlParser;

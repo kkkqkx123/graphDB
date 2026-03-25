@@ -1,6 +1,6 @@
-//! 引用计数分析模块
+//! Reference Count Analysis Module
 //!
-//! 识别执行计划中被多次引用的子计划节点，为物化策略选择提供数据支持。
+//! Identify the sub-plan nodes that are referenced multiple times in the execution plan, to provide data support for the selection of the materialization strategy.
 
 use std::collections::HashMap;
 
@@ -8,41 +8,41 @@ use crate::query::planning::plan::core::nodes::PlanNodeEnum;
 
 use super::fingerprint::FingerprintCalculator;
 
-/// 子计划唯一标识
+/// Unique identifier for the sub-plan
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SubplanId(pub u64);
 
 impl SubplanId {
-    /// 创建新的子计划ID
+    /// Create a new sub-plan ID.
     pub fn new(value: u64) -> Self {
         Self(value)
     }
 
-    /// 获取ID值
+    /// Obtain the ID value
     pub fn value(&self) -> u64 {
         self.0
     }
 }
 
-/// 子计划引用信息
+/// Sub-plan reference information
 #[derive(Debug, Clone)]
 pub struct SubplanReferenceInfo {
-    /// 子计划的唯一标识
+    /// The unique identifier of the sub-plan
     pub subplan_id: SubplanId,
-    /// 子计划根节点ID
+    /// Sub-plan root node ID
     pub root_node_id: i64,
-    /// 被引用次数
+    /// Number of citations
     pub reference_count: usize,
-    /// 引用位置（父节点ID列表）
+    /// Reference location (list of parent node IDs)
     pub reference_locations: Vec<i64>,
-    /// 估算输出行数
+    /// Estimate the number of output lines.
     pub estimated_output_rows: u64,
-    /// 子计划包含的节点数量
+    /// The number of nodes included in the sub-plan
     pub node_count: usize,
 }
 
 impl SubplanReferenceInfo {
-    /// 创建新的子计划引用信息
+    /// Create new sub-plan reference information.
     pub fn new(subplan_id: SubplanId, root_node_id: i64) -> Self {
         Self {
             subplan_id,
@@ -54,7 +54,7 @@ impl SubplanReferenceInfo {
         }
     }
 
-    /// 增加引用计数
+    /// Increase the reference count
     pub fn add_reference(&mut self, location: i64) {
         self.reference_count += 1;
         if !self.reference_locations.contains(&location) {
@@ -63,17 +63,17 @@ impl SubplanReferenceInfo {
     }
 }
 
-/// 引用计数分析结果
+/// Results of reference count analysis
 #[derive(Debug, Clone)]
 pub struct ReferenceCountAnalysis {
-    /// 所有被多次引用的子计划（引用次数 >= 2）
+    /// All sub-plans that have been referenced multiple times (number of references >= 2)
     pub repeated_subplans: Vec<SubplanReferenceInfo>,
-    /// 节点ID到引用信息的映射
+    /// Mapping from node IDs to reference information
     pub node_reference_map: HashMap<i64, SubplanReferenceInfo>,
 }
 
 impl ReferenceCountAnalysis {
-    /// 创建空的分析结果
+    /// Create an empty analysis result.
     pub fn new() -> Self {
         Self {
             repeated_subplans: Vec::new(),
@@ -81,12 +81,12 @@ impl ReferenceCountAnalysis {
         }
     }
 
-    /// 获取指定节点的引用信息
+    /// Obtain the reference information for the specified node.
     pub fn get_node_info(&self, node_id: i64) -> Option<&SubplanReferenceInfo> {
         self.node_reference_map.get(&node_id)
     }
 
-    /// 检查子计划是否被多次引用
+    /// Check whether the sub-plan is referenced multiple times.
     pub fn is_repeated(&self, node_id: i64) -> bool {
         self.node_reference_map
             .get(&node_id)
@@ -94,7 +94,7 @@ impl ReferenceCountAnalysis {
             .unwrap_or(false)
     }
 
-    /// 获取被多次引用的子计划数量
+    /// Obtain the number of sub-plans that have been referenced multiple times.
     pub fn repeated_count(&self) -> usize {
         self.repeated_subplans.len()
     }
@@ -106,18 +106,18 @@ impl Default for ReferenceCountAnalysis {
     }
 }
 
-/// 分析上下文
+/// Analyze the context
 struct AnalysisContext {
-    /// 指纹到引用信息的映射
+    /// Mapping from fingerprints to reference information
     fingerprint_map: HashMap<u64, SubplanReferenceInfo>,
-    /// 节点ID到指纹的映射
+    /// Mapping from node IDs to fingerprints
     node_fingerprint_map: HashMap<i64, u64>,
-    /// 节点计数映射（用于估算子计划大小）
+    /// Node count mapping (used for estimating the size of sub-plans)
     node_count_map: HashMap<i64, usize>,
 }
 
 impl AnalysisContext {
-    /// 创建新的分析上下文
+    /// Create a new analysis context.
     fn new() -> Self {
         Self {
             fingerprint_map: HashMap::new(),
@@ -126,45 +126,45 @@ impl AnalysisContext {
         }
     }
 
-    /// 记录引用
+    /// Record citations
     fn record_reference(&mut self, fingerprint: u64, node_id: i64, parent_id: Option<i64>) {
-        // 记录节点到指纹的映射
+        // Record the mapping from nodes to fingerprints.
         self.node_fingerprint_map.insert(node_id, fingerprint);
 
-        // 获取或创建引用信息
+        // Obtain or create citation information.
         let info = self
             .fingerprint_map
             .entry(fingerprint)
             .or_insert_with(|| SubplanReferenceInfo::new(SubplanId::new(fingerprint), node_id));
 
-        // 增加引用计数
+        // Increase the reference count
         if let Some(parent) = parent_id {
             info.add_reference(parent);
         } else {
-            // 根节点，引用计数至少为1
+            // Root node: The reference count is at least 1.
             info.reference_count = info.reference_count.max(1);
         }
     }
 
-    /// 记录节点数量
+    /// Record the number of nodes.
     fn record_node_count(&mut self, node_id: i64, count: usize) {
         self.node_count_map.insert(node_id, count);
     }
 
-    /// 转换为分析结果
+    /// Analysis results:
     fn into_analysis_result(self) -> ReferenceCountAnalysis {
         let mut repeated_subplans = Vec::new();
         let mut node_reference_map = HashMap::new();
 
         for (fingerprint, mut info) in self.fingerprint_map {
-            // 只保留被多次引用的子计划
+            // Retain only the sub-plans that are referenced multiple times.
             if info.reference_count >= 2 {
-                // 更新节点数量
+                // Update the number of nodes.
                 if let Some(&count) = self.node_count_map.get(&info.root_node_id) {
                     info.node_count = count;
                 }
 
-                // 为所有具有相同指纹的节点添加引用信息
+                // Add reference information for all nodes that have the same fingerprint.
                 for (node_id, fp) in &self.node_fingerprint_map {
                     if *fp == fingerprint {
                         node_reference_map.insert(*node_id, info.clone());
@@ -182,65 +182,65 @@ impl AnalysisContext {
     }
 }
 
-/// 引用计数分析器
+/// Reference Count Analyzer
 ///
-/// 分析执行计划，识别被多次引用的子计划节点。
+/// Analyze the execution plan to identify the sub-plan nodes that are referenced multiple times.
 #[derive(Debug, Clone)]
 pub struct ReferenceCountAnalyzer {
-    /// 指纹计算器
+    /// Fingerprint calculator
     fingerprint_calculator: FingerprintCalculator,
 }
 
 impl ReferenceCountAnalyzer {
-    /// 创建新的引用计数分析器
+    /// Create a new reference counting analyzer
     pub fn new() -> Self {
         Self {
             fingerprint_calculator: FingerprintCalculator::new(),
         }
     }
 
-    /// 分析计划的引用计数
+    /// Analyze the reference count of the planning plan.
     ///
-    /// # 参数
-    /// - `plan`: 要分析的执行计划根节点
+    /// # Parameters
+    /// The root node of the execution plan to be analyzed.
     ///
-    /// # 返回
+    /// # Return
     /// 引用计数分析结果
     ///
-    /// # 算法
-    /// 1. 后序遍历计划树
-    /// 2. 为每个节点计算结构指纹
-    /// 3. 统计每个指纹的出现次数
-    /// 4. 返回被多次引用的子计划信息
+    /// # Algorithms
+    /// Post-order traversal of a plan tree
+    /// 2. Calculate a structural fingerprint for each node.
+    /// 3. Count the number of occurrences of each fingerprint.
+    /// 4. Retrieve information about the sub-plans that have been referenced multiple times.
     pub fn analyze(&self, plan: &PlanNodeEnum) -> ReferenceCountAnalysis {
         let mut context = AnalysisContext::new();
         self.analyze_recursive(plan, &mut context, None);
         context.into_analysis_result()
     }
 
-    /// 递归分析计划树
+    /// Recursive analysis of the plan tree
     ///
     /// # 参数
-    /// - `node`: 当前节点
-    /// - `context`: 分析上下文
-    /// - `parent_id`: 父节点ID（用于记录引用位置）
+    /// `node`: The current node
+    /// “Context” refers to the analysis of the surrounding circumstances, background, or information that is relevant to a particular situation or topic. In translation, understanding the context is crucial in order to provide an accurate and meaningful translation that captures the intended meaning of the original text. This may involve considering the context of the language, the cultural context, the historical context, or any other relevant factors that may affect the interpretation of the text.
+    /// `parent_id`: ID of the parent node (used to record the reference location)
     ///
     /// # 返回
-    /// 节点数量
+    /// Number of nodes
     fn analyze_recursive(
         &self,
         node: &PlanNodeEnum,
         context: &mut AnalysisContext,
         parent_id: Option<i64>,
     ) -> usize {
-        // 计算当前节点指纹
+        // Calculate the fingerprint of the current node.
         let fingerprint = self.fingerprint_calculator.calculate_fingerprint(node);
         let node_id = node.id();
 
-        // 记录引用
+        // Record the citation.
         context.record_reference(fingerprint.value(), node_id, parent_id);
 
-        // 递归分析子节点并计算节点数量
+        // Recursively analyze the child nodes and calculate the total number of nodes.
         let child_count = match node {
             // 单输入节点 - 使用 dependencies() 访问子节点
             PlanNodeEnum::Filter(n) => {
@@ -325,7 +325,7 @@ impl ReferenceCountAnalyzer {
             }
             PlanNodeEnum::Traverse(n) => {
                 // TraverseNode 使用 SingleInputNode trait，input() 方法在 input 为 None 时会 panic
-                // 这里我们直接访问 deps 字段来遍历子节点
+                // Here, we directly access the `deps` field to traverse the child nodes.
                 let mut total = 1;
                 for dep in n.dependencies() {
                     let count = self.analyze_recursive(dep, context, Some(node_id));
@@ -360,7 +360,7 @@ impl ReferenceCountAnalyzer {
                 }
                 total
             }
-            // ArgumentNode 和 PassThroughNode 是零输入节点
+            // ArgumentNode and PassThroughNode are nodes that accept no input.
             PlanNodeEnum::Argument(_) => 1,
             PlanNodeEnum::PassThrough(_) => 1,
             PlanNodeEnum::PatternApply(n) => {
@@ -404,7 +404,7 @@ impl ReferenceCountAnalyzer {
                 total
             }
 
-            // 双输入节点
+            // Dual-input node
             PlanNodeEnum::InnerJoin(n) => {
                 let left_count = self.analyze_recursive(n.left_input(), context, Some(node_id));
                 let right_count = self.analyze_recursive(n.right_input(), context, Some(node_id));
@@ -444,9 +444,9 @@ impl ReferenceCountAnalyzer {
                 total
             }
 
-            // 多输入节点
+            // Add more nodes.
             PlanNodeEnum::Select(n) => {
-                let mut total = 1; // 当前节点
+                let mut total = 1; // Current node
                 if let Some(ref branch) = n.if_branch() {
                     let count = self.analyze_recursive(branch, context, Some(node_id));
                     total += count;
@@ -458,7 +458,7 @@ impl ReferenceCountAnalyzer {
                 total
             }
             PlanNodeEnum::Loop(n) => {
-                let mut total = 1; // 当前节点
+                let mut total = 1; // Current node
                 if let Some(ref body) = n.body() {
                     let count = self.analyze_recursive(body, context, Some(node_id));
                     total += count;
@@ -466,11 +466,11 @@ impl ReferenceCountAnalyzer {
                 total
             }
 
-            // 零输入节点（叶子节点）
-            _ => 1, // 只有当前节点
+            // Zero-input nodes (leaf nodes)
+            _ => 1, // Only the current node.
         };
 
-        // 记录节点数量
+        // Record the number of nodes.
         context.record_node_count(node_id, child_count);
 
         child_count
@@ -490,7 +490,7 @@ mod tests {
     #[test]
     fn test_reference_count_analyzer_new() {
         let _analyzer = ReferenceCountAnalyzer::new();
-        // 验证创建成功
+        // Verification of successful creation.
     }
 
     #[test]
@@ -508,9 +508,9 @@ mod tests {
         assert_eq!(info.reference_count, 1);
         assert!(info.reference_locations.contains(&200));
 
-        info.add_reference(200); // 重复添加
+        info.add_reference(200); // Duplicate the addition.
         assert_eq!(info.reference_count, 2);
-        assert_eq!(info.reference_locations.len(), 1); // 位置不重复
+        assert_eq!(info.reference_locations.len(), 1); // Positions must not be duplicated.
     }
 
     #[test]

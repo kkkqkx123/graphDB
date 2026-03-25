@@ -1,31 +1,31 @@
-//! 聚合数据状态模块
+//! Aggregated Data Status Module
 //!
-//! 参考 nebula-graph 的 AggData 设计，管理聚合函数的中间状态和最终结果
+//! Refer to the AggData design of nebula-graph to manage the intermediate states and final results of the aggregation functions.
 
 use crate::core::value::{NullType, Value};
 use std::collections::HashSet;
 
-/// 聚合数据状态
+/// Aggregated data status
 ///
-/// 与 nebula-graph 的 AggData 对应，存储聚合计算的中间状态和最终结果
+/// Corresponding to the AggData of nebula-graph, it stores the intermediate states as well as the final results of the aggregation calculations.
 #[derive(Debug, Clone)]
 pub struct AggData {
-    /// 计数（用于 COUNT、AVG、STD 等）
+    /// Counting (used for functions such as COUNT, AVG, STD, etc.)
     cnt: Value,
-    /// 累加和（用于 SUM、AVG 等）
+    /// Cumulative sum (used for functions such as SUM, AVG, etc.)
     sum: Value,
-    /// 平均值（用于 AVG）
+    /// Average value (used for AVG)
     avg: Value,
-    /// 方差（用于 STD）
+    /// Variance (used for STD)
     deviation: Value,
-    /// 最终结果
+    /// Final result
     result: Value,
-    /// 去重集合（用于 COLLECT_SET、COUNT DISTINCT 等）
+    /// Unique set (used for COLLECT_SET, COUNT DISTINCT, etc.)
     uniques: Option<HashSet<Value>>,
 }
 
 impl AggData {
-    /// 创建新的聚合数据状态
+    /// Create a new aggregated data status.
     pub fn new() -> Self {
         Self {
             cnt: Value::Null(NullType::NaN),
@@ -37,7 +37,7 @@ impl AggData {
         }
     }
 
-    /// 创建带去重功能的聚合数据状态
+    /// Create an aggregated data status with a deduplication function.
     pub fn with_uniques() -> Self {
         Self {
             cnt: Value::Null(NullType::NaN),
@@ -49,102 +49,102 @@ impl AggData {
         }
     }
 
-    /// 获取计数
+    /// Obtain the count.
     pub fn cnt(&self) -> &Value {
         &self.cnt
     }
 
-    /// 获取可变计数
+    /// Obtain a variable count
     pub fn cnt_mut(&mut self) -> &mut Value {
         &mut self.cnt
     }
 
-    /// 设置计数
+    /// Set the count
     pub fn set_cnt(&mut self, cnt: Value) {
         self.cnt = cnt;
     }
 
-    /// 获取累加和
+    /// Obtain the cumulative sum.
     pub fn sum(&self) -> &Value {
         &self.sum
     }
 
-    /// 获取可变累加和
+    /// Obtain the variable cumulative sum.
     pub fn sum_mut(&mut self) -> &mut Value {
         &mut self.sum
     }
 
-    /// 设置累加和
+    /// Set the cumulative sum.
     pub fn set_sum(&mut self, sum: Value) {
         self.sum = sum;
     }
 
-    /// 获取平均值
+    /// Calculate the average value.
     pub fn avg(&self) -> &Value {
         &self.avg
     }
 
-    /// 获取可变平均值
+    /// Obtaining the variable average value
     pub fn avg_mut(&mut self) -> &mut Value {
         &mut self.avg
     }
 
-    /// 设置平均值
+    /// Set the average value
     pub fn set_avg(&mut self, avg: Value) {
         self.avg = avg;
     }
 
-    /// 获取方差
+    /// Calculating the variance
     pub fn deviation(&self) -> &Value {
         &self.deviation
     }
 
-    /// 获取可变方差
+    /// Obtaining variable variance
     pub fn deviation_mut(&mut self) -> &mut Value {
         &mut self.deviation
     }
 
-    /// 设置方差
+    /// Setting the variance
     pub fn set_deviation(&mut self, deviation: Value) {
         self.deviation = deviation;
     }
 
-    /// 获取最终结果
+    /// Obtain the final result.
     pub fn result(&self) -> &Value {
         &self.result
     }
 
-    /// 获取可变最终结果
+    /// Obtain a variable final result.
     pub fn result_mut(&mut self) -> &mut Value {
         &mut self.result
     }
 
-    /// 设置最终结果
+    /// Set the final result
     pub fn set_result(&mut self, result: Value) {
         self.result = result;
     }
 
-    /// 获取去重集合
+    /// Obtain a set with no duplicates
     pub fn uniques(&self) -> Option<&HashSet<Value>> {
         self.uniques.as_ref()
     }
 
-    /// 获取可变去重集合
+    /// Obtain a variable, deduplicated set
     pub fn uniques_mut(&mut self) -> Option<&mut HashSet<Value>> {
         self.uniques.as_mut()
     }
 
-    /// 设置去重集合
+    /// Setting up a deduplication set
     pub fn set_uniques(&mut self, uniques: HashSet<Value>) {
         self.uniques = Some(uniques);
     }
 
-    /// 检查是否为 BadNull
+    /// Check whether it is BadNull.
     pub fn is_bad_null(&self) -> bool {
         self.result.is_bad_null()
     }
 
-    /// 重置状态
+    /// Reset the status
     pub fn reset(&mut self) {
         self.cnt = Value::Null(NullType::NaN);
         self.sum = Value::Null(NullType::NaN);
@@ -156,9 +156,9 @@ impl AggData {
         }
     }
 
-    /// 获取所有字段的可变引用（用于聚合函数内部）
+    /// Obtain variable references to all fields (for use inside aggregate functions)
     ///
-    /// 返回 (result, cnt, sum, avg, deviation) 的可变引用
+    /// Return a variable reference to (result, cnt, sum, avg, deviation)
     pub fn get_all_mut(&mut self) -> (&mut Value, &mut Value, &mut Value, &mut Value, &mut Value) {
         (
             &mut self.result,

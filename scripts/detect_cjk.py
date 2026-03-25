@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+"""
+检测文件中的 CJK (中日韩) 字符并生成报告。
+
+用法:
+    python detect_cjk.py <file_path> [--output <report_path>]
+"""
+
+import sys
+import argparse
+from pathlib import Path
+from typing import List, Tuple
+from datetime import datetime
+
+
+def is_cjk_char(char: str) -> bool:
+    """
+    判断字符是否为 CJK 字符。
+    
+    CJK Unicode 范围:
+    - CJK Unified Ideographs: U+4E00 - U+9FFF
+    - CJK Unified Ideographs Extension A: U+3400 - U+4DFF
+    - CJK Unified Ideographs Extension B: U+20000 - U+2A6DF
+    - CJK Unified Ideographs Extension C: U+2A700 - U+2B73F
+    - CJK Unified Ideographs Extension D: U+2B740 - U+2B81F
+    - CJK Unified Ideographs Extension E: U+2B820 - U+2CEAF
+    - CJK Unified Ideographs Extension F: U+2CEB0 - U+2EBEF
+    - CJK Compatibility Ideographs: U+F900 - U+FAFF
+    - CJK Compatibility Ideographs Supplement: U+2F800 - U+2FA1F
+    - Hiragana (日文平假名): U+3040 - U+309F
+    - Katakana (日文片假名): U+30A0 - U+30FF
+    - Hangul Syllables (韩文): U+AC00 - U+D7AF
+    - Hangul Jamo (韩文字母): U+1100 - U+11FF
+    - CJK Radicals Supplement: U+2E80 - U+2EFF
+    - Kangxi Radicals: U+2F00 - U+2FDF
+    - CJK Strokes: U+31C0 - U+31EF
+    """
+    code_point = ord(char)
+    
+    cjk_ranges = [
+        (0x3400, 0x4DFF),    # CJK Extension A
+        (0x4E00, 0x9FFF),    # CJK Unified Ideographs
+        (0xF900, 0xFAFF),    # CJK Compatibility Ideographs
+        (0x3040, 0x309F),    # Hiragana
+        (0x30A0, 0x30FF),    # Katakana
+        (0xAC00, 0xD7AF),    # Hangul Syllables
+        (0x1100, 0x11FF),    # Hangul Jamo
+        (0x2E80, 0x2EFF),    # CJK Radicals Supplement
+        (0x2F00, 0x2FDF),    # Kangxi Radicals
+        (0x31C0, 0x31EF),    # CJK Strokes
+    ]
+    
+    for start, end in cjk_ranges:
+        if start <= code_point <= end:
+            return True
+    
+    # 检查扩展区 B-F (代理对)
+    if 0x20000 <= code_point <= 0x2EBEF:
+        return True
+    
+    # 检查兼容表意文字补充
+    if 0x2F800 <= code_point <= 0x2FA1F:
+        return True
+    
+    return False
+
+
+def find_cjk_in_file(file_path: Path) -> List[Tuple[int, str, List[str]]]:
+    """
+    在文件中查找所有包含 CJK 字符的行。
+    
+    返回: [(行号，行内容，[CJK 字符列表]), ...]
+    """
+    results = []
+    
+    try:
+        # 尝试多种编码读取文件
+        encodings = ['utf-8', 'utf-8-sig', 'gbk', 'gb2312', 'big5', 'shift_jis']
+        content = None
+        
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding) as f:
+                    content = f.readlines()
+                break
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        
+        if content is None:
+            print(f"错误：无法使用支持的编码读取文件 {file_path}")
+            return results
+        
+        for line_num, line in enumerate(content, start=1):
+            cjk_chars = []
+            for char in line:
+                if is_cjk_char(char) and char not in cjk_chars:
+                    cjk_chars.append(char)
+            
+            if cjk_chars:
+                results.append((line_num, line.rstrip('\n\r'), cjk_chars))
+    
+    except FileNotFoundError:
+        print(f"错误：文件不存在：{file_path}")
+    except PermissionError:
+        print(f"错误：无权限读取文件：{file_path}")
+    except Exception as e:
+        print(f"错误：读取文件时发生异常：{e}")
+    
+    return results
+
+
+def generate_report(file_path: Path, results: List[Tuple[int, str, List[str]]], 
+                    output_path: Path = None) -> str:
+    """
+    生成 CJK 字符检测报告。
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    report_lines = [
+        "=" * 80,
+        "CJK 字符检测报告",
+        "=" * 80,
+        "",
+        f"检测文件：{file_path.absolute()}",
+        f"检测时间：{timestamp}",
+        f"总行数：{sum(1 for _ in open(file_path, 'r', encoding='utf-8', errors='ignore')) if file_path.exists() else 'N/A'}",
+        f"包含 CJK 字符的行数：{len(results)}",
+        "",
+        "-" * 80,
+    ]
+    
+    if results:
+        report_lines.append("详细结果:")
+        report_lines.append("-" * 80)
+        report_lines.append("")
+        
+        for line_num, line_content, cjk_chars in results:
+            report_lines.append(f"行 {line_num}:")
+            report_lines.append(f"  CJK 字符：{', '.join(f'U+{ord(c):04X}({c})' for c in cjk_chars)}")
+            report_lines.append(f"  内容：{line_content[:100]}{'...' if len(line_content) > 100 else ''}")
+            report_lines.append("")
+    else:
+        report_lines.append("未检测到 CJK 字符。")
+    
+    report_lines.append("-" * 80)
+    report_lines.append("报告结束")
+    report_lines.append("=" * 80)
+    
+    report = "\n".join(report_lines)
+    
+    if output_path:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(report)
+        print(f"报告已保存至：{output_path}")
+    
+    return report
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="检测文件中的 CJK (中日韩) 字符并生成报告",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+    python detect_cjk.py src/main.rs
+    python detect_cjk.py src/lib.rs --output reports/cjk_report.md
+    python detect_cjk.py . --recursive  (待实现)
+        """
+    )
+    
+    parser.add_argument(
+        "file_path",
+        type=Path,
+        help="要检测的文件路径"
+    )
+    
+    parser.add_argument(
+        "--output", "-o",
+        type=Path,
+        default=None,
+        help="报告输出路径 (可选，默认输出到控制台)"
+    )
+    
+    args = parser.parse_args()
+    
+    if not args.file_path.exists():
+        print(f"错误：文件不存在：{args.file_path}")
+        sys.exit(1)
+    
+    if args.file_path.is_dir():
+        print("错误：当前版本仅支持单个文件检测，目录检测功能待实现。")
+        sys.exit(1)
+    
+    # 检测 CJK 字符
+    results = find_cjk_in_file(args.file_path)
+    
+    # 生成报告
+    if args.output:
+        generate_report(args.file_path, results, args.output)
+    else:
+        report = generate_report(args.file_path, results)
+        print(report)
+    
+    # 返回状态码
+    sys.exit(0 if not results else 1)
+
+
+if __name__ == "__main__":
+    main()

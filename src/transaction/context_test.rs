@@ -1,6 +1,6 @@
-//! TransactionContext 测试
+//! TransactionContext Tests
 //!
-//! 测试事务上下文的功能，包括状态管理、超时检查、操作日志等
+//! Test transaction context functionality, including state management, timeout checking, operation logs, etc.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,11 +12,11 @@ use crate::transaction::types::{
     DurabilityLevel, OperationLog, TransactionError, TransactionId, TransactionState,
 };
 
-/// 创建测试数据库
+/// Create test database
 fn create_test_db() -> (Arc<redb::Database>, TempDir) {
-    let temp_dir = TempDir::new().expect("创建临时目录失败");
+    let temp_dir = TempDir::new().expect("Failed to create temporary directory");
     let db = Arc::new(
-        redb::Database::create(temp_dir.path().join("test.db")).expect("创建测试数据库失败"),
+        redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create test database"),
     );
     (db, temp_dir)
 }
@@ -28,7 +28,7 @@ fn test_transaction_context_writable_creation() {
     let timeout = Duration::from_secs(30);
     let durability = DurabilityLevel::Immediate;
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(txn_id, timeout, durability, write_txn, None);
 
@@ -44,7 +44,7 @@ fn test_transaction_context_readonly_creation() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let read_txn = db.begin_read().expect("创建读事务失败");
+    let read_txn = db.begin_read().expect("Failed to create read transaction");
 
     let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
 
@@ -59,7 +59,7 @@ fn test_transaction_context_state_transitions() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -84,7 +84,7 @@ fn test_transaction_context_invalid_state_transition() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -94,7 +94,7 @@ fn test_transaction_context_invalid_state_transition() {
         None,
     );
 
-    // Active -> Committed (无效转换)
+    // Active -> Committed (invalid transition)
     let result = ctx.transition_to(TransactionState::Committed);
     assert!(result.is_err());
     assert!(matches!(
@@ -102,7 +102,7 @@ fn test_transaction_context_invalid_state_transition() {
         TransactionError::InvalidStateTransition { .. }
     ));
 
-    // 正确的状态转换路径: Active -> Committing -> Committed
+    // Correct state transition path: Active -> Committing -> Committed
     assert!(ctx.transition_to(TransactionState::Committing).is_ok());
     assert_eq!(ctx.state(), TransactionState::Committing);
 
@@ -116,7 +116,7 @@ fn test_transaction_context_timeout() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(100);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -126,13 +126,13 @@ fn test_transaction_context_timeout() {
         None,
     );
 
-    // 初始不应该超时
+    // Initially should not be expired
     assert!(!ctx.is_expired());
 
-    // 等待超时
+    // Wait for timeout
     std::thread::sleep(Duration::from_millis(150));
 
-    // 现在应该超时
+    // Now should be expired
     assert!(ctx.is_expired());
 }
 
@@ -142,7 +142,7 @@ fn test_transaction_context_remaining_time() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(200);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -152,14 +152,14 @@ fn test_transaction_context_remaining_time() {
         None,
     );
 
-    // 初始剩余时间应该接近超时时间
+    // Initial remaining time should be close to timeout
     let remaining = ctx.remaining_time();
     assert!(remaining > Duration::from_millis(150));
 
-    // 等待一段时间
+    // Wait for a while
     std::thread::sleep(Duration::from_millis(100));
 
-    // 剩余时间应该减少
+    // Remaining time should decrease
     let remaining = ctx.remaining_time();
     assert!(remaining < Duration::from_millis(150));
     assert!(remaining > Duration::from_millis(50));
@@ -171,7 +171,7 @@ fn test_transaction_context_modified_tables() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -181,10 +181,10 @@ fn test_transaction_context_modified_tables() {
         None,
     );
 
-    // 记录表修改
+    // Record table modifications
     ctx.record_table_modification("vertices");
     ctx.record_table_modification("edges");
-    ctx.record_table_modification("vertices"); // 重复记录
+    ctx.record_table_modification("vertices"); // Duplicate record
 
     let modified = ctx.get_modified_tables();
     assert_eq!(modified.len(), 2);
@@ -198,7 +198,7 @@ fn test_transaction_context_operation_log() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -208,10 +208,10 @@ fn test_transaction_context_operation_log() {
         None,
     );
 
-    // 初始操作日志为空
+    // Initial operation log is empty
     assert_eq!(ctx.operation_log_len(), 0);
 
-    // 添加操作日志
+    // Add operation log
     ctx.add_operation_log(OperationLog::InsertVertex {
         space: "test".to_string(),
         vertex_id: vec![1, 2, 3],
@@ -228,7 +228,7 @@ fn test_transaction_context_operation_log() {
 
     assert_eq!(ctx.operation_log_len(), 2);
 
-    // 截断操作日志
+    // Truncate operation log
     ctx.truncate_operation_log(1);
     assert_eq!(ctx.operation_log_len(), 1);
 }
@@ -239,7 +239,7 @@ fn test_transaction_context_can_execute() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -249,14 +249,14 @@ fn test_transaction_context_can_execute() {
         None,
     );
 
-    // Active 状态可以执行
+    // Active state can execute
     assert!(ctx.can_execute().is_ok());
 
-    // 转换到 Committing 状态
+    // Transition to Committing state
     ctx.transition_to(TransactionState::Committing)
-        .expect("状态转换失败");
+        .expect("State transition failed");
 
-    // Committing 状态不能执行
+    // Committing state cannot execute
     assert!(ctx.can_execute().is_err());
 }
 
@@ -266,7 +266,7 @@ fn test_transaction_context_can_execute_expired() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(50);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -276,10 +276,10 @@ fn test_transaction_context_can_execute_expired() {
         None,
     );
 
-    // 等待超时
+    // Wait for timeout
     std::thread::sleep(Duration::from_millis(100));
 
-    // 超时后不能执行
+    // Cannot execute after timeout
     let result = ctx.can_execute();
     assert!(result.is_err());
     assert!(matches!(
@@ -294,7 +294,7 @@ fn test_transaction_context_info() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -304,7 +304,7 @@ fn test_transaction_context_info() {
         None,
     );
 
-    // 记录一些修改
+    // Record some modifications
     ctx.record_table_modification("vertices");
 
     let info = ctx.info();
@@ -321,7 +321,7 @@ fn test_transaction_context_take_write_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -331,11 +331,11 @@ fn test_transaction_context_take_write_txn() {
         None,
     );
 
-    // 取出写事务
+    // Take write transaction
     let taken_txn = ctx.take_write_txn();
     assert!(taken_txn.is_ok());
 
-    // 再次取出应该失败
+    // Second take should fail
     let result = ctx.take_write_txn();
     assert!(result.is_err());
 }
@@ -346,11 +346,11 @@ fn test_transaction_context_readonly_take_write_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let read_txn = db.begin_read().expect("创建读事务失败");
+    let read_txn = db.begin_read().expect("Failed to create read transaction");
 
     let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
 
-    // 只读事务不能取出写事务
+    // Read-only transaction cannot take write transaction
     let result = ctx.take_write_txn();
     assert!(result.is_err());
 }
@@ -361,7 +361,7 @@ fn test_transaction_context_with_write_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -371,7 +371,7 @@ fn test_transaction_context_with_write_txn() {
         None,
     );
 
-    // 使用写事务执行操作
+    // Execute with write transaction
     let result = ctx.with_write_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
 
     assert!(result.is_ok());
@@ -383,11 +383,11 @@ fn test_transaction_context_readonly_with_write_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let read_txn = db.begin_read().expect("创建读事务失败");
+    let read_txn = db.begin_read().expect("Failed to create read transaction");
 
     let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
 
-    // 只读事务不能使用 with_write_txn
+    // Read-only transaction cannot use with_write_txn
     let result = ctx.with_write_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
 
     assert!(result.is_err());
@@ -403,11 +403,11 @@ fn test_transaction_context_with_read_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let read_txn = db.begin_read().expect("创建读事务失败");
+    let read_txn = db.begin_read().expect("Failed to create read transaction");
 
     let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
 
-    // 使用读事务执行操作
+    // Execute with read transaction
     let result = ctx.with_read_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
 
     assert!(result.is_ok());
@@ -419,7 +419,7 @@ fn test_transaction_context_writable_with_read_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -429,7 +429,7 @@ fn test_transaction_context_writable_with_read_txn() {
         None,
     );
 
-    // 读写事务不能直接使用 with_read_txn
+    // Write transaction cannot directly use with_read_txn
     let result = ctx.with_read_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
 
     assert!(result.is_err());
@@ -442,7 +442,7 @@ fn test_transaction_context_with_write_txn_expired() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(50);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -452,10 +452,10 @@ fn test_transaction_context_with_write_txn_expired() {
         None,
     );
 
-    // 等待超时
+    // Wait for timeout
     std::thread::sleep(Duration::from_millis(100));
 
-    // 超时后不能执行
+    // Cannot execute after timeout
     let result = ctx.with_write_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
 
     assert!(result.is_err());
@@ -471,7 +471,7 @@ fn test_transaction_context_with_write_txn_invalid_state() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -481,13 +481,13 @@ fn test_transaction_context_with_write_txn_invalid_state() {
         None,
     );
 
-    // 正确的状态转换路径: Active -> Committing -> Committed
+    // Correct state transition path: Active -> Committing -> Committed
     ctx.transition_to(TransactionState::Committing)
-        .expect("状态转换失败");
+        .expect("State transition failed");
     ctx.transition_to(TransactionState::Committed)
-        .expect("状态转换失败");
+        .expect("State transition failed");
 
-    // Committed 状态不能执行
+    // Committed state cannot execute
     let result = ctx.with_write_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
 
     assert!(result.is_err());
@@ -503,7 +503,7 @@ fn test_savepoint_creation() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -513,11 +513,11 @@ fn test_savepoint_creation() {
         None,
     );
 
-    // 创建保存点
+    // Create savepoint
     let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
     assert_eq!(savepoint_id, 1);
 
-    // 获取保存点信息
+    // Get savepoint info
     let savepoint_info = ctx.get_savepoint(savepoint_id);
     assert!(savepoint_info.is_some());
     let info = savepoint_info.unwrap();
@@ -531,7 +531,7 @@ fn test_multiple_savepoints() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -541,7 +541,7 @@ fn test_multiple_savepoints() {
         None,
     );
 
-    // 创建多个保存点
+    // Create multiple savepoints
     let sp1 = ctx.create_savepoint(Some("sp1".to_string()));
     let sp2 = ctx.create_savepoint(Some("sp2".to_string()));
     let sp3 = ctx.create_savepoint(Some("sp3".to_string()));
@@ -550,7 +550,7 @@ fn test_multiple_savepoints() {
     assert_eq!(sp2, 2);
     assert_eq!(sp3, 3);
 
-    // 验证保存点信息
+    // Verify savepoint info
     assert!(ctx.get_savepoint(sp1).is_some());
     assert!(ctx.get_savepoint(sp2).is_some());
     assert!(ctx.get_savepoint(sp3).is_some());
@@ -562,7 +562,7 @@ fn test_rollback_to_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -572,14 +572,14 @@ fn test_rollback_to_savepoint() {
         None,
     );
 
-    // 创建保存点
+    // Create savepoint
     let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
 
-    // 回滚到保存点
+    // Rollback to savepoint
     let result = ctx.rollback_to_savepoint(savepoint_id);
     assert!(result.is_ok());
 
-    // 验证操作日志已被截断
+    // Verify operation log has been truncated
     assert_eq!(ctx.operation_log_len(), 0);
 }
 
@@ -589,7 +589,7 @@ fn test_rollback_to_nonexistent_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -599,7 +599,7 @@ fn test_rollback_to_nonexistent_savepoint() {
         None,
     );
 
-    // 尝试回滚到不存在的保存点
+    // Try to rollback to nonexistent savepoint
     let result = ctx.rollback_to_savepoint(999);
     assert!(result.is_err());
     assert!(matches!(
@@ -614,7 +614,7 @@ fn test_release_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -624,14 +624,14 @@ fn test_release_savepoint() {
         None,
     );
 
-    // 创建保存点
+    // Create savepoint
     let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
 
-    // 释放保存点
+    // Release savepoint
     let result = ctx.release_savepoint(savepoint_id);
     assert!(result.is_ok());
 
-    // 验证保存点已被释放
+    // Verify savepoint has been released
     let savepoint_info = ctx.get_savepoint(savepoint_id);
     assert!(savepoint_info.is_none());
 }
@@ -642,7 +642,7 @@ fn test_release_nonexistent_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -652,7 +652,7 @@ fn test_release_nonexistent_savepoint() {
         None,
     );
 
-    // 尝试释放不存在的保存点
+    // Try to release nonexistent savepoint
     let result = ctx.release_savepoint(999);
     assert!(result.is_err());
     assert!(matches!(
@@ -667,7 +667,7 @@ fn test_savepoint_with_operations() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
-    let write_txn = db.begin_write().expect("创建写事务失败");
+    let write_txn = db.begin_write().expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
@@ -677,10 +677,10 @@ fn test_savepoint_with_operations() {
         None,
     );
 
-    // 创建第一个保存点
+    // Create first savepoint
     let sp1 = ctx.create_savepoint(Some("sp1".to_string()));
 
-    // 添加一些操作日志
+    // Add some operation logs
     let log1 = OperationLog::InsertVertex {
         space: "test".to_string(),
         vertex_id: vec![1u8, 2u8, 3u8],
@@ -695,16 +695,16 @@ fn test_savepoint_with_operations() {
     };
     ctx.add_operation_log(log2);
 
-    // 创建第二个保存点
+    // Create second savepoint
     let _sp2 = ctx.create_savepoint(Some("sp2".to_string()));
 
-    // 验证操作日志数量
+    // Verify operation log count
     assert_eq!(ctx.operation_log_len(), 2);
 
-    // 回滚到第一个保存点
+    // Rollback to first savepoint
     let result = ctx.rollback_to_savepoint(sp1);
     assert!(result.is_ok());
 
-    // 验证操作日志已被截断到第一个保存点
+    // Verify operation log has been truncated to first savepoint
     assert_eq!(ctx.operation_log_len(), 0);
 }

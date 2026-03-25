@@ -1,5 +1,5 @@
-//! 聚合函数元数据定义
-//! 定义支持的聚合函数及其约束条件
+//! Metadata definition for aggregate functions
+//! Define the supported aggregate functions and their constraints.
 
 #[derive(Debug, Clone)]
 pub struct AggFunctionMeta {

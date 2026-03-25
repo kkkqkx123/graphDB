@@ -1,7 +1,7 @@
-//! 结果处理器 trait 定义
+//! Result handler trait definition
 //!
-//! 本模块提供结果处理器相关的 trait 和类型定义。
-//! 统一的结果处理抽象层，被所有结果处理执行器使用。
+//! This module provides trait and type definitions related to the results processor.
+//! Unified result processing abstraction layer used by all result processing executors.
 
 use std::sync::Arc;
 
@@ -11,61 +11,61 @@ use crate::query::executor::base::ExecutionResult;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-/// 结果处理器上下文
+/// Result Processor Context
 ///
-/// 提供执行器运行时所需的上下文信息
+/// Provides contextual information required for actuator operation
 #[derive(Debug, Clone)]
 pub struct ResultProcessorContext {
-    /// 内存限制（字节）
+    /// Memory limit (bytes)
     pub memory_limit: Option<usize>,
-    /// 是否启用并行处理
+    /// Whether to enable parallel processing
     pub enable_parallel: bool,
-    /// 并行度
+    /// parallelism
     pub parallel_degree: Option<usize>,
-    /// 是否启用磁盘溢出
+    /// Whether disk overflow is enabled
     pub enable_disk_spill: bool,
-    /// 临时目录路径
+    /// Temporary directory path
     pub temp_dir: Option<String>,
 }
 
 impl Default for ResultProcessorContext {
     fn default() -> Self {
         Self {
-            memory_limit: Some(100 * 1024 * 1024), // 默认100MB
+            memory_limit: Some(100 * 1024 * 1024), // Default 100MB
             enable_parallel: true,
-            parallel_degree: None, // 使用系统默认
+            parallel_degree: None, // Use the system default
             enable_disk_spill: false,
             temp_dir: None,
         }
     }
 }
 
-/// 结果处理器统一接口
+/// Results Processor Unified Interface
 ///
-/// 所有结果处理执行器都应该实现此接口
+/// All result processing actuators should implement this interface
 pub trait ResultProcessor<S: StorageClient> {
-    /// 处理输入数据并返回结果
+    /// Processes input data and returns results
     fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult>;
 
-    /// 设置输入数据
+    /// Setting Input Data
     fn set_input(&mut self, input: ExecutionResult);
 
-    /// 获取当前输入数据
+    /// Get current input data
     fn get_input(&self) -> Option<&ExecutionResult>;
 
-    /// 获取处理上下文
+    /// Get processing context
     fn context(&self) -> &ResultProcessorContext;
 
-    /// 设置处理上下文
+    /// Setting the processing context
     fn set_context(&mut self, context: ResultProcessorContext);
 
-    /// 获取内存使用量
+    /// Getting Memory Usage
     fn memory_usage(&self) -> usize;
 
-    /// 重置处理器状态
+    /// Reset processor state
     fn reset(&mut self);
 
-    /// 验证输入数据是否有效
+    /// Verify that the input data is valid
     fn validate_input(&self, input: &ExecutionResult) -> DBResult<()> {
         match input {
             ExecutionResult::DataSet(_) => Ok(()),
@@ -82,30 +82,30 @@ pub trait ResultProcessor<S: StorageClient> {
     }
 }
 
-/// 结果处理器基础实现
+/// Results processor base implementation
 ///
-/// 提供通用的结果处理器功能，其他执行器可以继承此基础实现
+/// Provide generic result processor functionality, other actuators can inherit this base implementation
 pub struct BaseResultProcessor<S: StorageClient> {
-    /// 执行器ID
+    /// Actuator ID
     pub id: i64,
-    /// 执行器名称
+    /// Actuator name
     pub name: String,
-    /// 执行器描述
+    /// Actuator Description
     pub description: String,
-    /// 存储引擎引用
+    /// Storage Engine References
     pub storage: Arc<Mutex<S>>,
-    /// 输入数据
+    /// input data
     pub input: Option<ExecutionResult>,
-    /// 处理上下文
+    /// processing context
     pub context: ResultProcessorContext,
-    /// 当前内存使用量
+    /// Current memory usage
     pub memory_usage: usize,
-    /// 执行统计信息
+    /// Implementation of statistical information
     pub stats: crate::query::executor::base::ExecutorStats,
 }
 
 impl<S: StorageClient> BaseResultProcessor<S> {
-    /// 创建新的基础结果处理器
+    /// Creating a new base results processor
     pub fn new(id: i64, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
         Self {
             id,
@@ -119,47 +119,47 @@ impl<S: StorageClient> BaseResultProcessor<S> {
         }
     }
 
-    /// 获取执行统计信息
+    /// Getting implementation statistics
     pub fn get_stats(&self) -> &crate::query::executor::base::ExecutorStats {
         &self.stats
     }
 
-    /// 获取可变的执行统计信息
+    /// Get variable execution statistics
     pub fn get_stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         &mut self.stats
     }
 
-    /// 设置内存限制
+    /// Setting Memory Limits
     pub fn with_memory_limit(mut self, limit: usize) -> Self {
         self.context.memory_limit = Some(limit);
         self
     }
 
-    /// 启用并行处理
+    /// Enable parallel processing
     pub fn with_parallel(mut self, enable: bool) -> Self {
         self.context.enable_parallel = enable;
         self
     }
 
-    /// 设置并行度
+    /// Setting Parallelism
     pub fn with_parallel_degree(mut self, degree: usize) -> Self {
         self.context.parallel_degree = Some(degree);
         self
     }
 
-    /// 启用磁盘溢出
+    /// Enable Disk Overflow
     pub fn with_disk_spill(mut self, enable: bool) -> Self {
         self.context.enable_disk_spill = enable;
         self
     }
 
-    /// 设置临时目录
+    /// Setting up a temporary directory
     pub fn with_temp_dir(mut self, dir: String) -> Self {
         self.context.temp_dir = Some(dir);
         self
     }
 
-    /// 检查内存限制
+    /// Checking Memory Limits
     pub fn check_memory_limit(&self) -> DBResult<()> {
         if let Some(limit) = self.context.memory_limit {
             if self.memory_usage > limit {
@@ -174,7 +174,7 @@ impl<S: StorageClient> BaseResultProcessor<S> {
         Ok(())
     }
 
-    /// 更新内存使用量
+    /// Update memory usage
     pub fn update_memory_usage(&mut self, delta: isize) {
         if delta >= 0 {
             self.memory_usage += delta as usize;
@@ -185,7 +185,7 @@ impl<S: StorageClient> BaseResultProcessor<S> {
         }
     }
 
-    /// 估算数据集内存使用量
+    /// Estimating dataset memory usage
     pub fn estimate_dataset_memory_usage(dataset: &DataSet) -> usize {
         let mut usage = std::mem::size_of::<DataSet>();
         usage += dataset.col_names.len() * std::mem::size_of::<String>();
@@ -194,7 +194,7 @@ impl<S: StorageClient> BaseResultProcessor<S> {
             usage += std::mem::size_of::<Vec<crate::core::Value>>();
             for _value in row {
                 usage += std::mem::size_of::<crate::core::Value>();
-                // 这里可以添加更精确的值大小估算
+                // Here you can add a more precise estimate of the size of the value
             }
         }
 
@@ -235,7 +235,7 @@ mod tests {
             crate::core::Value::String("test".to_string()),
         ]);
 
-        // 测试内存使用估算
+        // Testing Memory Usage Estimation
         let usage = BaseResultProcessor::<MockStorage>::estimate_dataset_memory_usage(&dataset);
         assert!(usage > 0);
     }

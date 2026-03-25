@@ -1,11 +1,11 @@
-//! GroupBy 语句验证器
-//! 对应 NebulaGraph GroupByValidator 的功能
-//! 验证 GROUP BY 语句的合法性
+//! GroupBy statement validator
+//! Corresponds to the functionality of the NebulaGraph GroupByValidator
+//! Verify the validity of the GROUP BY statement.
 //!
-//! 设计原则：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 验证分组键和聚合表达式的合法性
-//! 3. 支持 HAVING 子句验证
+//! Design principles:
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. Verify the validity of the group key and the aggregate expression.
+//! 3. Support for verifying HAVING clauses
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expr::contextual::ContextualExpression;
@@ -18,7 +18,7 @@ use crate::query::validator::validator_trait::{
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 验证后的 GroupBy 信息
+/// Verified GroupBy information
 #[derive(Debug, Clone)]
 pub struct ValidatedGroupBy {
     pub group_keys: Vec<ContextualExpression>,
@@ -27,7 +27,7 @@ pub struct ValidatedGroupBy {
     pub need_gen_project: bool,
 }
 
-/// GroupBy 验证器
+/// GroupBy Validator
 #[derive(Debug)]
 pub struct GroupByValidator {
     group_keys: Vec<ContextualExpression>,
@@ -60,16 +60,16 @@ impl GroupByValidator {
     }
 
     fn validate_impl(&mut self, stmt: &GroupByStmt) -> Result<(), ValidationError> {
-        // 验证分组键
+        // Verify the group key
         self.validate_group_keys(&stmt.group_items)?;
 
-        // 验证 YIELD 子句
+        // Verify the YIELD clause
         self.validate_yield(&stmt.yield_clause)?;
 
-        // 语义检查
+        // Semantic checking
         self.group_clause_semantic_check()?;
 
-        // 验证 HAVING 子句
+        // Verify the HAVING clause
         if let Some(ref having) = stmt.having_clause {
             self.validate_having(having)?;
         }
@@ -90,7 +90,7 @@ impl GroupByValidator {
         }
 
         for item in group_items {
-            // 验证分组键必须是有效的表达式
+            // The validation group key must be a valid expression.
             self.validate_group_key(item)?;
             self.group_keys.push(item.clone());
         }
@@ -109,19 +109,19 @@ impl GroupByValidator {
         }
     }
 
-    /// 内部方法：验证分组键
+    /// Internal method: Validate the group key
     fn validate_group_key_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
     ) -> Result<(), ValidationError> {
-        // 分组键可以是：
-        // 1. 列引用
-        // 2. 属性访问
-        // 3. 简单的表达式
+        // The grouping key can be:
+        // 1. List of references
+        // 2. Attribute Access
+        // 3. Simple expressions
         match expr {
             Expression::Variable(_) | Expression::Property { .. } => Ok(()),
             Expression::Function { name, .. } => {
-                // 分组键中不允许聚合函数
+                // Aggregation functions are not allowed in the grouping key.
                 if Self::is_aggregate_function(name) {
                     Err(ValidationError::new(
                         format!("Aggregate function {} cannot be used in GROUP BY key", name),
@@ -142,7 +142,7 @@ impl GroupByValidator {
         for item in &yield_clause.items {
             let expr = &item.expression;
 
-            // 检查表达式中的聚合函数
+            // Check the aggregate functions in the expression.
             if Self::contains_aggregate(expr) {
                 self.agg_output_col_names.push(
                     item.alias
@@ -153,7 +153,7 @@ impl GroupByValidator {
 
             self.group_items.push(expr.clone());
 
-            // 保存 yield 列用于语义检查
+            // Saving the `yield` column is used for semantic checking.
             self.yield_cols.push(expr.clone());
         }
 
@@ -161,8 +161,8 @@ impl GroupByValidator {
     }
 
     fn validate_having(&self, having: &ContextualExpression) -> Result<(), ValidationError> {
-        // HAVING 子句中的表达式必须是有效的布尔表达式
-        // 且可以包含聚合函数
+        // The expression in the HAVING clause must be a valid Boolean expression.
+        // And aggregate functions can also be included.
         if let Some(e) = having.get_expression() {
             self.validate_having_expr_internal(&e)
         } else {
@@ -173,7 +173,7 @@ impl GroupByValidator {
         }
     }
 
-    /// 内部方法：验证 HAVING 表达式
+    /// Internal method: Verifying the HAVING expression
     fn validate_having_expr_internal(
         &self,
         expr: &crate::core::types::expr::Expression,
@@ -183,7 +183,7 @@ impl GroupByValidator {
                 self.validate_having_expr_internal(left)?;
                 self.validate_having_expr_internal(right)?;
 
-                // 验证比较操作符
+                // Verification of comparison operators
                 match op {
                     crate::core::types::operators::BinaryOperator::Equal
                     | crate::core::types::operators::BinaryOperator::NotEqual
@@ -214,10 +214,10 @@ impl GroupByValidator {
     }
 
     fn group_clause_semantic_check(&self) -> Result<(), ValidationError> {
-        // 检查 YIELD 中的非聚合表达式是否都在 GROUP BY 中
+        // Check whether all the non-aggregated expressions in the YIELD clause are also included in the GROUP BY clause.
         for yield_col in &self.yield_cols {
             if !Self::contains_aggregate(yield_col) {
-                // 非聚合表达式必须在 GROUP BY 中
+                // Non-aggregate expressions must be included in the GROUP BY clause.
                 let found = self
                     .group_keys
                     .iter()
@@ -239,7 +239,7 @@ impl GroupByValidator {
     }
 
     fn setup_outputs(&mut self) {
-        // 根据 YIELD 子句设置输出列
+        // The output column is set according to the settings specified in the YIELD clause.
         self.outputs = self
             .group_items
             .iter()
@@ -266,7 +266,7 @@ impl GroupByValidator {
         }
     }
 
-    /// 内部方法：检查表达式是否包含聚合函数
+    /// Internal method: Check whether the expression contains aggregate functions.
     fn contains_aggregate_internal(expr: &crate::core::types::expr::Expression) -> bool {
         match expr {
             Expression::Function { name, .. } => {
@@ -284,7 +284,7 @@ impl GroupByValidator {
     }
 
     fn expr_equivalent(a: &ContextualExpression, b: &ContextualExpression) -> bool {
-        // 简化实现：比较字符串表示
+        // Simplified implementation: Comparing string representations
         Self::expr_to_string(a) == Self::expr_to_string(b)
     }
 
@@ -318,10 +318,10 @@ impl GroupByValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for GroupByValidator {
     fn validate(
         &mut self,

@@ -1,7 +1,7 @@
-//! PatternApplyExecutor 实现
+//! Implementation of PatternApplyExecutor
 //!
-//! 负责处理模式匹配操作，支持 EXISTS 和 NOT EXISTS 语义
-//! 将左输入数据与右输入数据进行键匹配
+//! Responsible for handling pattern matching operations, supporting the semantics of EXISTS and NOT EXISTS.
+//! Perform a key matching between the left input data and the right input data.
 
 use parking_lot::Mutex;
 use std::collections::HashSet;

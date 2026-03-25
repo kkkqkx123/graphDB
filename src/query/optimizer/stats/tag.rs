@@ -1,22 +1,22 @@
-//! 标签统计信息模块
+//! Tag statistics module
 //!
-//! 提供标签级别的统计信息，用于查询优化器估算代价
+//! Provide tag-level statistical information for use in querying the estimates made by the optimization engine.
 
-/// 标签统计信息
+/// Tag statistics information
 #[derive(Debug, Clone)]
 pub struct TagStatistics {
-    /// 标签名称
+    /// Tag name
     pub tag_name: String,
-    /// 顶点数量
+    /// Number of vertices
     pub vertex_count: u64,
-    /// 平均出度（关键指标：影响遍历代价）
+    /// Average Outdegree (Key Metric: Impact on the Cost of Traversal)
     pub avg_out_degree: f64,
-    /// 平均入度
+    /// Average Indegree
     pub avg_in_degree: f64,
 }
 
 impl TagStatistics {
-    /// 创建新的标签统计信息
+    /// Create new tag statistics information.
     pub fn new(tag_name: String) -> Self {
         Self {
             tag_name,

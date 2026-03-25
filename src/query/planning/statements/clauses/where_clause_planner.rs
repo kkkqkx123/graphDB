@@ -1,7 +1,7 @@
-//! WHERE 子句规划器
+//! The WHERE clause planner
 //!
-//! 负责规划 WHERE 子句的执行，过滤输入数据。
-//! 实现了 ClausePlanner 接口，提供完整的过滤功能。
+//! Responsible for planning the execution of the WHERE clause and filtering the input data.
+//! The ClausePlanner interface has been implemented, providing comprehensive filtering capabilities.
 
 use crate::core::types::ContextualExpression;
 use crate::query::parser::ast::Stmt;
@@ -14,9 +14,9 @@ use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// WHERE 子句规划器
+/// The WHERE clause planner
 ///
-/// 负责规划 WHERE 子句的执行，过滤输入数据。
+/// Responsible for planning the execution of the WHERE clause and filtering the input data.
 #[derive(Debug)]
 pub struct WhereClausePlanner;
 

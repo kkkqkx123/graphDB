@@ -1,6 +1,6 @@
-//! Join执行器的基础结构和公共功能
+//! The basic structure and common functions of the Join executor
 //!
-//! 提供所有join操作的基础实现，包括哈希表构建、探测等核心功能
+//! Provide the basic implementations for all join operations, including core functions such as hash table construction and detection.
 
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -19,24 +19,24 @@ use ExpressionAnalysisContext as ExpressionContextStruct;
 /// Probe result type alias
 type ProbeResult = Result<Vec<(Vec<Value>, Vec<Vec<Value>>)>, QueryError>;
 
-/// Join执行器的基础结构
+/// The basic structure of the Join executor
 pub struct BaseJoinExecutor<S: StorageClient> {
     pub base: BaseExecutor<S>,
-    /// 左侧输入变量名
+    /// Left input variable name
     left_var: String,
-    /// 右侧输入变量名
+    /// Enter the variable name on the right.
     right_var: String,
-    /// 连接键表达式列表
+    /// List of connection key expressions
     hash_keys: Vec<Expression>,
-    /// 探测键表达式列表
+    /// List of detection key expressions
     probe_keys: Vec<Expression>,
-    /// 输出列名
+    /// Column names
     col_names: Vec<String>,
-    /// 描述
+    /// Description
     description: String,
-    /// 是否交换左右输入（优化用）
+    /// Should we swap the left and right inputs (for optimization purposes)?
     exchange: bool,
-    /// 右侧输出列索引（用于自然连接）
+    /// Index of the output column on the right (used for natural joins)
     rhs_output_col_idxs: Option<Vec<usize>>,
 }
 
@@ -81,9 +81,9 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         }
     }
 
-    /// 检查输入数据集
+    /// Check the input dataset.
     pub fn check_input_datasets(&mut self) -> Result<(DataSet, DataSet), QueryError> {
-        // 从执行上下文获取左右输入数据集
+        // Obtain the left and right input datasets from the execution context.
         let left_result = self
             .base
             .context
@@ -102,19 +102,19 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
         let left_dataset = match left_result {
             ExecutionResult::Values(values) => {
-                // 检查Values中是否包含DataSet
+                // Check whether the “Values” contain a “DataSet”.
                 if values.len() == 1 {
                     if let Value::DataSet(dataset) = &values[0] {
                         dataset.clone()
                     } else {
-                        // 单个值作为一行
+                        // Each value should be displayed on a separate line.
                         DataSet {
                             col_names: vec![],
                             rows: vec![values.clone()],
                         }
                     }
                 } else {
-                    // 多个值，每个值作为一行
+                    // Multiple values, with each value appearing on a separate line.
                     DataSet {
                         col_names: vec![],
                         rows: values.iter().map(|v| vec![v.clone()]).collect(),
@@ -131,19 +131,19 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
 
         let right_dataset = match right_result {
             ExecutionResult::Values(values) => {
-                // 检查Values中是否包含DataSet
+                // Check whether the “Values” contain a “DataSet”.
                 if values.len() == 1 {
                     if let Value::DataSet(dataset) = &values[0] {
                         dataset.clone()
                     } else {
-                        // 单个值作为一行
+                        // Each value should be displayed on a separate line.
                         DataSet {
                             col_names: vec![],
                             rows: vec![values.clone()],
                         }
                     }
                 } else {
-                    // 多个值，每个值作为一行
+                    // Multiple values, with each value appearing on a separate line.
                     DataSet {
                         col_names: vec![],
                         rows: values.iter().map(|v| vec![v.clone()]).collect(),
@@ -161,7 +161,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         Ok((left_dataset, right_dataset))
     }
 
-    /// 构建单键哈希表（使用JoinKeyEvaluator）
+    /// Constructing a single-key hash table using JoinKeyEvaluator
     pub fn build_single_key_hash_table_with_evaluator<C: ExpressionContext>(
         &self,
         dataset: &DataSet,
@@ -184,7 +184,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         Ok(hash_table)
     }
 
-    /// 构建多键哈希表（使用JoinKeyEvaluator）
+    /// Constructing a multi-key hash table using JoinKeyEvaluator
     pub fn build_multi_key_hash_table_with_evaluator<C: ExpressionContext>(
         &self,
         dataset: &DataSet,
@@ -208,7 +208,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         Ok(hash_table)
     }
 
-    /// 探测单键哈希表（使用JoinKeyEvaluator）
+    /// Detecting a single-key hash table (using JoinKeyEvaluator)
     pub fn probe_single_key_hash_table_with_evaluator<C: ExpressionContext>(
         &self,
         probe_dataset: &DataSet,
@@ -233,7 +233,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         Ok(results)
     }
 
-    /// 探测多键哈希表（使用JoinKeyEvaluator）
+    /// Detecting multi-key hash tables (using JoinKeyEvaluator)
     pub fn probe_multi_key_hash_table_with_evaluator<C: ExpressionContext>(
         &self,
         probe_dataset: &DataSet,
@@ -260,7 +260,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         Ok(results)
     }
 
-    /// 构建单键哈希表
+    /// Constructing a single-key hash table
     pub fn build_single_key_hash_table(
         hash_key: &str,
         dataset: &DataSet,
@@ -279,7 +279,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         Ok(())
     }
 
-    /// 构建多键哈希表
+    /// Constructing a multi-key hash table
     pub fn build_multi_key_hash_table(
         hash_keys: &[String],
         dataset: &DataSet,
@@ -307,7 +307,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         Ok(())
     }
 
-    /// 创建新行（连接左右两行，根据输出列名选择值）
+    /// Create a new row (by connecting the left and right rows, and selecting values based on the column names in the output).
     pub fn new_row(
         &self,
         left_row: Vec<Value>,
@@ -332,13 +332,13 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         result
     }
 
-    /// 决定是否交换左右输入以优化性能
+    /// Decide whether to swap the left and right inputs in order to optimize performance.
     pub fn should_exchange(&self, left_size: usize, right_size: usize) -> bool {
-        // 如果左表比右表大很多，交换以减少哈希表大小
+        // If the left table is much larger than the right table, swap them to reduce the size of the hash table.
         left_size > right_size * 2
     }
 
-    /// 执行左右输入交换优化
+    /// Optimize the swapping of left and right inputs.
     pub fn optimize_join_order(&mut self, left_dataset: &DataSet, right_dataset: &DataSet) {
         let left_size = left_dataset.rows.len();
         let right_size = right_dataset.rows.len();
@@ -348,7 +348,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         }
     }
 
-    /// 计算右侧输出列索引（用于自然连接）
+    /// Calculate the index of the output column on the right (used for the natural join).
     pub fn calculate_rhs_output_col_idxs(
         &mut self,
         left_col_names: &[String],
@@ -367,77 +367,77 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         }
     }
 
-    /// 获取列名
+    /// Obtain column names
     pub fn get_col_names(&self) -> &Vec<String> {
         &self.col_names
     }
 
-    /// 获取哈希键
+    /// Obtain the hash key
     pub fn get_hash_keys(&self) -> &Vec<Expression> {
         &self.hash_keys
     }
 
-    /// 获取探测键
+    /// Obtain the detection key
     pub fn get_probe_keys(&self) -> &Vec<Expression> {
         &self.probe_keys
     }
 
-    /// 获取基础执行器
+    /// Obtaining the basic executor
     pub fn get_base(&self) -> &BaseExecutor<S> {
         &self.base
     }
 
-    /// 获取可变的基础执行器
+    /// Obtaining a variable basic executor
     pub fn get_base_mut(&mut self) -> &mut BaseExecutor<S> {
         &mut self.base
     }
 
-    /// 获取执行器ID
+    /// Obtain the executor ID.
     pub fn id(&self) -> i64 {
         self.base.id
     }
 
-    /// 获取执行器名称
+    /// Obtain the name of the executor.
     pub fn name(&self) -> &str {
         &self.base.name
     }
 
-    /// 获取执行上下文的可变引用
+    /// Obtain a variable reference to the execution context
     pub fn context_mut(&mut self) -> &mut crate::query::executor::base::ExecutionContext {
         &mut self.base.context
     }
 
-    /// 获取左表变量名
+    /// Obtain the name of the variable from the left table.
     pub fn left_var(&self) -> &str {
         &self.left_var
     }
 
-    /// 获取右表变量名
+    /// Obtain the names of the variables from the right table.
     pub fn right_var(&self) -> &str {
         &self.right_var
     }
 
-    /// 获取哈希键列表
+    /// Obtain a list of hash keys
     pub fn hash_keys(&self) -> &Vec<Expression> {
         &self.hash_keys
     }
 
-    /// 获取探测键列表
+    /// Obtain the list of detection keys.
     pub fn probe_keys(&self) -> &Vec<Expression> {
         &self.probe_keys
     }
 
-    /// 获取列名列表
+    /// Obtain a list of column names
     pub fn col_names(&self) -> &Vec<String> {
         &self.col_names
     }
 
-    /// 获取描述
+    /// Obtain the description.
     pub fn description(&self) -> &str {
         &self.description
     }
 
-    /// 获取是否交换了左右输入
+    /// Check whether the left and right inputs have been swapped.
     pub fn is_exchanged(&self) -> bool {
         self.exchange
     }

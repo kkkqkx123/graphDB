@@ -1,59 +1,59 @@
-//! 查询上下文
+//! Query context
 //!
-//! 管理查询从解析、验证、规划到执行整个生命周期中的上下文信息。
+//! Manage the context information throughout the entire lifecycle of queries, from parsing and validation to planning and execution.
 //!
-//! # 重构说明
+//! # Explanation of the refactoring:
 //!
-//! 表达式上下文已合并到 Ast 中，不再在 QueryContext 中单独存储。
-//! 通过 ValidatedStatement 访问表达式上下文。
+//! The context of the expressions has been merged into Ast and is no longer stored separately in QueryContext.
+//! Access the expression context through the ValidatedStatement.
 //!
-//! # 架构优化
+//! # Architecture Optimization
 //!
-//! QueryContext 现在由多个专门的上下文组成：
-//! - QueryRequestContext: 查询请求上下文（会话信息、请求参数）
-//! - QueryExecutionManager: 查询执行管理器（执行计划、终止标志）
-//! - QueryResourceContext: 查询资源上下文（对象池、ID 生成器、符号表）
-//! - QuerySpaceContext: 查询空间上下文（空间信息、字符集）
+//! QueryContext now consists of multiple specialized contexts.
+//! QueryRequestContext: The context of the query request (session information, request parameters)
+//! QueryExecutionManager: The query execution manager (responsible for executing the plan and managing termination signals).
+//! QueryResourceContext: Context for querying resources (object pool, ID generator, symbol table)
+//! QuerySpaceContext: Query space context (space information, character set)
 
 use std::sync::Arc;
 
 use crate::query::context::{QueryExecutionManager, QueryResourceContext, QuerySpaceContext};
 use crate::query::query_request_context::QueryRequestContext;
 
-/// 查询上下文
+/// Query context
 ///
-/// 每个查询请求的上下文，从查询引擎接收到查询请求时创建。
-/// 该上下文对象对解析器、规划器、优化器和执行器可见。
+/// The context for each query request is created whenever the query request is received by the query engine.
+/// This context object is visible to the parser, planner, optimizer, and executor.
 ///
-/// # 职责
+/// # Responsibilities
 ///
-/// - 持有查询请求上下文（会话信息、请求参数）
-/// - 持有查询执行管理器（执行计划、终止标志）
-/// - 持有查询资源上下文（对象池、ID 生成器、符号表）
-/// - 持有查询空间上下文（空间信息、字符集）
+/// The context of the query request is available (session information, request parameters).
+/// Possession of the Query Execution Manager (execution plan, termination flags)
+/// Possession of the context for the resources being queried (object pool, ID generator, symbol table)
+/// Possessing the context of the query space (space information, character set)
 ///
-/// # 设计变更
+/// # Design changes
 ///
-/// - 使用组合模式，将 QueryContext 拆分为多个专门的上下文
-/// - 删除 expr_context 字段，表达式上下文现在存储在 Ast 中
-/// - 删除 Clone 实现，强制使用 Arc<QueryContext>
-/// - 删除 validation_info 字段，验证信息现在只存储在 ValidatedStatement 中
+/// Using the Composite Pattern, the QueryContext is broken down into multiple specialized contexts.
+/// Remove the `expr_context` field; the expression context is now stored in the Ast (Abstract Syntax Tree).
+/// Remove the Clone implementation and force the use of Arc<QueryContext>.
+/// Remove the `validation_info` field; the validation information is now only stored in the `ValidatedStatement`.
 pub struct QueryContext {
-    /// 查询请求上下文
+    /// Query request context
     rctx: Arc<QueryRequestContext>,
 
-    /// 查询执行管理器
+    /// Query Execution Manager
     execution_manager: QueryExecutionManager,
 
-    /// 查询资源上下文
+    /// Query resource context
     resource_context: QueryResourceContext,
 
-    /// 查询空间上下文
+    /// Querying the context of the space
     space_context: QuerySpaceContext,
 }
 
 impl QueryContext {
-    /// 创建新的查询上下文
+    /// Create a new query context.
     pub fn new(rctx: Arc<QueryRequestContext>) -> Self {
         Self {
             rctx,
@@ -63,14 +63,14 @@ impl QueryContext {
         }
     }
 
-    /// 创建用于验证的临时上下文
+    /// Create a temporary context for verification.
     ///
-    /// 这是一个便捷方法，用于在验证阶段创建临时的 QueryContext。
+    /// This is a convenient method for creating a temporary QueryContext during the validation phase.
     ///
-    /// # 参数
-    /// - `query_text`: 查询文本
+    /// # Parameters
+    /// `query_text`: The text of the query.
     ///
-    /// # 示例
+    /// # Example
     ///
     /// ```rust
     /// use crate::query::QueryContext;
@@ -82,9 +82,9 @@ impl QueryContext {
         Self::new(rctx)
     }
 
-    /// 创建用于规划的临时上下文
+    /// Create a temporary context for planning purposes.
     ///
-    /// 这是一个便捷方法，用于在规划阶段创建临时的 QueryContext。
+    /// This is a convenient method for creating a temporary QueryContext during the planning phase.
     ///
     /// # 参数
     /// - `query_text`: 查询文本
@@ -101,7 +101,7 @@ impl QueryContext {
         Self::new(rctx)
     }
 
-    /// 从各个组件创建查询上下文（供 Builder 使用）
+    /// Create query contexts from various components (for use by the Builder).
     pub(crate) fn from_components(
         rctx: Arc<QueryRequestContext>,
         execution_manager: QueryExecutionManager,
@@ -116,109 +116,109 @@ impl QueryContext {
         }
     }
 
-    /// 创建构建器
+    /// Create a builder.
     pub fn builder(
         rctx: Arc<QueryRequestContext>,
     ) -> crate::query::query_context_builder::QueryContextBuilder {
         crate::query::query_context_builder::QueryContextBuilder::new(rctx)
     }
 
-    /// 获取查询请求上下文
+    /// Obtain the context of the query request.
     pub fn request_context(&self) -> &QueryRequestContext {
         &self.rctx
     }
 
-    /// 获取查询请求上下文的 Arc 引用
+    /// The Arc reference that provides the context for the query request.
     pub fn request_context_arc(&self) -> Arc<QueryRequestContext> {
         self.rctx.clone()
     }
 
-    /// 获取查询请求上下文（兼容旧代码）
+    /// Obtain the context of the query request (compatible with old code)
     pub fn rctx(&self) -> &QueryRequestContext {
         &self.rctx
     }
 
-    /// 获取执行计划
+    /// Obtain the execution plan
     pub fn plan(&self) -> Option<crate::query::planning::plan::ExecutionPlan> {
         self.execution_manager.plan()
     }
 
-    /// 设置执行计划
+    /// Setting the execution plan
     pub fn set_plan(&mut self, plan: crate::query::planning::plan::ExecutionPlan) {
         self.execution_manager.set_plan(plan);
     }
 
-    /// 获取执行计划 ID
+    /// Obtain the execution plan ID
     pub fn plan_id(&self) -> Option<i64> {
         self.execution_manager.plan_id()
     }
 
-    /// 获取字符集信息
+    /// Obtaining character set information
     pub fn charset_info(&self) -> Option<&crate::core::types::CharsetInfo> {
         self.space_context.charset_info()
     }
 
-    /// 设置字符集信息
+    /// Setting character set information
     pub fn set_charset_info(&mut self, charset_info: crate::core::types::CharsetInfo) {
         self.space_context.set_charset_info(charset_info);
     }
 
-    /// 生成 ID
+    /// Generate an ID.
     pub fn gen_id(&self) -> i64 {
         self.resource_context.gen_id()
     }
 
-    /// 获取当前 ID 值（不递增）
+    /// Retrieve the current ID value (without incrementing it).
     pub fn current_id(&self) -> i64 {
         self.resource_context.current_id()
     }
 
-    /// 获取当前空间信息
+    /// Obtain the current spatial information
     pub fn space_info(&self) -> Option<&crate::core::types::SpaceInfo> {
         self.space_context.space_info()
     }
 
-    /// 设置当前空间信息
+    /// Set the current space information
     pub fn set_space_info(&mut self, space_info: crate::core::types::SpaceInfo) {
         self.space_context.set_space_info(space_info);
     }
 
-    /// 获取当前空间的 ID
+    /// Obtain the ID of the current space.
     pub fn space_id(&self) -> Option<u64> {
         self.space_context.space_id()
     }
 
-    /// 获取当前空间的名称
+    /// Get the name of the current space.
     pub fn space_name(&self) -> Option<String> {
         self.space_context.space_name()
     }
 
-    /// 标记为已终止
+    /// Marked as terminated
     pub fn mark_killed(&self) {
         self.execution_manager.mark_killed();
     }
 
-    /// 检查是否被终止
+    /// Check whether it was terminated.
     pub fn is_killed(&self) -> bool {
         self.execution_manager.is_killed()
     }
 
-    /// 检查参数是否存在
+    /// Check whether the parameters exist.
     pub fn exist_parameter(&self, param: &str) -> bool {
         self.rctx.get_parameter(param).is_some()
     }
 
-    /// 获取查询字符串
+    /// Obtain the query string
     pub fn query(&self) -> &str {
         &self.rctx.query
     }
 
-    /// 获取参数
+    /// Obtain parameters
     pub fn parameters(&self) -> &std::collections::HashMap<String, crate::core::Value> {
         &self.rctx.parameters
     }
 
-    /// 重置查询上下文
+    /// Reset the query context
     pub fn reset(&mut self) {
         self.execution_manager.reset();
         self.resource_context.reset();
@@ -226,32 +226,32 @@ impl QueryContext {
         log::info!("查询上下文已重置");
     }
 
-    /// 获取查询执行管理器的引用
+    /// Obtain a reference to the query execution manager.
     pub fn execution_manager(&self) -> &QueryExecutionManager {
         &self.execution_manager
     }
 
-    /// 获取查询执行管理器的可变引用
+    /// Obtain a variable reference to the query execution manager.
     pub fn execution_manager_mut(&mut self) -> &mut QueryExecutionManager {
         &mut self.execution_manager
     }
 
-    /// 获取查询资源上下文的引用
+    /// Obtain a reference to the context of the resource being queried.
     pub fn resource_context(&self) -> &QueryResourceContext {
         &self.resource_context
     }
 
-    /// 获取查询资源上下文的可变引用
+    /// Obtain a variable reference to the context of the resource being queried.
     pub fn resource_context_mut(&mut self) -> &mut QueryResourceContext {
         &mut self.resource_context
     }
 
-    /// 获取查询空间上下文的引用
+    /// Obtain a reference to the context of the query space.
     pub fn space_context(&self) -> &QuerySpaceContext {
         &self.space_context
     }
 
-    /// 获取查询空间上下文的可变引用
+    /// Obtain a variable reference to the context of the query space
     pub fn space_context_mut(&mut self) -> &mut QuerySpaceContext {
         &mut self.space_context
     }

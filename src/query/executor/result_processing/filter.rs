@@ -1,7 +1,7 @@
-//! 过滤执行器
+//! Filter executor
 //!
-//! 实现对查询结果的条件过滤功能，支持 HAVING 子句
-//! CPU 密集型操作，使用 Rayon 进行并行化
+//! Implementing a function for conditional filtering of search results, with support for the HAVING clause.
+//! CPU-intensive operations are parallelized using Rayon.
 
 use parking_lot::Mutex;
 use rayon::prelude::*;
@@ -22,18 +22,18 @@ use crate::query::executor::expression::{DefaultExpressionContext, ExpressionCon
 use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::storage::StorageClient;
 
-/// FilterExecutor - 过滤执行器
+/// FilterExecutor – The filter execution component
 ///
-/// 实现对查询结果的条件过滤功能
-/// CPU 密集型操作，使用 Rayon 进行并行化
+/// Implementing the functionality to filter query results based on certain conditions
+/// CPU-intensive operations are parallelized using Rayon.
 pub struct FilterExecutor<S: StorageClient + Send + 'static> {
-    /// 基础处理器
+    /// Basic processor
     base: BaseResultProcessor<S>,
-    /// 过滤条件表达式
+    /// Filter condition expression
     condition: Expression,
-    /// 输入执行器
+    /// Input actuator
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    /// 并行计算配置
+    /// Parallel computing configuration
     parallel_config: ParallelConfig,
 }
 
@@ -46,7 +46,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
             storage,
         );
 
-        // 从 ContextualExpression 提取 Expression
+        // Extract the Expression from the ContextualExpression.
         let expr = Self::extract_expression(&condition);
 
         Self {
@@ -57,7 +57,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         }
     }
 
-    /// 从 ContextualExpression 提取 Expression 的辅助方法
+    /// Auxiliary method for extracting an Expression from a ContextualExpression
     fn extract_expression(ctx_expr: &ContextualExpression) -> Expression {
         match ctx_expr.expression() {
             Some(meta) => meta.inner().clone(),
@@ -65,13 +65,13 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         }
     }
 
-    /// 设置并行计算配置
+    /// Setting up parallel computing configurations
     pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
         self.parallel_config = config;
         self
     }
 
-    /// 处理输入数据并应用过滤条件
+    /// Process the input data and apply the filtering criteria.
     fn process_input(&mut self) -> DBResult<ExecutionResult> {
         if let Some(ref mut input_exec) = self.input_executor {
             let input_result = input_exec.execute()?;
@@ -87,7 +87,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         }
     }
 
-    /// 过滤输入数据
+    /// Filter the input data.
     fn filter_input(&self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         match input {
             ExecutionResult::DataSet(mut dataset) => {
@@ -110,40 +110,40 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         }
     }
 
-    /// 对数据集应用过滤条件
+    /// Apply filtering criteria to the dataset.
     ///
-    /// 根据配置选择过滤方式：
-    /// - 数据量小于阈值：单线程处理
-    /// - 数据量大：使用 Rayon 并行处理
+    /// Select the filtering method based on the configuration:
+    /// Data volume is below the threshold: Processing is done in a single thread.
+    /// Large amount of data: Rayon is used for parallel processing.
     fn apply_filter(&self, dataset: &mut DataSet) -> DBResult<()> {
         let total_size = dataset.rows.len();
 
-        // 根据并行配置判断是否使用并行计算
+        // Determine whether to use parallel computing based on the parallel configuration.
         if !self.parallel_config.should_use_parallel(total_size) {
-            // 数据量小或禁用并行，使用单线程处理
+            // If the amount of data is small or parallel processing is disabled, single-threaded processing should be used.
             self.apply_filter_single(dataset)
         } else {
-            // 数据量大，使用 Rayon 并行处理
+            // Given the large volume of data, Rayon is used for parallel processing.
             let batch_size = self.parallel_config.calculate_batch_size(total_size);
             self.apply_filter_parallel(dataset, batch_size)
         }
     }
 
-    /// 单线程过滤
+    /// Single-threaded filtering
     fn apply_filter_single(&self, dataset: &mut DataSet) -> DBResult<()> {
         let mut filtered_rows = Vec::new();
 
         for row in &dataset.rows {
             let mut context = DefaultExpressionContext::new();
 
-            // 设置列名作为变量
+            // Set the column names as variables.
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
                     context.set_variable(col_name.clone(), row[i].clone());
                 }
             }
 
-            // 设置 row 变量（包含整行数据）
+            // Set the `row` variable (which contains the entire row of data)
             let row_map: std::collections::HashMap<String, crate::core::Value> = dataset
                 .col_names
                 .iter()
@@ -174,7 +174,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         Ok(())
     }
 
-    /// 并行过滤
+    /// Parallel filtering
     fn apply_filter_parallel(&self, dataset: &mut DataSet, batch_size: usize) -> DBResult<()> {
         let col_names = dataset.col_names.clone();
         let condition = self.condition.clone();
@@ -206,16 +206,16 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         Ok(())
     }
 
-    /// 过滤值列表
+    /// List of filter values
     fn filter_values(&self, values: Vec<crate::core::Value>) -> DBResult<Vec<crate::core::Value>> {
         let mut filtered_values = Vec::new();
 
         for value in values {
-            // 构建表达式上下文
+            // Constructing the context for the expression
             let mut context = DefaultExpressionContext::new();
             context.set_variable("value".to_string(), value.clone());
 
-            // 评估过滤条件
+            // Evaluating the filtering criteria
             let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
                 .map_err(|e| {
                     DBError::Expression(crate::core::error::ExpressionError::function_error(
@@ -223,7 +223,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                     ))
                 })?;
 
-            // 如果条件为真，保留该值
+            // If the condition is true, retain that value.
             if let crate::core::Value::Bool(true) = condition_result {
                 filtered_values.push(value);
             }
@@ -232,7 +232,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         Ok(filtered_values)
     }
 
-    /// 过滤顶点列表
+    /// Filter the list of vertices
     fn filter_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
@@ -240,15 +240,15 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         let mut filtered_vertices = Vec::new();
 
         for vertex in vertices {
-            // 构建表达式上下文
+            // Constructing the context for the expression
             let mut context = DefaultExpressionContext::new();
-            // 设置顶点信息
+            // Setting vertex information
             context.set_variable(
                 "_vertex".to_string(),
                 Value::Vertex(Box::new(vertex.clone())),
             );
 
-            // 评估过滤条件
+            // Evaluating the filtering criteria
             let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
                 .map_err(|e| {
                     DBError::Expression(crate::core::error::ExpressionError::function_error(
@@ -256,7 +256,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                     ))
                 })?;
 
-            // 如果条件为真，保留该顶点
+            // If the condition is true, retain that vertex.
             if let crate::core::Value::Bool(true) = condition_result {
                 filtered_vertices.push(vertex);
             }
@@ -265,17 +265,17 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         Ok(filtered_vertices)
     }
 
-    /// 过滤边列表
+    /// Filter Edge List
     fn filter_edges(&self, edges: Vec<crate::core::Edge>) -> DBResult<Vec<crate::core::Edge>> {
         let mut filtered_edges = Vec::new();
 
         for edge in edges {
-            // 构建表达式上下文
+            // Constructing the context for the expression
             let mut context = DefaultExpressionContext::new();
-            // 设置边信息
+            // Set border information
             context.set_variable("_edge".to_string(), Value::Edge(edge.clone()));
 
-            // 评估过滤条件
+            // Evaluating the filtering criteria
             let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
                 .map_err(|e| {
                     DBError::Expression(crate::core::error::ExpressionError::function_error(
@@ -283,7 +283,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
                     ))
                 })?;
 
-            // 如果条件为真，保留该边
+            // If the condition is true, keep that edge.
             if let crate::core::Value::Bool(true) = condition_result {
                 filtered_edges.push(edge);
             }
@@ -405,7 +405,7 @@ mod tests {
     fn test_filter_executor_basic() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建Mock存储失败")));
 
-        // 创建测试数据
+        // Create test data
         let mut dataset = DataSet::new();
         dataset.col_names = vec!["name".to_string(), "age".to_string()];
         dataset.rows.push(vec![
@@ -421,7 +421,7 @@ mod tests {
             crate::core::Value::Int(35),
         ]);
 
-        // 创建过滤执行器 (age > 25)
+        // Create a filter executor (age > 25)
         let condition = Expression::Binary {
             left: Box::new(Expression::Property {
                 object: Box::new(Expression::Variable("row".to_string())),
@@ -439,22 +439,22 @@ mod tests {
 
         let mut executor = FilterExecutor::new(1, storage, ctx_condition);
 
-        // 设置输入数据
+        // Setting the input data
         <FilterExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(
             &mut executor,
             ExecutionResult::DataSet(dataset),
         );
 
-        // 执行过滤
+        // Please provide the text you would like to have translated. I will then perform the translation and remove any unnecessary elements (such as filters) from the resulting text.
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
             .expect("Failed to get next");
 
-        // 验证结果
+        // Verification results
         match result {
             ExecutionResult::DataSet(filtered_dataset) => {
-                assert_eq!(filtered_dataset.rows.len(), 2); // Alice 和 Charlie
-                                                            // 验证年龄都大于25
+                assert_eq!(filtered_dataset.rows.len(), 2); // Alice and Charlie
+                                                            // Verify that all ages are greater than 25.
                 for row in &filtered_dataset.rows {
                     if let crate::core::Value::Int(age) = &row[1] {
                         assert!(age > &25);

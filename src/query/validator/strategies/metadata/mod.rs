@@ -1,5 +1,5 @@
-//! 元数据定义模块
-//! 定义验证相关的元数据，如聚合函数元数据
+//! Metadata Definition Module
+//! Define metadata related to validation, such as metadata for aggregate functions.
 
 pub mod aggregate_functions;
 

@@ -1,5 +1,5 @@
-//! Merge 语句验证器
-//! 用于验证 MERGE 语句（Cypher 风格的模式创建/匹配）
+//! Merge Statement Validator
+//! Used to validate MERGE statements (Cypher-style pattern creation/matching)
 //! 参考 nebula-graph MaintainValidator.cpp 中的 MergeZoneValidator 实现
 
 use std::sync::Arc;
@@ -16,7 +16,7 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 
-/// Merge 语句验证器
+/// Merge Statement Validator
 #[derive(Debug)]
 pub struct MergeValidator {
     pattern: Option<Pattern>,
@@ -29,7 +29,7 @@ pub struct MergeValidator {
 }
 
 impl MergeValidator {
-    /// 创建新的 Merge 验证器
+    /// Create a new Merge validator.
     pub fn new() -> Self {
         Self {
             pattern: None,
@@ -42,7 +42,7 @@ impl MergeValidator {
         }
     }
 
-    /// 验证模式
+    /// Verification mode
     fn validate_pattern(&self, pattern: &Pattern) -> Result<(), ValidationError> {
         use crate::query::parser::ast::Pattern;
 
@@ -54,22 +54,22 @@ impl MergeValidator {
         }
     }
 
-    /// 验证节点模式
+    /// Verify node mode
     fn validate_node_pattern(
         &self,
         node: &crate::query::parser::ast::NodePattern,
     ) -> Result<(), ValidationError> {
-        // 验证变量名（如果有）
+        // Verify the variable names (if any).
         if let Some(ref var) = node.variable {
             self.validate_variable_name(var)?;
         }
 
-        // 验证标签（如果有）
+        // Verify the tags (if any).
         for label in &node.labels {
             self.validate_label_name(label)?;
         }
 
-        // 验证属性（如果有）
+        // Verify the attributes (if any).
         if let Some(ref props) = node.properties {
             self.validate_properties(props)?;
         }
@@ -77,22 +77,22 @@ impl MergeValidator {
         Ok(())
     }
 
-    /// 验证边模式
+    /// Verify the border mode
     fn validate_edge_pattern(
         &self,
         edge: &crate::query::parser::ast::EdgePattern,
     ) -> Result<(), ValidationError> {
-        // 验证变量名（如果有）
+        // Verify the variable names (if any).
         if let Some(ref var) = edge.variable {
             self.validate_variable_name(var)?;
         }
 
-        // 验证边类型（如果有）
+        // Verify the edge type (if any).
         for type_ in &edge.edge_types {
             self.validate_edge_type(type_)?;
         }
 
-        // 验证属性（如果有）
+        // Verify the attributes (if any).
         if let Some(ref props) = edge.properties {
             self.validate_properties(props)?;
         }
@@ -100,19 +100,19 @@ impl MergeValidator {
         Ok(())
     }
 
-    /// 验证路径模式
+    /// Verify the path pattern.
     fn validate_path_pattern(
         &self,
         path: &crate::query::parser::ast::PathPattern,
     ) -> Result<(), ValidationError> {
-        // 验证路径中的每个元素
+        // Verify each element in the path.
         for element in &path.elements {
             self.validate_path_element(element)?;
         }
         Ok(())
     }
 
-    /// 验证路径元素
+    /// Verify the path elements
     fn validate_path_element(
         &self,
         element: &crate::query::parser::ast::PathElement,
@@ -133,16 +133,16 @@ impl MergeValidator {
         }
     }
 
-    /// 验证变量模式
+    /// Verify the variable pattern.
     fn validate_variable_pattern(
         &self,
         var: &crate::query::parser::ast::VariablePattern,
     ) -> Result<(), ValidationError> {
-        // 验证变量名
+        // Verify the variable names.
         self.validate_variable_name(&var.name)
     }
 
-    /// 验证变量名
+    /// Verify the variable names.
     fn validate_variable_name(&self, name: &str) -> Result<(), ValidationError> {
         if name.is_empty() {
             return Err(ValidationError::new(
@@ -151,7 +151,7 @@ impl MergeValidator {
             ));
         }
 
-        // 变量名必须以字母或下划线开头
+        // Variable names must start with a letter or an underscore.
         let first_char = name.chars().next().expect("变量名已验证非空");
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
@@ -166,7 +166,7 @@ impl MergeValidator {
         Ok(())
     }
 
-    /// 验证属性名
+    /// Verify the attribute name.
     fn validate_property_name(&self, name: &str) -> Result<(), ValidationError> {
         if name.is_empty() {
             return Err(ValidationError::new(
@@ -175,7 +175,7 @@ impl MergeValidator {
             ));
         }
 
-        // 属性名必须以字母或下划线开头
+        // The attribute name must start with a letter or an underscore.
         let first_char = name.chars().next().expect("属性名已验证非空");
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
@@ -190,7 +190,7 @@ impl MergeValidator {
         Ok(())
     }
 
-    /// 验证标签名
+    /// Verify the tag name.
     fn validate_label_name(&self, name: &str) -> Result<(), ValidationError> {
         if name.is_empty() {
             return Err(ValidationError::new(
@@ -201,7 +201,7 @@ impl MergeValidator {
         Ok(())
     }
 
-    /// 验证边类型
+    /// Verify the edge type
     fn validate_edge_type(&self, type_: &str) -> Result<(), ValidationError> {
         if type_.is_empty() {
             return Err(ValidationError::new(
@@ -212,7 +212,7 @@ impl MergeValidator {
         Ok(())
     }
 
-    /// 验证属性表达式
+    /// Verify the attribute expression
     fn validate_properties(&self, props: &ContextualExpression) -> Result<(), ValidationError> {
         if let Some(e) = props.get_expression() {
             self.validate_properties_internal(&e)
@@ -247,7 +247,7 @@ impl MergeValidator {
         }
     }
 
-    /// 验证属性值
+    /// Verify the attribute values
     fn validate_property_value(&self, value: &ContextualExpression) -> Result<(), ValidationError> {
         if let Some(e) = value.get_expression() {
             self.validate_property_value_internal(&e)
@@ -263,7 +263,7 @@ impl MergeValidator {
         self.validate_expression_recursive(value)
     }
 
-    /// 递归验证表达式
+    /// Recursive verification of expressions
     fn validate_expression_recursive(&self, expr: &Expression) -> Result<(), ValidationError> {
         match expr {
             Expression::Literal(_) => Ok(()),
@@ -407,10 +407,10 @@ impl MergeValidator {
         }
     }
 
-    /// 验证 SET 子句
+    /// Verify the SET statement
     fn validate_set_clause(&self, set_clause: &SetClause) -> Result<(), ValidationError> {
         for assignment in &set_clause.assignments {
-            // 验证属性名
+            // Verify the attribute name
             if assignment.property.is_empty() {
                 return Err(ValidationError::new(
                     "Property name cannot be empty".to_string(),
@@ -418,7 +418,7 @@ impl MergeValidator {
                 ));
             }
 
-            // 验证赋值值
+            // Verify the assigned value
             self.validate_property_value(&assignment.value)?;
         }
 
@@ -426,35 +426,35 @@ impl MergeValidator {
     }
 
     fn validate_impl(&mut self, stmt: &MergeStmt) -> Result<(), ValidationError> {
-        // 验证模式
+        // Verification mode
         self.validate_pattern(&stmt.pattern)?;
 
-        // 验证 ON CREATE 子句
+        // Verify the ON CREATE clause
         if let Some(ref on_create) = stmt.on_create {
             self.validate_set_clause(on_create)?;
         }
 
-        // 验证 ON MATCH 子句
+        // Verify the ON MATCH clause
         if let Some(ref on_match) = stmt.on_match {
             self.validate_set_clause(on_match)?;
         }
 
-        // 保存信息
+        // Save the information.
         self.pattern = Some(stmt.pattern.clone());
         self.on_create = stmt.on_create.clone();
         self.on_match = stmt.on_match.clone();
 
-        // 设置输出列
+        // Set the output columns
         self.setup_outputs();
 
         Ok(())
     }
 
     fn setup_outputs(&mut self) {
-        // MERGE 语句返回创建的/匹配的节点或边
+        // The MERGE statement returns the created/matched nodes or edges.
         self.outputs = vec![ColumnDef {
             name: "result".to_string(),
-            type_: ValueType::Vertex, // 可能是顶点或边
+            type_: ValueType::Vertex, // It could be a vertex or an edge.
         }];
     }
 
@@ -542,10 +542,10 @@ impl Default for MergeValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as parameters.
 impl StatementValidator for MergeValidator {
     fn validate(
         &mut self,
@@ -586,7 +586,7 @@ impl StatementValidator for MergeValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // MERGE 不是全局语句，需要在特定空间执行
+        // The `MERGE` statement is not a global statement; it needs to be executed in a specific context (i.e., within a particular scope or environment).
         false
     }
 
@@ -614,12 +614,12 @@ mod tests {
     fn test_validate_variable_name() {
         let validator = MergeValidator::new();
 
-        // 有效变量名
+        // Valid variable names
         assert!(validator.validate_variable_name("n").is_ok());
         assert!(validator.validate_variable_name("node1").is_ok());
         assert!(validator.validate_variable_name("_node").is_ok());
 
-        // 无效变量名
+        // Invalid variable name
         assert!(validator.validate_variable_name("").is_err());
         assert!(validator.validate_variable_name("1node").is_err());
     }
@@ -628,10 +628,10 @@ mod tests {
     fn test_validate_label_name() {
         let validator = MergeValidator::new();
 
-        // 有效标签名
+        // Valid tag names
         assert!(validator.validate_label_name("Person").is_ok());
 
-        // 无效标签名
+        // Invalid tag name
         assert!(validator.validate_label_name("").is_err());
     }
 }

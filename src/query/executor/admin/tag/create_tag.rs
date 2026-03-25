@@ -1,6 +1,6 @@
-//! CreateTagExecutor - 创建标签执行器
+//! CreateTagExecutor - Create Tag Executor
 //!
-//! 负责在指定图空间中创建新的标签。
+//! Responsible for creating new labels in the specified graph space.
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -35,7 +35,7 @@ impl TagInfo {
     }
 }
 
-/// 标签信息（执行器内部使用）
+/// Labeling information (for use within actuators)
 #[derive(Debug, Clone)]
 pub struct ExecutorTagInfo {
     pub space_name: String,
@@ -65,9 +65,9 @@ impl ExecutorTagInfo {
     }
 }
 
-/// 创建标签执行器
+/// Creating a Label Actuator
 ///
-/// 该执行器负责在指定图空间中创建新的标签。
+/// This executor is responsible for creating new labels in the specified graph space.
 #[derive(Debug)]
 pub struct CreateTagExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -76,7 +76,7 @@ pub struct CreateTagExecutor<S: StorageClient> {
 }
 
 impl<S: StorageClient> CreateTagExecutor<S> {
-    /// 创建新的 CreateTagExecutor
+    /// Create a new CreateTagExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -90,7 +90,7 @@ impl<S: StorageClient> CreateTagExecutor<S> {
         }
     }
 
-    /// 创建带 IF NOT EXISTS 选项的 CreateTagExecutor
+    /// Creating a CreateTagExecutor with the IF NOT EXISTS option
     pub fn with_if_not_exists(
         id: i64,
         storage: Arc<Mutex<S>>,

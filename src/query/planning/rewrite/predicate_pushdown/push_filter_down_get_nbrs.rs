@@ -1,7 +1,7 @@
-//! 将过滤条件下推到GetNeighbors操作的规则
+//! Rules that push the filtering conditions to the GetNeighbors operation
 //!
-//! 该规则识别 Filter -> GetNeighbors 模式，
-//! 并将过滤条件下推到 GetNeighbors 节点中。
+//! This rule identifies the Filter -> GetNeighbors mode.
+//! And push the filtering conditions to the GetNeighbors node.
 
 use crate::core::types::expr::ExpressionMeta;
 use crate::core::types::operators::BinaryOperator;
@@ -14,9 +14,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 
-/// 将过滤条件下推到GetNeighbors操作的规则
+/// Rules that push the filtering conditions upstream to the GetNeighbors operation
 ///
-/// # 转换示例
+/// # Conversion example
 ///
 /// Before:
 /// ```text
@@ -30,15 +30,15 @@ use crate::query::planning::rewrite::rule::{PushDownRule, RewriteRule};
 ///   GetNeighbors(filter: e.likeness > 78)
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - GetNeighbors 节点获取边属性
-/// - 过滤条件可以下推到存储层
+/// The GetNeighbors node retrieves the properties of the edges.
+/// The filtering criteria can be pushed down to the storage layer.
 #[derive(Debug)]
 pub struct PushFilterDownGetNbrsRule;
 
 impl PushFilterDownGetNbrsRule {
-    /// 创建规则实例
+    /// Create a rule instance
     pub fn new() -> Self {
         Self
     }
@@ -64,40 +64,40 @@ impl RewriteRule for PushFilterDownGetNbrsRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 Filter 节点
+        // Check whether it is a Filter node.
         let filter_node = match node {
             PlanNodeEnum::Filter(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取输入节点
+        // Obtain the input node
         let input = filter_node.input();
 
-        // 检查输入节点是否为 GetNeighbors
+        // Check whether the input node is 'GetNeighbors'.
         let get_nbrs = match input {
             PlanNodeEnum::GetNeighbors(n) => n,
             _ => return Ok(None),
         };
 
-        // 检查 GetNeighbors 是否获取边属性
+        // Check whether GetNeighbors retrieves the edge attributes.
         let edge_props = get_nbrs.edge_props();
         if edge_props.is_empty() {
             return Ok(None);
         }
 
-        // 获取过滤条件
+        // Obtain the filtering criteria
         let condition = filter_node.condition();
 
-        // 获取底层 Expression
+        // Obtaining the underlying Expression
         let expr = match condition.expression() {
             Some(meta) => meta.inner().clone(),
             None => return Ok(None),
         };
 
-        // 创建新的 GetNeighbors 节点
+        // Create a new GetNeighbors node.
         let mut new_get_nbrs = get_nbrs.clone();
 
-        // 合并现有过滤条件 - 使用 Expression::And 组合表达式
+        // Merge the existing filter conditions – Use the Expression::And to combine the expressions.
         let combined_expr = if let Some(existing_ctx) = get_nbrs.expression() {
             if let Some(existing_expr) = existing_ctx.get_expression() {
                 Expression::Binary {
@@ -112,14 +112,14 @@ impl RewriteRule for PushFilterDownGetNbrsRule {
             expr
         };
 
-        // 从 filter 节点的 condition 获取 context，注册新的组合表达式
+        // Retrieve the context from the condition of the filter node, and register the new combined expression.
         let context = condition.context().clone();
         let new_meta = ExpressionMeta::new(combined_expr);
         let new_id = context.register_expression(new_meta);
         let new_filter = ContextualExpression::new(new_id, context);
         new_get_nbrs.set_expression(new_filter);
 
-        // 构建转换结果
+        // Construct the translation result.
         let mut result = TransformResult::new();
         result.erase_curr = true;
         result.add_new_node(PlanNodeEnum::GetNeighbors(new_get_nbrs));

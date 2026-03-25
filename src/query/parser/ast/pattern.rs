@@ -1,12 +1,12 @@
-//! 模式 AST 定义 (v2)
+//! AST Mode Definition (v2)
 //!
-//! 图模式匹配相关的 AST 定义，支持节点、边和路径模式。
+//! AST (Abstract Syntax Tree) definitions related to pattern matching in graph contexts, supporting patterns for nodes, edges, and paths.
 
 use super::types::*;
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::utils::collect_variables_from_contextual;
 
-/// 模式枚举 - 图模式匹配
+/// Pattern Enumeration – Graph Pattern Matching
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
     Node(NodePattern),
@@ -16,7 +16,7 @@ pub enum Pattern {
 }
 
 impl Pattern {
-    /// 获取模式的位置信息
+    /// Obtaining the location information of the mode
     pub fn span(&self) -> Span {
         match self {
             Pattern::Node(p) => p.span,
@@ -27,7 +27,7 @@ impl Pattern {
     }
 }
 
-/// 节点模式
+/// Node mode
 #[derive(Debug, Clone, PartialEq)]
 pub struct NodePattern {
     pub span: Span,
@@ -55,7 +55,7 @@ impl NodePattern {
     }
 }
 
-/// 边模式
+/// Edge Mode
 #[derive(Debug, Clone, PartialEq)]
 pub struct EdgePattern {
     pub span: Span,
@@ -89,7 +89,7 @@ impl EdgePattern {
     }
 }
 
-/// 边范围
+/// Border range
 #[derive(Debug, Clone, PartialEq)]
 pub struct EdgeRange {
     pub min: Option<usize>,
@@ -137,7 +137,7 @@ impl EdgeRange {
     }
 }
 
-/// 路径模式
+/// Path pattern
 #[derive(Debug, Clone, PartialEq)]
 pub struct PathPattern {
     pub span: Span,
@@ -150,7 +150,7 @@ impl PathPattern {
     }
 }
 
-/// 路径元素
+/// Path element
 #[derive(Debug, Clone, PartialEq)]
 pub enum PathElement {
     Node(NodePattern),
@@ -160,7 +160,7 @@ pub enum PathElement {
     Repeated(Box<PathElement>, RepetitionType),
 }
 
-/// 重复类型
+/// Duplicate type
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RepetitionType {
     ZeroOrMore,          // *
@@ -170,7 +170,7 @@ pub enum RepetitionType {
     Range(usize, usize), // {n,m}
 }
 
-/// 变量模式
+/// Variable mode
 #[derive(Debug, Clone, PartialEq)]
 pub struct VariablePattern {
     pub span: Span,
@@ -183,11 +183,11 @@ impl VariablePattern {
     }
 }
 
-// 模式工具函数
+// Pattern Tool Functions
 pub struct PatternUtils;
 
 impl PatternUtils {
-    /// 查找模式中使用的所有变量
+    /// All variables used in the search pattern
     pub fn find_variables(pattern: &Pattern) -> Vec<String> {
         let mut variables = Vec::new();
         Self::find_variables_recursive(pattern, &mut variables);
@@ -267,12 +267,12 @@ impl PatternUtils {
         }
     }
 
-    /// 检查模式是否包含变量
+    /// Check whether the mode contains any variables.
     pub fn has_variables(pattern: &Pattern) -> bool {
         !Self::find_variables(pattern).is_empty()
     }
 
-    /// 获取模式中的所有标签
+    /// Retrieve all tags from the mode.
     pub fn get_labels(pattern: &Pattern) -> Vec<String> {
         let mut labels = Vec::new();
         Self::get_labels_recursive(pattern, &mut labels);

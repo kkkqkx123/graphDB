@@ -1,4 +1,4 @@
-//! 别名相关数据结构
+//! Alias-related data structures
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::Expression;
@@ -7,7 +7,7 @@ use crate::core::YieldColumn;
 use crate::query::validator::{MatchClauseContext, Path};
 use std::collections::HashMap;
 
-/// Cypher查询中的别名类型
+/// Alias types in Cypher queries
 #[derive(Debug, Clone, PartialEq)]
 pub enum AliasType {
     Node,
@@ -21,14 +21,14 @@ pub enum AliasType {
     Expression,
 }
 
-/// 边界子句上下文（With或Unwind）
+/// Boundary clause context (With or Unwind)
 #[derive(Debug, Clone)]
 pub enum BoundaryClauseContext {
     With(WithClauseData),
     Unwind(UnwindClauseData),
 }
 
-/// WITH子句数据
+/// Data from the WITH clause
 #[derive(Debug, Clone)]
 pub struct WithClauseData {
     pub yield_clause: YieldClauseData,
@@ -38,7 +38,7 @@ pub struct WithClauseData {
     pub distinct: bool,
 }
 
-/// UNWIND子句数据
+/// UNWIND clause data
 #[derive(Debug, Clone)]
 pub struct UnwindClauseData {
     pub alias: String,
@@ -46,7 +46,7 @@ pub struct UnwindClauseData {
     pub paths: Vec<Path>,
 }
 
-/// Yield子句数据
+/// Data from the Yield clause
 #[derive(Debug, Clone)]
 pub struct YieldClauseData {
     pub yield_columns: Vec<YieldColumn>,
@@ -63,33 +63,33 @@ pub struct YieldClauseData {
     pub limit: Option<usize>,
 }
 
-/// WHERE子句数据
+/// Data from the WHERE clause
 #[derive(Debug, Clone)]
 pub struct WhereClauseData {
     pub filter: Option<ContextualExpression>,
 }
 
-/// 分页数据
+/// Paginated data
 #[derive(Debug, Clone)]
 pub struct PaginationData {
     pub skip: Option<usize>,
     pub limit: Option<usize>,
 }
 
-/// 排序数据
+/// Sorting data
 #[derive(Debug, Clone)]
 pub struct OrderByData {
     pub items: Vec<OrderByItem>,
 }
 
-/// 排序项
+/// Sorting items
 #[derive(Debug, Clone)]
 pub struct OrderByItem {
     pub expression: ContextualExpression,
     pub direction: OrderDirection,
 }
 
-/// 查询部分结构
+/// Query the structure of the part.
 #[derive(Debug, Clone)]
 pub struct QueryPart {
     pub matchs: Vec<MatchClauseContext>,

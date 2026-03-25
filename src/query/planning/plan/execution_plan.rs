@@ -1,68 +1,68 @@
-//! 执行计划结构定义
-//! 包含ExecutionPlan和SubPlan结构
+//! Structure definition of the execution plan
+//! Contains the ExecutionPlan and SubPlan structures.
 
 use crate::query::planning::plan::PlanNodeEnum;
 
-/// 执行计划结构
-/// 表示完整的可执行计划，包含根节点和计划ID
+/// Execution plan structure
+/// Represents the complete executable plan, including the root node and the plan ID.
 #[derive(Debug, Clone)]
 pub struct ExecutionPlan {
-    /// 计划树的根节点
+    /// The root node of the planning tree
     pub root: Option<PlanNodeEnum>,
 
-    /// 计划的唯一ID
+    /// The unique ID of the plan
     pub id: i64,
 
-    /// 优化时间（微秒）
+    /// Optimized time (in microseconds)
     pub optimize_time_in_us: u64,
 
-    /// 输出格式
+    /// Of course! Please provide the text you would like to have translated.
     pub format: String,
 }
 
 impl ExecutionPlan {
-    /// 创建新的执行计划
+    /// Create a new execution plan.
     pub fn new(root: Option<PlanNodeEnum>) -> Self {
         Self {
             root,
-            id: -1, // 将在后续分配
+            id: -1, // This will be allocated later on.
             optimize_time_in_us: 0,
             format: "default".to_string(),
         }
     }
 
-    /// 设置计划的根节点
+    /// Set the root node of the plan.
     pub fn set_root(&mut self, root: PlanNodeEnum) {
         self.root = Some(root);
     }
 
-    /// 获取计划的根节点引用
+    /// Obtain the reference to the root node of the plan.
     pub fn root(&self) -> &Option<PlanNodeEnum> {
         &self.root
     }
 
-    /// 获取可变的根节点引用
+    /// Obtain a reference to the variable root node.
     pub fn root_mut(&mut self) -> &mut Option<PlanNodeEnum> {
         &mut self.root
     }
 
-    /// 设置计划的ID
+    /// Set the ID for the plan.
     pub fn set_id(&mut self, id: i64) {
         self.id = id;
     }
 
-    /// 设置优化时间
+    /// Set the optimization time
     pub fn set_optimize_time(&mut self, time_us: u64) {
         self.optimize_time_in_us = time_us;
     }
 
-    /// 设置输出格式
+    /// Set the output format
     pub fn set_format(&mut self, format: String) {
         self.format = format;
     }
 
-    /// 计算计划中的节点数量
-    /// 递归遍历整个执行计划树，统计所有节点
+    /// Calculate the number of nodes in the plan.
+    /// Recursively traverse the entire execution plan tree and count all the nodes.
     pub fn node_count(&self) -> usize {
         fn count_nodes(node: &Option<PlanNodeEnum>) -> usize {
             match node {
@@ -80,26 +80,26 @@ impl ExecutionPlan {
     }
 }
 
-/// SubPlan结构
-/// 表示执行计划的一个子部分，包含根节点和尾节点
-/// 用于复杂查询的分段规划
+/// SubPlan structure
+/// Represents a sub-part of the execution plan, which contains the root node and the tail node.
+/// Segmented planning for complex queries
 #[derive(Debug, Clone)]
 pub struct SubPlan {
-    /// 子计划的根节点
+    /// The root node of the sub-plan
     pub root: Option<PlanNodeEnum>,
 
-    /// 子计划的尾节点
-    /// 用于连接多个子计划
+    /// The end node of the sub-plan
+    /// Used to connect multiple sub-plans
     pub tail: Option<PlanNodeEnum>,
 }
 
 impl SubPlan {
-    /// 创建新的SubPlan
+    /// Create a new SubPlan.
     pub fn new(root: Option<PlanNodeEnum>, tail: Option<PlanNodeEnum>) -> Self {
         Self { root, tail }
     }
 
-    /// 创建仅包含根节点的SubPlan
+    /// Create a SubPlan that contains only the root node.
     pub fn from_root(root: PlanNodeEnum) -> Self {
         Self {
             root: Some(root.clone()),
@@ -107,7 +107,7 @@ impl SubPlan {
         }
     }
 
-    /// 创建仅包含单个节点的SubPlan
+    /// Create a SubPlan that contains only a single node.
     pub fn from_single_node(node: PlanNodeEnum) -> Self {
         Self {
             root: Some(node.clone()),
@@ -115,32 +115,32 @@ impl SubPlan {
         }
     }
 
-    /// 获取根节点引用
+    /// Obtain a reference to the root node.
     pub fn root(&self) -> &Option<PlanNodeEnum> {
         &self.root
     }
 
-    /// 获取尾节点引用
+    /// Obtain the reference to the tail node.
     pub fn tail(&self) -> &Option<PlanNodeEnum> {
         &self.tail
     }
 
-    /// 设置根节点
+    /// Setting the root node
     pub fn set_root(&mut self, root: PlanNodeEnum) {
         self.root = Some(root);
     }
 
-    /// 设置尾节点
+    /// Setting the tail node
     pub fn set_tail(&mut self, tail: PlanNodeEnum) {
         self.tail = Some(tail);
     }
 
-    /// 检查SubPlan是否为空
+    /// Check whether SubPlan is empty.
     pub fn is_empty(&self) -> bool {
         self.root.is_none()
     }
 
-    /// 获取SubPlan中的所有节点
+    /// Retrieve all nodes from the SubPlan.
     pub fn collect_nodes(&self) -> Vec<PlanNodeEnum> {
         let mut nodes = Vec::new();
 
@@ -155,7 +155,7 @@ impl SubPlan {
         nodes
     }
 
-    /// 合并两个SubPlan
+    /// Merge the two SubPlans
     pub fn merge(&self, other: &SubPlan) -> SubPlan {
         let root = self.root.clone();
         let tail = other.tail.clone();

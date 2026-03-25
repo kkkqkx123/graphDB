@@ -1,4 +1,4 @@
-//! 合并多个过滤操作的规则
+//! Rules that combine multiple filtering operations
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::Expression;
@@ -10,9 +10,9 @@ use crate::query::planning::rewrite::pattern::Pattern;
 use crate::query::planning::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 
-/// 合并多个过滤操作的规则
+/// Rules that combine multiple filtering operations
 ///
-/// # 转换示例
+/// # Conversion example
 ///
 /// Before:
 /// ```text
@@ -30,21 +30,21 @@ use crate::query::planning::rewrite::rule::{MergeRule, RewriteRule};
 ///   ScanVertices
 /// ```
 ///
-/// # 适用条件
+/// # Applicable Conditions
 ///
-/// - 当前节点为Filter节点
-/// - 子节点也为Filter节点
-/// - 可以合并两个过滤条件
+/// The current node is a Filter node.
+/// The child node is also a Filter node.
+/// The two filtering conditions can be combined.
 #[derive(Debug)]
 pub struct CombineFilterRule;
 
 impl CombineFilterRule {
-    /// 创建规则实例
+    /// Create a rule instance.
     pub fn new() -> Self {
         Self
     }
 
-    /// 合并两个条件表达式
+    /// Merge two conditional expressions
     fn combine_conditions(&self, top: &Expression, child: &Expression) -> Expression {
         Expression::Binary {
             left: Box::new(child.clone()),
@@ -74,26 +74,26 @@ impl RewriteRule for CombineFilterRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为 Filter 节点
+        // Check whether it is a Filter node.
         let top_filter = match node {
             PlanNodeEnum::Filter(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取输入节点
+        // Obtain the input node
         let input = top_filter.input();
 
-        // 检查输入节点是否也是 Filter
+        // Check whether the input node is also a Filter.
         let child_filter = match input {
             PlanNodeEnum::Filter(n) => n,
             _ => return Ok(None),
         };
 
-        // 获取两个过滤条件
+        // Obtain two filtering criteria.
         let top_condition = top_filter.condition();
         let child_condition = child_filter.condition();
 
-        // 获取表达式用于合并
+        // The obtained expression is used for merging.
         let top_expr = match top_condition.expression() {
             Some(meta) => meta.inner().clone(),
             None => return Ok(None),
@@ -104,27 +104,27 @@ impl RewriteRule for CombineFilterRule {
             None => return Ok(None),
         };
 
-        // 合并条件
+        // Merge conditions
         let combined_condition = self.combine_conditions(&top_expr, &child_expr);
 
-        // 获取上下文
+        // Obtain the context.
         let ctx = top_condition.context().clone();
 
-        // 创建合并后的表达式元数据
+        // Create metadata for the merged expression.
         let expr_meta = crate::core::types::expr::ExpressionMeta::new(combined_condition);
         let id = ctx.register_expression(expr_meta);
         let combined_ctx_expr = ContextualExpression::new(id, ctx);
 
-        // 获取子 Filter 的输入
+        // Obtaining the input for the sub-filter
         let child_input = child_filter.input().clone();
 
-        // 创建合并后的 Filter 节点
+        // Create a merged Filter node.
         let combined_filter_node = match FilterNode::new(child_input, combined_ctx_expr) {
             Ok(node) => node,
             Err(_) => return Ok(None),
         };
 
-        // 创建转换结果
+        // Create the translation result.
         let mut result = TransformResult::new();
         result.erase_curr = true;
         result.add_new_node(PlanNodeEnum::Filter(combined_filter_node));
@@ -174,7 +174,7 @@ mod tests {
         let start = PlanNodeEnum::Start(StartNode::new());
         let expr_ctx = Arc::new(ExpressionAnalysisContext::new());
 
-        // 下层Filter: col1 > 100
+        // Lower-level filter: col1 > 100
         let child_condition = Expression::Binary {
             left: Box::new(Expression::Variable("col1".to_string())),
             op: crate::core::types::operators::BinaryOperator::GreaterThan,
@@ -186,7 +186,7 @@ mod tests {
         let child_filter = FilterNode::new(start, child_ctx_expr).expect("创建FilterNode失败");
         let child_node = PlanNodeEnum::Filter(child_filter);
 
-        // 上层Filter: col2 > 200
+        // Upper-level filter: col2 > 200
         let top_condition = Expression::Binary {
             left: Box::new(Expression::Variable("col2".to_string())),
             op: crate::core::types::operators::BinaryOperator::GreaterThan,
@@ -199,12 +199,12 @@ mod tests {
             FilterNode::new(child_node.clone(), top_ctx_expr).expect("创建FilterNode失败");
         let top_node = PlanNodeEnum::Filter(top_filter);
 
-        // 应用规则
+        // Application rules
         let rule = CombineFilterRule::new();
         let mut ctx = RewriteContext::new();
         let result = rule.apply(&mut ctx, &top_node).expect("应用规则失败");
 
-        assert!(result.is_some(), "应该成功合并两个Filter节点");
+        assert!(result.is_some(), "The merging of the two Filter nodes should be successful.");
 
         let transform_result = result.expect("Failed to apply rewrite rule");
         assert!(transform_result.erase_curr);

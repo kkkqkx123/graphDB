@@ -1,14 +1,14 @@
-//! 语句级planner
+//! Statement-level planner
 //!
-//! 包含所有图数据库语句的planner实现
-//! 支持Cypher和NGQL的所有语句类型
+//! A planner implementation that includes all statements for graph databases
+//! All statement types supported by Cypher and NGQL are available.
 //!
-//! ## 架构说明
+//! ## Architecture Description
 //!
-//! 采用三层架构设计：
-//! - Planner trait：基础规划器接口
-//! - StatementPlanner trait：语句级规划器，处理完整语句
-//! - ClausePlanner trait：子句级规划器，处理单个子句
+//! Adopts a three-layer architecture design:
+//! `Planner trait`: The basic interface for planners.
+//! `StatementPlanner` trait: A statement-level planner that processes entire statements.
+//! `ClausePlanner` trait: A clause-level planner that processes individual clauses.
 
 pub mod clauses;
 pub mod paths;
@@ -38,6 +38,6 @@ pub mod user_management_planner;
 pub mod with_planner;
 pub mod yield_planner;
 
-// 重新导出语句规划器模块
+// Re-export the Statement Planner module
 pub use match_statement_planner::MatchStatementPlanner;
 pub use statement_planner::{ClausePlanner, StatementPlanner};

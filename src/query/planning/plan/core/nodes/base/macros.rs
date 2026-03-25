@@ -1,13 +1,13 @@
-//! 计划节点宏定义
+//! Plan node macro definition
 //!
-//! 提供宏来简化计划节点的定义，减少样板代码
+//! Provide macros to simplify the definition of plan nodes and reduce the amount of样板 code.
 //!
-//! # 重构变更
-//! - 移除对 ast::Variable 的依赖，使用 String 替代
+//! # Refactoring changes
+//! Remove the dependency on `ast::Variable` and use `String` instead.
 
-/// 定义计划节点的宏
+/// Macro for defining planning nodes
 ///
-/// # 示例
+/// # Example
 /// ```
 /// define_plan_node! {
 ///     pub struct GetVerticesNode {
@@ -17,7 +17,7 @@
 ///     }
 /// ```
 ///
-/// 为 PlanNodeEnum 生成 is_xxx 方法的宏
+/// Generate a macro for the `is_xxx` method for `PlanNodeEnum`
 ///
 /// # 示例
 /// ```
@@ -41,7 +41,7 @@ macro_rules! define_enum_is_methods {
     };
 }
 
-/// 为 PlanNodeEnum 生成 as_xxx 方法的宏
+/// Generate a macro for the `as_xxx` method for `PlanNodeEnum`
 ///
 /// # 示例
 /// ```
@@ -68,7 +68,7 @@ macro_rules! define_enum_as_methods {
     };
 }
 
-/// 为 PlanNodeEnum 生成 as_xxx_mut 方法的宏
+/// Generate a macro for the `as_xxx_mut` method for `PlanNodeEnum`
 ///
 /// # 示例
 /// ```
@@ -94,7 +94,7 @@ macro_rules! define_enum_as_mut_methods {
     };
 }
 
-/// 为 PlanNodeEnum 生成 type_name 方法的宏
+/// Generate a macro for the `type_name` method for `PlanNodeEnum`
 ///
 /// # 示例
 /// ```
@@ -117,7 +117,7 @@ macro_rules! define_enum_type_name {
     };
 }
 
-/// 为 PlanNodeEnum 生成 category 方法的宏
+/// Generate a macro for the `category` method of `PlanNodeEnum`
 ///
 /// # 示例
 /// ```
@@ -141,7 +141,7 @@ macro_rules! define_enum_category {
     };
 }
 
-/// 为 PlanNodeEnum 生成 describe 方法的宏
+/// Generate a macro for the describe method of PlanNodeEnum
 /// 假设所有节点都有 id() 和 output_var() 方法
 ///
 /// # 示例
@@ -177,7 +177,7 @@ macro_rules! define_enum_describe {
 /// ```
 #[macro_export]
 macro_rules! define_plan_node {
-    // ZeroInputNode 分支
+    // The ZeroInputNode branch
     (
         $(#[$meta:meta])*
         pub struct $name:ident {
@@ -289,7 +289,7 @@ macro_rules! define_plan_node {
         impl $crate::query::planning::plan::core::nodes::base::plan_node_traits::ZeroInputNode for $name {}
     };
 
-    // MultipleInputNode 分支
+    // The MultipleInputNode branch
     (
         $(#[$meta:meta])*
         pub struct $name:ident {
@@ -435,7 +435,7 @@ macro_rules! define_plan_node {
     };
 }
 
-/// 定义双输入计划节点宏
+/// Define the macro for the dual-input plan node
 #[macro_export]
 macro_rules! define_binary_input_node {
     (
@@ -601,7 +601,7 @@ macro_rules! define_binary_input_node {
     };
 }
 
-/// 定义带依赖的计划节点宏
+/// Define a macro for planning nodes with dependencies
 #[macro_export]
 macro_rules! define_plan_node_with_deps {
     (
@@ -727,7 +727,7 @@ macro_rules! define_plan_node_with_deps {
     };
 }
 
-/// 定义连接节点宏
+/// Define the macro for connecting nodes
 #[macro_export]
 macro_rules! define_join_node {
     (

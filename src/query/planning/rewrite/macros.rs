@@ -1,20 +1,20 @@
-//! 重写规则宏定义
+//! Rewrite the macro definitions for the rules
 //!
-//! 提供声明式宏用于简化重写规则的定义，减少样板代码。
+//! Provide declarative macros to simplify the definition of rewriting rules and reduce the amount of样板 code.
 
-// ==================== 基础规则宏 ====================
+// ==================== Basic Rules Macros ====================
 
-/// 定义基础重写规则
+/// Define the basic rules for rule rewriting.
 ///
 /// 自动生成规则结构体、Default实现、new()方法和RewriteRule trait实现
 ///
-/// # 示例
+/// # Example
 /// ```rust
 /// define_rewrite_rule! {
 ///     name: MyCustomRule,
 ///     pattern: Pattern::new_with_name("Filter"),
 ///     apply: |ctx, node| {
-///         // 规则逻辑
+// Rule logic
 ///         Ok(None)
 ///     }
 /// }
@@ -32,7 +32,7 @@ macro_rules! define_rewrite_rule {
         pub struct $name;
 
         impl $name {
-            /// 创建规则实例
+            /// Create a rule instance
             pub fn new() -> Self {
                 Self
             }
@@ -65,9 +65,9 @@ macro_rules! define_rewrite_rule {
     };
 }
 
-/// 定义带节点类型匹配的规则
+/// Define rules that match node types.
 ///
-/// 自动处理节点类型匹配和解包
+/// Automatic processing of node type matching and unpacking
 ///
 /// # 示例
 /// ```rust
@@ -76,7 +76,7 @@ macro_rules! define_rewrite_rule {
 ///     pattern: Pattern::new_with_name("Filter"),
 ///     node_type: Filter,
 ///     apply: |ctx, filter_node| {
-///         // filter_node 已经是解包后的 FilterNode 类型
+// The `filter_node` variable already has the type of the `FilterNode` class after unpacking.
 ///         Ok(None)
 ///     }
 /// }
@@ -136,11 +136,11 @@ macro_rules! define_typed_rewrite_rule {
     };
 }
 
-// ==================== 下推规则宏 ====================
+// ==================== Pushdown Rule Macros ====================
 
-/// 定义下推规则
+/// Define the push-down rule.
 ///
-/// 自动生成 RewriteRule 和 PushDownRule trait 实现
+/// Automatically generate implementations for the RewriteRule and PushDownRule traits.
 ///
 /// # 示例
 /// ```rust
@@ -149,7 +149,7 @@ macro_rules! define_typed_rewrite_rule {
 ///     parent_node: Filter,
 ///     child_node: GetNeighbors,
 ///     apply: |ctx, filter_node, get_neighbors_node| {
-///         // 下推逻辑
+// Push-down logic
 ///         Ok(None)
 ///     }
 /// }
@@ -240,11 +240,11 @@ macro_rules! define_rewrite_pushdown_rule {
     };
 }
 
-// ==================== 消除规则宏 ====================
+// ==================== Remove Rule Macros ====================
 
-/// 定义消除规则
+/// Define the elimination rules.
 ///
-/// 自动生成 RewriteRule 和 EliminationRule trait 实现
+/// Automatically generate implementations of the RewriteRule and EliminationRule traits.
 ///
 /// # 示例
 /// ```rust
@@ -343,7 +343,7 @@ macro_rules! define_rewrite_elimination_rule {
     };
 }
 
-/// 定义简单消除规则（仅删除当前节点）
+/// Define a simple elimination rule (which only deletes the current node).
 ///
 /// # 示例
 /// ```rust
@@ -437,11 +437,11 @@ macro_rules! define_simple_rewrite_elimination_rule {
     };
 }
 
-// ==================== 合并规则宏 ====================
+// ==================== Merging Rules Macro ====================
 
-/// 定义合并规则
+/// Define merge rules
 ///
-/// 自动生成 RewriteRule 和 MergeRule trait 实现
+/// Automatically generate implementations for the RewriteRule and MergeRule traits.
 ///
 /// # 示例
 /// ```rust
@@ -451,7 +451,7 @@ macro_rules! define_simple_rewrite_elimination_rule {
 ///     child_node: Filter,
 ///     can_merge: |parent, child| true,
 ///     merge: |ctx, parent, child| {
-///         // 合并逻辑
+// Merge the logic
 ///         Ok(None)
 ///     }
 /// }
@@ -569,11 +569,11 @@ macro_rules! define_rewrite_merge_rule {
     };
 }
 
-// ==================== 规则注册宏 ====================
+// ==================== Rule Registration Macro ====================
 
-/// 定义规则注册表
+/// Definition of rules: Registry
 ///
-/// 自动生成 RuleRegistry 的 default 实现，包含所有规则的注册
+/// Automatically generate the default implementation of RuleRegistry, which includes the registration of all rules.
 ///
 /// # 示例
 /// ```rust
@@ -613,7 +613,7 @@ macro_rules! define_rewrite_rule_registry {
     };
 }
 
-// 重新导出所有宏
+// Re-export all macros
 pub use crate::define_rewrite_elimination_rule;
 pub use crate::define_rewrite_merge_rule;
 pub use crate::define_rewrite_pushdown_rule;

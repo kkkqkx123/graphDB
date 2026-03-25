@@ -1,18 +1,18 @@
-//! 查询管道管理器
+//! Query Pipeline Manager
 //!
-//! 负责协调整个查询处理流程：
-//! 1. 管理查询处理的全生命周期
-//! 2. 协调各个处理阶段（解析→验证→规划→优化→执行）
-//! 3. 处理错误和异常
-//! 4. 管理查询上下文和性能监控
+//! Responsible for coordinating the entire query processing workflow:
+//! 1. Managing the entire lifecycle of query processing
+//! 2. Coordinate the various processing stages (parsing → validation → planning → optimization → execution)
+//! 3. Handling errors and exceptions
+//! 4. Managing query context and performance monitoring
 //!
-//! ## 与 OptimizerEngine 的关系
+//! ## The relationship with OptimizerEngine
 //!
-//! `QueryPipelineManager` 通过引用使用 `OptimizerEngine`，而不是直接创建优化器组件。
-//! `OptimizerEngine` 是全局实例，与数据库实例同生命周期，负责所有查询优化相关的功能。
+//! The `QueryPipelineManager` uses the `OptimizerEngine` by reference, rather than directly creating the optimizer component.
+//! `OptimizerEngine` is a global instance that has the same lifecycle as the database instance and is responsible for all functions related to query optimization.
 //!
 //! ```rust
-//! // 创建方式
+// Method of creation
 //! let optimizer_engine = Arc::new(OptimizerEngine::default());
 //! let pipeline = QueryPipelineManager::with_optimizer(
 //!     storage,
@@ -36,29 +36,29 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
 
-/// 查询管道管理器
+/// Query Pipeline Manager
 ///
-/// 负责协调整查询处理流程，通过引用 `OptimizerEngine` 使用优化功能。
+/// Responsible for coordinating the overall query processing workflow, and utilizing optimization features by leveraging the `OptimizerEngine`.
 pub struct QueryPipelineManager<S: StorageClient + 'static> {
     executor_factory: ExecutorFactory<S>,
     stats_manager: Arc<StatsManager>,
-    /// 优化器引擎（全局实例的引用）
+    /// Optimizer engine (reference to the global instance)
     optimizer_engine: Arc<OptimizerEngine>,
-    /// 查询计划缓存
+    /// Query plan cache
     plan_cache: Arc<QueryPlanCache>,
-    /// 参数化查询处理器
+    /// Parameterized Query Processor
     param_handler: ParameterizedQueryHandler,
 }
 
 impl<S: StorageClient + 'static> QueryPipelineManager<S> {
-    /// 使用指定的优化器引擎创建
+    /// Create using the specified optimizer engine.
     ///
-    /// 这是推荐的生产环境使用方式，可以共享全局的 OptimizerEngine 实例。
+    /// This is the recommended way to use the production environment, which allows for the sharing of a global OptimizerEngine instance.
     ///
-    /// # 参数
-    /// - `storage`: 存储客户端
-    /// - `stats_manager`: 统计信息管理器
-    /// - `optimizer_engine`: 优化器引擎（全局实例）
+    /// # Parameters
+    /// `storage`: The storage component for the client side.
+    /// `stats_manager`: A manager for statistical information.
+    /// `optimizer_engine`: The optimizer engine (global instance).
     pub fn with_optimizer(
         storage: Arc<Mutex<S>>,
         stats_manager: Arc<StatsManager>,
@@ -79,13 +79,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         }
     }
 
-    /// 使用指定的优化器引擎和计划缓存配置创建
+    /// Create using the specified optimizer engine and planning cache configuration.
     ///
     /// # 参数
     /// - `storage`: 存储客户端
     /// - `stats_manager`: 统计信息管理器
     /// - `optimizer_engine`: 优化器引擎（全局实例）
-    /// - `plan_cache_config`: 查询计划缓存配置
+    /// `plan_cache_config`: Queries the configuration of the plan cache.
     pub fn with_optimizer_and_cache(
         storage: Arc<Mutex<S>>,
         stats_manager: Arc<StatsManager>,
@@ -107,22 +107,22 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         }
     }
 
-    /// 获取优化器引擎
+    /// Obtaining the optimizer engine
     pub fn optimizer_engine(&self) -> &OptimizerEngine {
         &self.optimizer_engine
     }
 
-    /// 获取查询计划缓存
+    /// Obtaining the query plan cache
     pub fn plan_cache(&self) -> &QueryPlanCache {
         &self.plan_cache
     }
 
-    /// 获取查询计划缓存统计
+    /// Obtain statistics on the query plan cache
     pub fn plan_cache_stats(&self) -> crate::query::planning::PlanCacheStats {
         self.plan_cache.stats()
     }
 
-    /// 清空查询计划缓存
+    /// Clear the query plan cache.
     pub fn clear_plan_cache(&self) {
         self.plan_cache.clear();
         log::info!("查询计划缓存已清空");
@@ -137,18 +137,18 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_text: &str,
         space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
-        // 1. 首先创建 QueryContext（贯穿整个查询生命周期）
+        // 1. First, create a QueryContext (which persists throughout the entire lifecycle of the query).
         let rctx = Arc::new(QueryRequestContext::new(query_text.to_string()));
         let mut query_context = QueryContext::new(rctx);
 
-        // 设置空间信息
+        // Setting spatial information
         if let Some(ref space) = space_info {
             query_context.set_space_info(space.clone());
         }
 
         let query_context = Arc::new(query_context);
 
-        // 2. 检查查询计划缓存
+        // 2. Check the query plan cache.
         if let Some(cached_plan) = self.plan_cache.get(query_text) {
             log::debug!("查询计划缓存命中");
             let execute_start = Instant::now();
@@ -159,28 +159,28 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             return Ok(result);
         }
 
-        // 3. 解析查询
+        // 3. Analyzing the query
         let parser_result = self.parse_into_context(query_text)?;
 
-        // 4. 验证查询（复用已创建的 QueryContext）
+        // 4. Verify the query (reusing the already created QueryContext)
         let validation_info =
             self.validate_query_with_context(parser_result.ast.clone(), query_context.clone())?;
 
-        // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
+        // Create a verified statement (using Arc<Ast> to share ownership).
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
-        // 5. 生成执行计划
+        // 5. Generate an execution plan.
         let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
 
-        // 6. 优化执行计划
+        // 6. Optimizing the execution plan
         let optimized_plan = self.optimize_execution_plan(execution_plan)?;
 
-        // 7. 执行计划
+        // 7. Execution Plan
         let execute_start = Instant::now();
         let result = self.execute_plan(query_context, optimized_plan.clone())?;
         let execution_time_ms = execute_start.elapsed().as_millis() as f64;
 
-        // 8. 缓存查询计划
+        // 8. Caching of query plans
         let param_positions = self.param_handler.extract_params(query_text);
         self.plan_cache
             .put(query_text, optimized_plan, param_positions);
@@ -190,42 +190,42 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Ok(result)
     }
 
-    /// 使用 QueryRequestContext 执行查询
+    /// Execute the query using QueryRequestContext.
     ///
-    /// 这个方法允许 api 层传递完整的会话信息到 query 层
+    /// This method allows the API layer to pass the complete session information to the query layer.
     pub fn execute_query_with_request(
         &mut self,
         query_text: &str,
         rctx: Arc<crate::query::query_request_context::QueryRequestContext>,
         space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
-        // 1. 首先创建 QueryContext（贯穿整个查询生命周期）
+        // 1. First, create a QueryContext (which persists throughout the entire lifecycle of the query).
         let mut query_context = QueryContext::new(rctx);
 
-        // 设置空间信息（在 Arc 包装之前）
+        // Setting spatial information (before packaging in the Arc format)
         if let Some(ref space) = space_info {
             query_context.set_space_info(space.clone());
         }
 
         let query_context = Arc::new(query_context);
 
-        // 2. 解析查询
+        // 2. Analyze the query
         let parser_result = self.parse_into_context(query_text)?;
 
-        // 3. 验证查询（复用已创建的 QueryContext）
+        // 3. Verify the query (reusing the already created QueryContext)
         let validation_info =
             self.validate_query_with_context(parser_result.ast.clone(), query_context.clone())?;
 
-        // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
+        // Create a verified statement (using Arc<Ast> to share ownership)
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
-        // 4. 生成执行计划
+        // 4. Generate an execution plan.
         let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
 
-        // 5. 优化执行计划
+        // 5. Optimizing the execution plan
         let optimized_plan = self.optimize_execution_plan(execution_plan)?;
 
-        // 6. 执行计划
+        // 6. Execution of the plan
         self.execute_plan(query_context, optimized_plan)
     }
 
@@ -254,7 +254,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let mut metrics = QueryMetrics::new();
         let mut profile = QueryProfile::new(session_id, query_text.to_string());
 
-        // 1. 首先创建 QueryContext（贯穿整个查询生命周期）
+        // 1. First, create a QueryContext (which persists throughout the entire lifecycle of the query).
         let rctx = Arc::new(QueryRequestContext::new(query_text.to_string()));
         let query_context = Arc::new(QueryContext::new(rctx));
 
@@ -299,7 +299,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
         metrics.record_validate_time(validate_start.elapsed());
 
-        // 创建验证后的语句（使用 Arc<Ast> 共享所有权）
+        // Create a verified statement (using Arc<Ast> to share ownership).
         let validated = ValidatedStatement::new(parser_result.ast, validation_info);
 
         let plan_start = Instant::now();
@@ -384,14 +384,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             .map_err(|e| DBError::from(QueryError::pipeline_parse_error(e)))
     }
 
-    /// 验证查询并返回验证信息（使用传入的 QueryContext）
+    /// Verify the query and return the verification information (using the provided QueryContext).
     ///
-    /// 此方法复用已创建的 QueryContext，避免临时上下文的创建和丢弃
-    /// 确保整个查询生命周期使用统一的上下文
+    /// This method reuses the already created QueryContext, thereby avoiding the creation and subsequent disposal of temporary contexts.
+    /// Ensure that a consistent context is used throughout the entire lifecycle of the query.
     ///
     /// # 参数
-    /// - `ast`: 抽象语法树
-    /// - `qctx`: 查询上下文（贯穿整个查询生命周期）
+    /// AST (Abstract Syntax Tree)
+    /// `qctx`: Query context ( persists throughout the entire lifecycle of the query).
     fn validate_query_with_context(
         &mut self,
         ast: Arc<crate::query::parser::ast::stmt::Ast>,
@@ -405,8 +405,8 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 )))
             })?;
 
-        // 使用传入的 QueryContext 进行验证
-        // 避免创建临时上下文，确保资源（ID生成器、对象池等）的一致性
+        // Perform verification using the provided QueryContext.
+        // Avoid creating temporary contexts and ensure the consistency of resources (such as ID generators, object pools, etc.).
         let validation_result = validator.validate(ast.clone(), qctx);
 
         if validation_result.success {
@@ -422,13 +422,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         }
     }
 
-    /// 使用验证后的语句生成执行计划
+    /// Generate an execution plan using the verified statements.
     fn generate_execution_plan(
         &mut self,
         query_context: Arc<QueryContext>,
         validated: &ValidatedStatement,
     ) -> DBResult<crate::query::planning::plan::ExecutionPlan> {
-        // 直接使用 Arc<Ast> 创建规划器，消除 SentenceKind 字符串匹配
+        // Create the planner directly using Arc<Ast>, eliminating the need for string matching of the SentenceKind type.
         let plan = if let Some(mut planner_enum) =
             crate::query::planning::planner::PlannerEnum::from_ast(&validated.ast)
         {
@@ -451,15 +451,15 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         &mut self,
         plan: crate::query::planning::plan::ExecutionPlan,
     ) -> DBResult<crate::query::planning::plan::ExecutionPlan> {
-        // 使用 planner rewrite 规则进行优化
+        // Optimize using the planner rewrite rule.
         use crate::query::planning::rewrite::rewrite_plan;
 
         let rewritten_plan = rewrite_plan(plan)
             .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
 
-        // 使用优化器的分析器分析重写后的计划
+        // An analyzer that uses an optimizer analyzes the rewritten plan.
         if let Some(ref root) = rewritten_plan.root {
-            // 引用计数分析 - 识别被多次引用的子计划
+            // Reference count analysis – Identifying sub-plans that are referenced multiple times
             let ref_analysis = self
                 .optimizer_engine
                 .reference_count_analyzer()

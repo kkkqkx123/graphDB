@@ -1,6 +1,6 @@
-//! 节点估算器模块
+//! Node Estimator Module
 //!
-//! 为不同类型的计划节点提供代价估算功能
+//! Provide a cost estimation function for different types of plan nodes.
 
 use crate::core::error::optimize::CostError;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
@@ -22,18 +22,18 @@ pub use join::JoinEstimator;
 pub use scan::ScanEstimator;
 pub use sort_limit::SortLimitEstimator;
 
-/// 节点估算器 trait
+/// Node Estimator trait
 ///
-/// 所有节点估算器都需要实现此 trait
+/// All node estimators need to implement this trait.
 pub trait NodeEstimator {
-    /// 估算节点的代价和输出行数
+    /// Estimate the cost of the nodes and the number of output rows.
     ///
-    /// # 参数
-    /// - `node`: 计划节点
-    /// - `child_estimates`: 子节点的估算结果
+    /// # Parameters
+    /// – **Node**: The planned execution node.
+    /// `child_estimates`: The estimated results of the child nodes
     ///
-    /// # 返回
-    /// - `(node_cost, output_rows)`: 节点自身代价和估算输出行数
+    /// # Return
+    /// `(node_cost, output_rows)`: The cost of the node itself and the estimated number of output rows.
     fn estimate(
         &self,
         node: &PlanNodeEnum,
@@ -41,7 +41,7 @@ pub trait NodeEstimator {
     ) -> Result<(f64, u64), CostError>;
 }
 
-/// 获取子节点的输入行数
+/// Get the number of input lines of the child node
 pub fn get_input_rows(child_estimates: &[NodeCostEstimate], index: usize) -> u64 {
     child_estimates
         .get(index)
@@ -49,7 +49,7 @@ pub fn get_input_rows(child_estimates: &[NodeCostEstimate], index: usize) -> u64
         .unwrap_or(1)
 }
 
-/// 计算子节点的累计代价
+/// Calculate the cumulative cost of the child nodes.
 pub fn sum_child_costs(child_estimates: &[NodeCostEstimate]) -> f64 {
     child_estimates.iter().map(|e| e.total_cost).sum()
 }

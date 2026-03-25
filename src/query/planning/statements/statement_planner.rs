@@ -1,13 +1,13 @@
-//! 语句级规划器
+//! Statement-level planner
 //!
-//! 提供语句级规划器的统一接口，处理完整语句的规划逻辑。
-//! 架构：Planner trait -> StatementPlanner trait -> ClausePlanner
+//! Provide a unified interface for statement-level planners that handles the planning logic of entire statements.
+//! Architecture: Planner trait -> StatementPlanner trait -> ClausePlanner
 //!
-//! ## 架构设计
+//! ## Architecture Design
 //!
-//! - **Planner**：基础 trait，定义规划器的通用接口
-//! - **StatementPlanner**：语句级 trait，处理完整语句的规划
-//! - **ClausePlanner**：子句级 trait，处理单个子句的规划
+//! **Planner**: A basic trait that defines the common interface for planners.
+//! **StatementPlanner**: A trait at the statement level, responsible for the planning of entire sentences.
+//! **ClausePlanner**: A trait at the clause level, responsible for the planning of individual clauses.
 
 use crate::query::parser::ast::Stmt;
 use crate::query::planning::plan::SubPlan;
@@ -16,26 +16,26 @@ use crate::query::validator::structs::CypherClauseKind;
 use crate::query::QueryContext;
 use std::sync::Arc;
 
-/// 语句级规划器 trait
+/// Statement-level planner trait
 ///
-/// 定义语句级规划器的统一接口，封装完整语句的规划逻辑。
-/// 组合多个子句规划器来完成语句的规划。
+/// Define a unified interface for statement-level planners that encapsulates the entire planning logic for processing statements.
+/// Use a combination of multiple sub-phrase planners to complete the planning of the sentence.
 pub trait StatementPlanner: Planner {
-    /// 获取语句类型
+    /// Determine the type of the statement
     fn statement_type(&self) -> &'static str;
 
-    /// 获取支持的子句类型列表
+    /// Obtain a list of the supported clause types.
     fn supported_clause_kinds(&self) -> &[CypherClauseKind];
 }
 
-/// 子句级规划器 trait
+/// Clause-level planner trait
 ///
-/// 定义子句级规划器的统一接口，处理单个子句的规划逻辑。
+/// Define a unified interface for clause-level planners that handles the planning logic of individual clauses.
 pub trait ClausePlanner: std::fmt::Debug {
-    /// 获取子句类型
+    /// Determine the type of the clause.
     fn clause_kind(&self) -> CypherClauseKind;
 
-    /// 转换子句为核心计划
+    /// Turn the sentence into the core plan.
     fn transform_clause(
         &self,
         qctx: Arc<QueryContext>,
@@ -175,7 +175,7 @@ mod tests {
         let ast = create_test_match_stmt();
         let qctx = create_test_qctx();
 
-        // 创建验证后的语句
+        // Create a verified statement.
         let validation_info = ValidationInfo::new();
         let validated = ValidatedStatement::new(ast, validation_info);
 

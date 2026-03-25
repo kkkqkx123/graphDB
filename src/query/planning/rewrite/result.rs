@@ -1,9 +1,9 @@
-//! 重写结果定义
+//! Rewrite the definition of the result.
 //!
-//! 定义重写规则的返回结果类型。
-//! 这是从 optimizer 层独立出来的简化版本。
+//! Define the return type of the rule that rewrites the content.
+//! This is a simplified version that has been separated from the optimizer layer.
 
-/// 重写错误类型
+/// Rewrite the error type
 #[derive(Debug, thiserror::Error)]
 pub enum RewriteError {
     #[error("无效的计划节点: {0}")]
@@ -51,114 +51,114 @@ impl RewriteError {
     }
 }
 
-/// 重写结果类型
+/// Rewrite the result in the desired format.
 pub type RewriteResult<T> = std::result::Result<T, RewriteError>;
 
-/// 转换结果
+/// Of course! Please provide the text you would like to have translated.
 ///
-/// 记录重写规则应用后的结果
+/// Record the results after the application of the rule rewriting rules.
 #[derive(Debug, Default, Clone)]
 pub struct TransformResult {
-    /// 是否删除当前节点
+    /// Should the current node be deleted?
     pub erase_curr: bool,
-    /// 是否删除所有相关节点
+    /// Should all related nodes be deleted?
     pub erase_all: bool,
-    /// 新的计划节点列表
+    /// New list of planned project milestones
     pub new_nodes: Vec<crate::query::planning::plan::PlanNodeEnum>,
-    /// 新的依赖关系
+    /// New dependencies
     pub new_dependencies: Vec<usize>,
 }
 
 impl TransformResult {
-    /// 创建新的转换结果
+    /// Create a new conversion result.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 设置是否删除当前节点
+    /// Set whether to delete the current node.
     pub fn with_erase_curr(mut self, erase_curr: bool) -> Self {
         self.erase_curr = erase_curr;
         self
     }
 
-    /// 设置是否删除所有节点
+    /// Set whether to delete all nodes.
     pub fn with_erase_all(mut self, erase_all: bool) -> Self {
         self.erase_all = erase_all;
         self
     }
 
-    /// 添加新的计划节点
+    /// Add a new planning node
     pub fn add_new_node(&mut self, node: crate::query::planning::plan::PlanNodeEnum) {
         self.new_nodes.push(node);
     }
 
-    /// 添加新的依赖
+    /// Add a new dependency
     pub fn add_new_dependency(&mut self, dep_id: usize) {
         self.new_dependencies.push(dep_id);
     }
 
-    /// 设置已删除标记
+    /// Set the deleted marker
     pub fn with_erased(mut self) -> Self {
         self.erase_curr = true;
         self
     }
 
-    /// 检查是否有新节点
+    /// Check whether there are any new nodes.
     pub fn has_new_nodes(&self) -> bool {
         !self.new_nodes.is_empty()
     }
 
-    /// 获取第一个新节点（如果存在）
+    /// Retrieve the first new node (if it exists).
     pub fn first_new_node(&self) -> Option<&crate::query::planning::plan::PlanNodeEnum> {
         self.new_nodes.first()
     }
 }
 
-/// 匹配结果
+/// Matching results
 ///
-/// 记录模式匹配的结果
+/// Results of the record mode matching
 #[derive(Debug, Default, Clone)]
 pub struct MatchedResult {
-    /// 匹配的节点列表
+    /// List of matching nodes
     pub nodes: Vec<crate::query::planning::plan::PlanNodeEnum>,
-    /// 依赖节点列表
+    /// List of dependent nodes
     pub dependencies: Vec<crate::query::planning::plan::PlanNodeEnum>,
-    /// 根节点
+    /// Root node
     pub root_node: Option<crate::query::planning::plan::PlanNodeEnum>,
 }
 
 impl MatchedResult {
-    /// 创建新的匹配结果
+    /// Create new matching results.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 添加匹配的节点
+    /// Add matching nodes
     pub fn add_node(&mut self, node: crate::query::planning::plan::PlanNodeEnum) {
         self.nodes.push(node);
     }
 
-    /// 添加依赖节点
+    /// Add dependency nodes
     pub fn add_dependency(&mut self, node: crate::query::planning::plan::PlanNodeEnum) {
         self.dependencies.push(node);
     }
 
-    /// 设置根节点
+    /// Setting the root node
     pub fn set_root_node(&mut self, node: crate::query::planning::plan::PlanNodeEnum) {
         self.root_node = Some(node);
     }
 
-    /// 检查是否有匹配的节点
+    /// Check whether there are any matching nodes.
     pub fn has_matches(&self) -> bool {
         !self.nodes.is_empty()
     }
 
-    /// 获取第一个匹配的节点
+    /// Retrieve the first matching node.
     pub fn first_node(&self) -> Option<&crate::query::planning::plan::PlanNodeEnum> {
         self.nodes.first()
     }
 
-    /// 获取第一个依赖节点
+    /// Obtain the first dependent node.
     pub fn first_dependency(&self) -> Option<&crate::query::planning::plan::PlanNodeEnum> {
         self.dependencies.first()
     }

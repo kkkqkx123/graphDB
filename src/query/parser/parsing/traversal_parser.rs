@@ -1,6 +1,6 @@
-//! 图遍历语句解析模块
+//! Graph Traversal Statement Parsing Module
 //!
-//! 负责解析图遍历相关语句，包括 MATCH、GO、FIND PATH、GET SUBGRAPH 等。
+//! Responsible for parsing statements related to graph traversal, including MATCH, GO, FIND PATH, GET SUBGRAPH, etc.
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::Expression as CoreExpression;
@@ -15,7 +15,7 @@ use crate::query::parser::parsing::parse_context::ParseContext;
 use crate::query::parser::parsing::ExprParser;
 use crate::query::parser::TokenKind;
 
-/// 图遍历解析器
+/// Graph Traversal Parser
 pub struct TraversalParser;
 
 impl TraversalParser {
@@ -23,11 +23,11 @@ impl TraversalParser {
         Self
     }
 
-    /// 解析 MATCH 语句
+    /// Analyzing the MATCH statement
     pub fn parse_match_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
 
-        // 检查是否是 OPTIONAL MATCH
+        // Check whether it is an OPTIONAL MATCH.
         let optional = ctx.match_token(TokenKind::Optional);
 
         ctx.expect_token(TokenKind::Match)?;
@@ -61,14 +61,14 @@ impl TraversalParser {
         }))
     }
 
-    /// 解析 GO 语句
+    /// Analyzing GO statements
     pub fn parse_go_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Go)?;
 
         let steps = self.parse_steps(ctx)?;
 
-        // 消费可选的 STEP/STEP 关键字
+        // Consumption of optional STEP/STEP keywords
         ctx.match_token(TokenKind::Step);
 
         ctx.expect_token(TokenKind::From)?;
@@ -110,7 +110,7 @@ impl TraversalParser {
         }))
     }
 
-    /// 解析 FIND PATH 语句
+    /// Analysis of the FIND PATH statement
     pub fn parse_find_path_statement(
         &mut self,
         ctx: &mut ParseContext,
@@ -118,7 +118,7 @@ impl TraversalParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Find)?;
 
-        // 解析路径类型: SHORTEST, ALL
+        // Path type analysis: SHORTEST, ALL
         let shortest = if ctx.match_token(TokenKind::Shortest) {
             true
         } else {
@@ -127,7 +127,7 @@ impl TraversalParser {
 
         ctx.expect_token(TokenKind::Path)?;
 
-        // 可选的 WITH LOOP / WITH CYCLE
+        // Optional options: WITH LOOP / WITH CYCLE
         let mut with_loop = false;
         let mut with_cycle = false;
         while ctx.match_token(TokenKind::With) {
@@ -152,28 +152,28 @@ impl TraversalParser {
         ctx.expect_token(TokenKind::Over)?;
         let over = ClauseParser::new().parse_over_clause(ctx)?;
 
-        // 可选的 UPTO N STEPS
+        // Optional: Up to N steps
         let mut max_steps = None;
         if ctx.match_token(TokenKind::Upto) {
             max_steps = Some(ctx.expect_integer_literal()? as usize);
             ctx.expect_token(TokenKind::Step)?;
         }
 
-        // 可选的 WEIGHT 子句
+        // Optional WEIGHT clause
         let weight_expression = if ctx.match_token(TokenKind::Weight) {
             Some(ctx.expect_identifier()?)
         } else {
             None
         };
 
-        // 可选的 WHERE 子句
+        // Optional WHERE clause
         let where_clause = if ctx.match_token(TokenKind::Where) {
             Some(self.parse_expression(ctx)?)
         } else {
             Some(self.create_true_expression(ctx)?)
         };
 
-        // 可选的 YIELD 子句
+        // Optional YIELD clause
         let yield_clause = if ctx.match_token(TokenKind::Yield) {
             Some(ClauseParser::new().parse_yield_clause(ctx)?)
         } else {
@@ -201,17 +201,17 @@ impl TraversalParser {
         }))
     }
 
-    /// 解析 GET SUBGRAPH 语句
+    /// Analysis of the GET SUBGRAPH statement
     pub fn parse_subgraph_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Get)?;
 
-        // 可选的 WITH EDGE 子句
+        // Optional WITH EDGE clause
         let _with_edge = ctx.match_token(TokenKind::With) && ctx.match_token(TokenKind::Edge);
 
         ctx.expect_token(TokenKind::Subgraph)?;
 
-        // 解析步数
+        // Analysis steps
         let steps = if ctx.match_token(TokenKind::Step) {
             self.parse_steps(ctx)?
         } else {
@@ -257,15 +257,15 @@ impl TraversalParser {
         }))
     }
 
-    /// 解析模式
+    /// Analysis mode
     pub fn parse_pattern(&mut self, ctx: &mut ParseContext) -> Result<Pattern, ParseError> {
         let start_span = ctx.current_span();
 
-        // 检查是否是节点模式（以 ( 开头）
+        // Check whether it is in node mode (starting with ()).
         if ctx.match_token(TokenKind::LParen) {
             let node = self.parse_node_pattern(ctx, start_span)?;
 
-            // 检查是否有链式边模式
+            // Check whether there is a chain edge pattern.
             if ctx.check_token(TokenKind::LeftArrow)
                 || ctx.check_token(TokenKind::RightArrow)
                 || ctx.check_token(TokenKind::Minus)
@@ -276,7 +276,7 @@ impl TraversalParser {
             return Ok(Pattern::Node(node));
         }
 
-        // 检查是否是变量模式
+        // Check whether it is in variable mode.
         if let TokenKind::Identifier(ref name) = ctx.current_token().kind.clone() {
             let name = name.clone();
             let span = ctx.current_span();
@@ -291,7 +291,7 @@ impl TraversalParser {
         ))
     }
 
-    /// 解析节点模式
+    /// Analyzing the node pattern
     fn parse_node_pattern(
         &mut self,
         ctx: &mut ParseContext,
@@ -301,40 +301,40 @@ impl TraversalParser {
         let mut labels = Vec::new();
         let mut properties = None;
 
-        // 解析变量名（可选）
+        // Analyzing variable names (optional)
         if let TokenKind::Identifier(ref name) = ctx.current_token().kind.clone() {
             let name = name.clone();
             ctx.next_token();
 
-            // 检查后面是否是标签（:label）
+            // Check whether there is a label (:label) following it.
             if ctx.check_token(TokenKind::Colon) {
                 variable = Some(name);
             } else {
-                // 没有冒号，这个标识符就是标签名
+                // Since there are no colons, this identifier is simply the name of the tag.
                 labels.push(name);
             }
         }
 
-        // 解析标签
+        // Analyzing the tags
         if ctx.match_token(TokenKind::Colon) {
-            // 解析标签列表（支持多标签，如 :Person:Actor）
+            // Parse the list of tags (multiple tags are supported, e.g.: Person:Actor)
             loop {
                 let label = ctx.expect_identifier()?;
                 labels.push(label);
                 if !ctx.check_token(TokenKind::Colon) {
                     break;
                 }
-                ctx.next_token(); // 消费下一个冒号
+                ctx.next_token(); // Consume the next colon.
             }
         }
 
-        // 解析属性（可选）
+        // Parse attribute (optional)
         if ctx.match_token(TokenKind::LBrace) {
             properties = Some(self.parse_properties_expr(ctx)?);
             ctx.expect_token(TokenKind::RBrace)?;
         }
 
-        // 期望右括号
+        // Expected a right parenthesis.
         ctx.expect_token(TokenKind::RParen)?;
 
         let end_span = ctx.current_span();
@@ -349,7 +349,7 @@ impl TraversalParser {
         })
     }
 
-    /// 解析路径模式
+    /// Analyzing path patterns
     fn parse_path_pattern(
         &mut self,
         ctx: &mut ParseContext,
@@ -358,7 +358,7 @@ impl TraversalParser {
         let start_span = start_node.span;
         let mut elements = vec![PathElement::Node(start_node)];
 
-        // 解析边和节点的链式结构
+        // Analyzing the chained structure of edges and nodes
         while ctx.check_token(TokenKind::LeftArrow)
             || ctx.check_token(TokenKind::RightArrow)
             || ctx.check_token(TokenKind::Minus)
@@ -366,7 +366,7 @@ impl TraversalParser {
             let edge = self.parse_edge_pattern(ctx)?;
             elements.push(PathElement::Edge(edge));
 
-            // 期望后面跟着一个节点
+            // It is expected that a node follows.
             if ctx.match_token(TokenKind::LParen) {
                 let node_span = ctx.current_span();
                 let node = self.parse_node_pattern(ctx, node_span)?;
@@ -382,17 +382,17 @@ impl TraversalParser {
         Ok(Pattern::Path(PathPattern { span, elements }))
     }
 
-    /// 解析边模式
+    /// Analyzing the border mode
     fn parse_edge_pattern(&mut self, ctx: &mut ParseContext) -> Result<EdgePattern, ParseError> {
         let start_span = ctx.current_span();
         let mut direction = EdgeDirection::Out;
 
-        // 解析方向
+        // Analysis direction
         if ctx.match_token(TokenKind::LeftArrow) {
             direction = EdgeDirection::In;
         }
 
-        // 期望 -[ 或 -
+        // Expectations – [or –]
         ctx.expect_token(TokenKind::Minus)?;
 
         let mut variable = None;
@@ -402,7 +402,7 @@ impl TraversalParser {
 
         // 解析详细的边模式 [variable:Type|Type {props}]
         if ctx.match_token(TokenKind::LBracket) {
-            // 解析变量名（可选）
+            // Analyzing variable names (optional)
             if let TokenKind::Identifier(ref name) = ctx.current_token().kind.clone() {
                 let name = name.clone();
                 ctx.next_token();
@@ -414,7 +414,7 @@ impl TraversalParser {
                 }
             }
 
-            // 解析边类型
+            // Analyzing edge types
             if ctx.match_token(TokenKind::Colon) {
                 loop {
                     let edge_type = ctx.expect_identifier()?;
@@ -425,7 +425,7 @@ impl TraversalParser {
                 }
             }
 
-            // 解析属性（可选）
+            // Parse attribute (optional)
             if ctx.match_token(TokenKind::LBrace) {
                 properties = Some(self.parse_properties_expr(ctx)?);
                 ctx.expect_token(TokenKind::RBrace)?;
@@ -465,10 +465,10 @@ impl TraversalParser {
             ctx.expect_token(TokenKind::RBracket)?;
         }
 
-        // 期望 -
+        // Expectations
         ctx.expect_token(TokenKind::Minus)?;
 
-        // 解析右侧箭头
+        // Analyze the arrow on the right side.
         if ctx.match_token(TokenKind::RightArrow) {
             if direction == EdgeDirection::In {
                 direction = EdgeDirection::Both;
@@ -491,9 +491,9 @@ impl TraversalParser {
         })
     }
 
-    /// 解析步数
+    /// Analysis steps
     fn parse_steps(&mut self, ctx: &mut ParseContext) -> Result<Steps, ParseError> {
-        // 尝试解析数字或范围
+        // Try to parse the numbers or ranges.
         let token = ctx.current_token();
         match token.kind {
             TokenKind::IntegerLiteral(n) => {
@@ -501,13 +501,13 @@ impl TraversalParser {
                 Ok(Steps::Fixed(n as usize))
             }
             _ => {
-                // 默认 1 步
+                // Default: 1 step
                 Ok(Steps::Fixed(1))
             }
         }
     }
 
-    /// 解析表达式列表
+    /// Parse a list of expressions
     fn parse_expression_list(
         &mut self,
         ctx: &mut ParseContext,
@@ -524,7 +524,7 @@ impl TraversalParser {
         Ok(expressions)
     }
 
-    /// 解析属性表达式
+    /// Analyzing attribute expressions
     fn parse_properties_expr(
         &mut self,
         ctx: &mut ParseContext,
@@ -566,7 +566,7 @@ impl TraversalParser {
         ))
     }
 
-    /// 创建默认的 true 表达式
+    /// Create the default true expression.
     fn create_true_expression(
         &mut self,
         ctx: &mut ParseContext,
@@ -580,7 +580,7 @@ impl TraversalParser {
         ))
     }
 
-    /// 解析表达式
+    /// Analyzing the expression
     fn parse_expression(
         &mut self,
         ctx: &mut ParseContext,

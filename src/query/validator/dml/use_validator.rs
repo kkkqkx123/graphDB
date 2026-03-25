@@ -1,13 +1,13 @@
-//! USE 语句验证器 - 新体系版本
+//! USE Statement Validator – New System Version
 //! 对应 NebulaGraph UseValidator.h/.cpp 的功能
-//! 验证 USE <space> 语句
+//! Verify the USE <space> statement
 //!
-//! 本文件已按照新的 trait + 枚举 验证器体系重构：
-//! 1. 实现了 StatementValidator trait，统一接口
-//! 2. 保留了原有完整功能：
-//!    - 空间名验证（非空、不以数字开头、长度限制等）
-//!    - 特殊字符检查
-//! 3. 使用 QueryContext 统一管理上下文
+//! This document has been restructured in accordance with the new trait + enumeration validator framework.
+//! The StatementValidator trait has been implemented to unify the interface.
+//! 2. All original functions have been retained.
+//! Space name validation (must not be empty, must not start with a digit, there are length restrictions, etc.)
+//! Special character check
+//! 3. Use QueryContext to manage the context in a unified manner.
 
 use std::sync::Arc;
 
@@ -20,39 +20,39 @@ use crate::query::validator::validator_trait::{
 };
 use crate::query::QueryContext;
 
-/// 验证后的 USE 信息
+/// Verified USE information
 #[derive(Debug, Clone)]
 pub struct ValidatedUse {
     pub space_name: String,
 }
 
-/// USE 验证器 - 新体系实现
+/// USE Validator – New implementation of the system
 ///
-/// 功能完整性保证：
-/// 1. 完整的验证生命周期
-/// 2. 输入/输出列管理
-/// 3. 表达式属性追踪
-/// 4. 全局语句支持（不需要预先选择空间）
+/// Functionality integrity assurance:
+/// 1. Complete validation lifecycle
+/// 2. Management of input/output columns
+/// 3. Expression property tracing
+/// 4. Support for global statements (no need to pre-select a scope).
 #[derive(Debug)]
 pub struct UseValidator {
-    // 空间名
+    // Space name
     space_name: String,
-    // 输入列定义
+    // Input column definition
     inputs: Vec<ColumnDef>,
-    // 输出列定义
+    // Column definition
     outputs: Vec<ColumnDef>,
-    // 表达式属性
+    // Expression property
     expr_props: ExpressionProps,
-    // 用户定义变量
+    // User-defined variables
     user_defined_vars: Vec<String>,
-    // 验证错误列表
+    // List of validation errors
     validation_errors: Vec<ValidationError>,
-    // 缓存验证结果
+    // Cache validation results
     validated_result: Option<ValidatedUse>,
 }
 
 impl UseValidator {
-    /// 创建新的验证器实例
+    /// Create a new instance of the validator.
     pub fn new() -> Self {
         Self {
             space_name: String::new(),
@@ -65,42 +65,42 @@ impl UseValidator {
         }
     }
 
-    /// 获取验证结果
+    /// Obtain the verification results.
     pub fn validated_result(&self) -> Option<&ValidatedUse> {
         self.validated_result.as_ref()
     }
 
-    /// 获取验证错误列表
+    /// Obtain the list of validation errors.
     pub fn validation_errors(&self) -> &[ValidationError] {
         &self.validation_errors
     }
 
-    /// 添加验证错误
+    /// Add verification errors.
     fn add_error(&mut self, error: ValidationError) {
         self.validation_errors.push(error);
     }
 
-    /// 清空验证错误
+    /// Clear the verification errors.
     fn clear_errors(&mut self) {
         self.validation_errors.clear();
     }
 
-    /// 检查是否有验证错误
+    /// Check for any validation errors.
     fn has_errors(&self) -> bool {
         !self.validation_errors.is_empty()
     }
 
-    /// 设置空间名
+    /// Setting the space name
     pub fn set_space_name(&mut self, name: String) {
         self.space_name = name;
     }
 
-    /// 获取空间名
+    /// Obtain the space name
     pub fn space_name(&self) -> &str {
         &self.space_name
     }
 
-    /// 验证 USE 语句（传统方式，保持向后兼容）
+    /// Verify the USE statement (traditional method, maintaining backward compatibility)
     pub fn validate_use(&mut self) -> Result<ValidatedUse, ValidationError> {
         self.validate_space_name()?;
         self.validate_space_exists()?;
@@ -113,7 +113,7 @@ impl UseValidator {
         Ok(result)
     }
 
-    /// 验证空间名
+    /// Verify the space name
     fn validate_space_name(&self) -> Result<(), ValidationError> {
         if self.space_name.is_empty() {
             return Err(ValidationError::new(
@@ -162,12 +162,12 @@ impl UseValidator {
         Ok(())
     }
 
-    /// 验证空间是否存在
+    /// Verify whether the space exists.
     fn validate_space_exists(&self) -> Result<(), ValidationError> {
-        // 在实际实现中，这里应该检查 SchemaManager
-        // 但由于 USE 语句的特殊性（用于选择空间），
-        // 我们可能在验证时还没有连接到具体的空间
-        // 因此这里暂时返回 Ok，实际检查在执行阶段进行
+        // In the actual implementation, the SchemaManager should be checked here.
+        // However, due to the special nature of the USE statement (which is used for selecting a space),
+        // It is possible that we were not yet connected to the specific space at the time of verification.
+        // So, for now, we’ll just say “Ok”. The actual verification will take place during the execution phase.
         Ok(())
     }
 }
@@ -178,23 +178,23 @@ impl Default for UseValidator {
     }
 }
 
-/// 实现 StatementValidator trait
+/// Implementing the StatementValidator trait
 ///
-/// # 重构变更
-/// - validate 方法接收 Arc<Ast> 和 Arc<QueryContext>
+/// # Refactoring Changes
+/// The `validate` method accepts `Arc<Ast>` and `Arc<QueryContext>` as arguments.
 impl StatementValidator for UseValidator {
     fn validate(
         &mut self,
         ast: Arc<Ast>,
         _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
-        // 清空之前的状态
+        // Clear the previous state.
         self.outputs.clear();
         self.inputs.clear();
         self.expr_props = ExpressionProps::default();
         self.clear_errors();
 
-        // 从 Ast 中提取 USE 语句信息
+        // Extract USE statement information from Ast.
         if let Stmt::Use(use_stmt) = &ast.stmt {
             self.space_name = use_stmt.space.clone();
         } else {
@@ -204,12 +204,12 @@ impl StatementValidator for UseValidator {
             ));
         }
 
-        // 执行具体验证逻辑
+        // Perform the specific validation logic.
         if let Err(e) = self.validate_use() {
             self.add_error(e);
         }
 
-        // 如果有验证错误，返回失败结果
+        // If there are validation errors, return a failure result.
         if self.has_errors() {
             let errors = self.validation_errors.clone();
             return Ok(ValidationResult::failure(errors));
@@ -217,7 +217,7 @@ impl StatementValidator for UseValidator {
 
         let info = ValidationInfo::new();
 
-        // 返回成功的验证结果
+        // Return the successful validation results.
         Ok(ValidationResult::success_with_info(info))
     }
 
@@ -234,7 +234,7 @@ impl StatementValidator for UseValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // USE 是全局语句，不需要预先选择空间
+        // The `USE` statement is a global statement; therefore, there is no need to pre-select a database or schema.
         true
     }
 
@@ -277,7 +277,7 @@ mod tests {
     fn test_use_validation() {
         let mut validator = UseValidator::new();
 
-        // 设置有效的空间名
+        // Set an effective space name.
         validator.set_space_name("test_space".to_string());
 
         let result = validator.validate_use();
@@ -291,7 +291,7 @@ mod tests {
     fn test_use_empty_space_name() {
         let mut validator = UseValidator::new();
 
-        // 不设置空间名
+        // Do not set the space name.
         let result = validator.validate_use();
         assert!(result.is_err());
     }
@@ -300,7 +300,7 @@ mod tests {
     fn test_use_invalid_space_name_start_with_digit() {
         let mut validator = UseValidator::new();
 
-        // 以数字开头的空间名
+        // Space names that start with a number
         validator.set_space_name("1space".to_string());
         let result = validator.validate_use();
         assert!(result.is_err());
@@ -310,7 +310,7 @@ mod tests {
     fn test_use_invalid_space_name_start_with_underscore() {
         let mut validator = UseValidator::new();
 
-        // 以下划线开头的空间名
+        // The space names that start with an underscore (_).
         validator.set_space_name("_space".to_string());
         let result = validator.validate_use();
         assert!(result.is_err());
@@ -320,7 +320,7 @@ mod tests {
     fn test_use_invalid_space_name_with_space() {
         let mut validator = UseValidator::new();
 
-        // 包含空格的空间名
+        // Domain names that contain spaces
         validator.set_space_name("test space".to_string());
         let result = validator.validate_use();
         assert!(result.is_err());
@@ -330,7 +330,7 @@ mod tests {
     fn test_use_invalid_space_name_too_long() {
         let mut validator = UseValidator::new();
 
-        // 超过 64 个字符的空间名
+        // Domain names that contain more than 64 characters
         let long_name = "a".repeat(65);
         validator.set_space_name(long_name);
         let result = validator.validate_use();

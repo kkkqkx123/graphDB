@@ -1,6 +1,6 @@
-//! 控制流节点估算器
+//! Control Flow Node Estimator
 //!
-//! 为控制流节点提供代价估算：
+//! Provide cost estimates for flow control nodes:
 //! - Loop
 //! - Select
 //! - PassThrough
@@ -17,7 +17,7 @@ use crate::query::planning::plan::core::nodes::control_flow::control_flow_node::
 };
 use crate::query::planning::plan::PlanNodeEnum;
 
-/// 控制流节点估算器
+/// Control Flow Node Estimator
 pub struct ControlFlowEstimator<'a> {
     cost_calculator: &'a CostCalculator,
     config: CostModelConfig,
@@ -25,7 +25,7 @@ pub struct ControlFlowEstimator<'a> {
 }
 
 impl<'a> ControlFlowEstimator<'a> {
-    /// 创建新的控制流估算器
+    /// Create a new control flow estimator.
     pub fn new(cost_calculator: &'a CostCalculator, config: CostModelConfig) -> Self {
         let expression_parser = ExpressionParser::new(config);
         Self {
@@ -35,20 +35,20 @@ impl<'a> ControlFlowEstimator<'a> {
         }
     }
 
-    /// 估算 Loop 节点的迭代次数
+    /// Estimating the number of iterations of the Loop node
     fn estimate_loop_iterations(&self, node: &LoopNode) -> u32 {
         let condition = node.condition().to_expression_string();
 
-        // 使用表达式解析器尝试解析迭代次数
+        // Try to parse the number of iterations using an expression parser.
         if let Some(iterations) = self.expression_parser.parse_loop_iterations(&condition) {
             return iterations;
         }
 
-        // 默认使用配置值
+        // The default configuration values will be used.
         self.config.default_loop_iterations
     }
 
-    /// 估算 Select 节点的分支数
+    /// Estimate the number of branches of the selected node.
     fn estimate_select_branch_count(&self, node: &SelectNode) -> usize {
         let mut count = 0;
         if node.if_branch().is_some() {
@@ -82,7 +82,7 @@ impl<'a> NodeEstimator for ControlFlowEstimator<'a> {
                 let cost = self
                     .cost_calculator
                     .calculate_loop_cost(body_estimate.total_cost, iterations);
-                // Loop 输出行数为循环体输出行数乘以迭代次数
+                // The number of lines output by the `Loop` function is equal to the number of lines output by the loop body multiplied by the number of iterations.
                 let output_rows = body_estimate.output_rows.saturating_mul(iterations as u64);
                 Ok((cost, output_rows))
             }
@@ -92,7 +92,7 @@ impl<'a> NodeEstimator for ControlFlowEstimator<'a> {
                 let cost = self
                     .cost_calculator
                     .calculate_select_cost(input_rows_val, branch_count);
-                // Select 输出行数为输入行数（假设平均选择一个分支）
+                // The number of output lines should be equal to the number of input lines (assuming that on average one branch is selected).
                 Ok((cost, input_rows_val))
             }
             PlanNodeEnum::PassThrough(_) => {

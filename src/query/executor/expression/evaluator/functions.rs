@@ -1,17 +1,17 @@
-//! 函数调用求值
+//! Function call evaluation
 //!
-//! 提供聚合函数的求值功能
+//! Provide the functionality to evaluate aggregate functions.
 
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::value::dataset::List;
 use crate::core::Value;
 
-/// 函数求值器
+/// Function evaluator
 pub struct FunctionEvaluator;
 
 impl FunctionEvaluator {
-    /// 求值聚合函数
+    /// Evaluation aggregate functions
     pub fn eval_aggregate_function(
         func: &AggregateFunction,
         args: &[Value],
