@@ -166,7 +166,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             if let Some(txn_id) = session.current_transaction() {
                 if let Some(ref txn_manager) = self.transaction_manager {
                     if let Err(e) = txn_manager.commit_transaction(txn_id) {
-                        warn!("自动提交失败: {}", e);
+                        warn!("Auto-commit failed: {}", e);
                     } else {
                         session.unbind_transaction();
                     }
@@ -200,7 +200,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                         id: 1, // Default space ID
                     })
                 } else {
-                    Err(format!("获取空间信息失败: {}", e))
+                    Err(format!("Failed to get space information: {}", e))
                 }
             }
         }
@@ -215,7 +215,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let session = self
             .session_manager
             .find_session(session_id)
-            .ok_or_else(|| format!("无效的会话 ID: {}", session_id))?;
+            .ok_or_else(|| format!("Invalid session ID: {}", session_id))?;
 
         session.charge();
 
@@ -228,7 +228,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 .permission_manager
                 .check_permission(&username, space_id, permission)
             {
-                return Err(format!("权限检查失败: {}", e));
+                return Err(format!("Permission check failed: {}", e));
             }
         }
 
@@ -349,23 +349,23 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         session: &Arc<ClientSession>,
     ) -> Result<ExecutionResult, String> {
         if session.has_active_transaction() {
-            return Err("会话已有活跃事务".to_string());
+            return Err("Session already has an active transaction".to_string());
         }
 
         let txn_manager = self
             .transaction_manager
             .as_ref()
-            .ok_or("事务管理器未初始化")?;
+            .ok_or("Transaction manager not initialized")?;
 
         let options = session.transaction_options();
         match txn_manager.begin_transaction(options) {
             Ok(txn_id) => {
                 session.bind_transaction(txn_id);
                 session.set_auto_commit(false);
-                info!("会话 {} 开始事务 {}", session.id(), txn_id);
+                info!("Session {} started transaction {}", session.id(), txn_id);
                 Ok(ExecutionResult::Success)
             }
-            Err(e) => Err(format!("开始事务失败: {}", e)),
+            Err(e) => Err(format!("Failed to start transaction: {}", e)),
         }
     }
 
@@ -374,21 +374,21 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         &self,
         session: &Arc<ClientSession>,
     ) -> Result<ExecutionResult, String> {
-        let txn_id = session.current_transaction().ok_or("没有活跃事务可提交")?;
+        let txn_id = session.current_transaction().ok_or("No active transaction to commit")?;
 
         let txn_manager = self
             .transaction_manager
             .as_ref()
-            .ok_or("事务管理器未初始化")?;
+            .ok_or("Transaction manager not initialized")?;
 
         match txn_manager.commit_transaction(txn_id) {
             Ok(()) => {
                 session.unbind_transaction();
                 session.set_auto_commit(true);
-                info!("会话 {} 提交事务 {}", session.id(), txn_id);
+                info!("Session {} committed transaction {}", session.id(), txn_id);
                 Ok(ExecutionResult::Success)
             }
-            Err(e) => Err(format!("提交事务失败: {}", e)),
+            Err(e) => Err(format!("Failed to commit transaction: {}", e)),
         }
     }
 
@@ -404,52 +404,52 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         if trimmed.starts_with("ROLLBACK TO ") {
             let savepoint_name = stmt[trimmed.find("ROLLBACK TO ").unwrap() + 12..].trim();
 
-            let txn_id = session.current_transaction().ok_or("没有活跃事务可回滚")?;
+            let txn_id = session.current_transaction().ok_or("No active transaction to rollback")?;
 
             let txn_manager = self
                 .transaction_manager
                 .as_ref()
-                .ok_or("事务管理器未初始化")?;
+                .ok_or("Transaction manager not initialized")?;
 
             let context = txn_manager
                 .get_context(txn_id)
-                .map_err(|e| format!("获取事务上下文失败: {}", e))?;
+                .map_err(|e| format!("Failed to get transaction context: {}", e))?;
 
             // Try to find the save point by using its name.
             let savepoint_info = context
                 .find_savepoint_by_name(savepoint_name)
-                .ok_or_else(|| format!("保存点 '{}' 不存在", savepoint_name))?;
+                .ok_or_else(|| format!("Savepoint '{}' does not exist", savepoint_name))?;
 
             // Perform a rollback.
             match txn_manager.rollback_to_savepoint(txn_id, savepoint_info.id) {
                 Ok(()) => {
                     info!(
-                        "会话 {} 回滚事务 {} 到保存点 {}",
+                        "Session {} rolled back transaction {} to savepoint {}",
                         session.id(),
                         txn_id,
                         savepoint_name
                     );
                     Ok(ExecutionResult::Success)
                 }
-                Err(e) => Err(format!("回滚到保存点失败: {}", e)),
+                Err(e) => Err(format!("Failed to rollback to savepoint: {}", e)),
             }
         } else {
             // Full transaction rollback
-            let txn_id = session.current_transaction().ok_or("没有活跃事务可回滚")?;
+            let txn_id = session.current_transaction().ok_or("No active transaction to rollback")?;
 
             let txn_manager = self
                 .transaction_manager
                 .as_ref()
-                .ok_or("事务管理器未初始化")?;
+                .ok_or("Transaction manager not initialized")?;
 
             match txn_manager.abort_transaction(txn_id) {
                 Ok(()) => {
                     session.unbind_transaction();
                     session.set_auto_commit(true);
-                    info!("会话 {} 回滚事务 {}", session.id(), txn_id);
+                    info!("Session {} rolled back transaction {}", session.id(), txn_id);
                     Ok(ExecutionResult::Success)
                 }
-                Err(e) => Err(format!("回滚事务失败: {}", e)),
+                Err(e) => Err(format!("Failed to rollback transaction: {}", e)),
             }
         }
     }
@@ -463,29 +463,29 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let savepoint_name = stmt["SAVEPOINT".len()..].trim();
 
         if savepoint_name.is_empty() {
-            return Err("保存点名称不能为空".to_string());
+            return Err("Savepoint name cannot be empty".to_string());
         }
 
         let txn_id = session
             .current_transaction()
-            .ok_or("没有活跃事务，无法创建保存点")?;
+            .ok_or("No active transaction, cannot create savepoint")?;
 
         let txn_manager = self
             .transaction_manager
             .as_ref()
-            .ok_or("事务管理器未初始化")?;
+            .ok_or("Transaction manager not initialized")?;
 
         let context = txn_manager
             .get_context(txn_id)
-            .map_err(|e| format!("获取事务上下文失败: {}", e))?;
+            .map_err(|e| format!("Failed to get transaction context: {}", e))?;
 
         let savepoint_id = context.create_savepoint(Some(savepoint_name.to_string()));
 
         info!(
-            "会话 {} 在事务 {} 中创建保存点 {} (ID: {})",
+            "Session {} created savepoint {} in transaction {} (ID: {})",
             session.id(),
-            txn_id,
             savepoint_name,
+            txn_id,
             savepoint_id
         );
 
@@ -501,33 +501,33 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let savepoint_name = stmt["RELEASE SAVEPOINT".len()..].trim();
 
         if savepoint_name.is_empty() {
-            return Err("保存点名称不能为空".to_string());
+            return Err("Savepoint name cannot be empty".to_string());
         }
 
-        let txn_id = session.current_transaction().ok_or("没有活跃事务")?;
+        let txn_id = session.current_transaction().ok_or("No active transaction")?;
 
         let txn_manager = self
             .transaction_manager
             .as_ref()
-            .ok_or("事务管理器未初始化")?;
+            .ok_or("Transaction manager not initialized")?;
 
         let context = txn_manager
             .get_context(txn_id)
-            .map_err(|e| format!("获取事务上下文失败: {}", e))?;
+            .map_err(|e| format!("Failed to get transaction context: {}", e))?;
 
         let savepoint_info = context
             .find_savepoint_by_name(savepoint_name)
-            .ok_or_else(|| format!("保存点 '{}' 不存在", savepoint_name))?;
+            .ok_or_else(|| format!("Savepoint '{}' does not exist", savepoint_name))?;
 
         context
             .release_savepoint(savepoint_info.id)
-            .map_err(|e| format!("释放保存点失败: {}", e))?;
+            .map_err(|e| format!("Failed to release savepoint: {}", e))?;
 
         info!(
-            "会话 {} 在事务 {} 中释放保存点 {} (ID: {})",
+            "Session {} released savepoint {} in transaction {} (ID: {})",
             session.id(),
-            txn_id,
             savepoint_name,
+            txn_id,
             savepoint_info.id
         );
 
@@ -634,7 +634,7 @@ mod tests {
         let session = graph_service
             .authenticate("root", "root")
             .await
-            .expect("创建会话失败");
+            .expect("Failed to create session");
 
         let session_id = session.id();
 
@@ -659,7 +659,7 @@ mod tests {
         let session = graph_service
             .authenticate("root", "root")
             .await
-            .expect("创建会话失败");
+            .expect("Failed to create session");
 
         // perform a search
         let result = graph_service.execute(session.id(), "SHOW SPACES");
@@ -677,7 +677,7 @@ mod tests {
         let session = graph_service
             .authenticate("root", "root")
             .await
-            .expect("创建会话失败");
+            .expect("Failed to create session");
 
         // Test BEGIN TRANSACTION
         let result = graph_service.execute(session.id(), "BEGIN TRANSACTION");
@@ -695,7 +695,7 @@ mod tests {
         let session = graph_service
             .authenticate("root", "root")
             .await
-            .expect("创建会话失败");
+            .expect("Failed to create session");
 
         // Test creation of savepoints (need to start transaction first)
         let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
@@ -715,7 +715,7 @@ mod tests {
         let session = graph_service
             .authenticate("root", "root")
             .await
-            .expect("创建会话失败");
+            .expect("Failed to create session");
 
         // Test empty save point name
         let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
@@ -734,7 +734,7 @@ mod tests {
         let session = graph_service
             .authenticate("root", "root")
             .await
-            .expect("创建会话失败");
+            .expect("Failed to create session");
 
         // Test rollback to save point
         let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
@@ -755,7 +755,7 @@ mod tests {
         let session = graph_service
             .authenticate("root", "root")
             .await
-            .expect("创建会话失败");
+            .expect("Failed to create session");
 
         // Testing rollback to a savepoint without a transaction
         let result = graph_service.execute(session.id(), "ROLLBACK TO SAVEPOINT sp1");
@@ -773,7 +773,7 @@ mod tests {
         let session = graph_service
             .authenticate("root", "root")
             .await
-            .expect("创建会话失败");
+            .expect("Failed to create session");
 
         // Test release save point
         let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
@@ -794,7 +794,7 @@ mod tests {
         let session = graph_service
             .authenticate("root", "root")
             .await
-            .expect("创建会话失败");
+            .expect("Failed to create session");
 
         // Testing the release of savepoints without transactions
         let result = graph_service.execute(session.id(), "RELEASE SAVEPOINT sp1");

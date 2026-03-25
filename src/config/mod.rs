@@ -3,16 +3,16 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// 数据库配置
+/// Database configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DatabaseConfig {
-    /// 主机地址
+    /// Host address
     pub host: String,
-    /// 端口
+    /// Port
     pub port: u16,
-    /// 存储路径
+    /// Storage path
     pub storage_path: String,
-    /// 最大连接数
+    /// Maximum connections
     pub max_connections: usize,
 }
 
@@ -27,12 +27,12 @@ impl Default for DatabaseConfig {
     }
 }
 
-/// 事务配置
+/// Transaction configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TransactionConfig {
-    /// 默认事务超时时间（秒）
+    /// Default transaction timeout (seconds)
     pub default_timeout: u64,
-    /// 最大并发事务数
+    /// Maximum concurrent transactions
     pub max_concurrent_transactions: usize,
 }
 
@@ -45,18 +45,18 @@ impl Default for TransactionConfig {
     }
 }
 
-/// 日志配置
+/// Log configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LogConfig {
-    /// 日志级别
+    /// Log level
     pub level: String,
-    /// 日志目录
+    /// Log directory
     pub dir: String,
-    /// 日志文件名
+    /// Log file name
     pub file: String,
-    /// 单个日志文件最大大小（字节）
+    /// Maximum size of a single log file (bytes)
     pub max_file_size: u64,
-    /// 最大日志文件数量
+    /// Maximum number of log files
     pub max_files: usize,
 }
 
@@ -72,20 +72,20 @@ impl Default for LogConfig {
     }
 }
 
-/// 授权配置
+/// Authorization configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AuthConfig {
-    /// 是否启用授权
+    /// Whether to enable authorization
     pub enable_authorize: bool,
-    /// 登录失败次数限制（0表示不限制）
+    /// Maximum failed login attempts (0 means unlimited)
     pub failed_login_attempts: u32,
-    /// 会话空闲超时时间（秒）
+    /// Session idle timeout (seconds)
     pub session_idle_timeout_secs: u64,
-    /// 是否强制修改默认密码（首次登录时）
+    /// Whether to force changing the default password (on first login)
     pub force_change_default_password: bool,
-    /// 默认用户名
+    /// Default username
     pub default_username: String,
-    /// 默认密码（仅在首次启动或单用户模式使用）
+    /// Default password (used only on first start or in single-user mode)
     pub default_password: String,
 }
 
@@ -102,14 +102,14 @@ impl Default for AuthConfig {
     }
 }
 
-/// 初始化配置
+/// Bootstrap configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BootstrapConfig {
-    /// 是否自动创建默认Space
+    /// Whether to automatically create the default Space
     pub auto_create_default_space: bool,
-    /// 默认Space名称
+    /// Default Space name
     pub default_space_name: String,
-    /// 单用户模式（跳过认证，始终使用默认用户）
+    /// Single-user mode (skip authentication, always use the default user)
     pub single_user_mode: bool,
 }
 
@@ -123,37 +123,37 @@ impl Default for BootstrapConfig {
     }
 }
 
-/// 优化器规则配置
+/// Optimizer rules configuration
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct OptimizerRulesConfig {
-    /// 禁用的规则
+    /// Disabled rules
     #[serde(default)]
     pub disabled_rules: Vec<String>,
-    /// 启用的规则
+    /// Enabled rules
     #[serde(default)]
     pub enabled_rules: Vec<String>,
 }
 
-/// 优化器配置
+/// Optimizer configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OptimizerConfig {
-    /// 最大迭代轮数
+    /// Maximum iteration rounds
     pub max_iteration_rounds: usize,
-    /// 最大探索轮数
+    /// Maximum exploration rounds
     pub max_exploration_rounds: usize,
-    /// 是否启用代价模型
+    /// Whether to enable cost model
     pub enable_cost_model: bool,
-    /// 是否启用多计划
+    /// Whether to enable multi-plan
     pub enable_multi_plan: bool,
-    /// 是否启用属性剪枝
+    /// Whether to enable property pruning
     pub enable_property_pruning: bool,
-    /// 是否启用自适应迭代
+    /// Whether to enable adaptive iteration
     pub enable_adaptive_iteration: bool,
-    /// 稳定阈值
+    /// Stable threshold
     pub stable_threshold: usize,
-    /// 最小迭代轮数
+    /// Minimum iteration rounds
     pub min_iteration_rounds: usize,
-    /// 规则配置
+    /// Rules configuration
     #[serde(default)]
     pub rules: OptimizerRulesConfig,
 }
@@ -174,18 +174,18 @@ impl Default for OptimizerConfig {
     }
 }
 
-/// 监控配置
+/// Monitoring configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MonitoringConfig {
-    /// 是否启用监控
+    /// Whether to enable monitoring
     pub enabled: bool,
-    /// 内存缓存大小（保留最近N条查询）
+    /// Memory cache size (retains the most recent N queries)
     pub memory_cache_size: usize,
-    /// 慢查询阈值（毫秒）
+    /// Slow query threshold (milliseconds)
     pub slow_query_threshold_ms: u64,
-    /// 慢查询日志目录
+    /// Slow query log directory
     pub slow_query_log_dir: String,
-    /// 慢查询日志保留天数
+    /// Slow query log retention days
     pub slow_query_log_retention_days: u32,
 }
 
@@ -201,29 +201,29 @@ impl Default for MonitoringConfig {
     }
 }
 
-/// 全局配置
+/// Global configuration
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Config {
-    /// 数据库配置
+    /// Database configuration
     pub database: DatabaseConfig,
-    /// 事务配置
+    /// Transaction configuration
     #[serde(default)]
     pub transaction: TransactionConfig,
-    /// 日志配置
+    /// Log configuration
     pub log: LogConfig,
-    /// 授权配置
+    /// Authorization configuration
     pub auth: AuthConfig,
-    /// 初始化配置
+    /// Bootstrap configuration
     pub bootstrap: BootstrapConfig,
-    /// 优化器配置
+    /// Optimizer configuration
     pub optimizer: OptimizerConfig,
-    /// 监控配置
+    /// Monitoring configuration
     #[serde(default)]
     pub monitoring: MonitoringConfig,
 }
 
 impl Config {
-    /// 从文件加载配置
+    /// Load configuration from file
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
         let content = fs::read_to_string(path)?;
         let mut config: Config = toml::from_str(&content)?;
@@ -231,14 +231,14 @@ impl Config {
         Ok(config)
     }
 
-    /// 保存配置到文件
+    /// Save configuration to file
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
         let content = toml::to_string_pretty(self)?;
         fs::write(path, content)?;
         Ok(())
     }
 
-    /// 解析存储路径（支持相对路径和 ~ 展开）
+    /// Resolve storage path (supports relative paths and ~ expansion)
     fn resolve_storage_path(storage_path: &str) -> Result<String, Box<dyn std::error::Error>> {
         let path = PathBuf::from(storage_path);
 
@@ -256,62 +256,62 @@ impl Config {
                     };
                 return Ok(absolute_path.to_string_lossy().into_owned());
             }
-            return Err("无法获取用户主目录".into());
+            return Err("Failed to get user home directory".into());
         }
 
         if let Ok(exe_path) = env::current_exe() {
             let exe_dir = exe_path
                 .parent()
-                .ok_or("无法获取可执行文件所在目录")?
+                .ok_or("Failed to get executable directory")?
                 .to_path_buf();
             let absolute_path = exe_dir.join(&path);
             return Ok(absolute_path.to_string_lossy().into_owned());
         }
 
-        Err("无法获取可执行文件路径".into())
+        Err("Failed to get executable path".into())
     }
 
-    /// 获取日志级别
+    /// Get log level
     pub fn log_level(&self) -> &str {
         &self.log.level
     }
 
-    /// 获取日志目录
+    /// Get log directory
     pub fn log_dir(&self) -> &str {
         &self.log.dir
     }
 
-    /// 获取日志文件名
+    /// Get log file name
     pub fn log_file(&self) -> &str {
         &self.log.file
     }
 
-    /// 获取主机地址
+    /// Get host address
     pub fn host(&self) -> &str {
         &self.database.host
     }
 
-    /// 获取端口
+    /// Get port
     pub fn port(&self) -> u16 {
         self.database.port
     }
 
-    /// 获取存储路径
+    /// Get storage path
     pub fn storage_path(&self) -> &str {
         &self.database.storage_path
     }
 
-    /// 获取最大连接数
+    /// Get maximum connections
     pub fn max_connections(&self) -> usize {
         self.database.max_connections
     }
 
-    /// 获取事务超时时间
+    /// Get transaction timeout
     pub fn transaction_timeout(&self) -> u64 {
         self.transaction.default_timeout
     }
 
-    /// 获取最大并发事务数
+    /// Get maximum concurrent transactions
     pub fn max_concurrent_transactions(&self) -> usize {
         self.transaction.max_concurrent_transactions
     }
