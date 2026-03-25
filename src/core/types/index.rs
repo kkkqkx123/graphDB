@@ -1,6 +1,6 @@
-//! 索引类型定义模块
+//! Index Type Definition Module
 //!
-//! 提供统一的索引类型定义，包括索引状态、类型、结构等
+//! Provide a unified index type definition, including index state, type, structure, etc.
 
 use super::property_trait::PropertyTypeTrait;
 use crate::core::Value;
@@ -91,7 +91,7 @@ impl IndexField {
     }
 }
 
-/// 索引配置结构体
+/// Indexed Configuration Structures
 #[derive(Debug, Clone)]
 pub struct IndexConfig {
     pub id: i32,
@@ -119,7 +119,7 @@ pub struct Index {
 }
 
 impl Index {
-    /// 使用配置结构体创建索引
+    /// Creating an Index Using a Configuration Structure
     pub fn new(config: IndexConfig) -> Self {
         Self {
             id: config.id,

@@ -1,7 +1,7 @@
-//! 表达式通用工具函数
+//! Expression Generic Tool Functions
 //!
-//! 提供跨层使用的通用表达式处理工具函数。
-//! 这些函数不依赖于特定的验证、重写或规划逻辑，可以在多个层中使用。
+//! Provides generic expression processing tool functions for cross-layer use.
+//! These functions do not depend on specific validation, rewriting or planning logic and can be used in multiple layers.
 
 use crate::core::types::expr::contextual::ContextualExpression;
 use crate::core::types::expr::visitor_checkers::ConstantChecker;
@@ -11,15 +11,15 @@ use crate::core::types::expr::ExpressionVisitor;
 use crate::core::Value;
 use crate::query::planning::planner::PlannerError;
 
-/// 从表达式中提取字符串值
+/// Extracting String Values from Expressions
 ///
-/// 此方法用于从 ContextualExpression 中提取字符串值。
-/// 支持从变量、字面量（字符串、整数、浮点数、布尔值）中提取。
+/// This method is used to extract a string value from a ContextualExpression.
+/// Supports extraction from variables, literals (strings, integers, floats, booleans).
 ///
-/// # 参数
-/// - `expr`: 要提取字符串的上下文表达式
+/// # Parameters
+/// - `expr`: Contextual expression to be extracted from the string
 ///
-/// # 返回
+/// # Back
 /// - `Ok(String)`: 提取到的字符串值
 /// - `Err(PlannerError)`: 无法提取字符串时的错误信息
 pub fn extract_string_from_expr(expr: &ContextualExpression) -> Result<String, PlannerError> {
@@ -48,16 +48,16 @@ pub fn extract_string_from_expr(expr: &ContextualExpression) -> Result<String, P
     )))
 }
 
-/// 从 ContextualExpression 生成默认别名
+/// Generating default aliases from ContextualExpression
 ///
-/// 此方法用于为表达式生成默认别名。
-/// 优先级：变量名 > 函数名 > 属性名 > 算术表达式 > 表达式字符串
+/// This method is used to generate a default alias for an expression.
+/// Priority: Variable Name > Function Name > Property Name > Arithmetic Expression > Expression String
 ///
 /// # 参数
-/// - `expression`: 要生成别名的上下文表达式
+/// - `expression`: Contextual expression to generate an alias for
 ///
 /// # 返回
-/// 生成的默认别名
+/// Default aliases generated
 pub fn generate_default_alias_from_contextual(expression: &ContextualExpression) -> String {
     if let Some(var_name) = expression.as_variable() {
         return var_name;
@@ -84,16 +84,16 @@ pub fn generate_default_alias_from_contextual(expression: &ContextualExpression)
     expression.to_expression_string()
 }
 
-/// 提取分组信息
+/// Extract grouping information
 ///
-/// 从 YieldColumn 列表中提取分组键和聚合项。
-/// 包含聚合函数的表达式作为分组项，不包含的表达式作为分组键。
+/// Extracts grouping keys and aggregates from the YieldColumn list.
+/// Expressions that contain aggregation functions are used as grouping items, and expressions that do not are used as grouping keys.
 ///
 /// # 参数
-/// - `yield_columns`: YieldColumn 列表
+/// - `yield_columns`: list of YieldColumns
 ///
 /// # 返回
-/// - (分组键列表, 分组项列表)
+/// - (grouped key list, grouped item list)
 pub fn extract_group_info(
     yield_columns: &[crate::core::types::YieldColumn],
 ) -> (Vec<ContextualExpression>, Vec<ContextualExpression>) {
@@ -114,13 +114,13 @@ pub fn extract_group_info(
     (group_keys, group_items)
 }
 
-/// 提取上下文表达式中的属性引用
+/// Extracting property references in context expressions
 ///
 /// # 参数
-/// - `ctx_expr`: 上下文表达式
+/// - `ctx_expr`: context expression
 ///
 /// # 返回
-/// 表达式中引用的所有属性名
+/// Names of all attributes referenced in the expression
 pub fn extract_property_refs(ctx_expr: &ContextualExpression) -> Vec<String> {
     let expr_meta = match ctx_expr.expression() {
         Some(e) => e,
@@ -132,15 +132,15 @@ pub fn extract_property_refs(ctx_expr: &ContextualExpression) -> Vec<String> {
     collector.properties
 }
 
-/// 检查上下文表达式是否为常量
+/// Check if the context expression is a constant
 ///
-/// 常量表达式不包含任何变量或属性引用，可以在编译时求值。
+/// Constant expressions do not contain any variable or property references and can be evaluated at compile time.
 ///
 /// # 参数
 /// - `ctx_expr`: 上下文表达式
 ///
 /// # 返回
-/// 如果表达式不包含任何变量或属性引用，返回 true
+/// Returns true if the expression does not contain any variable or property references.
 pub fn is_constant(ctx_expr: &ContextualExpression) -> bool {
     let expr_meta = match ctx_expr.expression() {
         Some(e) => e,
@@ -150,12 +150,12 @@ pub fn is_constant(ctx_expr: &ContextualExpression) -> bool {
     ConstantChecker::check(expr)
 }
 
-/// 检查表达式是否为常量（基于 Expression）
+/// Checking if an expression is a constant (based on Expression)
 ///
 /// 常量表达式不包含任何变量或属性引用，可以在编译时求值。
 ///
 /// # 参数
-/// - `expr`: 表达式
+/// - `expr`: expression
 ///
 /// # 返回
 /// 如果表达式不包含任何变量或属性引用，返回 true

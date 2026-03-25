@@ -7,7 +7,7 @@ use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-// 手动实现PartialEq以正确处理f64比较
+// Manual implementation of PartialEq to handle f64 comparisons correctly
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -23,7 +23,7 @@ impl PartialEq for Value {
             (Value::UInt16(a), Value::UInt16(b)) => a == b,
             (Value::UInt32(a), Value::UInt32(b)) => a == b,
             (Value::UInt64(a), Value::UInt64(b)) => a == b,
-            (Value::Float(a), Value::Float(b)) => (a == b) || (a.is_nan() && b.is_nan()), // 正确处理NaN
+            (Value::Float(a), Value::Float(b)) => (a == b) || (a.is_nan() && b.is_nan()), // Proper handling of NaN
             (Value::Decimal128(a), Value::Decimal128(b)) => a == b,
             (Value::String(a), Value::String(b)) => a == b,
             (Value::FixedString { data: a, .. }, Value::FixedString { data: b, .. }) => a == b,
@@ -39,7 +39,7 @@ impl PartialEq for Value {
             (Value::Geography(a), Value::Geography(b)) => a == b,
             (Value::Duration(a), Value::Duration(b)) => a == b,
 
-            // 整数类型之间的比较：转换为i64后比较
+            // Comparison between integer types: comparison after conversion to i64
             (Value::Int(a), Value::Int8(b)) => *a == *b as i64,
             (Value::Int(a), Value::Int16(b)) => *a == *b as i64,
             (Value::Int(a), Value::Int32(b)) => *a == *b as i64,
@@ -66,7 +66,7 @@ impl PartialEq for Value {
     }
 }
 
-// 手动实现Eq，因为f64没有实现Eq
+// Eq is implemented manually, since f64 does not implement Eq
 impl Eq for Value {}
 
 impl PartialOrd for Value {
@@ -77,9 +77,9 @@ impl PartialOrd for Value {
 
 impl Ord for Value {
     fn cmp(&self, other: &Self) -> CmpOrdering {
-        // 使用实际的类型比较而不是哈希值
+        // Use actual type comparisons instead of hashes
         match (self, other) {
-            // 相同类型的比较
+            // Comparison of the same type
             (Value::Empty, Value::Empty) => CmpOrdering::Equal,
             (Value::Null(a), Value::Null(b)) => Self::cmp_null(a, b),
             (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
@@ -109,7 +109,7 @@ impl Ord for Value {
             (Value::Duration(a), Value::Duration(b)) => Self::cmp_duration(a, b),
             (Value::DataSet(a), Value::DataSet(b)) => Self::cmp_dataset(a, b),
 
-            // 整数类型之间的比较：转换为i64后比较
+            // Comparison between integer types: comparison after conversion to i64
             (Value::Int(a), Value::Int8(b)) => a.cmp(&(*b as i64)),
             (Value::Int(a), Value::Int16(b)) => a.cmp(&(*b as i64)),
             (Value::Int(a), Value::Int32(b)) => a.cmp(&(*b as i64)),
@@ -131,13 +131,13 @@ impl Ord for Value {
             (Value::Int64(a), Value::Int16(b)) => a.cmp(&(*b as i64)),
             (Value::Int64(a), Value::Int32(b)) => a.cmp(&(*b as i64)),
 
-            // 不同类型之间的比较：基于类型优先级
+            // Comparison between different types: based on type prioritization
             (a, b) => Self::cmp_by_type_priority(a, b),
         }
     }
 }
 
-// 手动实现Hash以处理f64哈希
+// Manually implementing Hash to handle f64 hashes
 impl Hash for Value {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
@@ -188,9 +188,9 @@ impl Hash for Value {
             }
             Value::Float(f) => {
                 12u8.hash(state);
-                // 从浮点数的位表示创建哈希
+                // Creating a hash from a bitwise representation of a floating point number
                 if f.is_nan() {
-                    // 所有NaN值应该哈希到相同的值
+                    // All NaN values should hash to the same value
                     (0x7ff80000u32 as u64).hash(state);
                 } else if *f == 0.0 {
                     // 确保+0.0和-0.0哈希到相同的值
@@ -245,14 +245,14 @@ impl Hash for Value {
             }
             Value::Map(m) => {
                 14u8.hash(state);
-                // 通过排序后的键值对哈希映射
+                // Hash mapping by sorted key-value pairs
                 let mut pairs: Vec<_> = m.iter().collect();
                 pairs.sort_by_key(|&(k, _)| k);
                 pairs.hash(state);
             }
             Value::Set(s) => {
                 15u8.hash(state);
-                // 对于集合，我们将按排序顺序哈希所有值以确保一致性
+                // For collections, we will hash all values in sorted order to ensure consistency
                 let mut values: Vec<_> = s.iter().collect();
                 values.sort();
                 values.hash(state);
@@ -274,16 +274,16 @@ impl Hash for Value {
 }
 
 impl Value {
-    // Null类型比较辅助函数
+    // Null type comparison helper function
     fn cmp_null(a: &NullType, b: &NullType) -> CmpOrdering {
-        // 基于枚举变体的顺序比较
+        // Sequential comparison based on enumerated variants
         match (a, b) {
             (NullType::Null, NullType::Null) => CmpOrdering::Equal,
             (NullType::NaN, NullType::NaN) => CmpOrdering::Equal,
             (NullType::BadData, NullType::BadData) => CmpOrdering::Equal,
             (NullType::BadType, NullType::BadType) => CmpOrdering::Equal,
             _ => {
-                // 不同类型按变体顺序比较
+                // Comparison of different types in order of variants
                 let priority_a = Self::null_type_priority(a);
                 let priority_b = Self::null_type_priority(b);
                 priority_a.cmp(&priority_b)
@@ -291,7 +291,7 @@ impl Value {
         }
     }
 
-    // Null类型优先级映射函数
+    // Null type priority mapping function
     fn null_type_priority(typ: &NullType) -> u8 {
         match typ {
             NullType::Null => 0,
@@ -305,23 +305,23 @@ impl Value {
         }
     }
 
-    // 浮点数比较辅助函数
+    // Floating Point Comparison Helper Functions
     fn cmp_f64(a: f64, b: f64) -> CmpOrdering {
-        // 处理浮点数比较，包括NaN
+        // Handling floating-point comparisons, including NaN
         if a.is_nan() && b.is_nan() {
             CmpOrdering::Equal
         } else if a.is_nan() {
-            CmpOrdering::Less // NaN 小于任何非NaN值
+            CmpOrdering::Less // NaN Less than any non-NaN value
         } else if b.is_nan() {
-            CmpOrdering::Greater // 任何非NaN值大于NaN
+            CmpOrdering::Greater // Any non-NaN value greater than NaN
         } else {
             a.partial_cmp(&b).unwrap_or(CmpOrdering::Equal)
         }
     }
 
-    // 日期比较辅助函数
+    // Date Comparison Helper Functions
     fn cmp_date(a: &DateValue, b: &DateValue) -> CmpOrdering {
-        // 比较日期：年 -> 月 -> 日
+        // Comparison date: year -> month -> day
         match a.year.cmp(&b.year) {
             CmpOrdering::Equal => match a.month.cmp(&b.month) {
                 CmpOrdering::Equal => a.day.cmp(&b.day),
@@ -331,9 +331,9 @@ impl Value {
         }
     }
 
-    // 时间比较辅助函数
+    // Time Comparison Auxiliary Functions
     fn cmp_time(a: &TimeValue, b: &TimeValue) -> CmpOrdering {
-        // 比较时间：时 -> 分 -> 秒 -> 微秒
+        // Compare time: hours -> minutes -> seconds -> microseconds
         match a.hour.cmp(&b.hour) {
             CmpOrdering::Equal => match a.minute.cmp(&b.minute) {
                 CmpOrdering::Equal => match a.sec.cmp(&b.sec) {
@@ -346,9 +346,9 @@ impl Value {
         }
     }
 
-    // 日期时间比较辅助函数
+    // Date-Time Comparison Helper Functions
     fn cmp_datetime(a: &DateTimeValue, b: &DateTimeValue) -> CmpOrdering {
-        // 比较日期时间：年 -> 月 -> 日 -> 时 -> 分 -> 秒 -> 微秒
+        // Compare date and time: year -> month -> day -> hour -> minute -> second -> microseconds
         match a.year.cmp(&b.year) {
             CmpOrdering::Equal => match a.month.cmp(&b.month) {
                 CmpOrdering::Equal => match a.day.cmp(&b.day) {
@@ -370,9 +370,9 @@ impl Value {
         }
     }
 
-    // 持续时间比较辅助函数
+    // Duration Comparison Auxiliary Functions
     fn cmp_duration(a: &DurationValue, b: &DurationValue) -> CmpOrdering {
-        // 比较持续时间：秒 -> 微秒 -> 月
+        // Comparison duration: seconds -> microseconds -> months
         match a.seconds.cmp(&b.seconds) {
             CmpOrdering::Equal => match a.microseconds.cmp(&b.microseconds) {
                 CmpOrdering::Equal => a.months.cmp(&b.months),
@@ -382,9 +382,9 @@ impl Value {
         }
     }
 
-    // 列表比较辅助函数
+    // List Comparison Helper Functions
     fn cmp_list(a: &super::dataset::List, b: &super::dataset::List) -> CmpOrdering {
-        // 按字典序比较列表
+        // Compare lists by dictionary order
         let min_len = a.values.len().min(b.values.len());
         for i in 0..min_len {
             match a.values[i].cmp(&b.values[i]) {
@@ -395,12 +395,12 @@ impl Value {
         a.values.len().cmp(&b.values.len())
     }
 
-    // 映射比较辅助函数
+    // Mapping Comparison Auxiliary Functions
     fn cmp_map(a: &HashMap<String, Value>, b: &HashMap<String, Value>) -> CmpOrdering {
-        // 先比较键的数量
+        // Compare the number of keys first
         match a.len().cmp(&b.len()) {
             CmpOrdering::Equal => {
-                // 按排序后的键值对比较
+                // Comparison by sorted key-value pairs
                 let mut a_sorted: Vec<_> = a.iter().collect();
                 let mut b_sorted: Vec<_> = b.iter().collect();
                 a_sorted.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
@@ -421,15 +421,15 @@ impl Value {
         }
     }
 
-    // 集合比较辅助函数
+    // Set Comparison Auxiliary Functions
     fn cmp_set(
         a: &std::collections::HashSet<Value>,
         b: &std::collections::HashSet<Value>,
     ) -> CmpOrdering {
-        // 先比较集合大小
+        // Compare set sizes first
         match a.len().cmp(&b.len()) {
             CmpOrdering::Equal => {
-                // 按排序后的元素比较
+                // Comparison by sorted elements
                 let mut a_sorted: Vec<_> = a.iter().collect();
                 let mut b_sorted: Vec<_> = b.iter().collect();
                 a_sorted.sort();
@@ -447,21 +447,21 @@ impl Value {
         }
     }
 
-    // 地理信息比较辅助函数 - 版本
+    // Geographic Information Comparison Auxiliary Function - Version
     fn cmp_geography(a: &GeographyValue, b: &GeographyValue) -> CmpOrdering {
-        // 比较纬度和经度
+        // Comparing Latitude and Longitude
         match a.latitude.total_cmp(&b.latitude) {
             CmpOrdering::Equal => a.longitude.total_cmp(&b.longitude),
             ord => ord,
         }
     }
 
-    // 数据集比较辅助函数
+    // Data Set Comparison Auxiliary Functions
     fn cmp_dataset(a: &DataSet, b: &DataSet) -> CmpOrdering {
-        // 先比较列名
+        // Compare columns first
         match Self::cmp_string_list(&a.col_names, &b.col_names) {
             CmpOrdering::Equal => {
-                // 比较行数据
+                // Compare Row Data
                 let min_len = a.rows.len().min(b.rows.len());
                 for i in 0..min_len {
                     match Self::cmp_value_list(&a.rows[i], &b.rows[i]) {
@@ -475,23 +475,23 @@ impl Value {
         }
     }
 
-    // 类型优先级比较辅助函数
+    // Type Priority Comparison Helper Functions
     fn cmp_by_type_priority(a: &Value, b: &Value) -> CmpOrdering {
-        // 类型优先级：Empty < Null < Bool < Int < Float < String < Date < Time < DateTime < Duration <
+        // Type priority: Empty < Null < Bool < Int < Float < String < Date < Time < DateTime < Duration <
         //             Vertex < Edge < Path < List < Map < Set < Geography < DataSet
         let type_a = a.get_type();
         let type_b = b.get_type();
 
         if type_a == type_b {
-            // 相同类型应该已经在主函数中处理，这里作为fallback
+            // The same type should already be handled in the main function, here as a fallback
             return CmpOrdering::Equal;
         }
 
-        // 使用枚举值比较替代字符串比较
+        // Using Enumerated Value Comparisons Instead of String Comparisons
         Self::type_priority(&type_a).cmp(&Self::type_priority(&type_b))
     }
 
-    // 类型优先级映射函数
+    // Type Priority Mapping Functions
     fn type_priority(typ: &DataType) -> u8 {
         match typ {
             DataType::Empty => 0,
@@ -528,7 +528,7 @@ impl Value {
         }
     }
 
-    // 字符串列表比较辅助函数
+    // String list comparison helper function
     fn cmp_string_list(a: &[String], b: &[String]) -> CmpOrdering {
         let min_len = a.len().min(b.len());
         for i in 0..min_len {
@@ -540,7 +540,7 @@ impl Value {
         a.len().cmp(&b.len())
     }
 
-    // 值列表比较辅助函数
+    // Value List Comparison Helper Functions
     fn cmp_value_list(a: &[Value], b: &[Value]) -> CmpOrdering {
         let min_len = a.len().min(b.len());
         for i in 0..min_len {

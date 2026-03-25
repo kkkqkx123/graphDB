@@ -5,13 +5,13 @@ use crate::core::types::DataType;
 use chrono::{Datelike, Timelike};
 
 impl Value {
-    /// 转换为布尔值
+    /// Convert to a boolean value
     ///
-    /// 返回 Value 类型
-    /// - 空值和 Null 返回 Null
-    /// - 布尔值直接返回
-    /// - 字符串 "true"/"false" 返回对应布尔值，其他返回 Null
-    /// - 其他类型返回 BadData
+    /// Return the Value type.
+    /// Empty values and the “Null” value return “Null”.
+    /// Boolean values are returned directly.
+    /// The string "true" or "false" returns the corresponding boolean value; for all other cases, Null is returned.
+    /// For other types, return “BadData”.
     pub fn to_bool(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
@@ -50,14 +50,14 @@ impl Value {
         }
     }
 
-    /// 转换为整数
+    /// Convert to an integer.
     ///
-    /// 参考 Nebula-Graph 设计：
+    /// Refer to the design of Nebula-Graph:
     /// - 空值和 Null 返回 Null
-    /// - 整数直接返回
-    /// - 浮点数截断为整数，溢出时返回边界值
-    /// - 字符串解析为整数，失败返回 Null
-    /// - 布尔值转换为 1/0
+    /// Integers are returned directly.
+    /// Floating-point numbers are truncated to integers; in the event of an overflow, the boundary values are returned.
+    /// String parsing to an integer; if the conversion fails, return Null.
+    /// Converting boolean values to 1/0
     pub fn to_int(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
@@ -100,13 +100,13 @@ impl Value {
         }
     }
 
-    /// 转换为浮点数
+    /// Convert to a floating-point number
     ///
     /// 参考 Nebula-Graph 设计：
     /// - 空值和 Null 返回 Null
-    /// - 浮点数直接返回
-    /// - 整数转换为浮点数
-    /// - 字符串解析为浮点数，失败返回 Null
+    /// The floating-point number is returned directly.
+    /// Converting integers to floating-point numbers
+    /// String parsing to a floating-point number; if the parsing fails, return Null.
     pub fn to_float(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
@@ -133,7 +133,7 @@ impl Value {
         }
     }
 
-    /// 转换为字符串
+    /// Translate the following text into a string:
     pub fn to_string(&self) -> Result<String, String> {
         match self {
             Value::String(s) => Ok(s.clone()),
@@ -194,7 +194,7 @@ impl Value {
         }
     }
 
-    /// 转换为列表
+    /// Convert to a list
     pub fn to_list(&self) -> Value {
         match self {
             Value::List(list) => Value::List(list.clone()),
@@ -203,7 +203,7 @@ impl Value {
         }
     }
 
-    /// 转换为映射
+    /// Translate the following text into a map:
     pub fn to_map(&self) -> Value {
         match self {
             Value::Map(map) => Value::Map(map.clone()),
@@ -211,7 +211,7 @@ impl Value {
         }
     }
 
-    /// 转换为集合
+    /// Convert to a set
     pub fn to_set(&self) -> Value {
         match self {
             Value::Set(set) => Value::Set(set.clone()),
@@ -220,7 +220,7 @@ impl Value {
         }
     }
 
-    /// 转换为日期
+    /// Convert to a date
     pub fn to_date(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
@@ -237,7 +237,7 @@ impl Value {
         }
     }
 
-    /// 转换为时间
+    /// Translate “Convert to time”
     pub fn to_time(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
@@ -254,7 +254,7 @@ impl Value {
         }
     }
 
-    /// 转换为日期时间
+    /// Convert to date and time
     pub fn to_datetime(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
@@ -295,7 +295,7 @@ impl Value {
         }
     }
 
-    /// 转换为持续时间
+    /// Convert to duration
     pub fn to_duration(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
@@ -437,7 +437,7 @@ impl Value {
         }
     }
 
-    /// 尝试隐式转换为指定类型
+    /// Try to implicitly convert to the specified type.
     pub fn try_implicit_cast(&self, target_type: &DataType) -> Result<Value, String> {
         match target_type {
             DataType::Bool => Ok(self.to_bool()),
@@ -462,12 +462,12 @@ impl Value {
         }
     }
 
-    /// 检查是否可以隐式转换
+    /// Check whether an implicit conversion is possible.
     pub fn can_implicitly_cast_to(&self, target_type: &DataType) -> bool {
         self.try_implicit_cast(target_type).is_ok()
     }
 
-    /// 检查值是否为有效的数字
+    /// Check whether the value is a valid number.
     pub fn is_valid_number(&self) -> bool {
         match self {
             Value::Int(_) => true,
@@ -476,7 +476,7 @@ impl Value {
         }
     }
 
-    /// 检查值是否为有效的日期
+    /// Check whether the value is a valid date.
     pub fn is_valid_date(&self) -> bool {
         match self {
             Value::Date(d) => {
@@ -491,7 +491,7 @@ impl Value {
         }
     }
 
-    /// 检查值是否为有效的时间
+    /// Check whether the value represents a valid time.
     pub fn is_valid_time(&self) -> bool {
         match self {
             Value::Time(t) => t.hour <= 23 && t.minute <= 59 && t.sec <= 59 && t.microsec <= 999999,
@@ -499,7 +499,7 @@ impl Value {
         }
     }
 
-    /// 检查值是否为有效的日期时间
+    /// Check whether the value is a valid date and time.
     pub fn is_valid_datetime(&self) -> bool {
         match self {
             Value::DateTime(dt) => {

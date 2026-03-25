@@ -1,29 +1,29 @@
-//! 图结构类型定义
+//! Graph Structure Type Definition
 //!
-//! 包含图数据库中图结构相关的类型定义
+//! Contains type definitions related to graph structures in the graph database
 
 use crate::core::DataType;
 use serde::{Deserialize, Serialize};
 
-/// 连接类型枚举
+/// Connection type enumeration
 ///
-/// 用于表示 SQL/图查询中的连接操作类型
+/// Used to represent the type of join operation in a SQL/graph query
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum JoinType {
-    /// 内连接
+    /// internal link
     Inner,
-    /// 左外连接
+    /// left outer join
     Left,
-    /// 右外连接
+    /// right outer link
     Right,
-    /// 全外连接
+    /// full external link
     Full,
-    /// 笛卡尔积（交叉连接）
+    /// Cartesian product (cross linking)
     Cross,
 }
 
 impl JoinType {
-    /// 获取连接类型的名称
+    /// Get the name of the connection type
     pub fn name(&self) -> &'static str {
         match self {
             JoinType::Inner => "INNER",
@@ -34,12 +34,12 @@ impl JoinType {
         }
     }
 
-    /// 判断是否为外连接（Left/Right/Full）
+    /// Determine if it is an outer connection (Left/Right/Full)
     pub fn is_outer(&self) -> bool {
         matches!(self, JoinType::Left | JoinType::Right | JoinType::Full)
     }
 
-    /// 判断是否为内连接
+    /// Determining whether a connection is an inner connection
     pub fn is_inner(&self) -> bool {
         matches!(self, JoinType::Inner)
     }
@@ -58,19 +58,19 @@ impl From<&str> for JoinType {
     }
 }
 
-/// 排序方向枚举
+/// Sort Direction Enumeration
 ///
-/// 用于表示 ORDER BY 子句中的排序方向
+/// Used to indicate the direction of sorting in an ORDER BY clause.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OrderDirection {
-    /// 升序
+    /// ascending order
     Asc,
-    /// 降序
+    /// descending order
     Desc,
 }
 
 impl OrderDirection {
-    /// 获取排序方向的名称
+    /// Get the name of the sort direction
     pub fn name(&self) -> &'static str {
         match self {
             OrderDirection::Asc => "ASC",
@@ -78,7 +78,7 @@ impl OrderDirection {
         }
     }
 
-    /// 获取反向排序方向
+    /// Get reverse sort direction
     pub fn reverse(&self) -> Self {
         match self {
             OrderDirection::Asc => OrderDirection::Desc,
@@ -107,31 +107,31 @@ impl From<bool> for OrderDirection {
     }
 }
 
-/// 边的方向类型
+/// Type of orientation of the edge
 ///
-/// 用于表示边的遍历方向，支持出边、入边和双向遍历
+/// Used to represent the traversal direction of an edge, supports outgoing, incoming and bi-directional traversal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EdgeDirection {
-    /// 出边：从源节点指向目标节点
+    /// Outgoing edge: from source node to target node
     Out,
-    /// 入边：从目标节点指向源节点
+    /// Incoming edge: pointing from target node to source node
     In,
-    /// 双向：同时包含出边和入边
+    /// Bidirectional: contains both outgoing and incoming edges
     Both,
 }
 
 impl EdgeDirection {
-    /// 判断是否包含出边
+    /// Determine whether to include outgoing edges
     pub fn is_outgoing(&self) -> bool {
         matches!(self, EdgeDirection::Out | EdgeDirection::Both)
     }
 
-    /// 判断是否包含入边
+    /// Determine if the inbound edge is included
     pub fn is_incoming(&self) -> bool {
         matches!(self, EdgeDirection::In | EdgeDirection::Both)
     }
 
-    /// 获取反向方向
+    /// Get Reverse Direction
     pub fn reverse(&self) -> Self {
         match self {
             EdgeDirection::Out => EdgeDirection::In,
@@ -140,13 +140,13 @@ impl EdgeDirection {
         }
     }
 
-    /// 判断是否为正向（出边）
-    /// 用于与 Forward/Backward 命名兼容
+    /// Determine if it is positive (outgoing edge)
+    /// For Forward/Backward naming compatibility
     pub fn is_forward(&self) -> bool {
         matches!(self, EdgeDirection::Out | EdgeDirection::Both)
     }
 
-    /// 判断是否为反向（入边）
+    /// Determine if it is inverted (inbound edge)
     /// 用于与 Forward/Backward 命名兼容
     pub fn is_backward(&self) -> bool {
         matches!(self, EdgeDirection::In | EdgeDirection::Both)
@@ -170,7 +170,7 @@ impl From<String> for EdgeDirection {
     }
 }
 
-/// 顶点类型定义
+/// Vertex Type Definition
 #[derive(Debug, Clone, PartialEq)]
 pub struct VertexType {
     pub tag_id: Option<i32>,
@@ -178,7 +178,7 @@ pub struct VertexType {
     pub properties: Vec<PropertyType>,
 }
 
-/// 属性类型定义
+/// Attribute Type Definition
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PropertyType {
     pub name: String,
@@ -186,10 +186,10 @@ pub struct PropertyType {
     pub is_nullable: bool,
 }
 
-/// 边类型引用定义
+/// Edge type reference definition
 ///
-/// 用于图结构类型推导的简化边类型表示，
-/// 包含源标签、目标标签和rank启用状态等类型推导所需信息
+/// A simplified representation of edge types for the derivation of graph structure types, the
+/// Contains the information needed for type derivation of source label, target label, and rank enabled state
 #[derive(Debug, Clone, PartialEq)]
 pub struct EdgeTypeRef {
     pub edge_type: i32,
@@ -200,7 +200,7 @@ pub struct EdgeTypeRef {
     pub rank_enabled: bool,
 }
 
-/// 路径类型定义
+/// Path Type Definition
 #[derive(Debug, Clone, PartialEq)]
 pub enum PathType {
     SimplePath,
@@ -210,7 +210,7 @@ pub enum PathType {
     WeightedShortestPath,
 }
 
-/// 路径信息
+/// path information
 #[derive(Debug, Clone, PartialEq)]
 pub struct PathInfo {
     pub path_type: PathType,
@@ -219,7 +219,7 @@ pub struct PathInfo {
     pub edge_types: Vec<EdgeTypeRef>,
 }
 
-/// 图结构类型推导器
+/// Graph Structure Type Derivator
 pub struct GraphTypeInference;
 
 impl Default for GraphTypeInference {
@@ -233,7 +233,7 @@ impl GraphTypeInference {
         Self
     }
 
-    /// 推导顶点类型
+    /// Deriving Vertex Types
     pub fn deduce_vertex_type(&self, tag_name: &str, tag_id: Option<i32>) -> VertexType {
         VertexType {
             tag_id,
@@ -242,7 +242,7 @@ impl GraphTypeInference {
         }
     }
 
-    /// 推导边类型
+    /// Derived edge types
     pub fn deduce_edge_type(&self, edge_name: &str, edge_type: i32) -> EdgeTypeRef {
         EdgeTypeRef {
             edge_type,
@@ -254,7 +254,7 @@ impl GraphTypeInference {
         }
     }
 
-    /// 推导路径类型
+    /// Inferred path type
     pub fn deduce_path_type(&self, path_type: PathType, steps: Option<(i32, i32)>) -> PathInfo {
         PathInfo {
             path_type,
@@ -264,7 +264,7 @@ impl GraphTypeInference {
         }
     }
 
-    /// 推导属性类型
+    /// Deriving Attribute Types
     pub fn deduce_property_type(&self, prop_name: &str, _object_type: &str) -> Option<DataType> {
         match prop_name.to_lowercase().as_str() {
             "id" => Some(DataType::Int),
@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn test_graph_type_inference_creation() {
         let _inference = GraphTypeInference::new();
-        // 测试通过到达此处即表示成功
+        // The test passes and is successful when it reaches this point
     }
 
     #[test]

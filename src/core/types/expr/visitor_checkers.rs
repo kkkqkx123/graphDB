@@ -1,8 +1,8 @@
-//! 表达式检查器
+//! Expression checker
 //!
-//! 本模块提供各种表达式检查器的实现，用于检查表达式是否满足特定条件。
+//! This module provides implementations of various expression checkers, which are used to determine whether an expression meets certain conditions.
 //!
-//! # 可用的检查器
+//! # Available checkers
 //!
 //! - [`ConstantChecker`] - 检查表达式是否为常量表达式
 //! - [`PropertyContainsChecker`] - 检查表达式是否包含指定的属性名
@@ -15,11 +15,11 @@ use crate::core::types::expr::visitor::ExpressionVisitor;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Expression;
 
-/// 常量检查器
+/// Constant Checker
 ///
-/// 检查表达式是否为常量表达式（不包含变量或属性）。
+/// Check whether the expression is a constant expression (it does not contain any variables or properties).
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::ConstantChecker;
@@ -33,24 +33,24 @@ use crate::core::Expression;
 /// ```
 #[derive(Debug, Default)]
 pub struct ConstantChecker {
-    /// 是否为常量表达式
+    /// Is it a constant expression?
     pub is_constant: bool,
 }
 
 impl ConstantChecker {
-    /// 创建新的常量检查器
+    /// Create a new constant checker.
     pub fn new() -> Self {
         Self { is_constant: true }
     }
 
-    /// 检查表达式是否为常量表达式
+    /// Check whether the expression is a constant expression.
     ///
-    /// # 参数
-    /// - `expr`: 要检查的表达式
+    /// # Parameters
+    /// - `expr`: expression to be examined
     ///
-    /// # 返回
-    /// - `true`: 表达式是常量表达式
-    /// - `false`: 表达式包含变量或属性
+    /// # Back
+    /// `true`: The expression is a constant expression.
+    /// `false`: The expression contains variables or properties.
     pub fn check(expr: &Expression) -> bool {
         let mut checker = Self::new();
         checker.visit(expr);
@@ -287,9 +287,9 @@ impl ExpressionVisitor for ConstantChecker {
     fn visit_parameter(&mut self, _name: &str) {}
 }
 
-/// 属性包含检查器
+/// The attribute contains a checker.
 ///
-/// 检查表达式是否包含指定的属性名。
+/// Check whether the expression contains the specified attribute name.
 ///
 /// # 示例
 ///
@@ -304,17 +304,17 @@ impl ExpressionVisitor for ConstantChecker {
 /// ```
 #[derive(Debug)]
 pub struct PropertyContainsChecker {
-    /// 要检查的属性名列表
+    /// List of attribute names to be checked
     pub property_names: Vec<String>,
-    /// 是否包含指定的属性
+    /// Does it contain the specified attribute?
     pub contains: bool,
 }
 
 impl PropertyContainsChecker {
-    /// 创建新的属性包含检查器
+    /// Creating a new attribute that includes a checker
     ///
     /// # 参数
-    /// - `property_names`: 要检查的属性名列表
+    /// `property_names`: A list of property names to be checked.
     pub fn new(property_names: Vec<String>) -> Self {
         Self {
             property_names,
@@ -322,15 +322,15 @@ impl PropertyContainsChecker {
         }
     }
 
-    /// 检查表达式是否包含指定的属性名
+    /// Check whether the expression contains the specified attribute name.
     ///
     /// # 参数
     /// - `expr`: 要检查的表达式
     /// - `property_names`: 要检查的属性名列表
     ///
     /// # 返回
-    /// - `true`: 表达式包含指定的属性
-    /// - `false`: 表达式不包含指定的属性
+    /// `true`: The expression contains the specified attribute.
+    /// `false`: The expression does not contain the specified attribute.
     pub fn check(expr: &Expression, property_names: &[String]) -> bool {
         let mut checker = Self::new(property_names.to_vec());
         checker.visit(expr);
@@ -571,9 +571,9 @@ impl ExpressionVisitor for PropertyContainsChecker {
     fn visit_parameter(&mut self, _name: &str) {}
 }
 
-/// 通配符替换器
+/// Wildcard Replacer
 ///
-/// 将表达式中的通配符变量（`*` 或 `_`）替换为具体的别名。
+/// Replace the wildcard variables (`*` or `_`) in the expression with specific aliases.
 ///
 /// # 示例
 ///
@@ -587,28 +587,28 @@ impl ExpressionVisitor for PropertyContainsChecker {
 /// ```
 #[derive(Debug)]
 pub struct WildcardReplacer {
-    /// 替换目标别名
+    /// Replace the target alias
     pub alias: String,
 }
 
 impl WildcardReplacer {
-    /// 创建新的通配符替换器
+    /// Create a new wildcard replacer.
     ///
     /// # 参数
-    /// - `alias`: 用于替换通配符的别名
+    /// `alias`: A synonym used to replace wildcards.
     pub fn new(alias: &str) -> Self {
         Self {
             alias: alias.to_string(),
         }
     }
 
-    /// 替换表达式中的通配符
+    /// Replace the wildcards in the expression.
     ///
     /// # 参数
-    /// - `expr`: 要替换的表达式
+    /// `expr`: The expression that needs to be replaced.
     ///
     /// # 返回
-    /// 替换后的表达式
+    /// The replaced expression
     pub fn replace(&self, expr: &Expression) -> Expression {
         self.replace_internal(expr)
     }
@@ -756,9 +756,9 @@ impl WildcardReplacer {
     }
 }
 
-/// 聚合函数检查器
+/// Aggregate Function Checker
 ///
-/// 检查表达式是否包含聚合函数。
+/// Check whether the expression contains aggregate functions.
 ///
 /// # 示例
 ///
@@ -774,26 +774,26 @@ impl WildcardReplacer {
 /// ```
 #[derive(Debug, Default)]
 pub struct AggregateFunctionChecker {
-    /// 是否包含聚合函数
+    /// Does it contain aggregate functions?
     pub contains_aggregate: bool,
 }
 
 impl AggregateFunctionChecker {
-    /// 创建新的聚合函数检查器
+    /// Create a new aggregate function checker.
     pub fn new() -> Self {
         Self {
             contains_aggregate: false,
         }
     }
 
-    /// 检查表达式是否包含聚合函数
+    /// Check whether the expression contains aggregate functions.
     ///
     /// # 参数
     /// - `expr`: 要检查的表达式
     ///
     /// # 返回
-    /// - `true`: 表达式包含聚合函数
-    /// - `false`: 表达式不包含聚合函数
+    /// - `true`: expression contains aggregate functions
+    /// - `false`: expression does not contain an aggregate function
     pub fn check(expr: &Expression) -> bool {
         let mut checker = Self::new();
         checker.visit(expr);
@@ -1024,9 +1024,9 @@ impl ExpressionVisitor for AggregateFunctionChecker {
     fn visit_parameter(&mut self, _name: &str) {}
 }
 
-/// 变量包含检查器
+/// Variable Inclusion Checker
 ///
-/// 检查表达式是否包含指定的变量名。
+/// Checks if the expression contains the specified variable name.
 ///
 /// # 示例
 ///
@@ -1041,17 +1041,17 @@ impl ExpressionVisitor for AggregateFunctionChecker {
 /// ```
 #[derive(Debug)]
 pub struct VariableContainsChecker {
-    /// 要检查的变量名
+    /// The name of the variable to be checked
     pub variable_name: String,
-    /// 是否包含指定的变量
+    /// Whether to include the specified variable
     pub contains: bool,
 }
 
 impl VariableContainsChecker {
-    /// 创建新的变量包含检查器
+    /// Create a new variable inclusion checker
     ///
     /// # 参数
-    /// - `variable_name`: 要检查的变量名
+    /// - `variable_name`: Name of the variable to be checked
     pub fn new(variable_name: &str) -> Self {
         Self {
             variable_name: variable_name.to_string(),
@@ -1059,15 +1059,15 @@ impl VariableContainsChecker {
         }
     }
 
-    /// 检查表达式是否包含指定的变量名
+    /// Checks if the expression contains the specified variable name
     ///
     /// # 参数
     /// - `expr`: 要检查的表达式
     /// - `variable_name`: 要检查的变量名
     ///
     /// # 返回
-    /// - `true`: 表达式包含指定的变量
-    /// - `false`: 表达式不包含指定的变量
+    /// - `true`: The expression contains the specified variable.
+    /// - `false`: The expression does not contain the specified variable.
     pub fn check(expr: &Expression, variable_name: &str) -> bool {
         let mut checker = Self::new(variable_name);
         checker.visit(expr);
@@ -1304,9 +1304,9 @@ impl ExpressionVisitor for VariableContainsChecker {
     fn visit_parameter(&mut self, _name: &str) {}
 }
 
-/// PathBuild包含检查器
+/// PathBuild Includes Inspector
 ///
-/// 检查表达式是否包含PathBuild表达式。
+/// Checks if the expression contains a PathBuild expression.
 ///
 /// # 示例
 ///
@@ -1322,26 +1322,26 @@ impl ExpressionVisitor for VariableContainsChecker {
 /// ```
 #[derive(Debug, Default)]
 pub struct PathBuildContainsChecker {
-    /// 是否包含PathBuild
+    /// Whether to include PathBuild
     pub contains_path_build: bool,
 }
 
 impl PathBuildContainsChecker {
-    /// 创建新的PathBuild包含检查器
+    /// Creating a new PathBuild Inclusion Checker
     pub fn new() -> Self {
         Self {
             contains_path_build: false,
         }
     }
 
-    /// 检查表达式是否包含PathBuild
+    /// Checks if the expression contains PathBuild.
     ///
     /// # 参数
     /// - `expr`: 要检查的表达式
     ///
     /// # 返回
-    /// - `true`: 表达式包含PathBuild
-    /// - `false`: 表达式不包含PathBuild
+    /// - `true`: The expression contains PathBuild.
+    /// - `false`: The expression does not contain PathBuild.
     pub fn check(expr: &Expression) -> bool {
         let mut checker = Self::new();
         checker.visit(expr);

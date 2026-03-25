@@ -1,4 +1,4 @@
-//! Schema 变更类型定义
+//! Definition of Schema change type
 
 use crate::core::types::property::PropertyDef;
 use bincode::{Decode, Encode};

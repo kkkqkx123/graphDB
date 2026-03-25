@@ -1,4 +1,4 @@
-//! 图空间基础类型
+//! Basic types in the graph space
 
 use crate::core::types::{DataType, EdgeTypeInfo, MetadataVersion, TagInfo};
 use bincode::{Decode, Encode};

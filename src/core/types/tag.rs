@@ -1,4 +1,4 @@
-//! 标签基础类型
+//! Basic types of tags
 
 use super::property::PropertyDef;
 use super::schema_trait::SchemaInfo;

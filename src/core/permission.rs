@@ -1,8 +1,8 @@
-//! 权限类型定义
+//! Permission Type Definition
 //!
-//! 提供核心的权限模型和角色类型定义
+//! Provide core permission model and role type definitions
 
-/// 权限类型
+/// Permission Type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Permission {
     Read,
@@ -12,12 +12,12 @@ pub enum Permission {
     Admin,
 }
 
-/// 5级权限模型 - 参考nebula-graph实现
-/// - God: 全局超级管理员，拥有所有权限（类似Linux root）
-/// - Admin: Space管理员，可以管理Space内的Schema和用户
-/// - Dba: 数据库管理员，可以修改Schema
-/// - User: 普通用户，可以读写数据
-/// - Guest: 只读用户，只能读取数据
+/// 5-level permission model - reference nebula-graph implementation
+/// - God: global super administrator with all privileges (similar to Linux root)
+/// - Admin: Space administrator who can manage Schema and users in Space.
+/// - Dba: Database administrator who can modify the Schema.
+/// - User: Normal user, can read and write data
+/// - Guest: read-only user, can only read data
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RoleType {
     God = 0x01,
@@ -28,7 +28,7 @@ pub enum RoleType {
 }
 
 impl RoleType {
-    /// 检查角色是否拥有指定权限
+    /// Check that the role has the specified permissions
     pub fn has_permission(&self, permission: Permission) -> bool {
         match self {
             RoleType::God => true,
@@ -52,7 +52,7 @@ impl RoleType {
         }
     }
 
-    /// 检查是否可以授予指定角色
+    /// Checks if the specified role can be granted
     pub fn can_grant(&self, target_role: RoleType) -> bool {
         match self {
             RoleType::God => target_role != RoleType::God,
@@ -65,12 +65,12 @@ impl RoleType {
         }
     }
 
-    /// 检查是否可以撤销指定角色
+    /// Check if the specified role can be revoked
     pub fn can_revoke(&self, target_role: RoleType) -> bool {
         self.can_grant(target_role)
     }
 
-    /// 从字节解析角色类型
+    /// Parsing role types from bytes
     pub fn from_byte(byte: u8) -> Option<Self> {
         match byte {
             0x01 => Some(RoleType::God),
@@ -82,7 +82,7 @@ impl RoleType {
         }
     }
 
-    /// 转换为字节
+    /// convert to bytes
     pub fn to_byte(&self) -> u8 {
         *self as u8
     }

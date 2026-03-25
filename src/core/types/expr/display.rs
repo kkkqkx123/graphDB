@@ -1,14 +1,14 @@
-//! 表达式字符串表示
+//! The expression string represents…
 //!
-//! 提供表达式到字符串的转换方法。
+//! Provide a method for converting expressions into strings.
 
 use crate::core::types::expr::Expression;
 use std::fmt;
 
 impl Expression {
-    /// 将表达式转换为字符串表示
+    /// Convert the expression into a string representation.
     ///
-    /// 生成类似 SQL/Cypher 的表达式字符串。
+    /// Generate an expression string similar to SQL/Cypher.
     pub fn to_expression_string(&self) -> String {
         match self {
             Expression::Literal(v) => format!("{:?}", v),

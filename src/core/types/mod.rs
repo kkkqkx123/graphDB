@@ -57,17 +57,17 @@ pub enum DataType {
     Timestamp,
 }
 
-// 从原子模块导出基础Schema类型
+// Exporting Base Schema Types from Atomic Modules
 pub use self::edge::EdgeTypeInfo;
 pub use self::index::{Index, IndexConfig, IndexField, IndexStatus, IndexType};
 pub use self::property::PropertyDef;
 pub use self::space::{generate_space_id, reset_space_id_counter, SpaceInfo};
 pub use self::tag::TagInfo;
 
-// 从metadata_version导出版本类型
+// Exporting version types from metadata_version
 pub use self::metadata_version::{MetadataVersion, SchemaHistory, SchemaVersion};
 
-// 从拆分后的子模块导出类型
+// Exporting types from split submodules
 pub use self::charset::CharsetInfo;
 pub use self::cluster::ClusterInfo;
 pub use self::data_modification::{
@@ -90,9 +90,9 @@ pub use self::span::{Position, Span, ToSpan};
 
 pub use EdgeTypeInfo as EdgeTypeSchema;
 
-/// YIELD列定义
+/// YIELD column definition
 ///
-/// 表示YIELD子句中的一个输出列
+/// Indicates an output column in the YIELD clause
 #[derive(Debug, Clone)]
 pub struct YieldColumn {
     pub expression: crate::core::types::expr::contextual::ContextualExpression,
@@ -117,7 +117,7 @@ impl YieldColumn {
         self
     }
 
-    /// 获取列名（别名）
+    /// Get column name (alias)
     pub fn name(&self) -> &str {
         &self.alias
     }

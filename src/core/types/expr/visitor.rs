@@ -1,9 +1,9 @@
-//! 表达式访问者 trait
+//! Expression Visitor trait
 //!
-//! 本模块定义 ExpressionVisitor trait，用于遍历和分析表达式树。
-//! 访问者模式可以避免重复的模式匹配代码，提高代码的可维护性和可扩展性。
+//! This module defines ExpressionVisitor traits for traversing and analyzing expression trees.
+//! Visitor patterns avoid duplicate pattern matching code and improve code maintainability and extensibility.
 //!
-//! # 使用示例
+//! # Examples of use
 //!
 //! ```rust
 //! use crate::core::types::expr::visitor::{ExpressionVisitor, PropertyCollector};
@@ -19,12 +19,12 @@ use crate::core::types::DataType;
 use crate::core::Expression;
 use crate::core::Value;
 
-/// 表达式访问者 trait
+/// Expression Visitor trait
 ///
-/// 用于遍历和分析表达式树，避免重复的模式匹配代码。
-/// 实现此 trait 可以创建自定义的表达式分析器。
+/// Used to traverse and analyze the expression tree to avoid repetitive pattern matching code.
+/// Implementing this trait creates a custom expression parser.
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::ExpressionVisitor;
@@ -43,14 +43,14 @@ use crate::core::Value;
 ///         self.visit(right);
 ///     }
 ///
-///     // ... 其他方法
+// ... Other methods
 /// }
 /// ```
 pub trait ExpressionVisitor {
-    /// 访问表达式
+    /// access expression
     ///
-    /// 默认实现根据表达式类型分发到具体的访问方法。
-    /// 子类型可以重写此方法以实现自定义的遍历逻辑。
+    /// The default implementation distributes to specific access methods based on expression type.
+    /// Subtypes can override this method to implement custom traversal logic.
     fn visit(&mut self, expr: &Expression) {
         match expr {
             Expression::Literal(value) => self.visit_literal(value),
@@ -150,28 +150,28 @@ pub trait ExpressionVisitor {
         }
     }
 
-    /// 访问字面量表达式
+    /// Accessing Literal Expressions
     fn visit_literal(&mut self, value: &Value);
 
-    /// 访问变量表达式
+    /// Accessing variable expressions
     fn visit_variable(&mut self, name: &str);
 
-    /// 访问属性表达式
+    /// Accessing Property Expressions
     fn visit_property(&mut self, object: &Expression, property: &str);
 
-    /// 访问二元运算表达式
+    /// Accessing binary arithmetic expressions
     fn visit_binary(&mut self, op: BinaryOperator, left: &Expression, right: &Expression);
 
-    /// 访问一元运算表达式
+    /// Accessing unary arithmetic expressions
     fn visit_unary(&mut self, op: UnaryOperator, operand: &Expression);
 
-    /// 访问函数调用表达式
+    /// Accessing function call expressions
     fn visit_function(&mut self, name: &str, args: &[Expression]);
 
-    /// 访问聚合函数表达式
+    /// Accessing Aggregate Function Expressions
     fn visit_aggregate(&mut self, func: &AggregateFunction, arg: &Expression, distinct: bool);
 
-    /// 访问条件表达式
+    /// Accessing Conditional Expressions
     fn visit_case(
         &mut self,
         test_expr: Option<&Expression>,
@@ -179,19 +179,19 @@ pub trait ExpressionVisitor {
         default: Option<&Expression>,
     );
 
-    /// 访问列表表达式
+    /// Accessing List Expressions
     fn visit_list(&mut self, items: &[Expression]);
 
-    /// 访问映射表达式
+    /// Accessing mapping expressions
     fn visit_map(&mut self, entries: &[(String, Expression)]);
 
-    /// 访问类型转换表达式
+    /// Access to type conversion expressions
     fn visit_type_cast(&mut self, expression: &Expression, target_type: &DataType);
 
-    /// 访问下标访问表达式
+    /// Access subscript access expression
     fn visit_subscript(&mut self, collection: &Expression, index: &Expression);
 
-    /// 访问范围表达式
+    /// Access Range Expressions
     fn visit_range(
         &mut self,
         collection: &Expression,
@@ -199,13 +199,13 @@ pub trait ExpressionVisitor {
         end: Option<&Expression>,
     );
 
-    /// 访问路径表达式
+    /// Access path expression
     fn visit_path(&mut self, items: &[Expression]);
 
-    /// 访问标签表达式
+    /// Accessing tag expressions
     fn visit_label(&mut self, label: &str);
 
-    /// 访问列表推导表达式
+    /// Access List Derivation Expressions
     fn visit_list_comprehension(
         &mut self,
         variable: &str,
@@ -214,19 +214,19 @@ pub trait ExpressionVisitor {
         map: Option<&Expression>,
     );
 
-    /// 访问标签属性动态访问表达式
+    /// Dynamic access expressions for accessing tag attributes
     fn visit_label_tag_property(&mut self, tag: &Expression, property: &str);
 
-    /// 访问标签属性访问表达式
+    /// Access Tag Attribute Access Expressions
     fn visit_tag_property(&mut self, tag_name: &str, property: &str);
 
-    /// 访问边属性访问表达式
+    /// Accessing edge attribute access expressions
     fn visit_edge_property(&mut self, edge_name: &str, property: &str);
 
-    /// 访问谓词表达式
+    /// Access predicate expressions
     fn visit_predicate(&mut self, func: &str, args: &[Expression]);
 
-    /// 访问 Reduce 表达式
+    /// Accessing Reduce Expressions
     fn visit_reduce(
         &mut self,
         accumulator: &str,
@@ -236,9 +236,9 @@ pub trait ExpressionVisitor {
         mapping: &Expression,
     );
 
-    /// 访问路径构建表达式
+    /// Access Path Construction Expressions
     fn visit_path_build(&mut self, items: &[Expression]);
 
-    /// 访问查询参数表达式
+    /// Accessing query parameter expressions
     fn visit_parameter(&mut self, name: &str);
 }

@@ -1,12 +1,12 @@
-//! 日期时间类型模块
+//! Date and Time Type Module
 //!
-//! 本模块定义了日期、时间、日期时间和持续时间类型及其相关操作。
+//! This module defines types for dates, times, date-times, and durations, as well as the related operations.
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
-/// 简单日期表示
+/// Simple date representation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DateValue {
     pub year: i32,
@@ -15,12 +15,12 @@ pub struct DateValue {
 }
 
 impl DateValue {
-    /// 估算日期的内存使用大小
+    /// Estimate the memory usage on the specified date.
     pub fn estimated_size(&self) -> usize {
         std::mem::size_of::<Self>()
     }
 
-    /// 添加持续时间
+    /// Add a duration
     pub fn add_duration(&mut self, duration: &DurationValue) {
         if duration.months != 0 {
             self.add_months(duration.months);
@@ -32,7 +32,7 @@ impl DateValue {
         }
     }
 
-    /// 减去持续时间
+    /// Subtract the duration.
     pub fn sub_duration(&mut self, duration: &DurationValue) {
         if duration.months != 0 {
             self.add_months(-duration.months);
@@ -87,7 +87,7 @@ impl DateValue {
                     28
                 }
             }
-            _ => panic!("无效的月份"),
+            _ => panic!("Invalid month"),
         }
     }
 
@@ -143,7 +143,7 @@ impl std::fmt::Display for DateValue {
     }
 }
 
-/// 简单时间表示
+/// Simple time representation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode, Default)]
 pub struct TimeValue {
     pub hour: u32,
@@ -153,7 +153,7 @@ pub struct TimeValue {
 }
 
 impl TimeValue {
-    /// 估算时间的内存使用大小
+    /// Estimating the memory usage for a given amount of time
     pub fn estimated_size(&self) -> usize {
         std::mem::size_of::<Self>()
     }
@@ -205,7 +205,7 @@ impl std::fmt::Display for TimeValue {
     }
 }
 
-/// 简单日期时间表示
+/// Simple date and time representation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DateTimeValue {
     pub year: i32,
@@ -218,7 +218,7 @@ pub struct DateTimeValue {
 }
 
 impl DateTimeValue {
-    /// 估算日期时间的内存使用大小
+    /// Estimating the memory usage for date and time processing
     pub fn estimated_size(&self) -> usize {
         std::mem::size_of::<Self>()
     }
@@ -300,7 +300,7 @@ impl std::fmt::Display for DateTimeValue {
     }
 }
 
-/// 简单持续时间表示
+/// The simple duration indicates…
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode, Default)]
 pub struct DurationValue {
     pub seconds: i64,
@@ -309,7 +309,7 @@ pub struct DurationValue {
 }
 
 impl DurationValue {
-    /// 估算持续时间的内存使用大小
+    /// Estimating the memory usage over a certain duration
     pub fn estimated_size(&self) -> usize {
         std::mem::size_of::<Self>()
     }

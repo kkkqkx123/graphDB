@@ -1,6 +1,6 @@
-//! 可序列化表达式
+//! serializable expression
 //!
-//! 本模块定义 SerializableExpression，用于存储和传输。
+//! This module defines SerializableExpression for storage and transmission.
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -11,10 +11,10 @@ use crate::core::types::DataType;
 use crate::core::Value;
 use crate::query::validator::context::ExpressionAnalysisContext;
 
-/// 可序列化的表达式引用（用于存储/传输）
+/// Serializable expression references (for storage/transmission)
 ///
-/// 包含表达式的完整信息，可以序列化和反序列化。
-/// 用于在需要序列化的场景（如网络传输、持久化）中使用。
+/// Contains complete information about the expression and can be serialized and deserialized.
+/// For use in scenarios where serialization is required (e.g., network transfers, persistence).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableExpression {
     pub id: ExpressionId,
@@ -26,7 +26,7 @@ pub struct SerializableExpression {
 }
 
 impl SerializableExpression {
-    /// 从 ContextualExpression 转换为可序列化形式
+    /// Conversion from ContextualExpression to serializable form
     pub fn from_contextual(ctx_expr: &ContextualExpression) -> Self {
         let expr_meta = ctx_expr
             .expression()
@@ -39,7 +39,7 @@ impl SerializableExpression {
         }
     }
 
-    /// 转换为 ContextualExpression
+    /// Convert to ContextualExpression
     pub fn to_contextual(self, ctx: Arc<ExpressionAnalysisContext>) -> ContextualExpression {
         let expr_meta = ExpressionMeta::new(self.expression).with_id(self.id.clone());
         ctx.register_expression(expr_meta);
@@ -55,67 +55,67 @@ impl SerializableExpression {
         ContextualExpression::new(self.id, ctx)
     }
 
-    /// 获取表达式ID
+    /// Get expression ID
     pub fn id(&self) -> &ExpressionId {
         &self.id
     }
 
-    /// 获取表达式
+    /// Get expression
     pub fn expression(&self) -> &Expression {
         &self.expression
     }
 
-    /// 获取数据类型
+    /// Getting the data type
     pub fn data_type(&self) -> Option<&DataType> {
         self.data_type.as_ref()
     }
 
-    /// 获取常量值
+    /// Getting Constant Values
     pub fn constant_value(&self) -> Option<&Value> {
         self.constant_value.as_ref()
     }
 
-    /// 是否为常量
+    /// Whether it is a constant or not
     pub fn is_constant(&self) -> bool {
         self.constant_value.is_some()
     }
 
-    /// 检查表达式是否为字面量
+    /// Checking if an expression is a literal
     pub fn is_literal(&self) -> bool {
         self.expression.is_literal()
     }
 
-    /// 检查表达式是否为变量
+    /// Checking if an expression is a variable
     pub fn is_variable(&self) -> bool {
         self.expression.is_variable()
     }
 
-    /// 检查表达式是否为聚合表达式
+    /// Check if the expression is an aggregate expression
     pub fn is_aggregate(&self) -> bool {
         self.expression.is_aggregate()
     }
 
-    /// 获取变量名
+    /// Get variable name
     pub fn as_variable(&self) -> Option<String> {
         self.expression.as_variable().map(|s| s.to_string())
     }
 
-    /// 获取字面量值
+    /// Get Literals
     pub fn as_literal(&self) -> Option<Value> {
         self.expression.as_literal().cloned()
     }
 
-    /// 获取变量列表
+    /// Getting a list of variables
     pub fn get_variables(&self) -> Vec<String> {
         self.expression.get_variables()
     }
 
-    /// 转换为字符串表示
+    /// Convert to string representation
     pub fn to_expression_string(&self) -> String {
         self.expression.to_expression_string()
     }
 
-    /// 检查是否包含聚合函数
+    /// Checking for the inclusion of aggregate functions
     pub fn contains_aggregate(&self) -> bool {
         self.expression.contains_aggregate()
     }

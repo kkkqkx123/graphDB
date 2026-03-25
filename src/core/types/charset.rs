@@ -1,4 +1,4 @@
-//! 字符集信息类型定义
+//! Character set information type definition
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};

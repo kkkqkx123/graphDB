@@ -1,8 +1,8 @@
-//! 表达式收集器
+//! Expression Collector
 //!
-//! 本模块提供各种表达式收集器的实现，用于从表达式中收集特定信息。
+//! This module provides implementations of various expression collectors, which are used to extract specific information from expressions.
 //!
-//! # 可用的收集器
+//! # Available collectors
 //!
 //! - [`PropertyCollector`] - 收集表达式中所有使用的属性名
 //! - [`VariableCollector`] - 收集表达式中所有使用的变量名
@@ -13,11 +13,11 @@ use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOper
 use crate::core::types::DataType;
 use crate::core::{Expression, Value};
 
-/// 属性收集器
+/// Attribute Collector
 ///
-/// 收集表达式中所有使用的属性名。
+/// Collect all the attribute names that are used in the expression.
 ///
-/// # 示例
+/// # Example
 ///
 /// ```rust
 /// use crate::core::types::expr::visitor::PropertyCollector;
@@ -30,17 +30,17 @@ use crate::core::{Expression, Value};
 /// ```
 #[derive(Debug, Default)]
 pub struct PropertyCollector {
-    /// 收集到的属性名列表
+    /// List of collected attribute names
     pub properties: Vec<String>,
 }
 
 impl PropertyCollector {
-    /// 创建新的属性收集器
+    /// Create a new attribute collector.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 清空收集器
+    /// Clear the collector.
     pub fn clear(&mut self) {
         self.properties.clear();
     }
@@ -192,9 +192,9 @@ impl ExpressionVisitor for PropertyCollector {
     fn visit_parameter(&mut self, _name: &str) {}
 }
 
-/// OR条件收集器
+/// OR Condition Collector
 ///
-/// 收集表达式中所有OR条件，并检查是否可以转换为IN条件。
+/// Collect all the OR conditions in the expression and check whether they can be converted into IN conditions.
 ///
 /// # 示例
 ///
@@ -440,9 +440,9 @@ impl ExpressionVisitor for OrConditionCollector {
     fn visit_parameter(&mut self, _name: &str) {}
 }
 
-/// 属性谓词收集器
+/// Attribute Predicate Collector
 ///
-/// 从表达式中收集所有属性谓词（属性 + 操作符 + 值）。
+/// Collect all attribute predicates from the expression (attribute + operator + value).
 ///
 /// # 示例
 ///
@@ -663,9 +663,9 @@ impl ExpressionVisitor for PropertyPredicateCollector {
     fn visit_parameter(&mut self, _name: &str) {}
 }
 
-/// 变量收集器
+/// Variable Collector
 ///
-/// 收集表达式中所有使用的变量名。
+/// Collect all the variable names that are used in the expression.
 ///
 /// # 示例
 ///
@@ -680,12 +680,12 @@ impl ExpressionVisitor for PropertyPredicateCollector {
 /// ```
 #[derive(Debug, Default)]
 pub struct VariableCollector {
-    /// 收集到的变量名列表
+    /// List of variable names collected
     pub variables: Vec<String>,
 }
 
 impl VariableCollector {
-    /// 创建新的变量收集器
+    /// Create a new variable collector.
     pub fn new() -> Self {
         Self::default()
     }
@@ -844,9 +844,9 @@ impl ExpressionVisitor for VariableCollector {
     fn visit_parameter(&mut self, _name: &str) {}
 }
 
-/// 函数收集器
+/// Function collector
 ///
-/// 收集表达式中所有使用的函数名。
+/// Collect all the function names that are used in the expression.
 ///
 /// # 示例
 ///
@@ -861,12 +861,12 @@ impl ExpressionVisitor for VariableCollector {
 /// ```
 #[derive(Debug, Default)]
 pub struct FunctionCollector {
-    /// 收集到的函数名列表
+    /// List of function names collected
     pub functions: Vec<String>,
 }
 
 impl FunctionCollector {
-    /// 创建新的函数收集器
+    /// Create a new function collector.
     pub fn new() -> Self {
         Self::default()
     }

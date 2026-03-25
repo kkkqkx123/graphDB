@@ -1,20 +1,20 @@
-//! 统一错误处理系统 for GraphDB
+//! Unified Error Handling System for GraphDB
 //!
-//! ## 设计理念
+//! ## Design concepts ##
 //!
-//! 1. **按需设计**：根据错误复杂度选择合适的结构
-//!    - 核心错误（如表达式）使用结构化设计，保留完整错误链和位置信息
-//!    - 简单错误（如事务、索引）使用枚举设计，简洁高效
+//! 1. **Design on demand**: selection of appropriate structures based on error complexity
+//! - Core errors (e.g., expressions) use a structured design that retains the full error chain and location information
+//! - Simple errors (e.g., transactions, indexes) are designed using enumerations for simplicity and efficiency
 //!
-//! 2. **分层转换**：
+//! 2. **Layered conversion**:
 //!    - 核心错误使用 `#[from]` 注解自动转换，保留完整错误信息
-//!    - 外部错误使用自定义 `From` 实现转换为字符串，降低模块耦合
+//! - External errors are converted to strings using the custom `From` implementation, reducing module coupling.
 //!
-//! 3. **统一接口**：`DBResult<T>` 提供统一的返回类型，简化错误传播
+//! 3. **Harmonized interface**: `DBResult<T>` Provides harmonized return types to simplify error propagation
 
 use thiserror::Error;
 
-// 子模块
+// submodule
 pub mod auth;
 pub mod codes;
 pub mod expression;
@@ -26,10 +26,10 @@ pub mod session;
 pub mod storage;
 pub mod validation;
 
-// 重新导出错误码
+// Re-export the error code
 pub use codes::{ErrorCategory as CodeErrorCategory, ErrorCode, PublicError, ToPublicError};
 
-// 重新导出所有错误类型
+// Re-export all error types
 pub use auth::{AuthError, AuthResult};
 pub use expression::{ExpressionError, ExpressionErrorType, ExpressionPosition};
 pub use manager::{ErrorCategory, ManagerError, ManagerResult};
@@ -44,7 +44,7 @@ pub use validation::{
 
 pub use crate::core::types::DataType;
 
-/// 统一的数据库错误类型
+/// Harmonized database error types
 #[derive(Error, Debug, Clone)]
 pub enum DBError {
     #[error("存储错误: {0}")]
@@ -96,13 +96,13 @@ pub enum DBError {
     MemoryLimitExceeded(String),
 }
 
-/// 统一的结果类型
+/// Harmonized result types
 pub type DBResult<T> = Result<T, DBError>;
 
-/// 类型别名，用于向后兼容
+/// Type aliases for backward compatibility
 pub type GraphDBResult<T> = DBResult<T>;
 
-// ==================== 对外错误转换实现 ====================
+// ==================== External error conversion implementation ====================
 
 impl ToPublicError for DBError {
     fn to_public_error(&self) -> PublicError {
@@ -132,18 +132,18 @@ impl ToPublicError for DBError {
 
     fn to_public_message(&self) -> String {
         match self {
-            // 内部错误不暴露细节
+            // Internal errors do not reveal details
             DBError::Internal(_) => "内部服务器错误".to_string(),
             DBError::Io(_) => "IO操作失败".to_string(),
             DBError::Serialization(_) => "数据序列化失败".to_string(),
             DBError::Index(_) => "索引操作失败".to_string(),
-            // 其他错误返回原始消息
+            // Other errors return the original message
             _ => self.to_string(),
         }
     }
 }
 
-// ==================== 外部错误转换实现 ====================
+// ==================== External error conversion implementation ====================
 
 impl From<serde_json::Error> for DBError {
     fn from(err: serde_json::Error) -> Self {

@@ -1,15 +1,15 @@
-//! 权限错误类型
+//! Permission Error Type
 //!
-//! 涵盖权限管理相关的错误
+//! Coverage of Permission Management Related Errors
 
 use thiserror::Error;
 
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
 
-/// 权限操作结果类型别名
+/// Permission operation result type alias
 pub type PermissionResult<T> = Result<T, PermissionError>;
 
-/// 权限相关错误
+/// Permission Related Errors
 #[derive(Error, Debug, Clone)]
 pub enum PermissionError {
     #[error("Insufficient permission")]

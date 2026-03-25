@@ -1,4 +1,4 @@
-//! 用户管理类型定义
+//! User Management Type Definition
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -10,33 +10,33 @@ pub struct PasswordInfo {
     pub new_password: String,
 }
 
-/// 用户信息 - 参考nebula-graph UserItem实现
-/// 包含密码哈希和资源限制
+/// User information - refer to nebula-graph UserItem implementation
+/// Includes password hashes and resource limits
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
 pub struct UserInfo {
     pub username: String,
-    /// 密码哈希（bcrypt加密）
+    /// Password hashing (bcrypt encryption)
     pub password_hash: String,
-    /// 是否锁定
+    /// Locked or not
     pub is_locked: bool,
-    /// 每小时最大查询数（0表示无限制）
+    /// Maximum number of queries per hour (0 means unlimited)
     pub max_queries_per_hour: i32,
-    /// 每小时最大更新数（0表示无限制）
+    /// Maximum number of updates per hour (0 means unlimited)
     pub max_updates_per_hour: i32,
-    /// 每小时最大连接数（0表示无限制）
+    /// Maximum number of connections per hour (0 means unlimited)
     pub max_connections_per_hour: i32,
-    /// 最大并发连接数（0表示无限制）
+    /// Maximum number of concurrent connections (0 means unlimited)
     pub max_user_connections: i32,
-    /// 创建时间
+    /// Creation time
     pub created_at: i64,
-    /// 最后登录时间
+    /// Last login time
     pub last_login_at: Option<i64>,
-    /// 密码最后修改时间
+    /// Password last modified time
     pub password_changed_at: i64,
 }
 
 impl UserInfo {
-    /// 创建新用户（使用明文密码，内部自动哈希）
+    /// Create a new user (using plaintext passwords, internal autohashing)
     pub fn new(username: String, password: String) -> Result<Self, crate::core::StorageError> {
         let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST).map_err(|e| {
             crate::core::StorageError::DbError(format!("Password encryption failed: {}", e))
@@ -58,12 +58,12 @@ impl UserInfo {
         })
     }
 
-    /// 验证密码
+    /// Verify Password
     pub fn verify_password(&self, password: &str) -> bool {
         bcrypt::verify(password, &self.password_hash).unwrap_or(false)
     }
 
-    /// 修改密码
+    /// change your password
     pub fn change_password(
         &mut self,
         new_password: String,
@@ -104,15 +104,15 @@ impl UserInfo {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
 pub struct UserAlterInfo {
     pub username: String,
-    /// 新的锁定状态
+    /// New lock status
     pub is_locked: Option<bool>,
-    /// 新的每小时最大查询数
+    /// New maximum number of queries per hour
     pub max_queries_per_hour: Option<i32>,
-    /// 新的每小时最大更新数
+    /// New maximum number of updates per hour
     pub max_updates_per_hour: Option<i32>,
-    /// 新的每小时最大连接数
+    /// New maximum number of connections per hour
     pub max_connections_per_hour: Option<i32>,
-    /// 新的最大并发连接数
+    /// New maximum number of concurrent connections
     pub max_user_connections: Option<i32>,
 }
 

@@ -1,43 +1,43 @@
-//! 属性类型基础 trait 定义
+//! Definition of the basic trait for attribute types
 //!
-//! 本模块定义属性相关的通用 trait，用于抽象 PropertyDef、PropertyType、IndexField 的共同属性
+//! This module defines a generic trait related to properties, which is used to abstract the common attributes of PropertyDef, PropertyType, and IndexField.
 
 use crate::core::{DataType, Value};
 
-/// 属性类型 trait
+/// Property type: trait
 ///
-/// 定义 PropertyDef、PropertyType、IndexField 的共同接口
+/// Define a common interface for PropertyDef, PropertyType, and IndexField.
 pub trait PropertyTypeTrait: Clone + PartialEq + Eq + std::hash::Hash + Send + Sync {
-    /// 获取属性名称
+    /// Obtain the attribute name
     fn name(&self) -> &str;
 
-    /// 获取数据类型
+    /// Obtaining the data type
     fn data_type(&self) -> &DataType;
 
-    /// 是否可为空
+    /// Can it be left empty?
     fn is_nullable(&self) -> bool;
 
-    /// 获取默认值（如果有）
+    /// Get the default value (if any).
     fn default_value(&self) -> Option<&Value>;
 
-    /// 获取注释（如果有）
+    /// Obtain the comments (if any).
     fn comment(&self) -> Option<&str>;
 
-    /// 设置属性名称
+    /// Setting the property name
     fn set_name(&mut self, name: String);
 
-    /// 设置数据类型
+    /// Setting data types
     fn set_data_type(&mut self, data_type: DataType);
 
-    /// 设置是否可为空
+    /// Set whether the value can be empty.
     fn set_nullable(&mut self, nullable: bool);
 
-    /// 设置默认值
+    /// Set default values
     fn set_default_value(&mut self, default: Option<Value>);
 
-    /// 设置注释
+    /// Set comments
     fn set_comment(&mut self, comment: Option<String>);
 
-    /// 获取属性类型名称（用于区分不同类型）
+    /// Obtain the names of the attribute types (used to distinguish between different types)
     fn property_type_name(&self) -> &'static str;
 }

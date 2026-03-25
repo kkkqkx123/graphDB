@@ -1,4 +1,4 @@
-//! 数据修改类型定义
+//! Data Modification Type Definition
 
 use crate::core::Value;
 use bincode::{Decode, Encode};

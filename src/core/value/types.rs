@@ -1,17 +1,17 @@
-//! 值类型系统
+//! value type system
 //!
-//! 本模块定义了图数据库查询引擎中使用的所有值类型。
+//! This module defines all the value types used in the graph database query engine.
 //!
-//! ## 类型层次
+//! ## Type hierarchy
 //!
-//! - **基础类型**: NullType
-//! - **复合类型**: List, Map, Set, DataSet
-//! - **图类型**: Vertex, Edge, Path
-//! - **日期时间类型**: 见 date_time 模块
-//! - **地理空间类型**: 见 geography 模块
-//! - **数据集类型**: 见 dataset 模块
+//! - **Base type**: NullType
+//! - **Composite types**: List, Map, Set, DataSet
+//! - **Map types**: Vertex, Edge, Path
+//! - **Date-time type**: see date_time module
+//! - **Geospatial type**: see geography module
+//! - **Dataset type**: see dataset module
 //!
-//! ## 模块组织
+//! ## Module organization
 //!
 //! - `types.rs` - 核心类型定义（NullType、Value、DataType）
 //! - `date_time.rs` - 日期时间类型和操作
@@ -21,30 +21,30 @@
 //! - `conversion.rs` - 类型转换
 //! - `comparison.rs` - 值比较
 //!
-//! ## 与 Nebula-Graph 兼容性
+//! ## Compatibility with Nebula-Graph
 //!
-//! 本实现参考 Nebula-Graph 的类型系统设计，确保在必要时可以兼容。
+//! This implementation references Nebula-Graph's type system design to ensure compatibility where necessary.
 
 use crate::core::types::DataType;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
-/// Null类型定义
+/// Null Type Definition
 ///
-/// 与 Nebula-Graph 兼容的空值类型定义，包含以下变体：
-/// - **Null**: 标准 null 值
-/// - **NaN**: 非数字结果
-/// - **BadData**: 坏数据（如日期格式错误）
-/// - **BadType**: 类型不匹配错误
-/// - **ErrOverflow**: 数值溢出错误
-/// - **UnknownProp**: 未知属性
-/// - **DivByZero**: 除零错误
-/// - **OutOfRange**: 值超出范围
+/// Nebula-Graph-compatible null value type definition with the following variants:
+/// - **Null**: standard null value
+/// - **NaN**: Non-numeric results
+/// - **BadData**: Bad data (e.g., wrong date format)
+/// - **BadType**: type mismatch error
+/// - **ErrOverflow**: Numeric overflow error
+/// - **UnknownProp**: Unknown property
+/// - **DivByZero**: divide by zero error
+/// - **OutOfRange**: value out of range
 ///
-/// ## 与 Nebula-Graph 对比
+/// ## vs. Nebula-Graph
 ///
-/// 此实现完全兼容 Nebula-Graph 的 NullType 枚举，确保跨平台数据一致性。
+/// This implementation is fully compatible with Nebula-Graph's NullType enumerations, ensuring cross-platform data consistency.
 ///
 /// ```rust
 /// use graphdb::core::value::NullType;
@@ -56,14 +56,14 @@ use std::hash::Hash;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode, Default)]
 pub enum NullType {
     #[default]
-    Null, // 标准null值
-    NaN,         // 非数字结果
-    BadData,     // 坏数据（解析失败）
-    BadType,     // 类型不匹配
-    ErrOverflow, // 数值溢出
-    UnknownProp, // 未知属性
-    DivByZero,   // 除零错误
-    OutOfRange,  // 值超出范围
+    Null, // Standard null values
+    NaN,         // Non-numeric results
+    BadData,     // Bad data (parsing failure)
+    BadType,     // Type mismatch
+    ErrOverflow, // numeric overflow
+    UnknownProp, // unknown property
+    DivByZero,   // division error
+    OutOfRange,  // Value out of range
 }
 
 impl NullType {
@@ -101,8 +101,8 @@ impl std::fmt::Display for NullType {
     }
 }
 
-/// 表示可以存储在节点/边属性中的值
-/// 遵循Nebula的Value类型设计模式
+/// Indicates values that can be stored in node/edge attributes
+/// Following Nebula's Value type design pattern
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub enum Value {
     Empty,
@@ -120,12 +120,12 @@ pub enum Value {
     Float(f64),
     Decimal128(super::decimal128::Decimal128Value),
     String(String),
-    /// 定长字符串，用于优化短字符串存储
+    /// Fixed-length strings for optimized storage of short strings
     FixedString {
         len: usize,
         data: String,
     },
-    /// 二进制数据
+    /// binary data
     Blob(Vec<u8>),
     Date(super::date_time::DateValue),
     Time(super::date_time::TimeValue),
@@ -142,7 +142,7 @@ pub enum Value {
 }
 
 impl Value {
-    /// 获取值的类型
+    /// Getting the type of value
     pub fn get_type(&self) -> DataType {
         match self {
             Value::Empty => DataType::Empty,
@@ -177,12 +177,12 @@ impl Value {
         }
     }
 
-    /// 检查值是否为null
+    /// Check if the value is null
     pub fn is_null(&self) -> bool {
         matches!(self, Value::Null(_))
     }
 
-    /// 检查值是否为数值类型（Int、Float 或 Decimal128）
+    /// Check if the value is a numeric type (Int, Float or Decimal128)
     pub fn is_numeric(&self) -> bool {
         matches!(
             self,
@@ -200,7 +200,7 @@ impl Value {
         )
     }
 
-    /// 检查值是否为BadNull（BadData 或 BadType）
+    /// Check if the value is BadNull (BadData or BadType)
     pub fn is_bad_null(&self) -> bool {
         matches!(
             self,
@@ -208,12 +208,12 @@ impl Value {
         )
     }
 
-    /// 检查值是否为空
+    /// Check if the value is null
     pub fn is_empty(&self) -> bool {
         matches!(self, Value::Empty)
     }
 
-    /// 获取布尔值
+    /// Get Boolean
     pub fn bool_value(&self) -> Option<bool> {
         match self {
             Value::Bool(b) => Some(*b),
@@ -221,7 +221,7 @@ impl Value {
         }
     }
 
-    /// 获取字符串值
+    /// Getting String Values
     pub fn string_value(&self) -> Option<&str> {
         match self {
             Value::String(s) => Some(s),
@@ -230,7 +230,7 @@ impl Value {
         }
     }
 
-    /// 创建定长字符串值
+    /// Creating fixed-length string values
     pub fn fixed_string(len: usize, data: String) -> Self {
         let padded_data = if data.len() > len {
             data.chars().take(len).collect()
@@ -243,7 +243,7 @@ impl Value {
         }
     }
 
-    /// 获取定长字符串的长度
+    /// Get the length of a fixed-length string
     pub fn fixed_string_len(&self) -> Option<usize> {
         match self {
             Value::FixedString { len, .. } => Some(*len),
@@ -251,7 +251,7 @@ impl Value {
         }
     }
 
-    /// 计算值的哈希值
+    /// Compute the hash of the value
     pub fn hash_value(&self) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::Hasher;
@@ -260,7 +260,7 @@ impl Value {
         hasher.finish()
     }
 
-    /// 取反操作
+    /// inverse operation
     pub fn negate(&self) -> Result<Value, String> {
         match self {
             Value::Int(i) => Ok(Value::Int(-i)),
@@ -274,7 +274,7 @@ impl Value {
         }
     }
 
-    /// 绝对值操作
+    /// absolute value operation
     pub fn abs(&self) -> Result<Value, String> {
         match self {
             Value::Int(i) => Ok(Value::Int(i.abs())),
@@ -288,7 +288,7 @@ impl Value {
         }
     }
 
-    /// 长度操作
+    /// length operation
     pub fn length(&self) -> Result<Value, String> {
         match self {
             Value::String(s) => Ok(Value::Int(s.len() as i64)),
@@ -302,7 +302,7 @@ impl Value {
         }
     }
 
-    /// 估算值的内存使用大小
+    /// Memory Usage Size of Estimated Values
     pub fn estimated_size(&self) -> usize {
         let base_size = std::mem::size_of::<Value>();
         match self {

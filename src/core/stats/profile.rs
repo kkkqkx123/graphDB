@@ -1,12 +1,12 @@
-//! 查询画像和执行器统计
+//! Querying image data and executing executor statistics
 //!
-//! 用于详细监控和分析的查询画像，使用毫秒级精度。
+//! Query profiles for detailed monitoring and analysis, with millisecond-level accuracy.
 
 use std::time::Instant;
 
 use super::error_stats::{ErrorInfo, ErrorType, QueryPhase};
 
-/// 查询执行阶段统计（毫秒级）
+/// Statistics during the query execution phase (in milliseconds)
 #[derive(Debug, Clone, Default)]
 pub struct StageMetrics {
     pub parse_ms: u64,
@@ -16,7 +16,7 @@ pub struct StageMetrics {
     pub execute_ms: u64,
 }
 
-/// 执行器统计
+/// Actuator statistics
 #[derive(Debug, Clone)]
 pub struct ExecutorStat {
     pub executor_type: String,
@@ -26,19 +26,19 @@ pub struct ExecutorStat {
     pub memory_used: usize,
 }
 
-/// 查询状态
+/// Query status
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum QueryStatus {
     Success,
     Failed,
 }
 
-/// 查询画像
+/// Query the image
 ///
-/// 用于详细监控和分析的查询画像，使用毫秒级精度。
-/// 与 QueryMetrics 的区别：
-/// - QueryProfile: 详细监控，用于内部分析和日志（毫秒级）
-/// - QueryMetrics: 轻量级，用于返回给客户端（微秒级）
+/// Query profiles for detailed monitoring and analysis, with millisecond-level accuracy.
+/// Differences from QueryMetrics:
+/// QueryProfile: Provides detailed monitoring data for internal analysis and logging (in milliseconds).
+/// QueryMetrics: A lightweight component designed to provide results to the client in a very short time (within milliseconds).
 #[derive(Debug, Clone)]
 pub struct QueryProfile {
     pub trace_id: String,

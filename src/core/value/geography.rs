@@ -1,12 +1,12 @@
-//! 地理空间类型模块
+//! Geospatial Types Module
 //!
-//! 本模块定义了地理空间点类型及其相关操作。
+//! This module defines the types of geographic spatial points and the related operations.
 
 use bincode::{Decode, Encode};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-/// 地理信息表示
+/// Geographic Information Representation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode)]
 pub struct GeographyValue {
     pub latitude: f64,
@@ -21,7 +21,7 @@ impl std::hash::Hash for GeographyValue {
 }
 
 impl GeographyValue {
-    /// 计算两点之间的 Haversine 距离（单位：公里）
+    /// Calculate the Haversine distance between two points (unit: kilometers)
     pub fn distance(&self, other: &GeographyValue) -> f64 {
         const EARTH_RADIUS_KM: f64 = 6371.0;
         const DEG_TO_RAD: f64 = std::f64::consts::PI / 180.0;
@@ -38,7 +38,7 @@ impl GeographyValue {
         EARTH_RADIUS_KM * c
     }
 
-    /// 计算两点之间的方位角（单位：度）
+    /// Calculate the azimuth angle between two points (unit: degrees)
     pub fn bearing(&self, other: &GeographyValue) -> f64 {
         const DEG_TO_RAD: f64 = std::f64::consts::PI / 180.0;
         const RAD_TO_DEG: f64 = 180.0 / std::f64::consts::PI;
@@ -54,7 +54,7 @@ impl GeographyValue {
         (bearing + 360.0) % 360.0
     }
 
-    /// 检查点是否在指定矩形区域内
+    /// Check whether the checkpoint is within the specified rectangular area.
     pub fn in_bbox(&self, min_lat: f64, max_lat: f64, min_lon: f64, max_lon: f64) -> bool {
         self.latitude >= min_lat
             && self.latitude <= max_lat
@@ -62,7 +62,7 @@ impl GeographyValue {
             && self.longitude <= max_lon
     }
 
-    /// 估算地理值的内存使用大小
+    /// Estimating the memory usage for calculating geographic values
     pub fn estimated_size(&self) -> usize {
         std::mem::size_of::<Self>()
     }
@@ -77,14 +77,14 @@ impl Default for GeographyValue {
     }
 }
 
-/// 地理类型（仅支持点类型）
+/// Geographic type (only point types are supported)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode)]
 pub enum Geography {
     Point(GeographyValue),
 }
 
 impl Geography {
-    /// 从 WKT 格式解析地理数据（仅支持 POINT）
+    /// Parse geographic data from the WKT format (only POINT types are supported)
     pub fn from_wkt(wkt: &str) -> Result<Self, String> {
         let wkt = wkt.trim();
 

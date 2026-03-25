@@ -1,6 +1,6 @@
-//! 表达式类型推导
+//! Expression type derivation
 //!
-//! 提供表达式类型推导功能。
+//! Provide expression type derivation functions.
 
 use crate::core::types::expr::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
@@ -8,10 +8,10 @@ use crate::core::types::DataType;
 use crate::core::Value;
 
 impl Expression {
-    /// 推导表达式的数据类型
+    /// Deriving the data type of an expression
     ///
-    /// 根据表达式的结构和操作符推导其返回类型。
-    /// 如果无法确定类型，返回 DataType::Empty。
+    /// Derive the return type of an expression from its structure and operators.
+    /// Returns DataType::Empty if the type cannot be determined.
     pub fn deduce_type(&self) -> DataType {
         match self {
             Expression::Literal(value) => Self::deduce_value_type(value),
@@ -44,7 +44,7 @@ impl Expression {
         }
     }
 
-    /// 推导值类型
+    /// Deriving value types
     fn deduce_value_type(value: &Value) -> DataType {
         match value {
             Value::Null(_) => DataType::Null,
@@ -66,7 +66,7 @@ impl Expression {
         }
     }
 
-    /// 推导二元运算类型
+    /// Deriving binary operation types
     fn deduce_binary_type(op: &BinaryOperator, left: &Expression, right: &Expression) -> DataType {
         match op {
             BinaryOperator::Add
@@ -99,7 +99,7 @@ impl Expression {
         }
     }
 
-    /// 推导算术运算结果类型
+    /// Deriving arithmetic operation result types
     fn deduce_arithmetic_type(left: &DataType, right: &DataType) -> DataType {
         match (left, right) {
             (DataType::Float, _) | (_, DataType::Float) => DataType::Float,
@@ -108,7 +108,7 @@ impl Expression {
         }
     }
 
-    /// 推导一元运算类型
+    /// Derive the type of unary operation
     fn deduce_unary_type(op: &UnaryOperator, operand: &Expression) -> DataType {
         match op {
             UnaryOperator::Not => DataType::Bool,
@@ -118,11 +118,11 @@ impl Expression {
         }
     }
 
-    /// 推导函数返回类型
+    /// Deriving function return types
     fn deduce_function_type(name: &str, args: &[Expression]) -> DataType {
         let name_upper = name.to_uppercase();
         match name_upper.as_str() {
-            // 数学函数
+            // math function
             "ABS" | "CEIL" | "FLOOR" | "ROUND" | "SIGN" | "SQRT" | "POW" | "EXP" | "LOG"
             | "LOG10" | "LOG2" => {
                 if let Some(first_arg) = args.first() {
@@ -131,17 +131,17 @@ impl Expression {
                     DataType::Empty
                 }
             }
-            // 字符串函数
+            // string function
             "LENGTH" | "SIZE" => DataType::Int,
             "SUBSTRING" | "REPLACE" | "TRIM" | "LTRIM" | "RTRIM" | "UPPER" | "LOWER" | "CONCAT" => {
                 DataType::String
             }
-            // 类型转换函数
+            // type conversion function
             "TOSTRING" => DataType::String,
             "TOINT" => DataType::Int,
             "TOFLOAT" => DataType::Float,
             "TOBOOLEAN" => DataType::Bool,
-            // 集合函数
+            // aggregate function (math.)
             "HEAD" | "LAST" => {
                 if let Some(first_arg) = args.first() {
                     first_arg.deduce_type()
@@ -150,19 +150,19 @@ impl Expression {
                 }
             }
             "TAIL" | "NODES" | "RELATIONSHIPS" | "KEYS" | "LABELS" | "RANGE" => DataType::List,
-            // 聚合相关函数
+            // Aggregation Related Functions
             "COUNT" => DataType::Int,
             "COLLECT" => DataType::List,
-            // 图相关函数
+            // Graph Related Functions
             "ID" | "SRC" | "DST" | "TYPE" => DataType::String,
             "STARTNODE" | "ENDNODE" => DataType::Vertex,
-            // 时间函数
+            // time function
             "NOW" | "TIMESTAMP" => DataType::DateTime,
             "DATE" => DataType::Date,
             "TIME" => DataType::Time,
-            // 条件函数
+            // conditional function
             "COALESCE" => {
-                // 返回第一个非空参数的类型
+                // Returns the type of the first non-null argument
                 for arg in args {
                     let arg_type = arg.deduce_type();
                     if arg_type != DataType::Null && arg_type != DataType::Empty {
@@ -175,7 +175,7 @@ impl Expression {
         }
     }
 
-    /// 推导聚合函数返回类型
+    /// Deriving Aggregate Function Return Types
     fn deduce_aggregate_type(func: &AggregateFunction) -> DataType {
         match func {
             AggregateFunction::Count(_) => DataType::Int,
@@ -194,19 +194,19 @@ impl Expression {
         }
     }
 
-    /// 推导条件表达式类型
+    /// Deriving Conditional Expression Types
     fn deduce_case_type(
         conditions: &[(Expression, Expression)],
         default: Option<&Expression>,
     ) -> DataType {
-        // 尝试从条件分支推导类型
+        // Trying to derive types from conditional branches
         for (_, value) in conditions {
             let value_type = value.deduce_type();
             if value_type != DataType::Empty {
                 return value_type;
             }
         }
-        // 尝试从默认分支推导类型
+        // Trying to derive types from the default branch
         if let Some(def) = default {
             def.deduce_type()
         } else {
@@ -214,7 +214,7 @@ impl Expression {
         }
     }
 
-    /// 推导下标访问类型
+    /// Deriving subscript access types
     fn deduce_subscript_type(collection: &Expression) -> DataType {
         let collection_type = collection.deduce_type();
         match collection_type {

@@ -1,15 +1,15 @@
-//! 认证错误类型
+//! Authentication Error Type
 //!
-//! 涵盖用户认证相关的错误，包括登录、密码验证等
+//! Covers user authentication related errors, including login, password validation, etc.
 
 use thiserror::Error;
 
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
 
-/// 认证操作结果类型别名
+/// Authentication operation result type alias
 pub type AuthResult<T> = Result<T, AuthError>;
 
-/// 认证相关错误
+/// Authentication-related errors
 #[derive(Error, Debug, Clone)]
 pub enum AuthError {
     #[error("Authentication failed: {0}")]

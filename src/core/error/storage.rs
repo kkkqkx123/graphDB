@@ -1,15 +1,15 @@
-//! 存储层错误类型
+//! Storage layer error type
 //!
-//! 涵盖数据库底层存储操作相关的错误
+//! Errors related to the underlying storage operations of the database
 
 use thiserror::Error;
 
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
 
-/// 存储层结果类型
+/// Storage layer result type
 pub type StorageResult<T> = Result<T, StorageError>;
 
-/// 存储层错误类型
+/// Storage layer error type
 #[derive(Error, Debug, Clone)]
 pub enum StorageError {
     #[error("Database error: {0}")]

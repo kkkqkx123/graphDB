@@ -1,14 +1,14 @@
-//! 表达式检查方法
+//! Expression checking methods
 //!
-//! 提供检查表达式属性和状态的方法。
+//! Provides methods for checking the properties and state of an expression.
 
 use crate::core::types::expr::Expression;
 use crate::core::Value;
 
 impl Expression {
-    /// 检查表达式是否为常量
+    /// Checking if an expression is a constant
     ///
-    /// 常量表达式在编译时即可确定值，不需要运行时求值。
+    /// Constant expressions can be determined at compile time and do not require run-time evaluation.
     pub fn is_constant(&self) -> bool {
         match self {
             Expression::Literal(_) => true,
@@ -21,9 +21,9 @@ impl Expression {
         }
     }
 
-    /// 检查表达式是否包含聚合函数
+    /// Check if the expression contains an aggregate function
     ///
-    /// 用于识别需要在 GROUP BY 上下文中求值的表达式。
+    /// Used to identify expressions that need to be evaluated in a GROUP BY context.
     pub fn contains_aggregate(&self) -> bool {
         match self {
             Expression::Aggregate { .. } => true,
@@ -31,9 +31,9 @@ impl Expression {
         }
     }
 
-    /// 获取表达式中所有变量名
+    /// Get the names of all variables in the expression
     ///
-    /// 返回去重后的变量名列表。
+    /// Returns a list of de-duplicated variable names.
     pub fn get_variables(&self) -> Vec<String> {
         let mut variables = Vec::new();
         self.collect_variables(&mut variables);
@@ -42,7 +42,7 @@ impl Expression {
         variables
     }
 
-    /// 递归收集变量的辅助方法
+    /// An auxiliary method for recursively collecting variables
     fn collect_variables(&self, variables: &mut Vec<String>) {
         match self {
             Expression::Variable(name) => {
@@ -58,12 +58,12 @@ impl Expression {
         }
     }
 
-    /// 检查是否为字面量表达式
+    /// Checks if it is a literal expression
     pub fn is_literal(&self) -> bool {
         matches!(self, Expression::Literal(_))
     }
 
-    /// 获取字面量值（如果是字面量）
+    /// Get the literal value (if it is a literal)
     pub fn as_literal(&self) -> Option<&Value> {
         match self {
             Expression::Literal(v) => Some(v),
@@ -71,12 +71,12 @@ impl Expression {
         }
     }
 
-    /// 检查是否为变量表达式
+    /// Checking for variable expressions
     pub fn is_variable(&self) -> bool {
         matches!(self, Expression::Variable(_))
     }
 
-    /// 获取变量名（如果是变量）
+    /// Get variable name (if variable)
     pub fn as_variable(&self) -> Option<&str> {
         match self {
             Expression::Variable(name) => Some(name),
@@ -84,57 +84,57 @@ impl Expression {
         }
     }
 
-    /// 检查是否为聚合表达式
+    /// Checking for Aggregate Expressions
     pub fn is_aggregate(&self) -> bool {
         matches!(self, Expression::Aggregate { .. })
     }
 
-    /// 检查是否为属性访问表达式
+    /// Checks if it is an attribute access expression
     pub fn is_property(&self) -> bool {
         matches!(self, Expression::Property { .. })
     }
 
-    /// 检查是否为函数调用表达式
+    /// Check if it is a function call expression
     pub fn is_function(&self) -> bool {
         matches!(self, Expression::Function { .. })
     }
 
-    /// 检查是否为二元运算表达式
+    /// Checking for binary arithmetic expressions
     pub fn is_binary(&self) -> bool {
         matches!(self, Expression::Binary { .. })
     }
 
-    /// 检查是否为一元运算表达式
+    /// Checking for unary arithmetic expressions
     pub fn is_unary(&self) -> bool {
         matches!(self, Expression::Unary { .. })
     }
 
-    /// 检查是否为列表表达式
+    /// Checks if it is a list expression
     pub fn is_list(&self) -> bool {
         matches!(self, Expression::List(_))
     }
 
-    /// 检查是否为映射表达式
+    /// Checks if it is a mapping expression
     pub fn is_map(&self) -> bool {
         matches!(self, Expression::Map(_))
     }
 
-    /// 检查是否为路径表达式
+    /// Checks if it is a path expression
     pub fn is_path(&self) -> bool {
         matches!(self, Expression::Path(_))
     }
 
-    /// 检查是否为标签表达式
+    /// Checks if it's a tag expression
     pub fn is_label(&self) -> bool {
         matches!(self, Expression::Label(_))
     }
 
-    /// 检查是否为参数表达式
+    /// Checks if it is a parameter expression
     pub fn is_parameter(&self) -> bool {
         matches!(self, Expression::Parameter(_))
     }
 
-    /// 获取参数名（如果是参数）
+    /// Get the parameter name (if it is a parameter)
     pub fn as_parameter(&self) -> Option<&str> {
         match self {
             Expression::Parameter(name) => Some(name),
@@ -142,27 +142,27 @@ impl Expression {
         }
     }
 
-    /// 检查是否为条件表达式
+    /// Checking for Conditional Expressions
     pub fn is_case(&self) -> bool {
         matches!(self, Expression::Case { .. })
     }
 
-    /// 检查是否为类型转换表达式
+    /// Checking for type conversion expressions
     pub fn is_cast(&self) -> bool {
         matches!(self, Expression::TypeCast { .. })
     }
 
-    /// 检查是否为下标访问表达式
+    /// Checking for subscript access expressions
     pub fn is_subscript(&self) -> bool {
         matches!(self, Expression::Subscript { .. })
     }
 
-    /// 检查是否为范围表达式
+    /// Checks if it is a range expression
     pub fn is_range(&self) -> bool {
         matches!(self, Expression::Range { .. })
     }
 
-    /// 获取函数名（如果是函数调用）
+    /// Get the function name (if it's a function call)
     pub fn function_name(&self) -> Option<&str> {
         match self {
             Expression::Function { name, .. } => Some(name),
@@ -170,7 +170,7 @@ impl Expression {
         }
     }
 
-    /// 获取聚合函数名（如果是聚合表达式）
+    /// Get the name of the aggregate function (if it is an aggregate expression)
     pub fn aggregate_function_name(&self) -> Option<&str> {
         match self {
             Expression::Aggregate { func, .. } => Some(func.name()),
@@ -178,7 +178,7 @@ impl Expression {
         }
     }
 
-    /// 检查是否为路径构建表达式
+    /// Checks if it is a path building expression
     pub fn is_path_build(&self) -> bool {
         matches!(self, Expression::PathBuild(_))
     }
@@ -188,12 +188,12 @@ impl Expression {
         matches!(self, Expression::TypeCast { .. })
     }
 
-    /// 检查是否为列表推导表达式
+    /// Checking for List Derivation Expressions
     pub fn is_list_comprehension(&self) -> bool {
         matches!(self, Expression::ListComprehension { .. })
     }
 
-    /// 检查是否为 Reduce 表达式
+    /// Checks for a Reduce expression
     pub fn is_reduce(&self) -> bool {
         matches!(self, Expression::Reduce { .. })
     }
@@ -206,7 +206,7 @@ impl Expression {
         }
     }
 
-    /// 获取属性名（如果是属性访问）
+    /// Get the attribute name (in case of attribute access)
     pub fn as_property_name(&self) -> Option<String> {
         match self {
             Expression::Property { property, .. } => Some(property.clone()),
@@ -214,7 +214,7 @@ impl Expression {
         }
     }
 
-    /// 获取标签名（如果是标签表达式）
+    /// Get the tag name (if it's a tag expression)
     pub fn as_label_name(&self) -> Option<String> {
         match self {
             Expression::Label(name) => Some(name.clone()),
@@ -222,7 +222,7 @@ impl Expression {
         }
     }
 
-    /// 获取参数名（如果是参数表达式）
+    /// Get the parameter name (if it is a parameter expression)
     pub fn as_parameter_name(&self) -> Option<String> {
         match self {
             Expression::Parameter(name) => Some(name.clone()),

@@ -1,6 +1,6 @@
-//! 统计管理器
+//! Statistics Manager
 //!
-//! 提供查询指标、查询画像和错误统计的统一管理。
+//! Provides unified management of query metrics, query portraits and error statistics.
 
 use dashmap::DashMap;
 use parking_lot::Mutex;
@@ -15,7 +15,7 @@ use super::profile::QueryProfile;
 /// Space metrics type alias
 type SpaceMetrics = Arc<DashMap<MetricType, Arc<MetricValue>>>;
 
-/// 指标类型
+/// Type of indicator
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MetricType {
     NumAuthFailedSessions,
@@ -29,7 +29,7 @@ pub enum MetricType {
     QueryTotalTimeUs,
     QueryPlanNodeCount,
     QueryResultRowCount,
-    // 查询类型统计
+    // Query Type Statistics
     NumMatchQueries,
     NumCreateQueries,
     NumUpdateQueries,
@@ -41,7 +41,7 @@ pub enum MetricType {
     NumShowQueries,
 }
 
-/// 指标值
+/// metric
 pub struct MetricValue {
     pub value: AtomicU64,
     pub timestamp: AtomicU64,
@@ -104,9 +104,9 @@ impl MetricValue {
     }
 }
 
-/// 统计管理器
+/// Statistics Manager
 ///
-/// 统一管理查询指标、查询画像和错误统计。
+/// Unified management of query metrics, query profiling and error statistics.
 pub struct StatsManager {
     metrics: Arc<DashMap<MetricType, Arc<MetricValue>>>,
     space_metrics: Arc<DashMap<String, SpaceMetrics>>,

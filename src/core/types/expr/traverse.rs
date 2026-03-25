@@ -1,13 +1,13 @@
-//! 表达式树遍历
+//! Expression tree traversal
 //!
-//! 提供表达式树的遍历和访问方法。
+//! Provide methods for traversing and accessing the expression tree.
 
 use crate::core::types::expr::Expression;
 
 impl Expression {
-    /// 获取表达式的所有子表达式
+    /// Obtain all the subexpressions of the expression.
     ///
-    /// 返回一个包含所有直接子表达式的向量。
+    /// Return a vector that contains all the direct subexpressions.
     pub fn children(&self) -> Vec<&Expression> {
         match self {
             Expression::Literal(_) => vec![],
@@ -87,9 +87,9 @@ impl Expression {
         }
     }
 
-    /// 获取可变子表达式
+    /// Obtaining the variable subexpression
     ///
-    /// 返回一个包含所有直接可变子表达式的向量。
+    /// Return a vector containing all the directly mutable subexpressions.
     pub fn children_mut(&mut self) -> Vec<&mut Expression> {
         match self {
             Expression::Literal(_) => vec![],
@@ -169,9 +169,9 @@ impl Expression {
         }
     }
 
-    /// 遍历表达式树（前序遍历）
+    /// Traversing the expression tree (pre-order traversal)
     ///
-    /// 对表达式树进行前序遍历，对每个节点调用回调函数。
+    /// Perform a pre-order traversal of the expression tree, and call the callback function for each node.
     pub fn traverse_preorder<F>(&self, callback: &mut F)
     where
         F: FnMut(&Expression),
@@ -182,9 +182,9 @@ impl Expression {
         }
     }
 
-    /// 遍历表达式树（后序遍历）
+    /// Traversing the expression tree (post-order traversal)
     ///
-    /// 对表达式树进行后序遍历，对每个节点调用回调函数。
+    /// Perform a post-order traversal of the expression tree, and call the callback function for each node.
     pub fn traverse_postorder<F>(&self, callback: &mut F)
     where
         F: FnMut(&Expression),
@@ -195,9 +195,9 @@ impl Expression {
         callback(self);
     }
 
-    /// 查找满足条件的表达式
+    /// Find the expression that meets the conditions.
     ///
-    /// 在表达式树中查找第一个满足条件的表达式。
+    /// Find the first expression in the expression tree that meets the specified condition.
     pub fn find<F>(&self, predicate: &F) -> Option<&Expression>
     where
         F: Fn(&Expression) -> bool,
@@ -213,9 +213,9 @@ impl Expression {
         None
     }
 
-    /// 查找所有满足条件的表达式
+    /// Find all expressions that meet the specified conditions.
     ///
-    /// 在表达式树中查找所有满足条件的表达式。
+    /// Find all expressions in the expression tree that meet the specified conditions.
     pub fn find_all<'a, F>(&'a self, predicate: &F, results: &mut Vec<&'a Expression>)
     where
         F: Fn(&Expression) -> bool,
@@ -228,19 +228,19 @@ impl Expression {
         }
     }
 
-    /// 转换表达式树
+    /// Transform the expression tree
     ///
-    /// 对表达式树进行转换，返回新的表达式树。
+    /// Transform the expression tree and return the new expression tree.
     pub fn transform<F>(&self, transformer: &F) -> Expression
     where
         F: Fn(&Expression) -> Option<Expression>,
     {
-        // 首先尝试转换当前节点
+        // First, try to convert the current node.
         if let Some(transformed) = transformer(self) {
             return transformed;
         }
 
-        // 否则递归转换子节点
+        // Otherwise, the recursive conversion applies to the child nodes.
         match self {
             Expression::Literal(_) => self.clone(),
             Expression::Variable(_) => self.clone(),

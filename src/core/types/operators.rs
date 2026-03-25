@@ -1,11 +1,11 @@
-//! 操作符类型定义
+//! Operator type definition
 //!
-//! 定义图数据库中使用的各种操作符类型
+//! Define the various types of operators used in graph databases
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// 二元操作符实现
+/// Implementation of a binary operator
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BinaryOperator {
     Add,
@@ -141,7 +141,7 @@ impl fmt::Display for BinaryOperator {
     }
 }
 
-/// 一元操作符实现
+/// Implementation of a unary operator
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UnaryOperator {
     Plus,
@@ -191,7 +191,7 @@ impl fmt::Display for UnaryOperator {
     }
 }
 
-/// 聚合函数操作符
+/// Aggregate function operators
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AggregateFunction {
     Count(Option<String>),

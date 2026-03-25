@@ -1,24 +1,24 @@
-//! 管理器错误类型
+//! Manager Error Type
 //!
-//! 涵盖Schema管理器、索引管理器、存储客户端等Manager层的错误
+//! Errors related to the Manager layer components, including the Schema Manager, Index Manager, and Storage Client.
 
 use thiserror::Error;
 
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
 
-/// Manager操作结果类型
+/// Manager operation result type
 pub type ManagerResult<T> = Result<T, ManagerError>;
 
-/// 错误分类
+/// Incorrect classification of the error
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCategory {
-    /// 可重试错误
+    /// retryable error
     Retryable,
-    /// 不可重试错误
+    /// An error that cannot be retried.
     NonRetryable,
 }
 
-/// 管理器错误类型
+/// Manager Error Type
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum ManagerError {
     #[error("Resource not found: {0}")]
@@ -47,7 +47,7 @@ pub enum ManagerError {
 }
 
 impl ManagerError {
-    /// 获取错误分类
+    /// Obtaining the error classification
     pub fn category(&self) -> ErrorCategory {
         match self {
             ManagerError::StorageError(_) | ManagerError::TimeoutError(_) => {
@@ -57,42 +57,42 @@ impl ManagerError {
         }
     }
 
-    /// 检查是否可重试
+    /// Checking for retryability
     pub fn is_retryable(&self) -> bool {
         matches!(self.category(), ErrorCategory::Retryable)
     }
 
-    /// 创建未找到错误
+    /// The error “Create not found” was not encountered during the process.
     pub fn not_found(msg: impl Into<String>) -> Self {
         Self::NotFound(msg.into())
     }
 
-    /// 创建已存在错误
+    /// Create Existing Error
     pub fn already_exists(msg: impl Into<String>) -> Self {
         Self::AlreadyExists(msg.into())
     }
 
-    /// 创建无效输入错误
+    /// An error was generated due to invalid input.
     pub fn invalid_input(msg: impl Into<String>) -> Self {
         Self::InvalidInput(msg.into())
     }
 
-    /// 创建存储错误
+    /// Creating Storage Errors
     pub fn storage_error(msg: impl Into<String>) -> Self {
         Self::StorageError(msg.into())
     }
 
-    /// 创建Schema错误
+    /// An error occurred while creating the schema.
     pub fn schema_error(msg: impl Into<String>) -> Self {
         Self::SchemaError(msg.into())
     }
 
-    /// 创建事务错误
+    /// Create Transaction Error
     pub fn transaction_error(msg: impl Into<String>) -> Self {
         Self::TransactionError(msg.into())
     }
 
-    /// 创建超时错误
+    /// An error occurred due to a timeout.
     pub fn timeout_error(msg: impl Into<String>) -> Self {
         Self::TimeoutError(msg.into())
     }

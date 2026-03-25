@@ -1,6 +1,6 @@
-//! Value 模块 - 图数据库值类型系统
+//! Value Module - Graph Database Value Type System
 //!
-//! 此模块提供了图数据库中的核心值类型系统，包括：
+//! This module provides the core value type system in the graph database, including:
 //! - 核心类型定义 (`types.rs`)
 //! - 日期时间类型 (`date_time.rs`)
 //! - 地理空间类型 (`geography.rs`)
@@ -18,7 +18,7 @@ pub mod geography;
 pub mod operations;
 pub mod types;
 
-// 重新导出所有公共类型和功能，保持API兼容性
+// Re-export all public types and functions to maintain API compatibility
 pub use dataset::*;
 pub use date_time::*;
 pub use decimal128::Decimal128Value;

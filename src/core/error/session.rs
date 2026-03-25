@@ -1,15 +1,15 @@
-//! 会话错误类型
+//! Session Error Type
 //!
-//! 涵盖会话管理相关的错误
+//! Covering session management related errors
 
 use thiserror::Error;
 
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
 
-/// 会话操作结果类型别名
+/// Session operation result type alias
 pub type SessionResult<T> = Result<T, SessionError>;
 
-/// 会话相关错误
+/// Session-related errors
 #[derive(Error, Debug, Clone)]
 pub enum SessionError {
     #[error("Session not found: {0}")]

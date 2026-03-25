@@ -1,16 +1,16 @@
-//! 类型系统工具模块
+//! Type system tool module
 //!
-//! 提供类型兼容性检查、类型优先级和类型转换等核心功能
+//! Provide core functions such as type compatibility checking, type precedence, and type conversion.
 
 use crate::core::value::dataset::List;
 use crate::core::DataType;
 use crate::core::Value;
 
-/// 类型系统工具
+/// Type system tools
 pub struct TypeUtils;
 
 impl TypeUtils {
-    /// 检查两种类型是否兼容
+    /// Check whether the two types are compatible.
     pub fn are_types_compatible(type1: &DataType, type2: &DataType) -> bool {
         if type1 == type2 {
             return true;
@@ -29,13 +29,13 @@ impl TypeUtils {
         false
     }
 
-    /// 检查类型是否为"优越类型"（可以与任何类型兼容）
+    /// Check whether the type is a "superior type" (which can be compatible with any other type).
     pub fn is_superior_type(type_: &DataType) -> bool {
         matches!(type_, DataType::Null | DataType::Empty)
     }
 
-    /// 获取类型的优先级（用于类型提升）
-    /// 优先级数值越小表示类型越"基础"，类型提升时会向高优先级值提升
+    /// Priority of the obtained type (used for type promotion)
+    /// The smaller the priority value, the more “basic” the type is. When a type is upgraded, its priority value increases.
     pub fn get_type_priority(type_: &DataType) -> u8 {
         match type_ {
             DataType::Null | DataType::Empty => 0,
@@ -72,7 +72,7 @@ impl TypeUtils {
         }
     }
 
-    /// 获取两个类型的公共超类型
+    /// Obtaining two types of common supertypes
     pub fn get_common_type(type1: &DataType, type2: &DataType) -> DataType {
         if type1 == type2 {
             return type1.clone();
@@ -94,12 +94,12 @@ impl TypeUtils {
         DataType::Empty
     }
 
-    /// 统一的类型兼容性检查（无需缓存）
+    /// Unified type compatibility checks (without the need for caching)
     pub fn check_compatibility(type1: &DataType, type2: &DataType) -> bool {
         Self::are_types_compatible(type1, type2)
     }
 
-    /// 批量类型检查（优化内存分配）
+    /// Batch type checking (for optimizing memory allocation)
     pub fn check_compatibility_batch(pairs: &[(DataType, DataType)]) -> Vec<bool> {
         let mut results = Vec::with_capacity(pairs.len());
 
@@ -109,12 +109,12 @@ impl TypeUtils {
         results
     }
 
-    /// 获取字面值类型
+    /// Obtaining the literal value type
     pub fn literal_type(value: &crate::core::value::Value) -> DataType {
         value.get_type()
     }
 
-    /// 二元操作结果类型
+    /// Type of the result of a binary operation
     pub fn binary_operation_result_type(
         op: &str,
         left_type: &DataType,
@@ -133,26 +133,26 @@ impl TypeUtils {
         }
     }
 
-    /// 判断是否需要缓存（基于复杂度启发式）
+    /// Determine whether caching is required (based on complexity heuristics)
     pub fn should_cache_expression(expr_depth: usize, expr_node_count: usize) -> bool {
         expr_depth > 3 || expr_node_count > 10
     }
 
-    /// 检查类型是否可以转换为目标类型
+    /// Check whether the type of the source data can be converted into the target type.
     ///
-    /// 使用 match 表达式实现编译期确定的类型转换规则，
-    /// 避免运行时初始化和全局状态
+    /// Use the `match` expression to implement type conversion rules that are determined at compile time.
+    /// Avoid runtime initialization and global state.
     pub fn can_cast(from: &DataType, to: &DataType) -> bool {
         if from == to {
             return true;
         }
 
         match (from, to) {
-            // Int 可以转换为 Int, Float, String
+            // The value `Int` can be converted to `Int`, `Float`, or `String`.
             (DataType::Int, DataType::Float) => true,
             (DataType::Int, DataType::String) => true,
 
-            // Int8/16/32/64 可以转换为 Int, Float, String
+            // Values of type Int8, Int16, Int32, and Int64 can be converted to types Int, Float, and String.
             (DataType::Int8, DataType::Int) => true,
             (DataType::Int8, DataType::Float) => true,
             (DataType::Int8, DataType::String) => true,
@@ -166,7 +166,7 @@ impl TypeUtils {
             (DataType::Int64, DataType::Float) => true,
             (DataType::Int64, DataType::String) => true,
 
-            // UInt8/16/32/64 可以转换为 Int, Float, String
+            // Values of type UInt8, UInt16, UInt32, or UInt64 can be converted to types Int, Float, or String.
             (DataType::UInt8, DataType::Int) => true,
             (DataType::UInt8, DataType::Float) => true,
             (DataType::UInt8, DataType::String) => true,
@@ -180,18 +180,18 @@ impl TypeUtils {
             (DataType::UInt64, DataType::Float) => true,
             (DataType::UInt64, DataType::String) => true,
 
-            // Float 可以转换为 Float, Int, String
+            // The value “Float” can be converted to either “Float”, “Int”, or “String”.
             (DataType::Float, DataType::Int) => true,
             (DataType::Float, DataType::String) => true,
 
-            // String 可以转换为 String, Int, Float, Bool, Date, DateTime
+            // A String can be converted to a String, Int, Float, Bool, Date, or DateTime.
             (DataType::String, DataType::Int) => true,
             (DataType::String, DataType::Float) => true,
             (DataType::String, DataType::Bool) => true,
             (DataType::String, DataType::Date) => true,
             (DataType::String, DataType::DateTime) => true,
 
-            // FixedString 可以转换为 String, Int, Float, Bool, Date, DateTime
+            // The FixedString type can be converted to the following types: String, Int, Float, Bool, Date, and DateTime.
             (DataType::FixedString(_), DataType::String) => true,
             (DataType::FixedString(_), DataType::Int) => true,
             (DataType::FixedString(_), DataType::Float) => true,
@@ -199,15 +199,15 @@ impl TypeUtils {
             (DataType::FixedString(_), DataType::Date) => true,
             (DataType::FixedString(_), DataType::DateTime) => true,
 
-            // Bool 可以转换为 Bool, Int, Float, String
+            // A `Bool` value can be converted to a `Bool`, `Int`, `Float`, or `String`.
             (DataType::Bool, DataType::Int) => true,
             (DataType::Bool, DataType::Float) => true,
             (DataType::Bool, DataType::String) => true,
 
-            // Null 可以转换为任何类型
+            // The value “Null” can be converted into any data type.
             (DataType::Null, _) => true,
 
-            // Empty 可以转换为 Empty, Bool, Int, Float, String
+            // “Empty” can be converted to “Empty”, “Bool”, “Int”, “Float”, or “String”.
             (DataType::Empty, DataType::Empty) => true,
             (DataType::Empty, DataType::Bool) => true,
             (DataType::Empty, DataType::Int) => true,
@@ -218,9 +218,9 @@ impl TypeUtils {
         }
     }
 
-    /// 获取类型可以转换到的所有目标类型
+    /// The list of source types that can be converted into all possible target types
     ///
-    /// 返回该类型可以转换到的所有目标类型列表
+    /// Return a list of all target types that can be converted from this type.
     pub fn get_cast_targets(from: &DataType) -> Vec<DataType> {
         match from {
             DataType::Int => vec![DataType::Int, DataType::Float, DataType::String],
@@ -309,17 +309,17 @@ impl TypeUtils {
                 DataType::Float,
                 DataType::String,
             ],
-            // 其他类型只能转换为自身
+            // Other types can only be converted into themselves.
             _ => vec![from.clone()],
         }
     }
 
-    /// 验证类型转换是否有效（基于 NebulaGraph 设计）
+    /// Verify whether the type conversion is valid (based on NebulaGraph design)
     pub fn validate_type_cast(from: &DataType, to: &DataType) -> bool {
         Self::can_cast(from, to)
     }
 
-    /// 获取类型的字符串表示
+    /// The string representation of the obtained type.
     pub fn type_to_string(type_def: &DataType) -> String {
         match type_def {
             DataType::Empty => "empty".to_string(),
@@ -356,7 +356,7 @@ impl TypeUtils {
         }
     }
 
-    /// 检查类型是否可以用于索引
+    /// Check whether the type can be used for indexing.
     pub fn is_indexable_type(type_def: &DataType) -> bool {
         matches!(
             type_def,
@@ -384,7 +384,7 @@ impl TypeUtils {
         )
     }
 
-    /// 获取类型的默认值
+    /// Get the default value of the type.
     pub fn get_default_value(type_def: &DataType) -> Option<Value> {
         match type_def {
             DataType::Bool => Some(Value::Bool(false)),
@@ -544,42 +544,42 @@ mod tests {
 
     #[test]
     fn test_can_cast() {
-        // 相同类型
+        // The same type
         assert!(TypeUtils::can_cast(&DataType::Int, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::String));
 
-        // Int 转换
+        // Int conversion
         assert!(TypeUtils::can_cast(&DataType::Int, &DataType::Float));
         assert!(TypeUtils::can_cast(&DataType::Int, &DataType::String));
         assert!(!TypeUtils::can_cast(&DataType::Int, &DataType::Bool));
 
-        // Float 转换
+        // Float conversion
         assert!(TypeUtils::can_cast(&DataType::Float, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::Float, &DataType::String));
 
-        // String 转换
+        // String conversion
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::Float));
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::Bool));
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::Date));
         assert!(TypeUtils::can_cast(&DataType::String, &DataType::DateTime));
 
-        // Bool 转换
+        // Boolean conversion
         assert!(TypeUtils::can_cast(&DataType::Bool, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::Bool, &DataType::Float));
         assert!(TypeUtils::can_cast(&DataType::Bool, &DataType::String));
 
-        // Null 可以转换为任何类型
+        // The value “Null” can be converted into any data type.
         assert!(TypeUtils::can_cast(&DataType::Null, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::Null, &DataType::String));
         assert!(TypeUtils::can_cast(&DataType::Null, &DataType::Bool));
 
-        // Empty 转换
+        // "Empty" conversion
         assert!(TypeUtils::can_cast(&DataType::Empty, &DataType::Int));
         assert!(TypeUtils::can_cast(&DataType::Empty, &DataType::String));
         assert!(TypeUtils::can_cast(&DataType::Empty, &DataType::Bool));
 
-        // 无效转换
+        // The conversion was invalid.
         assert!(!TypeUtils::can_cast(&DataType::Int, &DataType::Date));
         assert!(!TypeUtils::can_cast(&DataType::Float, &DataType::Bool));
     }

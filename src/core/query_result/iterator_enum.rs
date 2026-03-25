@@ -1,55 +1,55 @@
-//! 结果迭代器枚举 - 使用静态分发替代 Arc<dyn ResultIterator>
+//! Result iterator enumeration: Using static distribution in place of Arcdyn ResultIterator>
 //!
-//! 提供 ResultIteratorEnum 枚举，包含所有具体迭代器类型
-//! 避免动态分发的性能开销
+//! Provide the ResultIteratorEnum enumeration, which contains all the specific iterator types.
+//! Avoid the performance overhead associated with dynamic distribution.
 
 use crate::core::query_result::iterator::{DefaultIterator, GetNeighborsIterator, PropIterator};
 use crate::core::query_result::result_iterator::ResultIterator;
 use crate::core::value::Value;
 use crate::core::DBResult;
 
-/// 结果迭代器枚举 - 使用静态分发
+/// Result iterator enumeration – using static distribution
 ///
-/// 包含所有可能的结果迭代器类型，通过 match 实现静态分发
+/// Include all possible types of result iterators, and implement static distribution through the `match` function.
 #[derive(Debug)]
 pub enum ResultIteratorEnum {
-    /// 默认迭代器
+    /// Default iterator
     Default(DefaultIterator),
-    /// 邻居查询迭代器
+    /// Neighbor Query Iterator
     GetNeighbors(GetNeighborsIterator),
-    /// 属性迭代器
+    /// Attribute Iterator
     Prop(PropIterator),
-    /// 空迭代器
+    /// Empty iterator
     Empty,
 }
 
 impl ResultIteratorEnum {
-    /// 创建默认迭代器
+    /// Create a default iterator
     pub fn default_iterator(rows: Vec<Vec<Value>>) -> Self {
         ResultIteratorEnum::Default(DefaultIterator::new(rows))
     }
 
-    /// 创建邻居查询迭代器
+    /// Create an iterator for the neighbor query
     pub fn get_neighbors(vertices: Vec<Value>, edges: Vec<Vec<Value>>) -> Self {
         ResultIteratorEnum::GetNeighbors(GetNeighborsIterator::new(vertices, edges))
     }
 
-    /// 创建属性迭代器
+    /// Create an attribute iterator
     pub fn prop(props: Vec<Vec<Value>>) -> Self {
         ResultIteratorEnum::Prop(PropIterator::new(props))
     }
 
-    /// 创建空迭代器
+    /// Create an empty iterator.
     pub fn empty() -> Self {
         ResultIteratorEnum::Empty
     }
 
-    /// 收集所有元素
+    /// Collect all elements.
     pub fn collect(&mut self) -> DBResult<Vec<Vec<Value>>> {
         Iterator::collect(self)
     }
 
-    /// 检查是否为空
+    /// Check whether it is empty.
     pub fn is_empty(&self) -> bool {
         match self {
             ResultIteratorEnum::Default(iter) => iter.is_empty(),
@@ -59,7 +59,7 @@ impl ResultIteratorEnum {
         }
     }
 
-    /// 获取大小
+    /// Obtain the size
     pub fn size(&self) -> usize {
         match self {
             ResultIteratorEnum::Default(iter) => iter.size(),
@@ -69,7 +69,7 @@ impl ResultIteratorEnum {
         }
     }
 
-    /// 重置迭代器
+    /// Reset the iterator
     pub fn reset(&mut self) {
         match self {
             ResultIteratorEnum::Default(iter) => iter.reset(),
@@ -84,7 +84,7 @@ impl Clone for ResultIteratorEnum {
     fn clone(&self) -> Self {
         match self {
             ResultIteratorEnum::Default(iter) => {
-                // DefaultIterator 可以通过重新创建来克隆
+                // The DefaultIterator can be cloned by recreating it.
                 let rows: Vec<Vec<Value>> = iter.rows().to_vec();
                 ResultIteratorEnum::Default(DefaultIterator::new(rows))
             }
@@ -229,11 +229,11 @@ mod tests {
 
         let mut iter = ResultIteratorEnum::default_iterator(rows);
 
-        // 测试标准的 Iterator trait
+        // The Iterator trait of the testing standard
         let collected = iter.by_ref().collect().expect("收集结果失败");
         assert_eq!(collected.len(), 2);
 
-        // 验证收集到的结果
+        // Verify the collected results.
         let row1 = &collected[0];
         assert_eq!(row1[0], Value::Int(1));
 
@@ -245,7 +245,7 @@ mod tests {
     fn test_iterator_trait_empty() {
         let mut iter = ResultIteratorEnum::empty();
 
-        // 测试空迭代器
+        // Testing an empty iterator
         let item = iter.next();
         assert!(item.is_none());
     }

@@ -1,37 +1,37 @@
-//! 源码位置类型定义
+//! Source Code Location Type Definition
 //!
-//! 本模块定义通用的源码位置类型，用于表示 token 和 AST 节点在源码中的位置。
+//! This module defines generic source location types to represent the location of tokens and AST nodes in the source code.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// 源码位置
+/// Source Code Location
 ///
-/// 表示源码中的一个点位置，包含行号和列号。
-/// 行号和列号都从 1 开始计数。
+/// Indicates a point location in the source code and contains row and column numbers.
+/// Row and column numbers are counted from 1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub struct Position {
-    /// 行号，从 1 开始
+    /// Line numbers, starting at 1
     pub line: usize,
-    /// 列号，从 1 开始
+    /// Column number, starting with 1
     pub column: usize,
 }
 
 impl Position {
-    /// 创建新位置
+    /// Creating a new location
     pub fn new(line: usize, column: usize) -> Self {
         Self { line, column }
     }
 
-    /// 将位置转换为字符偏移量
+    /// Converting positions to character offsets
     ///
-    /// # 参数
+    /// # Parameters
     ///
-    /// * `line_lengths` - 每行的字符长度数组
+    /// * `line_lengths` - array of character lengths per line
     ///
-    /// # 返回值
+    /// # Return value
     ///
-    /// 如果行号有效，返回对应的字符偏移量；否则返回 None
+    /// If the line number is valid, the corresponding character offset is returned; otherwise, None is returned.
     pub fn to_offset(&self, line_lengths: &[usize]) -> Option<usize> {
         if self.line == 0 || self.line > line_lengths.len() {
             return None;
@@ -46,12 +46,12 @@ impl Position {
         Some(offset)
     }
 
-    /// 将位置转换为 usize（用于简单比较）
+    /// Convert position to usize (for simple comparisons)
     pub fn to_usize(&self) -> usize {
         self.line * 1000 + self.column
     }
 
-    /// 检查位置是否有效（行号和列号都大于 0）
+    /// Check that the position is valid (row and column numbers are both greater than 0)
     pub fn is_valid(&self) -> bool {
         self.line > 0 && self.column > 0
     }
@@ -63,25 +63,25 @@ impl fmt::Display for Position {
     }
 }
 
-/// 源码跨度
+/// source code span
 ///
-/// 表示源码中的一个范围，从起始位置到结束位置。
-/// 用于表示 token、表达式、语句等在源码中的位置范围。
+/// Indicates a range in the source code, from the start position to the end position.
+/// Used to indicate the range of locations of tokens, expressions, statements, etc. in the source code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Span {
-    /// 起始位置（包含）
+    /// Starting position (included)
     pub start: Position,
-    /// 结束位置（包含）
+    /// End position (included)
     pub end: Position,
 }
 
 impl Span {
-    /// 创建新跨度
+    /// Creating a new span
     pub fn new(start: Position, end: Position) -> Self {
         Self { start, end }
     }
 
-    /// 从四个坐标创建跨度
+    /// Creating spans from four coordinates
     pub fn from_coords(
         start_line: usize,
         start_col: usize,
@@ -94,7 +94,7 @@ impl Span {
         }
     }
 
-    /// 从单个位置创建跨度（用于单个 token）
+    /// Creating spans from a single location (for a single token)
     pub fn from_position(pos: Position) -> Self {
         Self {
             start: pos,
@@ -102,20 +102,20 @@ impl Span {
         }
     }
 
-    /// 扩展跨度的结束位置
+    /// End position of the extended span
     pub fn extend(&mut self, other: Span) {
         self.end = other.end;
     }
 
-    /// 合并两个跨度
+    /// Combining two spans
     ///
     /// # 参数
     ///
-    /// * `other` - 要合并的另一个跨度
+    /// * :: `other` -- another span to be combined
     ///
     /// # 返回值
     ///
-    /// 新的跨度，起始位置为当前跨度的起始，结束位置为两跨度中较大的结束位置
+    /// A new span with the start position at the beginning of the current span and the end position at the end of the larger of the two spans
     pub fn merge(&self, other: Span) -> Span {
         Span::new(
             self.start,
@@ -127,42 +127,42 @@ impl Span {
         )
     }
 
-    /// 检查跨度是否为空（起始位置等于结束位置）
+    /// Check if span is empty (start position equals end position)
     pub fn is_empty(&self) -> bool {
         self.start == self.end
     }
 
-    /// 检查跨度是否包含指定位置
+    /// Check if the span contains the specified position
     pub fn contains(&self, pos: Position) -> bool {
         self.start <= pos && pos <= self.end
     }
 
-    /// 获取跨度的行号范围
+    /// Get the line number range of the span
     pub fn line_range(&self) -> (usize, usize) {
         (self.start.line, self.end.line)
     }
 
-    /// 获取跨度的列号范围（仅当在同一行时有效）
+    /// Get the range of column numbers for the span (valid only if on the same row)
     pub fn column_range(&self) -> (usize, usize) {
         (self.start.column, self.end.column)
     }
 
-    /// 获取起始位置的行号
+    /// Get the line number of the starting position
     pub fn start_line(&self) -> usize {
         self.start.line
     }
 
-    /// 获取起始位置的列号
+    /// Get the column number of the starting position
     pub fn start_column(&self) -> usize {
         self.start.column
     }
 
-    /// 获取结束位置的行号
+    /// Get the line number of the end position
     pub fn end_line(&self) -> usize {
         self.end.line
     }
 
-    /// 获取结束位置的列号
+    /// Get the column number of the ending position
     pub fn end_column(&self) -> usize {
         self.end.column
     }
@@ -178,9 +178,9 @@ impl fmt::Display for Span {
     }
 }
 
-/// 转换为 Span 的 trait
+/// Trait converted to Span
 ///
-/// 用于方便地将位置相关类型转换为 Span
+/// For easy conversion of location-dependent types to Span
 pub trait ToSpan {
     fn to_span(&self) -> Span;
 }

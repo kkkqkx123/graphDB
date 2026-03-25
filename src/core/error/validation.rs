@@ -1,6 +1,6 @@
-//! 验证错误类型
+//! Validating Error Types
 //!
-//! 涵盖查询验证和Schema验证相关的错误
+//! Covers errors related to query validation and Schema validation
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -8,9 +8,9 @@ use thiserror::Error;
 
 use crate::core::error::query::QueryError;
 
-/// 验证错误类型枚举（统一版本）
+/// Validation error type enumeration (harmonized version)
 ///
-/// 提供完整的验证错误分类，与QueryError::InvalidQuery对应
+/// Provides complete validation error categorization, corresponding to QueryError::InvalidQuery
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ValidationErrorType {
     SyntaxError,
@@ -61,10 +61,10 @@ impl From<ValidationErrorType> for QueryError {
     }
 }
 
-/// 统一验证错误结构
+/// Unified validation error structure
 ///
-/// 包含错误类型、错误消息和位置信息
-/// 支持序列化/反序列化，用于跨模块传递
+/// Contains error type, error message and location information
+/// Serialization/deserialization support for cross-module delivery
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ValidationError {
     pub message: String,
@@ -105,7 +105,7 @@ impl fmt::Display for ValidationError {
 
 impl std::error::Error for ValidationError {}
 
-/// Schema验证错误类型
+/// Schema Validation Error Types
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum SchemaValidationError {
     #[error("Schema not found: {0}")]
@@ -130,7 +130,7 @@ pub enum SchemaValidationError {
     UnsupportedOperation(String),
 }
 
-/// Schema验证结果
+/// Schema Validation Results
 #[derive(Debug, Clone)]
 pub struct SchemaValidationResult {
     pub is_valid: bool,

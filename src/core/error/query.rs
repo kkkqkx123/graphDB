@@ -1,6 +1,6 @@
-//! 查询层错误类型
+//! Query layer error type
 //!
-//! 涵盖查询解析、验证和执行过程中的错误
+//! This includes errors that occur during the processes of query parsing, validation, and execution.
 
 use thiserror::Error;
 
@@ -12,9 +12,9 @@ use crate::core::error::session::SessionError;
 use crate::core::error::storage::StorageError;
 use crate::core::error::DBError;
 
-/// 计划节点访问错误类型
+/// Error type during the planned node access
 ///
-/// 涵盖查询计划遍历和验证过程中的错误
+/// Errors that occur during the query plan traversal and validation processes
 #[derive(Error, Debug, Clone)]
 pub enum PlanNodeVisitError {
     #[error("Visit error: {0}")]
@@ -25,10 +25,10 @@ pub enum PlanNodeVisitError {
     ValidationError(String),
 }
 
-/// 查询操作结果类型别名
+/// Query operation result type aliases
 pub type QueryResult<T> = Result<T, QueryError>;
 
-/// 查询层错误类型
+/// Query layer error type
 #[derive(Error, Debug, Clone, PartialEq)]
 pub enum QueryError {
     #[error("Storage error: {0}")]
@@ -60,7 +60,7 @@ pub enum QueryError {
 }
 
 impl QueryError {
-    /// 获取错误位置偏移量
+    /// Obtain the offset of the error location
     pub fn offset(&self) -> Option<usize> {
         match self {
             QueryError::ParseErrorWithOffset { offset, .. } => Some(*offset),
@@ -68,7 +68,7 @@ impl QueryError {
         }
     }
 
-    /// 创建带位置信息的解析错误
+    /// Create a parsing error with location information
     pub fn parse_error_with_offset(message: impl Into<String>, offset: usize) -> Self {
         QueryError::ParseErrorWithOffset {
             message: message.into(),

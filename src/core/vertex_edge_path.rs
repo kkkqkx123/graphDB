@@ -30,14 +30,14 @@ impl Tag {
         Self { name, properties }
     }
 
-    /// 估算标签的内存使用大小
+    /// Estimate the memory usage of the label.
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
 
-        // 计算 name 的实际大小（包括堆分配）
+        // Calculate the actual size of the variable `name` (including heap allocation).
         size += std::mem::size_of::<String>() + self.name.capacity();
 
-        // 计算 HashMap 的容量开销
+        // Calculating the capacity overhead of a HashMap
         size += self.properties.capacity()
             * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
 
@@ -59,14 +59,14 @@ pub struct Vertex {
     pub properties: HashMap<String, Value>, // Vertex properties
 }
 
-// 手动实现Hash以处理HashMap的Hash
+// Implementing a hash function manually to handle the hashing of a HashMap
 impl std::hash::Hash for Vertex {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.vid.hash(state);
         for tag in &self.tags {
             tag.hash(state);
         }
-        // 对于HashMap，我们按键值对的排序顺序进行哈希
+        // For a HashMap, the hashing is performed based on the order in which the key-value pairs are sorted.
         let mut pairs: Vec<_> = self.properties.iter().collect();
         pairs.sort_by_key(|&(k, _)| k);
         for (k, v) in pairs {
@@ -86,7 +86,7 @@ impl Vertex {
         }
     }
 
-    /// 创建只有VID的顶点（简化构造函数）
+    /// Create a vertex with only the VID (simplified constructor)
     pub fn with_vid(vid: Value) -> Self {
         Self {
             vid: Box::new(vid),
@@ -204,15 +204,15 @@ impl Vertex {
         !self.properties.is_empty() || self.tags.iter().any(|tag| !tag.properties.is_empty())
     }
 
-    /// 比较属性映射的辅助函数
+    /// Auxiliary function for comparing attribute mappings
     fn cmp_properties(
         a: &HashMap<String, Value>,
         b: &HashMap<String, Value>,
     ) -> std::cmp::Ordering {
-        // 先比较属性数量
+        // First, compare the number of attributes.
         match a.len().cmp(&b.len()) {
             std::cmp::Ordering::Equal => {
-                // 按排序后的键值对比较
+                // Compare the sorted key-value pairs.
                 let mut a_sorted: Vec<_> = a.iter().collect();
                 let mut b_sorted: Vec<_> = b.iter().collect();
                 a_sorted.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
@@ -247,7 +247,7 @@ impl Default for Vertex {
 
 impl Ord for Vertex {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // 使用链式比较，提高可读性
+        // Use chained comparisons to improve readability.
         self.vid
             .cmp(&other.vid)
             .then_with(|| self.tags.len().cmp(&other.tags.len()))
@@ -256,15 +256,15 @@ impl Ord for Vertex {
 }
 
 impl Vertex {
-    /// 比较标签和属性
+    /// Comparing tags and attributes
     fn cmp_tags_and_properties(&self, other: &Self) -> std::cmp::Ordering {
-        // 比较标签
+        // Compare tags
         let mut self_tags: Vec<_> = self.tags.iter().collect();
         let mut other_tags: Vec<_> = other.tags.iter().collect();
         self_tags.sort_by(|a, b| a.name.cmp(&b.name));
         other_tags.sort_by(|a, b| a.name.cmp(&b.name));
 
-        // 比较每个标签
+        // Compare each tag.
         for (tag1, tag2) in self_tags.iter().zip(other_tags.iter()) {
             let tag_cmp = tag1
                 .name
@@ -276,7 +276,7 @@ impl Vertex {
             }
         }
 
-        // 比较顶点级属性
+        // Comparing vertex-level attributes
         Vertex::cmp_properties(&self.properties, &other.properties)
     }
 }
@@ -288,21 +288,21 @@ impl PartialOrd for Vertex {
 }
 
 impl Vertex {
-    /// 估算顶点的内存使用大小
+    /// Estimating the memory usage of the vertex
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
 
-        // 计算 vid 的实际大小（包括 Box 的堆分配和 Value 的内容）
+        // Calculate the actual size of the vid (including the heap allocation for the Box and the content of the Value).
         size += std::mem::size_of::<Box<Value>>() + self.vid.estimated_size();
 
-        // 计算 Vec<Tag> 的容量开销
+        // Calculate the memory overhead for the capacity of VecTagName>
         size += self.tags.capacity() * std::mem::size_of::<Tag>();
 
         for tag in &self.tags {
-            // 计算 String 的实际大小（包括堆分配）
+            // Calculate the actual size of a String (including heap allocation)
             size += std::mem::size_of::<String>() + tag.name.capacity();
 
-            // 计算 HashMap 的容量开销
+            // Calculating the capacity overhead of a HashMap
             size += tag.properties.capacity()
                 * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
 
@@ -312,7 +312,7 @@ impl Vertex {
             }
         }
 
-        // 计算 HashMap<String, Value> 的容量开销
+        // Calculating the capacity overhead of a HashMap<String, Value>
         size += self.properties.capacity()
             * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
 
@@ -336,9 +336,9 @@ pub struct Edge {
     pub props: HashMap<String, Value>, // Edge properties
 }
 
-/// 为了兼容性，添加properties字段
+/// For compatibility purposes, the `properties` field has been added.
 impl Edge {
-    /// 获取边的属性
+    /// Obtaining the properties of an edge
     pub fn properties(&self) -> &HashMap<String, Value> {
         &self.props
     }
@@ -418,18 +418,18 @@ impl Edge {
         )
     }
 
-    /// 估算边的内存使用大小
+    /// Estimate the memory usage of the edges.
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
 
-        // 计算 src 和 dst 的实际大小（包括 Box 的堆分配和 Value 的内容）
+        // Calculate the actual sizes of src and dst (including the heap allocation for the Box and the content of the Value).
         size += std::mem::size_of::<Box<Value>>() + self.src.estimated_size();
         size += std::mem::size_of::<Box<Value>>() + self.dst.estimated_size();
 
-        // 计算 edge_type 的实际大小（包括堆分配）
+        // Calculate the actual size of edge_type (including heap allocation).
         size += std::mem::size_of::<String>() + self.edge_type.capacity();
 
-        // 计算 HashMap 的容量开销
+        // Calculating the capacity overhead of a HashMap
         size +=
             self.props.capacity() * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
 
@@ -480,7 +480,7 @@ impl Edge {
 
 impl Ord for Edge {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // 使用链式比较，提高可读性
+        // Use chained comparisons to improve readability.
         self.src
             .cmp(&other.src)
             .then_with(|| self.dst.cmp(&other.dst))
@@ -512,7 +512,7 @@ impl std::hash::Hash for Step {
 
 impl Ord for Step {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // 比较顺序：dst -> edge
+        // Comparison order: dst -> edge
         match self.dst.cmp(&other.dst) {
             std::cmp::Ordering::Equal => self.edge.cmp(&other.edge),
             ord => ord,
@@ -527,9 +527,9 @@ impl PartialOrd for Step {
 }
 
 impl Step {
-    /// 创建新的步骤
+    /// Create a new step.
     pub fn new(dst: Vertex, edge_type: String, _edge_name: String, ranking: i64) -> Self {
-        // 创建一个空的边，稍后在构建路径时填充
+        // Create an empty edge, which will be filled in later when constructing the path.
         use crate::core::NullType;
         let edge = Edge::new_empty(
             Value::Null(NullType::Null),
@@ -543,7 +543,7 @@ impl Step {
         }
     }
 
-    /// 创建带有完整边信息的步骤
+    /// Steps for creating a model with complete edge information
     pub fn new_with_edge(dst: Vertex, edge: Edge) -> Self {
         Self {
             dst: Box::new(dst),
@@ -551,26 +551,26 @@ impl Step {
         }
     }
 
-    /// 获取源顶点ID
+    /// Obtain the ID of the source vertex.
     pub fn src_vid(&self) -> &Value {
         &self.edge.src
     }
 
-    /// 获取目标顶点ID
+    /// Obtain the ID of the target vertex.
     pub fn dst_vid(&self) -> &Value {
         &self.dst.vid
     }
 
-    /// 获取边的ranking
+    /// Obtaining the ranking of the edges
     pub fn ranking(&self) -> i64 {
         self.edge.ranking
     }
 
-    /// 估算步骤的内存使用大小
+    /// Estimating the memory usage of the steps in a process
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
 
-        // 计算 dst 和 edge 的实际大小（包括 Box 的堆分配和内容）
+        // Calculate the actual sizes of dst and edge (including the heap allocation for the Box and its content).
         size += std::mem::size_of::<Box<Vertex>>() + self.dst.estimated_size();
         size += std::mem::size_of::<Box<Edge>>() + self.edge.estimated_size();
 
@@ -587,7 +587,7 @@ pub struct Path {
 
 impl Ord for Path {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // 使用链式比较，提高可读性
+        // Use chained comparisons to improve readability.
         self.src
             .cmp(&other.src)
             .then_with(|| self.steps.len().cmp(&other.steps.len()))
@@ -596,9 +596,9 @@ impl Ord for Path {
 }
 
 impl Path {
-    /// 比较路径中的步骤
+    /// Compare the steps in the paths
     fn cmp_steps(&self, other: &Self) -> std::cmp::Ordering {
-        // 比较每个步骤
+        // Compare each step.
         for (step1, step2) in self.steps.iter().zip(other.steps.iter()) {
             let step_cmp = step1.cmp(step2);
             if step_cmp != std::cmp::Ordering::Equal {
@@ -615,7 +615,7 @@ impl PartialOrd for Path {
     }
 }
 
-// 手动实现Hash以处理复杂类型的Hash
+// Implementing a hash function manually to handle complex data types
 impl std::hash::Hash for Path {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.src.hash(state);
@@ -626,7 +626,7 @@ impl std::hash::Hash for Path {
 }
 
 impl Path {
-    /// 创建新的路径
+    /// Create a new path.
     pub fn new(src: Vertex) -> Self {
         Self {
             src: Box::new(src),
@@ -634,14 +634,14 @@ impl Path {
         }
     }
 
-    /// 估算路径的内存使用大小
+    /// Estimate the memory usage of the path
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
 
-        // 计算 src 的实际大小（包括 Box 的堆分配和 Vertex 的内容）
+        // Calculate the actual size of `src` (including the heap allocation for the `Box` and the content of the `Vertex`).
         size += std::mem::size_of::<Box<Vertex>>() + self.src.estimated_size();
 
-        // 计算 Vec<Step> 的容量开销
+        // Calculate the memory overhead for the capacity of Vec<Step>
         size += self.steps.capacity() * std::mem::size_of::<Step>();
 
         for step in &self.steps {
@@ -651,17 +651,17 @@ impl Path {
         size
     }
 
-    /// 添加步骤到路径
+    /// Add steps to the path
     pub fn add_step(&mut self, step: Step) {
         self.steps.push(step);
     }
 
-    /// 获取路径中的边
+    /// Obtain the edges in the path
     pub fn edges(&self) -> Vec<&Edge> {
         self.steps.iter().map(|step| step.edge.as_ref()).collect()
     }
 
-    /// 获取路径长度（步骤数）
+    /// Get the path length (number of steps)
     pub fn len(&self) -> usize {
         self.steps.len()
     }
@@ -671,17 +671,17 @@ impl Path {
         self.steps.len()
     }
 
-    /// 获取路径中的步骤
+    /// Obtain the steps in the path
     pub fn steps(&self) -> &[Step] {
         &self.steps
     }
 
-    /// 检查路径是否为空（仅包含源顶点）
+    /// Check whether the path is empty (contains only the source vertex).
     pub fn is_empty(&self) -> bool {
         self.steps.is_empty()
     }
 
-    /// 检查路径中是否有重复的边
+    /// Check for duplicate edges in the path
     pub fn has_duplicate_edges(&self) -> bool {
         let mut seen_edges: std::collections::HashSet<(Value, Value, String)> =
             std::collections::HashSet::new();
@@ -701,43 +701,43 @@ impl Path {
         false
     }
 
-    /// 反转路径
+    /// inversion path
     pub fn reverse(&mut self) {
         if self.steps.is_empty() {
             return;
         }
 
-        // 将步骤反转
+        // Reverse the steps
         self.steps.reverse();
 
-        // 更新每一步的边方向
+        // Update the side direction at each step
         for step in &mut self.steps {
-            // 交换边的src和dst
+            // Swap side src and dst
             std::mem::swap(&mut step.edge.src, &mut step.edge.dst);
         }
 
-        // 更新源顶点为最后一个步骤的目标顶点
+        // Update the source vertex to the target vertex of the last step
         if let Some(last_step) = self.steps.first() {
             *self.src = Vertex::new((*last_step.edge.src).clone(), vec![]);
         }
     }
 
-    /// 追加反向路径（用于双向BFS路径拼接）
-    /// 将另一条路径的反向追加到当前路径
+    /// Append reverse path (for bidirectional BFS path splicing)
+    /// Append the reverse of another path to the current path
     pub fn append_reverse(&mut self, other: Path) {
         if other.steps.is_empty() {
             return;
         }
 
-        // 获取other路径的反向步骤
+        // Reverse steps to get other paths
         let mut other_steps: Vec<Step> = other.steps.into_iter().rev().collect();
 
-        // 反转每条边的方向
+        // Reverse the direction of each edge
         for step in &mut other_steps {
             std::mem::swap(&mut step.edge.src, &mut step.edge.dst);
         }
 
-        // 追加到当前路径
+        // Append to current path
         self.steps.extend(other_steps);
     }
 }

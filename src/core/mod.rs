@@ -5,12 +5,12 @@ pub mod type_system;
 pub mod value;
 pub mod vertex_edge_path;
 
-// 新增的子模块
+// New sub-modules
 pub mod permission;
 pub mod stats;
 pub mod types;
 
-// 错误和结果类型
+// Error and result types
 pub use error::{
     DBError, DBResult, ErrorCategory, ExpressionError, ExpressionErrorType, ExpressionPosition,
     GraphDBResult, ManagerError, ManagerResult, PermissionError, PermissionResult,
@@ -18,19 +18,19 @@ pub use error::{
     SessionError, SessionResult, StorageError, StorageResult, ValidationError, ValidationErrorType,
 };
 
-// 对外错误码
+// External error code
 pub use error::codes::ErrorCategory as CodeErrorCategory;
 pub use error::{ErrorCode, PublicError, ToPublicError};
 
-// Result 系统
+// “Result System”
 pub use query_result::{DefaultIterator, GetNeighborsIterator, PropIterator};
 
-// 核心数据类型
+// Core data types
 pub use npath::{NPath, NPathEdgeIter, NPathIter, NPathVertexIter};
 pub use value::*;
 pub use vertex_edge_path::{Edge, Path, Step, Vertex};
 
-// 表达式系统类型
+// Expression system type
 pub use types::expr::Expression;
 pub use types::DataType;
 
@@ -40,13 +40,13 @@ pub use types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 pub use types::YieldColumn;
 
-// 其他核心类型
+// Other core types
 pub use type_system::TypeUtils;
 
-// 权限类型
+// Permission type
 pub use permission::{Permission, RoleType};
 
-// 统计类型
+// Statistical type
 pub use stats::{
     ErrorInfo, ErrorSummary, ErrorType, MetricType, MetricValue, QueryMetrics, QueryPhase,
     QueryProfile, QueryStatus, StatsManager,

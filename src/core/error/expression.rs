@@ -1,73 +1,73 @@
-//! 表达式错误类型
+//! Expression Error Type
 //!
-//! 包含错误类型、错误消息和可选的位置信息
-//! 支持序列化/反序列化，用于跨模块传递
+//! Contains error type, error message and optional location information
+//! Serialization/deserialization support for cross-module delivery
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
 
-/// 表达式错误（结构化设计）
+/// Expression error (structured design)
 #[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExpressionError {
-    /// 错误类型
+    /// Type of error
     pub error_type: ExpressionErrorType,
-    /// 错误消息
+    /// error message
     pub message: String,
-    /// 错误位置
+    /// error location
     pub position: Option<ExpressionPosition>,
 }
 
-/// 表达式错误类型枚举
+/// Expression Error Type Enumeration
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ExpressionErrorType {
-    /// 类型错误
+    /// type error
     TypeError,
-    /// 未定义变量
+    /// undefined variable
     UndefinedVariable,
-    /// 未定义函数
+    /// undefined function
     UndefinedFunction,
-    /// 未知函数
+    /// unknown function
     UnknownFunction,
-    /// 函数错误
+    /// function error
     FunctionError,
-    /// 参数数量错误
+    /// Wrong number of parameters
     ArgumentCountError,
-    /// 无效参数数量
+    /// Number of invalid parameters
     InvalidArgumentCount,
-    /// 溢出错误
+    /// overflow error
     Overflow,
-    /// 索引越界
+    /// indexing cross-border
     IndexOutOfBounds,
-    /// 空值错误
+    /// null hypothesis
     NullError,
-    /// 语法错误
+    /// grammatical error
     SyntaxError,
-    /// 无效操作
+    /// Invalid operation
     InvalidOperation,
-    /// 属性未找到
+    /// Attribute not found
     PropertyNotFound,
-    /// 运行时错误
+    /// run-time error (in computing)
     RuntimeError,
-    /// 不支持的操作
+    /// Unsupported operations
     UnsupportedOperation,
-    /// 类型转换错误
+    /// type conversion error
     TypeConversionError,
-    /// 操作符错误
+    /// operator error
     OperatorError,
-    /// 标签未找到
+    /// Tag not found
     LabelNotFound,
-    /// 边未找到
+    /// The edge is not found.
     EdgeNotFound,
-    /// 路径错误
+    /// path error
     PathError,
-    /// 范围错误
+    /// range error
     RangeError,
-    /// 聚合函数错误
+    /// Polymerization function error
     AggregateError,
-    /// 验证错误
+    /// verification error
     ValidationError,
-    /// 函数执行错误
+    /// function execution error
     FunctionExecutionError,
 }
 
@@ -102,21 +102,21 @@ impl std::fmt::Display for ExpressionErrorType {
     }
 }
 
-/// 表达式错误位置信息
+/// Expression Error Location Information
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExpressionPosition {
-    /// 行号
+    /// line number
     pub line: usize,
-    /// 列号
+    /// column number
     pub column: usize,
-    /// 偏移量
+    /// offset
     pub offset: usize,
-    /// 长度
+    /// lengths
     pub length: usize,
 }
 
 impl ExpressionError {
-    /// 创建新的表达式错误
+    /// Creating a new expression error
     pub fn new(error_type: ExpressionErrorType, message: impl Into<String>) -> Self {
         Self {
             error_type,
@@ -125,7 +125,7 @@ impl ExpressionError {
         }
     }
 
-    /// 设置错误位置
+    /// Setting the error position
     pub fn with_position(
         mut self,
         line: usize,
@@ -142,12 +142,12 @@ impl ExpressionError {
         self
     }
 
-    /// 创建类型错误
+    /// Create Type Error
     pub fn type_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::TypeError, message)
     }
 
-    /// 创建未定义变量错误
+    /// Create undefined variable error
     pub fn undefined_variable(name: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::UndefinedVariable,
@@ -155,7 +155,7 @@ impl ExpressionError {
         )
     }
 
-    /// 创建未定义函数错误
+    /// Create undefined function error
     pub fn undefined_function(name: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::UndefinedFunction,
@@ -163,7 +163,7 @@ impl ExpressionError {
         )
     }
 
-    /// 创建参数数量错误
+    /// Wrong number of creation parameters
     pub fn argument_count_error(expected: usize, actual: usize) -> Self {
         Self::new(
             ExpressionErrorType::ArgumentCountError,
@@ -174,12 +174,12 @@ impl ExpressionError {
         )
     }
 
-    /// 创建溢出错误
+    /// Create Overflow Error
     pub fn overflow(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::Overflow, message)
     }
 
-    /// 创建索引越界错误
+    /// Create index out of bounds error
     pub fn index_out_of_bounds(index: isize, size: usize) -> Self {
         Self::new(
             ExpressionErrorType::IndexOutOfBounds,
@@ -187,37 +187,37 @@ impl ExpressionError {
         )
     }
 
-    /// 创建空值错误
+    /// Create Null Error
     pub fn null_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::NullError, message)
     }
 
-    /// 创建语法错误
+    /// Creating Syntax Errors
     pub fn syntax_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::SyntaxError, message)
     }
 
-    /// 创建运行时错误
+    /// Creating Runtime Errors
     pub fn runtime_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::RuntimeError, message)
     }
 
-    /// 创建函数错误
+    /// Create function error
     pub fn function_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::FunctionError, message)
     }
 
-    /// 创建无效操作错误
+    /// Create invalid operation error
     pub fn invalid_operation(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::InvalidOperation, message)
     }
 
-    /// 创建属性未找到错误
+    /// Error: The attribute creation could not be found.
     pub fn property_not_found(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::PropertyNotFound, message)
     }
 
-    /// 创建未知函数错误
+    /// Error creating an unknown function.
     pub fn unknown_function(name: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::UnknownFunction,
@@ -225,7 +225,7 @@ impl ExpressionError {
         )
     }
 
-    /// 创建无效参数数量错误
+    /// Error: The number of invalid parameters created is incorrect.
     pub fn invalid_argument_count(name: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::InvalidArgumentCount,
@@ -233,7 +233,7 @@ impl ExpressionError {
         )
     }
 
-    /// 创建不支持的操作错误
+    /// An error occurred during the creation of an unsupported operation.
     pub fn unsupported_operation(
         operation: impl Into<String>,
         suggestion: impl Into<String>,
@@ -248,7 +248,7 @@ impl ExpressionError {
         )
     }
 
-    /// 创建类型转换错误
+    /// An error occurred during the creation of the type conversion.
     pub fn type_conversion_error(from_type: impl Into<String>, to_type: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::TypeConversionError,
@@ -260,7 +260,7 @@ impl ExpressionError {
         )
     }
 
-    /// 创建操作符错误
+    /// An error occurred while creating the operator.
     pub fn operator_error(operator: impl Into<String>, message: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::OperatorError,
@@ -268,7 +268,7 @@ impl ExpressionError {
         )
     }
 
-    /// 创建标签未找到错误
+    /// An error occurred while trying to create the tags.
     pub fn label_not_found(label: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::LabelNotFound,
@@ -276,7 +276,7 @@ impl ExpressionError {
         )
     }
 
-    /// 创建边未找到错误
+    /// Error: Edge creation not found.
     pub fn edge_not_found(edge: impl Into<String>) -> Self {
         Self::new(
             ExpressionErrorType::EdgeNotFound,
@@ -284,22 +284,22 @@ impl ExpressionError {
         )
     }
 
-    /// 创建路径错误
+    /// An error occurred while creating the path.
     pub fn path_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::PathError, message)
     }
 
-    /// 创建范围错误
+    /// Error creating the range.
     pub fn range_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::RangeError, message)
     }
 
-    /// 创建聚合函数错误
+    /// An error occurred while creating the aggregate function.
     pub fn aggregate_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::AggregateError, message)
     }
 
-    /// 创建验证错误
+    /// Create a validation error.
     pub fn validation_error(message: impl Into<String>) -> Self {
         Self::new(ExpressionErrorType::ValidationError, message)
     }

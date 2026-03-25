@@ -1,10 +1,10 @@
-//! 值运算模块
+//! Value Calculation Module
 //!
-//! 此模块提供值的算术、逻辑和位运算方法。
+//! This module provides methods for arithmetic, logical, and bitwise operations on values.
 use super::types::Value;
 
 impl Value {
-    /// 加法运算
+    /// Addition operation
     pub fn add(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -30,7 +30,7 @@ impl Value {
         }
     }
 
-    /// 减法运算
+    /// Subtraction operation
     pub fn sub(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -50,7 +50,7 @@ impl Value {
         }
     }
 
-    /// 乘法运算
+    /// Multiplication operation
     pub fn mul(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -70,7 +70,7 @@ impl Value {
         }
     }
 
-    /// 除法运算
+    /// Division operation
     pub fn div(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -162,7 +162,7 @@ impl Value {
         }
     }
 
-    /// 取模运算
+    /// Modular operation
     pub fn rem(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -233,7 +233,7 @@ impl Value {
         }
     }
 
-    /// 幂运算
+    /// Power operation
     pub fn pow(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -283,7 +283,7 @@ impl Value {
         }
     }
 
-    /// 取负运算
+    /// Negation operation
     pub fn neg(&self) -> Result<Value, String> {
         use Value::*;
         match self {
@@ -297,7 +297,7 @@ impl Value {
         }
     }
 
-    /// 逻辑与运算
+    /// Logic and Operations
     pub fn and(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -306,7 +306,7 @@ impl Value {
         }
     }
 
-    /// 逻辑或运算
+    /// Logical OR operation
     pub fn or(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -315,7 +315,7 @@ impl Value {
         }
     }
 
-    /// 逻辑非运算
+    /// Logical NOT operation
     pub fn not(&self) -> Result<Value, String> {
         use Value::*;
         match self {
@@ -324,7 +324,7 @@ impl Value {
         }
     }
 
-    /// 位与运算
+    /// Bitwise AND operation
     pub fn bit_and(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -341,7 +341,7 @@ impl Value {
         }
     }
 
-    /// 位或运算
+    /// Bitwise OR operation
     pub fn bit_or(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -358,7 +358,7 @@ impl Value {
         }
     }
 
-    /// 位异或运算
+    /// Bitwise XOR operation
     pub fn bit_xor(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -375,7 +375,7 @@ impl Value {
         }
     }
 
-    /// 位左移运算
+    /// Left shift operation
     pub fn bit_shl(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -456,7 +456,7 @@ impl Value {
         }
     }
 
-    /// 位右移运算
+    /// Right-shift operation
     pub fn bit_shr(&self, other: &Value) -> Result<Value, String> {
         use Value::*;
         match (self, other) {
@@ -537,7 +537,7 @@ impl Value {
         }
     }
 
-    /// 位取反运算
+    /// Bitwise NOT operation
     pub fn bit_not(&self) -> Result<Value, String> {
         use Value::*;
         match self {

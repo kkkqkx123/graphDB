@@ -1,58 +1,58 @@
-//! 优化器错误类型
+//! Optimizer error type
 //!
-//! 定义查询优化器相关的错误类型，包括：
-//! - 代价计算错误
-//! - 计划优化错误
-//! - 统计信息错误
-//! - 规则应用错误
+//! Define the error types related to query optimizers, including:
+//! The cost calculation was incorrect.
+//! Error in plan optimization
+//! The statistical information is incorrect.
+//! The rules were applied incorrectly.
 
 use thiserror::Error;
 
-/// 优化器错误类型
+/// Optimizer error type
 #[derive(Error, Debug, Clone)]
 pub enum OptimizeError {
-    /// 不支持的节点类型
+    /// Node type not supported
     #[error("Unsupported node type: {0}")]
     UnsupportedNodeType(String),
 
-    /// 缺少统计信息
+    /// Statistical information is missing.
     #[error("Missing statistics: {0}")]
     MissingStatistics(String),
 
-    /// 代价计算错误
+    /// Miscalculation of the costs
     #[error("Calculation error: {0}")]
     CalculationError(String),
 
-    /// 计划优化错误
+    /// The plan to optimize the errors has failed.
     #[error("Plan optimization error: {0}")]
     PlanOptimizationError(String),
 
-    /// 规则应用错误
+    /// The rule was applied incorrectly.
     #[error("Rule application error: {0}")]
     RuleApplicationError(String),
 
-    /// 统计信息错误
+    /// There is an error in the statistical information.
     #[error("Statistics error: {0}")]
     StatisticsError(String),
 
-    /// 索引选择错误
+    /// The index selection was incorrect.
     #[error("Index selection error: {0}")]
     IndexSelectionError(String),
 
-    /// 连接顺序优化错误
+    /// Error in the optimization of the connection sequence.
     #[error("Join order optimization error: {0}")]
     JoinOrderError(String),
 
-    /// 表达式转换错误
+    /// Expression conversion error.
     #[error("Expression transform error: {0}")]
     ExpressionTransformError(String),
 
-    /// 内部优化错误
+    /// Internal optimization error
     #[error("Internal optimization error: {0}")]
     InternalError(String),
 }
 
-/// 优化器结果类型
+/// Optimizer result type
 pub type OptimizeResult<T> = Result<T, OptimizeError>;
 
 /// Cost calculation related errors
@@ -71,7 +71,7 @@ pub enum CostError {
     CalculationError(String),
 }
 
-/// 代价计算结果类型
+/// Type of result for the cost calculation
 pub type CostResult<T> = Result<T, CostError>;
 
 impl From<CostError> for OptimizeError {

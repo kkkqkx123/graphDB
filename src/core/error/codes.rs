@@ -1,92 +1,92 @@
-//! 对外错误码定义
+//! Definition of external error codes
 //!
-//! 本模块定义标准化的错误码体系，用于：
-//! - 客户端响应
-//! - API 返回
-//! - 协议序列化
+//! This module defines a standardized error code system for the following purposes:
+//! Client response
+//! The API returns the data.
+//! Protocol serialization
 //!
-//! 错误码格式: XXYY
-//! - XX: 错误类别 (00=成功, 01=语法, 02=执行, 03=验证, 04=权限, 05=资源, 09=系统)
-//! - YY: 具体错误
+//! Error code format: XXYY
+//! XX: Error category (00 = Success, 01 = Syntax, 02 = Execution, 03 = Validation, 04 = Permissions, 05 = Resources, 09 = System)
+//! - YY: Specific error
 
 use serde::{Deserialize, Serialize};
 
-/// 对外错误码 - 用于客户端响应
+/// External error code – used for client responses
 ///
-/// 设计原则：
-/// 1. 稳定性：错误码一旦定义不应随意修改，保证客户端兼容性
-/// 2. 精简性：只暴露必要的错误信息，不包含内部实现细节
-/// 3. 标准化：遵循 HTTP/GraphQL 等常见错误码设计规范
+/// Design principles:
+/// Stability: Error codes should not be modified arbitrarily once they have been defined, in order to ensure compatibility with clients.
+/// 2. Simplification: Only the necessary error information is displayed, without any details about the internal implementation.
+/// 3. Standardization: Adherence to common error code design specifications such as those for HTTP/GraphQL
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ErrorCode {
-    // ==================== 成功 (00xx) ====================
+    // ==================== Success (00xx) ====================
     #[default]
     Success = 0,
 
-    // ==================== 语法错误 (01xx) ====================
-    /// 通用语法错误
+    // ==================== Grammar error (01xx) ====================
+    /// Common grammar errors
     SyntaxError = 100,
-    /// 解析错误
+    /// Analysis error
     ParseError = 101,
-    /// 无效语句
+    /// Invalid statement.
     InvalidStatement = 102,
-    /// 缺少必要参数
+    /// The necessary parameters are missing.
     MissingParameter = 103,
 
-    // ==================== 执行错误 (02xx) ====================
-    /// 通用执行错误
+    // ==================== Execution error (02xx) ====================
+    /// General Execution Error
     ExecutionError = 200,
-    /// 执行超时
+    /// The operation timed out.
     Timeout = 201,
-    /// 资源不足
+    /// Insufficient resources
     ResourceExhausted = 202,
-    /// 并发冲突
+    /// Concurrency conflicts
     Conflict = 203,
-    /// 死锁检测
+    /// Deadlock detection
     Deadlock = 204,
 
-    // ==================== 验证错误 (03xx) ====================
-    /// 通用验证错误
+    // Verification error (03xx)
+    /// General Verification Error
     ValidationError = 300,
-    /// 类型错误
+    /// Type error
     TypeError = 301,
-    /// 无效输入
+    /// Invalid input.
     InvalidInput = 302,
-    /// 约束违反
+    /// Constraint violation
     ConstraintViolation = 303,
 
-    // ==================== 权限错误 (04xx) ====================
-    /// 权限不足
+    // ==================== Permission error (04xx) ====================
+    /// Insufficient permissions
     PermissionDenied = 400,
-    /// 未认证
+    /// Unauthenticated
     Unauthorized = 401,
-    /// 禁止访问
+    /// Access prohibited.
     Forbidden = 403,
 
-    // ==================== 资源错误 (05xx) ====================
-    /// 资源未找到
+    // Resource error (05xx)
+    /// The resource was not found.
     ResourceNotFound = 500,
-    /// 资源已存在
+    /// The resource already exists.
     ResourceAlreadyExists = 501,
-    /// 资源不可用
+    /// The resource is not available.
     ResourceUnavailable = 502,
 
-    // ==================== 系统错误 (09xx) ====================
-    /// 内部服务器错误
+    // ==================== System Error (09xx) ====================
+    /// Internal server error
     InternalError = 900,
-    /// 服务不可用
+    /// The service is not available.
     ServiceUnavailable = 901,
-    /// 未知错误
+    /// Unknown error
     Unknown = 999,
 }
 
 impl ErrorCode {
-    /// 获取错误码的 i32 值
+    /// Obtain the i32 value of the error code
     pub fn as_i32(&self) -> i32 {
         *self as i32
     }
 
-    /// 根据 i32 值获取错误码
+    /// Retrieve the error code based on the i32 value.
     pub fn from_i32(code: i32) -> Option<Self> {
         match code {
             0 => Some(ErrorCode::Success),
@@ -116,7 +116,7 @@ impl ErrorCode {
         }
     }
 
-    /// 获取错误类别
+    /// Obtain the error category
     pub fn category(&self) -> ErrorCategory {
         match self.as_i32() {
             0 => ErrorCategory::Success,
@@ -130,7 +130,7 @@ impl ErrorCode {
         }
     }
 
-    /// 获取默认的错误消息
+    /// Retrieve the default error message.
     pub fn default_message(&self) -> &'static str {
         match self {
             ErrorCode::Success => "成功",
@@ -159,24 +159,24 @@ impl ErrorCode {
         }
     }
 
-    /// 判断是否为成功状态
+    /// Determine whether it represents a successful state.
     pub fn is_success(&self) -> bool {
         matches!(self, ErrorCode::Success)
     }
 
-    /// 判断是否为客户端错误 (4xx 类错误)
+    /// Determine whether it is a client-side error (a 4xx error).
     pub fn is_client_error(&self) -> bool {
         let code = self.as_i32();
         (100..=499).contains(&code)
     }
 
-    /// 判断是否为服务器错误 (5xx/9xx 类错误)
+    /// Determine whether it is a server error (errors of the 5xx/9xx type).
     pub fn is_server_error(&self) -> bool {
         let code = self.as_i32();
         (500..=599).contains(&code) || (900..=999).contains(&code)
     }
 
-    /// 判断错误是否可重试
+    /// Determine whether a failed attempt can be retried.
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
@@ -195,7 +195,7 @@ impl std::fmt::Display for ErrorCode {
     }
 }
 
-/// 错误类别
+/// error category
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorCategory {
     Success,
@@ -209,7 +209,7 @@ pub enum ErrorCategory {
 }
 
 impl ErrorCategory {
-    /// 获取类别的 HTTP 状态码映射
+    /// Gets the HTTP status code mapping of the category
     pub fn to_http_status(&self) -> u16 {
         match self {
             ErrorCategory::Success => 200,
@@ -224,17 +224,17 @@ impl ErrorCategory {
     }
 }
 
-/// 对外错误信息 - 用于序列化到响应中
+/// External error message-used to serialize into the response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PublicError {
-    /// 错误码
+    /// error code
     pub code: ErrorCode,
-    /// 错误消息
+    /// error message
     pub message: String,
 }
 
 impl PublicError {
-    /// 创建新的对外错误
+    /// Create new external errors
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
         Self {
             code,
@@ -242,7 +242,7 @@ impl PublicError {
         }
     }
 
-    /// 使用默认消息创建错误
+    /// Create errors using default messages
     pub fn with_default_message(code: ErrorCode) -> Self {
         Self {
             code,
@@ -250,7 +250,7 @@ impl PublicError {
         }
     }
 
-    /// 创建成功响应
+    /// Create a successful response
     pub fn success() -> Self {
         Self {
             code: ErrorCode::Success,
@@ -259,17 +259,17 @@ impl PublicError {
     }
 }
 
-/// 内部错误到对外错误的转换 trait
+/// conversion trait of internal errors to external errors
 ///
-/// 实现此 trait 可以将内部错误转换为对外错误，过滤敏感信息
+/// Implementing this trait can convert internal errors into external errors and filter sensitive information
 pub trait ToPublicError {
-    /// 转换为对外错误
+    /// Convert to external error
     fn to_public_error(&self) -> PublicError;
 
-    /// 获取对外错误码
+    /// Get external error codes
     fn to_error_code(&self) -> ErrorCode;
 
-    /// 获取对外错误消息（过滤敏感信息）
+    /// Get external error messages (filter sensitive information)
     fn to_public_message(&self) -> String;
 }
 
@@ -323,10 +323,10 @@ mod tests {
     fn test_public_error() {
         let err = PublicError::new(ErrorCode::ResourceNotFound, "用户不存在".to_string());
         assert_eq!(err.code, ErrorCode::ResourceNotFound);
-        assert_eq!(err.message, "用户不存在");
+        assert_eq!(err.message, "user does not exist");
 
         let default_err = PublicError::with_default_message(ErrorCode::Timeout);
         assert_eq!(default_err.code, ErrorCode::Timeout);
-        assert_eq!(default_err.message, "执行超时");
+        assert_eq!(default_err.message, "execution timeout");
     }
 }

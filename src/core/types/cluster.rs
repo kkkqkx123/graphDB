@@ -1,4 +1,4 @@
-//! 集群信息类型定义
+//! Definition of cluster information type
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};

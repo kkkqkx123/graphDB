@@ -1,7 +1,7 @@
-//! 上下文表达式
+//! context expression (computing)
 //!
-//! 本模块定义 ContextualExpression，作为轻量级的表达式引用，
-//! 持有 ExpressionId 和 Context 引用。
+//! This module defines ContextualExpression as a lightweight reference to an expression.
+//! Holds the ExpressionId and Context references.
 
 use std::sync::Arc;
 
@@ -9,49 +9,49 @@ use super::{Expression, ExpressionId, ExpressionMeta};
 use crate::core::types::DataType;
 use crate::core::Value;
 use crate::query::validator::context::ExpressionAnalysisContext;
-/// 增强的表达式元数据，包含查询上下文引用
+/// Enhanced expression metadata with query context references
 ///
-/// 轻量级的表达式引用，持有 ExpressionId 和 Context 引用。
-/// 通过 ExpressionAnalysisContext 可以访问表达式的完整信息、类型、常量值等。
+/// Lightweight expression references, holding ExpressionId and Context references.
+/// The ExpressionAnalysisContext provides access to full information about the expression, its type, constant value, etc.
 #[derive(Debug, Clone)]
 pub struct ContextualExpression {
-    /// 表达式ID
+    /// Expression ID
     id: ExpressionId,
-    /// 查询上下文引用
+    /// Query Context References
     context: Arc<ExpressionAnalysisContext>,
 }
 
 impl ContextualExpression {
-    /// 创建上下文表达式
+    /// Creating Context Expressions
     pub fn new(id: ExpressionId, context: Arc<ExpressionAnalysisContext>) -> Self {
         Self { id, context }
     }
 
-    /// 获取表达式ID
+    /// Get expression ID
     pub fn id(&self) -> &ExpressionId {
         &self.id
     }
 
-    /// 获取表达式元数据
+    /// Get expression metadata
     pub fn expression(&self) -> Option<Arc<ExpressionMeta>> {
         self.context.get_expression(&self.id)
     }
 
-    /// 获取底层 Expression 的克隆
+    /// Get a clone of the underlying Expression
     ///
-    /// 此方法用于需要直接操作 Expression 的场景，
+    /// This method is used in scenarios where you need to manipulate the Expression directly.
     /// 如模板提取、参数化等。大多数场景应使用 expression() 方法
     ///
-    /// # 使用限制
-    /// 此方法只能在 Executor 层使用，其他层禁止调用
-    /// 违反此限制将破坏表达式系统的设计原则
+    /// # Restrictions on use
+    /// This method can only be used at the Executor level and is not allowed to be called at any other level.
+    /// Violation of this restriction would undermine the design principles of the expression system
     pub fn get_expression(&self) -> Option<Expression> {
         self.expression().map(|meta| meta.inner.as_ref().clone())
     }
 
-    /// 消费 self 并获取底层 Expression
+    /// Consume self and get the underlying Expression
     ///
-    /// 此方法用于需要获取 Expression 所有权而非引用的场景
+    /// This method is used in scenarios where you need to get ownership of an Expression instead of a reference.
     ///
     /// # 使用限制
     /// 此方法只能在 Executor 层使用，其他层禁止调用
@@ -61,195 +61,195 @@ impl ContextualExpression {
             .expect("Expression should exist in context")
     }
 
-    /// 获取表达式类型
+    /// Get expression type
     pub fn data_type(&self) -> Option<DataType> {
         self.context.get_type(&self.id)
     }
 
-    /// 获取常量值
+    /// Getting Constant Values
     pub fn constant_value(&self) -> Option<Value> {
         self.context.get_constant(&self.id)
     }
 
-    /// 是否为常量
+    /// Whether it is a constant or not
     pub fn is_constant(&self) -> bool {
         self.context.is_constant(&self.id)
     }
 
-    /// 是否已经过类型推导
+    /// Whether the type derivation has been done
     pub fn is_typed(&self) -> bool {
         self.context.is_typed(&self.id)
     }
 
-    /// 是否已经过常量折叠
+    /// Whether or not the constants have been collapsed
     pub fn is_constant_folded(&self) -> bool {
         self.context.is_constant_folded(&self.id)
     }
 
-    /// 是否已经过公共子表达式消除
+    /// Whether or not it has been eliminated by a public subexpression
     pub fn is_cse_eliminated(&self) -> bool {
         self.context.is_cse_eliminated(&self.id)
     }
 
-    /// 获取表达式上下文
+    /// Get expression context
     pub fn context(&self) -> &Arc<ExpressionAnalysisContext> {
         &self.context
     }
 
-    /// 检查表达式是否为字面量
+    /// Checking if an expression is a literal
     pub fn is_literal(&self) -> bool {
         self.expression().map(|e| e.is_literal()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为变量
+    /// Checking if an expression is a variable
     pub fn is_variable(&self) -> bool {
         self.expression().map(|e| e.is_variable()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为聚合表达式
+    /// Check if the expression is an aggregate expression
     pub fn is_aggregate(&self) -> bool {
         self.expression().map(|e| e.is_aggregate()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为属性访问表达式
+    /// Check if the expression is a property access expression
     pub fn is_property(&self) -> bool {
         self.expression()
             .map(|e| e.inner().is_property())
             .unwrap_or(false)
     }
 
-    /// 获取变量名
+    /// Get variable name
     pub fn as_variable(&self) -> Option<String> {
         self.expression()
             .and_then(|e| e.as_variable().map(|s| s.to_string()))
     }
 
-    /// 获取字面量值
+    /// Get Literals
     pub fn as_literal(&self) -> Option<Value> {
         self.expression().and_then(|e| e.as_literal().cloned())
     }
 
-    /// 获取变量列表
+    /// Getting a list of variables
     pub fn get_variables(&self) -> Vec<String> {
         self.expression()
             .map(|e| e.get_variables())
             .unwrap_or_default()
     }
 
-    /// 转换为字符串表示
+    /// Convert to string representation
     pub fn to_expression_string(&self) -> String {
         self.expression()
             .map(|e| e.to_expression_string())
             .unwrap_or_else(|| format!("<unknown expression {}>", self.id.0))
     }
 
-    /// 检查是否包含聚合函数
+    /// Checking for the inclusion of aggregate functions
     pub fn contains_aggregate(&self) -> bool {
         self.expression()
             .map(|e| e.contains_aggregate())
             .unwrap_or(false)
     }
 
-    /// 检查表达式是否为函数调用
+    /// Check if the expression is a function call
     pub fn is_function(&self) -> bool {
         self.expression().map(|e| e.is_function()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为路径表达式
+    /// Check if the expression is a path expression
     pub fn is_path(&self) -> bool {
         self.expression().map(|e| e.is_path()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为路径构建表达式
+    /// Check if the expression is a path-building expression
     pub fn is_path_build(&self) -> bool {
         self.expression()
             .map(|e| e.is_path_build())
             .unwrap_or(false)
     }
 
-    /// 检查表达式是否为标签表达式
+    /// Check if the expression is a labeled expression
     pub fn is_label(&self) -> bool {
         self.expression().map(|e| e.is_label()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为二元表达式
+    /// Check if the expression is binary
     pub fn is_binary(&self) -> bool {
         self.expression().map(|e| e.is_binary()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为一元表达式
+    /// Check if the expression is a unary expression
     pub fn is_unary(&self) -> bool {
         self.expression().map(|e| e.is_unary()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为类型转换表达式
+    /// Checks if an expression is a type conversion expression
     pub fn is_type_cast(&self) -> bool {
         self.expression().map(|e| e.is_type_cast()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为下标访问表达式
+    /// Check if the expression is a subscript access expression
     pub fn is_subscript(&self) -> bool {
         self.expression().map(|e| e.is_subscript()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为范围表达式
+    /// Check if the expression is a range expression
     pub fn is_range(&self) -> bool {
         self.expression().map(|e| e.is_range()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为列表表达式
+    /// Check if the expression is a list expression
     pub fn is_list(&self) -> bool {
         self.expression().map(|e| e.is_list()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为映射表达式
+    /// Check if the expression is a mapping expression
     pub fn is_map(&self) -> bool {
         self.expression().map(|e| e.is_map()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为 Case 表达式
+    /// Checks if the expression is a Case expression
     pub fn is_case(&self) -> bool {
         self.expression().map(|e| e.is_case()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为 Reduce 表达式
+    /// Check if the expression is a Reduce expression
     pub fn is_reduce(&self) -> bool {
         self.expression().map(|e| e.is_reduce()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为参数表达式
+    /// Check whether the expression is a parameter expression.
     pub fn is_parameter(&self) -> bool {
         self.expression().map(|e| e.is_parameter()).unwrap_or(false)
     }
 
-    /// 检查表达式是否为列表推导式
+    /// Check whether the expression is a list comprehension.
     pub fn is_list_comprehension(&self) -> bool {
         self.expression()
             .map(|e| e.is_list_comprehension())
             .unwrap_or(false)
     }
 
-    /// 获取函数名（如果是函数调用）
+    /// Obtain the function name (in the case of a function call)
     pub fn as_function_name(&self) -> Option<String> {
         self.expression().and_then(|e| e.as_function_name())
     }
 
-    /// 获取属性名（如果是属性访问）
+    /// Obtain the attribute name (in the case of attribute access)
     pub fn as_property_name(&self) -> Option<String> {
         self.expression().and_then(|e| e.as_property_name())
     }
 
-    /// 获取标签名（如果是标签表达式）
+    /// Obtain the tag name (if it is a tag expression).
     pub fn as_label_name(&self) -> Option<String> {
         self.expression().and_then(|e| e.as_label_name())
     }
 
-    /// 获取参数名（如果是参数表达式）
+    /// Obtain the parameter name (if it is a parameter expression).
     pub fn as_parameter_name(&self) -> Option<String> {
         self.expression().and_then(|e| e.as_parameter_name())
     }
 
-    /// 检查表达式是否为空字符串
+    /// Check whether the expression is an empty string.
     pub fn is_empty_string(&self) -> bool {
         self.as_literal()
             .and_then(|v| match v {
@@ -259,13 +259,13 @@ impl ContextualExpression {
             .unwrap_or(false)
     }
 
-    /// 检查表达式是否为 IS NOT EMPTY 条件
+    /// Check whether the expression satisfies the IS NOT EMPTY condition.
     pub fn is_not_empty_condition(&self) -> bool {
         let s = self.to_expression_string();
         s.contains("IS NOT EMPTY") || s.contains("is not empty")
     }
 
-    /// 比较两个表达式是否相等（基于表达式内容而非 ID）
+    /// Compare whether two expressions are equal (based on the content of the expressions, not on their IDs).
     pub fn equals_by_content(&self, other: &Self) -> bool {
         if let (Some(expr1), Some(expr2)) = (self.expression(), other.expression()) {
             expr1.inner() == expr2.inner()

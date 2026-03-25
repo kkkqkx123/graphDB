@@ -1,6 +1,6 @@
-//! 表达式构造方法
+//! Expression construction methods
 //!
-//! 提供创建各类表达式的方法。
+//! Provide methods for creating various types of expressions.
 
 use crate::core::types::expr::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
@@ -8,17 +8,17 @@ use crate::core::types::DataType;
 use crate::core::{NullType, Value};
 
 impl Expression {
-    /// 创建字面量表达式
+    /// Creating literal expressions
     pub fn literal(value: impl Into<Value>) -> Self {
         Expression::Literal(value.into())
     }
 
-    /// 创建变量表达式
+    /// Create a variable expression.
     pub fn variable(name: impl Into<String>) -> Self {
         Expression::Variable(name.into())
     }
 
-    /// 创建属性访问表达式
+    /// Create attribute access expressions
     pub fn property(object: Expression, property: impl Into<String>) -> Self {
         Expression::Property {
             object: Box::new(object),
@@ -26,7 +26,7 @@ impl Expression {
         }
     }
 
-    /// 创建二元运算表达式
+    /// Create a binary operation expression
     pub fn binary(left: Expression, op: BinaryOperator, right: Expression) -> Self {
         Expression::Binary {
             left: Box::new(left),
@@ -35,7 +35,7 @@ impl Expression {
         }
     }
 
-    /// 创建一元运算表达式
+    /// Create a unary operation expression.
     pub fn unary(op: UnaryOperator, operand: Expression) -> Self {
         Expression::Unary {
             op,
@@ -43,7 +43,7 @@ impl Expression {
         }
     }
 
-    /// 创建函数调用表达式
+    /// Create a function call expression.
     pub fn function(name: impl Into<String>, args: Vec<Expression>) -> Self {
         Expression::Function {
             name: name.into(),
@@ -51,7 +51,7 @@ impl Expression {
         }
     }
 
-    /// 创建聚合函数表达式
+    /// Create an aggregate function expression.
     pub fn aggregate(func: AggregateFunction, arg: Expression, distinct: bool) -> Self {
         Expression::Aggregate {
             func,
@@ -60,17 +60,17 @@ impl Expression {
         }
     }
 
-    /// 创建列表表达式
+    /// Create a list expression.
     pub fn list(items: Vec<Expression>) -> Self {
         Expression::List(items)
     }
 
-    /// 创建映射表达式
+    /// Create a mapping expression
     pub fn map(pairs: Vec<(impl Into<String>, Expression)>) -> Self {
         Expression::Map(pairs.into_iter().map(|(k, v)| (k.into(), v)).collect())
     }
 
-    /// 创建条件表达式
+    /// Create a conditional expression
     pub fn case(
         test_expr: Option<Expression>,
         conditions: Vec<(Expression, Expression)>,
@@ -83,7 +83,7 @@ impl Expression {
         }
     }
 
-    /// 创建类型转换表达式
+    /// Create a type conversion expression.
     pub fn cast(expression: Expression, target_type: DataType) -> Self {
         Expression::TypeCast {
             expression: Box::new(expression),
@@ -91,7 +91,7 @@ impl Expression {
         }
     }
 
-    /// 创建下标访问表达式
+    /// Create an subscript access expression.
     pub fn subscript(collection: Expression, index: Expression) -> Self {
         Expression::Subscript {
             collection: Box::new(collection),
@@ -99,7 +99,7 @@ impl Expression {
         }
     }
 
-    /// 创建范围表达式
+    /// Create a range expression
     pub fn range(
         collection: Expression,
         start: Option<Expression>,
@@ -112,17 +112,17 @@ impl Expression {
         }
     }
 
-    /// 创建路径表达式
+    /// Create a path expression
     pub fn path(items: Vec<Expression>) -> Self {
         Expression::Path(items)
     }
 
-    /// 创建标签表达式
+    /// Create a tag expression
     pub fn label(name: impl Into<String>) -> Self {
         Expression::Label(name.into())
     }
 
-    /// 创建列表推导表达式
+    /// Create a list comprehension expression.
     pub fn list_comprehension(
         variable: impl Into<String>,
         source: Expression,
@@ -137,7 +137,7 @@ impl Expression {
         }
     }
 
-    /// 创建标签属性动态访问表达式
+    /// Create dynamic access expressions for tag attributes
     pub fn label_tag_property(tag: Expression, property: impl Into<String>) -> Self {
         Expression::LabelTagProperty {
             tag: Box::new(tag),
@@ -145,7 +145,7 @@ impl Expression {
         }
     }
 
-    /// 创建标签属性访问表达式
+    /// Create tag attribute access expressions
     pub fn tag_property(tag_name: impl Into<String>, property: impl Into<String>) -> Self {
         Expression::TagProperty {
             tag_name: tag_name.into(),
@@ -153,7 +153,7 @@ impl Expression {
         }
     }
 
-    /// 创建边属性访问表达式
+    /// Create an edge attribute access expression.
     pub fn edge_property(edge_name: impl Into<String>, property: impl Into<String>) -> Self {
         Expression::EdgeProperty {
             edge_name: edge_name.into(),
@@ -161,7 +161,7 @@ impl Expression {
         }
     }
 
-    /// 创建谓词表达式
+    /// Create a predicate expression.
     pub fn predicate(func: impl Into<String>, args: Vec<Expression>) -> Self {
         Expression::Predicate {
             func: func.into(),
@@ -169,7 +169,7 @@ impl Expression {
         }
     }
 
-    /// 创建 Reduce 表达式
+    /// Create a Reduce expression.
     pub fn reduce(
         accumulator: impl Into<String>,
         initial: Expression,
@@ -186,92 +186,92 @@ impl Expression {
         }
     }
 
-    /// 创建路径构建表达式
+    /// Create a path construction expression
     pub fn path_build(items: Vec<Expression>) -> Self {
         Expression::PathBuild(items)
     }
 
-    /// 创建参数表达式
+    /// Create a parameter expression
     pub fn parameter(name: impl Into<String>) -> Self {
         Expression::Parameter(name.into())
     }
 
-    /// 创建布尔字面量
+    /// Creating a boolean literal
     pub fn bool(value: bool) -> Self {
         Expression::Literal(Value::Bool(value))
     }
 
-    /// 创建整数字面量
+    /// Creating integer literal values
     pub fn int(value: i64) -> Self {
         Expression::Literal(Value::Int(value))
     }
 
-    /// 创建浮点数字面量
+    /// Creating a floating-point numeric literal
     pub fn float(value: f64) -> Self {
         Expression::Literal(Value::Float(value))
     }
 
-    /// 创建字符串字面量
+    /// Creating a string literal
     pub fn string(value: impl Into<String>) -> Self {
         Expression::Literal(Value::String(value.into()))
     }
 
-    /// 创建空值字面量
+    /// Create an empty literal value.
     pub fn null() -> Self {
         Expression::Literal(Value::Null(NullType::Null))
     }
 
-    /// 创建取模表达式
+    /// Create a modulus expression
     pub fn modulo(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::Modulo, right)
     }
 
-    /// 创建等于表达式
+    /// Creating an expression that equals a certain value…
     pub fn eq(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::Equal, right)
     }
 
-    /// 创建不等于表达式
+    /// Creating something does not equal expressing it in words.
     pub fn ne(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::NotEqual, right)
     }
 
-    /// 创建小于表达式
+    /// Create an expression that is smaller than the given one.
     pub fn lt(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::LessThan, right)
     }
 
-    /// 创建小于等于表达式
+    /// Create an expression that is less than or equal to…
     pub fn le(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::LessThanOrEqual, right)
     }
 
-    /// 创建大于表达式
+    /// Create something that is greater than the expression…
     pub fn gt(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::GreaterThan, right)
     }
 
-    /// 创建大于等于表达式
+    /// Create an expression that is greater than or equal to…
     pub fn ge(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::GreaterThanOrEqual, right)
     }
 
-    /// 创建逻辑与表达式
+    /// Creating logic and expressions
     pub fn and(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::And, right)
     }
 
-    /// 创建逻辑或表达式
+    /// Create a logical statement or expression.
     pub fn or(left: Expression, right: Expression) -> Self {
         Self::binary(left, BinaryOperator::Or, right)
     }
 
-    /// 创建 IS NULL 表达式
+    /// Creating an IS NULL expression
     pub fn is_null(operand: Expression) -> Self {
         Self::unary(UnaryOperator::IsNull, operand)
     }
 
-    /// 创建 IS NOT NULL 表达式
+    /// Creating an IS NOT NULL expression
     pub fn is_not_null(operand: Expression) -> Self {
         Self::unary(UnaryOperator::IsNotNull, operand)
     }

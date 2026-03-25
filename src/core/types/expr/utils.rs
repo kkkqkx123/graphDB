@@ -1,20 +1,20 @@
-//! 表达式工具函数
+//! Expression tool functions
 //!
-//! 提供表达式分析和转换的工具函数，替代访问者模式。
+//! Provide utility functions for expression analysis and transformation, as an alternative to the Visitor pattern.
 //!
-//! 这些函数使用递归和模式匹配，比访问者模式更简洁直观。
+//! These functions use recursion and pattern matching, which makes them more concise and intuitive than the Visitor pattern.
 
 use crate::core::types::expr::{ContextualExpression, Expression};
 use crate::core::types::operators::AggregateFunction;
 
-/// 分组套件
+/// Group Package
 #[derive(Debug, Clone, Default)]
 pub struct GroupSuite {
-    /// 分组键集合
+    /// Set of grouping keys
     pub group_keys: Vec<Expression>,
-    /// 分组项集合
+    /// Collection of group items
     pub group_items: Vec<Expression>,
-    /// 聚合函数集合
+    /// Collection of aggregate functions
     pub aggregates: Vec<Expression>,
 }
 
@@ -58,14 +58,14 @@ impl GroupSuite {
     }
 }
 
-/// 从表达式中提取分组套件
+/// Extract the grouping suite from the expression.
 ///
-/// 用于 GROUP BY 优化，识别可用于分组的表达式和聚合函数。
+/// Used for GROUP BY optimization; identifies expressions and aggregate functions that can be used for grouping.
 ///
-/// # 参数
-/// - `expression`: 要分析的表达式
+/// # Parameters
+/// Expression to be analyzed
 ///
-/// # 返回
+/// # Return
 /// - `Ok(GroupSuite)`: 提取到的分组套件
 /// - `Err(String)`: 错误信息
 pub fn extract_group_suite(expression: &Expression) -> Result<GroupSuite, String> {
@@ -74,7 +74,7 @@ pub fn extract_group_suite(expression: &Expression) -> Result<GroupSuite, String
     Ok(group_suite)
 }
 
-/// 递归提取分组套件的辅助函数
+/// Auxiliary function for recursively extracting group packages
 fn extract_group_suite_recursive(expression: &Expression, group_suite: &mut GroupSuite) {
     match expression {
         Expression::Literal(value) => {
@@ -209,7 +209,7 @@ fn extract_group_suite_recursive(expression: &Expression, group_suite: &mut Grou
     }
 }
 
-/// 检查表达式是否为可分组的表达式
+/// Check whether the expression is a groupable expression.
 fn is_groupable(expression: &Expression) -> bool {
     match expression {
         Expression::Literal(_) => true,
@@ -223,14 +223,14 @@ fn is_groupable(expression: &Expression) -> bool {
     }
 }
 
-/// 检查表达式是否可以在编译时求值（静态可求值性检查）
+/// Check whether an expression can be evaluated at compile time (static evaluability check).
 ///
-/// 检查表达式是否只包含常量，不包含变量或属性访问等需要运行时上下文的元素
+/// Check whether the expression contains only constants, and no variables or elements that require runtime context (such as property access).
 pub fn is_evaluable(expression: &Expression) -> bool {
     !requires_runtime_context(expression)
 }
 
-/// 检查表达式是否需要运行时上下文才能求值
+/// Check whether the expression requires a runtime context in order to be evaluated.
 fn requires_runtime_context(expression: &Expression) -> bool {
     match expression {
         Expression::Literal(_) => false,
@@ -303,14 +303,14 @@ fn requires_runtime_context(expression: &Expression) -> bool {
     }
 }
 
-/// 查找表达式中所有匹配条件的表达式
+/// Find all expressions in the expression that meet the specified matching conditions.
 ///
 /// # 参数
-/// - `expression`: 要搜索的表达式
-/// - `predicate`: 匹配条件函数
+/// Expression to be searched
+/// `predicate`: The function that determines the matching criteria.
 ///
 /// # 返回
-/// 所有匹配的表达式列表
+/// List of all matching expressions
 pub fn find_all<F>(expression: &Expression, predicate: F) -> Vec<Expression>
 where
     F: Fn(&Expression) -> bool,
@@ -320,7 +320,7 @@ where
     results
 }
 
-/// 递归查找表达式的辅助函数
+/// Auxiliary function for recursive search of expressions
 fn find_all_recursive<F>(expression: &Expression, predicate: &F, results: &mut Vec<Expression>)
 where
     F: Fn(&Expression) -> bool,
@@ -333,13 +333,13 @@ where
     }
 }
 
-/// 收集表达式中所有的变量
+/// Collect all the variables in the expression.
 ///
 /// # 参数
 /// - `expression`: 要分析的表达式
 ///
 /// # 返回
-/// 所有变量名称的列表
+/// List of all variable names
 pub fn collect_variables(expression: &Expression) -> Vec<String> {
     let mut variables = Vec::new();
     collect_variables_recursive(expression, &mut variables);
@@ -348,10 +348,10 @@ pub fn collect_variables(expression: &Expression) -> Vec<String> {
     variables
 }
 
-/// 收集 ContextualExpression 中所有的变量
+/// Collect all the variables from the ContextualExpression.
 ///
 /// # 参数
-/// - `expression`: 要分析的上下文表达式
+/// Context expression to be analyzed
 ///
 /// # 返回
 /// 所有变量名称的列表
@@ -362,7 +362,7 @@ pub fn collect_variables_from_contextual(expression: &ContextualExpression) -> V
     }
 }
 
-/// 递归收集变量的辅助函数
+/// Auxiliary function for recursively collecting variables
 fn collect_variables_recursive(expression: &Expression, variables: &mut Vec<String>) {
     match expression {
         Expression::Variable(name) => {
@@ -460,13 +460,13 @@ fn collect_variables_recursive(expression: &Expression, variables: &mut Vec<Stri
     }
 }
 
-/// 检查表达式中是否包含聚合函数
+/// Check whether the expression contains any aggregate functions.
 ///
 /// # 参数
-/// - `expression`: 要检查的表达式
+/// The expression to be checked
 ///
 /// # 返回
-/// 如果包含聚合函数返回 true，否则返回 false
+/// Return true if the aggregate function is included; otherwise, return false.
 pub fn has_aggregate_function(expression: &Expression) -> bool {
     match expression {
         Expression::Aggregate { .. } => true,
@@ -519,20 +519,20 @@ pub fn has_aggregate_function(expression: &Expression) -> bool {
     }
 }
 
-/// 从表达式中提取所有聚合函数
+/// Extract all aggregate functions from the expression.
 ///
 /// # 参数
 /// - `expression`: 要分析的表达式
 ///
 /// # 返回
-/// 所有聚合函数的列表
+/// List of all aggregate functions
 pub fn extract_aggregate_functions(expression: &Expression) -> Vec<AggregateFunction> {
     let mut functions = Vec::new();
     extract_aggregate_functions_recursive(expression, &mut functions);
     functions
 }
 
-/// 递归提取聚合函数的辅助函数
+/// Auxiliary function for recursively extracting aggregate functions
 fn extract_aggregate_functions_recursive(
     expression: &Expression,
     functions: &mut Vec<AggregateFunction>,

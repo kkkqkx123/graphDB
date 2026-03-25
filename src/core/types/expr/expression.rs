@@ -1,7 +1,7 @@
-//! 表达式元数据包装器
+//! Expression Metadata Wrapper
 //!
-//! 本模块定义 ExpressionMeta 类型，它是核心 Expression 的包装器，
-//! 包含位置信息（Span）和表达式 ID 等元数据。
+//! This module defines the ExpressionMeta type, which is a wrapper around the core Expression.
+//! Contains metadata such as location information (Span) and expression ID.
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use super::Expression;
 use crate::core::types::{Position, Span};
 use crate::core::Value;
 
-/// 表达式 ID，用于缓存和追踪
+/// Expression ID for caching and tracing
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ExpressionId(pub u64);
 
@@ -20,14 +20,14 @@ impl ExpressionId {
     }
 }
 
-/// 表达式元数据包装器
+/// Expression Metadata Wrapper
 ///
-/// 核心表达式的包装器，提供：
-/// - 位置信息（用于错误报告）
-/// - 表达式 ID（用于缓存）
-/// - 表达式复用（Arc）
+/// Wrappers for core expressions are provided:
+/// - Location information (for error reporting)
+/// - Expression ID (for caching)
+/// - Expression reuse (Arc)
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use crate::core::types::{Expression, ExpressionMeta, Span, Position};
@@ -44,7 +44,7 @@ pub struct ExpressionMeta {
     id: Option<ExpressionId>,
 }
 
-/// 序列化辅助结构
+/// Serialized Auxiliary Structures
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct ExpressionMetaSerde {
     inner: Expression,
@@ -59,7 +59,7 @@ struct ExpressionMetaSerde {
 }
 
 impl ExpressionMeta {
-    /// 创建新的表达式元数据包装器（不包含位置信息）
+    /// Create a new expression metadata wrapper (without location information)
     ///
     /// # 示例
     ///
@@ -78,7 +78,7 @@ impl ExpressionMeta {
         }
     }
 
-    /// 创建并设置位置信息
+    /// Create and set location information
     ///
     /// # 示例
     ///
@@ -97,38 +97,38 @@ impl ExpressionMeta {
         }
     }
 
-    /// 创建并设置表达式 ID
+    /// Creating and setting expression IDs
     pub fn with_id(mut self, id: ExpressionId) -> Self {
         self.id = Some(id);
         self
     }
 
-    /// 获取位置信息
+    /// Getting Location Information
     pub fn span(&self) -> Option<&Span> {
         self.span.as_ref()
     }
 
-    /// 获取表达式 ID
+    /// Get expression ID
     pub fn id(&self) -> Option<&ExpressionId> {
         self.id.as_ref()
     }
 
-    /// 获取内部引用
+    /// Getting internal references
     pub fn inner(&self) -> &Expression {
         &self.inner
     }
 
-    /// 克隆内部表达式（不克隆元数据）
+    /// Cloning internal expressions (no metadata cloning)
     ///
-    /// 注意：此方法会克隆整个表达式树，如果表达式较大请谨慎使用
+    /// Note: This method clones the entire expression tree, so use caution if the expression is large.
     pub fn into_inner(self) -> Expression {
         self.inner.as_ref().clone()
     }
 
-    /// 获取可变内部引用（必要时克隆）
+    /// Get variable internal references (clone if necessary)
     ///
-    /// 如果 Arc 是唯一的引用，直接返回可变引用；
-    /// 否则克隆内部表达式
+    /// If Arc is a unique reference, return the mutable reference directly;
+    /// Otherwise clone the internal expression
     pub fn make_mut(&mut self) -> &mut Expression {
         if Arc::get_mut(&mut self.inner).is_none() {
             let cloned = self.inner.as_ref().clone();
@@ -137,181 +137,181 @@ impl ExpressionMeta {
         Arc::get_mut(&mut self.inner).expect("Arc should be unique after cloning")
     }
 
-    /// 检查是否为字面量
+    /// Check for literal quantities
     pub fn is_literal(&self) -> bool {
         self.inner.as_ref().is_literal()
     }
 
-    /// 获取字面量值
+    /// Get Literals
     pub fn as_literal(&self) -> Option<&Value> {
         self.inner.as_ref().as_literal()
     }
 
-    /// 检查是否为变量
+    /// Check if the variable
     pub fn is_variable(&self) -> bool {
         self.inner.as_ref().is_variable()
     }
 
-    /// 获取变量名
+    /// Get variable name
     pub fn as_variable(&self) -> Option<&str> {
         self.inner.as_ref().as_variable()
     }
 
-    /// 检查是否为聚合表达式
+    /// Checking for Aggregate Expressions
     pub fn is_aggregate(&self) -> bool {
         self.inner.as_ref().is_aggregate()
     }
 
-    /// 获取变量列表
+    /// Getting a list of variables
     pub fn get_variables(&self) -> Vec<String> {
         self.inner.as_ref().get_variables()
     }
 
-    /// 转换为字符串表示
+    /// Convert to string representation
     pub fn to_expression_string(&self) -> String {
         self.inner.as_ref().to_expression_string()
     }
 
-    /// 获取所有子表达式
+    /// Get all subexpressions
     pub fn children(&self) -> Vec<&Expression> {
         self.inner.as_ref().children()
     }
 
-    /// 检查是否包含聚合函数
+    /// Checking for the inclusion of aggregate functions
     pub fn contains_aggregate(&self) -> bool {
         self.inner.as_ref().contains_aggregate()
     }
 
-    /// 获取内部表达式的引用
+    /// Getting references to internal expressions
     pub fn expression(&self) -> &Expression {
         &self.inner
     }
 
-    /// 检查是否为函数调用
+    /// Check if it is a function call
     pub fn is_function(&self) -> bool {
         self.inner.as_ref().is_function()
     }
 
-    /// 检查是否为路径表达式
+    /// Checks if it is a path expression
     pub fn is_path(&self) -> bool {
         self.inner.as_ref().is_path()
     }
 
-    /// 检查是否为路径构建表达式
+    /// Checks if it is a path building expression
     pub fn is_path_build(&self) -> bool {
         self.inner.as_ref().is_path_build()
     }
 
-    /// 检查是否为标签表达式
+    /// Checks if it's a tag expression
     pub fn is_label(&self) -> bool {
         self.inner.as_ref().is_label()
     }
 
-    /// 检查是否为二元表达式
+    /// Checking for binary expressions
     pub fn is_binary(&self) -> bool {
         self.inner.as_ref().is_binary()
     }
 
-    /// 检查是否为一元表达式
+    /// Checks if it is a unary expression
     pub fn is_unary(&self) -> bool {
         self.inner.as_ref().is_unary()
     }
 
-    /// 检查是否为类型转换表达式
+    /// Checking for type conversion expressions
     pub fn is_type_cast(&self) -> bool {
         self.inner.as_ref().is_type_cast()
     }
 
-    /// 检查是否为下标访问表达式
+    /// Checking for subscript access expressions
     pub fn is_subscript(&self) -> bool {
         self.inner.as_ref().is_subscript()
     }
 
-    /// 检查是否为范围表达式
+    /// Checks if it is a range expression
     pub fn is_range(&self) -> bool {
         self.inner.as_ref().is_range()
     }
 
-    /// 检查是否为列表表达式
+    /// Checks if it is a list expression
     pub fn is_list(&self) -> bool {
         self.inner.as_ref().is_list()
     }
 
-    /// 检查是否为映射表达式
+    /// Checks if it is a mapping expression
     pub fn is_map(&self) -> bool {
         self.inner.as_ref().is_map()
     }
 
-    /// 检查是否为 Case 表达式
+    /// Checks if it is a Case expression
     pub fn is_case(&self) -> bool {
         self.inner.as_ref().is_case()
     }
 
-    /// 检查是否为 Reduce 表达式
+    /// Checks for a Reduce expression
     pub fn is_reduce(&self) -> bool {
         self.inner.as_ref().is_reduce()
     }
 
-    /// 检查是否为参数表达式
+    /// Checks if it is a parameter expression
     pub fn is_parameter(&self) -> bool {
         self.inner.as_ref().is_parameter()
     }
 
-    /// 检查是否为列表推导式
+    /// Checking for list derivatives
     pub fn is_list_comprehension(&self) -> bool {
         self.inner.as_ref().is_list_comprehension()
     }
 
-    /// 获取函数名（如果是函数调用）
+    /// Get the function name (if it's a function call)
     pub fn as_function_name(&self) -> Option<String> {
         self.inner.as_ref().as_function_name()
     }
 
-    /// 获取属性名（如果是属性访问）
+    /// Obtain the attribute name (in the case of attribute access)
     pub fn as_property_name(&self) -> Option<String> {
         self.inner.as_ref().as_property_name()
     }
 
-    /// 获取标签名（如果是标签表达式）
+    /// Obtain the tag name (if it is a tag expression).
     pub fn as_label_name(&self) -> Option<String> {
         self.inner.as_ref().as_label_name()
     }
 
-    /// 获取参数名（如果是参数表达式）
+    /// Obtain the parameter name (if it is a parameter expression).
     pub fn as_parameter_name(&self) -> Option<String> {
         self.inner.as_ref().as_parameter_name()
     }
 }
 
-/// 从 ExpressionMeta 提取核心表达式
+/// Extract the core expressions from ExpressionMeta.
 impl From<ExpressionMeta> for Expression {
     fn from(meta: ExpressionMeta) -> Self {
         meta.into_inner()
     }
 }
 
-/// 从核心表达式创建
+/// Create from the core expression
 impl From<Expression> for ExpressionMeta {
     fn from(expr: Expression) -> Self {
         ExpressionMeta::new(expr)
     }
 }
 
-/// 从 Arc<ExpressionMeta> 提取核心表达式
+/// Extract the core expressions from Arc ExpressionMeta.
 impl From<Arc<ExpressionMeta>> for Expression {
     fn from(meta: Arc<ExpressionMeta>) -> Self {
         meta.inner().clone()
     }
 }
 
-/// 为 ExpressionMeta 实现 PartialEq（比较内部表达式）
+/// Implementing the PartialEq method for ExpressionMeta (comparing internal expressions)
 impl PartialEq for ExpressionMeta {
     fn eq(&self, other: &Self) -> bool {
         self.inner == other.inner
     }
 }
 
-/// 序列化实现
+/// Serialization implementation
 impl From<ExpressionMetaSerde> for ExpressionMeta {
     fn from(s: ExpressionMetaSerde) -> Self {
         let span = s.span_line_start.and_then(|start_line| {

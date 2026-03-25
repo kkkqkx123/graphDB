@@ -1,26 +1,26 @@
-//! NPath - 链表结构的路径表示
+//! NPath - path representation of a linked list structure
 //!
-//! 参考nebula-graph的NPath设计，使用共享所有权实现前缀共享。
-//! 适用于图遍历中需要频繁扩展路径的场景。
+//! Refer to nebula-graph's NPath design for prefix sharing using shared ownership.
+//! For scenarios where frequent path expansion is required in graph traversal.
 //!
-//! # 核心优势
+//! # Core strengths
 //!
-//! 1. **共享前缀**：多条路径共享相同的前缀部分，节省内存
+//! 1. **Shared prefix**: multiple paths share the same prefix portion to save memory
 //! 2. **O(1)扩展**：新路径只需创建一个新节点，指向父路径
-//! 3. **快速拼接**：双向BFS路径拼接时，只需找到交汇点
+//! 3. **Fast splicing**: bi-directional BFS path splicing by simply finding the point of intersection
 //!
-//! # 使用示例
+//! # Examples of use
 //!
 //! ```rust,ignore
 //! use std::sync::Arc;
 //! use graphdb::core::npath::NPath;
 //! use graphdb::core::{Vertex, Edge, Value};
 //!
-//! // 创建起点
+// Create a starting point
 //! let start_vertex = Arc::new(Vertex::new(Value::Int(1), vec![]));
 //! let start = Arc::new(NPath::new(start_vertex));
 //!
-//! // 扩展路径
+// Extended path
 //! let edge = Arc::new(Edge::new("friend", Value::Int(1), Value::Int(2)));
 //! let next_vertex = Arc::new(Vertex::new(Value::Int(2), vec![]));
 //! let extended = Arc::new(NPath::extend(start, edge, next_vertex));
@@ -32,32 +32,32 @@ use std::sync::Arc;
 use crate::core::vertex_edge_path::Step;
 use crate::core::{Edge, Path, Value, Vertex};
 
-/// NPath - 链表结构的路径表示
+/// NPath - path representation of a linked list structure
 ///
-/// 使用不可变数据结构，通过Arc实现共享所有权。
-/// 每个节点包含一个顶点和到达该顶点的边（起点除外）。
+/// Shared ownership via Arc using immutable data structures.
+/// Each node contains a vertex and an edge (other than the starting point) that reaches that vertex.
 #[derive(Debug, Clone)]
 pub struct NPath {
-    /// 父路径节点（None表示起点）
+    /// Parent path node (None indicates the starting point)
     parent: Option<Arc<NPath>>,
-    /// 当前顶点
+    /// current vertex
     vertex: Arc<Vertex>,
-    /// 到达当前顶点的边（起点为None）
+    /// Edge to current vertex (starting point None)
     edge: Option<Arc<Edge>>,
-    /// 路径长度（缓存，避免递归计算）
+    /// Path length (cached to avoid recursive calculations)
     length: usize,
-    /// 路径哈希（缓存，用于快速比较）
+    /// Path hashing (caching, for fast comparisons)
     hash: u64,
 }
 
 impl NPath {
-    /// 创建起点路径
+    /// Creating a Starting Path
     ///
-    /// # 参数
+    /// # Parameters
     ///
-    /// * `vertex` - 起始顶点
+    /// * `vertex` - starting vertex
     ///
-    /// # 示例
+    /// # Examples
     ///
     /// ```rust,ignore
     /// let start = Arc::new(NPath::new(Arc::new(vertex)));
@@ -75,13 +75,13 @@ impl NPath {
 
     /// 扩展路径 - O(1)操作
     ///
-    /// 创建新路径节点，指向父路径，实现前缀共享。
+    /// Creates a new path node that points to the parent path for prefix sharing.
     ///
     /// # 参数
     ///
-    /// * `parent` - 父路径
-    /// * `edge` - 到达新顶点的边
-    /// * `vertex` - 新顶点
+    /// * `parent` - parent path
+    /// * `edge` - the edge that reaches the new vertex
+    /// * `vertex` - new vertex
     ///
     /// # 示例
     ///
@@ -102,19 +102,19 @@ impl NPath {
 
     /// 扩展路径并检查环路 - O(1)平均时间
     ///
-    /// 使用HashSet快速检测是否形成环路，适用于DFS探索中的提前剪枝。
+    /// Fast detection of loop formation using HashSet, suitable for early pruning in DFS exploration.
     ///
     /// # 参数
     ///
     /// * `parent` - 父路径
     /// * `edge` - 到达新顶点的边
     /// * `vertex` - 新顶点
-    /// * `seen_vertices` - 已访问顶点集合
+    /// * :: `seen_vertices` - set of visited vertices
     ///
-    /// # 返回
+    /// # Back
     ///
     /// * `Some(NPath)` - 扩展成功
-    /// * `None` - 检测到环路
+    /// * `None` - loop detected
     ///
     /// # 示例
     ///
@@ -122,7 +122,7 @@ impl NPath {
     /// let mut seen = HashSet::new();
     /// seen.insert(parent.vertex.vid.as_ref().clone());
     /// if let Some(extended) = NPath::extend_with_set(parent, edge, vertex, &mut seen) {
-    ///     // 继续探索
+    // Continue to explore
     /// }
     /// ```
     pub fn extend_with_set(
@@ -131,7 +131,7 @@ impl NPath {
         vertex: Arc<Vertex>,
         seen_vertices: &mut HashSet<Value>,
     ) -> Option<Self> {
-        // 检查是否形成环路
+        // Check for loop formation
         if seen_vertices.contains(&vertex.vid.as_ref().clone()) {
             return None;
         }
@@ -141,13 +141,13 @@ impl NPath {
         Some(new_path)
     }
 
-    /// 从Path创建NPath
+    /// Create NPath from Path
     ///
-    /// 便于兼容已有接口，将传统的Path转换为NPath。
+    /// Facilitates compatibility with existing interfaces, converting traditional Path to NPath.
     ///
     /// # 参数
     ///
-    /// * `path` - 传统Path结构
+    /// * :: `path` -- traditional Path structure
     ///
     /// # 示例
     ///
@@ -167,32 +167,32 @@ impl NPath {
         current
     }
 
-    /// 获取路径长度（边数）
+    /// Get path length (number of edges)
     pub fn len(&self) -> usize {
         self.length
     }
 
-    /// 检查路径是否为空（仅包含起点）
+    /// Check if the path is empty (contains only the starting point)
     pub fn is_empty(&self) -> bool {
         self.length == 0
     }
 
-    /// 获取当前顶点
+    /// Get current vertex
     pub fn vertex(&self) -> &Arc<Vertex> {
         &self.vertex
     }
 
-    /// 获取到达当前顶点的边
+    /// Get the edge that reaches the current vertex
     pub fn edge(&self) -> Option<&Arc<Edge>> {
         self.edge.as_ref()
     }
 
-    /// 获取父路径
+    /// Get Parent Path
     pub fn parent(&self) -> Option<&Arc<NPath>> {
         self.parent.as_ref()
     }
 
-    /// 获取起点顶点
+    /// Get start vertex
     pub fn start_vertex(&self) -> &Arc<Vertex> {
         let mut current = self;
         while let Some(ref parent) = current.parent {
@@ -201,19 +201,19 @@ impl NPath {
         &current.vertex
     }
 
-    /// 获取终点顶点（当前顶点）
+    /// Get end vertex (current vertex)
     pub fn end_vertex(&self) -> &Arc<Vertex> {
         &self.vertex
     }
 
-    /// 转换为Path（需要时再进行转换）
+    /// Translate the text into "Path" (and convert it further if necessary):
     ///
     /// 时间复杂度：O(n)，n为路径长度
     pub fn to_path(&self) -> Path {
         let mut steps = Vec::with_capacity(self.length);
         let mut current = self;
 
-        // 收集所有步骤（从终点到起点）
+        // Collect all the steps (from the end point to the starting point).
         while let Some(ref parent) = current.parent {
             if let Some(ref edge) = current.edge {
                 steps.push(Step {
@@ -224,7 +224,7 @@ impl NPath {
             current = parent;
         }
 
-        // 反转步骤（从起点到终点）
+        // Reverse the steps (from the starting point to the ending point)
         steps.reverse();
 
         Path {
@@ -233,7 +233,7 @@ impl NPath {
         }
     }
 
-    /// 检查是否包含某个顶点（用于noLoop检查）
+    /// Check whether a certain vertex is present (used for the noLoop check).
     ///
     /// 时间复杂度：O(n)，n为路径长度
     pub fn contains_vertex(&self, vid: &Value) -> bool {
@@ -246,7 +246,7 @@ impl NPath {
         false
     }
 
-    /// 检查是否包含某条边（去重检查）
+    /// Check whether a certain edge is present (deduplication check)
     ///
     /// 时间复杂度：O(n)，n为路径长度
     pub fn contains_edge(&self, edge_key: &(Value, Value, String)) -> bool {
@@ -266,7 +266,7 @@ impl NPath {
         false
     }
 
-    /// 检查与另一条路径是否有共同顶点（用于双向BFS路径拼接检查）
+    /// Check whether there are common vertices with another path (used for checking the concatenation of bidirectional BFS paths).
     ///
     /// 时间复杂度：O(n*m)，建议先收集顶点再比较
     pub fn has_common_vertices(&self, other: &NPath) -> bool {
@@ -276,32 +276,32 @@ impl NPath {
             .any(|v| self_vertices.contains(v.vid.as_ref()))
     }
 
-    /// 收集所有顶点ID
+    /// Collect all vertex IDs.
     pub fn collect_vertex_ids(&self) -> Vec<Value> {
         self.iter_vertices().map(|v| (*v.vid).clone()).collect()
     }
 
-    /// 收集所有边
+    /// Collect all the edges.
     pub fn collect_edges(&self) -> Vec<Arc<Edge>> {
         self.iter_edges().cloned().collect()
     }
 
-    /// 迭代器：从起点到当前节点的所有顶点
+    /// Iterator: All vertices from the starting point to the current node.
     pub fn iter_vertices(&self) -> NPathVertexIter<'_> {
         NPathVertexIter::new(self)
     }
 
-    /// 迭代器：从起点到当前节点的所有边
+    /// Iterator: All edges from the starting point to the current node
     pub fn iter_edges(&self) -> NPathEdgeIter<'_> {
         NPathEdgeIter::new(self)
     }
 
-    /// 迭代器：从起点到当前节点的所有节点
+    /// Iterator: All nodes from the starting point to the current node.
     pub fn iter(&self) -> NPathIter<'_> {
         NPathIter::new(self)
     }
 
-    /// 计算路径哈希
+    /// Calculating the path hash
     fn compute_hash(
         vertex: &Arc<Vertex>,
         edge: Option<&Arc<Edge>>,
@@ -327,7 +327,7 @@ impl NPath {
         hasher.finish()
     }
 
-    /// 获取路径哈希
+    /// Obtain the path hash
     pub fn hash(&self) -> u64 {
         self.hash
     }
@@ -339,7 +339,7 @@ impl PartialEq for NPath {
             return false;
         }
 
-        // 哈希相同，进一步比较内容
+        // The hashes are the same; a further comparison of the content is necessary.
         self.vertex.vid == other.vertex.vid
             && self.edge == other.edge
             && self.parent == other.parent
@@ -348,7 +348,7 @@ impl PartialEq for NPath {
 
 impl Eq for NPath {}
 
-/// NPath迭代器 - 遍历所有节点（从终点到起点）
+/// NPath iterator – Traverses all nodes (from the end point to the start point)
 ///
 /// 使用惰性求值，每次.next()向上跳一步，避免预分配Vec
 pub struct NPathIter<'a> {
@@ -373,7 +373,7 @@ impl<'a> Iterator for NPathIter<'a> {
     }
 }
 
-/// NPath顶点迭代器 - 惰性遍历所有顶点
+/// NPath vertex iterator – Lazy traversal of all vertices
 ///
 /// 优化：不预分配Vec，每次.next()向上跳一步
 pub struct NPathVertexIter<'a> {
@@ -399,7 +399,7 @@ impl<'a> Iterator for NPathVertexIter<'a> {
     }
 }
 
-/// NPath边迭代器 - 惰性遍历所有边
+/// NPath edge iterator – Lazy traversal of all edges
 ///
 /// 优化：不预分配Vec，每次.next()向上跳一步
 pub struct NPathEdgeIter<'a> {
@@ -425,40 +425,40 @@ impl<'a> Iterator for NPathEdgeIter<'a> {
     }
 }
 
-/// NPath工具函数
+/// NPath utility functions
 pub mod utils {
     use super::*;
 
-    /// 拼接两条路径（用于双向BFS）
+    /// Concatenating two paths (for bidirectional BFS)
     ///
-    /// 左路径从起点到中间，右路径从终点到中间
-    /// 结果路径从起点到终点
+    /// The left path goes from the starting point to the middle point, while the right path goes from the ending point to the middle point.
+    /// The result path goes from the starting point to the ending point.
     pub fn combine_paths(left: &Arc<NPath>, right: &Arc<NPath>) -> Option<Path> {
-        // 检查两条路径是否在同一个顶点交汇
+        // Check whether the two paths intersect at the same vertex.
         if left.vertex.vid != right.vertex.vid {
             return None;
         }
 
-        // 构建从左起点到交汇点的路径
+        // Construct a path from the starting point on the left to the intersection point.
         let left_path = left.to_path();
 
-        // 构建从右起点到交汇点的路径，然后反转
+        // Construct a path from the starting point on the right to the intersection point, and then reverse it.
         let mut right_path = right.to_path();
         right_path.reverse();
 
-        // 合并两条路径
+        // Merge the two paths
         let mut combined = left_path;
         combined.steps.extend(right_path.steps);
 
         Some(combined)
     }
 
-    /// 批量将NPath转换为Path
+    /// Convert NPaths to Paths in batches
     pub fn batch_to_paths(npaths: &[Arc<NPath>]) -> Vec<Path> {
         npaths.iter().map(|np| np.to_path()).collect()
     }
 
-    /// 检查路径集合中是否有重复
+    /// Check whether there are any duplicates in the set of paths.
     pub fn has_duplicates(npaths: &[Arc<NPath>]) -> bool {
         let mut seen = HashSet::new();
         for np in npaths {

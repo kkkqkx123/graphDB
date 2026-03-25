@@ -1,25 +1,25 @@
-//! Decimal128 类型实现
+//! Decimal128 type implementation
 //!
-//! 本模块实现了 IEEE 754-2008 标准的 128 位十进制浮点数类型。
+//! This module implements the 128-bit decimal floating point type of the IEEE 754-2008 standard.
 //!
-//! ## 特性
+//! ## Characteristics ##
 //!
-//! - 34 位十进制精度
-//! - 避免二进制浮点数的精度问题
-//! - 适合金融计算和科学计算
-//! - 与 MongoDB BSON Decimal128 兼容
+//! - 34-bit decimal precision
+//! - Avoiding Precision Problems with Binary Floating Point Numbers
+//! - Ideal for financial computing and scientific computing
+//! - Compatible with MongoDB BSON Decimal128
 //!
-//! ## 使用场景
+//! ## Usage scenarios
 //!
-//! - 金融应用（货币计算、利率计算）
-//! - 科学计算（需要高精度的数值计算）
-//! - 税务计算（需要精确到分）
-//! - 会计系统（避免舍入误差）
+//! - Financial applications (monetary calculations, interest rate calculations)
+//! - Scientific computing (numerical calculations requiring high precision)
+//! - Tax calculations (need to be precise to the nearest cent)
+//! - Accounting systems (to avoid rounding errors)
 //!
-//! ## 性能考虑
+//! ## Performance considerations
 //!
-//! Decimal128 运算比原生浮点数慢，但提供了精确的十进制计算。
-//! 对于不需要高精度的场景，建议使用 Float 类型。
+//! Decimal128 operations are slower than native floating-point numbers, but provide accurate decimal calculations.
+//! For scenarios where high precision is not required, the Float type is recommended.
 
 use bincode::Encode;
 use dec::Decimal128;
@@ -30,11 +30,11 @@ use std::str::FromStr;
 #[allow(unused_imports)]
 use bincode::de::Decode;
 
-/// Decimal128 值包装器
+/// Decimal128 Value Wrapper
 ///
-/// 包装 `dec::Decimal128` 类型，提供与 GraphDB 类型系统的集成。
+/// Wraps the `dec::Decimal128` type to provide integration with the GraphDB type system.
 ///
-/// ## 示例
+/// ## Example
 ///
 /// ```rust
 /// use graphdb::core::value::decimal128::Decimal128Value;
@@ -97,63 +97,63 @@ impl<'de, C> bincode::de::BorrowDecode<'de, C> for Decimal128Value {
 }
 
 impl Decimal128Value {
-    /// 创建一个新的 Decimal128 值
+    /// Create a new Decimal128 value
     pub fn new(inner: Decimal128) -> Self {
         Self { inner }
     }
 
-    /// 从 i64 创建 Decimal128
+    /// Creating Decimal128 from i64
     pub fn from_i64(n: i64) -> Self {
         Self {
             inner: Decimal128::from(n),
         }
     }
 
-    /// 从 u64 创建 Decimal128
+    /// Creating Decimal128 from u64
     pub fn from_u64(n: u64) -> Self {
         Self {
             inner: Decimal128::from(n),
         }
     }
 
-    /// 从 f64 创建 Decimal128（注意：可能有精度损失）
+    /// Create Decimal128 from f64 (note: there may be a loss of precision)
     pub fn from_f64(n: f64) -> Option<Self> {
         let s = n.to_string();
         Self::from_str(&s).ok()
     }
 
-    /// 获取内部的 Decimal128 值
+    /// Get the internal Decimal128 value
     pub fn inner(&self) -> &Decimal128 {
         &self.inner
     }
 
-    /// 获取内部的 Decimal128 值（可变）
+    /// Get internal Decimal128 value (variable)
     pub fn inner_mut(&mut self) -> &mut Decimal128 {
         &mut self.inner
     }
 
-    /// 加法运算
+    /// addition
     pub fn add(&self, other: &Self) -> Result<Self, String> {
         Ok(Self {
             inner: self.inner + other.inner,
         })
     }
 
-    /// 减法运算
+    /// subtraction operation
     pub fn sub(&self, other: &Self) -> Result<Self, String> {
         Ok(Self {
             inner: self.inner - other.inner,
         })
     }
 
-    /// 乘法运算
+    /// multiplication
     pub fn mul(&self, other: &Self) -> Result<Self, String> {
         Ok(Self {
             inner: self.inner * other.inner,
         })
     }
 
-    /// 除法运算
+    /// division
     pub fn div(&self, other: &Self) -> Result<Self, String> {
         if other.inner == Decimal128::ZERO {
             return Err("除零错误".to_string());
@@ -163,7 +163,7 @@ impl Decimal128Value {
         })
     }
 
-    /// 取模运算
+    /// modulo operation (math.)
     pub fn rem(&self, other: &Self) -> Result<Self, String> {
         if other.inner == Decimal128::ZERO {
             return Err("除零错误".to_string());
@@ -173,7 +173,7 @@ impl Decimal128Value {
         })
     }
 
-    /// 绝对值
+    /// absolute value
     pub fn abs(&self) -> Self {
         Self {
             inner: if self.inner < Decimal128::ZERO {
@@ -184,12 +184,12 @@ impl Decimal128Value {
         }
     }
 
-    /// 取反
+    /// retrieve the opposite of what one intended
     pub fn neg(&self) -> Self {
         Self { inner: -self.inner }
     }
 
-    /// 四舍五入到指定小数位
+    /// Rounding to specified decimal places
     pub fn round_dp(&self, dp: u32) -> Self {
         let s = self.to_string();
         if let Some(dot_pos) = s.find('.') {
@@ -206,7 +206,7 @@ impl Decimal128Value {
         }
     }
 
-    /// 向下取整
+    /// round down
     pub fn floor(&self) -> Self {
         let s = self.to_string();
         if let Some(dot_pos) = s.find('.') {
@@ -217,7 +217,7 @@ impl Decimal128Value {
         }
     }
 
-    /// 向上取整
+    /// Round up
     pub fn ceil(&self) -> Self {
         let s = self.to_string();
         if let Some(dot_pos) = s.find('.') {
@@ -239,22 +239,22 @@ impl Decimal128Value {
         }
     }
 
-    /// 是否为零
+    /// Is it zero?
     pub fn is_zero(&self) -> bool {
         self.inner == Decimal128::ZERO
     }
 
-    /// 是否为负数
+    /// Whether the number is negative or not
     pub fn is_negative(&self) -> bool {
         self.inner < Decimal128::ZERO
     }
 
-    /// 是否为正数
+    /// Positive or not
     pub fn is_positive(&self) -> bool {
         self.inner > Decimal128::ZERO
     }
 
-    /// 是否为 NaN
+    /// Whether NaN
     pub fn is_nan(&self) -> bool {
         self.inner == Decimal128::NAN
     }
@@ -428,7 +428,7 @@ mod tests {
         let d2 = "0.0".parse::<Decimal128Value>().expect("解析失败");
         let result = d1.div(&d2);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "除零错误");
+        assert_eq!(result.unwrap_err(), "division error");
     }
 
     #[test]

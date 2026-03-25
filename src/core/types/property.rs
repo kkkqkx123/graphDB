@@ -1,4 +1,4 @@
-//! 属性定义基础类型
+//! Attribute Definition Base Type
 
 use super::property_trait::PropertyTypeTrait;
 use crate::core::{DataType, Value};

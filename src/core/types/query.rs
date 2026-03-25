@@ -1,6 +1,6 @@
-//! 查询类型基础定义
+//! Query Type Base Definition
 
-/// 查询类型枚举
+/// Enumeration of query types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum QueryType {
     #[default]

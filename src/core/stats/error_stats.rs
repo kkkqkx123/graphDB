@@ -1,16 +1,16 @@
-//! 错误统计模块
+//! Error Statistics Module
 //!
-//! 提供错误类型、错误阶段和错误统计功能。
+//! Provide functions for error type identification, error stage determination, and error statistics.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// ErrorType 枚举变体数量（用于数组大小）
+/// Number of variants in the ErrorType enum (used for determining the array size)
 const ERROR_TYPE_COUNT: usize = 11;
-/// QueryPhase 枚举变体数量（用于数组大小）
+/// Number of variants in the QueryPhase enumeration (used for determining the array size)
 const QUERY_PHASE_COUNT: usize = 5;
 
-/// 将 ErrorType 转换为数组索引
+/// Convert ErrorType to an array index.
 pub fn error_type_to_index(error_type: ErrorType) -> usize {
     match error_type {
         ErrorType::ParseError => 0,
@@ -27,7 +27,7 @@ pub fn error_type_to_index(error_type: ErrorType) -> usize {
     }
 }
 
-/// 将数组索引转换为 ErrorType
+/// Convert the array index to an ErrorType.
 pub fn index_to_error_type(index: usize) -> Option<ErrorType> {
     match index {
         0 => Some(ErrorType::ParseError),
@@ -45,7 +45,7 @@ pub fn index_to_error_type(index: usize) -> Option<ErrorType> {
     }
 }
 
-/// 将 QueryPhase 转换为数组索引
+/// Convert QueryPhase to an array index.
 pub fn query_phase_to_index(phase: QueryPhase) -> usize {
     match phase {
         QueryPhase::Parse => 0,
@@ -56,7 +56,7 @@ pub fn query_phase_to_index(phase: QueryPhase) -> usize {
     }
 }
 
-/// 将数组索引转换为 QueryPhase
+/// Convert the array index to a QueryPhase.
 pub fn index_to_query_phase(index: usize) -> Option<QueryPhase> {
     match index {
         0 => Some(QueryPhase::Parse),
@@ -68,7 +68,7 @@ pub fn index_to_query_phase(index: usize) -> Option<QueryPhase> {
     }
 }
 
-/// 查询执行阶段
+/// Query Execution Phase
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum QueryPhase {
     Parse,
@@ -90,7 +90,7 @@ impl std::fmt::Display for QueryPhase {
     }
 }
 
-/// 错误类型
+/// Error type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorType {
     ParseError,
@@ -124,7 +124,7 @@ impl std::fmt::Display for ErrorType {
     }
 }
 
-/// 扩展的错误信息
+/// Extended error message
 #[derive(Debug, Clone)]
 pub struct ErrorInfo {
     pub error_type: ErrorType,
@@ -153,7 +153,7 @@ impl ErrorInfo {
     }
 }
 
-/// 错误统计摘要
+/// Error Statistics Summary
 #[derive(Debug, Clone)]
 pub struct ErrorSummary {
     pub total_errors: u64,
@@ -161,7 +161,7 @@ pub struct ErrorSummary {
     pub errors_by_phase: HashMap<QueryPhase, u64>,
 }
 
-/// 错误统计管理器
+/// Error Statistics Manager
 pub struct ErrorStatsManager {
     error_counts: [AtomicU64; ERROR_TYPE_COUNT],
     error_by_phase: [AtomicU64; QUERY_PHASE_COUNT],

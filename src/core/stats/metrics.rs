@@ -1,35 +1,35 @@
-//! 轻量级查询指标
+//! Lightweight query metrics
 //!
-//! 用于返回给客户端的轻量级查询指标，使用微秒级精度。
+//! Lightweight query metrics for return to the client, with precision in the range of microseconds.
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-/// 轻量级查询指标
+/// Lightweight query metrics
 ///
-/// 用于返回给客户端的查询执行指标，使用微秒级精度。
-/// 与 QueryProfile 的区别：
-/// - QueryMetrics: 轻量级，用于返回给客户端（微秒级）
-/// - QueryProfile: 详细监控，用于内部分析和日志（毫秒级）
+/// Query execution metrics used for returning to the client, with precision in the range of microseconds.
+/// Differences from QueryProfile:
+/// QueryMetrics: A lightweight component designed to provide results to the client in a very short time (within milliseconds).
+/// QueryProfile: Provides detailed monitoring data for internal analysis and logging (in milliseconds).
 #[derive(Debug, Clone)]
 pub struct QueryMetrics {
-    /// 解析时间（微秒）
+    /// Analysis time (in microseconds)
     pub parse_time_us: u64,
-    /// 验证时间（微秒）
+    /// Verification time (in microseconds)
     pub validate_time_us: u64,
-    /// 规划时间（微秒）
+    /// Planning time (in microseconds)
     pub plan_time_us: u64,
-    /// 优化时间（微秒）
+    /// Optimized time (in microseconds)
     pub optimize_time_us: u64,
-    /// 执行时间（微秒）
+    /// Execution time (in microseconds)
     pub execute_time_us: u64,
-    /// 总时间（微秒）
+    /// Total time (microseconds)
     pub total_time_us: u64,
-    /// 计划节点数量
+    /// Number of planned nodes
     pub plan_node_count: usize,
-    /// 结果行数
+    /// Number of result rows
     pub result_row_count: usize,
-    /// 时间戳
+    /// Timestamp
     pub timestamp: Instant,
 }
 

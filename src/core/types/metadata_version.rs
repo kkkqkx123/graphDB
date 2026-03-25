@@ -1,4 +1,4 @@
-//! 元数据版本管理类型
+//! Metadata version management type
 
 use crate::core::types::{EdgeTypeInfo, TagInfo};
 use bincode::{Decode, Encode};

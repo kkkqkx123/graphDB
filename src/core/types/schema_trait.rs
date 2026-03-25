@@ -1,49 +1,49 @@
-//! Schema 类型基础 trait 定义
+//! Schema type base trait definition
 //!
-//! 本模块定义 Schema 相关的通用 trait，用于抽象 TagInfo 和 EdgeTypeInfo 的共同属性
+//! This module defines generic Schema-related traits that abstract the common properties of TagInfo and EdgeTypeInfo.
 
 use super::property::PropertyDef;
 
-/// Schema 信息 trait
+/// Schema information trait
 ///
-/// 定义 TagInfo 和 EdgeTypeInfo 的共同接口
+/// Define a common interface for TagInfo and EdgeTypeInfo.
 pub trait SchemaInfo: Clone + PartialEq + Eq + std::hash::Hash + Send + Sync {
-    /// 获取 Schema ID
+    /// Get Schema ID
     fn schema_id(&self) -> i32;
 
-    /// 获取 Schema 名称
+    /// Get Schema Name
     fn schema_name(&self) -> &str;
 
-    /// 获取属性列表
+    /// Getting a list of properties
     fn properties(&self) -> &[PropertyDef];
 
-    /// 获取注释
+    /// Get Annotations
     fn comment(&self) -> Option<&str>;
 
-    /// 获取 TTL 持续时间
+    /// Get TTL duration
     fn ttl_duration(&self) -> Option<i64>;
 
-    /// 获取 TTL 列名
+    /// Get TTL column names
     fn ttl_col(&self) -> Option<&str>;
 
-    /// 设置 Schema ID
+    /// Setting the Schema ID
     fn set_schema_id(&mut self, id: i32);
 
-    /// 设置属性列表
+    /// Setting the property list
     fn set_properties(&mut self, properties: Vec<PropertyDef>);
 
-    /// 设置注释
+    /// Setting up comments
     fn set_comment(&mut self, comment: Option<String>);
 
-    /// 设置 TTL
+    /// Setting the TTL
     fn set_ttl(&mut self, duration: Option<i64>, col: Option<String>);
 
-    /// 获取 Schema 类型名称（用于区分 Tag 或 Edge）
+    /// Get the Schema type name (to distinguish between Tag or Edge)
     fn schema_type_name(&self) -> &'static str;
 
-    /// 是否为 Tag 类型
+    /// Tag type or not
     fn is_tag(&self) -> bool;
 
-    /// 是否为 Edge 类型
+    /// Edge type or not
     fn is_edge(&self) -> bool;
 }

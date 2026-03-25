@@ -1,4 +1,4 @@
-//! 导入导出类型定义
+//! Import/Export type definitions
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};

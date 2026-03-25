@@ -1,4 +1,4 @@
-//! 边类型基础定义
+//! Basic Definitions of Edge Types
 
 use super::property::PropertyDef;
 use super::schema_trait::SchemaInfo;

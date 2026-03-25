@@ -1,12 +1,12 @@
-//! 数据集类型模块
+//! Dataset Type Module
 //!
-//! 本模块定义了数据集和列表类型及其相关操作。
+//! This module defines dataset and list types and their associated operations.
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
-/// 简单列表表示
+/// simple list representation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct List {
     pub values: Vec<super::types::Value>,
@@ -238,7 +238,7 @@ impl Default for List {
     }
 }
 
-/// 简单数据集表示
+/// Simple dataset representation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DataSet {
     pub col_names: Vec<String>,
@@ -259,7 +259,7 @@ impl DataSet {
         }
     }
 
-    /// 创建带列名的数据集
+    /// Creating a dataset with column names
     pub fn with_columns(col_names: Vec<String>) -> Self {
         Self {
             col_names,
@@ -267,32 +267,32 @@ impl DataSet {
         }
     }
 
-    /// 添加行
+    /// Add Row
     pub fn add_row(&mut self, row: Vec<super::types::Value>) {
         self.rows.push(row);
     }
 
-    /// 获取行数
+    /// Get rows
     pub fn row_count(&self) -> usize {
         self.rows.len()
     }
 
-    /// 获取列数
+    /// Get the number of columns
     pub fn col_count(&self) -> usize {
         self.col_names.len()
     }
 
-    /// 检查是否为空
+    /// Check if it is empty
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }
 
-    /// 获取指定列的索引
+    /// Gets the index of the specified column
     pub fn get_col_index(&self, col_name: &str) -> Option<usize> {
         self.col_names.iter().position(|name| name == col_name)
     }
 
-    /// 获取指定列的所有值
+    /// Get all the values of the specified column
     pub fn get_column(&self, col_name: &str) -> Option<Vec<super::types::Value>> {
         self.get_col_index(col_name).map(|index| {
             self.rows
@@ -302,7 +302,7 @@ impl DataSet {
         })
     }
 
-    /// 过滤数据集
+    /// Filtering data sets
     pub fn filter<F>(&self, predicate: F) -> DataSet
     where
         F: Fn(&Vec<super::types::Value>) -> bool,
@@ -318,7 +318,7 @@ impl DataSet {
         }
     }
 
-    /// 映射数据集
+    /// Mapping datasets
     pub fn map<F>(&self, mapper: F) -> DataSet
     where
         F: Fn(&Vec<super::types::Value>) -> Vec<super::types::Value>,
@@ -329,7 +329,7 @@ impl DataSet {
         }
     }
 
-    /// 排序数据集
+    /// Sorted data sets
     pub fn sort_by<F>(&mut self, comparator: F)
     where
         F: Fn(&Vec<super::types::Value>, &Vec<super::types::Value>) -> std::cmp::Ordering,
@@ -337,7 +337,7 @@ impl DataSet {
         self.rows.sort_by(comparator);
     }
 
-    /// 连接两个数据集
+    /// Connecting two datasets
     pub fn join(&self, other: &DataSet, on: &str) -> Result<DataSet, String> {
         let left_index = self
             .get_col_index(on)
@@ -376,7 +376,7 @@ impl DataSet {
         Ok(result)
     }
 
-    /// 分组数据集
+    /// Grouped data sets
     pub fn group_by<F, K>(&self, key_fn: F) -> Vec<(K, DataSet)>
     where
         F: Fn(&Vec<super::types::Value>) -> K,
@@ -402,7 +402,7 @@ impl DataSet {
             .collect()
     }
 
-    /// 聚合数据集
+    /// Aggregate data sets
     pub fn aggregate<F, R>(&self, aggregator: F) -> Vec<R>
     where
         F: Fn(&Vec<super::types::Value>) -> R,
@@ -410,7 +410,7 @@ impl DataSet {
         self.rows.iter().map(aggregator).collect()
     }
 
-    /// 限制行数
+    /// limit the number of lines
     pub fn limit(&self, n: usize) -> DataSet {
         DataSet {
             col_names: self.col_names.clone(),
@@ -418,7 +418,7 @@ impl DataSet {
         }
     }
 
-    /// 跳过前 n 行
+    /// Skip the first n lines
     pub fn skip(&self, n: usize) -> DataSet {
         DataSet {
             col_names: self.col_names.clone(),
@@ -426,7 +426,7 @@ impl DataSet {
         }
     }
 
-    /// 合并数据集
+    /// Merging data sets
     pub fn union(&self, other: &DataSet) -> Result<DataSet, String> {
         if self.col_names != other.col_names {
             return Err("列名不匹配，无法合并".to_string());
@@ -438,7 +438,7 @@ impl DataSet {
         })
     }
 
-    /// 计算交集
+    /// Compute the intersection
     pub fn intersect(&self, other: &DataSet) -> DataSet {
         use std::collections::HashSet;
         let other_set: HashSet<&Vec<super::types::Value>> = other.rows.iter().collect();
@@ -453,7 +453,7 @@ impl DataSet {
         }
     }
 
-    /// 计算差集
+    /// Calculate the difference set
     pub fn except(&self, other: &DataSet) -> DataSet {
         use std::collections::HashSet;
         let other_set: HashSet<&Vec<super::types::Value>> = other.rows.iter().collect();
@@ -468,7 +468,7 @@ impl DataSet {
         }
     }
 
-    /// 转置数据集
+    /// Transpose dataset
     pub fn transpose(&self) -> DataSet {
         if self.rows.is_empty() {
             return DataSet::new();
@@ -493,7 +493,7 @@ impl DataSet {
         transposed
     }
 
-    /// 获取唯一值
+    /// Get unique value
     pub fn distinct(&self, col_name: &str) -> Vec<super::types::Value> {
         use std::collections::HashSet;
         if let Some(index) = self.get_col_index(col_name) {
@@ -509,17 +509,17 @@ impl DataSet {
         }
     }
 
-    /// 估算数据集的内存使用大小
+    /// Estimating the size of memory usage for a dataset
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
 
-        // 计算 col_names 的容量开销
+        // Capacity overhead for calculating col_names
         size += self.col_names.capacity() * std::mem::size_of::<String>();
         for col_name in &self.col_names {
             size += col_name.capacity();
         }
 
-        // 计算 rows 的容量开销
+        // Capacity overhead for calculating rows
         size += self.rows.capacity() * std::mem::size_of::<Vec<super::types::Value>>();
         for row in &self.rows {
             size += row.capacity() * std::mem::size_of::<super::types::Value>();

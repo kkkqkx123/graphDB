@@ -1,7 +1,7 @@
 use crate::core::query_result::iterator_enum::ResultIteratorEnum;
 use crate::core::value::Value;
 
-/// Result 状态
+/// Result Status
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResultState {
     NotStarted,
@@ -10,7 +10,7 @@ pub enum ResultState {
     Failed,
 }
 
-/// Result 元数据
+/// Result Metadata
 #[derive(Debug, Clone)]
 pub struct ResultMeta {
     pub row_count: usize,
@@ -30,16 +30,16 @@ impl Default for ResultMeta {
     }
 }
 
-/// Result 结构体
+/// Result struct
 ///
-/// 基于 Nebula-Graph 的 Result 设计，使用 Rust 的类型系统和内存安全特性
+/// Nebula-Graph-based Result design, using Rust's type system and memory safety features
 ///
-/// # 特性
-/// - 零成本抽象：编译时优化，无运行时开销
-/// - 类型安全：编译时类型检查
-/// - 内存安全：Rust 所有权系统保证
-/// - 高效迭代：支持多种迭代器类型
-/// - 使用 ResultIteratorEnum 实现静态分发，避免 Arc<dyn ResultIterator> 的动态分发开销
+/// # Characteristics
+/// - Zero-cost abstraction: compile-time optimizations, no runtime overheads
+/// - Type safety: compile-time type checking
+/// - Memory Safety: Rust Ownership System Guarantees
+/// - Efficient Iteration: Support for multiple iterator types
+/// - Use ResultIteratorEnum for static distribution to avoid the dynamic distribution overhead of Arc<dyn ResultIterator>.
 #[derive(Debug, Clone)]
 pub struct Result {
     rows: Vec<Vec<Value>>,
@@ -49,9 +49,9 @@ pub struct Result {
 }
 
 impl Result {
-    /// 创建新的空 Result
+    /// Create a new empty Result
     ///
-    /// # 示例
+    /// # Examples
     ///
     /// ```rust
     /// use graphdb::core::result::Result;
@@ -68,10 +68,10 @@ impl Result {
         }
     }
 
-    /// 从行集合和列名创建 Result
+    /// Creating Results from Row Sets and Column Names
     ///
-    /// 此方法是创建 Result 的推荐方式，自动设置状态为 Completed
-    /// 并计算内存使用量
+    /// This method is the recommended way to create a Result and automatically sets the status to Completed.
+    /// and calculate the memory usage
     pub fn from_rows(rows: Vec<Vec<Value>>, col_names: Vec<String>) -> Self {
         let row_count = rows.len();
         let col_count = col_names.len();
@@ -89,7 +89,7 @@ impl Result {
         }
     }
 
-    /// 创建空结果集（带有指定的列名）
+    /// Creating an empty result set (with the specified column names)
     pub fn empty(col_names: Vec<String>) -> Self {
         let col_count = col_names.len();
         Self {
