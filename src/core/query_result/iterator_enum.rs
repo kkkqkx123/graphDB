@@ -210,7 +210,7 @@ mod tests {
         let rows = vec![vec![Value::Int(1)]];
         let mut iter1 = ResultIteratorEnum::default_iterator(rows);
 
-        iter1.next().expect("迭代不应失败");
+        let _ = iter1.next().transpose().expect("迭代不应失败");
 
         let mut iter2 = iter1.clone();
         let row = iter2
