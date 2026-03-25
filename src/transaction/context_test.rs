@@ -505,8 +505,13 @@ fn test_savepoint_creation() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 创建保存点
     let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
@@ -528,8 +533,13 @@ fn test_multiple_savepoints() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 创建多个保存点
     let sp1 = ctx.create_savepoint(Some("sp1".to_string()));
@@ -554,8 +564,13 @@ fn test_rollback_to_savepoint() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 创建保存点
     let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
@@ -576,8 +591,13 @@ fn test_rollback_to_nonexistent_savepoint() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 尝试回滚到不存在的保存点
     let result = ctx.rollback_to_savepoint(999);
@@ -596,8 +616,13 @@ fn test_release_savepoint() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 创建保存点
     let savepoint_id = ctx.create_savepoint(Some("sp1".to_string()));
@@ -619,8 +644,13 @@ fn test_release_nonexistent_savepoint() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 尝试释放不存在的保存点
     let result = ctx.release_savepoint(999);
@@ -639,8 +669,13 @@ fn test_savepoint_with_operations() {
 
     let write_txn = db.begin_write().expect("创建写事务失败");
 
-    let ctx =
-        TransactionContext::new_writable(txn_id, timeout, DurabilityLevel::Immediate, write_txn, None);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        timeout,
+        DurabilityLevel::Immediate,
+        write_txn,
+        None,
+    );
 
     // 创建第一个保存点
     let sp1 = ctx.create_savepoint(Some("sp1".to_string()));

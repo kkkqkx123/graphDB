@@ -1,15 +1,15 @@
 use dashmap::DashMap;
 use log::{info, warn};
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
     Arc,
 };
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tokio::sync::RwLock;
 use tokio::time;
 
-use super::network_session::{ClientSession, Session};
+use crate::api::server::client::{ClientSession, Session};
 use crate::core::error::{SessionError, SessionResult};
 
 pub const DEFAULT_MAX_ALLOWED_CONNECTIONS: usize = 100; // 默认最大连接数（单节点场景）
@@ -44,6 +44,40 @@ impl SessionInfo {
             timezone: session.timezone(),
         }
     }
+
+    pub fn from_params(
+        session_id_str: &str,
+        user_name: &str,
+        space_name: Option<String>,
+        client_ip: &str,
+        client_port: u16,
+    ) -> Result<Self, String> {
+        let session_id = session_id_str
+            .parse::<i64>()
+            .map_err(|_| format!("Invalid session ID: {}", session_id_str))?;
+
+        let graph_addr = if client_ip.is_empty() {
+            None
+        } else {
+            Some(format!("{}:{}", client_ip, client_port))
+        };
+
+        let now = SystemTime::now();
+        Ok(Self {
+            session_id,
+            user_name: user_name.to_string(),
+            space_name,
+            graph_addr,
+            create_time: now,
+            last_access_time: now,
+            active_queries: 0,
+            timezone: None,
+        })
+    }
+
+    pub fn touch(&mut self) {
+        self.last_access_time = SystemTime::now();
+    }
 }
 
 #[derive(Debug)]
@@ -51,7 +85,7 @@ pub struct GraphSessionManager {
     // 使用 DashMap 实现真正的并发访问，无需显式加锁
     sessions: Arc<DashMap<i64, Arc<ClientSession>>>,
     active_sessions: Arc<DashMap<i64, Instant>>, // session_id -> last_activity_time
-    // 读多写少，使用 tokio::RwLock
+    // 读多写少，使用 RwLock
     session_create_times: Arc<RwLock<HashMap<i64, SystemTime>>>, // session_id -> create_time
     host_addr: String,
     max_connections: usize,
@@ -154,7 +188,7 @@ impl GraphSessionManager {
 
         // 写锁保护创建时间
         {
-            let mut create_times = self.session_create_times.write().await;
+            let mut create_times = self.session_create_times.write();
             create_times.insert(session_id, create_time);
         }
 
@@ -186,7 +220,7 @@ impl GraphSessionManager {
 
         // 写锁保护创建时间
         {
-            let mut create_times = self.session_create_times.write().await;
+            let mut create_times = self.session_create_times.write();
             create_times.remove(&session_id);
         }
 
@@ -205,7 +239,7 @@ impl GraphSessionManager {
     /// 获取会话列表信息，用于SHOW SESSIONS
     pub async fn list_sessions(&self) -> Vec<SessionInfo> {
         // 读锁获取创建时间
-        let create_times = self.session_create_times.read().await;
+        let create_times = self.session_create_times.read();
 
         // DashMap 迭代无需加锁
         self.sessions
@@ -226,7 +260,7 @@ impl GraphSessionManager {
         let client_session = self.sessions.get(&session_id)?;
 
         // 读锁获取创建时间
-        let create_times = self.session_create_times.read().await;
+        let create_times = self.session_create_times.read();
         create_times
             .get(&session_id)
             .map(|&create_time| SessionInfo::from_client_session(&client_session, create_time))

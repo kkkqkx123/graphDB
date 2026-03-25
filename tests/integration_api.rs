@@ -14,11 +14,11 @@ use graphdb::api::server::auth::{Authenticator, PasswordAuthenticator};
 use graphdb::api::server::graph_service::GraphService;
 use graphdb::api::server::permission::{Permission, PermissionManager};
 use graphdb::api::server::session::{
-    ClientSession, GraphSessionManager, QueryManager, QueryStatus, Session, SpaceInfo,
-    DEFAULT_SESSION_IDLE_TIMEOUT,
+    ClientSession, GraphSessionManager, Session, SpaceInfo, DEFAULT_SESSION_IDLE_TIMEOUT,
 };
 use graphdb::config::Config;
 use graphdb::core::{MetricType, QueryMetrics, RoleType, StatsManager};
+use graphdb::query::{QueryManager, QueryStatus};
 use graphdb::storage::DefaultStorage;
 
 // ==================== 会话管理测试 ====================

@@ -131,7 +131,7 @@ pub unsafe extern "C" fn graphdb_txn_begin_readonly(
 
     let mut options = crate::transaction::TransactionOptions::default();
     options.read_only = true;
-    
+
     match txn_manager.begin_transaction(options) {
         Ok(txn_id) => {
             let txn_handle = TransactionHandle(txn_id);

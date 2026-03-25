@@ -144,10 +144,10 @@ fn test_read_only_transaction() {
 /// 测试保存点回滚与数据恢复
 #[test]
 fn test_savepoint_rollback_with_data_recovery() {
-    use tempfile::TempDir;
-    use graphdb::core::Vertex;
     use graphdb::core::Value;
+    use graphdb::core::Vertex;
     use std::collections::HashMap;
+    use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("test_rollback_data.db");
@@ -179,7 +179,7 @@ fn test_savepoint_rollback_with_data_recovery() {
         tags: vec![],
         properties: HashMap::new(),
     };
-    
+
     context.add_operation_log(graphdb::transaction::types::OperationLog::InsertVertex {
         space: "test".to_string(),
         vertex_id: vec![1u8],
@@ -198,7 +198,7 @@ fn test_savepoint_rollback_with_data_recovery() {
         tags: vec![],
         properties: HashMap::new(),
     };
-    
+
     context.add_operation_log(graphdb::transaction::types::OperationLog::InsertVertex {
         space: "test".to_string(),
         vertex_id: vec![2u8],

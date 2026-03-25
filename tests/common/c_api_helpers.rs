@@ -47,10 +47,7 @@ impl CApiTestDatabase {
         );
         assert!(!db.is_null(), "数据库句柄不应为空");
 
-        Self {
-            db,
-            temp_dir,
-        }
+        Self { db, temp_dir }
     }
 
     /// 获取数据库句柄

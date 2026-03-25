@@ -3,75 +3,12 @@
 
 use crate::core::ErrorCode;
 use crate::core::Value;
+use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
-use std::time::{Instant, SystemTime};
+use std::sync::Arc;
+use std::time::Instant;
 
-/// 会话信息简化版 - 用于查询层
-#[derive(Debug, Clone)]
-pub struct SessionInfo {
-    pub session_id: i64,
-    pub user_name: String,
-    pub space_name: Option<String>,
-    pub graph_addr: Option<String>,
-    pub create_time: SystemTime,
-    pub last_access_time: SystemTime,
-    pub active_queries: i32,
-    pub timezone: Option<i32>,
-}
-
-impl SessionInfo {
-    /// 创建新的会话信息
-    pub fn new(
-        session_id: i64,
-        user_name: String,
-        space_name: Option<String>,
-        graph_addr: Option<String>,
-    ) -> Self {
-        let now = SystemTime::now();
-        Self {
-            session_id,
-            user_name,
-            space_name,
-            graph_addr,
-            create_time: now,
-            last_access_time: now,
-            active_queries: 0,
-            timezone: None,
-        }
-    }
-
-    /// 从字符串参数创建会话信息
-    pub fn from_params(
-        session_id_str: &str,
-        user_name: &str,
-        space_name: Option<String>,
-        client_ip: &str,
-        client_port: u16,
-    ) -> Result<Self, String> {
-        let session_id = session_id_str
-            .parse::<i64>()
-            .map_err(|_| format!("无效的会话ID: {}", session_id_str))?;
-
-        let graph_addr = if client_ip.is_empty() {
-            None
-        } else {
-            Some(format!("{}:{}", client_ip, client_port))
-        };
-
-        Ok(Self::new(
-            session_id,
-            user_name.to_string(),
-            space_name,
-            graph_addr,
-        ))
-    }
-
-    /// 更新最后访问时间
-    pub fn touch(&mut self) {
-        self.last_access_time = SystemTime::now();
-    }
-}
+use super::session_manager::SessionInfo;
 
 /// 请求参数
 #[derive(Debug, Clone)]
@@ -253,21 +190,14 @@ impl RequestContext {
     }
 
     /// 获取响应
-    pub fn response(&self) -> Result<Response, String> {
-        self.response
-            .read()
-            .map(|guard| guard.clone())
-            .map_err(|_| "Failed to acquire response lock".to_string())
+    pub fn response(&self) -> Response {
+        self.response.read().clone()
     }
 
     /// 设置响应
-    pub fn set_response(&self, response: Response) -> Result<(), String> {
-        let mut guard = self
-            .response
-            .write()
-            .map_err(|_| "Failed to acquire response write lock".to_string())?;
+    pub fn set_response(&self, response: Response) {
+        let mut guard = self.response.write();
         *guard = response;
-        Ok(())
     }
 
     /// 获取会话ID
@@ -311,52 +241,32 @@ impl RequestContext {
     }
 
     /// 设置响应错误
-    pub fn set_response_error(&self, error: String) -> Result<(), String> {
-        let mut guard = self
-            .response
-            .write()
-            .map_err(|_| "Failed to acquire response write lock".to_string())?;
+    pub fn set_response_error(&self, error: String) {
+        let mut guard = self.response.write();
         guard.success = false;
         guard.error_code = ErrorCode::ExecutionError;
         guard.error_message = Some(error);
-        Ok(())
     }
 
     /// 设置响应错误带错误码
-    pub fn set_response_error_with_code(
-        &self,
-        error: String,
-        code: ErrorCode,
-    ) -> Result<(), String> {
-        let mut guard = self
-            .response
-            .write()
-            .map_err(|_| "Failed to acquire response write lock".to_string())?;
+    pub fn set_response_error_with_code(&self, error: String, code: ErrorCode) {
+        let mut guard = self.response.write();
         guard.success = false;
         guard.error_code = code;
         guard.error_message = Some(error);
-        Ok(())
     }
 
     /// 添加警告信息
-    pub fn add_warning(&self, warning: String) -> Result<(), String> {
-        let mut guard = self
-            .response
-            .write()
-            .map_err(|_| "Failed to acquire response write lock".to_string())?;
+    pub fn add_warning(&self, warning: String) {
+        let mut guard = self.response.write();
         guard.warnings.push(warning);
-        Ok(())
     }
 
     /// 设置执行时间
-    pub fn set_execution_time(&self) -> Result<(), String> {
+    pub fn set_execution_time(&self) {
         let elapsed = self.query_start_time.elapsed().as_millis() as u64;
-        let mut guard = self
-            .response
-            .write()
-            .map_err(|_| "Failed to acquire response write lock".to_string())?;
+        let mut guard = self.response.write();
         guard.execution_time_ms = elapsed;
-        Ok(())
     }
 
     /// 获取执行时间（毫秒）
