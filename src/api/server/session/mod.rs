@@ -1,6 +1,6 @@
-//! 网络会话管理模块
+//! Network Session Management Module
 //!
-//! 提供网络连接会话的生命周期管理
+//! Providing lifecycle management for network connection sessions
 
 pub mod request_context;
 pub mod session_manager;

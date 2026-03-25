@@ -1,4 +1,4 @@
-//! 自定义函数 HTTP 处理器
+//! Custom function HTTP handler
 
 use axum::{
     extract::{Json, Path, State},
@@ -10,7 +10,7 @@ use serde_json;
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
 
-/// 注册自定义函数
+/// Register a custom function
 pub async fn register<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<RegisterFunctionRequest>,
@@ -45,7 +45,7 @@ pub async fn register<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-/// 列出所有函数
+/// List all functions
 pub async fn list<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -68,7 +68,7 @@ pub async fn list<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-/// 获取函数详情
+/// Obtain function details
 pub async fn info<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(name): Path<String>,
@@ -102,7 +102,7 @@ pub async fn info<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-/// 注销函数
+/// Logout function
 pub async fn unregister<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(name): Path<String>,
@@ -129,7 +129,7 @@ pub async fn unregister<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-/// 注册函数请求
+/// Registration function request
 #[derive(Debug, Deserialize)]
 pub struct RegisterFunctionRequest {
     pub name: String,
@@ -142,7 +142,7 @@ pub struct RegisterFunctionRequest {
     pub implementation: Option<serde_json::Value>,
 }
 
-/// 函数信息
+/// Function information
 #[derive(Debug, Serialize)]
 struct FunctionInfo {
     name: String,
@@ -152,7 +152,7 @@ struct FunctionInfo {
     description: Option<String>,
 }
 
-/// 生成函数ID
+/// Generator function ID
 fn generate_function_id(name: &str) -> String {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};

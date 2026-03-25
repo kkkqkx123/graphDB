@@ -4,51 +4,51 @@ use crate::config::AuthConfig;
 use crate::core::error::PermissionResult;
 use crate::core::{Permission, RoleType};
 
-/// 操作类型 - 对应不同的权限检查
+/// Operation type – corresponds to different permission checks
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OperationType {
-    // Space操作
+    // Space operations
     ReadSpace,  // USE, DESCRIBE SPACE
     WriteSpace, // CREATE SPACE, DROP SPACE, CLEAR SPACE
 
-    // Schema操作
+    // Schema operations
     ReadSchema,  // DESCRIBE TAG, DESCRIBE EDGE
     WriteSchema, // CREATE TAG, ALTER TAG, CREATE EDGE, DROP TAG
 
-    // 数据操作
+    // Data manipulation
     ReadData,  // GO, MATCH, FETCH, LOOKUP
     WriteData, // INSERT, UPDATE, DELETE
 
-    // 用户操作
+    // User operations
     ReadUser,  // DESCRIBE USER
     WriteUser, // CREATE USER, DROP USER, ALTER USER
 
-    // 角色操作
+    // Character actions
     WriteRole, // GRANT, REVOKE
 
-    // 特殊操作
-    Show,           // SHOW SPACES, SHOW USERS等
+    // Special operations
+    Show,           // “SHOW SPACES”, “SHOW USERS” etc.
     ChangePassword, // CHANGE PASSWORD
 }
 
-/// 权限检查器 - 业务层
+/// Permission Checker – Business Layer
 ///
-/// 职责：
-/// 1. 提供统一的权限检查入口
-/// 2. 实现业务逻辑判断（如God角色优先、Guest角色限制等）
-/// 3. 管理授权配置（是否启用授权）
-/// 4. 组合 PermissionManager 的基础操作完成复杂权限检查
+/// Responsibilities:
+/// Provide a unified entry point for permission checks.
+/// 2. Implement business logic decisions (such as giving priority to the ‘God’ role, imposing restrictions on the ‘Guest’ role, etc.).
+/// 3. Managing authorization settings (whether to enable authorization)
+/// 4. The basic operations of combining the PermissionManager are used to perform complex permission checks.
 ///
-/// 设计原则：
-/// - 所有业务逻辑在此层实现
-/// - 不直接操作权限数据，通过 PermissionManager 访问
+/// Design principles:
+/// All business logic is implemented at this layer.
+/// Do not directly manipulate the permission data; instead, access it through the PermissionManager.
 pub struct PermissionChecker {
     permission_manager: PermissionManager,
     auth_config: AuthConfig,
 }
 
 impl PermissionChecker {
-    /// 创建新的权限检查器
+    /// Create a new permission checker.
     pub fn new(permission_manager: PermissionManager, auth_config: AuthConfig) -> Self {
         Self {
             permission_manager,
@@ -56,19 +56,19 @@ impl PermissionChecker {
         }
     }
 
-    /// 检查是否启用授权
+    /// Check whether authorization is enabled.
     fn is_authorization_enabled(&self) -> bool {
         self.auth_config.enable_authorize
     }
 
-    // ==================== 统一权限检查入口 ====================
+    // ==================== Unified permission checking entry ====================
 
-    /// 统一的权限检查入口
+    /// Unified permission checking entry point
     ///
-    /// 根据操作类型进行相应的权限检查，包含业务逻辑：
-    /// - God 角色拥有所有权限
-    /// - Guest 角色限制写入
-    /// - 用户只能修改自己的密码
+    /// Perform the corresponding permission checks based on the type of operation, taking into account the business logic.
+    /// The God character possesses all permissions.
+    /// Writing is restricted for the Guest role.
+    /// Users can only change their own passwords.
     pub fn check_permission(
         &self,
         session: &ClientSession,
@@ -79,17 +79,17 @@ impl PermissionChecker {
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        // 如果未启用授权，直接返回成功
+        // If authorization is not enabled, a successful response is returned directly.
         if !self.is_authorization_enabled() {
             return Ok(());
         }
 
         let username = session.user();
 
-        // God 角色拥有所有权限（除修改密码需要特殊检查外）
+        // The God character has all permissions (except that modifying the password requires a special verification process).
         if self.permission_manager.is_god(&username) {
             match operation {
-                // 即使是 God，修改密码时也只能修改自己或明确授权的用户
+                // Even God could only change their own password or the passwords of users who have been explicitly authorized to do so.
                 OperationType::ChangePassword => {
                     return self.check_change_password(&username, target_user, session);
                 }
@@ -98,63 +98,63 @@ impl PermissionChecker {
         }
 
         match operation {
-            // Space读取操作：USE, DESCRIBE SPACE
+            // Space read operation: USE, DESCRIBE SPACE
             OperationType::ReadSpace => self.check_read_space(&username, target_space),
 
-            // Space写入操作：CREATE SPACE, DROP SPACE等
-            // 只有God角色可以执行
+            // Space-related operations: CREATE SPACE, DROP SPACE, etc.
+            // Only the God character can perform this action.
             OperationType::WriteSpace => Err(PermissionError::OnlyGodCanManageSpaces),
 
-            // Schema读取操作
+            // Schema reading operation
             OperationType::ReadSchema => self.check_read_schema(&username, target_space),
 
-            // Schema写入操作
+            // Schema writing operation
             OperationType::WriteSchema => self.check_write_schema(&username, target_space),
 
-            // 数据读取操作
+            // Data reading operation
             OperationType::ReadData => self.check_read_data(&username, target_space),
 
-            // 数据写入操作
+            // Data writing operation
             OperationType::WriteData => self.check_write_data(session, &username, target_space),
 
-            // 用户读取操作
+            // User reading operation
             OperationType::ReadUser => self.check_read_user(&username, target_user, session),
 
-            // 用户写入操作
+            // User-written operations
             OperationType::WriteUser => Err(PermissionError::OnlyGodCanManageUsers),
 
-            // 角色写入操作：GRANT, REVOKE
+            // Role management operations: GRANT, REVOKE
             OperationType::WriteRole => {
                 self.check_write_role(&username, target_space, target_user, target_role)
             }
 
-            // 显示操作
+            // Display the operation.
             OperationType::Show => {
-                // SHOW操作通常允许所有认证用户
+                // The SHOW operation usually allows all authenticated users to access the relevant information.
                 Ok(())
             }
 
-            // 修改密码操作
+            // Password change operation
             OperationType::ChangePassword => {
                 self.check_change_password(&username, target_user, session)
             }
         }
     }
 
-    // ==================== 具体业务逻辑检查方法 ====================
+    // ==================== Methods for Checking Specific Business Logic ====================
 
-    /// 检查Space读取权限
+    /// Check Space read permissions
     fn check_read_space(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
         let space_id = target_space.ok_or(PermissionError::SpaceIdRequired)?;
 
-        // 使用 PermissionManager 的基础检查
+        // Basic checks using PermissionManager
         self.permission_manager
             .check_permission(username, space_id, Permission::Read)
     }
 
-    /// 检查Schema读取权限
+    /// Checking Schema Read Permissions
     fn check_read_schema(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
@@ -164,8 +164,8 @@ impl PermissionChecker {
             .check_permission(username, space_id, Permission::Read)
     }
 
-    /// 检查Schema写入权限
-    /// 业务逻辑：只有 God 和 Admin 可以写入 Schema
+    /// Checking Schema Write Permissions
+    /// Business logic: Only God and Admin have the permission to write to the Schema.
     fn check_write_schema(
         &self,
         username: &str,
@@ -175,7 +175,7 @@ impl PermissionChecker {
 
         let space_id = target_space.ok_or(PermissionError::SchemaWriteSpaceIdRequired)?;
 
-        // 检查是否是管理员
+        // Check whether the user is an administrator.
         if !self.permission_manager.is_admin(username) {
             return Err(PermissionError::SchemaWritePermissionDenied {
                 space_id,
@@ -183,12 +183,12 @@ impl PermissionChecker {
             });
         }
 
-        // 管理员需要 Write 权限
+        // The administrator needs the “Write” permission.
         self.permission_manager
             .check_permission(username, space_id, Permission::Write)
     }
 
-    /// 检查数据读取权限
+    /// Checking data read permissions
     fn check_read_data(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
@@ -198,8 +198,8 @@ impl PermissionChecker {
             .check_permission(username, space_id, Permission::Read)
     }
 
-    /// 检查数据写入权限
-    /// 业务逻辑：Guest角色不能写入数据
+    /// Checking data write permissions
+    /// Business Logic: Guest Role Cannot Write Data
     fn check_write_data(
         &self,
         session: &ClientSession,
@@ -210,7 +210,7 @@ impl PermissionChecker {
 
         let space_id = target_space.ok_or(PermissionError::DataWriteSpaceIdRequired)?;
 
-        // Guest角色不能写入数据
+        // Guest roles cannot write data
         if let Some(role) = session.role_with_space(space_id) {
             if role == RoleType::Guest {
                 return Err(PermissionError::GuestCannotWriteData);
@@ -221,8 +221,8 @@ impl PermissionChecker {
             .check_permission(username, space_id, Permission::Write)
     }
 
-    /// 检查用户读取权限
-    /// 业务逻辑：用户可以读取自己的信息
+    /// Checking user read permissions
+    /// Business logic: users can read their own information
     fn check_read_user(
         &self,
         username: &str,
@@ -231,14 +231,14 @@ impl PermissionChecker {
     ) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
-        // 用户可以读取自己的信息
+        // Users can read their own information
         if let Some(target) = target_user {
             if username == target {
                 return Ok(());
             }
         }
 
-        // Admin 可以读取其他用户信息
+        // Admin can read information about other users
         if self.permission_manager.is_admin(username) {
             return Ok(());
         }
@@ -246,8 +246,8 @@ impl PermissionChecker {
         Err(PermissionError::CannotReadUserInfo)
     }
 
-    /// 检查角色写入权限
-    /// 业务逻辑：需要 Admin 或 Dba 角色，且目标角色不能高于操作者，不能修改自己的角色
+    /// Checking role write permissions
+    /// Business Logic: Admin or Dba role is required, and the target role cannot be higher than the operator, and you cannot modify your own role.
     fn check_write_role(
         &self,
         username: &str,
@@ -260,13 +260,13 @@ impl PermissionChecker {
         let space_id = target_space.ok_or(PermissionError::RoleOperationSpaceIdRequired)?;
         let role = target_role.ok_or(PermissionError::RoleOperationTargetRoleRequired)?;
 
-        // 获取操作者在该空间的角色
+        // Get the operator's role in the space
         let operator_role = self
             .permission_manager
             .get_role(username, space_id)
             .or_else(|| self.permission_manager.get_role(username, GOD_SPACE_ID));
 
-        // 检查操作者是否有权限管理角色（Admin、Dba 或 God）
+        // Check if the operator has a rights management role (Admin, Dba or God)
         let can_manage = matches!(
             operator_role,
             Some(RoleType::God) | Some(RoleType::Admin) | Some(RoleType::Dba)
@@ -276,14 +276,14 @@ impl PermissionChecker {
             return Err(PermissionError::OnlyAdminOrGodCanManageRoles);
         }
 
-        // 不能修改自己的角色
+        // Can't modify your role
         if let Some(target) = target_user {
             if username == target {
                 return Err(PermissionError::CannotModifyOwnRole);
             }
         }
 
-        // 检查是否可以授予目标角色
+        // Check if the target role can be granted
         if let Some(op_role) = operator_role {
             if !op_role.can_grant(role) {
                 return Err(PermissionError::CannotGrantRole {
@@ -297,8 +297,8 @@ impl PermissionChecker {
         Ok(())
     }
 
-    /// 检查修改密码权限
-    /// 业务逻辑：用户可以修改自己的密码，God可以修改任何用户的密码
+    /// Check the permission to change the password
+    /// Business Logic: Users can change their own passwords, God can change any users' passwords
     fn check_change_password(
         &self,
         username: &str,
@@ -309,12 +309,12 @@ impl PermissionChecker {
 
         let target = target_user.ok_or(PermissionError::ChangePasswordTargetUserRequired)?;
 
-        // 用户可以修改自己的密码
+        // Users can change their passwords
         if username == target {
             return Ok(());
         }
 
-        // God可以修改任何用户的密码
+        // God can change any user's password
         if session.is_god() {
             return Ok(());
         }
@@ -322,7 +322,7 @@ impl PermissionChecker {
         Err(PermissionError::CanOnlyChangeOwnPassword)
     }
 
-    // ==================== 便捷方法（供外部调用） ====================
+    // ==================== Convenience methods (for external calls) ====================
 
     /// 检查Space读取权限
     pub fn can_read_space(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
@@ -335,7 +335,7 @@ impl PermissionChecker {
         )
     }
 
-    /// 检查Space写入权限
+    /// Check Space write permissions
     pub fn can_write_space(&self, session: &ClientSession) -> PermissionResult<()> {
         self.check_permission(session, OperationType::WriteSpace, None, None, None)
     }
@@ -393,7 +393,7 @@ impl PermissionChecker {
         )
     }
 
-    /// 检查用户写入权限
+    /// Checking user write permissions
     pub fn can_write_user(&self, session: &ClientSession) -> PermissionResult<()> {
         self.check_permission(session, OperationType::WriteUser, None, None, None)
     }
@@ -430,19 +430,19 @@ impl PermissionChecker {
         )
     }
 
-    /// 检查Show操作权限
+    /// Check Show operating privileges
     pub fn can_show(&self, session: &ClientSession) -> PermissionResult<()> {
         self.check_permission(session, OperationType::Show, None, None, None)
     }
 
-    // ==================== 获取内部组件（用于高级场景） ====================
+    // ==================== Getting internal components (for advanced scenarios) ====================
 
-    /// 获取权限管理器的引用
+    /// Getting a reference to the rights manager
     pub fn permission_manager(&self) -> &PermissionManager {
         &self.permission_manager
     }
 
-    /// 获取配置
+    /// Get Configuration
     pub fn auth_config(&self) -> &AuthConfig {
         &self.auth_config
     }
@@ -470,7 +470,7 @@ mod tests {
     fn create_test_checker() -> PermissionChecker {
         let pm = PermissionManager::new();
 
-        // 为测试用户分配角色
+        // Assigning roles to test users
         pm.grant_role("user1", 1, RoleType::User)
             .expect("Failed to grant role");
         pm.grant_role("admin1", 1, RoleType::Admin)
@@ -519,7 +519,7 @@ mod tests {
         let checker = PermissionChecker::new(pm, config);
         let session = create_test_session("any_user", false);
 
-        // 禁用授权时，任何操作都应该通过
+        // When disabling authorization, any operation should be performed through the
         assert!(checker.can_write_space(&session).is_ok());
         assert!(checker.can_write_schema(&session, 1).is_ok());
         assert!(checker.can_write_data(&session, 1).is_ok());
@@ -530,7 +530,7 @@ mod tests {
         let checker = create_test_checker();
         let god_session = create_test_session("root", true);
 
-        // God 可以执行任何操作
+        // God can do anything.
         assert!(checker.can_write_space(&god_session).is_ok());
         assert!(checker.can_write_schema(&god_session, 1).is_ok());
         assert!(checker.can_write_data(&god_session, 1).is_ok());
@@ -545,7 +545,7 @@ mod tests {
         let checker = create_test_checker();
         let user_session = create_user_session("user1", RoleType::User, 1);
 
-        // 普通用户不能创建/删除空间
+        // Ordinary users cannot create/delete spaces
         assert!(checker.can_write_space(&user_session).is_err());
     }
 
@@ -554,7 +554,7 @@ mod tests {
         let checker = create_test_checker();
         let user_session = create_user_session("user1", RoleType::User, 1);
 
-        // 普通用户不能修改 Schema
+        // Normal users cannot modify Schema
         assert!(checker.can_write_schema(&user_session, 1).is_err());
     }
 
@@ -563,7 +563,7 @@ mod tests {
         let checker = create_test_checker();
         let admin_session = create_user_session("admin1", RoleType::Admin, 1);
 
-        // Admin 可以修改 Schema
+        // Admin can modify the Schema
         assert!(checker.can_write_schema(&admin_session, 1).is_ok());
     }
 
@@ -572,9 +572,9 @@ mod tests {
         let checker = create_test_checker();
         let guest_session = create_user_session("guest1", RoleType::Guest, 1);
 
-        // Guest 不能写入数据
+        // Guest cannot write data.
         assert!(checker.can_write_data(&guest_session, 1).is_err());
-        // Guest 可以读取数据
+        // Guest can read the data.
         assert!(checker.can_read_data(&guest_session, 1).is_ok());
     }
 
@@ -583,9 +583,9 @@ mod tests {
         let checker = create_test_checker();
         let user_session = create_user_session("user1", RoleType::User, 1);
 
-        // 用户可以读取自己的信息
+        // Users can read their own information
         assert!(checker.can_read_user(&user_session, "user1").is_ok());
-        // 用户不能读取其他用户的信息
+        // Users can't read other users' information
         assert!(checker.can_read_user(&user_session, "user2").is_err());
     }
 
@@ -594,9 +594,9 @@ mod tests {
         let checker = create_test_checker();
         let user_session = create_user_session("user1", RoleType::User, 1);
 
-        // 用户可以修改自己的密码
+        // Users can change their passwords
         assert!(checker.can_change_password(&user_session, "user1").is_ok());
-        // 用户不能修改其他用户的密码
+        // Users cannot change other users' passwords
         assert!(checker.can_change_password(&user_session, "user2").is_err());
     }
 
@@ -605,14 +605,14 @@ mod tests {
         let checker = create_test_checker();
         let admin_session = create_user_session("admin1", RoleType::Admin, 1);
 
-        // Admin 可以授予 User 和 Guest 角色
+        // Admin can grant the User and Guest roles
         assert!(checker
             .can_write_role(&admin_session, 1, "user1", RoleType::User)
             .is_ok());
         assert!(checker
             .can_write_role(&admin_session, 1, "guest1", RoleType::Guest)
             .is_ok());
-        // Admin 不能授予 Admin 或 God 角色
+        // Admin cannot grant the Admin or God role.
         assert!(checker
             .can_write_role(&admin_session, 1, "admin2", RoleType::Admin)
             .is_err());

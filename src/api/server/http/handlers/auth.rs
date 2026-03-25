@@ -27,8 +27,8 @@ pub async fn login<S: StorageClient + Clone + Send + Sync + 'static>(
     Json(request): Json<LoginRequest>,
 ) -> Result<JsonResponse<LoginResponse>, HttpError> {
     let result = task::spawn_blocking(move || {
-        // 这里需要通过 GraphService 的 authenticate 方法
-        // 当前架构需要调整，暂时返回模拟结果
+        // The authenticate method of the GraphService is required.
+        // The current architecture needs to be adjusted to return to the simulation results for the time being
         Ok::<_, HttpError>(LoginResponse {
             session_id: 12345,
             username: request.username,

@@ -1,6 +1,6 @@
-//! 数据库主模块
+//! Database main module
 //!
-//! 提供 GraphDatabase 结构体，作为嵌入式 API 的主要入口点
+//! Provide the GraphDatabase structure as the main entry point for the embedded API.
 
 use crate::api::core::{CoreError, CoreResult, QueryApi, SchemaApi, SpaceConfig};
 use crate::api::embedded::config::DatabaseConfig;
@@ -17,35 +17,35 @@ use std::sync::Arc;
 #[cfg(test)]
 use crate::storage::test_mock::MockStorage;
 
-/// 嵌入式 GraphDB 数据库
+/// Embedded GraphDB database
 ///
-/// 这是嵌入式 API 的主要入口点，提供类似 SQLite 的简单使用方式。
-/// 对应 SQLite 的 sqlite3 结构体。
+/// This is the main entry point for the embedded API, offering a simple way of use similar to that of SQLite.
+/// The sqlite3 structure corresponding to SQLite.
 ///
-/// # 示例
+/// # Example
 ///
 /// ```rust
 /// use graphdb::api::embedded::{GraphDatabase, DatabaseConfig};
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// // 打开数据库
+// Open the database
 /// let db = GraphDatabase::open("my_database")?;
 ///
-/// // 创建会话
+// Create a session
 /// let mut session = db.session()?;
 ///
-/// // 切换图空间
+// Switch to the image space
 /// session.use_space("test_space")?;
 ///
-/// // 执行查询
+// Execute the query
 /// let result = session.execute("MATCH (n) RETURN n")?;
 ///
-/// // 使用事务
+// Using a transaction
 /// let txn = session.begin_transaction()?;
 /// txn.execute("CREATE TAG user(name string)")?;
 /// txn.commit()?;
 ///
-/// // 数据库在 db 离开作用域时自动关闭
+/// The database is automatically closed when the `db` variable goes out of scope.
 /// ```
 pub struct GraphDatabase<S: StorageClient + Clone + 'static> {
     inner: Arc<GraphDatabaseInner<S>>,
@@ -53,20 +53,20 @@ pub struct GraphDatabase<S: StorageClient + Clone + 'static> {
 }
 
 impl GraphDatabase<RedbStorage> {
-    /// 打开或创建数据库（文件模式）
+    /// Open or create a database (in file mode).
     ///
-    /// # 参数
-    /// - `path` - 数据库文件路径
+    /// # Parameters
+    /// `path` – The path to the database file
     ///
-    /// # 返回
-    /// - 成功时返回 GraphDatabase 实例
-    /// - 失败时返回错误
+    /// # Back
+    /// Return the GraphDatabase instance upon successful completion.
+    /// - Return error on failure
     pub fn open(path: impl AsRef<Path>) -> CoreResult<Self> {
         let config = DatabaseConfig::file(path);
         Self::open_with_config(config)
     }
 
-    /// 创建内存数据库
+    /// Create a memory database
     ///
     /// # 返回
     /// - 成功时返回 GraphDatabase 实例
@@ -76,10 +76,10 @@ impl GraphDatabase<RedbStorage> {
         Self::open_with_config(config)
     }
 
-    /// 使用配置打开数据库
+    /// Open the database using the configuration settings.
     ///
     /// # 参数
-    /// - `config` - 数据库配置
+    /// `config` – Database configuration
     ///
     /// # 返回
     /// - 成功时返回 GraphDatabase 实例
@@ -117,36 +117,36 @@ impl GraphDatabase<RedbStorage> {
 }
 
 impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
-    /// 创建新会话
+    /// Create a new session.
     ///
     /// # 返回
-    /// - 成功时返回 Session 实例
+    /// Return the Session instance upon successful completion.
     /// - 失败时返回错误
     pub fn session(&self) -> CoreResult<Session<S>> {
         Ok(Session::new(self.inner.clone()))
     }
 
-    /// 执行简单查询（便捷方法）
+    /// Perform simple queries (a convenient method)
     ///
-    /// 此方法创建一个临时会话执行查询，适合简单的单次查询场景。
+    /// This method creates a temporary session to execute the query, which is suitable for simple, one-time query scenarios.
     /// 对于复杂场景，建议使用 session() 创建会话。
     ///
     /// # 参数
-    /// - `query` - 查询语句字符串
+    /// `query` – A string representing the query statement.
     ///
     /// # 返回
-    /// - 成功时返回查询结果
+    /// Return the query results when successful.
     /// - 失败时返回错误
     pub fn execute(&self, query: &str) -> CoreResult<QueryResult> {
         let session = self.session()?;
         session.execute(query)
     }
 
-    /// 执行参数化查询（便捷方法）
+    /// Executing parameterized queries (a convenient method)
     ///
     /// # 参数
     /// - `query` - 查询语句字符串
-    /// - `params` - 查询参数
+    /// `params` – Query parameters
     ///
     /// # 返回
     /// - 成功时返回查询结果
@@ -160,21 +160,21 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
         session.execute_with_params(query, params)
     }
 
-    /// 创建图空间（便捷方法）
+    /// Creating a graphical space (an easy method)
     ///
     /// # 参数
-    /// - `name` - 空间名称
-    /// - `config` - 空间配置
+    /// - `name' - space name
+    /// `config` – Space configuration
     ///
     /// # 返回
-    /// - 成功时返回 ()
+    /// - Returns on success ()
     /// - 失败时返回错误
     pub fn create_space(&self, name: &str, space_config: SpaceConfig) -> CoreResult<()> {
         let session = self.session()?;
         session.create_space(name, space_config)
     }
 
-    /// 删除图空间（便捷方法）
+    /// Deletion of map space (convenient method)
     ///
     /// # 参数
     /// - `name` - 空间名称
@@ -187,45 +187,45 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
         session.drop_space(name)
     }
 
-    /// 列出所有图空间（便捷方法）
+    /// List all graph spaces (convenience method)
     pub fn list_spaces(&self) -> CoreResult<Vec<String>> {
         let session = self.session()?;
         session.list_spaces()
     }
 
-    /// 获取配置
+    /// Get Configuration
     pub fn config(&self) -> &DatabaseConfig {
         &self.config
     }
 
-    /// 检查是否为内存数据库
+    /// Checking for in-memory databases
     pub fn is_memory(&self) -> bool {
         self.config.is_memory()
     }
 
-    /// 获取存储客户端的引用
+    /// Getting a reference to the storage client
     ///
     /// # 返回
-    /// - 存储客户端的 MutexGuard
+    /// - MutexGuard for Storage Clients
     pub fn storage(&self) -> parking_lot::MutexGuard<'_, S> {
         self.inner.storage.lock()
     }
 }
 
-// 为了支持 Send + Sync
-// 安全性说明：
-// 1. GraphDatabase 内部使用 Arc<GraphDatabaseInner<S>> 来共享数据，Arc 本身是 Send + Sync 的
-// 2. GraphDatabaseInner 中的 QueryApi 使用 Mutex 保护，确保线程安全
-// 3. StorageClient 要求实现 Clone + 'static，确保可以安全跨线程传递
-// 4. TransactionManager 使用 Arc 包装，可以安全跨线程共享
-// 5. config 是独立的 DatabaseConfig，可以安全跨线程传递
-// 因此 GraphDatabase 可以安全地实现 Send 和 Sync
+// To support Send + Sync
+// Safety Notes:
+// 1. GraphDatabase uses Arc<GraphDatabaseInner<S>> to share data internally, Arc itself is Send + Sync.
+// 2. QueryApi in GraphDatabaseInner is Mutex-protected for thread-safety.
+// 3. StorageClient is required to implement Clone + 'static to ensure safe cross-thread delivery.
+// 4. TransactionManager uses Arc wrappers, which can be safely shared across threads.
+// 5. config is a standalone DatabaseConfig, safe to pass across threads.
+// GraphDatabase can therefore securely implement Send and Sync.
 unsafe impl<S: StorageClient + Clone + 'static> Send for GraphDatabase<S> {}
 unsafe impl<S: StorageClient + Clone + 'static> Sync for GraphDatabase<S> {}
 
 #[cfg(test)]
 impl GraphDatabase<MockStorage> {
-    /// 创建测试用数据库（使用Mock存储）
+    /// Create database for testing (using Mock storage)
     ///
     /// 注意：此方法仅用于测试，实际使用时应使用 `GraphDatabase::open()`
     #[cfg(test)]

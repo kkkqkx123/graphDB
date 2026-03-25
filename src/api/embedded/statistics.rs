@@ -1,34 +1,34 @@
-//! 会话级变更统计模块
+//! Session-level change statistics module
 //!
-//! 提供查询执行的影响行数、最后插入ID等统计信息
+//! Provides statistics such as the number of rows affected by query execution, last insertion ID, etc.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// 会话级变更统计
+/// Session-level change statistics
 ///
-/// 记录会话中的查询执行情况，包括：
-/// - 上次操作影响的行数
-/// - 总会话变更数
-/// - 最后插入的顶点ID
-/// - 最后插入的边ID
+/// Records the execution of queries in the session, including:
+/// - Number of rows affected by the last operation
+/// - Total session changes
+/// - Vertex ID of the last inserted vertex
+/// - Last inserted edge ID
 #[derive(Debug)]
 pub struct SessionStatistics {
-    /// 上次操作影响的行数
+    /// Number of rows affected by the last operation
     last_changes: AtomicU64,
-    /// 总会话变更数
+    /// Total number of session changes
     total_changes: AtomicU64,
-    /// 最后插入的顶点ID
+    /// ID of the last vertex inserted
     last_insert_vertex_id: AtomicU64,
-    /// 最后插入的边ID
+    /// Last inserted edge ID
     last_insert_edge_id: AtomicU64,
-    /// 是否有顶点ID（0 表示无效）
+    /// Whether there is a vertex ID (0 means invalid)
     has_vertex_id: AtomicU64,
-    /// 是否有边ID（0 表示无效）
+    /// Whether there is an edge ID (0 means invalid)
     has_edge_id: AtomicU64,
 }
 
 impl SessionStatistics {
-    /// 创建新的统计实例
+    /// Creating a new statistics instance
     pub fn new() -> Self {
         Self {
             last_changes: AtomicU64::new(0),
@@ -40,19 +40,19 @@ impl SessionStatistics {
         }
     }
 
-    /// 记录变更行数
+    /// Record the number of lines changed
     ///
-    /// # 参数
-    /// - `count` - 影响的行数
+    /// # Parameters
+    /// - `count` - number of lines affected
     pub fn record_changes(&self, count: u64) {
         self.last_changes.store(count, Ordering::SeqCst);
         self.total_changes.fetch_add(count, Ordering::SeqCst);
     }
 
-    /// 记录顶点插入
+    /// Record Vertex Insertion
     ///
     /// # 参数
-    /// - `id` - 插入的顶点ID
+    /// - `id` - the ID of the inserted vertex
     pub fn record_vertex_insert(&self, id: i64) {
         if id > 0 {
             self.last_insert_vertex_id
@@ -63,10 +63,10 @@ impl SessionStatistics {
         }
     }
 
-    /// 记录边插入
+    /// Record-side insertion
     ///
     /// # 参数
-    /// - `id` - 插入的边ID
+    /// - `id` - the ID of the inserted side
     pub fn record_edge_insert(&self, id: i64) {
         if id > 0 {
             self.last_insert_edge_id.store(id as u64, Ordering::SeqCst);
@@ -76,19 +76,19 @@ impl SessionStatistics {
         }
     }
 
-    /// 获取上次操作影响的行数
+    /// Get the number of rows affected by the last operation
     pub fn last_changes(&self) -> u64 {
         self.last_changes.load(Ordering::SeqCst)
     }
 
-    /// 获取总会话变更数
+    /// Getting the number of total session changes
     pub fn total_changes(&self) -> u64 {
         self.total_changes.load(Ordering::SeqCst)
     }
 
-    /// 获取最后插入的顶点ID
+    /// Get the ID of the last inserted vertex
     ///
-    /// 返回 None 表示没有记录
+    /// Returns None for no records
     pub fn last_insert_vertex_id(&self) -> Option<i64> {
         if self.has_vertex_id.load(Ordering::SeqCst) != 0 {
             Some(self.last_insert_vertex_id.load(Ordering::SeqCst) as i64)
@@ -97,7 +97,7 @@ impl SessionStatistics {
         }
     }
 
-    /// 获取最后插入的边ID
+    /// Get the last inserted edge ID
     ///
     /// 返回 None 表示没有记录
     pub fn last_insert_edge_id(&self) -> Option<i64> {
@@ -108,16 +108,16 @@ impl SessionStatistics {
         }
     }
 
-    /// 重置上次变更记录
+    /// Reset last change record
     ///
-    /// 通常在执行新查询前调用
+    /// Usually called before executing a new query
     pub fn reset_last(&self) {
         self.last_changes.store(0, Ordering::SeqCst);
         self.has_vertex_id.store(0, Ordering::SeqCst);
         self.has_edge_id.store(0, Ordering::SeqCst);
     }
 
-    /// 重置所有统计
+    /// Reset all statistics
     pub fn reset_all(&self) {
         self.last_changes.store(0, Ordering::SeqCst);
         self.total_changes.store(0, Ordering::SeqCst);
@@ -149,39 +149,39 @@ impl Clone for SessionStatistics {
     }
 }
 
-/// 查询结果统计信息
+/// Statistical information on query results
 ///
-/// 从查询结果中提取的统计信息
+/// Statistics extracted from query results
 #[derive(Debug, Clone, Default)]
 pub struct QueryStatistics {
-    /// 影响的行数
+    /// Number of rows affected
     pub rows_affected: u64,
-    /// 返回的行数
+    /// Number of rows returned
     pub rows_returned: u64,
-    /// 插入的顶点ID列表
+    /// List of inserted vertex IDs
     pub inserted_vertex_ids: Vec<i64>,
-    /// 插入的边ID列表
+    /// List of inserted edge IDs
     pub inserted_edge_ids: Vec<i64>,
-    /// 更新的顶点数
+    /// Number of vertices updated
     pub vertices_updated: u64,
-    /// 更新的边数
+    /// Updated number of edges
     pub edges_updated: u64,
-    /// 删除的顶点数
+    /// Number of vertices deleted
     pub vertices_deleted: u64,
-    /// 删除的边数
+    /// Number of edges deleted
     pub edges_deleted: u64,
 }
 
 impl QueryStatistics {
-    /// 创建空的统计信息
+    /// Creating empty statistics
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 从查询结果元数据创建
+    /// Created from query result metadata
     ///
     /// # 参数
-    /// - `metadata` - 查询结果元数据
+    /// - `metadata` - query result metadata
     pub fn from_metadata(metadata: &crate::api::core::ExecutionMetadata) -> Self {
         Self {
             rows_affected: metadata.rows_returned,
@@ -190,7 +190,7 @@ impl QueryStatistics {
         }
     }
 
-    /// 合并另一个统计信息
+    /// Merging another statistic
     pub fn merge(&mut self, other: &QueryStatistics) {
         self.rows_affected += other.rows_affected;
         self.rows_returned += other.rows_returned;
@@ -204,7 +204,7 @@ impl QueryStatistics {
         self.edges_deleted += other.edges_deleted;
     }
 
-    /// 获取总变更数
+    /// Getting the total number of changes
     pub fn total_changes(&self) -> u64 {
         self.rows_affected
             + self.vertices_updated
@@ -250,9 +250,9 @@ mod tests {
         assert_eq!(stats.last_changes(), 1);
         assert_eq!(stats.total_changes(), 1);
 
-        // 无效ID不应该记录
+        // Invalid IDs should not be logged
         stats.record_vertex_insert(0);
-        assert_eq!(stats.last_insert_vertex_id(), Some(100)); // 保持不变
+        assert_eq!(stats.last_insert_vertex_id(), Some(100)); // Of course! Please provide the text you would like to have translated.
     }
 
     #[test]
@@ -275,7 +275,7 @@ mod tests {
         stats.reset_last();
         assert_eq!(stats.last_changes(), 0);
         assert_eq!(stats.last_insert_vertex_id(), None);
-        assert_eq!(stats.total_changes(), 6); // 总数不变
+        assert_eq!(stats.total_changes(), 6); // The total amount remains unchanged.
 
         stats.reset_all();
         assert_eq!(stats.total_changes(), 0);

@@ -1,62 +1,62 @@
-//! 配置管理模块
+//! Configuration Management Module
 //!
 //! 提供嵌入式数据库的配置管理，从 embedded_api.rs 分离出来
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-/// 数据库配置
+/// Database configuration
 ///
-/// 用于配置嵌入式 GraphDB 数据库的行为
+/// Used to configure the behavior of the embedded GraphDB database.
 ///
-/// # 示例
+/// # Example
 ///
 /// ```rust
 /// use graphdb::api::embedded::DatabaseConfig;
 ///
-/// // 内存数据库配置
+// Configuration for the in-memory database
 /// let config = DatabaseConfig::memory();
 ///
-/// // 文件数据库配置
+// File database configuration
 /// let config = DatabaseConfig::file("/path/to/db");
 ///
-/// // 链式配置
+// Chain configuration
 /// let config = DatabaseConfig::memory()
 ///     .with_cache_size(128)
 ///     .with_timeout(Duration::from_secs(60));
 /// ```
 #[derive(Debug, Clone)]
 pub struct DatabaseConfig {
-    /// 数据库路径，None 表示内存模式
+    /// Database path; “None” indicates the in-memory mode.
     pub path: Option<PathBuf>,
-    /// 缓存大小（MB）
+    /// Cache size (MB)
     pub cache_size_mb: usize,
-    /// 默认超时
+    /// Default timeout
     pub default_timeout: Duration,
-    /// 是否启用 WAL（Write-Ahead Logging）
+    /// Should WAL (Write-Ahead Logging) be enabled?
     pub enable_wal: bool,
-    /// 同步模式
+    /// Synchronous mode
     pub sync_mode: SyncMode,
-    /// 是否只读
+    /// Is it read-only?
     pub read_only: bool,
-    /// 不存在时是否创建
+    /// Should it be created if it does not exist?
     pub create_if_missing: bool,
 }
 
 /// 同步模式
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SyncMode {
-    /// 完全同步，每次写入都同步到磁盘（最安全，最慢）
+    /// Complete synchronization: Every write operation is immediately synchronized to the disk (the safest method, but also the slowest).
     Full,
-    /// 正常同步，定期同步（平衡）
+    /// Normal synchronization, periodic synchronization (balancing)
     #[default]
     Normal,
-    /// 异步模式，由操作系统决定何时同步（最快，有风险）
+    /// Asynchronous mode: The operating system determines when to perform synchronization (the fastest option, but it carries certain risks).
     Off,
 }
 
 impl DatabaseConfig {
-    /// 创建内存数据库配置
+    /// Create a configuration for the in-memory database.
     pub fn memory() -> Self {
         Self {
             path: None,
@@ -69,7 +69,7 @@ impl DatabaseConfig {
         }
     }
 
-    /// 创建文件数据库配置
+    /// Create a file database configuration.
     pub fn file(path: impl AsRef<Path>) -> Self {
         Self {
             path: Some(path.as_ref().to_path_buf()),
@@ -82,58 +82,58 @@ impl DatabaseConfig {
         }
     }
 
-    /// 使用路径创建配置（便捷方法）
+    /// Creating a configuration using a path (an easy method)
     pub fn new(path: impl AsRef<Path>) -> Self {
         Self::file(path)
     }
 
-    /// 设置缓存大小
+    /// Set the cache size
     pub fn with_cache_size(mut self, size_mb: usize) -> Self {
         self.cache_size_mb = size_mb;
         self
     }
 
-    /// 设置默认超时
+    /// Set the default timeout value
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.default_timeout = timeout;
         self
     }
 
-    /// 设置是否启用 WAL
+    /// Set whether to enable WAL (Write-Ahead Logging).
     pub fn with_wal(mut self, enable: bool) -> Self {
         self.enable_wal = enable;
         self
     }
 
-    /// 设置同步模式
+    /// Set the synchronization mode.
     pub fn with_sync_mode(mut self, mode: SyncMode) -> Self {
         self.sync_mode = mode;
         self
     }
 
-    /// 设置是否只读
+    /// Set whether the content should be read-only only.
     pub fn with_read_only(mut self, read_only: bool) -> Self {
         self.read_only = read_only;
         self
     }
 
-    /// 设置不存在时是否创建
+    /// Should a setting be created if it does not exist?
     pub fn with_create_if_missing(mut self, create: bool) -> Self {
         self.create_if_missing = create;
         self
     }
 
-    /// 检查是否为内存模式
+    /// Check whether it is in memory mode.
     pub fn is_memory(&self) -> bool {
         self.path.is_none()
     }
 
-    /// 获取数据库路径
+    /// Obtain the database path
     pub fn path(&self) -> Option<&Path> {
         self.path.as_deref()
     }
 
-    /// 获取缓存大小（字节）
+    /// Get the cache size (in bytes)
     pub fn cache_size_bytes(&self) -> usize {
         self.cache_size_mb * 1024 * 1024
     }

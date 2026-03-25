@@ -1,5 +1,4 @@
-//! 请求上下文模块 - 管理查询请求的上下文信息
-//! 对应原C++中的RequestContext.h
+//! Request Context Module - manages context information for query requests
 
 use crate::core::ErrorCode;
 use crate::core::Value;
@@ -10,7 +9,7 @@ use std::time::Instant;
 
 use super::session_manager::SessionInfo;
 
-/// 请求参数
+/// Request Parameters
 #[derive(Debug, Clone)]
 pub struct RequestParams {
     pub query: String,
@@ -31,7 +30,7 @@ impl RequestParams {
     }
 }
 
-/// 响应对象
+/// response object
 #[derive(Debug, Clone)]
 pub struct Response {
     pub success: bool,
@@ -108,29 +107,29 @@ impl Response {
     }
 }
 
-/// 请求上下文
+/// request context
 ///
-/// 管理查询请求的完整生命周期，包括：
-/// 1. 会话信息管理
-/// 2. 请求参数管理
-/// 3. 响应对象管理
+/// Manage the complete lifecycle of a query request, including:
+/// 1. Session information management
+/// 2. Request parameter management
+/// 3. Response object management
 #[derive(Debug)]
 pub struct RequestContext {
-    // 会话信息
+    // session information
     session_info: Option<SessionInfo>,
 
-    // 请求参数
+    // Request Parameters
     request_params: Arc<RequestParams>,
 
-    // 响应对象 - 使用 RwLock 支持内部可变性
+    // Response Objects - Using RwLock to Support Internal Mutability
     response: Arc<RwLock<Response>>,
 
-    // 查询开始时间
+    // Inquiry start time
     query_start_time: Instant,
 }
 
 impl RequestContext {
-    /// 创建新的请求上下文
+    /// Creating a new request context
     pub fn new(session_info: Option<SessionInfo>, request_params: RequestParams) -> Self {
         Self {
             session_info,
@@ -140,7 +139,7 @@ impl RequestContext {
         }
     }
 
-    /// 创建带会话信息的请求上下文
+    /// Creating a request context with session information
     pub fn with_session(
         query: String,
         session_id: &str,
@@ -154,7 +153,7 @@ impl RequestContext {
         Ok(Self::new(Some(session_info), request_params))
     }
 
-    /// 创建带参数的请求上下文
+    /// Creating a request context with parameters
     pub fn with_parameters(
         query: String,
         parameters: HashMap<String, Value>,
@@ -169,69 +168,69 @@ impl RequestContext {
         Ok(Self::new(Some(session_info), request_params))
     }
 
-    /// 获取会话信息
+    /// Get session information
     pub fn session_info(&self) -> Option<&SessionInfo> {
         self.session_info.as_ref()
     }
 
-    /// 获取请求参数
+    /// Get request parameters
     pub fn request_params(&self) -> &RequestParams {
         &self.request_params
     }
 
-    /// 获取查询字符串
+    /// Get query string
     pub fn query(&self) -> &str {
         &self.request_params.query
     }
 
-    /// 获取参数
+    /// Getting Parameters
     pub fn parameters(&self) -> &HashMap<String, Value> {
         &self.request_params.parameters
     }
 
-    /// 获取响应
+    /// Get Response
     pub fn response(&self) -> Response {
         self.response.read().clone()
     }
 
-    /// 设置响应
+    /// Setting the response
     pub fn set_response(&self, response: Response) {
         let mut guard = self.response.write();
         *guard = response;
     }
 
-    /// 获取会话ID
+    /// Get Session ID
     pub fn session_id(&self) -> Option<i64> {
         self.session_info.as_ref().map(|s| s.session_id)
     }
 
-    /// 获取用户名
+    /// Get User Name
     pub fn user_name(&self) -> Option<&str> {
         self.session_info.as_ref().map(|s| s.user_name.as_str())
     }
 
-    /// 获取图空间名称
+    /// Get the name of the graph space
     pub fn space_name(&self) -> Option<&str> {
         self.session_info
             .as_ref()
             .and_then(|s| s.space_name.as_deref())
     }
 
-    /// 设置图空间名称
+    /// Setting the name of the map space
     pub fn set_space_name(&mut self, space_name: String) {
         if let Some(ref mut session) = self.session_info {
             session.space_name = Some(space_name);
         }
     }
 
-    /// 获取图空间ID
+    /// Get graph space ID
     ///
-    /// # 注意
+    /// # Note
     /// 此方法已废弃，请使用 `QueryContext::space_id()` 获取空间ID。
-    /// RequestContext 只保存 space_name，不直接访问元数据服务。
+    /// The RequestContext only holds the space_name and does not directly access the metadata service.
     ///
-    /// # 替代方案
-    /// 通过 QueryContext 获取 space_id：
+    /// # Alternative programs
+    /// Get the space_id via QueryContext:
     /// ```rust,ignore
     /// let space_id = query_context.space_id();
     /// ```
@@ -240,7 +239,7 @@ impl RequestContext {
         None
     }
 
-    /// 设置响应错误
+    /// Setting Response Errors
     pub fn set_response_error(&self, error: String) {
         let mut guard = self.response.write();
         guard.success = false;
@@ -248,7 +247,7 @@ impl RequestContext {
         guard.error_message = Some(error);
     }
 
-    /// 设置响应错误带错误码
+    /// Setting Response Errors with Error Codes
     pub fn set_response_error_with_code(&self, error: String, code: ErrorCode) {
         let mut guard = self.response.write();
         guard.success = false;
@@ -256,20 +255,20 @@ impl RequestContext {
         guard.error_message = Some(error);
     }
 
-    /// 添加警告信息
+    /// Adding a Warning Message
     pub fn add_warning(&self, warning: String) {
         let mut guard = self.response.write();
         guard.warnings.push(warning);
     }
 
-    /// 设置执行时间
+    /// Setting the execution time
     pub fn set_execution_time(&self) {
         let elapsed = self.query_start_time.elapsed().as_millis() as u64;
         let mut guard = self.response.write();
         guard.execution_time_ms = elapsed;
     }
 
-    /// 获取执行时间（毫秒）
+    /// Get execution time in milliseconds
     pub fn elapsed_ms(&self) -> u64 {
         self.query_start_time.elapsed().as_millis() as u64
     }
@@ -279,7 +278,7 @@ impl RequestContext {
         self.request_params.parameters.get(param).cloned()
     }
 
-    /// 更新会话最后访问时间
+    /// Update session last access time
     pub fn touch_session(&mut self) {
         if let Some(ref mut session) = self.session_info {
             session.touch();
@@ -309,9 +308,9 @@ impl Clone for RequestContext {
     }
 }
 
-/// 从 ClientSession 创建 QueryRequestContext
+/// Creating a QueryRequestContext from a ClientSession
 ///
-/// 这个转换函数确保 api 层的会话信息能正确传递到 query 层
+/// This conversion function ensures that the session information from the api layer is correctly passed to the query layer
 pub fn build_query_request_context(
     session: &super::ClientSession,
     query: String,

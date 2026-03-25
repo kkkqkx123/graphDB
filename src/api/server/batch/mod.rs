@@ -1,6 +1,6 @@
-//! 批量操作管理模块
+//! Batch Operation Management Module
 //!
-//! 提供 HTTP API 层面的批量数据导入管理功能
+//! Provide batch data import management functionality at the HTTP API level.
 
 pub mod manager;
 pub mod types;

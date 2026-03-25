@@ -33,25 +33,25 @@ use super::{
     state::AppState,
 };
 
-/// 创建路由器
+/// Creating a router
 ///
-/// 路由结构：
-/// - /v1/health - 健康检查（公开）
-/// - /v1/auth/* - 认证相关（公开）
-/// - /v1/sessions/* - 会话管理（需要认证）
-/// - /v1/query - 查询执行（需要认证）
-/// - /v1/transactions/* - 事务管理（需要认证）
-/// - /v1/schema/* - Schema 管理（需要认证）
+/// Routing structure:
+/// /v1/health – Health check (public)
+/// – /v1/auth/* – Related to authentication (public information)
+/// – /v1/sessions/* – Session management (authentication required)
+/// /v1/query – Execution of a query (authentication required)
+/// /v1/transactions/* – Transaction management (authentication required)
+/// – /v1/schema/* – Schema management (requires authentication)
 pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
     state: AppState<S>,
 ) -> Router {
-    // 公开路由（不需要认证）
+    // Public route (no authentication required)
     let public_routes = Router::new()
         .route("/health", get(health::check))
         .route("/auth/login", post(login))
         .route("/auth/logout", post(logout));
 
-    // 需要认证的路由
+    // Routes that require authentication
     let protected_routes = Router::new()
         .route("/sessions", post(create_session))
         .route("/sessions/:id", get(get_session).delete(delete_session))
@@ -60,27 +60,27 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
         .route("/transactions", post(transaction::begin))
         .route("/transactions/:id/commit", post(transaction::commit))
         .route("/transactions/:id/rollback", post(transaction::rollback))
-        // 批量操作路由
+        // Batch operation of routes
         .route("/batch", post(create_batch))
         .route("/batch/:id", get(batch_status).delete(delete_batch))
         .route("/batch/:id/items", post(add_items))
         .route("/batch/:id/execute", post(execute_batch))
         .route("/batch/:id/cancel", post(cancel_batch))
-        // 统计信息路由
+        // Statistical information routing
         .route("/statistics/sessions/:id", get(session))
         .route("/statistics/queries", get(queries))
         .route("/statistics/database", get(database))
         .route("/statistics/system", get(system))
-        // 配置管理路由
+        // Configure management routing.
         .route("/config", get(get_config).put(update_config))
         .route(
             "/config/:section/:key",
             get(get_key).put(update_key).delete(reset_key),
         )
-        // 自定义函数路由
+        // Custom function routing
         .route("/functions", post(register).get(list))
         .route("/functions/:name", get(function_info).delete(unregister))
-        // 流式查询路由
+        // Streaming Query Routing
         .route("/query/stream", post(execute_stream))
         .route(
             "/schema/spaces",
@@ -103,7 +103,7 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
             auth_middleware,
         ));
 
-    // 合并所有路由，添加版本前缀
+    // Merge all routes and add a version prefix.
     Router::new()
         .nest("/v1", public_routes.merge(protected_routes))
         .layer(middleware::from_fn(logging::logging_middleware))
@@ -114,18 +114,18 @@ pub fn create_router<S: StorageClient + Clone + Send + Sync + 'static>(
             StatusCode::REQUEST_TIMEOUT,
             Duration::from_secs(30),
         ))
-        .layer(RequestBodyLimitLayer::new(1024 * 1024 * 10)) // 10MB 请求体限制
+        .layer(RequestBodyLimitLayer::new(1024 * 1024 * 10)) // Limit on the request body size: 10 MB
         .with_state(state)
 }
 
-/// 创建 CORS 配置层
+/// Create a CORS configuration layer
 ///
-/// 开发环境允许所有来源，生产环境应该配置具体来源
+/// The development environment allows all sources; the production environment should be configured with specific sources.
 fn create_cors_layer() -> CorsLayer {
-    // 注意：生产环境应该收紧这个配置
-    // 例如：只允许特定域名访问
+    // The configuration should be tightened in a production environment.
+    // For example: Access is only allowed from specific domain names.
     CorsLayer::new()
-        .allow_origin(Any) // 允许所有来源，生产环境应该改为具体域名
+        .allow_origin(Any) // Allow all sources; the production environment should be replaced with specific domain names.
         .allow_methods(Any)
         .allow_headers(Any)
 }

@@ -1,6 +1,6 @@
-//! 查询结果处理模块
+//! Query Result Processing Module
 //!
-//! 提供完善的查询结果处理能力，扩展核心层的 QueryResult 和 Row
+//! Provides comprehensive query result processing capabilities, extending the core layer of QueryResult and Row
 
 use crate::api::core::{CoreError, CoreResult, QueryResult as CoreQueryResult, Row as CoreRow};
 use crate::core::{Edge, Path, Value, Vertex};
@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
-/// 查询结果
+/// Inquiry results
 ///
-/// 封装核心层的查询结果，提供更方便的访问方法
+/// Encapsulate core layer query results to provide easier access methods
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryResult {
     columns: Vec<String>,
@@ -18,28 +18,28 @@ pub struct QueryResult {
     metadata: ResultMetadata,
 }
 
-/// 结果行
+/// result line
 ///
-/// 封装核心层的行数据，提供按列名和索引访问的方法
+/// Encapsulates row data at the core level, providing access by column name and index
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Row {
     values: HashMap<String, Value>,
     column_index: HashMap<String, usize>,
 }
 
-/// 结果元数据
+/// Results metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResultMetadata {
-    /// 执行时间
+    /// execution time
     pub execution_time: Duration,
-    /// 返回行数
+    /// Returns the number of rows
     pub rows_returned: usize,
-    /// 扫描行数
+    /// scanning line
     pub rows_scanned: u64,
 }
 
 impl QueryResult {
-    /// 从核心层查询结果创建
+    /// Created from core level query results
     pub fn from_core(result: CoreQueryResult) -> Self {
         let columns = result.columns.clone();
         let rows: Vec<Row> = result.rows.into_iter().map(Row::from_core).collect();
@@ -56,64 +56,64 @@ impl QueryResult {
         }
     }
 
-    /// 获取列名列表
+    /// Get a list of column names
     pub fn columns(&self) -> &[String] {
         &self.columns
     }
 
-    /// 获取行数
+    /// Get rows
     pub fn len(&self) -> usize {
         self.rows.len()
     }
 
-    /// 检查结果是否为空
+    /// Check if the result is null
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }
 
-    /// 获取指定行
+    /// Get the specified row
     pub fn get(&self, index: usize) -> Option<&Row> {
         self.rows.get(index)
     }
 
-    /// 获取第一行
+    /// Get the first line
     pub fn first(&self) -> Option<&Row> {
         self.rows.first()
     }
 
-    /// 获取最后一行
+    /// Get last line
     pub fn last(&self) -> Option<&Row> {
         self.rows.last()
     }
 
-    /// 获取行迭代器
+    /// Get row iterator
     pub fn iter(&self) -> impl Iterator<Item = &Row> {
         self.rows.iter()
     }
 
-    /// 获取元数据
+    /// Getting Metadata
     pub fn metadata(&self) -> &ResultMetadata {
         &self.metadata
     }
 
-    /// 获取所有行
+    /// Get all rows
     pub fn rows(&self) -> &[Row] {
         &self.rows
     }
 
-    /// 转换为 JSON 字符串
+    /// Convert to JSON string
     pub fn to_json(&self) -> CoreResult<String> {
         serde_json::to_string_pretty(self)
             .map_err(|e| CoreError::Internal(format!("JSON serialization failed: {}", e)))
     }
 
-    /// 转换为 JSON 字符串（紧凑格式）
+    /// Convert to JSON string (compact format)
     pub fn to_json_compact(&self) -> CoreResult<String> {
         serde_json::to_string(self)
             .map_err(|e| CoreError::Internal(format!("JSON serialization failed: {}", e)))
     }
 
-    /// 转换为 JSON Value
+    /// Convert to JSON Value
     pub fn to_json_value(&self) -> CoreResult<serde_json::Value> {
         serde_json::to_value(self)
             .map_err(|e| CoreError::Internal(format!("JSON serialization failed: {}", e)))
@@ -139,7 +139,7 @@ impl<'a> IntoIterator for &'a QueryResult {
 }
 
 impl Row {
-    /// 从核心层行数据创建
+    /// Created from core layer row data
     pub fn from_core(row: CoreRow) -> Self {
         let mut column_index = HashMap::new();
         let values = row.values;
@@ -154,41 +154,41 @@ impl Row {
         }
     }
 
-    /// 按列名获取值
+    /// Getting values by column name
     pub fn get(&self, column: &str) -> Option<&Value> {
         self.values.get(column)
     }
 
-    /// 按索引获取值
+    /// Getting values by index
     pub fn get_by_index(&self, index: usize) -> Option<&Value> {
         self.columns()
             .get(index)
             .and_then(|col| self.values.get(col.as_str()))
     }
 
-    /// 获取所有列名
+    /// Get all column names
     pub fn columns(&self) -> Vec<&String> {
         self.values.keys().collect()
     }
 
-    /// 获取列数
+    /// Get the number of columns
     pub fn len(&self) -> usize {
         self.values.len()
     }
 
-    /// 检查是否为空行
+    /// Check for blank lines
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
 
-    /// 检查是否包含指定列
+    /// Checks if the specified column is included
     pub fn has_column(&self, column: &str) -> bool {
         self.values.contains_key(column)
     }
 
-    // 类型化获取方法
+    // Typed Acquisition Methods
 
-    /// 获取字符串值
+    /// Getting String Values
     pub fn get_string(&self, column: &str) -> Option<String> {
         self.get(column).and_then(|v| match v {
             Value::String(s) => Some(s.clone()),
@@ -196,7 +196,7 @@ impl Row {
         })
     }
 
-    /// 获取 i64 整数值
+    /// Get i64 integer value
     pub fn get_int(&self, column: &str) -> Option<i64> {
         self.get(column).and_then(|v| match v {
             Value::Int(i) => Some(*i),
@@ -204,7 +204,7 @@ impl Row {
         })
     }
 
-    /// 获取 f64 浮点值
+    /// Get f64 floating point value
     pub fn get_float(&self, column: &str) -> Option<f64> {
         self.get(column).and_then(|v| match v {
             Value::Float(f) => Some(*f),
@@ -212,7 +212,7 @@ impl Row {
         })
     }
 
-    /// 获取布尔值
+    /// Get Boolean
     pub fn get_bool(&self, column: &str) -> Option<bool> {
         self.get(column).and_then(|v| match v {
             Value::Bool(b) => Some(*b),
@@ -220,7 +220,7 @@ impl Row {
         })
     }
 
-    /// 获取顶点
+    /// Get Vertex
     pub fn get_vertex(&self, column: &str) -> Option<&Vertex> {
         self.get(column).and_then(|v| match v {
             Value::Vertex(vertex) => Some(vertex.as_ref()),
@@ -228,7 +228,7 @@ impl Row {
         })
     }
 
-    /// 获取边
+    /// Getting the edge
     pub fn get_edge(&self, column: &str) -> Option<&Edge> {
         self.get(column).and_then(|v| match v {
             Value::Edge(edge) => Some(edge),
@@ -236,7 +236,7 @@ impl Row {
         })
     }
 
-    /// 获取路径
+    /// Get Path
     pub fn get_path(&self, column: &str) -> Option<&Path> {
         self.get(column).and_then(|v| match v {
             Value::Path(path) => Some(path),
@@ -244,7 +244,7 @@ impl Row {
         })
     }
 
-    /// 获取列表
+    /// Get List
     pub fn get_list(&self, column: &str) -> Option<&crate::core::value::dataset::List> {
         self.get(column).and_then(|v| match v {
             Value::List(list) => Some(list),
@@ -252,7 +252,7 @@ impl Row {
         })
     }
 
-    /// 获取映射
+    /// Getting the mapping
     pub fn get_map(&self, column: &str) -> Option<&HashMap<String, Value>> {
         self.get(column).and_then(|v| match v {
             Value::Map(map) => Some(map),
@@ -260,7 +260,7 @@ impl Row {
         })
     }
 
-    /// 获取所有值
+    /// Get all values
     pub fn values(&self) -> &HashMap<String, Value> {
         &self.values
     }
@@ -282,16 +282,16 @@ impl Default for ResultMetadata {
     }
 }
 
-/// 流式查询结果
+/// Streaming Search Results
 ///
-/// 用于处理大型数据集，避免一次性加载所有数据到内存
+/// Used to process large datasets and avoid loading all data into memory at once
 pub struct StreamingQueryResult {
     columns: Vec<String>,
     metadata: ResultMetadata,
 }
 
 impl StreamingQueryResult {
-    /// 创建流式查询结果
+    /// Create streaming query results
     pub fn new(columns: Vec<String>, metadata: ResultMetadata) -> Self {
         Self { columns, metadata }
     }

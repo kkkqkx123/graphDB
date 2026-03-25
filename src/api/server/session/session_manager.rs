@@ -12,13 +12,13 @@ use tokio::time;
 use crate::api::server::client::{ClientSession, Session};
 use crate::core::error::{SessionError, SessionResult};
 
-pub const DEFAULT_MAX_ALLOWED_CONNECTIONS: usize = 100; // 默认最大连接数（单节点场景）
-pub const DEFAULT_SESSION_IDLE_TIMEOUT: Duration = Duration::from_secs(600); // 10分钟
+pub const DEFAULT_MAX_ALLOWED_CONNECTIONS: usize = 100; // Default maximum number of connections (in a single-node scenario)
+pub const DEFAULT_SESSION_IDLE_TIMEOUT: Duration = Duration::from_secs(600); // 10 minutes
 
-/// 全局会话ID计数器，用于生成唯一的会话ID
+/// Global session ID counter, used to generate unique session IDs
 static SESSION_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-/// 会话信息，用于展示会话列表
+/// Session information, used to display the list of sessions
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
     pub session_id: i64,
@@ -82,22 +82,22 @@ impl SessionInfo {
 
 #[derive(Debug)]
 pub struct GraphSessionManager {
-    // 使用 DashMap 实现真正的并发访问，无需显式加锁
+    // Use DashMap to achieve true concurrent access without the need for explicit locking.
     sessions: Arc<DashMap<i64, Arc<ClientSession>>>,
     active_sessions: Arc<DashMap<i64, Instant>>, // session_id -> last_activity_time
-    // 读多写少，使用 RwLock
+    // Read more, write less – and use RwLock.
     session_create_times: Arc<RwLock<HashMap<i64, SystemTime>>>, // session_id -> create_time
     host_addr: String,
     max_connections: usize,
     session_idle_timeout: Duration,
-    /// 后台清理任务是否正在运行
+    /// Is the background cleanup task currently running?
     cleanup_task_running: Arc<AtomicBool>,
 }
 
 impl GraphSessionManager {
-    /// 创建新的会话管理器
+    /// Create a new session manager.
     ///
-    /// 注意：此构造函数不会自动启动后台清理任务，
+    /// This constructor does not automatically initiate background cleanup tasks.
     /// 需要显式调用 `start_cleanup_task()` 来启动
     pub fn new(
         host_addr: String,
@@ -115,9 +115,9 @@ impl GraphSessionManager {
         })
     }
 
-    /// 启动后台会话清理任务
+    /// Start the background session cleanup task.
     ///
-    /// 如果任务已经在运行，此方法不会重复启动
+    /// If the task is already running, this method will not start it again.
     pub fn start_cleanup_task(self: &Arc<Self>) {
         if self.cleanup_task_running.swap(true, Ordering::SeqCst) {
             info!("Session cleanup task is already running");
@@ -131,15 +131,15 @@ impl GraphSessionManager {
         });
     }
 
-    /// 停止后台会话清理任务
+    /// Stop the background session cleaning task.
     ///
-    /// 设置停止标志，后台任务将在下一次循环时退出
+    /// Set a stop flag; the background task will exit during the next iteration.
     pub fn stop_cleanup_task(&self) {
         info!("Stopping session cleanup task");
         self.cleanup_task_running.store(false, Ordering::SeqCst);
     }
 
-    /// 检查后台清理任务是否正在运行
+    /// Check whether the background cleanup task is currently running.
     pub fn is_cleanup_task_running(&self) -> bool {
         self.cleanup_task_running.load(Ordering::SeqCst)
     }
@@ -181,12 +181,12 @@ impl GraphSessionManager {
         // Add to sessions and active sessions
         let create_time = SystemTime::now();
 
-        // DashMap 无需显式加锁，真正的并发插入
+        // DashMap does not require explicit locking; concurrent insertions are possible without any issues.
         self.sessions
             .insert(session_id, Arc::clone(&client_session));
         self.active_sessions.insert(session_id, Instant::now());
 
-        // 写锁保护创建时间
+        // Write lock protection creation time
         {
             let mut create_times = self.session_create_times.write();
             create_times.insert(session_id, create_time);
@@ -201,7 +201,7 @@ impl GraphSessionManager {
 
     /// Finds an existing session
     pub fn find_session(&self, session_id: i64) -> Option<Arc<ClientSession>> {
-        // DashMap 支持真正的并发读，无需加锁
+        // DashMap supports true concurrent reading without the need for locking.
         self.sessions.get(&session_id).map(|entry| entry.clone())
     }
 
@@ -214,11 +214,11 @@ impl GraphSessionManager {
     pub async fn remove_session(&self, session_id: i64) {
         info!("Removing session ID: {}", session_id);
 
-        // DashMap 无需显式加锁
+        // DashMap does not require explicit locking.
         self.sessions.remove(&session_id);
         self.active_sessions.remove(&session_id);
 
-        // 写锁保护创建时间
+        // Write lock protection creation time
         {
             let mut create_times = self.session_create_times.write();
             create_times.remove(&session_id);
@@ -229,19 +229,19 @@ impl GraphSessionManager {
 
     /// Gets all sessions from the local cache
     pub fn get_sessions_from_local_cache(&self) -> Vec<Session> {
-        // DashMap 支持迭代器，无需加锁
+        // DashMap supports iterators, and no locking is required.
         self.sessions
             .iter()
             .map(|entry| entry.value().get_session())
             .collect()
     }
 
-    /// 获取会话列表信息，用于SHOW SESSIONS
+    /// Obtain information about the session list, which is used for the SHOW SESSIONS command.
     pub async fn list_sessions(&self) -> Vec<SessionInfo> {
-        // 读锁获取创建时间
+        // Read lock acquisition time
         let create_times = self.session_create_times.read();
 
-        // DashMap 迭代无需加锁
+        // DashMap’s iteration process does not require locking.
         self.sessions
             .iter()
             .filter_map(|entry| {
@@ -254,28 +254,28 @@ impl GraphSessionManager {
             .collect()
     }
 
-    /// 获取指定会话的详细信息
+    /// Obtain detailed information about the specified session.
     pub async fn get_session_info(&self, session_id: i64) -> Option<SessionInfo> {
-        // DashMap 读无需加锁
+        // Reading DashMap does not require any locking mechanisms.
         let client_session = self.sessions.get(&session_id)?;
 
-        // 读锁获取创建时间
+        // Read lock acquisition time
         let create_times = self.session_create_times.read();
         create_times
             .get(&session_id)
             .map(|&create_time| SessionInfo::from_client_session(&client_session, create_time))
     }
 
-    /// 终止指定会话（KILL SESSION）
+    /// Terminate the specified session (KILL SESSION)
     ///
-    /// # 参数
-    /// * `session_id` - 要终止的会话ID
-    /// * `current_user` - 执行终止操作的用户名
-    /// * `is_admin` - 当前用户是否为Admin角色
+    /// # Parameters
+    /// `session_id` – The ID of the session that needs to be terminated.
+    /// `current_user` – The username of the user who is performing the termination operation.
+    /// `is_admin` – Determines whether the current user has the Admin role.
     ///
-    /// # 返回
-    /// * `Ok(())` - 成功终止会话
-    /// * `Err(SessionError)` - 终止失败的具体原因
+    /// # Return
+    /// * `Ok(())` - Successfully terminate the session
+    /// * `Err(SessionError)` - Specific reasons for termination failure
     pub async fn kill_session(
         &self,
         session_id: i64,
@@ -287,14 +287,14 @@ impl GraphSessionManager {
             session_id, current_user, is_admin
         );
 
-        // 查找目标会话
+        // Find the target conversation.
         let target_session = self
             .find_session(session_id)
             .ok_or(SessionError::SessionNotFound(session_id))?;
 
         let target_user = target_session.user();
 
-        // 权限检查：只能终止自己的会话，或者有Admin权限
+        // Permission check: You can only terminate your own session, or you must have Admin privileges.
         if !is_admin && target_user != current_user {
             warn!(
                 "User {} attempted to kill session {} without permission (target user: {})",
@@ -310,10 +310,10 @@ impl GraphSessionManager {
             target_session.active_queries_count()
         );
 
-        // 终止会话中的所有查询
+        // Terminate all queries in the session.
         target_session.mark_all_queries_killed();
 
-        // 从管理器中移除会话
+        // Remove the session from the manager.
         self.remove_session(session_id).await;
 
         info!(
@@ -323,7 +323,7 @@ impl GraphSessionManager {
         Ok(())
     }
 
-    /// 批量终止多个会话
+    /// Batch termination of multiple sessions
     pub async fn kill_multiple_sessions(
         &self,
         session_ids: &[i64],
@@ -343,22 +343,22 @@ impl GraphSessionManager {
         self.active_sessions.len() >= self.max_connections
     }
 
-    /// 获取活跃会话数量
+    /// Obtain the number of active sessions
     pub async fn active_session_count(&self) -> usize {
         self.active_sessions.len()
     }
 
-    /// 获取最大连接数限制
+    /// Obtaining the maximum limit for the number of connections
     pub fn max_connections(&self) -> usize {
         self.max_connections
     }
 
     /// Generate a new unique session ID
     ///
-    /// 使用组合策略生成唯一会话ID：
-    /// - 高48位：当前时间戳（毫秒）
-    /// - 低16位：自增计数器
-    ///   确保在同一毫秒内生成的ID也是唯一的
+    /// Generate a unique session ID using a combination of strategies:
+    /// High 48 bits: Current timestamp (in milliseconds)
+    /// Lower 16 bits: An auto-incrementing counter
+    /// Make sure that the IDs generated within the same millisecond are also unique.
     fn generate_session_id(&self) -> i64 {
         let timestamp_millis = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -367,21 +367,21 @@ impl GraphSessionManager {
 
         let counter = SESSION_ID_COUNTER.fetch_add(1, Ordering::SeqCst) & 0xFFFF;
 
-        // 组合时间戳和计数器
+        // Combining timestamps and counters
         let session_id = ((timestamp_millis & 0xFFFFFFFFFFFF0000) | counter) as i64;
 
-        // 确保生成的ID为正数且不为0
+        // Ensure that the generated ID is a positive number and not equal to 0.
         if session_id <= 0 {
-            // 如果生成的ID无效，使用时间戳的哈希值
+            // If the generated ID is invalid, use the hash value of the timestamp.
             ((timestamp_millis.wrapping_mul(0x9E3779B97F4A7C15)) & 0x7FFFFFFFFFFFFFFF) as i64
         } else {
             session_id
         }
     }
 
-    /// 后台任务：定期清理过期会话
+    /// Background task: Regularly clean up expired sessions.
     ///
-    /// 每30秒检查一次，清理超过空闲超时的会话
+    /// Check every 30 seconds and remove sessions that have exceeded the idle timeout period.
     /// 可以通过 `stop_cleanup_task()` 方法停止
     async fn background_reclamation_task(self: Arc<Self>) {
         let mut interval = time::interval(Duration::from_secs(30));
@@ -389,7 +389,7 @@ impl GraphSessionManager {
         loop {
             interval.tick().await;
 
-            // 检查是否应该停止
+            // Check whether it should be stopped.
             if !self.cleanup_task_running.load(Ordering::SeqCst) {
                 info!("Session cleanup task is stopping");
                 break;
@@ -403,7 +403,7 @@ impl GraphSessionManager {
 
     /// Reclaims expired sessions
     async fn reclaim_expired_sessions(&self) {
-        // DashMap 支持迭代无需加锁
+        // DashMap supports iteration without the need for locking.
         let expired_sessions: Vec<i64> = self
             .active_sessions
             .iter()
@@ -501,7 +501,7 @@ mod tests {
 
         assert!(session_manager.is_out_of_connections().await);
 
-        // 尝试创建第6个会话应该失败
+        // Attempts to create a 6th session should fail
         let result = session_manager
             .create_session("user6".to_string(), "127.0.0.1".to_string())
             .await;
@@ -519,26 +519,26 @@ mod tests {
 
         let session_id = session.id();
 
-        // 普通用户尝试终止自己的会话 - 应该成功
+        // Normal users try to terminate their own session - should succeed
         let result = session_manager
             .kill_session(session_id, "testuser", false)
             .await;
         assert!(result.is_ok());
         assert!(session_manager.find_session(session_id).is_none());
 
-        // 创建新会话测试权限检查
+        // Create a new session to test permission checking
         let session2 = session_manager
             .create_session("user2".to_string(), "127.0.0.1".to_string())
             .await
             .expect("Failed to create session");
 
-        // 普通用户尝试终止其他用户的会话 - 应该失败
+        // Normal user attempts to terminate another user's session - should fail
         let result = session_manager
             .kill_session(session2.id(), "otheruser", false)
             .await;
         assert!(result.is_err());
 
-        // Admin 终止其他用户的会话 - 应该成功
+        // Admin Terminate another user's session - should succeed!
         let result = session_manager
             .kill_session(session2.id(), "admin", true)
             .await;
@@ -549,7 +549,7 @@ mod tests {
     async fn test_list_sessions() {
         let session_manager = create_test_session_manager();
 
-        // 创建多个会话
+        // Creating Multiple Sessions
         for i in 0..3 {
             let _ = session_manager
                 .create_session(format!("user{}", i), "127.0.0.1".to_string())
@@ -567,7 +567,7 @@ mod tests {
         let session_manager = create_test_session_manager();
         let mut handles = vec![];
 
-        // 并发创建会话
+        // Concurrent Session Creation
         for i in 0..10 {
             let manager = Arc::clone(&session_manager);
             let handle = task::spawn(async move {
@@ -578,12 +578,12 @@ mod tests {
             handles.push(handle);
         }
 
-        // 等待所有任务完成
+        // Waiting for all tasks to be completed
         for handle in handles {
             let _ = handle.await.expect("Task should complete");
         }
 
-        // 验证所有会话都创建成功
+        // Verify that all sessions were created successfully
         assert_eq!(session_manager.get_sessions_from_local_cache().len(), 10);
     }
 }

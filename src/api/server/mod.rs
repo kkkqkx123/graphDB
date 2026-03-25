@@ -1,6 +1,6 @@
-//! 网络服务层
+//! Network Service Layer
 //!
-//! 提供基于 HTTP/RPC 的 GraphDB 服务接口
+//! Provide a GraphDB service interface based on HTTP/RPC
 
 pub mod auth;
 pub mod batch;

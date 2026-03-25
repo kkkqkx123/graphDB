@@ -1,7 +1,7 @@
-//! API 核心层 - 与传输层无关的业务逻辑
+//! API Core Layer – Business logic that is independent of the transport layer
 //!
-//! 提供查询执行、事务管理、Schema 操作等核心功能，
-//! 被嵌入式层和网络服务层复用。
+//! It provides core functions such as query execution, transaction management, and Schema operations.
+//! It is reused by the embedded layer and the network service layer.
 
 pub mod error;
 pub mod query_api;
@@ -14,7 +14,7 @@ pub use query_api::QueryApi;
 pub use schema_api::SchemaApi;
 pub use types::*;
 
-// 从 core 层重新导出统计类型
+// Re-export the statistical types from the core layer.
 pub use crate::core::{
     ErrorInfo, ErrorSummary, ErrorType, MetricType, MetricValue, QueryMetrics, QueryPhase,
     QueryProfile, QueryStatus, StatsManager,

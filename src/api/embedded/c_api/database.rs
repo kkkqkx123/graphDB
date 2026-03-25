@@ -1,6 +1,6 @@
-//! C API 数据库管理模块
+//! C API Database Management Module
 //!
-//! 提供数据库的打开、关闭和基本管理功能
+//! Provide database opening, closing and basic management functions
 
 use crate::api::embedded::c_api::error::{
     error_code_from_core_error, graphdb_error_code_t, set_last_error_message,
@@ -14,13 +14,13 @@ use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::ptr;
 use std::sync::Arc;
 
-/// 数据库句柄内部结构
+/// Database handle internal structure
 pub struct GraphDbHandle {
     pub(crate) inner: Arc<GraphDatabase<RedbStorage>>,
     pub(crate) last_error: Option<CString>,
 }
 
-/// 打开数据库
+/// Open database
 ///
 /// # Arguments
 /// - `path`: Database file path (UTF-8 encoded)
@@ -37,12 +37,12 @@ pub struct GraphDbHandle {
 /// - The database handle must not be used after closing
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb_t) -> c_int {
-    // 参数验证
+    // parameter verification
     if path.is_null() || db.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    // 转换路径字符串
+    // Converting path strings
     let path_str = unsafe {
         match CStr::from_ptr(path).to_str() {
             Ok(s) => s,
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb
         }
     };
 
-    // 打开数据库
+    // Open database
     match GraphDatabase::open(path_str) {
         Ok(graphdb) => {
             let handle = Box::new(GraphDbHandle {
@@ -74,7 +74,7 @@ pub unsafe extern "C" fn graphdb_open(path: *const c_char, db: *mut *mut graphdb
     }
 }
 
-/// 使用标志打开数据库
+/// Open the database using the flag
 ///
 /// # Arguments
 /// - `path`: Database file path (UTF-8 encoded)
@@ -103,12 +103,12 @@ pub unsafe extern "C" fn graphdb_open_v2(
     flags: c_int,
     _vfs: *const c_char,
 ) -> c_int {
-    // 参数验证（vfs 可以为 NULL）
+    // Parameter validation (vfs can be NULL)
     if path.is_null() || db.is_null() {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    // 转换路径字符串
+    // Converting path strings
     let path_str = unsafe {
         match CStr::from_ptr(path).to_str() {
             Ok(s) => s,
@@ -116,17 +116,17 @@ pub unsafe extern "C" fn graphdb_open_v2(
         }
     };
 
-    // 解析标志
+    // analytic symbol
     let read_only = (flags & GRAPHDB_OPEN_READONLY) != 0;
     let read_write = (flags & GRAPHDB_OPEN_READWRITE) != 0;
     let create = (flags & GRAPHDB_OPEN_CREATE) != 0;
 
-    // 验证标志组合
+    // Validation Flag Combination
     if read_only && read_write {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    // 构建配置
+    // Build Configuration
     let mut config = if read_only {
         DatabaseConfig::file(path_str).with_read_only(true)
     } else {
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn graphdb_open_v2(
         config = config.with_create_if_missing(true);
     }
 
-    // 打开数据库
+    // Open database
     match GraphDatabase::open_with_config(config) {
         Ok(graphdb) => {
             let handle = Box::new(GraphDbHandle {
@@ -161,7 +161,7 @@ pub unsafe extern "C" fn graphdb_open_v2(
     }
 }
 
-/// 关闭数据库
+/// Closing the database
 ///
 /// # Arguments
 /// - `db`: Database handle
@@ -181,14 +181,14 @@ pub unsafe extern "C" fn graphdb_close(db: *mut graphdb_t) -> c_int {
     }
 
     unsafe {
-        // 将原始指针转换回 Box，在函数结束时自动释放
+        // Converts the original pointer back to a Box, which is automatically released at the end of the function.
         let _ = Box::from_raw(db as *mut GraphDbHandle);
     }
 
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
-/// 获取错误码
+/// Get Error Code
 ///
 /// # Arguments
 /// - `db`: Database handle
@@ -214,17 +214,17 @@ pub unsafe extern "C" fn graphdb_errcode(db: *mut graphdb_t) -> c_int {
     }
 }
 
-/// 获取库版本
+/// Getting the library version
 ///
-/// # 返回
-/// - 版本字符串
+/// # Back
+/// - revision string (computing)
 #[no_mangle]
 pub extern "C" fn graphdb_libversion() -> *const c_char {
     static VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
     VERSION.as_ptr() as *const c_char
 }
 
-/// 释放字符串（由 GraphDB 分配的字符串）
+/// Release strings (strings allocated by GraphDB)
 ///
 /// # Arguments
 /// - `str`: String pointer
@@ -242,7 +242,7 @@ pub unsafe extern "C" fn graphdb_free_string(str: *mut c_char) {
     }
 }
 
-/// 释放内存（由 GraphDB 分配的内存）
+/// Freeing memory (memory allocated by GraphDB)
 ///
 /// # Arguments
 /// - `ptr`: Memory pointer
@@ -273,10 +273,10 @@ mod tests {
         std::fs::create_dir_all(&temp_dir).ok();
         let db_path = temp_dir.join(format!("test_db_{}_{}.db", std::process::id(), counter));
 
-        // 确保数据库文件不存在
+        // Ensure that the database file does not exist
         if db_path.exists() {
             std::fs::remove_file(&db_path).ok();
-            // 等待文件系统完成删除操作
+            // Wait for the file system to complete the deletion operation
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
 

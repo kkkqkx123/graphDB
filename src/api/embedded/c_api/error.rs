@@ -1,6 +1,6 @@
-//! C API 错误处理
+//! C API error handling
 //!
-//! 提供错误码转换和错误信息管理功能
+//! Provide error code conversion and error message management functions.
 
 use crate::api::core::{CoreError, ExtendedErrorCode};
 use crate::api::embedded::c_api::types::{graphdb_extended_error_code_t, graphdb_session_t};
@@ -11,14 +11,14 @@ thread_local! {
     static LAST_ERROR_MESSAGE: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
 
-/// 设置最后的错误消息
+/// Set the final error message
 pub(crate) fn set_last_error_message(msg: String) {
     LAST_ERROR_MESSAGE.with(|m| {
         *m.borrow_mut() = CString::new(msg).ok();
     });
 }
 
-/// 从 CoreError 推断扩展错误码
+/// The extended error code is inferred from the CoreError.
 pub fn extended_error_code_from_core_error(error: &CoreError) -> graphdb_extended_error_code_t {
     match error {
         CoreError::DetailedQueryError { extended_code, .. } => {
@@ -70,7 +70,7 @@ pub fn extended_error_code_from_core_error(error: &CoreError) -> graphdb_extende
     }
 }
 
-/// 从内部 ExtendedErrorCode 转换为 C API 扩展错误码
+/// Convert the internal ExtendedErrorCode to a C API extended error code.
 fn extended_error_code_from_internal(code: ExtendedErrorCode) -> graphdb_extended_error_code_t {
     match code {
         ExtendedErrorCode::None => graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE,
@@ -115,60 +115,60 @@ fn extended_error_code_from_internal(code: ExtendedErrorCode) -> graphdb_extende
     }
 }
 
-/// 错误码
+/// Error code
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
 pub enum graphdb_error_code_t {
-    /// 成功
+    /// Success
     GRAPHDB_OK = 0,
-    /// 一般错误
+    /// Common errors
     GRAPHDB_ERROR = 1,
-    /// 内部错误
+    /// Internal error
     GRAPHDB_INTERNAL = 2,
-    /// 权限被拒绝
+    /// The permission was denied.
     GRAPHDB_PERM = 3,
-    /// 操作被中止
+    /// The operation was terminated.
     GRAPHDB_ABORT = 4,
-    /// 数据库忙
+    /// The database is busy.
     GRAPHDB_BUSY = 5,
-    /// 数据库被锁定
+    /// The database is locked.
     GRAPHDB_LOCKED = 6,
-    /// 内存不足
+    /// Insufficient memory
     GRAPHDB_NOMEM = 7,
-    /// 只读
+    /// Read-only
     GRAPHDB_READONLY = 8,
-    /// 操作被中断
+    /// The operation was interrupted.
     GRAPHDB_INTERRUPT = 9,
-    /// IO 错误
+    /// IO error
     GRAPHDB_IOERR = 10,
-    /// 数据损坏
+    /// Data corruption
     GRAPHDB_CORRUPT = 11,
-    /// 未找到
+    /// Nothing was found.
     GRAPHDB_NOTFOUND = 12,
-    /// 磁盘已满
+    /// The disk is full.
     GRAPHDB_FULL = 13,
-    /// 无法打开
+    /// Unable to open.
     GRAPHDB_CANTOPEN = 14,
-    /// 协议错误
+    /// Protocol error
     GRAPHDB_PROTOCOL = 15,
-    /// 模式错误
+    /// Pattern error
     GRAPHDB_SCHEMA = 16,
-    /// 数据过大
+    /// The data volume is too large.
     GRAPHDB_TOOBIG = 17,
-    /// 约束违反
+    /// Violation of constraints
     GRAPHDB_CONSTRAINT = 18,
-    /// 类型不匹配
+    /// Type mismatch.
     GRAPHDB_MISMATCH = 19,
-    /// 误用
+    /// Misuse
     GRAPHDB_MISUSE = 20,
-    /// 超出范围
+    /// Out of range
     GRAPHDB_RANGE = 21,
-    /// 未实现
+    /// Not implemented
     GRAPHDB_NOT_IMPLEMENTED = 22,
 }
 
-/// 从核心错误转换为 C 错误码和扩展错误码
+/// Converting from core error codes to C error codes and extended error codes
 pub fn error_code_from_core_error(error: &CoreError) -> (i32, graphdb_extended_error_code_t) {
     match error {
         CoreError::DetailedQueryError { extended_code, .. } => {
@@ -273,7 +273,7 @@ pub fn error_code_from_core_error(error: &CoreError) -> (i32, graphdb_extended_e
     }
 }
 
-/// 获取错误码对应的描述消息（null 终止）
+/// Retrieve the description message corresponding to the error code (termination if the value is null).
 pub fn error_code_to_message(code: graphdb_error_code_t) -> &'static [u8] {
     match code {
         graphdb_error_code_t::GRAPHDB_OK => "OK\0".as_bytes(),
@@ -302,7 +302,7 @@ pub fn error_code_to_message(code: graphdb_error_code_t) -> &'static [u8] {
     }
 }
 
-/// 获取扩展错误码对应的描述消息（null 终止）
+/// Retrieve the description message corresponding to the extended error code (termination occurs if the value is null).
 pub fn extended_error_code_to_message(code: graphdb_extended_error_code_t) -> &'static [u8] {
     match code {
         graphdb_extended_error_code_t::GRAPHDB_EXTENDED_NONE => "No error\0".as_bytes(),
@@ -341,7 +341,7 @@ pub fn extended_error_code_to_message(code: graphdb_extended_error_code_t) -> &'
     }
 }
 
-/// 获取最后一个错误消息（线程安全）
+/// Retrieve the last error message (thread-safe).
 ///
 /// # Arguments
 /// - `msg`: Output buffer
@@ -379,13 +379,13 @@ pub unsafe extern "C" fn graphdb_errmsg(msg: *mut std::ffi::c_char, len: usize) 
     copy_len as i32
 }
 
-/// 获取错误码描述
+/// Obtain the description of the error code.
 ///
-/// # 参数
-/// - `code`: 错误码
+/// # Parameters
+/// `code`: Error code
 ///
-/// # 返回
-/// - 错误描述字符串（静态生命周期）
+/// # Back
+/// Error description string (static lifecycle)
 #[no_mangle]
 pub extern "C" fn graphdb_error_string(code: i32) -> *const std::ffi::c_char {
     let error_code = match code {
@@ -415,17 +415,17 @@ pub extern "C" fn graphdb_error_string(code: i32) -> *const std::ffi::c_char {
     };
 
     let desc = error_code_to_message(error_code);
-    // 注意：这里返回的字符串是静态的，不需要释放
+    // The string to be translated is static and does not need to be released.
     desc.as_ptr() as *const std::ffi::c_char
 }
 
-/// 获取错误码对应的字符串描述（类似 SQLite 的 sqlite3_errstr）
+/// Retrieve the string description corresponding to the error code (similar to sqlite3_errstr in SQLite).
 ///
 /// # 参数
 /// - `code`: 错误码
 ///
 /// # 返回
-/// - 错误描述字符串（静态生命周期，不需要释放）
+/// Error description string (static lifecycle; no need for release)
 #[no_mangle]
 pub extern "C" fn graphdb_errstr(code: i32) -> *const std::ffi::c_char {
     let error_code = match code {
@@ -458,10 +458,10 @@ pub extern "C" fn graphdb_errstr(code: i32) -> *const std::ffi::c_char {
     desc.as_ptr() as *const std::ffi::c_char
 }
 
-/// 获取最后的错误消息
+/// Retrieve the last error message.
 ///
 /// # 返回
-/// - 错误消息字符串指针（线程局部存储，不需要释放）
+/// Pointer to the error message string (thread-local storage; does not need to be freed)
 #[no_mangle]
 pub extern "C" fn graphdb_get_last_error_message() -> *const std::ffi::c_char {
     LAST_ERROR_MESSAGE.with(|m| match m.borrow().as_ref() {
@@ -470,13 +470,13 @@ pub extern "C" fn graphdb_get_last_error_message() -> *const std::ffi::c_char {
     })
 }
 
-/// 获取 SQL 错误位置（字符偏移量）
+/// Get the location of the SQL error (in terms of character offset).
 ///
 /// # 参数
-/// - `session`: 会话句柄
+/// - `session`: session handle
 ///
 /// # 返回
-/// - 错误位置的字符偏移量，如果没有错误或无效会话返回 -1
+/// - Character offset of the error location, if there is no error or invalid session return -1
 #[no_mangle]
 pub extern "C" fn graphdb_error_offset(session: *mut graphdb_session_t) -> std::ffi::c_int {
     if session.is_null() {
@@ -492,13 +492,13 @@ pub extern "C" fn graphdb_error_offset(session: *mut graphdb_session_t) -> std::
     }
 }
 
-/// 获取扩展错误码
+/// Get Extended Error Code
 ///
 /// # 参数
 /// - `session`: 会话句柄
 ///
 /// # 返回
-/// - 扩展错误码，如果没有错误或无效会话返回 0 (GRAPHDB_EXTENDED_NONE)
+/// - Extended error code, returns 0 if no error or invalid session (GRAPHDB_EXTENDED_NONE)
 #[no_mangle]
 pub extern "C" fn graphdb_extended_errcode(session: *mut graphdb_session_t) -> std::ffi::c_int {
     if session.is_null() {

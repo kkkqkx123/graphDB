@@ -1,6 +1,6 @@
-//! C API 会话管理模块
+//! C API Session Management Module
 //!
-//! 提供会话的创建、销毁和基本管理功能
+//! It provides functions for creating, destroying, and performing basic management of sessions.
 
 use crate::api::embedded::c_api::database::GraphDbHandle;
 use crate::api::embedded::c_api::error::{
@@ -16,46 +16,46 @@ use crate::storage::RedbStorage;
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::ptr;
 
-/// 会话句柄内部结构
+/// Internal structure of the session handler
 pub struct GraphDbSessionHandle {
     pub(crate) inner: Session<RedbStorage>,
     pub(crate) last_error: Option<CString>,
-    /// 忙等待超时（毫秒）
+    /// Busy wait timeout (in milliseconds)
     pub(crate) busy_timeout_ms: u32,
-    /// 最后错误位置偏移量
+    /// Offset of the last error location
     pub(crate) last_error_offset: Option<usize>,
-    /// 最后扩展错误码
+    /// Finally, the error code was expanded.
     pub(crate) last_extended_error: Option<graphdb_extended_error_code_t>,
-    /// SQL 追踪回调
+    /// SQL tracing callback
     pub(crate) trace_callback: graphdb_trace_callback,
-    /// SQL 追踪回调用户数据
+    /// SQL tracking callback for user data
     pub(crate) trace_user_data: *mut c_void,
-    /// 提交钩子回调
+    /// Submit the hook callback
     pub(crate) commit_hook: graphdb_commit_hook_callback,
-    /// 提交钩子用户数据
+    /// Submit the user data for the hook
     pub(crate) commit_hook_user_data: *mut c_void,
-    /// 回滚钩子回调
+    /// Rollback hook callback
     pub(crate) rollback_hook: graphdb_rollback_hook_callback,
-    /// 回滚钩子用户数据
+    /// Roll back the user data associated with the hook.
     pub(crate) rollback_hook_user_data: *mut c_void,
-    /// 更新钩子回调
+    /// Update the hook callback
     pub(crate) update_hook: graphdb_update_hook_callback,
-    /// 更新钩子用户数据
+    /// Update the user data for the hook.
     pub(crate) update_hook_user_data: *mut c_void,
 }
 
-// 手动实现 Send 和 Sync，因为 *mut c_void 不是线程安全的
-// 但这里我们只在 C API 层使用，由调用者保证线程安全
+// The Send and Sync functions need to be implemented manually, because the type *mut c_void is not thread-safe.
+// But here we only use it at the C API level; it is the responsibility of the caller to ensure thread safety.
 unsafe impl Send for GraphDbSessionHandle {}
 unsafe impl Sync for GraphDbSessionHandle {}
 
 impl GraphDbSessionHandle {
-    /// 创建新的会话句柄
+    /// Create a new session handle.
     pub(crate) fn new(inner: Session<RedbStorage>) -> Self {
         Self {
             inner,
             last_error: None,
-            busy_timeout_ms: 5000, // 默认 5 秒
+            busy_timeout_ms: 5000, // Default value: 5 seconds
             last_error_offset: None,
             last_extended_error: None,
             trace_callback: None,
@@ -69,11 +69,11 @@ impl GraphDbSessionHandle {
         }
     }
 
-    /// 调用更新钩子
+    /// Call the update hook
     pub(crate) fn invoke_update_hook(&self, operation: i32, space_name: &str, rowid: i64) {
         if let Some(callback) = self.update_hook {
             if let Ok(c_space) = CString::new(space_name) {
-                // 对于图数据库，table 参数使用空字符串
+                // For graph databases, the `table` parameter should be set to an empty string.
                 let empty_table = CString::new("").expect("Failed to create empty table CString");
                 callback(
                     self.update_hook_user_data,
@@ -86,7 +86,7 @@ impl GraphDbSessionHandle {
         }
     }
 
-    /// 调用 SQL 追踪回调
+    /// Calling the SQL tracing callback
     pub(crate) fn trace(&self, sql: &str) {
         if let Some(callback) = self.trace_callback {
             if let Ok(c_sql) = CString::new(sql) {
@@ -95,7 +95,7 @@ impl GraphDbSessionHandle {
         }
     }
 
-    /// 设置错误信息
+    /// Setting error messages
     pub(crate) fn set_error(
         &mut self,
         message: String,
@@ -108,7 +108,7 @@ impl GraphDbSessionHandle {
         set_last_error_message(message);
     }
 
-    /// 清除错误信息
+    /// Clear the error messages.
     pub(crate) fn clear_error(&mut self) {
         self.last_error = None;
         self.last_error_offset = None;
@@ -116,7 +116,7 @@ impl GraphDbSessionHandle {
     }
 }
 
-/// 创建会话
+/// Create a session
 ///
 /// # Arguments
 /// - `db`: Database handle
@@ -158,7 +158,7 @@ pub unsafe extern "C" fn graphdb_session_create(
     }
 }
 
-/// 关闭会话
+/// Close the session.
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -182,7 +182,7 @@ pub unsafe extern "C" fn graphdb_session_close(session: *mut graphdb_session_t) 
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
-/// 切换图空间
+/// Switch to the image space
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -227,7 +227,7 @@ pub unsafe extern "C" fn graphdb_session_use_space(
     }
 }
 
-/// 获取当前图空间
+/// Obtain the current image space
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -265,8 +265,8 @@ pub unsafe extern "C" fn graphdb_session_current_space(
         Some(name) => {
             match CString::new(name) {
                 Ok(c_name) => {
-                    // 将 CString 转换为原始指针
-                    // 调用者需要使用 graphdb_free_string 释放
+                    // Convert a CString to the original pointer
+                    // The caller needs to use `graphdb_free_string` to release the resource.
                     c_name.into_raw()
                 }
                 Err(_) => ptr::null_mut(),
@@ -276,7 +276,7 @@ pub unsafe extern "C" fn graphdb_session_current_space(
     }
 }
 
-/// 设置自动提交模式
+/// Enable the automatic submission mode.
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -302,7 +302,7 @@ pub unsafe extern "C" fn graphdb_session_set_autocommit(
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
-/// 获取自动提交模式
+/// Enable the automatic submission mode.
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -315,14 +315,14 @@ pub unsafe extern "C" fn graphdb_session_set_autocommit(
 #[no_mangle]
 pub unsafe extern "C" fn graphdb_session_get_autocommit(session: *mut graphdb_session_t) -> bool {
     if session.is_null() {
-        return true; // 默认自动提交
+        return true; // Default automatic submission
     }
 
     let handle = &*(session as *mut GraphDbSessionHandle);
     handle.inner.auto_commit()
 }
 
-/// 获取上次操作影响的行数
+/// Get the number of rows affected by the last operation
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -342,7 +342,7 @@ pub unsafe extern "C" fn graphdb_changes(session: *mut graphdb_session_t) -> c_i
     handle.inner.changes() as c_int
 }
 
-/// 获取自数据库打开以来的总变更数量
+/// The total number of changes since the database was opened has been retrieved.
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -362,7 +362,7 @@ pub unsafe extern "C" fn graphdb_total_changes(session: *mut graphdb_session_t) 
     handle.inner.total_changes() as i64
 }
 
-/// 获取最后插入的顶点 ID
+/// Obtain the ID of the last vertex that was inserted.
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -382,7 +382,7 @@ pub unsafe extern "C" fn graphdb_last_insert_vertex_id(session: *mut graphdb_ses
     handle.inner.last_insert_vertex_id().unwrap_or(-1)
 }
 
-/// 获取最后插入的边 ID
+/// Obtain the ID of the last inserted edge.
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -402,7 +402,7 @@ pub unsafe extern "C" fn graphdb_last_insert_edge_id(session: *mut graphdb_sessi
     handle.inner.last_insert_edge_id().unwrap_or(-1)
 }
 
-/// 设置忙等待超时
+/// Setting the busy wait timeout
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -424,12 +424,12 @@ pub unsafe extern "C" fn graphdb_busy_timeout(
     }
 
     let handle = &mut *(session as *mut GraphDbSessionHandle);
-    // 存储超时设置到句柄中
+    // The storage timeout settings are applied to the handle.
     handle.busy_timeout_ms = timeout_ms.max(0) as u32;
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
-/// 获取忙等待超时
+/// Busy wait timeout has occurred.
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -449,7 +449,7 @@ pub unsafe extern "C" fn graphdb_busy_timeout_get(session: *mut graphdb_session_
     handle.busy_timeout_ms as c_int
 }
 
-/// 设置 SQL 追踪回调
+/// Setting up an SQL tracing callback
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -489,7 +489,7 @@ pub unsafe extern "C" fn graphdb_trace(
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
-/// 设置提交钩子
+/// Setting up the commit hook
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -524,7 +524,7 @@ pub unsafe extern "C" fn graphdb_commit_hook(
     old_user_data
 }
 
-/// 设置回滚钩子
+/// Setting up a rollback hook
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -555,7 +555,7 @@ pub unsafe extern "C" fn graphdb_rollback_hook(
     old_user_data
 }
 
-/// 设置更新钩子
+/// Set up the update hook
 ///
 /// When data in the database changes, the callback function is called
 ///
@@ -612,10 +612,10 @@ mod tests {
             counter
         ));
 
-        // 确保数据库文件不存在
+        // Make sure the database file does not exist.
         if db_path.exists() {
             std::fs::remove_file(&db_path).ok();
-            // 等待文件系统完成删除操作
+            // Waiting for the file system to complete the deletion operation.
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
 
@@ -637,16 +637,16 @@ mod tests {
         let db = create_test_db();
         let mut session: *mut graphdb_session_t = ptr::null_mut();
 
-        // 创建会话
+        // Create a session
         let rc = unsafe { graphdb_session_create(db, &mut session) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
         assert!(!session.is_null());
 
-        // 关闭会话
+        // Close the session.
         let rc = unsafe { graphdb_session_close(session) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
-        // 关闭数据库
+        // Close the database.
         let rc = unsafe { graphdb_close(db) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
     }
@@ -659,11 +659,11 @@ mod tests {
         let rc = unsafe { graphdb_session_create(db, &mut session) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 
-        // 默认自动提交
+        // Default automatic submission
         let autocommit = unsafe { graphdb_session_get_autocommit(session) };
         assert!(autocommit);
 
-        // 关闭自动提交
+        // Turn off automatic submission.
         let rc = unsafe { graphdb_session_set_autocommit(session, false) };
         assert_eq!(rc, graphdb_error_code_t::GRAPHDB_OK as c_int);
 

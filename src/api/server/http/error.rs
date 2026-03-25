@@ -46,22 +46,22 @@ impl IntoResponse for HttpError {
 }
 
 impl HttpError {
-    /// 创建 BadRequest 错误
+    /// Generate a BadRequest error.
     pub fn bad_request<T: Into<String>>(msg: T) -> Self {
         HttpError::BadRequest(msg.into())
     }
 
-    /// 创建 NotFound 错误
+    /// Generate a “NotFound” error.
     pub fn not_found<T: Into<String>>(msg: T) -> Self {
         HttpError::NotFound(msg.into())
     }
 
-    /// 创建 Unauthorized 错误
+    /// An “Unauthorized” error was generated.
     pub fn unauthorized<T: Into<String>>(msg: T) -> Self {
         HttpError::Unauthorized(msg.into())
     }
 
-    /// 创建 InternalError 错误
+    /// Generate an InternalError.
     pub fn internal<T: Into<String>>(msg: T) -> Self {
         HttpError::InternalError(msg.into())
     }

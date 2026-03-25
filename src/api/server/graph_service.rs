@@ -23,22 +23,22 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
     pub stats_manager: Arc<StatsManager>,
     storage: Arc<S>,
 
-    // 事务管理相关
+    // Transaction management-related
     transaction_manager: Option<Arc<TransactionManager>>,
 }
 
 impl<S: StorageClient + Clone + 'static> GraphService<S> {
-    /// 创建新的GraphService（不包含事务管理器，用于生产环境）
+    /// Create a new GraphService (without a transaction manager, for use in a production environment).
     pub fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
         Self::create_service(config, storage, None, true)
     }
 
-    /// 创建新的GraphService（不包含事务管理器，不启动后台任务，用于测试）
+    /// Create a new GraphService (without a transaction manager and without starting any background tasks, for testing purposes).
     pub fn new_for_test(config: Config, storage: Arc<S>) -> Arc<Self> {
         Self::create_service(config, storage, None, false)
     }
 
-    /// 使用事务管理器创建GraphService
+    /// Use the transaction manager to create a GraphService.
     pub fn new_with_transaction_manager(
         config: Config,
         storage: Arc<S>,
@@ -47,10 +47,10 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         Self::create_service(config, storage, Some(transaction_manager), true)
     }
 
-    /// 内部构造函数，提取公共逻辑
+    /// Internal constructor: Extracts the common logic
     ///
-    /// # 参数
-    /// * `start_cleanup_task` - 是否启动会话清理后台任务
+    /// # Parameters
+    /// `start_cleanup_task` – Whether to initiate the background task for session cleanup
     fn create_service(
         config: Config,
         storage: Arc<S>,
@@ -64,7 +64,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             session_idle_timeout,
         );
 
-        // 根据参数决定是否启动会话清理后台任务
+        // Decide whether to start the background task for session cleanup based on the parameters.
         if start_cleanup_task {
             session_manager.start_cleanup_task();
         }
@@ -100,13 +100,13 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         if username.is_empty() || password.is_empty() {
             self.stats_manager
                 .add_value(MetricType::NumAuthFailedSessions);
-            return Err("用户名或密码不能为空".to_string());
+            return Err("User name or password cannot be empty".to_string());
         }
 
         if self.session_manager.is_out_of_connections().await {
             self.stats_manager
                 .add_value(MetricType::NumAuthFailedSessions);
-            return Err("超过最大连接数限制".to_string());
+            return Err("More than the maximum number of connections limit".to_string());
         }
 
         match self.authenticator.authenticate(username, password) {
@@ -115,14 +115,14 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                     .session_manager
                     .create_session(username.to_string(), "127.0.0.1".to_string())
                     .await
-                    .map_err(|e| format!("创建会话失败: {}", e))?;
+                    .map_err(|e| format!("Creating a session failed: {}", e))?;
 
                 Ok(session)
             }
             Err(e) => {
                 self.stats_manager
                     .add_value(MetricType::NumAuthFailedSessions);
-                Err(format!("认证失败: {}", e))
+                Err(format!("authentication failure: {}", e))
             }
         }
     }
@@ -131,11 +131,11 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let session = self
             .session_manager
             .find_session(session_id)
-            .ok_or_else(|| format!("无效的会话 ID: {}", session_id))?;
+            .ok_or_else(|| format!("Invalid session ID: {}", session_id))?;
 
         let space_id = session.space().map(|s| s.id).unwrap_or(0);
 
-        // 处理事务控制语句
+        // Handle transaction control statements
         let trimmed_stmt = stmt.trim().to_uppercase();
         if trimmed_stmt.starts_with("BEGIN") || trimmed_stmt.starts_with("START TRANSACTION") {
             return self.handle_begin_transaction(&session);
@@ -149,19 +149,19 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return self.handle_release_savepoint(&session, stmt);
         }
 
-        // 执行普通查询
+        // Perform a regular query.
         let result = self.execute_query_with_permission(session_id, stmt, space_id);
 
-        // 如果是 USE 语句且执行成功，更新会话的空间
+        // If it is a USE statement and the execution is successful, the space for the session will be updated.
         if result.is_ok() && trimmed_stmt.starts_with("USE ") {
             let space_name = stmt.trim()[4..].trim().to_string();
-            // 获取空间信息并设置到会话
+            // Obtain spatial information and set it in the session.
             if let Ok(space_info) = self.get_space_info(&space_name) {
                 session.set_space(space_info);
             }
         }
 
-        // 自动提交模式处理
+        // Automatic submission mode processing
         if result.is_ok() && session.is_auto_commit() {
             if let Some(txn_id) = session.current_transaction() {
                 if let Some(ref txn_manager) = self.transaction_manager {
@@ -178,26 +178,26 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     }
 
     fn get_space_info(&self, space_name: &str) -> Result<SpaceInfo, String> {
-        // 从存储中获取空间信息
+        // Retrieve spatial information from the storage.
         match self.storage.get_space(space_name) {
             Ok(Some(space)) => Ok(SpaceInfo {
                 name: space_name.to_string(),
                 id: space.space_id as i64,
             }),
             Ok(None) => {
-                // 空间不存在，返回一个默认的空间信息（用于测试）
+                // Space does not exist; return a default space information (for testing purposes).
                 Ok(SpaceInfo {
                     name: space_name.to_string(),
-                    id: 1, // 默认空间ID
+                    id: 1, // Default space ID
                 })
             }
             Err(e) => {
                 let error_msg = format!("{}", e);
                 if error_msg.contains("Table 'spaces' does not exist") {
-                    // 表不存在，返回默认空间信息
+                    // The table does not exist; therefore, the default space information is returned.
                     Ok(SpaceInfo {
                         name: space_name.to_string(),
-                        id: 1, // 默认空间ID
+                        id: 1, // Default space ID
                     })
                 } else {
                     Err(format!("获取空间信息失败: {}", e))
@@ -221,7 +221,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         let username = session.user();
 
-        // 权限检查（Admin拥有所有权限，不需要检查）
+        // Permission check: The admin has all permissions, so no check is required.
         if !self.permission_manager.is_admin(&username) {
             let permission = self.extract_permission_from_statement(stmt);
             if let Err(e) = self
@@ -232,7 +232,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             }
         }
 
-        // 从客户端会话中提取空间信息
+        // Extract spatial information from the client session.
         let space_info = session.space().map(|s| crate::core::types::SpaceInfo {
             space_name: s.name.clone(),
             space_id: s.id as u64,
@@ -243,7 +243,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             comment: None,
         });
 
-        // 从会话创建 QueryRequestContext
+        // Create a QueryRequestContext from the session.
         let rctx = Arc::new(build_query_request_context(
             &session,
             stmt.to_string(),
@@ -297,12 +297,12 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         &self.stats_manager
     }
 
-    /// 获取会话列表（SHOW SESSIONS）
+    /// Obtain the session list (SHOW SESSIONS)
     pub async fn list_sessions(&self) -> Vec<crate::api::server::session::SessionInfo> {
         self.session_manager.list_sessions().await
     }
 
-    /// 获取指定会话的详细信息
+    /// Obtain detailed information about the specified session.
     pub async fn get_session_info(
         &self,
         session_id: i64,
@@ -310,9 +310,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         self.session_manager.get_session_info(session_id).await
     }
 
-    /// 终止会话（KILL SESSION）
+    /// Terminate the session (KILL SESSION)
     pub async fn kill_session(&self, session_id: i64, current_user: &str) -> SessionResult<()> {
-        // 获取当前会话以检查权限
+        // Obtain the current session in order to check permissions.
         let current_session = self
             .session_manager
             .find_session(session_id)
@@ -325,7 +325,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             .await
     }
 
-    /// 终止查询（KILL QUERY）
+    /// Terminate the query (KILL QUERY)
     pub fn kill_query(&self, session_id: i64, query_id: u32) -> SessionResult<()> {
         let session = self
             .session_manager
@@ -341,9 +341,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
     }
 
-    // ==================== 事务控制方法 ====================
+    // ==================== Transaction Control Methods ====================
 
-    /// 处理 BEGIN TRANSACTION 语句
+    /// Processing the BEGIN TRANSACTION statement
     fn handle_begin_transaction(
         &self,
         session: &Arc<ClientSession>,
@@ -369,7 +369,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
     }
 
-    /// 处理 COMMIT 语句
+    /// Processing the COMMIT statement
     fn handle_commit_transaction(
         &self,
         session: &Arc<ClientSession>,
@@ -392,7 +392,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
     }
 
-    /// 处理 ROLLBACK 语句
+    /// Processing the ROLLBACK statement
     fn handle_rollback_transaction(
         &self,
         session: &Arc<ClientSession>,
@@ -400,7 +400,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     ) -> Result<ExecutionResult, String> {
         let trimmed = stmt.trim().to_uppercase();
 
-        // 检查是否是 ROLLBACK TO SAVEPOINT
+        // Check whether it is a command to perform a ROLLBACK TO SAVEPOINT.
         if trimmed.starts_with("ROLLBACK TO ") {
             let savepoint_name = stmt[trimmed.find("ROLLBACK TO ").unwrap() + 12..].trim();
 
@@ -415,12 +415,12 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 .get_context(txn_id)
                 .map_err(|e| format!("获取事务上下文失败: {}", e))?;
 
-            // 尝试通过名称查找保存点
+            // Try to find the save point by using its name.
             let savepoint_info = context
                 .find_savepoint_by_name(savepoint_name)
                 .ok_or_else(|| format!("保存点 '{}' 不存在", savepoint_name))?;
 
-            // 执行回滚
+            // Perform a rollback.
             match txn_manager.rollback_to_savepoint(txn_id, savepoint_info.id) {
                 Ok(()) => {
                     info!(
@@ -434,7 +434,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 Err(e) => Err(format!("回滚到保存点失败: {}", e)),
             }
         } else {
-            // 完整的事务回滚
+            // Full transaction rollback
             let txn_id = session.current_transaction().ok_or("没有活跃事务可回滚")?;
 
             let txn_manager = self
@@ -454,7 +454,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
     }
 
-    /// 处理 SAVEPOINT 语句
+    /// Processing the SAVEPOINT statement
     fn handle_savepoint(
         &self,
         session: &Arc<ClientSession>,
@@ -492,7 +492,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         Ok(ExecutionResult::Success)
     }
 
-    /// 处理 RELEASE SAVEPOINT 语句
+    /// Processing the RELEASE SAVEPOINT statement
     fn handle_release_savepoint(
         &self,
         session: &Arc<ClientSession>,
@@ -583,7 +583,7 @@ mod tests {
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        // 验证服务创建成功
+        // The verification service has been created successfully.
         assert!(
             !graph_service
                 .get_session_manager()
@@ -598,9 +598,9 @@ mod tests {
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        // 测试默认用户认证
+        // Testing the default user authentication mechanism
         let result = graph_service.authenticate("root", "root").await;
-        assert!(result.is_ok(), "默认用户认证应该成功");
+        assert!(result.is_ok(), "The default user authentication should succeed.");
 
         let session = result.expect("Failed to get session");
         assert_eq!(session.user(), "root");
@@ -612,16 +612,16 @@ mod tests {
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        // 测试错误密码
+        // Test incorrect password.
         let result = graph_service.authenticate("root", "wrong_password").await;
-        assert!(result.is_err(), "错误密码应该认证失败");
+        assert!(result.is_err(), "An incorrect password should result in a authentication failure.");
 
-        // 测试空用户名或密码
+        // Test an empty username or password.
         let result = graph_service.authenticate("", "root").await;
-        assert!(result.is_err(), "空用户名应该认证失败");
+        assert!(result.is_err(), "An empty username should result in an authentication failure.");
 
         let result = graph_service.authenticate("root", "").await;
-        assert!(result.is_err(), "空密码应该认证失败");
+        assert!(result.is_err(), "An empty password should result in a failed authentication attempt.");
     }
 
     #[tokio::test]
@@ -630,7 +630,7 @@ mod tests {
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        // 创建会话
+        // Create a session
         let session = graph_service
             .authenticate("root", "root")
             .await
@@ -638,16 +638,16 @@ mod tests {
 
         let session_id = session.id();
 
-        // 查找会话
+        // Search for the conversation
         let found_session = graph_service.get_session_manager().find_session(session_id);
-        assert!(found_session.is_some(), "应该能找到刚创建的会话");
+        assert!(found_session.is_some(), "We should be able to find the session that was just created.");
 
-        // 签出会话
+        // Log out of the session.
         graph_service.signout(session_id).await;
 
-        // 验证会话已被移除
+        // The verification session has been removed.
         let found_session = graph_service.get_session_manager().find_session(session_id);
-        assert!(found_session.is_none(), "签出后应该找不到会话");
+        assert!(found_session.is_none(), "After signing out, the session should no longer be available.");
     }
 
     #[tokio::test]
@@ -661,10 +661,10 @@ mod tests {
             .await
             .expect("创建会话失败");
 
-        // 执行查询
+        // perform a search
         let result = graph_service.execute(session.id(), "SHOW SPACES");
-        // 注意：这里可能会失败，因为 MockStorage 可能没有实现完整的功能
-        // 我们主要测试调用不会panic
+        // Note: It may fail here because MockStorage may not implement the full feature
+        // We mainly test calls that do not panic
         let _ = result;
     }
 
@@ -679,10 +679,10 @@ mod tests {
             .await
             .expect("创建会话失败");
 
-        // 测试 BEGIN TRANSACTION
+        // Test BEGIN TRANSACTION
         let result = graph_service.execute(session.id(), "BEGIN TRANSACTION");
-        // 注意：这里可能会失败，因为 GraphService 可能没有配置事务管理器
-        // 我们主要测试调用不会panic
+        // Note: This may fail because the GraphService may not have a transaction manager configured.
+        // We mainly test calls that do not panic
         let _ = result;
     }
 
@@ -697,12 +697,12 @@ mod tests {
             .await
             .expect("创建会话失败");
 
-        // 测试创建保存点（需要先开始事务）
+        // Test creation of savepoints (need to start transaction first)
         let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
         let result = graph_service.execute(session.id(), "SAVEPOINT sp1");
 
-        // 注意：这里可能会失败，因为 GraphService 可能没有配置事务管理器
-        // 我们主要测试调用不会panic
+        // Note: This may fail because the GraphService may not have a transaction manager configured.
+        // We mainly test calls that do not panic
         let _ = result;
     }
 
@@ -717,11 +717,11 @@ mod tests {
             .await
             .expect("创建会话失败");
 
-        // 测试空保存点名称
+        // Test empty save point name
         let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
         let result = graph_service.execute(session.id(), "SAVEPOINT");
 
-        // 应该返回错误
+        // Should return an error
         assert!(result.is_err());
     }
 
@@ -736,13 +736,13 @@ mod tests {
             .await
             .expect("创建会话失败");
 
-        // 测试回滚到保存点
+        // Test rollback to save point
         let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
         let _ = graph_service.execute(session.id(), "SAVEPOINT sp1");
         let result = graph_service.execute(session.id(), "ROLLBACK TO SAVEPOINT sp1");
 
-        // 注意：这里可能会失败，因为 GraphService 可能没有配置事务管理器
-        // 我们主要测试调用不会panic
+        // Note: This may fail because the GraphService may not have a transaction manager configured.
+        // We mainly test calls that do not panic
         let _ = result;
     }
 
@@ -757,10 +757,10 @@ mod tests {
             .await
             .expect("创建会话失败");
 
-        // 测试在没有事务的情况下回滚到保存点
+        // Testing rollback to a savepoint without a transaction
         let result = graph_service.execute(session.id(), "ROLLBACK TO SAVEPOINT sp1");
 
-        // 应该返回错误
+        // Should return an error
         assert!(result.is_err());
     }
 
@@ -775,13 +775,13 @@ mod tests {
             .await
             .expect("创建会话失败");
 
-        // 测试释放保存点
+        // Test release save point
         let _ = graph_service.execute(session.id(), "BEGIN TRANSACTION");
         let _ = graph_service.execute(session.id(), "SAVEPOINT sp1");
         let result = graph_service.execute(session.id(), "RELEASE SAVEPOINT sp1");
 
-        // 注意：这里可能会失败，因为 GraphService 可能没有配置事务管理器
-        // 我们主要测试调用不会panic
+        // Note: This may fail because the GraphService may not have a transaction manager configured.
+        // We mainly test calls that do not panic
         let _ = result;
     }
 
@@ -796,10 +796,10 @@ mod tests {
             .await
             .expect("创建会话失败");
 
-        // 测试在没有事务的情况下释放保存点
+        // Testing the release of savepoints without transactions
         let result = graph_service.execute(session.id(), "RELEASE SAVEPOINT sp1");
 
-        // 应该返回错误
+        // Should return an error
         assert!(result.is_err());
     }
 }

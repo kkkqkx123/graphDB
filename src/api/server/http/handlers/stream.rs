@@ -1,4 +1,4 @@
-//! 流式结果 HTTP 处理器
+//! Streaming Results HTTP Processor
 
 use axum::{
     extract::{Json, State},
@@ -12,7 +12,7 @@ use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::query::executor::ExecutionResult;
 use crate::storage::StorageClient;
 
-/// 流式查询请求
+/// Streaming Query Requests
 #[derive(Debug, Clone, Deserialize)]
 pub struct StreamQueryRequest {
     pub query: String,
@@ -25,14 +25,14 @@ fn default_batch_size() -> usize {
     100
 }
 
-/// 流式结果数据项
+/// Streaming results data items
 #[derive(Debug, Serialize)]
 struct StreamDataItem {
     pub row: serde_json::Value,
     pub index: usize,
 }
 
-/// 流式结果元数据
+/// Streaming results metadata
 #[derive(Debug, Serialize)]
 struct StreamMetadata {
     pub rows_returned: usize,
@@ -40,7 +40,7 @@ struct StreamMetadata {
     pub columns: Vec<String>,
 }
 
-/// 执行查询并流式返回结果
+/// Execute the query and stream the results
 pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<StreamQueryRequest>,
@@ -58,7 +58,7 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
         let graph_service = server.get_graph_service();
         let request = request.clone();
 
-        // 执行查询
+        // perform a search
         let exec_result = match tokio::task::spawn_blocking({
             let graph_service = graph_service.clone();
             move || graph_service.execute(request.session_id, &request.query)
@@ -96,28 +96,28 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
             }
         };
 
-        // 将执行结果转换为流式数据
+        // Convert execution results to streaming data
         let (rows, columns) = execution_result_to_stream_data(exec_result);
         let total_rows = rows.len();
 
-        // 分批发送数据
+        // Send data in batches
         for (index, row) in rows.into_iter().enumerate() {
             let item = StreamDataItem { row, index };
 
             if let Ok(data) = serde_json::to_string(&item) {
                 if tx.send(Ok(Event::default().data(data))).await.is_err() {
-                    // 客户端断开连接
+                    // Client Disconnect
                     return;
                 }
             }
 
-            // 每批次发送后短暂休眠，避免阻塞
+            // Sleep briefly after each batch to avoid blocking
             if (index + 1) % batch_size == 0 {
                 tokio::task::yield_now().await;
             }
         }
 
-        // 发送元数据
+        // Send metadata
         let metadata = StreamMetadata {
             rows_returned: total_rows,
             execution_time_ms: start_time.elapsed().as_millis() as u64,
@@ -130,7 +130,7 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
                 .await;
         }
 
-        // 发送完成事件
+        // Send Completion Event
         let _ = tx.send(Ok(Event::default().event("done").data("{}"))).await;
     });
 
@@ -141,7 +141,7 @@ pub async fn execute_stream<S: StorageClient + Clone + Send + Sync + 'static>(
     ))
 }
 
-/// 将 ExecutionResult 转换为流式数据
+/// Converting ExecutionResult to Streaming Data
 fn execution_result_to_stream_data(
     result: ExecutionResult,
 ) -> (Vec<serde_json::Value>, Vec<String>) {
@@ -197,7 +197,7 @@ fn execution_result_to_stream_data(
     }
 }
 
-/// 将 Core Value 转换为 serde_json::Value
+/// Convert Core Value to serde_json::Value
 fn value_to_json(value: crate::core::Value) -> serde_json::Value {
     match value {
         crate::core::Value::Empty => serde_json::Value::Null,

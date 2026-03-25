@@ -1,6 +1,6 @@
-//! 会话管理模块
+//! Session Management Module
 //!
-//! 提供会话（Session）概念，作为查询执行的上下文
+//! Provide the concept of a “session” as the context in which queries are executed.
 
 use crate::api::core::{CoreError, CoreResult, QueryApi, QueryRequest, SchemaApi};
 use crate::api::embedded::batch::BatchInserter;
@@ -16,11 +16,11 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// 会话 - 执行上下文
+/// Session – Execution Context
 ///
-/// 会话是查询执行的基本单元，维护当前图空间、事务状态等上下文信息
+/// A session is the basic unit for the execution of queries, and it maintains contextual information such as the current graph space and the transaction status.
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use graphdb::api::embedded::{GraphDatabase, DatabaseConfig};
@@ -29,13 +29,13 @@ use std::sync::Arc;
 /// let db = GraphDatabase::open("my_db")?;
 /// let mut session = db.session()?;
 ///
-/// // 切换图空间
+// Switch to the image space
 /// session.use_space("test_space")?;
 ///
-/// // 执行查询
+// Execute the query
 /// let result = session.execute("MATCH (n) RETURN n")?;
 ///
-/// // 使用事务
+// Using a transaction
 /// let txn = session.begin_transaction()?;
 /// txn.execute("CREATE TAG user(name string)")?;
 /// txn.commit()?;
@@ -47,13 +47,13 @@ pub struct Session<S: StorageClient + Clone + 'static> {
     space_id: Option<u64>,
     space_name: Option<String>,
     auto_commit: bool,
-    /// 会话级变更统计
+    /// Session-level change statistics
     statistics: SessionStatistics,
-    /// 会话级函数注册表
+    /// Session-level function registry
     function_registry: Arc<Mutex<FunctionRegistry>>,
 }
 
-/// 数据库内部结构，用于在 Session 和 GraphDatabase 之间共享
+/// Internal structure of the database, used for sharing data between Session and GraphDatabase
 #[repr(C)]
 pub(crate) struct GraphDatabaseInner<S: StorageClient + 'static> {
     pub(crate) query_api: Arc<Mutex<QueryApi<S>>>,
@@ -63,7 +63,7 @@ pub(crate) struct GraphDatabaseInner<S: StorageClient + 'static> {
 }
 
 impl<S: StorageClient + Clone + 'static> Session<S> {
-    /// 创建新会话
+    /// Create a new session.
     pub(crate) fn new(db: Arc<GraphDatabaseInner<S>>) -> Self {
         Self {
             db,
@@ -75,51 +75,51 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         }
     }
 
-    /// 注册自定义函数
+    /// Register a custom function
     pub fn register_custom_function(&self, function: CustomFunction) -> CoreResult<()> {
         let mut registry = self.function_registry.lock();
         registry.register_custom_full(function);
         Ok(())
     }
 
-    /// 获取函数注册表引用
+    /// Obtain a reference to the function registry.
     pub fn function_registry(&self) -> Arc<Mutex<FunctionRegistry>> {
         Arc::clone(&self.function_registry)
     }
 
-    /// 获取上次操作影响的行数
+    /// Get the number of rows affected by the last operation.
     pub fn changes(&self) -> u64 {
         self.statistics.last_changes()
     }
 
-    /// 获取总会话变更数
+    /// Obtain the total number of session changes
     pub fn total_changes(&self) -> u64 {
         self.statistics.total_changes()
     }
 
-    /// 获取最后插入的顶点 ID
+    /// Obtain the ID of the last vertex that was inserted.
     pub fn last_insert_vertex_id(&self) -> Option<i64> {
         self.statistics.last_insert_vertex_id()
     }
 
-    /// 获取最后插入的边 ID
+    /// Obtain the ID of the last inserted edge.
     pub fn last_insert_edge_id(&self) -> Option<i64> {
         self.statistics.last_insert_edge_id()
     }
 
-    /// 获取统计信息引用
+    /// Obtain statistical information references
     pub fn statistics(&self) -> &SessionStatistics {
         &self.statistics
     }
 
-    /// 切换图空间
+    /// Switch to the image space
     ///
-    /// # 参数
-    /// - `space_name` - 图空间名称
+    /// # Parameters
+    /// `space_name` – Name of the graph space
     ///
-    /// # 返回
-    /// - 成功时返回 ()
-    /// - 失败时返回错误（如空间不存在）
+    /// # Back
+    /// - Returns on success ()
+    /// Return an error when something goes wrong (for example, if the required space does not exist).
     pub fn use_space(&mut self, space_name: &str) -> CoreResult<()> {
         let space_id = self.db.schema_api.use_space(space_name)?;
         self.space_id = Some(space_id);
@@ -127,39 +127,39 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         Ok(())
     }
 
-    /// 获取当前图空间名称
+    /// Obtain the name of the current image space.
     pub fn current_space(&self) -> Option<&str> {
         self.space_name.as_deref()
     }
 
-    /// 获取当前图空间 ID
+    /// Obtain the current image space ID.
     pub fn current_space_id(&self) -> Option<u64> {
         self.space_id
     }
 
-    /// 设置自动提交模式
+    /// Enable the automatic submission mode.
     ///
-    /// 当 auto_commit 为 true 时，每个查询都会自动提交
-    /// 当 auto_commit 为 false 时，需要显式使用事务
+    /// When `auto_commit` is set to `true`, each query is automatically committed.
+    /// When `auto_commit` is set to `false`, transactions must be explicitly used.
     pub fn set_auto_commit(&mut self, auto_commit: bool) {
         self.auto_commit = auto_commit;
     }
 
-    /// 获取自动提交模式
+    /// Enable the automatic submission mode.
     pub fn auto_commit(&self) -> bool {
         self.auto_commit
     }
 
-    /// 执行查询语句
+    /// Execute the query statement.
     ///
     /// # 参数
-    /// - `query` - 查询语句字符串
+    /// `query` – A string representing the query statement.
     ///
     /// # 返回
-    /// - 成功时返回查询结果
-    /// - 失败时返回错误
+    /// Return the query results when successful.
+    /// - Return error on failure
     pub fn execute(&self, query: &str) -> CoreResult<QueryResult> {
-        // 重置上次变更记录
+        // Reset the previous change history
         self.statistics.reset_last();
 
         let ctx = QueryRequest {
@@ -172,18 +172,18 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         let mut query_api = self.db.query_api.lock();
         let result = query_api.execute(query, ctx)?;
 
-        // 更新统计信息
+        // Update statistical information
         self.statistics
             .record_changes(result.metadata.rows_returned);
 
         Ok(QueryResult::from_core(result))
     }
 
-    /// 执行参数化查询
+    /// Execute a parameterized query
     ///
     /// # 参数
     /// - `query` - 查询语句字符串
-    /// - `params` - 查询参数
+    /// `params` – Query parameters
     ///
     /// # 返回
     /// - 成功时返回查询结果
@@ -205,10 +205,10 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         Ok(QueryResult::from_core(result))
     }
 
-    /// 开始事务
+    /// Start a transaction
     ///
     /// # 返回
-    /// - 成功时返回事务句柄
+    /// - Returns the transaction handle on success
     /// - 失败时返回错误
     pub fn begin_transaction(&self) -> CoreResult<Transaction<'_, S>> {
         let options = TransactionOptions::default();
@@ -222,10 +222,10 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         Ok(Transaction::new(self, txn_handle))
     }
 
-    /// 使用配置开始事务
+    /// Starting a Transaction with Configuration
     ///
     /// # 参数
-    /// - `config` - 事务配置选项
+    /// - `config` - transaction configuration options
     ///
     /// # 返回
     /// - 成功时返回事务句柄
@@ -241,7 +241,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// let db = GraphDatabase::open("my_db")?;
     /// let session = db.session()?;
     ///
-    /// // 创建只读事务
+    // Create read-only transactions
     /// let config = TransactionConfig::new()
     ///     .read_only()
     ///     .with_timeout(Duration::from_secs(60));
@@ -265,13 +265,13 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         Ok(Transaction::new(self, txn_handle))
     }
 
-    /// 在事务中执行操作（自动提交/回滚）
+    /// Performing operations in a transaction (autocommit/rollback)
     ///
     /// # 参数
-    /// - `f` - 在事务中执行的闭包
+    /// - `f` - closure executed in a transaction
     ///
     /// # 返回
-    /// - 成功时返回闭包的返回值
+    /// - Returns the closure's return value on success
     /// - 失败时返回错误
     pub fn with_transaction<F, T>(&self, f: F) -> CoreResult<T>
     where
@@ -291,11 +291,11 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         }
     }
 
-    /// 创建图空间
+    /// Creating a graph space
     ///
     /// # 参数
-    /// - `name` - 空间名称
-    /// - `config` - 空间配置
+    /// - `name' - space name
+    /// - `config' - space configuration
     ///
     /// # 返回
     /// - 成功时返回 ()
@@ -308,7 +308,7 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         self.db.schema_api.create_space(name, config)
     }
 
-    /// 删除图空间
+    /// Deletion of map space
     ///
     /// # 参数
     /// - `name` - 空间名称
@@ -320,9 +320,9 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         self.db.schema_api.drop_space(name)
     }
 
-    /// 列出所有图空间
+    /// List all graph spaces
     pub fn list_spaces(&self) -> CoreResult<Vec<String>> {
-        // 通过存储层获取所有空间
+        // Getting all the space through the storage layer
         let storage = self.db.storage.lock();
         let spaces = storage
             .list_spaces()
@@ -330,38 +330,38 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
         Ok(spaces.into_iter().map(|s| s.space_name).collect())
     }
 
-    /// 获取查询 API 的锁（内部使用）
+    /// Getting a lock on the query API (internal use)
     pub(crate) fn query_api(&self) -> parking_lot::MutexGuard<'_, QueryApi<S>> {
         self.db.query_api.as_ref().lock()
     }
 
-    /// 获取空间 ID（内部使用）
+    /// Get space ID (internal use)
     pub(crate) fn space_id(&self) -> Option<u64> {
         self.space_id
     }
 
-    /// 获取事务管理器（内部使用）
+    /// Getting the transaction manager (internal use)
     pub(crate) fn txn_manager(&self) -> Arc<TransactionManager> {
         self.db.txn_manager.clone()
     }
 
-    /// 获取存储的锁（内部使用）
+    /// Acquiring stored locks (for internal use)
     pub(crate) fn storage(&self) -> parking_lot::MutexGuard<'_, S> {
         self.db.storage.lock()
     }
 
-    /// 获取当前空间名称（内部使用）
+    /// Get current space name (for internal use)
     pub(crate) fn space_name(&self) -> Option<&str> {
         self.space_name.as_deref()
     }
 
-    /// 创建批量插入器
+    /// Creating a Batch Inserter
     ///
     /// # 参数
-    /// - `batch_size` - 批次大小，达到此数量时自动刷新
+    /// - `batch_size` - batch size, automatically refreshes when this amount is reached
     ///
     /// # 返回
-    /// - 返回 BatchInserter 实例
+    /// - Returns an instance of BatchInserter
     ///
     /// # 示例
     ///
@@ -373,16 +373,16 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// let db = GraphDatabase::open("my_db")?;
     /// let session = db.session()?;
     ///
-    /// // 创建批量插入器，每100条自动刷新
+    // Create a batch inserter that automatically refreshes every 100 entries
     /// let mut inserter = session.batch_inserter(100);
     ///
-    /// // 添加顶点
+    // Add vertices
     /// for i in 0..1000 {
     ///     let vertex = Vertex::with_vid(Value::Int(i));
     ///     inserter.add_vertex(vertex);
     /// }
     ///
-    /// // 执行批量插入
+    // Perform batch insertion
     /// let result = inserter.execute()?;
     /// # Ok(())
     /// # }
@@ -394,19 +394,19 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
 
 impl<S: StorageClient + Clone + 'static> Drop for Session<S> {
     fn drop(&mut self) {
-        // Session 被丢弃时，不需要特殊清理
-        // 因为所有事务都通过 Transaction 对象管理，而 Transaction 有自己的 Drop 实现
-        // 这里只是记录日志，方便调试
+        // No special cleanup is required when the session is discarded.
+        // Because all transactions are managed through the Transaction object, and Transactions have their own Drop implementation
+        // Just logging here for debugging purposes
         log::debug!("Session 被释放，当前图空间: {:?}", self.space_name);
     }
 }
 
-// 为了支持 Send + Sync，我们需要确保 S 满足这些约束
-// 安全性说明：
-// 1. Session 内部使用 Arc<GraphDatabaseInner<S>> 来共享数据，Arc 本身是 Send + Sync 的
-// 2. GraphDatabaseInner 中的 QueryApi 使用 Mutex 保护，确保线程安全
-// 3. StorageClient 要求实现 Clone + 'static，确保可以安全跨线程传递
-// 4. 所有内部状态（space_id, space_name, auto_commit）都是简单的可复制类型
-// 因此 Session 可以安全地实现 Send 和 Sync
+// In order to support Send + Sync, we need to ensure that S satisfies these constraints
+// Safety Notes:
+// 1. Session uses Arc<GraphDatabaseInner<S>> to share data internally, Arc itself is Send + Sync.
+// 2. QueryApi in GraphDatabaseInner is Mutex-protected for thread-safety.
+// 3. The StorageClient class must implement the Clone method and be marked as ‘static’. This is to ensure that objects can be safely passed between different threads.
+// 4. All internal states (space_id, space_name, auto_commit) are of simple, replicable types.
+// Therefore, the Session can securely implement both the Send and Sync functions.
 unsafe impl<S: StorageClient + Clone + 'static> Send for Session<S> {}
 unsafe impl<S: StorageClient + Clone + 'static> Sync for Session<S> {}

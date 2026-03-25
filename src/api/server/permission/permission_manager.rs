@@ -4,41 +4,41 @@ use std::sync::Arc;
 
 use crate::core::error::PermissionResult;
 
-// 从 core 层重新导出权限类型
+// Re-export the permission types from the core layer.
 pub use crate::core::{Permission, RoleType};
 
-/// God角色的Space ID标记（全局角色，不绑定特定Space）
+/// The Space ID identifier for the God character (a global character, not bound to a specific Space)
 pub const GOD_SPACE_ID: i64 = -1;
 
-/// 权限管理器 - 数据层
+/// Permission Manager – Data Layer
 ///
-/// 职责：
-/// 1. 管理用户角色映射（username -> {space_id -> role}）
-/// 2. 管理空间权限映射（space_id -> {username -> [permissions]}）
-/// 3. 提供基础的角色查询和权限检查
+/// Responsibilities:
+/// 1. Manage Role mapping（username -> {space_id -> role}）
+/// 2. Manage space mapping\（space_id -> {username -> [permissions]}）
+/// 3. Provide basic character query and permission checking functions.
 ///
-/// 注意：本层不涉及业务逻辑判断（如God角色优先等），只提供基础数据操作
+/// This layer does not involve any business logic decisions (such as the priority of the God character); it only provides basic data operations.
 ///
-/// 性能优化：
-/// - 使用 DashMap 实现真正的并发访问，无需显式加锁
-/// - 读多写少场景下性能优异
+/// Performance optimization:
+/// Use DashMap to achieve true concurrent access without the need for explicit locking.
+/// Outstanding performance in scenarios where more reading and less writing are required.
 pub struct PermissionManager {
-    /// 用户角色映射：username -> {space_id -> role}
-    /// 注意：God角色使用特殊的space_id: -1表示全局角色，不绑定特定Space
-    /// 使用 DashMap 支持并发读写
+    /// User role mapping：username -> {space_id -> role}
+    /// The “God” role uses a special space_id: -1 to indicate that it is a global role, which is not associated with a specific Space.
+    /// Using DashMap, concurrent read and write operations are supported.
     user_roles: Arc<DashMap<String, HashMap<i64, RoleType>>>,
-    /// 空间权限映射：space_id -> {username -> [permissions]}
-    /// 用于细粒度的权限控制
-    /// 使用 DashMap 支持并发读写
+    /// space permission mapping：space_id -> {username -> [permissions]}
+    /// Used for fine-grained permission control
+    /// Use DashMap to support async read/write
     space_permissions: Arc<DashMap<i64, HashMap<String, Vec<Permission>>>>,
 }
 
 impl PermissionManager {
-    /// 创建新的权限管理器
+    /// Create a new permission manager.
     pub fn new() -> Self {
         let user_roles = DashMap::new();
         let mut root_roles = HashMap::new();
-        // root用户作为God角色（全局超级管理员）
+        // The root user acts as the “God” character (the global super administrator).
         // 使用GOD_SPACE_ID(-1)表示全局角色，不绑定特定Space
         root_roles.insert(GOD_SPACE_ID, RoleType::God);
         user_roles.insert("root".to_string(), root_roles);
@@ -49,11 +49,11 @@ impl PermissionManager {
         }
     }
 
-    // ==================== 角色管理（基础CRUD） ====================
+    // ==================== Role Management (Basic CRUD) ====================
 
-    /// 授予角色
+    /// Granting roles
     ///
-    /// 使用 DashMap 的 entry API，无需显式加锁
+    /// Using the entry API of DashMap, there is no need to explicitly acquire locks.
     pub fn grant_role(
         &self,
         username: &str,
@@ -67,9 +67,9 @@ impl PermissionManager {
         Ok(())
     }
 
-    /// 撤销角色
+    /// Revoke the role
     ///
-    /// 使用 DashMap 无需显式加锁
+    /// Using DashMap, there is no need to explicitly apply locks.
     pub fn revoke_role(&self, username: &str, space_id: i64) -> PermissionResult<()> {
         if let Some(mut roles) = self.user_roles.get_mut(username) {
             roles.remove(&space_id);
@@ -77,18 +77,16 @@ impl PermissionManager {
         Ok(())
     }
 
-    /// 获取用户在指定空间的角色
+    /// Obtain the user's role in the specified space.
     ///
-    /// DashMap 支持真正的并发读
+    /// DashMap supports true concurrent reading.
     pub fn get_role(&self, username: &str, space_id: i64) -> Option<RoleType> {
         self.user_roles
             .get(username)
             .and_then(|roles| roles.get(&space_id).copied())
     }
 
-    /// 获取用户的所有角色
-    ///
-    /// DashMap 支持真正的并发读
+    /// Obtain all the user's roles
     pub fn get_user_roles(&self, username: &str) -> HashMap<i64, RoleType> {
         self.user_roles
             .get(username)
@@ -96,10 +94,8 @@ impl PermissionManager {
             .unwrap_or_default()
     }
 
-    /// 列出用户的所有角色
-    /// 返回 Vec<(space_id, role)>，包含用户在所有Space的角色
-    ///
-    /// DashMap 支持真正的并发读
+    /// List all of the user’s roles.
+    /// Return a Vec<(space_id, role)> containing the user's roles in all Spaces.
     pub fn list_user_roles(&self, username: &str) -> Vec<(i64, RoleType)> {
         self.user_roles
             .get(username)
@@ -112,10 +108,10 @@ impl PermissionManager {
             .unwrap_or_default()
     }
 
-    /// 列出Space中的所有用户及其角色
-    /// 返回 Vec<(username, role)>，包含指定Space中的所有用户
+    /// List all users in Space and their respective roles.
+    /// Return a Vec<(username, role)> containing all users in the specified Space.
     ///
-    /// DashMap 支持真正的并发读，迭代时无需加锁
+    /// DashMap supports true concurrent reading; locking is not required during iteration.
     pub fn list_space_users(&self, space_id: i64) -> Vec<(String, RoleType)> {
         self.user_roles
             .iter()
@@ -127,11 +123,9 @@ impl PermissionManager {
             .collect()
     }
 
-    // ==================== 角色查询（基础查询） ====================
+    // ==================== Role Query (Basic Query) ====================
 
-    /// 检查用户是否是God角色
-    ///
-    /// DashMap 支持真正的并发读
+    /// Check whether the user is the God character.
     pub fn is_god(&self, username: &str) -> bool {
         self.user_roles
             .get(username)
@@ -139,9 +133,7 @@ impl PermissionManager {
             .unwrap_or(false)
     }
 
-    /// 检查用户是否是管理员（God 或 Admin 角色）
-    ///
-    /// DashMap 支持真正的并发读
+    /// Check whether the user is an administrator (with the God or Admin role).
     pub fn is_admin(&self, username: &str) -> bool {
         self.user_roles
             .get(username)
@@ -153,19 +145,17 @@ impl PermissionManager {
             .unwrap_or(false)
     }
 
-    /// 检查用户在指定空间是否有指定角色
+    /// Check whether the user has the specified role in the designated space.
     pub fn has_role(&self, username: &str, space_id: i64, role: RoleType) -> bool {
         self.get_role(username, space_id)
             .map(|r| r == role)
             .unwrap_or(false)
     }
 
-    // ==================== 权限检查（基础检查） ====================
+    // ==================== Permission Check (Basic Verification) ====================
 
-    /// 基础权限检查
-    /// 检查用户在指定空间是否有指定权限
-    ///
-    /// DashMap 支持真正的并发读
+    /// Basic permission check
+    /// Check whether the user has the specified permissions in the designated space.
     pub fn check_permission(
         &self,
         username: &str,
@@ -192,9 +182,7 @@ impl PermissionManager {
         }
     }
 
-    /// 检查用户是否可以授予角色
-    ///
-    /// DashMap 支持真正的并发读
+    /// Check whether the user can be granted the role.
     pub fn can_grant_role(&self, granter: &str, space_id: i64, target_role: RoleType) -> bool {
         self.user_roles
             .get(granter)
@@ -203,16 +191,14 @@ impl PermissionManager {
             .unwrap_or(false)
     }
 
-    /// 检查用户是否可以撤销角色
+    /// Check whether the user can revoke the assigned role.
     pub fn can_revoke_role(&self, revoker: &str, space_id: i64, target_role: RoleType) -> bool {
         self.can_grant_role(revoker, space_id, target_role)
     }
 
-    // ==================== 空间权限管理（细粒度权限） ====================
+    // ==================== Space Permission Management (Fine-Grained Permissions) ====================
 
-    /// 为用户在空间添加特定权限
-    ///
-    /// 使用 DashMap 的 entry API，无需显式加锁
+    /// Granting specific permissions to users in the space
     pub fn grant_permission(
         &self,
         username: &str,
@@ -229,9 +215,7 @@ impl PermissionManager {
         Ok(())
     }
 
-    /// 撤销用户在空间的特定权限
-    ///
-    /// 使用 DashMap 无需显式加锁
+    /// Revoke a user's specific permissions in the space
     pub fn revoke_permission(
         &self,
         username: &str,
@@ -246,9 +230,7 @@ impl PermissionManager {
         Ok(())
     }
 
-    /// 获取用户在空间的特定权限列表
-    ///
-    /// DashMap 支持真正的并发读
+    /// Obtain a list of specific permissions that a user has in the space.
     pub fn get_permissions(&self, username: &str, space_id: i64) -> Vec<Permission> {
         self.space_permissions
             .get(&space_id)
@@ -256,7 +238,7 @@ impl PermissionManager {
             .unwrap_or_default()
     }
 
-    /// 检查用户在空间是否有特定权限（细粒度检查）
+    /// Checking whether a user has specific privileges in space (fine-grained checking)
     pub fn has_permission(&self, username: &str, space_id: i64, permission: Permission) -> bool {
         self.get_permissions(username, space_id)
             .contains(&permission)
@@ -289,7 +271,7 @@ mod tests {
     fn test_is_god() {
         let pm = PermissionManager::new();
 
-        // root 默认是 God
+        // The default is God.
         assert!(pm.is_god("root"));
 
         let _ = pm.grant_role("user1", 1, RoleType::Admin);
@@ -308,13 +290,13 @@ mod tests {
         pm.grant_role("guest1", 1, RoleType::Guest)
             .expect("Failed to grant role");
 
-        // User 角色有 Read 和 Write 权限
+        // The User role has Read and Write permissions
         assert!(pm.check_permission("user1", 1, Permission::Read).is_ok());
         assert!(pm.check_permission("user1", 1, Permission::Write).is_ok());
-        // Guest 角色只有 Read 权限
+        // The Guest role has only Read privileges
         assert!(pm.check_permission("guest1", 1, Permission::Read).is_ok());
         assert!(pm.check_permission("guest1", 1, Permission::Write).is_err());
-        // 未授权用户
+        // unauthorized user
         assert!(pm
             .check_permission("nonexistent", 1, Permission::Read)
             .is_err());
@@ -329,14 +311,14 @@ mod tests {
         pm.grant_role("user", 1, RoleType::User)
             .expect("Failed to grant role");
 
-        // Admin 可以授予 User 和 Guest 角色
+        // Admin can grant the User and Guest roles
         assert!(pm.can_grant_role("admin", 1, RoleType::User));
         assert!(pm.can_grant_role("admin", 1, RoleType::Guest));
-        // Admin 不能授予 Admin 或 God 角色
+        // Admin cannot grant the Admin or God role.
         assert!(!pm.can_grant_role("admin", 1, RoleType::Admin));
         assert!(!pm.can_grant_role("admin", 1, RoleType::God));
 
-        // User 不能授予任何角色
+        // User cannot be granted any role
         assert!(!pm.can_grant_role("user", 1, RoleType::Guest));
     }
 
@@ -344,7 +326,7 @@ mod tests {
     fn test_god_role_global_permission() {
         let pm = PermissionManager::new();
 
-        // God 角色在任何空间都有权限
+        // God roles have permissions in any space
         assert!(pm.check_permission("root", 999, Permission::Write).is_ok());
         assert!(pm.check_permission("root", 999, Permission::Read).is_ok());
     }
@@ -353,7 +335,7 @@ mod tests {
     fn test_list_user_roles() {
         let pm = PermissionManager::new();
 
-        // 给用户在不同Space授予不同角色
+        // Granting different roles to users in different Space
         pm.grant_role("multi_user", 1, RoleType::Admin)
             .expect("Failed to grant role");
         pm.grant_role("multi_user", 2, RoleType::User)
@@ -361,17 +343,17 @@ mod tests {
         pm.grant_role("multi_user", 3, RoleType::Guest)
             .expect("Failed to grant role");
 
-        // 列出用户所有角色
+        // List all roles of a user
         let roles = pm.list_user_roles("multi_user");
         assert_eq!(roles.len(), 3);
 
-        // 验证包含正确的角色
+        // Verify that the correct roles are included
         let role_map: HashMap<i64, RoleType> = roles.into_iter().collect();
         assert_eq!(role_map.get(&1), Some(&RoleType::Admin));
         assert_eq!(role_map.get(&2), Some(&RoleType::User));
         assert_eq!(role_map.get(&3), Some(&RoleType::Guest));
 
-        // 不存在的用户返回空列表
+        // Returns an empty list for non-existent users
         let empty_roles = pm.list_user_roles("nonexistent");
         assert!(empty_roles.is_empty());
     }
@@ -381,7 +363,7 @@ mod tests {
         let pm = PermissionManager::new();
         let space_id = 1i64;
 
-        // 给多个用户授予角色
+        // Granting roles to multiple users
         pm.grant_role("user1", space_id, RoleType::User)
             .expect("Failed to grant role");
         pm.grant_role("user2", space_id, RoleType::Admin)
@@ -389,17 +371,17 @@ mod tests {
         pm.grant_role("user3", space_id, RoleType::Guest)
             .expect("Failed to grant role");
 
-        // 列出Space中的所有用户
+        // List all users in Space
         let users = pm.list_space_users(space_id);
         assert_eq!(users.len(), 3);
 
-        // 验证包含正确的用户和角色
+        // Verify that the correct users and roles are included
         let user_map: HashMap<String, RoleType> = users.into_iter().collect();
         assert_eq!(user_map.get("user1"), Some(&RoleType::User));
         assert_eq!(user_map.get("user2"), Some(&RoleType::Admin));
         assert_eq!(user_map.get("user3"), Some(&RoleType::Guest));
 
-        // 空的Space返回空列表
+        // Empty Space returns an empty list
         let empty_users = pm.list_space_users(999);
         assert!(empty_users.is_empty());
     }

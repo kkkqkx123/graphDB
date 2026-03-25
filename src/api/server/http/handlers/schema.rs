@@ -10,7 +10,7 @@ use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::core::DataType;
 use crate::storage::StorageClient;
 
-// ==================== Space 相关 ====================
+// ==================== Space related ====================
 
 #[derive(Debug, Deserialize)]
 pub struct CreateSpaceRequest {
@@ -21,7 +21,7 @@ pub struct CreateSpaceRequest {
     pub comment: Option<String>,
 }
 
-/// 创建图空间
+/// Creating a graph space
 pub async fn create_space<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<CreateSpaceRequest>,
@@ -53,7 +53,7 @@ pub async fn create_space<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(result?))
 }
 
-/// 获取图空间
+/// Getting the graph space
 pub async fn get_space<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(name): Path<String>,
@@ -77,7 +77,7 @@ pub async fn get_space<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(result?))
 }
 
-/// 删除图空间
+/// Deletion of map space
 pub async fn drop_space<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(name): Path<String>,
@@ -102,18 +102,18 @@ pub async fn drop_space<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(result?))
 }
 
-/// 列出所有图空间
+/// List all graph spaces
 pub async fn list_spaces<S: StorageClient + Clone + Send + Sync + 'static>(
     State(_state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
-    // 暂时返回空列表，因为 SchemaApi 没有 list_spaces 方法
+    // Returns an empty list for now, since SchemaApi doesn't have a list_spaces method.
     Ok(JsonResponse(serde_json::json!({
         "spaces": [],
         "note": "此功能待实现",
     })))
 }
 
-// ==================== Tag 相关 ====================
+// ==================== Tag related ====================
 
 #[derive(Debug, Deserialize)]
 pub struct CreateTagRequest {
@@ -129,7 +129,7 @@ pub struct PropertyDefInput {
     pub nullable: bool,
 }
 
-/// 创建标签
+/// Creating Tags
 pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(space_name): Path<String>,
@@ -138,7 +138,7 @@ pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
     let result = task::spawn_blocking(move || {
         let schema_api = state.server.get_schema_api();
 
-        // 获取空间 ID
+        // Get Space ID
         let space_id = match schema_api.use_space(&space_name) {
             Ok(id) => id,
             Err(_) => {
@@ -149,7 +149,7 @@ pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
             }
         };
 
-        // 转换属性定义
+        // Conversion Attribute Definition
         let properties: Vec<PropertyDef> = request
             .properties
             .into_iter()
@@ -180,12 +180,12 @@ pub async fn create_tag<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(result?))
 }
 
-/// 列出所有标签
+/// List all tags
 pub async fn list_tags<S: StorageClient + Clone + Send + Sync + 'static>(
     State(_state): State<AppState<S>>,
     Path(space_name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
-    // 暂时返回空列表，因为 SchemaApi 没有 list_tags 方法
+    // Returns an empty list for now, since SchemaApi doesn't have a list_tags method.
     Ok(JsonResponse(serde_json::json!({
         "tags": [],
         "space_name": space_name,
@@ -193,7 +193,7 @@ pub async fn list_tags<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-// ==================== Edge Type 相关 ====================
+// ==================== Edge Type related ====================
 
 #[derive(Debug, Deserialize)]
 pub struct CreateEdgeTypeRequest {
@@ -201,7 +201,7 @@ pub struct CreateEdgeTypeRequest {
     pub properties: Vec<PropertyDefInput>,
 }
 
-/// 创建边类型
+/// Creating Edge Types
 pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(space_name): Path<String>,
@@ -210,7 +210,7 @@ pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
     let result = task::spawn_blocking(move || {
         let schema_api = state.server.get_schema_api();
 
-        // 获取空间 ID
+        // Get Space ID
         let space_id = match schema_api.use_space(&space_name) {
             Ok(id) => id,
             Err(_) => {
@@ -221,7 +221,7 @@ pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
             }
         };
 
-        // 转换属性定义
+        // Conversion Attribute Definition
         let properties: Vec<PropertyDef> = request
             .properties
             .into_iter()
@@ -252,12 +252,12 @@ pub async fn create_edge_type<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(result?))
 }
 
-/// 列出所有边类型
+/// List all edge types
 pub async fn list_edge_types<S: StorageClient + Clone + Send + Sync + 'static>(
     State(_state): State<AppState<S>>,
     Path(space_name): Path<String>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
-    // 暂时返回空列表，因为 SchemaApi 没有 list_edge_types 方法
+    // Returns an empty list for now, since SchemaApi doesn't have a list_edge_types method.
     Ok(JsonResponse(serde_json::json!({
         "edge_types": [],
         "space_name": space_name,
@@ -265,7 +265,7 @@ pub async fn list_edge_types<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-// ==================== 辅助函数 ====================
+// ==================== Auxiliary Functions ====================
 
 fn parse_data_type(type_str: &str) -> DataType {
     match type_str.to_uppercase().as_str() {
@@ -273,6 +273,6 @@ fn parse_data_type(type_str: &str) -> DataType {
         "FLOAT" | "DOUBLE" => DataType::Float,
         "STRING" | "STR" => DataType::String,
         "BOOL" | "BOOLEAN" => DataType::Bool,
-        _ => DataType::String, // 默认使用字符串类型
+        _ => DataType::String, // String types are used by default
     }
 }

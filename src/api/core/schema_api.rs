@@ -1,6 +1,6 @@
-//! Schema 操作 API - 核心层
+//! Schema Manipulation API - Core Layer
 //!
-//! 提供与传输层无关的 Schema 管理功能
+//! Provides transport layer-independent Schema management capabilities
 
 use crate::api::core::{CoreError, CoreResult, IndexTarget, PropertyDef, SpaceConfig};
 use crate::core::types::{
@@ -10,22 +10,22 @@ use crate::storage::StorageClient;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// Schema 操作 API - 核心层
+/// Schema Manipulation API - Core Layer
 pub struct SchemaApi<S: StorageClient> {
     storage: Arc<Mutex<S>>,
 }
 
 impl<S: StorageClient> SchemaApi<S> {
-    /// 创建新的 Schema API 实例
+    /// Creating a New Schema API Instance
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
         Self { storage }
     }
 
-    /// 创建图空间
+    /// Creating a graph space
     ///
-    /// # 参数
-    /// - `name`: 空间名称
-    /// - `config`: 空间配置
+    /// # Parameters
+    /// - `name': name of the space
+    /// - `config`: space configuration
     pub fn create_space(&self, name: &str, config: SpaceConfig) -> CoreResult<()> {
         let space_info = SpaceInfo::new(name.to_string())
             .with_vid_type(config.vid_type)
@@ -40,7 +40,7 @@ impl<S: StorageClient> SchemaApi<S> {
         Ok(())
     }
 
-    /// 删除图空间
+    /// Deletion of map space
     ///
     /// # 参数
     /// - `name`: 空间名称
@@ -58,13 +58,13 @@ impl<S: StorageClient> SchemaApi<S> {
         }
     }
 
-    /// 使用图空间
+    /// Use of map space
     ///
     /// # 参数
     /// - `name`: 空间名称
     ///
-    /// # 返回
-    /// 空间 ID
+    /// # Return
+    /// Space ID
     pub fn use_space(&self, name: &str) -> CoreResult<u64> {
         let storage = self.storage.lock();
         let space_id = storage
@@ -75,22 +75,22 @@ impl<S: StorageClient> SchemaApi<S> {
         Ok(space_id)
     }
 
-    /// 创建标签
+    /// Creating Tags
     ///
     /// # 参数
-    /// - `space_id`: 空间 ID
-    /// - `name`: 标签名称
-    /// - `properties`: 属性定义列表
+    /// `space_id`: Space ID
+    /// - `name`: label name
+    /// - `properties`: list of property definitions
     pub fn create_tag(
         &self,
         space_id: u64,
         name: &str,
         properties: Vec<PropertyDef>,
     ) -> CoreResult<()> {
-        // 获取空间名称
+        // Get space name
         let space_name = self.get_space_name_by_id(space_id)?;
 
-        // 转换属性定义
+        // Conversion Attribute Definition
         let core_properties: Vec<crate::core::types::PropertyDef> =
             properties.into_iter().map(|p| p.into()).collect();
 
@@ -112,7 +112,7 @@ impl<S: StorageClient> SchemaApi<S> {
         }
     }
 
-    /// 删除标签
+    /// Delete Tags
     ///
     /// # 参数
     /// - `space_id`: 空间 ID
@@ -133,11 +133,11 @@ impl<S: StorageClient> SchemaApi<S> {
         }
     }
 
-    /// 创建边类型
+    /// Creating Edge Types
     ///
     /// # 参数
     /// - `space_id`: 空间 ID
-    /// - `name`: 边类型名称
+    /// - `name`: name of side type
     /// - `properties`: 属性定义列表
     pub fn create_edge_type(
         &self,
@@ -147,7 +147,7 @@ impl<S: StorageClient> SchemaApi<S> {
     ) -> CoreResult<()> {
         let space_name = self.get_space_name_by_id(space_id)?;
 
-        // 转换属性定义
+        // Conversion Attribute Definition
         let core_properties: Vec<crate::core::types::PropertyDef> =
             properties.into_iter().map(|p| p.into()).collect();
 
@@ -169,7 +169,7 @@ impl<S: StorageClient> SchemaApi<S> {
         }
     }
 
-    /// 删除边类型
+    /// Delete Edge Type
     ///
     /// # 参数
     /// - `space_id`: 空间 ID
@@ -190,22 +190,22 @@ impl<S: StorageClient> SchemaApi<S> {
         }
     }
 
-    /// 创建索引
+    /// Creating Indexes
     ///
     /// # 参数
     /// - `space_id`: 空间 ID
-    /// - `name`: 索引名称
-    /// - `target`: 索引目标（标签或边类型）
+    /// **Name**: Index name
+    /// - `target`: index target (label or edge type)
     pub fn create_index(&self, space_id: u64, name: &str, target: IndexTarget) -> CoreResult<()> {
         let space_name = self.get_space_name_by_id(space_id)?;
 
-        // 根据目标类型构建索引
+        // Build indexes based on target type
         let (schema_name, fields, index_type) = match target {
             IndexTarget::Tag {
                 name: tag_name,
                 fields,
             } => {
-                // 获取标签信息以确定字段类型
+                // Get label information to determine field type
                 let storage = self.storage.lock();
                 let tag_info = storage
                     .get_tag(&space_name, &tag_name)
@@ -214,7 +214,7 @@ impl<S: StorageClient> SchemaApi<S> {
                 let tag_info = tag_info
                     .ok_or_else(|| CoreError::NotFound(format!("标签 '{}' 不存在", tag_name)))?;
 
-                // 构建索引字段
+                // Building Index Fields
                 let index_fields = self.build_index_fields(&fields, &tag_info.properties)?;
                 (tag_name, index_fields, IndexType::TagIndex)
             }
@@ -222,7 +222,7 @@ impl<S: StorageClient> SchemaApi<S> {
                 name: edge_name,
                 fields,
             } => {
-                // 获取边类型信息以确定字段类型
+                // Get edge type information to determine field type
                 let storage = self.storage.lock();
                 let edge_info = storage
                     .get_edge_type(&space_name, &edge_name)
@@ -231,18 +231,18 @@ impl<S: StorageClient> SchemaApi<S> {
                 let edge_info = edge_info
                     .ok_or_else(|| CoreError::NotFound(format!("边类型 '{}' 不存在", edge_name)))?;
 
-                // 构建索引字段
+                // Building Index Fields
                 let index_fields = self.build_index_fields(&fields, &edge_info.properties)?;
                 (edge_name, index_fields, IndexType::EdgeIndex)
             }
         };
 
-        // 根据索引类型调用对应的创建方法
+        // Call the corresponding creation method based on the index type
         let mut storage = self.storage.lock();
         let result = match index_type {
             IndexType::TagIndex => {
                 let index = Index {
-                    id: 0, // 由存储层分配
+                    id: 0, // Allocated by the storage layer
                     name: name.to_string(),
                     space_id,
                     schema_name,
@@ -257,7 +257,7 @@ impl<S: StorageClient> SchemaApi<S> {
             }
             IndexType::EdgeIndex => {
                 let index = Index {
-                    id: 0, // 由存储层分配
+                    id: 0, // Allocated by the storage layer
                     name: name.to_string(),
                     space_id,
                     schema_name,
@@ -284,7 +284,7 @@ impl<S: StorageClient> SchemaApi<S> {
         }
     }
 
-    /// 删除索引
+    /// Delete the index.
     ///
     /// # 参数
     /// - `space_id`: 空间 ID
@@ -294,7 +294,7 @@ impl<S: StorageClient> SchemaApi<S> {
 
         let mut storage = self.storage.lock();
 
-        // 尝试删除标签索引
+        // Try to delete the tag index.
         if let Ok(Some(_)) = storage.get_tag_index(&space_name, name) {
             let result = storage
                 .drop_tag_index(&space_name, name)
@@ -305,7 +305,7 @@ impl<S: StorageClient> SchemaApi<S> {
             }
         }
 
-        // 尝试删除边索引
+        // Try to delete the edge index.
         if let Ok(Some(_)) = storage.get_edge_index(&space_name, name) {
             let result = storage
                 .drop_edge_index(&space_name, name)
@@ -319,17 +319,17 @@ impl<S: StorageClient> SchemaApi<S> {
         Err(CoreError::NotFound(format!("索引 '{}' 不存在", name)))
     }
 
-    /// 查看 Schema
+    /// View the Schema
     ///
     /// # 参数
     /// - `space_id`: 空间 ID
     ///
     /// # 返回
-    /// Schema 描述字符串
+    /// The “Schema” describes a string.
     pub fn describe_schema(&self, space_id: u64) -> CoreResult<String> {
         let storage = self.storage.lock();
 
-        // 获取空间信息
+        // Obtaining spatial information
         let space_info = storage
             .get_space_by_id(space_id)
             .map_err(|e| CoreError::StorageError(e.to_string()))?
@@ -337,17 +337,17 @@ impl<S: StorageClient> SchemaApi<S> {
 
         let space_name = &space_info.space_name;
 
-        // 获取所有标签
+        // Get all tags
         let tags = storage
             .list_tags(space_name)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-        // 获取所有边类型
+        // Retrieve all edge types
         let edge_types = storage
             .list_edge_types(space_name)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-        // 获取所有索引
+        // Retrieve all indexes
         let tag_indexes = storage
             .list_tag_indexes(space_name)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
@@ -355,7 +355,7 @@ impl<S: StorageClient> SchemaApi<S> {
             .list_edge_indexes(space_name)
             .map_err(|e| CoreError::StorageError(e.to_string()))?;
 
-        // 构建描述字符串
+        // Construct a descriptive string
         let mut description = format!("图空间: {} (ID: {})\n", space_name, space_id);
         description.push_str(&format!("VID 类型: {:?}\n", space_info.vid_type));
         if let Some(ref comment) = space_info.comment {
@@ -363,7 +363,7 @@ impl<S: StorageClient> SchemaApi<S> {
         }
         description.push('\n');
 
-        // 标签信息
+        // Tag information
         description.push_str("标签:\n");
         if tags.is_empty() {
             description.push_str("  (无)\n");
@@ -382,7 +382,7 @@ impl<S: StorageClient> SchemaApi<S> {
         }
         description.push('\n');
 
-        // 边类型信息
+        // Edge type information
         description.push_str("边类型:\n");
         if edge_types.is_empty() {
             description.push_str("  (无)\n");
@@ -401,7 +401,7 @@ impl<S: StorageClient> SchemaApi<S> {
         }
         description.push('\n');
 
-        // 索引信息
+        // Index information
         description.push_str("索引:\n");
         if tag_indexes.is_empty() && edge_indexes.is_empty() {
             description.push_str("  (无)\n");
@@ -419,9 +419,9 @@ impl<S: StorageClient> SchemaApi<S> {
     }
 }
 
-// 内部辅助方法
+// Internal auxiliary methods
 impl<S: StorageClient> SchemaApi<S> {
-    /// 根据空间 ID 获取空间名称
+    /// Retrieve the space name based on the space ID.
     fn get_space_name_by_id(&self, space_id: u64) -> CoreResult<String> {
         let storage = self.storage.lock();
         let space_info = storage
@@ -431,7 +431,7 @@ impl<S: StorageClient> SchemaApi<S> {
         Ok(space_info.space_name)
     }
 
-    /// 构建索引字段列表
+    /// Construct a list of index fields
     fn build_index_fields(
         &self,
         field_names: &[String],
@@ -447,7 +447,7 @@ impl<S: StorageClient> SchemaApi<S> {
                     CoreError::InvalidParameter(format!("字段 '{}' 不存在", field_name))
                 })?;
 
-            // 创建对应的 Value 类型用于 IndexField
+            // Create the corresponding Value type for the IndexField.
             let value_type = Self::datatype_to_value(&prop.data_type);
 
             fields.push(IndexField::new(
@@ -460,7 +460,7 @@ impl<S: StorageClient> SchemaApi<S> {
         Ok(fields)
     }
 
-    /// 将 DataType 转换为 Value（用于索引字段类型）
+    /// Convert the DataType to a Value (for use with index field types).
     fn datatype_to_value(data_type: &crate::core::DataType) -> crate::core::Value {
         use crate::core::value::date_time::{DateTimeValue, DateValue, TimeValue};
         use crate::core::value::NullType;
@@ -509,7 +509,7 @@ impl<S: StorageClient> Clone for SchemaApi<S> {
     }
 }
 
-// 类型转换实现
+// Type conversion implementation
 impl From<PropertyDef> for crate::core::types::PropertyDef {
     fn from(prop: PropertyDef) -> Self {
         Self {
@@ -537,7 +537,7 @@ mod tests {
     fn test_schema_api_new() {
         let storage = create_mock_storage();
         let _schema_api = SchemaApi::new(storage);
-        // 创建成功，测试通过到达此处即表示成功
+        // Creation was successful, and the test passed. Reaching this point indicates that the goal has been achieved.
     }
 
     #[test]
@@ -545,7 +545,7 @@ mod tests {
         let storage = create_mock_storage();
         let schema_api = SchemaApi::new(storage);
         let _cloned = schema_api.clone();
-        // 克隆成功，测试通过到达此处即表示成功
+        // The cloning was successful, and the tests have passed. Reaching this point indicates that the entire process has been a success.
     }
 
     #[test]

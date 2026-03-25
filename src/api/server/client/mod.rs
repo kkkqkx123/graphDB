@@ -1,12 +1,12 @@
-//! 客户端会话模块
+//! Client Sessions Module
 //!
-//! 将 ClientSession 的多重职责拆分为独立的上下文模块：
-//! - `session`: 基础会话信息
-//! - `space_context`: 空间上下文
-//! - `role_context`: 角色上下文
-//! - `query_context`: 查询上下文
-//! - `transaction_context`: 事务上下文
-//! - `statistics`: 统计信息
+//! Split the multiple responsibilities of the ClientSession into separate context modules:
+//! - `session`: basic session information
+//! - `space_context`: space context
+//! - `role_context`: role context
+//! - `query_context`: query context
+//! - `transaction_context`: transaction context
+//! - `statistics`: statistical information
 
 pub mod client_session;
 pub mod query_context;

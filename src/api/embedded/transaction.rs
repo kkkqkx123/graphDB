@@ -1,6 +1,6 @@
-//! 事务管理模块
+//! Transaction management module
 //!
-//! 提供完整的事务管理功能，包括保存点支持
+//! Provides full transaction management functionality, including savepoint support
 
 use crate::api::core::{CoreError, CoreResult, QueryRequest, TransactionHandle};
 use crate::api::embedded::result::QueryResult;
@@ -12,11 +12,11 @@ use crate::transaction::{DurabilityLevel, TransactionOptions};
 use std::collections::HashMap;
 use std::time::Duration;
 
-/// 事务配置选项
+/// Transaction configuration options
 ///
-/// 用于配置事务的行为，如超时、只读模式、持久性级别等
+/// Used to configure the behavior of transactions, such as timeout, read-only mode, persistence level, etc.
 ///
-/// # 示例
+/// # Example
 ///
 /// ```rust
 /// use graphdb::api::embedded::{GraphDatabase, DatabaseConfig, TransactionConfig};
@@ -25,7 +25,7 @@ use std::time::Duration;
 /// let db = GraphDatabase::open("my_db")?;
 /// let session = db.session()?;
 ///
-/// // 创建只读事务配置
+// Create a read-only transaction configuration
 /// let config = TransactionConfig::new()
 ///     .read_only()
 ///     .with_timeout(Duration::from_secs(60));
@@ -36,11 +36,11 @@ use std::time::Duration;
 /// ```
 #[derive(Debug, Clone)]
 pub struct TransactionConfig {
-    /// 事务超时时间
+    /// Transaction timeout
     pub timeout: Option<Duration>,
-    /// 是否只读
+    /// Read-only or not
     pub read_only: bool,
-    /// 持久性级别
+    /// Persistence level
     pub durability: DurabilityLevel,
 }
 
@@ -55,30 +55,30 @@ impl Default for TransactionConfig {
 }
 
 impl TransactionConfig {
-    /// 创建默认配置
+    /// Creating a Default Configuration
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 设置超时时间
+    /// Setting the timeout period
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
     }
 
-    /// 设置为只读模式
+    /// Set to read-only mode
     pub fn read_only(mut self) -> Self {
         self.read_only = true;
         self
     }
 
-    /// 设置持久性级别
+    /// Setting Persistence Levels
     pub fn with_durability(mut self, durability: DurabilityLevel) -> Self {
         self.durability = durability;
         self
     }
 
-    /// 转换为内部 TransactionOptions
+    /// Convert to internal TransactionOptions
     pub(crate) fn into_options(self) -> TransactionOptions {
         TransactionOptions {
             timeout: self.timeout,
@@ -88,10 +88,10 @@ impl TransactionConfig {
     }
 }
 
-/// 事务句柄
+/// transaction handle
 ///
-/// 封装事务的生命周期管理，确保事务正确提交或回滚
-/// 支持保存点功能，允许部分回滚
+/// Encapsulate transaction lifecycle management to ensure that transactions are properly committed or rolled back
+/// Supports savepoint functionality to allow partial rollback
 ///
 /// # 示例
 ///
@@ -102,14 +102,14 @@ impl TransactionConfig {
 /// let db = GraphDatabase::open("my_db")?;
 /// let session = db.session()?;
 ///
-/// // 开始事务
+// Starting a transaction
 /// let txn = session.begin_transaction()?;
 ///
-/// // 在事务中执行查询
+// Execute queries in transactions
 /// txn.execute("CREATE TAG user(name string)")?;
 /// txn.execute("INSERT VERTEX user(name) VALUES \"1\":(\"Alice\")")?;
 ///
-/// // 提交事务
+// Commit the transaction
 /// txn.commit()?;
 /// # Ok(())
 /// # }
@@ -122,7 +122,7 @@ pub struct Transaction<'sess, S: StorageClient + Clone + 'static> {
 }
 
 impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
-    /// 创建新的事务
+    /// Creating a new transaction
     pub(crate) fn new(session: &'sess Session<S>, txn_handle: TransactionHandle) -> Self {
         Self {
             session,
@@ -132,17 +132,17 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
         }
     }
 
-    /// 在事务中执行查询
+    /// Executing queries in a transaction
     ///
-    /// # 参数
-    /// - `query` - 查询语句字符串
+    /// # Parameters
+    /// - `query` - query statement string
     ///
-    /// # 返回
-    /// - 成功时返回查询结果
-    /// - 失败时返回错误
+    /// # Return
+    /// - Returns query results on success
+    /// Return an error when something goes wrong.
     ///
-    /// # 错误
-    /// 如果事务已提交或回滚，返回错误
+    /// # Error
+    /// Returns an error if the transaction has been committed or rolled back
     pub fn execute(&self, query: &str) -> CoreResult<QueryResult> {
         self.check_active()?;
 
@@ -158,11 +158,11 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
         Ok(QueryResult::from_core(result))
     }
 
-    /// 在事务中执行参数化查询
+    /// Executing parameterized queries in a transaction
     ///
     /// # 参数
     /// - `query` - 查询语句字符串
-    /// - `params` - 查询参数
+    /// - `params` - query parameters
     ///
     /// # 返回
     /// - 成功时返回查询结果
@@ -186,14 +186,14 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
         Ok(QueryResult::from_core(result))
     }
 
-    /// 提交事务
+    /// Submission of transactions
     ///
     /// # 返回
-    /// - 成功时返回 ()
+    /// Return () on success.
     /// - 失败时返回错误
     ///
-    /// # 注意
-    /// 事务提交后不能再使用
+    /// # Note
+    /// Cannot be reused after a transaction has been committed
     pub fn commit(mut self) -> CoreResult<()> {
         self.check_active()?;
 
@@ -205,14 +205,14 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
         Ok(())
     }
 
-    /// 回滚事务
+    /// Rolling back transactions
     ///
     /// # 返回
     /// - 成功时返回 ()
     /// - 失败时返回错误
     ///
     /// # 注意
-    /// 事务回滚后不能再使用
+    /// Transaction rollback cannot be reused after
     pub fn rollback(mut self) -> CoreResult<()> {
         self.check_active()?;
 
@@ -224,15 +224,15 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
         Ok(())
     }
 
-    /// 创建保存点
+    /// Creating a save point
     ///
-    /// 保存点允许在事务内部创建一个标记点，可以回滚到该点而不影响整个事务
+    /// A save point allows the creation of a marker within a transaction, enabling rollback to that point without affecting the entire transaction.
     ///
     /// # 参数
-    /// - `name` - 保存点名称（可选）
+    /// `name` – Name of the save point (optional)
     ///
     /// # 返回
-    /// - 成功时返回保存点ID
+    /// Return the save point ID when successful.
     /// - 失败时返回错误
     ///
     /// # 示例
@@ -245,13 +245,13 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
     /// let session = db.session()?;
     /// let txn = session.begin_transaction()?;
     ///
-    /// // 创建保存点
+    // Create a save point
     /// let sp = txn.create_savepoint(Some("checkpoint1".to_string()))?;
     ///
-    /// // 执行一些操作...
+    // Perform some operations…
     /// txn.execute("INSERT VERTEX user(name) VALUES \"1\":(\"Alice\")")?;
     ///
-    /// // 如果需要，可以回滚到保存点
+    // If necessary, it is possible to roll back to a previously saved state.
     /// txn.rollback_to_savepoint(sp)?;
     ///
     /// // 提交事务
@@ -268,13 +268,13 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
-    /// 回滚到保存点
+    /// Roll back to the saved point.
     ///
-    /// 回滚到指定保存点，该保存点之后的所有操作都会被撤销
-    /// 但保存点本身仍然有效，可以继续使用
+    /// Roll back to the specified save point; all operations performed after that save point will be undone.
+    /// However, the save point itself remains valid and can still be used.
     ///
     /// # 参数
-    /// - `savepoint_id` - 保存点ID
+    /// `savepoint_id` – ID of the savepoint
     ///
     /// # 返回
     /// - 成功时返回 ()
@@ -288,9 +288,9 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
-    /// 释放保存点
+    /// Release the save point.
     ///
-    /// 释放保存点后，不能再回滚到该保存点，但也不会回滚任何更改
+    /// Once a save point is released, it is no longer possible to revert back to that save point. However, no changes will be undone either.
     ///
     /// # 参数
     /// - `savepoint_id` - 保存点ID
@@ -307,14 +307,14 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
-    /// 通过名称查找保存点
+    /// Find a saved point by its name
     ///
     /// # 参数
-    /// - `name` - 保存点名称
+    /// “name” – The name of the save point.
     ///
     /// # 返回
     /// - 找到时返回 Some(SavepointId)
-    /// - 未找到时返回 None
+    /// Return `None` when not found.
     pub fn find_savepoint(&self, name: &str) -> Option<SavepointId> {
         if !self.is_active() {
             return None;
@@ -326,10 +326,10 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             .map(|info| info.id)
     }
 
-    /// 获取所有活跃保存点
+    /// Retrieve all active save points.
     ///
     /// # 返回
-    /// 活跃保存点信息列表
+    /// List of active save point information
     pub fn list_savepoints(&self) -> Vec<SavepointInfo> {
         if !self.is_active() {
             return Vec::new();
@@ -339,10 +339,10 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
         txn_manager.get_active_savepoints(self.txn_handle.0)
     }
 
-    /// 获取事务信息
+    /// Obtaining transaction information
     ///
     /// # 返回
-    /// - 成功时返回事务信息
+    /// Return transaction information in case of success.
     /// - 失败时返回错误
     pub fn info(&self) -> CoreResult<TransactionInfo> {
         let txn_manager = self.session.txn_manager();
@@ -358,7 +358,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
             .ok_or_else(|| CoreError::TransactionFailed("事务未找到".to_string()))
     }
 
-    /// 检查事务是否处于活动状态
+    /// Check whether the transaction is in an active state.
     fn check_active(&self) -> CoreResult<()> {
         if self.committed {
             return Err(CoreError::TransactionFailed(
@@ -373,29 +373,29 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
         Ok(())
     }
 
-    /// 检查事务是否已提交
+    /// Check whether the transaction has been committed.
     pub fn is_committed(&self) -> bool {
         self.committed
     }
 
-    /// 检查事务是否已回滚
+    /// Check whether the transaction has been rolled back.
     pub fn is_rolled_back(&self) -> bool {
         self.rolled_back
     }
 
-    /// 检查事务是否仍处于活动状态
+    /// Check whether the transaction is still in an active state.
     pub fn is_active(&self) -> bool {
         !self.committed && !self.rolled_back
     }
 
-    /// 获取事务句柄
+    /// Obtaining the transaction handle
     ///
-    /// 返回此事务的唯一句柄，可用于跨 API 追踪事务状态
+    /// Return the unique handle for this transaction, which can be used to track the transaction status across different APIs.
     pub fn handle(&self) -> TransactionHandle {
         self.txn_handle
     }
 
-    /// 获取事务ID
+    /// Get Transaction ID
     pub fn id(&self) -> u64 {
         self.txn_handle.0
     }
@@ -403,7 +403,7 @@ impl<'sess, S: StorageClient + Clone + 'static> Transaction<'sess, S> {
 
 impl<'sess, S: StorageClient + Clone + 'static> Drop for Transaction<'sess, S> {
     fn drop(&mut self) {
-        // 如果事务仍处于活动状态，自动回滚
+        // If the transaction is still active, it will be automatically rolled back.
         if self.is_active() {
             let _ = self
                 .session
@@ -413,20 +413,20 @@ impl<'sess, S: StorageClient + Clone + 'static> Drop for Transaction<'sess, S> {
     }
 }
 
-/// 事务信息
+/// Transaction information
 ///
-/// 提供事务的详细信息和状态
+/// Provide detailed information and the status of the transaction.
 #[derive(Debug, Clone)]
 pub struct TransactionInfo {
-    /// 事务ID
+    /// Transaction ID
     pub id: u64,
-    /// 事务状态
+    /// Transaction status
     pub state: String,
     /// 是否只读
     pub is_read_only: bool,
-    /// 已运行时间（毫秒）
+    /// Running time (milliseconds)
     pub elapsed_ms: u64,
-    /// 保存点数量
+    /// Number of save points
     pub savepoint_count: usize,
 }
 
@@ -436,22 +436,22 @@ impl TransactionInfo {
         self.id
     }
 
-    /// 获取事务状态
+    /// Getting Transaction Status
     pub fn state(&self) -> &str {
         &self.state
     }
 
-    /// 检查是否只读
+    /// Check for read-only
     pub fn is_read_only(&self) -> bool {
         self.is_read_only
     }
 
-    /// 获取已运行时间（毫秒）
+    /// Get Running Time (milliseconds)
     pub fn elapsed_ms(&self) -> u64 {
         self.elapsed_ms
     }
 
-    /// 获取保存点数量
+    /// Get the number of savepoints
     pub fn savepoint_count(&self) -> usize {
         self.savepoint_count
     }

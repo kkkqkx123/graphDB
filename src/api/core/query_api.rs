@@ -1,6 +1,6 @@
-//! 查询执行 API - 核心层
+//! Query Execution API – Core Layer
 //!
-//! 提供与传输层无关的查询执行功能
+//! Provides transport layer independent query execution
 
 use crate::api::core::{CoreError, CoreResult, ExecutionMetadata, QueryRequest, QueryResult, Row};
 use crate::core::StatsManager;
@@ -10,13 +10,13 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::Instant;
 
-/// 通用查询 API - 核心层
+/// Universal Query API – Core Layer
 pub struct QueryApi<S: StorageClient + 'static> {
     pipeline_manager: QueryPipelineManager<S>,
 }
 
 impl<S: StorageClient + Clone + 'static> QueryApi<S> {
-    /// 创建新的 QueryApi 实例
+    /// Create a new QueryApi instance
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
         let stats_manager = Arc::new(StatsManager::new());
         let optimizer_engine = Arc::new(OptimizerEngine::default());
@@ -29,23 +29,23 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         }
     }
 
-    /// 执行查询
+    /// Please provide the text you would like to have translated.
     ///
-    /// # 参数
-    /// - `query`: 查询语句
-    /// - `ctx`: 查询请求
+    /// # Parameters
+    /// `query`: The query statement
+    /// - `ctx`: query request
     ///
-    /// # 返回
-    /// 结构化查询结果
+    /// # Return
+    /// Structured Search Results
     pub fn execute(&mut self, query: &str, ctx: QueryRequest) -> CoreResult<QueryResult> {
         let start_time = Instant::now();
 
-        // 构建 QueryRequestContext
+        // Constructing a QueryRequestContext
         let rctx = Arc::new(
             crate::query::query_request_context::QueryRequestContext::new(query.to_string()),
         );
 
-        // 构建空间信息
+        // Building spatial information
         let space_info = ctx.space_id.map(|id| crate::core::types::SpaceInfo {
             space_id: id,
             space_name: String::new(),
@@ -56,20 +56,20 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             comment: None,
         });
 
-        // 执行查询（使用新的 execute_query_with_request 方法）
+        // Execute the query (using the new execute_query_with_request method).
         let execution_result = self
             .pipeline_manager
             .execute_query_with_request(query, rctx, space_info)
             .map_err(|e| CoreError::QueryExecutionFailed(e.to_string()))?;
 
-        // 转换为结构化结果
+        // Conversion to structured results
         let mut result = Self::convert_to_query_result(execution_result)?;
         result.metadata.execution_time_ms = start_time.elapsed().as_millis() as u64;
 
         Ok(result)
     }
 
-    /// 执行参数化查询
+    /// Execute a parameterized query
     pub fn execute_with_params(
         &mut self,
         query: &str,
@@ -81,13 +81,13 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         self.execute(query, ctx)
     }
 
-    /// 将执行结果转换为结构化查询结果
+    /// Convert execution results to structured query results
     fn convert_to_query_result(
         execution: crate::query::executor::base::ExecutionResult,
     ) -> CoreResult<QueryResult> {
         match execution {
             crate::query::executor::base::ExecutionResult::DataSet(data) => {
-                // 处理数据集结果 - DataSet 使用 col_names 而不是 columns
+                // Processing the results of a dataset: The DataSet uses `col_names` instead of `columns`.
                 let columns = data.col_names.clone();
                 let mut rows = Vec::new();
 
@@ -115,7 +115,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 })
             }
             crate::query::executor::base::ExecutionResult::Values(values) => {
-                // 处理值列表结果
+                // Processing value list results
                 let column = "value".to_string();
                 let rows: Vec<Row> = values
                     .into_iter()
@@ -133,7 +133,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 })
             }
             crate::query::executor::base::ExecutionResult::Vertices(vertices) => {
-                // 处理顶点结果 - Value::Vertex 需要 Box<Vertex>
+                // Processing vertex results: The Value::Vertex type requires a Box(Vertex> object.
                 let rows: Vec<Row> = vertices
                     .into_iter()
                     .map(|v| {
@@ -153,7 +153,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 })
             }
             crate::query::executor::base::ExecutionResult::Edges(edges) => {
-                // 处理边结果 - Value::Edge 不需要 Box
+                // Processing Edge Results - Value::Edge does not require a Box.
                 let rows: Vec<Row> = edges
                     .into_iter()
                     .map(|e| {
@@ -192,7 +192,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
             }
             crate::query::executor::base::ExecutionResult::Empty
             | crate::query::executor::base::ExecutionResult::Success => {
-                // 空结果
+                // Empty result
                 Ok(QueryResult {
                     columns: Vec::new(),
                     rows: Vec::new(),
@@ -200,7 +200,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 })
             }
             crate::query::executor::base::ExecutionResult::Count(count) => {
-                // 计数结果
+                // Counting results
                 let mut row = Row::new();
                 row.insert("count".to_string(), crate::core::Value::Int(count as i64));
 
@@ -211,7 +211,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
                 })
             }
             crate::query::executor::base::ExecutionResult::Paths(paths) => {
-                // 路径结果 - Value::Path 不需要 Box
+                // Path result – The Value::Path type does not require the use of a Box.
                 let rows: Vec<Row> = paths
                     .into_iter()
                     .map(|p| {

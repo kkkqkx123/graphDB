@@ -1,9 +1,9 @@
-//! 查询结果类型定义
+//! Definition of query result type
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// 查询请求
+/// Query request
 #[derive(Debug, Deserialize)]
 pub struct QueryRequest {
     pub query: String,
@@ -12,7 +12,7 @@ pub struct QueryRequest {
     pub parameters: HashMap<String, String>,
 }
 
-/// 查询响应（结构化）
+/// Query response (structured)
 #[derive(Debug, Serialize)]
 pub struct QueryResponse {
     pub success: bool,
@@ -21,7 +21,7 @@ pub struct QueryResponse {
     pub metadata: QueryMetadata,
 }
 
-/// 查询数据
+/// Query data
 #[derive(Debug, Serialize)]
 pub struct QueryData {
     pub columns: Vec<String>,
@@ -29,7 +29,7 @@ pub struct QueryData {
     pub row_count: usize,
 }
 
-/// 查询元数据
+/// Query metadata
 #[derive(Debug, Serialize)]
 pub struct QueryMetadata {
     pub execution_time_ms: u64,
@@ -38,7 +38,7 @@ pub struct QueryMetadata {
     pub space_id: Option<u64>,
 }
 
-/// 查询错误
+/// Query error.
 #[derive(Debug, Serialize)]
 pub struct QueryError {
     pub code: String,
@@ -46,7 +46,7 @@ pub struct QueryError {
     pub details: Option<String>,
 }
 
-/// 验证响应
+/// Verify the response.
 #[derive(Debug, Serialize)]
 pub struct ValidateResponse {
     pub valid: bool,
@@ -54,7 +54,7 @@ pub struct ValidateResponse {
 }
 
 impl QueryResponse {
-    /// 创建成功响应
+    /// A successful response has been created.
     pub fn success(data: QueryData, metadata: QueryMetadata) -> Self {
         Self {
             success: true,
@@ -64,7 +64,7 @@ impl QueryResponse {
         }
     }
 
-    /// 创建错误响应
+    /// Creating an error response
     pub fn error(code: String, message: String, details: Option<String>) -> Self {
         Self {
             success: false,
@@ -85,7 +85,7 @@ impl QueryResponse {
 }
 
 impl QueryData {
-    /// 创建空的查询数据
+    /// Create empty query data.
     pub fn empty() -> Self {
         Self {
             columns: Vec::new(),
@@ -94,7 +94,7 @@ impl QueryData {
         }
     }
 
-    /// 从列和行创建查询数据
+    /// Create query data from columns and rows.
     pub fn new(columns: Vec<String>, rows: Vec<HashMap<String, serde_json::Value>>) -> Self {
         let row_count = rows.len();
         Self {

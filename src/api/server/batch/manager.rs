@@ -1,4 +1,4 @@
-//! 批量任务管理器
+//! Batch Task Manager
 
 use crate::api::core::{CoreError, CoreResult};
 use crate::api::server::batch::types::*;
@@ -9,16 +9,16 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 use uuid::Uuid;
 
-/// 批量任务管理器
+/// Batch Task Manager
 pub struct BatchManager<S: StorageClient + Clone + 'static> {
-    /// 存储所有批量任务
+    /// Store all batch jobs
     tasks: Arc<DashMap<BatchId, BatchTask>>,
-    /// 存储客户端
+    /// Storage Client
     storage: Arc<Mutex<S>>,
 }
 
 impl<S: StorageClient + Clone + 'static> BatchManager<S> {
-    /// 创建新的批量任务管理器
+    /// Creating a new batch task manager
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
         Self {
             tasks: Arc::new(DashMap::new()),
@@ -26,7 +26,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         }
     }
 
-    /// 创建批量任务
+    /// Creating Batch Tasks
     pub fn create_task(
         &self,
         space_id: u64,
@@ -41,12 +41,12 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         Ok(task)
     }
 
-    /// 获取批量任务
+    /// Get Batch Tasks
     pub fn get_task(&self, batch_id: &str) -> Option<BatchTask> {
         self.tasks.get(batch_id).map(|t| t.clone())
     }
 
-    /// 添加批量项
+    /// Adding Batch Items
     pub fn add_items(&self, batch_id: &str, items: Vec<BatchItem>) -> CoreResult<usize> {
         let mut task = self
             .tasks
@@ -64,7 +64,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         Ok(count)
     }
 
-    /// 执行批量任务
+    /// Perform batch tasks
     pub async fn execute_task(
         &self,
         batch_id: &str,
@@ -82,22 +82,22 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
             )));
         }
 
-        // 更新状态为运行中
+        // Update status to running
         {
             let mut task = self.tasks.get_mut(batch_id).expect("任务应该存在");
             task.update_status(BatchStatus::Running);
         }
 
-        // 获取所有缓冲的项
+        // Get all buffered items
         let items = {
             let mut task = self.tasks.get_mut(batch_id).expect("任务应该存在");
             task.take_buffered_items()
         };
 
-        // 执行批量插入
+        // Perform batch insertion
         let result = self.process_items(items, space_name).await;
 
-        // 更新任务状态和结果
+        // Update task status and results
         {
             let mut task = self.tasks.get_mut(batch_id).expect("任务应该存在");
 
@@ -129,7 +129,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         result
     }
 
-    /// 取消批量任务
+    /// Cancel Batch Tasks
     pub fn cancel_task(&self, batch_id: &str) -> CoreResult<()> {
         let mut task = self
             .tasks
@@ -148,7 +148,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         }
     }
 
-    /// 删除批量任务
+    /// Delete Batch Tasks
     pub fn remove_task(&self, batch_id: &str) -> CoreResult<()> {
         self.tasks
             .remove(batch_id)
@@ -156,7 +156,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         Ok(())
     }
 
-    /// 处理批量项
+    /// Processing of batch items
     async fn process_items(
         &self,
         items: Vec<BatchItem>,
@@ -165,7 +165,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         let mut vertices = Vec::new();
         let mut edges = Vec::new();
 
-        // 分类顶点与边
+        // Categorize vertices and edges
         for item in items {
             match item {
                 BatchItem::Vertex(data) => {
@@ -187,7 +187,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
             errors: Vec::new(),
         };
 
-        // 批量插入顶点
+        // Batch insertion of vertices
         if !vertices.is_empty() {
             match self.insert_vertices(space_name, vertices).await {
                 Ok(count) => {
@@ -203,7 +203,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
             }
         }
 
-        // 批量插入边
+        // Batch insertion of edges
         if !edges.is_empty() {
             match self.insert_edges(space_name, edges).await {
                 Ok(count) => {
@@ -222,11 +222,11 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         Ok(result)
     }
 
-    /// 转换顶点数据
+    /// Converting Vertex Data
     fn convert_vertex_data(&self, data: VertexData) -> Option<Vertex> {
         let vid = json_to_value(data.vid)?;
 
-        // 构建标签列表
+        // Building a list of tags
         let tags: Vec<crate::core::vertex_edge_path::Tag> = data
             .tags
             .into_iter()
@@ -235,7 +235,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
             })
             .collect();
 
-        // 转换属性
+        // Converting Attributes
         let properties: std::collections::HashMap<String, Value> = data
             .properties
             .into_iter()
@@ -245,12 +245,12 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         Some(Vertex::new_with_properties(vid, tags, properties))
     }
 
-    /// 转换边数据
+    /// Conversion side data
     fn convert_edge_data(&self, data: EdgeData) -> Option<Edge> {
         let src_vid = json_to_value(data.src_vid)?;
         let dst_vid = json_to_value(data.dst_vid)?;
 
-        // 转换属性
+        // Converting Attributes
         let props: std::collections::HashMap<String, Value> = data
             .properties
             .into_iter()
@@ -261,12 +261,12 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
             src_vid,
             dst_vid,
             data.edge_type,
-            0, // ranking 默认为0
+            0, // Ranking defaults to 0
             props,
         ))
     }
 
-    /// 插入顶点
+    /// Insert vertex
     async fn insert_vertices(&self, space_name: &str, vertices: Vec<Vertex>) -> CoreResult<usize> {
         let count = vertices.len();
 
@@ -277,7 +277,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
         }
     }
 
-    /// 插入边
+    /// insertion side
     async fn insert_edges(&self, space_name: &str, edges: Vec<Edge>) -> CoreResult<usize> {
         let count = edges.len();
 
@@ -289,7 +289,7 @@ impl<S: StorageClient + Clone + 'static> BatchManager<S> {
     }
 }
 
-/// 将JSON值转换为Core Value
+/// Converting JSON Values to Core Value
 fn json_to_value(json: serde_json::Value) -> Option<Value> {
     match json {
         serde_json::Value::Null => Some(Value::Null(crate::core::NullType::Null)),

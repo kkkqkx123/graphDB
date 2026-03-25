@@ -1,6 +1,6 @@
-//! C API 模块
+//! C API Module
 //!
-//! 提供 GraphDB 的 C 语言接口
+//! Provides a C interface to GraphDB
 
 pub mod batch;
 pub mod database;

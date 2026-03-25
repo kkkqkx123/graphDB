@@ -5,27 +5,27 @@ use std::sync::Arc;
 use crate::config::AuthConfig;
 use crate::core::error::AuthResult;
 
-/// 认证 trait
+/// Authentication trait
 pub trait Authenticator: Send + Sync {
     fn authenticate(&self, username: &str, password: &str) -> AuthResult<()>;
 }
 
-/// 登录失败记录
+/// Login Failure Record
 #[derive(Debug, Clone)]
 struct LoginAttempt {
-    /// 剩余尝试次数
+    /// Remaining attempts
     remaining_attempts: u32,
 }
 
-/// 用户验证回调函数类型
+/// User Authentication Callback Function Types
 pub type UserVerifier = Arc<dyn Fn(&str, &str) -> AuthResult<bool> + Send + Sync>;
 
-/// 密码认证器 - 支持登录失败限制和账户锁定
+/// Password Authenticator - Supports failed login restrictions and account lockout
 pub struct PasswordAuthenticator {
-    /// 用户验证回调
+    /// User Authentication Callbacks
     user_verifier: UserVerifier,
     config: AuthConfig,
-    /// 用户登录尝试记录
+    /// Logging of user login attempts
     login_attempts: Arc<RwLock<HashMap<String, LoginAttempt>>>,
 }
 
@@ -41,14 +41,14 @@ impl PasswordAuthenticator {
         }
     }
 
-    /// 创建默认的密码认证器（支持配置的用户名和密码）
+    /// Create default password authenticator (supports configured username and password)
     pub fn new_default(config: AuthConfig) -> Self {
         let default_username = config.default_username.clone();
         let default_password = config.default_password.clone();
 
         Self::new(
             move |username: &str, password: &str| {
-                // 使用配置的默认用户名和密码
+                // Use the configured default username and password
                 if username == default_username && password == default_password {
                     Ok(true)
                 } else {
@@ -59,9 +59,9 @@ impl PasswordAuthenticator {
         )
     }
 
-    /// 记录登录失败
+    /// Record Login Failure
     fn record_failed_attempt(&self, username: &str) {
-        // 如果未启用登录失败限制，直接返回
+        // If the login failure restriction is not enabled, it returns directly
         if self.config.failed_login_attempts == 0 {
             return;
         }
@@ -74,19 +74,19 @@ impl PasswordAuthenticator {
                 remaining_attempts: self.config.failed_login_attempts,
             });
 
-        // 减少剩余尝试次数
+        // Reduce the number of remaining attempts
         if attempt.remaining_attempts > 0 {
             attempt.remaining_attempts -= 1;
         }
     }
 
-    /// 重置登录尝试记录（登录成功时调用）
+    /// Reset logging of login attempts (called on successful login)
     fn reset_attempts(&self, username: &str) {
         let mut attempts = self.login_attempts.write();
         attempts.remove(username);
     }
 
-    /// 验证用户密码
+    /// Verify user passwords
     fn verify_password(&self, username: &str, password: &str) -> AuthResult<bool> {
         (self.user_verifier)(username, password)
     }
@@ -96,7 +96,7 @@ impl Authenticator for PasswordAuthenticator {
     fn authenticate(&self, username: &str, password: &str) -> AuthResult<()> {
         use crate::core::error::AuthError;
 
-        // 检查是否启用授权
+        // Check if authorization is enabled
         if !self.config.enable_authorize {
             return Ok(());
         }
@@ -105,15 +105,15 @@ impl Authenticator for PasswordAuthenticator {
             return Err(AuthError::EmptyCredentials);
         }
 
-        // 验证密码
+        // Verify Password
         match self.verify_password(username, password) {
             Ok(true) => {
-                // 登录成功，重置尝试记录
+                // Login successful, reset attempt log
                 self.reset_attempts(username);
                 Ok(())
             }
             Ok(false) => {
-                // 登录失败，记录尝试
+                // Login failed, logging attempt
                 self.record_failed_attempt(username);
 
                 let attempts = self.login_attempts.read();
@@ -132,11 +132,11 @@ impl Authenticator for PasswordAuthenticator {
     }
 }
 
-/// 认证器工厂
+/// Authenticator Factory
 pub struct AuthenticatorFactory;
 
 impl AuthenticatorFactory {
-    /// 创建密码认证器
+    /// Creating a Password Authenticator
     pub fn create<F>(config: &AuthConfig, user_verifier: F) -> PasswordAuthenticator
     where
         F: Fn(&str, &str) -> AuthResult<bool> + Send + Sync + 'static,
@@ -144,7 +144,7 @@ impl AuthenticatorFactory {
         PasswordAuthenticator::new(user_verifier, config.clone())
     }
 
-    /// 创建默认的密码认证器
+    /// Creating a default password authenticator
     pub fn create_default(config: &AuthConfig) -> PasswordAuthenticator {
         PasswordAuthenticator::new_default(config.clone())
     }
@@ -185,7 +185,7 @@ mod tests {
     fn test_password_authenticator_default() {
         let config = AuthConfig {
             enable_authorize: true,
-            failed_login_attempts: 0, // 禁用登录限制
+            failed_login_attempts: 0, // Disable Login Restrictions
             session_idle_timeout_secs: 3600,
             default_username: "admin".to_string(),
             default_password: "admin123".to_string(),
@@ -194,9 +194,9 @@ mod tests {
 
         let auth = PasswordAuthenticator::new_default(config);
 
-        // 使用正确的默认凭据
+        // Use the correct default credentials
         assert!(auth.authenticate("admin", "admin123").is_ok());
-        // 使用错误的凭据
+        // Using the wrong credentials
         assert!(auth.authenticate("admin", "wrong").is_err());
         assert!(auth.authenticate("user", "admin123").is_err());
     }
@@ -205,7 +205,7 @@ mod tests {
     fn test_login_attempt_limit() {
         let config = AuthConfig {
             enable_authorize: true,
-            failed_login_attempts: 2, // 最多2次失败
+            failed_login_attempts: 2, // Maximum 2 failures
             session_idle_timeout_secs: 3600,
             default_username: "test".to_string(),
             default_password: "test123".to_string(),
@@ -214,7 +214,7 @@ mod tests {
 
         let auth = PasswordAuthenticator::new(|_username: &str, _password: &str| Ok(false), config);
 
-        // 第一次失败 - 还剩1次
+        // First failure - 1 to go
         let result1 = auth.authenticate("user", "wrong");
         assert!(result1.is_err());
         assert!(result1
@@ -222,7 +222,7 @@ mod tests {
             .to_string()
             .contains("1 attempts remaining"));
 
-        // 第二次失败 - 达到最大尝试次数
+        // Second failure - maximum number of attempts reached
         let result2 = auth.authenticate("user", "wrong");
         assert!(result2.is_err());
         assert!(result2
@@ -230,7 +230,7 @@ mod tests {
             .to_string()
             .contains("Maximum attempts exceeded"));
 
-        // 第三次失败 - 仍然显示达到最大尝试次数
+        // Third Failure - still showing that the maximum number of attempts has been reached
         let result3 = auth.authenticate("user", "wrong");
         assert!(result3.is_err());
         assert!(result3
@@ -241,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_successful_login_resets_attempts() {
-        // 使用Arc<AtomicBool>来在闭包中共享可变状态
+        // Using Arc<AtomicBool> to share mutable state in a closure
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
 
@@ -268,17 +268,17 @@ mod tests {
             config,
         );
 
-        // 第一次失败
+        // First failure.
         assert!(auth.authenticate("user", "wrong").is_err());
 
-        // 成功登录应该重置失败计数
+        // Successful logins should reset the failure count
         success.store(true, Ordering::SeqCst);
         assert!(auth.authenticate("user", "correct").is_ok());
 
-        // 再次失败，应该重新计数
+        // Failed again and should be recounted
         success.store(false, Ordering::SeqCst);
         assert!(auth.authenticate("user", "wrong").is_err());
-        // 还有一次机会
+        // One more chance.
         assert!(auth.authenticate("user", "wrong").is_err());
     }
 
@@ -295,9 +295,9 @@ mod tests {
 
         let _auth =
             AuthenticatorFactory::create(&config, |_username: &str, _password: &str| Ok(true));
-        // 验证创建成功（不再返回Result，直接创建成功）
+        // Verify successful creation (no longer return Result, just create successfully)
 
         let _auth_default = AuthenticatorFactory::create_default(&config);
-        // 验证创建成功
+        // Verify successful creation
     }
 }

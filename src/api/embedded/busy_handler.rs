@@ -1,31 +1,31 @@
-//! 忙等待处理器模块
+//! Busy Waiting Processor Module
 //!
-//! 提供多线程环境下的并发控制机制，支持超时和指数退避等待策略
+//! Provide concurrency control mechanism in multi-threaded environments, support timeout and exponential backoff waiting strategy
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, Instant};
 
-/// 忙等待处理器
+/// Busy Waiting Processor
 ///
-/// 当多个线程同时访问数据库时，用于处理资源冲突
-/// 支持指数退避算法，避免忙等待消耗过多 CPU
+/// Used to handle resource conflicts when multiple threads access the database at the same time
+/// Supports exponential backoff algorithm to avoid busy waiting consuming too much CPU.
 #[derive(Debug)]
 pub struct BusyHandler {
-    /// 超时时间（毫秒），0 表示不等待
+    /// Timeout time (milliseconds), 0 means no wait
     timeout_ms: u32,
-    /// 当前重试次数
+    /// Current Retries
     retry_count: AtomicU32,
-    /// 开始时间
+    /// Starting time
     start_time: Instant,
 }
 
 impl BusyHandler {
-    /// 创建新的忙等待处理器
+    /// Creating a new Busy Waiting Processor
     ///
-    /// # 参数
-    /// - `timeout_ms` - 超时时间（毫秒），0 表示不等待
+    /// # Parameters
+    /// - `timeout_ms` - timeout in milliseconds, 0 means no wait
     ///
-    /// # 示例
+    /// # Examples
     ///
     /// ```rust
     /// use graphdb::api::embedded::BusyHandler;
@@ -40,36 +40,36 @@ impl BusyHandler {
         }
     }
 
-    /// 处理忙状态
+    /// Busy status is handled
     ///
-    /// 返回 true 表示继续等待，false 表示放弃（超时）
+    /// Returns true to continue waiting, false to abort (timeout)
     ///
-    /// # 说明
+    /// # Description
     ///
-    /// 使用指数退避算法计算等待时间：
-    /// - 第 0 次：1ms
-    /// - 第 1 次：2ms
-    /// - 第 2 次：4ms
+    /// Calculate the waiting time using the exponential backoff algorithm:
+    /// - 0th: 1ms
+    /// - 1st: 2ms
+    /// - 2nd: 4ms
     /// - ...
-    /// - 最大 100ms
+    /// - 100ms max.
     pub fn handle_busy(&self) -> bool {
-        // 不等待模式
+        // no-wait mode
         if self.timeout_ms == 0 {
             return false;
         }
 
         let count = self.retry_count.fetch_add(1, Ordering::SeqCst);
 
-        // 检查是否超时
+        // Check for timeouts
         let elapsed = self.start_time.elapsed().as_millis() as u64;
         if elapsed >= self.timeout_ms as u64 {
             return false;
         }
 
-        // 计算等待时间（指数退避）
+        // Calculation of waiting time (exponential retreat)
         let wait_ms = Self::calculate_wait_time(count);
 
-        // 确保不超过剩余超时时间
+        // Ensure that the remaining timeout is not exceeded
         let remaining = self.timeout_ms as u64 - elapsed;
         let actual_wait = std::cmp::min(wait_ms, remaining);
 
@@ -77,7 +77,7 @@ impl BusyHandler {
         true
     }
 
-    /// 检查是否已超时
+    /// Check if timeout has expired
     pub fn is_timeout(&self) -> bool {
         if self.timeout_ms == 0 {
             return true;
@@ -85,29 +85,29 @@ impl BusyHandler {
         self.start_time.elapsed().as_millis() as u64 >= self.timeout_ms as u64
     }
 
-    /// 获取当前重试次数
+    /// Get current retry count
     pub fn retry_count(&self) -> u32 {
         self.retry_count.load(Ordering::SeqCst)
     }
 
-    /// 获取已等待时间（毫秒）
+    /// Get the waited time in milliseconds
     pub fn elapsed_ms(&self) -> u64 {
         self.start_time.elapsed().as_millis() as u64
     }
 
-    /// 重置处理器状态
+    /// Reset processor state
     pub fn reset(&self) {
         self.retry_count.store(0, Ordering::SeqCst);
     }
 
-    /// 计算等待时间（指数退避）
+    /// Calculation of waiting time (exponential retreat)
     ///
     /// 公式：min(2^retry_count, 100) 毫秒
     fn calculate_wait_time(retry_count: u32) -> u64 {
         let base = 1u64;
-        let max_wait = 100u64; // 最大 100ms
+        let max_wait = 100u64; // Maximum 100ms
 
-        // 防止移位溢出
+        // Shift overflow prevention
         if retry_count >= 63 {
             return max_wait;
         }
@@ -126,42 +126,42 @@ impl Clone for BusyHandler {
     }
 }
 
-/// 忙等待结果
+/// Busy waiting for results
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BusyResult {
-    /// 成功获取资源
+    /// Successful access to resources
     Success,
-    /// 超时
+    /// overtime pay
     Timeout,
-    /// 放弃（不等待）
+    /// Giving up (not waiting)
     Abort,
 }
 
-/// 忙等待配置
+/// Busy Waiting Configuration
 #[derive(Debug, Clone, Copy)]
 pub struct BusyConfig {
-    /// 超时时间（毫秒）
+    /// Timeout time (milliseconds)
     pub timeout_ms: u32,
-    /// 最大重试次数（0 表示无限制）
+    /// Maximum number of retries (0 means unlimited)
     pub max_retries: u32,
 }
 
 impl BusyConfig {
-    /// 创建新的忙等待配置
+    /// Creating a New Busy Waiting Configuration
     pub fn new(timeout_ms: u32) -> Self {
         Self {
             timeout_ms,
-            max_retries: 0, // 无限制
+            max_retries: 0, // limitless
         }
     }
 
-    /// 设置最大重试次数
+    /// Setting the maximum number of retries
     pub fn with_max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = max_retries;
         self
     }
 
-    /// 禁用忙等待（立即失败）
+    /// Disable busy wait (immediate failure)
     pub fn no_wait() -> Self {
         Self {
             timeout_ms: 0,
@@ -173,7 +173,7 @@ impl BusyConfig {
 impl Default for BusyConfig {
     fn default() -> Self {
         Self {
-            timeout_ms: 5000, // 默认 5 秒
+            timeout_ms: 5000, // Default 5 seconds
             max_retries: 0,
         }
     }
@@ -192,17 +192,17 @@ mod tests {
 
     #[test]
     fn test_busy_handler_wait() {
-        let handler = BusyHandler::new(100); // 100ms 超时
-        assert!(handler.handle_busy()); // 第一次应该返回 true
+        let handler = BusyHandler::new(100); // 100ms timeout
+        assert!(handler.handle_busy()); // should return true the first time
         assert!(!handler.is_timeout());
         assert_eq!(handler.retry_count(), 1);
     }
 
     #[test]
     fn test_busy_handler_timeout() {
-        let handler = BusyHandler::new(1); // 1ms 超时
+        let handler = BusyHandler::new(1); // 1ms timeout
         std::thread::sleep(Duration::from_millis(2));
-        assert!(!handler.handle_busy()); // 应该超时
+        assert!(!handler.handle_busy()); // It should time out.
         assert!(handler.is_timeout());
     }
 
@@ -212,8 +212,8 @@ mod tests {
         assert_eq!(BusyHandler::calculate_wait_time(1), 2);
         assert_eq!(BusyHandler::calculate_wait_time(2), 4);
         assert_eq!(BusyHandler::calculate_wait_time(6), 64);
-        assert_eq!(BusyHandler::calculate_wait_time(7), 100); // 达到最大值
-        assert_eq!(BusyHandler::calculate_wait_time(10), 100); // 保持最大值
+        assert_eq!(BusyHandler::calculate_wait_time(7), 100); // hit one's maximum value
+        assert_eq!(BusyHandler::calculate_wait_time(10), 100); // Maintaining the maximum value
     }
 
     #[test]

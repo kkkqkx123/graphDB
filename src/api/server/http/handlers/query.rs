@@ -16,10 +16,10 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
     let result = task::spawn_blocking(move || {
         let graph_service = state.server.get_graph_service();
 
-        // 通过 GraphService 执行查询
+        // Executing Queries with GraphService
         match graph_service.execute(request.session_id, &request.query) {
             Ok(exec_result) => {
-                // 将 ExecutionResult 转换为 QueryResponse
+                // Converting ExecutionResult to QueryResponse
                 Ok::<_, HttpError>(execution_result_to_response(exec_result))
             }
             Err(e) => Ok::<_, HttpError>(QueryResponse::error(
@@ -35,7 +35,7 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(result?))
 }
 
-/// 将 ExecutionResult 转换为 QueryResponse
+/// Converting ExecutionResult to QueryResponse
 fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
     match result {
         ExecutionResult::Values(values) => {
@@ -192,7 +192,7 @@ fn execution_result_to_response(result: ExecutionResult) -> QueryResponse {
     }
 }
 
-/// 将 Core Value 转换为 serde_json::Value
+/// Convert Core Value to serde_json::Value
 fn value_to_json(value: crate::core::Value) -> serde_json::Value {
     match value {
         crate::core::Value::Empty => serde_json::Value::Null,

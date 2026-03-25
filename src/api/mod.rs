@@ -1,9 +1,9 @@
-//! GraphDB API 模块
+//! The GraphDB API module
 //!
-//! 提供多种访问方式：
-//! - `core` - 核心 API（与传输层无关）
-//! - `server` - 网络服务 API（HTTP）
-//! - `embedded` - 嵌入式 API（单机使用）
+//! Provide multiple access methods:
+//! “core” refers to the core API, which is independent of the transport layer.
+//! “server” refers to a network service API (HTTP).
+//! “Embedded” refers to an API that is designed to be used on a standalone device (i.e., without the need for any additional servers or networks).
 
 use log::info;
 use std::sync::Arc;
@@ -16,7 +16,7 @@ pub mod server;
 #[cfg(feature = "embedded")]
 pub mod embedded;
 
-// 便捷导出
+// Convenient export options
 pub use core::{CoreError, CoreResult, QueryApi, SchemaApi};
 
 #[cfg(feature = "server")]
@@ -32,7 +32,7 @@ use crate::core::error::DBResult;
 use crate::storage::redb_storage::DefaultStorage;
 use crate::transaction::{TransactionManager, TransactionManagerConfig};
 
-/// 使用配置文件路径启动服务（已弃用，请使用 start_service_with_config）
+/// Start the service using the configuration file path (deprecated; please use start_service_with_config).
 #[cfg(feature = "server")]
 pub fn start_service(config_path: String) -> DBResult<()> {
     let config = match Config::load(&config_path) {
@@ -48,7 +48,7 @@ pub fn start_service(config_path: String) -> DBResult<()> {
     start_service_with_config(config)
 }
 
-/// 使用配置对象启动服务
+/// Start the service using the configuration object.
 #[cfg(feature = "server")]
 pub fn start_service_with_config(config: Config) -> DBResult<()> {
     println!("Initializing GraphDB service...");
@@ -63,7 +63,7 @@ pub fn start_service_with_config(config: Config) -> DBResult<()> {
     let storage = Arc::new(DefaultStorage::new()?);
     println!("Storage initialized (memory mode)");
 
-    // 创建事务管理器
+    // Create a transaction manager
     let db = storage.get_db().clone();
     let txn_config = TransactionManagerConfig {
         default_timeout: std::time::Duration::from_secs(config.transaction.default_timeout),
@@ -132,16 +132,16 @@ pub async fn execute_query(query_str: &str) -> DBResult<()> {
     Ok(())
 }
 
-/// 等待关闭信号（同步实现）
+/// Waiting for the shutdown signal (synchronous implementation)
 ///
-/// 注意：此函数在异步运行时外部使用，通过阻塞当前线程等待信号。
-/// 内部使用 tokio::signal 实现，需要短暂初始化运行时。
+/// This function is used externally when running asynchronously; it blocks the current thread in order to wait for the signal.
+/// The internal implementation uses `tokio::signal`, which requires a brief initialization of the runtime.
 pub fn shutdown_signal() {
     use tokio::runtime::Runtime;
 
     println!("Waiting for shutdown signal (Ctrl+C or SIGTERM)...");
 
-    // 创建一个临时运行时来等待异步信号
+    // Create a temporary runtime to wait for asynchronous signals.
     let rt = Runtime::new().expect("Failed to create temporary runtime");
     rt.block_on(async {
         async_shutdown_signal().await;
@@ -156,7 +156,7 @@ pub fn shutdown_signal() {
 // - Metrics and health check endpoints
 // - Admin operations
 
-/// 使用异步运行时启动 HTTP 服务器
+/// Start an HTTP server using an asynchronous runtime.
 #[cfg(feature = "server")]
 pub async fn start_http_server<S: crate::storage::StorageClient + Clone + Send + Sync + 'static>(
     server: Arc<HttpServer<S>>,
@@ -180,7 +180,7 @@ pub async fn start_http_server<S: crate::storage::StorageClient + Clone + Send +
     Ok(())
 }
 
-/// 异步关闭信号
+/// Asynchronous shutdown signal
 async fn async_shutdown_signal() {
     use tokio::signal;
 

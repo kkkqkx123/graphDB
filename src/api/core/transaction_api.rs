@@ -1,29 +1,29 @@
-//! 事务管理 API - 核心层
+//! Transaction Management API - Core Layer
 //!
-//! 提供与传输层无关的事务管理功能
+//! Provides transport layer-independent transaction management capabilities
 
 use crate::api::core::{CoreError, CoreResult, TransactionHandle};
 use crate::transaction::{TransactionManager, TransactionOptions};
 use std::sync::Arc;
 
-/// 通用事务 API - 核心层
+/// Common Transaction API - Core Layer
 pub struct TransactionApi {
     txn_manager: Arc<TransactionManager>,
 }
 
 impl TransactionApi {
-    /// 创建新的事务 API 实例
+    /// Creating a New Transaction API Instance
     pub fn new(txn_manager: Arc<TransactionManager>) -> Self {
         Self { txn_manager }
     }
 
-    /// 开始事务
+    /// Commencement of business
     ///
-    /// # 参数
-    /// - `options`: 事务选项
+    /// # Parameters
+    /// - `options`: transaction options
     ///
-    /// # 返回
-    /// 事务句柄
+    /// # Back
+    /// transaction handle
     pub fn begin(&self, options: TransactionOptions) -> CoreResult<TransactionHandle> {
         let txn_id = self
             .txn_manager
@@ -32,17 +32,17 @@ impl TransactionApi {
         Ok(TransactionHandle(txn_id))
     }
 
-    /// 提交事务
+    /// Submission of transactions
     ///
     /// # 参数
-    /// - `handle`: 事务句柄
+    /// - `handle`: transaction handle
     pub fn commit(&self, handle: TransactionHandle) -> CoreResult<()> {
         self.txn_manager
             .commit_transaction(handle.0)
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
-    /// 回滚（中止）事务
+    /// Rolling back (aborting) transactions
     ///
     /// # 参数
     /// - `handle`: 事务句柄
@@ -52,19 +52,19 @@ impl TransactionApi {
             .map_err(|e| CoreError::TransactionFailed(e.to_string()))
     }
 
-    /// 获取事务状态
+    /// Getting Transaction Status
     ///
     /// # 参数
     /// - `handle`: 事务句柄
     ///
     /// # 返回
-    /// 事务状态字符串
+    /// Transaction Status String
     pub fn get_status(&self, _handle: TransactionHandle) -> CoreResult<String> {
-        // 暂时返回 Active，实际需要查询事务状态
+        // Temporarily return Active, actually need to query the transaction status
         Ok("Active".to_string())
     }
 
-    /// 检查事务是否存在且活跃
+    /// Check if a transaction exists and is active
     ///
     /// # 参数
     /// - `handle`: 事务句柄
@@ -72,9 +72,9 @@ impl TransactionApi {
         self.txn_manager.is_transaction_active(handle.0)
     }
 
-    /// 获取活跃事务数量
+    /// Get the number of active transactions
     pub fn active_count(&self) -> usize {
-        // 暂时返回 0，实际需要查询
+        // Temporarily return 0, actually need to query
         0
     }
 }

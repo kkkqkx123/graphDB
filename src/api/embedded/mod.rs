@@ -1,36 +1,36 @@
-//! 嵌入式 API 模块
+//! Embedded API module
 //!
-//! 提供单机使用的嵌入式 GraphDB 接口，类似 SQLite 的使用方式
+//! Provide an embedded GraphDB interface for standalone use, with a similar usage approach to SQLite.
 //!
-//! # 快速开始
+//! # Get started quickly
 //!
 //! ```rust
 //! use graphdb::api::embedded::{GraphDatabase, DatabaseConfig};
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // 打开数据库
+// Open the database
 //! let db = GraphDatabase::open("my_database")?;
 //!
-//! // 创建会话
+// Create a session
 //! let mut session = db.session()?;
 //!
-//! // 切换图空间
+// Switch to the image space
 //! session.use_space("test_space")?;
 //!
-//! // 执行查询
+// Execute the query
 //! let result = session.execute("MATCH (n) RETURN n")?;
 //!
-//! // 使用事务
+// Using a transaction
 //! let txn = session.begin_transaction()?;
 //! txn.execute("CREATE TAG user(name string)")?;
 //! txn.commit()?;
 //!
-//! // 数据库在 db 离开作用域时自动关闭
+// The database is automatically closed when the `db` variable goes out of scope.
 //! # Ok(())
 //! # }
 //! ```
 
-// 子模块
+// Submodule
 pub mod batch;
 pub mod busy_handler;
 pub mod config;
@@ -40,11 +40,11 @@ pub mod session;
 pub mod statistics;
 pub mod transaction;
 
-// C API 模块（条件编译）
+// C API module (conditional compilation)
 #[cfg(feature = "c-api")]
 pub mod c_api;
 
-// 重新导出主要类型
+// Re-export the main types
 pub use batch::{BatchConfig, BatchError, BatchInserter, BatchItemType, BatchResult};
 pub use busy_handler::{BusyConfig, BusyHandler, BusyResult};
 pub use config::{DatabaseConfig, SyncMode};
@@ -54,7 +54,7 @@ pub use session::Session;
 pub use statistics::{QueryStatistics, SessionStatistics};
 pub use transaction::{Transaction, TransactionConfig, TransactionInfo};
 
-// C API 重新导出
+// C API re-export
 #[cfg(feature = "c-api")]
 pub use c_api::{
     error::graphdb_error_code_t,
@@ -64,5 +64,5 @@ pub use c_api::{
     },
 };
 
-// 错误类型
+// Error type
 pub use crate::api::core::CoreError as EmbeddedError;

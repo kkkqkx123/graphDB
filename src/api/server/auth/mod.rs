@@ -1,6 +1,6 @@
-//! 认证模块
+//! Authentication module
 //!
-//! 提供用户认证和授权功能
+//! Provide user authentication and authorization features.
 
 pub mod authenticator;
 

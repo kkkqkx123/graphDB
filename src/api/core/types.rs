@@ -1,11 +1,11 @@
-//! API 核心层类型定义
+//! API Core Layer Type Definitions
 //!
-//! 与传输层无关的业务类型
+//! Business types that are independent of the transport layer
 
 use crate::core::Value;
 use std::collections::HashMap;
 
-/// 查询请求
+/// Query request
 #[derive(Debug, Clone)]
 pub struct QueryRequest {
     pub space_id: Option<u64>,
@@ -25,7 +25,7 @@ impl Default for QueryRequest {
     }
 }
 
-/// 查询结果
+/// Query results
 #[derive(Debug)]
 pub struct QueryResult {
     pub columns: Vec<String>,
@@ -33,7 +33,7 @@ pub struct QueryResult {
     pub metadata: ExecutionMetadata,
 }
 
-/// 结果行
+/// Result row
 #[derive(Debug)]
 pub struct Row {
     pub values: HashMap<String, Value>,
@@ -67,7 +67,7 @@ impl Row {
     }
 }
 
-/// 执行元数据
+/// Metadata of the executor
 #[derive(Debug, Clone, Default)]
 pub struct ExecutionMetadata {
     pub execution_time_ms: u64,
@@ -76,15 +76,15 @@ pub struct ExecutionMetadata {
     pub cache_hit: bool,
 }
 
-/// 事务句柄
+/// Transaction handler
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TransactionHandle(pub u64);
 
-/// 保存点 ID
+/// Save Point ID
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SavepointId(pub u64);
 
-/// Schema 属性定义
+/// The Schema attribute is used for definition purposes.
 #[derive(Debug, Clone)]
 pub struct PropertyDef {
     pub name: String,
@@ -94,14 +94,14 @@ pub struct PropertyDef {
     pub comment: Option<String>,
 }
 
-/// 索引目标类型
+/// Index target type
 #[derive(Debug, Clone)]
 pub enum IndexTarget {
     Tag { name: String, fields: Vec<String> },
     Edge { name: String, fields: Vec<String> },
 }
 
-/// 空间配置
+/// Space configuration
 #[derive(Debug, Clone)]
 pub struct SpaceConfig {
     pub partition_num: i32,

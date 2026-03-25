@@ -13,7 +13,7 @@ All instances of dynamic dispatch must be explicitly documented in the `dynamic.
 
 ## Language
 
-Always use **Simplified Chinese** in docs. Using English in code, comments, logging, error info.
+Always use English in code, comments, logging, error info. Use Chinese in docs
 
 ## Project Overview
 

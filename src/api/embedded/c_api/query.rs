@@ -1,6 +1,6 @@
-//! C API 查询执行模块
+//! C API Query Execution Module
 //!
-//! 提供查询执行功能，包括简单查询和参数化查询
+//! Provides the functionality to execute queries, including both simple queries and parameterized queries.
 
 use crate::api::embedded::c_api::error::{
     error_code_from_core_error, extended_error_code_from_core_error, graphdb_error_code_t,
@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::ffi::{c_char, c_int, CStr};
 use std::ptr;
 
-/// 执行简单查询
+/// Perform a simple query
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -49,14 +49,14 @@ pub unsafe extern "C" fn graphdb_execute(
     unsafe {
         let handle = &mut *(session as *mut GraphDbSessionHandle);
 
-        // 调用 SQL 追踪回调
+        // Calling the SQL tracing callback
         handle.trace(query_str);
 
         match handle.inner.execute(query_str) {
             Ok(query_result) => {
                 handle.clear_error();
 
-                // 检查是否是数据修改操作，并调用更新钩子
+                // Check whether it is a data modification operation, and then call the update hook.
                 if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result)
                 {
                     let space_name = handle.inner.current_space().unwrap_or("default");
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn graphdb_execute(
     }
 }
 
-/// 执行参数化查询
+/// Execute a parameterized query
 ///
 /// # Arguments
 /// - `session`: Session handle
@@ -140,7 +140,7 @@ pub unsafe extern "C" fn graphdb_execute_params(
             Ok(query_result) => {
                 handle.clear_error();
 
-                // 检查是否是数据修改操作，并调用更新钩子
+                // Check whether it is a data modification operation, and then call the update hook.
                 if let Some((operation, rowid)) = detect_data_modification(query_str, &query_result)
                 {
                     let space_name = handle.inner.current_space().unwrap_or("default");
@@ -166,7 +166,7 @@ pub unsafe extern "C" fn graphdb_execute_params(
     }
 }
 
-/// 将 C 值转换为 Rust 值
+/// Convert a C value to a Rust value.
 unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
     use crate::api::embedded::c_api::types::graphdb_value_type_t;
 
@@ -191,32 +191,32 @@ unsafe fn convert_c_value_to_rust(c_value: &graphdb_value_t) -> Value {
     }
 }
 
-/// 检测查询是否是数据修改操作
+/// Check whether the query represents a data modification operation.
 ///
-/// 返回 (操作类型, 行ID) 的元组，如果不是数据修改操作则返回 None
-/// 操作类型：1=INSERT, 2=UPDATE, 3=DELETE
+/// Return a tuple of (operation type, row ID). If it is not a data modification operation, return None.
+/// Operation type: 1=INSERT, 2=UPDATE, 3=DELETE
 fn detect_data_modification(
     query: &str,
     _result: &crate::api::embedded::result::QueryResult,
 ) -> Option<(i32, i64)> {
     let query_upper = query.trim().to_uppercase();
 
-    // 检查是否是 INSERT 操作
+    // Check whether it is an INSERT operation.
     if query_upper.starts_with("INSERT") {
         return Some((1, 0));
     }
 
-    // 检查是否是 UPDATE 操作
+    // Check whether it is an UPDATE operation.
     if query_upper.starts_with("UPDATE") {
         return Some((2, 0));
     }
 
-    // 检查是否是 DELETE 操作
+    // Check whether it is a DELETE operation.
     if query_upper.starts_with("DELETE") {
         return Some((3, 0));
     }
 
-    // 检查是否是 REMOVE 操作
+    // Check whether it is a REMOVE operation.
     if query_upper.starts_with("REMOVE") {
         return Some((2, 0));
     }

@@ -1,6 +1,6 @@
-//! C API 结果处理模块
+//! C API Results Processing Module
 //!
-//! 提供查询结果的处理功能
+//! Provide processing functions for query results
 
 use crate::api::embedded::c_api::error::graphdb_error_code_t;
 use crate::api::embedded::c_api::types::graphdb_result_t;
@@ -8,12 +8,12 @@ use crate::api::embedded::result::QueryResult;
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::ptr;
 
-/// 结果集句柄内部结构
+/// Internal structure of result set handles
 pub struct GraphDbResultHandle {
     pub(crate) inner: QueryResult,
 }
 
-/// 释放结果集
+/// Releasing the result set
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn graphdb_result_free(result: *mut graphdb_result_t) -> c
     graphdb_error_code_t::GRAPHDB_OK as c_int
 }
 
-/// 获取结果集列数
+/// Get the number of columns in the result set
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -57,7 +57,7 @@ pub unsafe extern "C" fn graphdb_column_count(result: *mut graphdb_result_t) -> 
     handle.inner.columns().len() as c_int
 }
 
-/// 获取结果集行数
+/// Get the number of rows in the result set
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -77,7 +77,7 @@ pub unsafe extern "C" fn graphdb_row_count(result: *mut graphdb_result_t) -> c_i
     handle.inner.len() as c_int
 }
 
-/// 获取列名
+/// Getting Column Names
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -114,7 +114,7 @@ pub unsafe extern "C" fn graphdb_column_name(
     }
 }
 
-/// 获取整数值
+/// Get integer value
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -162,7 +162,7 @@ pub unsafe extern "C" fn graphdb_get_int(
     }
 }
 
-/// 获取字符串值
+/// Getting String Values
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -232,7 +232,7 @@ pub unsafe extern "C" fn graphdb_get_string(
     }
 }
 
-/// 获取二进制数据
+/// Get Binary Data
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -308,7 +308,7 @@ pub unsafe extern "C" fn graphdb_get_blob(
     }
 }
 
-/// 获取整数值（按列索引）
+/// Get integer values (indexed by column)
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -338,7 +338,7 @@ pub unsafe extern "C" fn graphdb_get_int_by_index(
 
     let handle = &*(result as *mut GraphDbResultHandle);
 
-    // 获取列名
+    // Getting Column Names
     let columns = handle.inner.columns();
     let col_name = match columns.get(col as usize) {
         Some(name) => name.as_str(),
@@ -358,7 +358,7 @@ pub unsafe extern "C" fn graphdb_get_int_by_index(
     }
 }
 
-/// 获取字符串值（按列索引）
+/// Get string value (indexed by column)
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -439,7 +439,7 @@ pub unsafe extern "C" fn graphdb_get_string_by_index(
     }
 }
 
-/// 获取布尔值（按列索引）
+/// Get Boolean value (indexed by column)
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -488,7 +488,7 @@ pub unsafe extern "C" fn graphdb_get_bool_by_index(
     }
 }
 
-/// 获取浮点值（按列索引）
+/// Get floating point values (indexed by column)
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -537,7 +537,7 @@ pub unsafe extern "C" fn graphdb_get_float_by_index(
     }
 }
 
-/// 获取二进制数据（按列索引）
+/// Get binary data (indexed by column)
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -614,7 +614,7 @@ pub unsafe extern "C" fn graphdb_get_blob_by_index(
     }
 }
 
-/// 获取列类型
+/// Get column type
 ///
 /// # Arguments
 /// - `result`: Result set handle
@@ -639,7 +639,7 @@ pub unsafe extern "C" fn graphdb_column_type(
 
     let handle = &*(result as *mut GraphDbResultHandle);
 
-    // 获取第一行来确定类型
+    // Get the first line to determine the type
     match handle.inner.first() {
         Some(row) => {
             let columns = handle.inner.columns();

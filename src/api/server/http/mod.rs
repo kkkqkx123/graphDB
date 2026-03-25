@@ -1,6 +1,6 @@
-//! HTTP 服务模块
+//! HTTP Service Module
 //!
-//! 提供基于 HTTP 协议的 GraphDB 服务接口
+//! Provides an interface to GraphDB services based on the HTTP protocol.
 
 pub mod error;
 pub mod handlers;

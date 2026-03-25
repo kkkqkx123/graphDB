@@ -24,7 +24,7 @@ pub struct TransactionResponse {
     pub status: String,
 }
 
-/// 开始事务
+/// Start a transaction
 pub async fn begin<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<BeginTransactionRequest>,
@@ -60,7 +60,7 @@ pub struct TransactionActionRequest {
     pub session_id: i64,
 }
 
-/// 提交事务
+/// Submit the transaction
 pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(txn_id): Path<u64>,
@@ -86,7 +86,7 @@ pub async fn commit<S: StorageClient + Clone + Send + Sync + 'static>(
     Ok(JsonResponse(result?))
 }
 
-/// 回滚事务
+/// Roll back a transaction
 pub async fn rollback<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(txn_id): Path<u64>,

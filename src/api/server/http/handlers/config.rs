@@ -1,4 +1,4 @@
-//! 配置管理 HTTP 处理器
+//! Configuration Management HTTP Processor
 
 use axum::{
     extract::{Json, Path, State},
@@ -10,7 +10,7 @@ use serde_json;
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
 
-/// 获取当前配置
+/// Get current configuration
 pub async fn get<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
 ) -> Result<JsonResponse<serde_json::Value>, HttpError> {
@@ -66,7 +66,7 @@ pub async fn get<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-/// 更新配置（热更新）
+/// Update configuration (hot update)
 pub async fn update<S: StorageClient + Clone + Send + Sync + 'static>(
     State(_state): State<AppState<S>>,
     Json(request): Json<serde_json::Value>,
@@ -97,7 +97,7 @@ pub async fn update<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-/// 获取配置项
+/// Getting Configuration Items
 pub async fn get_key<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path((section, key)): Path<(String, String)>,
@@ -112,7 +112,7 @@ pub async fn get_key<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-/// 更新配置项
+/// Updating Configuration Items
 pub async fn update_key<S: StorageClient + Clone + Send + Sync + 'static>(
     State(_state): State<AppState<S>>,
     Path((section, key)): Path<(String, String)>,
@@ -133,7 +133,7 @@ pub async fn update_key<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-/// 重置配置项为默认值
+/// Reset configuration items to default values
 pub async fn reset_key<S: StorageClient + Clone + Send + Sync + 'static>(
     State(_state): State<AppState<S>>,
     Path((section, key)): Path<(String, String)>,
@@ -149,13 +149,13 @@ pub async fn reset_key<S: StorageClient + Clone + Send + Sync + 'static>(
     })))
 }
 
-/// 更新配置请求
+/// Update Configuration Request
 #[derive(Debug, Deserialize)]
 pub struct UpdateConfigRequest {
     pub value: serde_json::Value,
 }
 
-/// 获取配置值
+/// Getting configuration values
 fn get_config_value(config: &crate::config::Config, section: &str, key: &str) -> serde_json::Value {
     match section {
         "database" => match key {
@@ -229,7 +229,7 @@ fn get_config_value(config: &crate::config::Config, section: &str, key: &str) ->
     }
 }
 
-/// 检查配置项是否需要重启才能生效
+/// Check if the configuration item requires a reboot to take effect
 fn is_restart_required(section: &str, key: &str) -> bool {
     match section {
         "database" => matches!(key, "host" | "port" | "storage_path" | "max_connections"),

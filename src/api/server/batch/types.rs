@@ -1,50 +1,50 @@
-//! 批量操作类型定义
+//! Batch Operation Type Definition
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// 批量任务ID
+/// Batch Task ID
 pub type BatchId = String;
 
-/// 批量任务状态
+/// Batch Task Status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BatchStatus {
-    /// 已创建
+    /// Created
     Created,
-    /// 运行中
+    /// running
     Running,
-    /// 已完成
+    /// done
     Completed,
-    /// 已失败
+    /// failed
     Failed,
-    /// 已取消
+    /// Cancelled
     Cancelled,
 }
 
-/// 批量任务类型
+/// Batch task type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BatchType {
-    /// 顶点批量插入
+    /// Vertex Batch Insertion
     Vertex,
-    /// 边批量插入
+    /// Batch insertion of edges
     Edge,
-    /// 混合批量插入
+    /// Mixed batch insertion
     Mixed,
 }
 
-/// 批量项类型
+/// Batch item type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BatchItemType {
-    /// 顶点
+    /// vertice
     Vertex,
-    /// 边
+    /// suffix of a noun of locality
     Edge,
 }
 
-/// 批量项数据
+/// Batch data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum BatchItem {
@@ -54,41 +54,41 @@ pub enum BatchItem {
     Edge(EdgeData),
 }
 
-/// 顶点数据
+/// vertex data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VertexData {
-    /// 顶点ID
+    /// Vertex ID
     pub vid: serde_json::Value,
-    /// 标签列表
+    /// Tag List
     #[serde(default)]
     pub tags: Vec<String>,
-    /// 属性
+    /// causality
     #[serde(default)]
     pub properties: HashMap<String, serde_json::Value>,
 }
 
-/// 边数据
+/// boundary data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EdgeData {
-    /// 边类型
+    /// side type
     pub edge_type: String,
-    /// 起始顶点ID
+    /// Start Vertex ID
     pub src_vid: serde_json::Value,
-    /// 目标顶点ID
+    /// Target Vertex ID
     pub dst_vid: serde_json::Value,
     /// 属性
     #[serde(default)]
     pub properties: HashMap<String, serde_json::Value>,
 }
 
-/// 创建批量任务请求
+/// Creating Batch Task Requests
 #[derive(Debug, Clone, Deserialize)]
 pub struct CreateBatchRequest {
-    /// 图空间ID
+    /// Image Space ID
     pub space_id: u64,
     /// 批量任务类型
     pub batch_type: BatchType,
-    /// 批次大小
+    /// Batch size
     #[serde(default = "default_batch_size")]
     pub batch_size: usize,
 }
@@ -97,119 +97,119 @@ fn default_batch_size() -> usize {
     1000
 }
 
-/// 创建批量任务响应
+/// Creating Batch Task Responses
 #[derive(Debug, Clone, Serialize)]
 pub struct CreateBatchResponse {
     /// 批量任务ID
     pub batch_id: BatchId,
-    /// 任务状态
+    /// Task status
     pub status: BatchStatus,
-    /// 创建时间
+    /// Creation time
     pub created_at: String,
 }
 
-/// 添加批量项请求
+/// Add bulk item request
 #[derive(Debug, Clone, Deserialize)]
 pub struct AddBatchItemsRequest {
-    /// 批量项列表
+    /// Batch item list
     pub items: Vec<BatchItem>,
 }
 
-/// 添加批量项响应
+/// Adding a Bulk Item Response
 #[derive(Debug, Clone, Serialize)]
 pub struct AddBatchItemsResponse {
-    /// 已接受数量
+    /// Number accepted
     pub accepted: usize,
-    /// 已缓冲数量
+    /// Number of buffered
     pub buffered: usize,
-    /// 总缓冲数量
+    /// Total number of buffers
     pub total_buffered: usize,
 }
 
-/// 执行批量任务响应
+/// Perform batch task response
 #[derive(Debug, Clone, Serialize)]
 pub struct ExecuteBatchResponse {
     /// 批量任务ID
     pub batch_id: BatchId,
     /// 任务状态
     pub status: BatchStatus,
-    /// 执行结果
+    /// Implementation results
     pub result: BatchResultData,
-    /// 完成时间
+    /// Completion time
     pub completed_at: Option<String>,
 }
 
-/// 批量结果数据
+/// Batch results data
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchResultData {
-    /// 插入的顶点数量
+    /// Number of vertices inserted
     pub vertices_inserted: usize,
-    /// 插入的边数量
+    /// Number of inserted edges
     pub edges_inserted: usize,
-    /// 错误列表
+    /// error message
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub errors: Vec<BatchErrorData>,
 }
 
-/// 批量错误数据
+/// Batch Error Data
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchErrorData {
-    /// 错误发生的索引
+    /// Index where the error occurred
     pub index: usize,
-    /// 错误项类型
+    /// Type of error
     pub item_type: BatchItemType,
-    /// 错误信息
+    /// Error message
     pub error: String,
 }
 
-/// 批量任务状态响应
+/// Status responses for batch tasks
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchStatusResponse {
     /// 批量任务ID
     pub batch_id: BatchId,
     /// 任务状态
     pub status: BatchStatus,
-    /// 进度信息
+    /// Progress information
     pub progress: BatchProgress,
     /// 创建时间
     pub created_at: String,
-    /// 更新时间
+    /// Update time
     pub updated_at: String,
 }
 
-/// 批量任务进度
+/// Progress of batch tasks
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchProgress {
-    /// 总数量
+    /// Total quantity
     pub total: usize,
-    /// 已处理数量
+    /// Number of items processed
     pub processed: usize,
-    /// 成功数量
+    /// Number of successes
     pub succeeded: usize,
-    /// 失败数量
+    /// Number of failures
     pub failed: usize,
-    /// 缓冲数量
+    /// Number of buffers
     pub buffered: usize,
 }
 
-/// 批量任务信息（内部使用）
+/// Batch task information (for internal use)
 #[derive(Debug, Clone)]
 pub struct BatchTask {
-    /// 任务ID
+    /// Task ID
     pub id: BatchId,
     /// 图空间ID
     pub space_id: u64,
-    /// 任务类型
+    /// Of course! Please provide the text you would like to have translated.
     pub batch_type: BatchType,
     /// 批次大小
     pub batch_size: usize,
     /// 任务状态
     pub status: BatchStatus,
-    /// 缓冲的项
+    /// Buffered items
     pub buffered_items: Vec<BatchItem>,
-    /// 进度
+    /// Progress
     pub progress: BatchProgress,
-    /// 结果
+    /// Result
     pub result: Option<BatchResultData>,
     /// 创建时间
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -218,7 +218,7 @@ pub struct BatchTask {
 }
 
 impl BatchTask {
-    /// 创建新的批量任务
+    /// Create a new batch task.
     pub fn new(id: BatchId, space_id: u64, batch_type: BatchType, batch_size: usize) -> Self {
         let now = chrono::Utc::now();
         Self {
@@ -241,13 +241,13 @@ impl BatchTask {
         }
     }
 
-    /// 更新状态
+    /// Update status
     pub fn update_status(&mut self, status: BatchStatus) {
         self.status = status;
         self.updated_at = chrono::Utc::now();
     }
 
-    /// 添加缓冲项
+    /// Add a buffer item
     pub fn add_items(&mut self, items: Vec<BatchItem>) -> usize {
         let count = items.len();
         self.buffered_items.extend(items);
@@ -257,7 +257,7 @@ impl BatchTask {
         count
     }
 
-    /// 获取并清空缓冲项
+    /// Retrieve and clear the buffer items.
     pub fn take_buffered_items(&mut self) -> Vec<BatchItem> {
         let items = std::mem::take(&mut self.buffered_items);
         self.progress.buffered = 0;
@@ -265,7 +265,7 @@ impl BatchTask {
         items
     }
 
-    /// 更新进度
+    /// Update progress
     pub fn update_progress(&mut self, succeeded: usize, failed: usize) {
         self.progress.succeeded += succeeded;
         self.progress.failed += failed;
@@ -273,7 +273,7 @@ impl BatchTask {
         self.updated_at = chrono::Utc::now();
     }
 
-    /// 设置结果
+    /// Set the results
     pub fn set_result(&mut self, result: BatchResultData) {
         self.result = Some(result);
         self.updated_at = chrono::Utc::now();

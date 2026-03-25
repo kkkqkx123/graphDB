@@ -1,9 +1,9 @@
-//! 通用基础设施模块
+//! General Infrastructure Module
 //!
-//! 这个模块包含了所有通用的基础设施代码，包括：
-//! - 基础工具和ID生成
-//! - 内存管理
-//! - 线程管理
+//! This module contains all general-purpose infrastructure code, including:
+//! - Basic utilities and ID generation
+//! - Memory management
+//! - Thread management
 
 pub mod id;
 

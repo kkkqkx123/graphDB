@@ -1,17 +1,17 @@
-//! 批量操作模块
+//! Batch Operation Module
 //!
-//! 支持高效的大批量数据导入
+//! Supports efficient high-volume data import
 
 use crate::api::core::{CoreError, CoreResult};
 use crate::api::embedded::session::Session;
 use crate::core::{Edge, Vertex};
 use crate::storage::StorageClient;
 
-/// 批量插入器
+/// Batch Inserter
 ///
-/// 用于高效地批量插入顶点和边数据
+/// For efficient batch insertion of vertex and edge data
 ///
-/// # 示例
+/// # Examples
 ///
 /// ```rust
 /// use graphdb::api::embedded::{GraphDatabase, DatabaseConfig};
@@ -21,16 +21,16 @@ use crate::storage::StorageClient;
 /// let db = GraphDatabase::open("my_db")?;
 /// let session = db.session()?;
 ///
-/// // 创建批量插入器，每100条自动刷新
+// Create a batch inserter that automatically refreshes every 100 entries
 /// let mut inserter = session.batch_inserter(100);
 ///
-/// // 添加顶点
+// Add vertices
 /// for i in 0..1000 {
 ///     let vertex = Vertex::with_vid(Value::Int(i));
 ///     inserter.add_vertex(vertex);
 /// }
 ///
-/// // 执行批量插入
+// Perform batch insertion
 /// let result = inserter.execute()?;
 /// println!("插入了 {} 个顶点", result.vertices_inserted);
 /// # Ok(())
@@ -44,43 +44,43 @@ pub struct BatchInserter<'sess, S: StorageClient + Clone + 'static> {
     total_inserted: BatchResult,
 }
 
-/// 批量操作结果
+/// Batch operation results
 #[derive(Debug, Clone, Default)]
 pub struct BatchResult {
-    /// 插入的顶点数量
+    /// Number of vertices inserted
     pub vertices_inserted: usize,
-    /// 插入的边数量
+    /// Number of inserted edges
     pub edges_inserted: usize,
-    /// 错误列表
+    /// error message
     pub errors: Vec<BatchError>,
 }
 
-/// 批量错误
+/// batch error
 #[derive(Debug, Clone)]
 pub struct BatchError {
-    /// 错误发生的索引
+    /// Index where the error occurred
     pub index: usize,
-    /// 错误项类型
+    /// Error item type
     pub item_type: BatchItemType,
-    /// 错误信息
+    /// error message
     pub error: String,
 }
 
-/// 批量项类型
+/// Batch item type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BatchItemType {
-    /// 顶点
+    /// vertice
     Vertex,
-    /// 边
+    /// suffix of a noun of locality
     Edge,
 }
 
 impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
-    /// 创建新的批量插入器
+    /// Creating a new batch inserter
     pub(crate) fn new(session: &'sess Session<S>, batch_size: usize) -> Self {
         Self {
             session,
-            batch_size: batch_size.max(1), // 确保至少为1
+            batch_size: batch_size.max(1), // Ensure at least 1
             vertex_buffer: Vec::with_capacity(batch_size),
             edge_buffer: Vec::with_capacity(batch_size),
             total_inserted: BatchResult {
@@ -91,17 +91,17 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         }
     }
 
-    /// 添加顶点
+    /// Adding Vertices
     ///
-    /// # 参数
-    /// - `vertex` - 要插入的顶点
+    /// # Parameters
+    /// - `vertex` - the vertex to be inserted
     ///
-    /// # 返回
-    /// - 返回自身，支持链式调用
+    /// # Back
+    /// - Return to itself, supporting chain calls
     pub fn add_vertex(&mut self, vertex: Vertex) -> &mut Self {
         self.vertex_buffer.push(vertex);
 
-        // 如果达到批次大小，自动刷新
+        // Automatically refreshes if batch size is reached
         if self.vertex_buffer.len() >= self.batch_size {
             let _ = self.flush_vertices();
         }
@@ -109,17 +109,17 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         self
     }
 
-    /// 添加边
+    /// Add Edge
     ///
     /// # 参数
-    /// - `edge` - 要插入的边
+    /// - `edge` - the edge to be inserted
     ///
     /// # 返回
     /// - 返回自身，支持链式调用
     pub fn add_edge(&mut self, edge: Edge) -> &mut Self {
         self.edge_buffer.push(edge);
 
-        // 如果达到批次大小，自动刷新
+        // Automatically refreshes if batch size is reached
         if self.edge_buffer.len() >= self.batch_size {
             let _ = self.flush_edges();
         }
@@ -127,10 +127,10 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         self
     }
 
-    /// 添加多个顶点
+    /// Adding multiple vertices
     ///
     /// # 参数
-    /// - `vertices` - 要插入的顶点列表
+    /// - `vertices` - a list of vertices to be inserted
     pub fn add_vertices(&mut self, vertices: Vec<Vertex>) -> &mut Self {
         for vertex in vertices {
             self.add_vertex(vertex);
@@ -138,10 +138,10 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         self
     }
 
-    /// 添加多个边
+    /// Adding multiple edges
     ///
     /// # 参数
-    /// - `edges` - 要插入的边列表
+    /// - `edges` - a list of edges to be inserted
     pub fn add_edges(&mut self, edges: Vec<Edge>) -> &mut Self {
         for edge in edges {
             self.add_edge(edge);
@@ -149,49 +149,49 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         self
     }
 
-    /// 执行批量插入
+    /// Perform batch insertion
     ///
-    /// 刷新所有缓冲的数据并返回结果
+    /// Flush all buffered data and return results
     ///
     /// # 返回
-    /// - 成功时返回批量操作结果
-    /// - 失败时返回错误
+    /// - Returns batch operation results on success
+    /// - Return error on failure
     pub fn execute(mut self) -> CoreResult<BatchResult> {
-        // 刷新剩余的顶点
+        // Refresh the remaining vertices
         self.flush_vertices()?;
 
-        // 刷新剩余的边
+        // Refresh remaining edges
         self.flush_edges()?;
 
         Ok(self.total_inserted)
     }
 
-    /// 刷新顶点缓冲区
+    /// Flush Vertex Buffer
     fn flush_vertices(&mut self) -> CoreResult<()> {
         if self.vertex_buffer.is_empty() {
             return Ok(());
         }
 
-        // 获取当前空间名称
+        // Get current space name
         let space_name = self
             .session
             .space_name()
             .ok_or_else(|| CoreError::InvalidParameter("未选择图空间".to_string()))?;
 
-        // 取出缓冲区中的顶点
+        // Remove vertices from the buffer
         let vertices_to_insert: Vec<Vertex> = std::mem::take(&mut self.vertex_buffer);
         let count = vertices_to_insert.len();
 
-        // 调用存储层的批量插入接口
+        // Calling the storage layer's batch insertion interface
         let mut storage = self.session.storage();
         match storage.batch_insert_vertices(space_name, vertices_to_insert) {
             Ok(_) => {
-                // 插入成功，更新计数
+                // Insertion successful; update the count.
                 self.total_inserted.vertices_inserted += count;
             }
             Err(e) => {
-                // 插入失败，记录错误，但不立即返回错误
-                // 这样调用者可以通过 BatchResult 获取部分成功的结果和所有错误
+                // The insertion failed, and an error was recorded; however, the error is not returned immediately.
+                // In this way, the caller can obtain the partially successful results as well as all the errors through the BatchResult.
                 self.total_inserted.errors.push(BatchError {
                     index: self.total_inserted.vertices_inserted,
                     item_type: BatchItemType::Vertex,
@@ -203,32 +203,32 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         Ok(())
     }
 
-    /// 刷新边缓冲区
+    /// Refresh the side buffer.
     fn flush_edges(&mut self) -> CoreResult<()> {
         if self.edge_buffer.is_empty() {
             return Ok(());
         }
 
-        // 获取当前空间名称
+        // Obtain the current name of the space.
         let space_name = self
             .session
             .space_name()
             .ok_or_else(|| CoreError::InvalidParameter("未选择图空间".to_string()))?;
 
-        // 取出缓冲区中的边
+        // Extract the edges from the buffer.
         let edges_to_insert: Vec<Edge> = std::mem::take(&mut self.edge_buffer);
         let count = edges_to_insert.len();
 
-        // 调用存储层的批量插入接口
+        // Call the batch insertion interface of the storage layer.
         let mut storage = self.session.storage();
         match storage.batch_insert_edges(space_name, edges_to_insert) {
             Ok(_) => {
-                // 插入成功，更新计数
+                // Insertion successful; update the count.
                 self.total_inserted.edges_inserted += count;
             }
             Err(e) => {
-                // 插入失败，记录错误，但不立即返回错误
-                // 这样调用者可以通过 BatchResult 获取部分成功的结果和所有错误
+                // The insertion failed, and an error was recorded; however, the error is not returned immediately.
+                // In this way, the caller can obtain the partially successful results as well as all the errors through the BatchResult.
                 self.total_inserted.errors.push(BatchError {
                     index: self.total_inserted.edges_inserted,
                     item_type: BatchItemType::Edge,
@@ -240,44 +240,44 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
         Ok(())
     }
 
-    /// 获取当前缓冲区中的顶点数量
+    /// Get the number of vertices in the current buffer.
     pub fn buffered_vertices(&self) -> usize {
         self.vertex_buffer.len()
     }
 
-    /// 获取当前缓冲区中的边数量
+    /// Get the number of edges in the current buffer.
     pub fn buffered_edges(&self) -> usize {
         self.edge_buffer.len()
     }
 
-    /// 获取批次大小
+    /// Obtain the batch size
     pub fn batch_size(&self) -> usize {
         self.batch_size
     }
 
-    /// 检查是否有缓冲的数据
+    /// Check whether there is any buffered data.
     pub fn has_buffered_data(&self) -> bool {
         !self.vertex_buffer.is_empty() || !self.edge_buffer.is_empty()
     }
 }
 
 impl BatchResult {
-    /// 获取总插入数量
+    /// Obtain the total number of insertions.
     pub fn total_inserted(&self) -> usize {
         self.vertices_inserted + self.edges_inserted
     }
 
-    /// 检查是否有错误
+    /// Check for any errors.
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
 
-    /// 获取错误数量
+    /// Get the number of errors
     pub fn error_count(&self) -> usize {
         self.errors.len()
     }
 
-    /// 合并另一个批量结果
+    /// Merge the results of another batch.
     pub fn merge(&mut self, other: BatchResult) {
         self.vertices_inserted += other.vertices_inserted;
         self.edges_inserted += other.edges_inserted;
@@ -286,7 +286,7 @@ impl BatchResult {
 }
 
 impl BatchError {
-    /// 创建新的批量错误
+    /// Create a new batch of errors.
     pub fn new(index: usize, item_type: BatchItemType, error: impl Into<String>) -> Self {
         Self {
             index,
@@ -296,16 +296,16 @@ impl BatchError {
     }
 }
 
-/// 批量操作配置
+/// Batch operation configuration
 #[derive(Debug, Clone)]
 pub struct BatchConfig {
-    /// 批次大小
+    /// Batch size
     pub batch_size: usize,
-    /// 是否自动提交
+    /// Should the submission be done automatically?
     pub auto_commit: bool,
-    /// 是否忽略错误继续处理
+    /// Should I ignore the errors and continue with the process?
     pub continue_on_error: bool,
-    /// 最大错误数量
+    /// Maximum number of errors
     pub max_errors: Option<usize>,
 }
 
@@ -321,30 +321,30 @@ impl Default for BatchConfig {
 }
 
 impl BatchConfig {
-    /// 创建新的配置
+    /// Create a new configuration.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 设置批次大小
+    /// Set the batch size
     pub fn with_batch_size(mut self, size: usize) -> Self {
         self.batch_size = size.max(1);
         self
     }
 
-    /// 设置是否自动提交
+    /// Set whether to submit automatically.
     pub fn with_auto_commit(mut self, auto_commit: bool) -> Self {
         self.auto_commit = auto_commit;
         self
     }
 
-    /// 设置是否继续处理错误
+    /// Set whether to continue processing the errors.
     pub fn with_continue_on_error(mut self, continue_on_error: bool) -> Self {
         self.continue_on_error = continue_on_error;
         self
     }
 
-    /// 设置最大错误数量
+    /// Set the maximum number of allowed errors
     pub fn with_max_errors(mut self, max_errors: Option<usize>) -> Self {
         self.max_errors = max_errors;
         self
@@ -420,6 +420,6 @@ mod tests {
     #[test]
     fn test_batch_config_min_batch_size() {
         let config = BatchConfig::new().with_batch_size(0);
-        assert_eq!(config.batch_size, 1); // 最小值为1
+        assert_eq!(config.batch_size, 1); // The minimum value is 1.
     }
 }

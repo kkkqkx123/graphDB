@@ -1,13 +1,13 @@
-//! C API 值类型转换模块
+//! C API Value Type Conversion Module
 //!
-//! 提供 graphdb_value_t 和 core::Value 之间的转换
+//! Provides conversions between graphdb_value_t and core::Value.
 
 use crate::api::embedded::c_api::types::{
     graphdb_string_t, graphdb_value_data_t, graphdb_value_t, graphdb_value_type_t,
 };
 use crate::core::Value;
 
-/// 将 C API 值类型转换为 Core Value
+/// Converting C API Value Types to Core Value
 ///
 /// # Safety
 /// - `value` must be a valid pointer to a graphdb_value_t structure
@@ -34,7 +34,7 @@ pub unsafe fn graphdb_value_to_core(value: *const graphdb_value_t) -> Value {
     }
 }
 
-/// 将 Core Value 转换为 C API 值类型
+/// Converting Core Value to C API Value Types
 pub fn core_value_to_graphdb(value: &Value) -> graphdb_value_t {
     match value {
         Value::Null(_) => graphdb_value_t {
@@ -74,7 +74,7 @@ pub fn core_value_to_graphdb(value: &Value) -> graphdb_value_t {
     }
 }
 
-/// 获取 Core Value 的 C API 类型
+/// C API type to get Core Value
 pub fn core_value_to_graphdb_type(value: &Value) -> graphdb_value_type_t {
     match value {
         Value::Null(_) => graphdb_value_type_t::GRAPHDB_NULL,

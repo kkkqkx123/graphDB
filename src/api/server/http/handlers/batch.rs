@@ -1,4 +1,4 @@
-//! 批量操作 HTTP 处理器
+//! Batch processing of HTTP handlers
 
 use axum::{
     extract::{Json, Path, State},
@@ -13,7 +13,7 @@ use crate::api::server::batch::{
 use crate::api::server::http::{error::HttpError, state::AppState};
 use crate::storage::StorageClient;
 
-/// 创建批量任务
+/// Create batch tasks
 pub async fn create<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<CreateBatchRequest>,
@@ -30,7 +30,7 @@ pub async fn create<S: StorageClient + Clone + Send + Sync + 'static>(
     }
 }
 
-/// 获取批量任务状态
+/// Obtaining the status of batch tasks
 pub async fn status<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(batch_id): Path<String>,
@@ -49,7 +49,7 @@ pub async fn status<S: StorageClient + Clone + Send + Sync + 'static>(
     }
 }
 
-/// 添加批量项
+/// Add multiple items in batches
 pub async fn add_items<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(batch_id): Path<String>,
@@ -73,19 +73,19 @@ pub async fn add_items<S: StorageClient + Clone + Send + Sync + 'static>(
     }
 }
 
-/// 执行批量任务
+/// Perform batch tasks
 pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(batch_id): Path<String>,
 ) -> Result<JsonResponse<ExecuteBatchResponse>, HttpError> {
     let batch_manager = state.server.get_batch_manager();
 
-    // 获取任务信息以获取 space_id
+    // Retrieve task information in order to obtain the space_id.
     let task = batch_manager
         .get_task(&batch_id)
         .ok_or_else(|| HttpError::NotFound(format!("批量任务不存在: {}", batch_id)))?;
 
-    // 通过 space_id 查询 space_name
+    // Query the `space_name` using the `space_id`.
     let space_name = {
         let storage = state.server.get_storage();
         let storage = storage.lock();
@@ -118,7 +118,7 @@ pub async fn execute<S: StorageClient + Clone + Send + Sync + 'static>(
     }
 }
 
-/// 取消批量任务
+/// Cancel the batch task.
 pub async fn cancel<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(batch_id): Path<String>,
@@ -134,7 +134,7 @@ pub async fn cancel<S: StorageClient + Clone + Send + Sync + 'static>(
     }
 }
 
-/// 删除批量任务
+/// Delete batch tasks.
 pub async fn delete<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Path(batch_id): Path<String>,

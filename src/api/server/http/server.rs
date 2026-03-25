@@ -1,6 +1,6 @@
-//! HTTP 服务器
+//! HTTP server
 //!
-//! 提供基于 HTTP 的 GraphDB 服务接口
+//! Provides an HTTP-based interface to GraphDB services
 
 use crate::api::core::{QueryApi, SchemaApi};
 use crate::api::server::auth::PasswordAuthenticator;
@@ -14,10 +14,10 @@ use crate::transaction::TransactionManager;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
-/// HTTP 服务器
+/// HTTP server
 ///
-/// 注意：HttpServer 依赖 GraphService 获取权限管理器和统计管理器
-/// 会话管理器通过 GraphService 访问
+/// Note: HttpServer relies on GraphService for the Rights Manager and Statistics Manager.
+/// The session manager is accessed through the GraphService
 pub struct HttpServer<S: StorageClient + Clone + 'static> {
     graph_service: Arc<GraphService<S>>,
     query_api: QueryApi<S>,
@@ -31,7 +31,7 @@ pub struct HttpServer<S: StorageClient + Clone + 'static> {
 }
 
 impl<S: StorageClient + Clone + 'static> HttpServer<S> {
-    /// 创建新的 HTTP 服务器
+    /// Create a new HTTP server
     pub fn new(
         graph_service: Arc<GraphService<S>>,
         storage: Arc<Mutex<S>>,
@@ -51,62 +51,62 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
         }
     }
 
-    /// 获取 GraphService
+    /// Get GraphService
     pub fn get_graph_service(&self) -> Arc<GraphService<S>> {
         self.graph_service.clone()
     }
 
-    /// 获取会话管理器（通过 GraphService）
+    /// Get Session Manager (via GraphService)
     pub fn get_session_manager(&self) -> &GraphSessionManager {
         self.graph_service.get_session_manager()
     }
 
-    /// 获取查询 API
+    /// Getting the Query API
     pub fn get_query_api(&self) -> &QueryApi<S> {
         &self.query_api
     }
 
-    /// 获取事务管理器
+    /// Getting the Transaction Manager
     pub fn get_txn_manager(&self) -> Arc<TransactionManager> {
         self.txn_manager.clone()
     }
 
-    /// 获取 Schema API
+    /// Getting the Schema API
     pub fn get_schema_api(&self) -> &SchemaApi<S> {
         &self.schema_api
     }
 
-    /// 获取认证服务
+    /// Access to Certification Services
     pub fn get_auth_service(&self) -> &PasswordAuthenticator {
         &self.auth_service
     }
 
-    /// 获取批量任务管理器
+    /// Get Bulk Task Manager
     pub fn get_batch_manager(&self) -> Arc<BatchManager<S>> {
         self.batch_manager.clone()
     }
 
-    /// 获取统计管理器（通过 GraphService）
+    /// Getting the Statistics Manager (via GraphService)
     pub fn get_stats_manager(&self) -> &Arc<crate::core::StatsManager> {
         self.graph_service.get_stats_manager()
     }
 
-    /// 获取存储客户端
+    /// Getting the Storage Client
     pub fn get_storage(&self) -> Arc<Mutex<S>> {
         self.storage.clone()
     }
 
-    /// 获取配置
+    /// Get Configuration
     pub fn get_config(&self) -> &Config {
         &self.config
     }
 
-    /// 获取配置的可变引用
+    /// Getting a variable reference to a configuration
     pub fn get_config_mut(&mut self) -> &mut Config {
         &mut self.config
     }
 
-    /// 获取函数注册表
+    /// Get function registry
     pub fn get_function_registry(&self) -> Arc<Mutex<FunctionRegistry>> {
         self.function_registry.clone()
     }

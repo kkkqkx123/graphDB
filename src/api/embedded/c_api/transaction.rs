@@ -1,6 +1,6 @@
-//! C API 事务管理模块
+//! C API Transaction Management Module
 //!
-//! 提供事务管理功能，包括事务开始、提交、回滚和保存点
+//! Provide transaction management functionality, including transaction start, commit, rollback and savepoints
 
 use crate::api::core::TransactionHandle;
 use crate::api::embedded::c_api::error::{
@@ -14,10 +14,10 @@ use std::ffi::{c_char, c_int, CStr};
 use std::ptr;
 use std::sync::Arc;
 
-/// 事务句柄内部结构
+/// Internal structure of transaction handles
 ///
-/// 注意：此结构体持有会话指针，但不拥有会话的所有权。
-/// 调用者必须确保在事务完成之前不关闭会话。
+/// Note: This structure holds the session pointer, but does not own the session.
+/// The caller must ensure that the session is not closed until the transaction completes.
 pub struct GraphDbTxnHandle {
     pub(crate) session: *mut GraphDbSessionHandle,
     pub(crate) txn_manager: Arc<TransactionManager>,
@@ -27,12 +27,12 @@ pub struct GraphDbTxnHandle {
 }
 
 impl GraphDbTxnHandle {
-    /// 检查会话是否仍然有效
+    /// Check if the session is still active
     fn is_session_valid(&self) -> bool {
         !self.session.is_null()
     }
 
-    /// 获取会话引用（如果有效）
+    /// Get session reference (if valid)
     fn get_session(&self) -> Option<&GraphDbSessionHandle> {
         if self.is_session_valid() {
             Some(unsafe { &*self.session })
@@ -52,15 +52,15 @@ impl Drop for GraphDbTxnHandle {
     }
 }
 
-/// 开始事务
+/// Commencement of business
 ///
-/// # 参数
-/// - `session`: 会话句柄
-/// - `txn`: 输出参数，事务句柄
+/// # Parameters
+/// - `session`: session handle
+/// - `txn`: output parameter, transaction handle
 ///
-/// # 返回
-/// - 成功: GRAPHDB_OK
-/// - 失败: 错误码
+/// # Return
+/// Success: GRAPHDB_OK
+/// Failure: Error code
 ///
 /// # Safety
 /// - `session` must be a valid session handle created by `graphdb_session_create`
@@ -102,7 +102,7 @@ pub unsafe extern "C" fn graphdb_txn_begin(
     }
 }
 
-/// 开始只读事务
+/// Starting a read-only transaction
 ///
 /// # 参数
 /// - `session`: 会话句柄
@@ -157,12 +157,12 @@ pub unsafe extern "C" fn graphdb_txn_begin_readonly(
     }
 }
 
-/// 在事务中执行查询
+/// Executing queries in a transaction
 ///
 /// # 参数
-/// - `txn`: 事务句柄
-/// - `query`: 查询语句（UTF-8 编码）
-/// - `result`: 输出参数，结果集句柄
+/// `txn`: Transaction handle
+/// - `query`: query statement (UTF-8 encoding)
+/// - `result`: output parameter, result set handle
 ///
 /// # 返回
 /// - 成功: GRAPHDB_OK
@@ -195,7 +195,7 @@ pub unsafe extern "C" fn graphdb_txn_execute(
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    // 检查会话有效性
+    // Checking session validity
     let session = match handle.get_session() {
         Some(s) => s,
         None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
@@ -233,7 +233,7 @@ pub unsafe extern "C" fn graphdb_txn_execute(
     }
 }
 
-/// 提交事务
+/// Submission of transactions
 ///
 /// # 参数
 /// - `txn`: 事务句柄
@@ -259,7 +259,7 @@ pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    // 检查会话有效性
+    // Checking session validity
     let session = match handle.get_session() {
         Some(s) => s,
         None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
@@ -291,7 +291,7 @@ pub unsafe extern "C" fn graphdb_txn_commit(txn: *mut graphdb_txn_t) -> c_int {
     }
 }
 
-/// 回滚事务
+/// Rolling back transactions
 ///
 /// # 参数
 /// - `txn`: 事务句柄
@@ -317,7 +317,7 @@ pub unsafe extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int 
         return graphdb_error_code_t::GRAPHDB_MISUSE as c_int;
     }
 
-    // 检查会话有效性
+    // Checking session validity
     let session = match handle.get_session() {
         Some(s) => s,
         None => return graphdb_error_code_t::GRAPHDB_MISUSE as c_int,
@@ -346,15 +346,15 @@ pub unsafe extern "C" fn graphdb_txn_rollback(txn: *mut graphdb_txn_t) -> c_int 
     }
 }
 
-/// 创建保存点
+/// Creating a save point
 ///
 /// # 参数
 /// - `txn`: 事务句柄
-/// - `name`: 保存点名称（UTF-8 编码）
+/// - `name`: name of the repository (UTF-8 encoding)
 ///
 /// # 返回
-/// - 成功: 保存点 ID
-/// - 失败: -1
+/// - Success: Savepoint ID
+/// Failure: -1
 ///
 /// # Safety
 /// - `txn` must be a valid transaction handle created by `graphdb_txn_begin` or `graphdb_txn_begin_readonly`
@@ -394,11 +394,11 @@ pub unsafe extern "C" fn graphdb_txn_savepoint(
     }
 }
 
-/// 释放保存点
+/// Release the save point.
 ///
 /// # 参数
 /// - `txn`: 事务句柄
-/// - `savepoint_id`: 保存点 ID
+/// `savepoint_id`: ID of the savepoint
 ///
 /// # 返回
 /// - 成功: GRAPHDB_OK
@@ -443,7 +443,7 @@ pub unsafe extern "C" fn graphdb_txn_release_savepoint(
     }
 }
 
-/// 回滚到保存点
+/// Roll back to the saved point.
 ///
 /// # 参数
 /// - `txn`: 事务句柄
@@ -492,7 +492,7 @@ pub unsafe extern "C" fn graphdb_txn_rollback_to_savepoint(
     }
 }
 
-/// 释放事务句柄
+/// Release the transaction handle
 ///
 /// # 参数
 /// - `txn`: 事务句柄
@@ -534,10 +534,10 @@ mod tests {
         std::fs::create_dir_all(&temp_dir).ok();
         let db_path = temp_dir.join(format!("test_txn_{}_{}.db", std::process::id(), counter));
 
-        // 确保数据库文件不存在
+        // Make sure the database file does not exist.
         if db_path.exists() {
             std::fs::remove_file(&db_path).ok();
-            // 等待文件系统完成删除操作
+            // Waiting for the file system to complete the deletion operation.
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
 

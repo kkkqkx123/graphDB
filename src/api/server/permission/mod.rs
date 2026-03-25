@@ -1,11 +1,11 @@
-//! 权限管理模块
+//! Rights Management Module
 //!
-//! 提供用户权限检查和验证功能
+//! Provide user rights checking and validation function
 
 pub mod permission_checker;
 pub mod permission_manager;
 
-// 从 core 层重新导出权限类型
+// Re-exporting permission types from the core layer
 pub use crate::core::{Permission, RoleType};
 
 pub use permission_checker::{OperationType, PermissionChecker};
