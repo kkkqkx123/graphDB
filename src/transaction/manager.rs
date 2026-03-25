@@ -145,7 +145,7 @@ impl TransactionManager {
 
     /// 提交事务
     pub fn commit_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
-        // 从DashMap中移除事务并获取所有权
+        // 从 DashMap 中移除事务并获取所有权
         let context = {
             let entry = self
                 .active_transactions
@@ -178,7 +178,7 @@ impl TransactionManager {
         // 执行提交
         context.transition_to(TransactionState::Committing)?;
 
-        // 提交redb事务
+        // 提交 redb 事务
         if !context.read_only {
             let mut write_txn = context.take_write_txn()?;
 

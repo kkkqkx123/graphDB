@@ -6,15 +6,19 @@
 
 use std::ffi::CString;
 use std::ptr;
+use std::sync::atomic::{AtomicU64, Ordering};
+use tempfile::TempDir;
 
 use graphdb::api::embedded::c_api::error::graphdb_error_code_t;
+
+static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// C API 测试数据库包装器
 ///
 /// 使用 RAII 模式管理数据库生命周期，确保测试后正确清理资源
 pub struct CApiTestDatabase {
     db: *mut graphdb::api::embedded::c_api::types::graphdb_t,
-    temp_path: std::path::PathBuf,
+    temp_dir: TempDir,
 }
 
 impl CApiTestDatabase {
@@ -22,17 +26,9 @@ impl CApiTestDatabase {
     ///
     /// 使用临时目录创建独立的数据库文件，确保测试隔离
     pub fn new() -> Self {
-        let temp_dir = std::env::temp_dir().join("graphdb_c_api_integration_test");
-        std::fs::create_dir_all(&temp_dir).expect("创建临时目录失败");
-
-        let db_path = temp_dir.join(format!("test_{}.db", std::process::id()));
-
-        // 确保数据库文件不存在
-        if db_path.exists() {
-            std::fs::remove_file(&db_path).expect("删除旧数据库文件失败");
-            // 等待文件系统完成删除操作
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
+        let temp_dir = TempDir::new().expect("创建临时目录失败");
+        let counter = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let db_path = temp_dir.path().join(format!("test_{}.db", counter));
 
         let path_cstring =
             CString::new(db_path.to_str().expect("路径转换为字符串失败")).expect("创建CString失败");
@@ -53,7 +49,7 @@ impl CApiTestDatabase {
 
         Self {
             db,
-            temp_path: db_path,
+            temp_dir,
         }
     }
 
@@ -69,11 +65,6 @@ impl Drop for CApiTestDatabase {
             unsafe {
                 graphdb::api::embedded::c_api::database::graphdb_close(self.db);
             }
-        }
-
-        // 清理临时文件
-        if self.temp_path.exists() {
-            let _ = std::fs::remove_file(&self.temp_path);
         }
     }
 }

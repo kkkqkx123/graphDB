@@ -505,20 +505,20 @@ fn test_c_api_error_string() {
     };
 
     let desc = error_str.to_str().expect("Invalid error description");
-    assert_eq!(desc, "Success");
+    assert_eq!(desc, "OK");
 }
 
 #[test]
 fn test_c_api_error_codes() {
     let test_cases = vec![
-        (graphdb_error_code_t::GRAPHDB_OK as i32, "Success"),
+        (graphdb_error_code_t::GRAPHDB_OK as i32, "OK"),
         (graphdb_error_code_t::GRAPHDB_ERROR as i32, "General error"),
         (graphdb_error_code_t::GRAPHDB_MISUSE as i32, "Misuse"),
         (graphdb_error_code_t::GRAPHDB_NOTFOUND as i32, "Not found"),
-        (graphdb_error_code_t::GRAPHDB_IOERR as i32, "I/O error"),
+        (graphdb_error_code_t::GRAPHDB_IOERR as i32, "IO error"),
         (
             graphdb_error_code_t::GRAPHDB_CORRUPT as i32,
-            "Database corrupted",
+            "Data corruption",
         ),
         (graphdb_error_code_t::GRAPHDB_NOMEM as i32, "Out of memory"),
     ];

@@ -9,7 +9,6 @@ use crate::api::embedded::c_api::error::{
 use crate::api::embedded::c_api::result::GraphDbResultHandle;
 use crate::api::embedded::c_api::session::GraphDbSessionHandle;
 use crate::api::embedded::c_api::types::{graphdb_result_t, graphdb_session_t, graphdb_txn_t};
-use crate::api::embedded::transaction::TransactionConfig;
 use crate::transaction::TransactionManager;
 use std::ffi::{c_char, c_int, CStr};
 use std::ptr;
@@ -78,11 +77,11 @@ pub unsafe extern "C" fn graphdb_txn_begin(
     }
 
     let handle = &*(session as *mut GraphDbSessionHandle);
+    let txn_manager = handle.inner.txn_manager();
 
-    match handle.inner.begin_transaction() {
-        Ok(txn_obj) => {
-            let txn_manager = handle.inner.txn_manager();
-            let txn_handle = txn_obj.handle();
+    match txn_manager.begin_transaction(Default::default()) {
+        Ok(txn_id) => {
+            let txn_handle = TransactionHandle(txn_id);
             let handle = Box::new(GraphDbTxnHandle {
                 session: session as *mut GraphDbSessionHandle,
                 txn_manager,
@@ -94,7 +93,7 @@ pub unsafe extern "C" fn graphdb_txn_begin(
             graphdb_error_code_t::GRAPHDB_OK as c_int
         }
         Err(e) => {
-            let (error_code, _) = error_code_from_core_error(&e);
+            let error_code = graphdb_error_code_t::GRAPHDB_ABORT as c_int;
             let error_msg = format!("{}", e);
             set_last_error_message(error_msg);
             *txn = ptr::null_mut();
@@ -128,24 +127,26 @@ pub unsafe extern "C" fn graphdb_txn_begin_readonly(
     }
 
     let handle = &*(session as *mut GraphDbSessionHandle);
+    let txn_manager = handle.inner.txn_manager();
 
-    let config = TransactionConfig::new().read_only();
-    match handle.inner.begin_transaction_with_config(config) {
-        Ok(txn_obj) => {
-            let txn_manager = handle.inner.txn_manager();
-            let handle_id = txn_obj.handle();
-            let txn_handle = Box::new(GraphDbTxnHandle {
+    let mut options = crate::transaction::TransactionOptions::default();
+    options.read_only = true;
+    
+    match txn_manager.begin_transaction(options) {
+        Ok(txn_id) => {
+            let txn_handle = TransactionHandle(txn_id);
+            let txn_handle_box = Box::new(GraphDbTxnHandle {
                 session: session as *mut GraphDbSessionHandle,
                 txn_manager,
-                txn_handle: Some(handle_id),
+                txn_handle: Some(txn_handle),
                 committed: false,
                 rolled_back: false,
             });
-            *txn = Box::into_raw(txn_handle) as *mut graphdb_txn_t;
+            *txn = Box::into_raw(txn_handle_box) as *mut graphdb_txn_t;
             graphdb_error_code_t::GRAPHDB_OK as c_int
         }
         Err(e) => {
-            let (error_code, _) = error_code_from_core_error(&e);
+            let error_code = graphdb_error_code_t::GRAPHDB_ABORT as c_int;
             let error_msg = format!("{}", e);
             set_last_error_message(error_msg);
             *txn = ptr::null_mut();
