@@ -129,11 +129,6 @@ typedef struct graphdb_t graphdb_t;
 typedef struct graphdb_session_t graphdb_session_t;
 
 /**
- * Prepared statement handle (opaque pointer)
- */
-typedef struct graphdb_stmt_t graphdb_stmt_t;
-
-/**
  * Transaction handle (opaque pointer)
  */
 typedef struct graphdb_txn_t graphdb_txn_t;

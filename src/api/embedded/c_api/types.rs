@@ -51,10 +51,6 @@ pub struct graphdb_t;
 #[repr(C)]
 pub struct graphdb_session_t;
 
-/// Pre-compiled statement handles (opaque pointers)
-#[repr(C)]
-pub struct graphdb_stmt_t;
-
 /// Transaction handles (opaque pointers)
 #[repr(C)]
 pub struct graphdb_txn_t;

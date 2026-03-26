@@ -43,10 +43,7 @@ pub enum SortEliminationDecision {
     },
     /// Convert to TopN
     ConvertToTopN {
-        /// The text to be translated is:  “You are a professional translator.”  
-
-**Translation:**  
-“You are a professional translator.”
+        /// Reason for conversion
         reason: TopNConversionReason,
         /// Cost estimate for TopN method
         topn_cost: f64,
@@ -125,10 +122,10 @@ pub struct SortEliminationOptimizer {
 
 impl SortEliminationOptimizer {
     /// Create a new sorting and elimination optimizer
-    pub fn new(cost_calculator: A// Default: 10%tor>) -> Self {
+    pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
         Self {
             cost_calculator,
-            topn_threshold: 0.1, // 默认 10%
+            topn_threshold: 0.1, // Default: 10%
             min_limit_for_topn: 1,
         }
     }
@@ -150,19 +147,19 @@ impl SortEliminationOptimizer {
     /// The decision to convert from Sort + Limit to TopN is based on a cost analysis.
     ///
     /// # Parameters
-    /// **Context:** Optimization of sorting algorithms
+    /// **context:** Sort context
     ///
-    /// # Return
+    /// # Returns
     /// Sorting optimization decision (whether to maintain the original sorting order or convert the data into a TopN list)
-    pub // Check whether it is possible to convert this into a TopN approach.rtContext) -> SortEliminationDecision {
+    pub fn optimize(&self, context: &SortContext) -> SortEliminationDecision {
         let sort_items = context.sort_node.sort_items();
 
-        // 检查是否可以转换为 TopN
+        // Check whether it is possible to convert this into a TopN format.
         if let Some(decision) = self.check_topn_conversion(context, sort_items) {
-        // Unable to convert; the original order is maintained.
+            return decision;
         }
 
-        // 无法转换，保留排序
+        // The text cannot be translated; the original order is therefore retained.
         let sort_cost = self.calculate_sort_cost(context.input_rows, sort_items.len());
         SortEliminationDecision::KeepSort {
             reason: SortKeepReason::NoLimitForTopN,
@@ -182,10 +179,10 @@ impl SortEliminationOptimizer {
         let limit = context.limit_value?;
 
         if limit < self.min_limit_for_topn {
-        // Check whether the conditions for the TopN conversion are met.
+            return None;
         }
 
-        // 检查是否满足 TopN 转换条件
+        // Check whether the conditions for the TopN conversion are met.
         let limit_ratio = limit as f64 / context.input_rows as f64;
 
         if limit_ratio < self.topn_threshold || context.input_rows > 10000 {
@@ -364,7 +361,7 @@ mod tests {
         // If the value of `Limit` is 0, `None` should be returned.er();
         let sort_items = vec![SortItem::asc("name".to_string())];
 
-        // Limit 为 0，应该返回 None
+        // If the value of “Limit” is 0, “None” should be returned.
         let result = optimizer.check_topn_conversion_cost(&sort_items, 0, 1000);
         assert_eq!(result, None);
     }

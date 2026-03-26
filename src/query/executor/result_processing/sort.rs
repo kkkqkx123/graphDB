@@ -1011,15 +1011,7 @@ mod tests {
             .expect("execute_sort should succeed");
 
         // Verify the Top-N results
-        assert_eq!(data_set.rows.len(), 3); // Of course! Here is the translation of the given text, keeping only the first three sentences:
-
-**Original Text:**
-You are a professional translator. Translate the following text:**
-
-**Translated Text:**
-You are a professional translator. Please translate the following text:**
-
-**Note:** The original text seems to be incomplete at the end, as there is no subsequent sentence after “Please translate the following text:”. If you provide the complete text, I will be able to provide a more accurate translation.
+        assert_eq!(data_set.rows.len(), 3); // Verify that the Top-3 results are returned.
         assert_eq!(data_set.rows[0][2], Value::Float(95.5)); // Eve (highest score)
         assert_eq!(data_set.rows[1][2], Value::Float(92.0)); // Bob
         assert_eq!(data_set.rows[2][2], Value::Float(88.0)); // David (third highest score)
@@ -1045,12 +1037,7 @@ You are a professional translator. Please translate the following text:**
             .expect("execute_sort should succeed");
 
         // Verify the Top-N results
-        assert_eq!(data_set.rows.len(), 2); // Of course! Here is the translation of the provided text, keeping only the first two sentences:
-
-**Original Text:**  
-“You are a professional translator.”  
-**Translated Text:**  
-“You are a professional translator.”
+        assert_eq!(data_set.rows.len(), 2); // Verify that the Top-2 results are returned.
         assert_eq!(data_set.rows[0][2], Value::Float(95.5)); // Eve (highest score)
         assert_eq!(data_set.rows[1][2], Value::Float(92.0)); // Bob (second-highest score)
     }

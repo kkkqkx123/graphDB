@@ -34,7 +34,7 @@ pub struct CandidateStart {
     pub reason: SelectionReason,
 }
 
-/// 选择原因
+/// select a reason
 #[derive(Debug, Clone)]
 pub enum SelectionReason {
     /// Explicit VID specification
@@ -51,7 +51,7 @@ pub enum SelectionReason {
     },
     /// Full table scan
     FullScan {
-        /// 顶点数量
+        /// number of vertices
         vertex_count: u64,
     },
     /// Variable binding
@@ -333,9 +333,9 @@ impl TraversalStartSelector {
         }
     }
 
-    /// 检查表达式中是否包含VID条件
+    /// Check whether the expression contains VID conditions
     ///
-    /// 识别以下模式：
+    /// Identify the following patterns:
     /// - id(v) == value
     /// - v.id == value
     /// - {id: value}

@@ -56,7 +56,7 @@ pub enum MaterializationDecision {
     },
 }
 
-/// 物化原因
+/// materialization reasons
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaterializeReason {
     /// Cited multiple times
@@ -65,7 +65,7 @@ pub enum MaterializeReason {
     CostBased,
 }
 
-/// 不物化原因
+/// Reason for non-materialization
 #[derive(Debug, Clone, PartialEq)]
 pub enum NoMaterializeReason {
     /// Cited only once
@@ -423,13 +423,13 @@ impl MaterializationOptimizer {
         }
     }
 
-    /// 估算重复计算代价
+    /// Estimate the cost of double counting
     fn estimate_recompute_cost(&self, reference_count: usize, rows: u64) -> f64 {
         // The calculation must be performed again for each citation.
         (reference_count as f64) * (rows as f64) * 0.1
     }
 
-    /// 估算物化代价
+    /// Estimate physical and chemical costs
     fn estimate_materialize_cost(&self, rows: u64, complexity: u32) -> f64 {
         // Materialization cost = Computational cost + Storage cost
         let compute_cost = (rows as f64) * 0.1;
@@ -441,10 +441,10 @@ impl MaterializationOptimizer {
 
     /// Perform the materialization transformation.
     ///
-    /// # 参数
-    /// - `cte_node`: CTE 子计划根节点
+    /// #Parameters
+    /// - `cte_node`: CTE subplan root node
     ///
-    /// # 返回
+    /// #Return
     /// Nodes that have the MaterializeNode package installed
     pub fn materialize(
         &self,

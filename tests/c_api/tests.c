@@ -8,7 +8,6 @@
  * - 查询执行
  * - 结果处理
  * - 事务管理
- * - 预编译语句
  * - 批量操作
  * - 错误处理
  */
@@ -356,59 +355,6 @@ void test_transaction_null_params(void) {
     ASSERT_EQ(GRAPHDB_MISUSE, rc);
 }
 
-/* ==================== 预编译语句测试 ==================== */
-
-void test_prepare_finalize(void) {
-    graphdb_t* db = NULL;
-    graphdb_session_t* session = NULL;
-    graphdb_stmt_t* stmt = NULL;
-    const char* db_path = "test_stmt.db";
-    
-    remove(db_path);
-    
-    int rc = graphdb_open(db_path, &db);
-    ASSERT_EQ(GRAPHDB_OK, rc);
-    
-    rc = graphdb_session_create(db, &session);
-    ASSERT_EQ(GRAPHDB_OK, rc);
-    
-    /* 准备语句 */
-    const char* query = "SHOW SPACES";
-    rc = graphdb_prepare(session, query, &stmt);
-    ASSERT_EQ(GRAPHDB_OK, rc);
-    ASSERT_NOT_NULL(stmt);
-    
-    /* 释放语句 */
-    rc = graphdb_finalize(stmt);
-    ASSERT_EQ(GRAPHDB_OK, rc);
-    
-    rc = graphdb_session_close(session);
-    ASSERT_EQ(GRAPHDB_OK, rc);
-    
-    rc = graphdb_close(db);
-    ASSERT_EQ(GRAPHDB_OK, rc);
-    
-    remove(db_path);
-}
-
-void test_prepare_null_params(void) {
-    graphdb_stmt_t* stmt = NULL;
-    
-    int rc = graphdb_prepare(NULL, "SHOW SPACES", &stmt);
-    ASSERT_EQ(GRAPHDB_MISUSE, rc);
-    
-    rc = graphdb_prepare(NULL, NULL, &stmt);
-    ASSERT_EQ(GRAPHDB_MISUSE, rc);
-}
-
-void test_bind_null_invalid_index(void) {
-    int rc = graphdb_bind_null(NULL, 0);
-    ASSERT_EQ(GRAPHDB_MISUSE, rc);
-    
-    rc = graphdb_bind_null(NULL, -1);
-    ASSERT_EQ(GRAPHDB_MISUSE, rc);
-}
-
 /* ==================== 批量操作测试 ==================== */
 
 void test_batch_inserter_create_free(void) {
@@ -517,7 +463,6 @@ void test_full_workflow(void) {
     graphdb_session_t* session = NULL;
     graphdb_result_t* result = NULL;
     graphdb_txn_t* txn = NULL;
-    graphdb_stmt_t* stmt = NULL;
     graphdb_batch_t* batch = NULL;
     const char* db_path = "test_workflow.db";
     
@@ -561,15 +506,6 @@ void test_full_workflow(void) {
     
     /* 释放事务句柄 */
     rc = graphdb_txn_free(txn);
-    ASSERT_EQ(GRAPHDB_OK, rc);
-    
-    /* 准备语句 */
-    rc = graphdb_prepare(session, query, &stmt);
-    ASSERT_EQ(GRAPHDB_OK, rc);
-    ASSERT_NOT_NULL(stmt);
-    
-    /* 释放语句 */
-    rc = graphdb_finalize(stmt);
     ASSERT_EQ(GRAPHDB_OK, rc);
     
     /* 创建批量插入器 */
@@ -631,13 +567,6 @@ int main(void) {
     TEST(transaction_begin_commit);
     TEST(transaction_begin_rollback);
     TEST(transaction_null_params);
-    printf("\n");
-    
-    /* 预编译语句测试 */
-    printf("【预编译语句测试】\n");
-    TEST(prepare_finalize);
-    TEST(prepare_null_params);
-    TEST(bind_null_invalid_index);
     printf("\n");
     
     /* 批量操作测试 */

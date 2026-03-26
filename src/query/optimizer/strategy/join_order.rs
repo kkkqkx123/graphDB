@@ -99,7 +99,7 @@ impl JoinCondition {
         }
     }
 
-    /// 设置选择性
+    /// Set the option to be selective.
     pub fn with_selectivity(mut self, selectivity: f64) -> Self {
         self.selectivity = selectivity.clamp(0.0, 1.0);
         self
@@ -183,7 +183,7 @@ impl JoinOrderOptimizer {
     /// “conditions”: A list of connection conditions.
     ///
     /// # Return
-    /// 连接顺序优化结果
+    /// Results of the optimization of the connection sequence
     pub fn optimize_join_order(
         &self,
         tables: &[TableInfo],

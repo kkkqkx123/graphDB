@@ -30,7 +30,7 @@ pub enum IndexSelection {
     },
     /// Tag Index
     TagIndex {
-        /// 估计代价
+        /// Estimated cost
         estimated_cost: f64,
         /// Number of vertices
         vertex_count: u64,
@@ -39,7 +39,7 @@ pub enum IndexSelection {
     FullScan {
         /// 估计代价
         estimated_cost: f64,
-        /// 顶点数量
+        /// Number of vertices
         vertex_count: u64,
     },
 }
@@ -47,7 +47,7 @@ pub enum IndexSelection {
 /// Attribute predicate
 #[derive(Debug, Clone)]
 pub struct PropertyPredicate {
-    /// 属性名称
+    /// attribute name
     pub property_name: String,
     /// Operator
     pub operator: PredicateOperator,

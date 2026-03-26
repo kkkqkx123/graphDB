@@ -364,8 +364,7 @@ pub mod tests {
         match result {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 4); // 2 * 2 = 4  
-(The result is displayed in a row.)
+                    assert_eq!(dataset.rows.len(), 4); // 2 * 2 = 4
 
                     // Verify the first line.
                     assert_eq!(
@@ -512,8 +511,7 @@ pub mod tests {
         match result {
             ExecutionResult::Values(values) => {
                 if let Some(Value::DataSet(dataset)) = values.first() {
-                    assert_eq!(dataset.rows.len(), 1); // 1 * 1 * 1 = 1  
-(1 row of results)
+                    assert_eq!(dataset.rows.len(),1); // 1 * 1 * 1 = 1
                     assert_eq!(
                         dataset.rows[0],
                         vec![

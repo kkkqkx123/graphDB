@@ -546,8 +546,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
         // Perform bidirectional BFS (Breadth-First Search).
         self.execute_bidirectional()?;
 
-        // Translate the following text:  
-“Convert to Path result”
+        // Convert to Path result
         let paths = if self.parallel_config.enable_parallel {
             self.result_cache.to_paths_parallel()
         } else {

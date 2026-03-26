@@ -1,135 +1,131 @@
-# GraphDB C API 集成测试
+# GraphDB C API integration testing
 
-本目录包含 GraphDB C API 的集成测试。
+This directory contains integration tests for GraphDB C API.
 
-## 目录结构
+##Directory structure
 
 ```
 tests/c_api/
-├── tests.c              # C 测试源代码
-├── CMakeLists.txt       # CMake 构建配置
-├── build_msvc.ps1       # MSVC 构建脚本（推荐）
-└── README.md            # 本文件
+├── tests.c              # C Test Source Code
+├── CMakeLists.txt       # CMake Build Configuration
+├── build_msvc.ps1       # MSVC build script (recommended)
+└── README.md            #This document
 ```
 
-## 前置条件
+##Preconditions
 
-1. **Rust 工具链**：用于编译 GraphDB 库
-2. **MSVC 编译器**：Windows 平台推荐使用 Visual Studio 的 MSVC 工具链
-3. **GraphDB 库已编译**：运行 `cargo build --lib` 生成库文件
+1. **Rust Toolchain **: Used to compile GraphDB library
+2. **MSVC Compiler **: Windows platform recommends using Visual Studio's MSVC toolchain
+3. **GraphDB library compiled **: Run `cargo build --lib` to generate library file
 
-## 构建方式
+##Construction method
 
-### 方式1: 使用 PowerShell 脚本（推荐，Windows）
+###Method 1: Use PowerShell scripts (recommended, Windows)
 
 ```powershell
-# 进入项目根目录
+#Enter the project root directory
 cd graphDB
 
-# 构建并运行测试
+#Build and Run Tests
 .\tests\c_api\build_msvc.ps1 -Run
 
-# 仅构建（debug 模式）
+#Build only (debug mode)
 .\tests\c_api\build_msvc.ps1
 
-# 构建 release 版本
+#Build release version
 .\tests\c_api\build_msvc.ps1 -BuildMode release
 
-# 清理并重新构建
+Clean and rebuild
 .\tests\c_api\build_msvc.ps1 -Clean -Run
 ```
 
-### 方式2: 使用 CMake
+###Method 2: Use CMake
 
 ```bash
-# 进入测试目录
+#Enter the test directory
 cd tests/c_api
 
-# 创建构建目录
+#Create build directory
 mkdir build
 cd build
 
-# 配置 CMake
+#Configure CMake
 cmake ..
 
-# 构建
+#Build
 cmake --build .
 
-# 运行测试
+#Run tests
 ctest --verbose
 ```
 
-### 方式3: 手动编译（MSVC）
+###Method 3: Manual compilation (MSVC)
 
 ```cmd
 cl.exe /W4 /I../../include /Febuild\bin\graphdb_c_api_tests.exe tests.c /link /LIBPATH:../../target/debug graphdb.dll.lib ws2_32.lib
 ```
 
-## 测试覆盖范围
+##Test coverage
 
-### 数据库生命周期测试
-- 数据库打开/关闭
-- 库版本获取
-- 空参数处理
+###Database Life Cycle Testing
+- Database Open/Close
+- Library version acquisition
+- null parameter processing
 
-### 会话管理测试
-- 会话创建/销毁
-- 自动提交模式
-- 空参数处理
+###Session Management Test
+- Session Creation/Destruction
+- autocommit mode
+- null parameter processing
 
-### 查询执行测试
-- 简单查询执行
-- 空参数处理
+###Query Execution Test
+- Simple query execution
+- null parameter processing
 
-### 结果处理测试
-- 结果集元数据（列数、行数）
-- 空参数处理
+###Result Handling Test
+- Result Set Metadata (Number of Columns, Number of Rows)
+- null parameter processing
 
-### 事务管理测试
-- 事务开始/提交
-- 事务开始/回滚
-- 空参数处理
+###Transaction Management Test
+- Transaction Start/Submit
+- Transaction Start/Rollback
+- null parameter processing
 
-### 预编译语句测试
-- 语句准备/释放
-- 空参数处理
+###Batch Operation Test
+- Batch Inserter Create/Release
+- null parameter processing
 
-### 批量操作测试
-- 批量插入器创建/释放
-- 空参数处理
+###Error Handling Test
+- error code conversion
+- Error Description Get
+- Error message acquisition
 
-### 错误处理测试
-- 错误码转换
-- 错误描述获取
-- 错误消息获取
+###Integration Scenario Test
+- complete workflow
 
-### 集成场景测试
-- 完整工作流程
+##Frequently Asked Questions
 
-## 常见问题
+### 1. GraphDB library not found
 
-### 1. 找不到 GraphDB 库
-
-**解决**：先编译 GraphDB 项目
+** Solution **: Compile GraphDB project first
 ```bash
 cargo build --lib
 ```
 
-### 2. 运行时找不到 DLL
+### 2. DLL not found at runtime
 
-**解决**：将库目录添加到 PATH
+** Solution **: Add library directory to PATH
 ```powershell
 $env:PATH = "target\debug;$env:PATH"
 ```
 
-### 3. 编译错误 C2016
+### 3. Compilation error C2016
 
-**原因**：头文件中存在空结构体
+** Cause **: Empty structure exists in header file
 
-**解决**：确保 `include/graphdb.h` 中的结构体定义包含 `_dummy` 成员
+** Resolution **: Ensure that the struct definition in `include/graphdb.h` contains `_dummy` members
 
-## 注意事项
+##Notes
 
-- 测试使用 MSVC 工具链编译，确保 Visual Studio 环境变量已配置
-- 测试程序会自动清理生成的测试数据库文件
-- 所有测试用例均为独立测试，可单独运行
+- Tests compiled using MSVC toolchain ensure Visual Studio environment variables are configured
+- The test program automatically cleans up the generated test database files
+- All test cases are independent tests and can be run independently

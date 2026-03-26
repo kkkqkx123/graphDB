@@ -247,8 +247,7 @@ impl BidirectionalTraversalOptimizer {
     fn estimate_reachable_nodes(&self, edge_types: &[String], depth: u32) -> f64 {
         let branching = self.estimate_average_branching(edge_types);
 
-        // Use the formula for geometric series:  
-1 + b + b^2 + … + b^d = (b^(d+1) – 1) / (b – 1)
+        // Use the formula for geometric series: 1 + b + b^2 + ... + b^d = (b^(d+1) - 1) / (b - 1)
         if (branching - 1.0).abs() < f64::EPSILON {
             (depth + 1) as f64
         } else {
