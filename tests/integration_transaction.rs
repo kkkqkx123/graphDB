@@ -124,6 +124,10 @@ fn test_read_only_transaction() {
         read_only: true,
         timeout: Some(Duration::from_secs(30)),
         durability: graphdb::transaction::DurabilityLevel::None,
+        isolation_level: graphdb::transaction::IsolationLevel::default(),
+        query_timeout: None,
+        statement_timeout: None,
+        idle_timeout: None,
     };
     let txn_id = txn_manager
         .begin_transaction(options)
@@ -307,6 +311,10 @@ fn test_transaction_timeout() {
         read_only: false,
         timeout: Some(Duration::from_millis(100)),
         durability: graphdb::transaction::DurabilityLevel::None,
+        isolation_level: graphdb::transaction::IsolationLevel::default(),
+        query_timeout: None,
+        statement_timeout: None,
+        idle_timeout: None,
     };
     let txn_id = txn_manager
         .begin_transaction(options)
@@ -344,6 +352,10 @@ fn test_concurrent_transactions() {
             read_only: true,
             timeout: Some(Duration::from_secs(30)),
             durability: graphdb::transaction::DurabilityLevel::None,
+            isolation_level: graphdb::transaction::IsolationLevel::default(),
+            query_timeout: None,
+            statement_timeout: None,
+            idle_timeout: None,
         };
         let txn_id = txn_manager
             .begin_transaction(options)

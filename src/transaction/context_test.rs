@@ -9,7 +9,7 @@ use tempfile::TempDir;
 
 use crate::transaction::context::TransactionContext;
 use crate::transaction::types::{
-    DurabilityLevel, OperationLog, TransactionError, TransactionId, TransactionState,
+    DurabilityLevel, OperationLog, TransactionConfig, TransactionError, TransactionId, TransactionState,
 };
 
 /// Create test database
@@ -22,6 +22,18 @@ fn create_test_db() -> (Arc<redb::Database>, TempDir) {
     (db, temp_dir)
 }
 
+/// Create default transaction config
+fn create_default_config(timeout: Duration) -> TransactionConfig {
+    TransactionConfig {
+        timeout,
+        durability: DurabilityLevel::Immediate,
+        isolation_level: crate::transaction::types::IsolationLevel::default(),
+        query_timeout: None,
+        statement_timeout: None,
+        idle_timeout: None,
+    }
+}
+
 #[test]
 fn test_transaction_context_writable_creation() {
     let (db, _temp) = create_test_db();
@@ -29,11 +41,22 @@ fn test_transaction_context_writable_creation() {
     let timeout = Duration::from_secs(30);
     let durability = DurabilityLevel::Immediate;
 
+    let config = create_default_config(timeout);
+    let config = TransactionConfig {
+        durability,
+        ..config
+    };
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
-    let ctx = TransactionContext::new_writable(txn_id, timeout, durability, write_txn, None);
+    let ctx = TransactionContext::new_writable(
+        txn_id,
+        config,
+        write_txn,
+        None,
+    );
 
     assert_eq!(ctx.id, txn_id);
     assert_eq!(ctx.state(), TransactionState::Active);
@@ -47,9 +70,16 @@ fn test_transaction_context_readonly_creation() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let read_txn = db.begin_read().expect("Failed to create read transaction");
 
-    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
+    let ctx = TransactionContext::new_readonly(
+        txn_id,
+        config,
+        read_txn,
+        None,
+    );
 
     assert_eq!(ctx.id, txn_id);
     assert_eq!(ctx.state(), TransactionState::Active);
@@ -62,14 +92,15 @@ fn test_transaction_context_state_transitions() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -89,14 +120,15 @@ fn test_transaction_context_invalid_state_transition() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -123,14 +155,15 @@ fn test_transaction_context_timeout() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(100);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -151,14 +184,15 @@ fn test_transaction_context_remaining_time() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(200);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -182,14 +216,15 @@ fn test_transaction_context_modified_tables() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -211,14 +246,15 @@ fn test_transaction_context_operation_log() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -254,14 +290,15 @@ fn test_transaction_context_can_execute() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -283,14 +320,15 @@ fn test_transaction_context_can_execute_expired() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(50);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -313,14 +351,15 @@ fn test_transaction_context_info() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -342,14 +381,15 @@ fn test_transaction_context_take_write_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -369,9 +409,16 @@ fn test_transaction_context_readonly_take_write_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let read_txn = db.begin_read().expect("Failed to create read transaction");
 
-    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
+    let ctx = TransactionContext::new_readonly(
+        txn_id,
+        config,
+        read_txn,
+        None,
+    );
 
     // Read-only transaction cannot take write transaction
     let result = ctx.take_write_txn();
@@ -384,14 +431,15 @@ fn test_transaction_context_with_write_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -408,9 +456,16 @@ fn test_transaction_context_readonly_with_write_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let read_txn = db.begin_read().expect("Failed to create read transaction");
 
-    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
+    let ctx = TransactionContext::new_readonly(
+        txn_id,
+        config,
+        read_txn,
+        None,
+    );
 
     // Read-only transaction cannot use with_write_txn
     let result = ctx.with_write_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
@@ -428,9 +483,16 @@ fn test_transaction_context_with_read_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let read_txn = db.begin_read().expect("Failed to create read transaction");
 
-    let ctx = TransactionContext::new_readonly(txn_id, timeout, read_txn, None);
+    let ctx = TransactionContext::new_readonly(
+        txn_id,
+        config,
+        read_txn,
+        None,
+    );
 
     // Execute with read transaction
     let result = ctx.with_read_txn(|_txn| Ok::<(), crate::core::StorageError>(()));
@@ -444,14 +506,15 @@ fn test_transaction_context_writable_with_read_txn() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -469,14 +532,15 @@ fn test_transaction_context_with_write_txn_expired() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_millis(50);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -500,14 +564,15 @@ fn test_transaction_context_with_write_txn_invalid_state() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -534,14 +599,15 @@ fn test_savepoint_creation() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -564,14 +630,15 @@ fn test_multiple_savepoints() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -597,14 +664,15 @@ fn test_rollback_to_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -626,14 +694,15 @@ fn test_rollback_to_nonexistent_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -653,14 +722,15 @@ fn test_release_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -683,14 +753,15 @@ fn test_release_nonexistent_savepoint() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );
@@ -710,14 +781,15 @@ fn test_savepoint_with_operations() {
     let txn_id: TransactionId = 1;
     let timeout = Duration::from_secs(30);
 
+    let config = create_default_config(timeout);
+
     let write_txn = db
         .begin_write()
         .expect("Failed to create write transaction");
 
     let ctx = TransactionContext::new_writable(
         txn_id,
-        timeout,
-        DurabilityLevel::Immediate,
+        config,
         write_txn,
         None,
     );

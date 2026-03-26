@@ -81,7 +81,15 @@ impl TransactionManager {
         let txn_id = self.id_generator.fetch_add(1, Ordering::SeqCst);
         let timeout = options.timeout.unwrap_or(self.config.default_timeout);
 
-        // Create transaction context
+        let config = TransactionConfig {
+            timeout,
+            durability: options.durability,
+            isolation_level: options.isolation_level,
+            query_timeout: options.query_timeout,
+            statement_timeout: options.statement_timeout,
+            idle_timeout: options.idle_timeout,
+        };
+
         let db = Arc::clone(&self.db);
         let context = if options.read_only {
             let read_txn = self
@@ -91,16 +99,11 @@ impl TransactionManager {
 
             Arc::new(TransactionContext::new_readonly(
                 txn_id,
-                timeout,
-                options.isolation_level,
-                options.query_timeout,
-                options.statement_timeout,
-                options.idle_timeout,
+                config,
                 read_txn,
                 Some(db),
             ))
         } else {
-            // redb automatically handles single-writer restriction, no manual management needed
             let write_txn = self
                 .db
                 .begin_write()
@@ -108,12 +111,7 @@ impl TransactionManager {
 
             Arc::new(TransactionContext::new_writable(
                 txn_id,
-                timeout,
-                options.durability,
-                options.isolation_level,
-                options.query_timeout,
-                options.statement_timeout,
-                options.idle_timeout,
+                config,
                 write_txn,
                 Some(db),
             ))

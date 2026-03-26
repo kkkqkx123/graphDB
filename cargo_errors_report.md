@@ -2,56 +2,48 @@
 
 ## Summary
 
-- **Total Errors**: 1
-- **Total Warnings**: 1
-- **Total Issues**: 2
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 3
+- **Total Errors**: 0
+- **Total Warnings**: 8
+- **Total Issues**: 8
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 4
+- **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 1
-
-### Error Type Breakdown
-
-- **error**: 1 errors
-
-### Files with Errors (Top 10)
-
-- `src\api\embedded\c_api\batch.rs`: 1 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 8
 
 ### Warning Type Breakdown
 
-- **warning**: 1 warnings
+- **warning**: 8 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\api\embedded\c_api\mod.rs`: 1 warnings
-
-## Detailed Error Categorization
-
-### error: expected `;`, found doc comment `/// Batch action item type`: unexpected token
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\api\embedded\c_api\batch.rs`: 1 occurrences
-
-- Line 14: expected `;`, found doc comment `/// Batch action item type`: unexpected token
+- `src\transaction\context.rs`: 4 warnings
+- `src\transaction\types.rs`: 4 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `batch::*`
+### warning: this function has too many arguments (9/7)
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+**Total Occurrences**: 8  
+**Unique Files**: 2
 
-#### `src\api\embedded\c_api\mod.rs`: 1 occurrences
+#### `src\transaction\context.rs`: 4 occurrences
 
-- Line 16: unused import: `batch::*`
+- Line 116: this function has too many arguments (9/7)
+- Line 152: this function has too many arguments (8/7)
+- Line 116: this function has too many arguments (9/7)
+- ... 1 more occurrences in this file
+
+#### `src\transaction\types.rs`: 4 occurrences
+
+- Line 25: this `impl` can be derived
+- Line 107: you should consider adding a `Default` implementation for `TransactionMetrics`
+- Line 25: this `impl` can be derived
+- ... 1 more occurrences in this file
 

@@ -16,16 +16,11 @@ pub type TransactionId = u64;
 pub type SavepointId = u64;
 
 /// Transaction Isolation Level
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum IsolationLevel {
     /// Repeatable Read - all statements in the transaction see a snapshot as of the start of the transaction
+    #[default]
     RepeatableRead,
-}
-
-impl Default for IsolationLevel {
-    fn default() -> Self {
-        Self::RepeatableRead
-    }
 }
 
 impl fmt::Display for IsolationLevel {
@@ -87,7 +82,7 @@ impl RetryConfig {
 }
 
 /// Transaction Metrics
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TransactionMetrics {
     /// Average transaction duration
     pub avg_duration: Duration,
@@ -105,14 +100,7 @@ pub struct TransactionMetrics {
 
 impl TransactionMetrics {
     pub fn new() -> Self {
-        Self {
-            avg_duration: Duration::ZERO,
-            p50_duration: Duration::ZERO,
-            p95_duration: Duration::ZERO,
-            p99_duration: Duration::ZERO,
-            long_transactions: Vec::new(),
-            total_count: 0,
-        }
+        Self::default()
     }
 }
 
@@ -380,6 +368,66 @@ impl From<DurabilityLevel> for redb::Durability {
             DurabilityLevel::None => redb::Durability::None,
             DurabilityLevel::Immediate => redb::Durability::Immediate,
         }
+    }
+}
+
+/// Transaction Configuration
+#[derive(Debug, Clone)]
+pub struct TransactionConfig {
+    pub timeout: Duration,
+    pub durability: DurabilityLevel,
+    pub isolation_level: IsolationLevel,
+    pub query_timeout: Option<Duration>,
+    pub statement_timeout: Option<Duration>,
+    pub idle_timeout: Option<Duration>,
+}
+
+impl Default for TransactionConfig {
+    fn default() -> Self {
+        Self {
+            timeout: Duration::from_secs(30),
+            durability: DurabilityLevel::Immediate,
+            isolation_level: IsolationLevel::default(),
+            query_timeout: None,
+            statement_timeout: None,
+            idle_timeout: None,
+        }
+    }
+}
+
+impl TransactionConfig {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    pub fn with_durability(mut self, durability: DurabilityLevel) -> Self {
+        self.durability = durability;
+        self
+    }
+
+    pub fn with_isolation_level(mut self, level: IsolationLevel) -> Self {
+        self.isolation_level = level;
+        self
+    }
+
+    pub fn with_query_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.query_timeout = timeout;
+        self
+    }
+
+    pub fn with_statement_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.statement_timeout = timeout;
+        self
+    }
+
+    pub fn with_idle_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.idle_timeout = timeout;
+        self
     }
 }
 
