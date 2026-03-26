@@ -1,6 +1,6 @@
-//! 测试用Mock存储引擎实现
+//! Implementation of a mock storage engine for testing purposes
 //!
-//! 提供统一的Mock存储引擎实现，避免在各个测试模块中重复实现
+//! Provide a unified implementation of the Mock storage engine to avoid duplicating the implementation in various test modules.
 
 #[cfg(test)]
 use crate::core::error::StorageError;
@@ -18,7 +18,7 @@ use crate::storage::StorageClient;
 #[cfg(test)]
 use std::sync::Arc;
 
-/// 测试用Mock存储引擎
+/// Test mock storage engine
 #[cfg(test)]
 #[derive(Debug, Clone)]
 pub struct MockStorage {

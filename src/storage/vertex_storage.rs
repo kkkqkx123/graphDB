@@ -10,9 +10,9 @@ use parking_lot::Mutex;
 use redb::Database;
 use std::sync::Arc;
 
-/// 顶点存储管理器
+/// Vertex Storage Manager
 ///
-/// 负责顶点的增删改查以及标签管理
+/// Responsible for vertex additions, deletions and tag management
 #[derive(Clone)]
 pub struct VertexStorage {
     reader: Arc<Mutex<RedbReader>>,
@@ -29,7 +29,7 @@ impl std::fmt::Debug for VertexStorage {
 }
 
 impl VertexStorage {
-    /// 创建新的顶点存储实例
+    /// Creating a New Vertex Store Instance
     pub fn new(
         db: Arc<Database>,
         reader: Arc<Mutex<RedbReader>>,
@@ -48,12 +48,12 @@ impl VertexStorage {
         })
     }
 
-    /// 获取单个顶点
+    /// Get a single vertex
     pub fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         self.reader.lock().get_vertex(space, id)
     }
 
-    /// 扫描所有顶点
+    /// Scan all vertices
     pub fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError> {
         self.reader
             .lock()
@@ -61,7 +61,7 @@ impl VertexStorage {
             .map(|r| r.into_vec())
     }
 
-    /// 按标签扫描顶点
+    /// Scanning vertices by label
     pub fn scan_vertices_by_tag(
         &self,
         space: &str,
@@ -73,7 +73,7 @@ impl VertexStorage {
             .map(|r| r.into_vec())
     }
 
-    /// 按属性扫描顶点
+    /// Scanning vertices by attribute
     pub fn scan_vertices_by_prop(
         &self,
         space: &str,
@@ -87,7 +87,7 @@ impl VertexStorage {
             .map(|r| r.into_vec())
     }
 
-    /// 插入顶点
+    /// Insert vertex
     pub fn insert_vertex(
         &self,
         space: &str,
@@ -99,7 +99,7 @@ impl VertexStorage {
             writer.insert_vertex(space, vertex.clone())?
         };
 
-        // 更新索引
+        // Update Index
         for tag in &vertex.tags {
             let indexes = self.index_metadata_manager.list_tag_indexes(space_id)?;
 
@@ -127,13 +127,13 @@ impl VertexStorage {
         Ok(id)
     }
 
-    /// 更新顶点
+    /// Update Vertex
     pub fn update_vertex(&self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
         writer.update_vertex(space, vertex)
     }
 
-    /// 删除顶点
+    /// Delete Vertex
     pub fn delete_vertex(
         &self,
         space: &str,
@@ -145,14 +145,14 @@ impl VertexStorage {
             writer.delete_vertex(space, id)?;
         }
 
-        // 删除索引
+        // Delete Index
         self.index_data_manager
             .delete_vertex_indexes(space_id, id)?;
 
         Ok(())
     }
 
-    /// 批量插入顶点
+    /// Batch insertion of vertices
     pub fn batch_insert_vertices(
         &self,
         space: &str,
@@ -162,7 +162,7 @@ impl VertexStorage {
         writer.batch_insert_vertices(space, vertices)
     }
 
-    /// 删除顶点上的指定标签
+    /// Deletes the specified label on a vertex
     pub fn delete_tags(
         &self,
         space: &str,
@@ -175,7 +175,7 @@ impl VertexStorage {
             writer.delete_tags(space, vertex_id, tag_names)?
         };
 
-        // 删除相关索引
+        // Delete Related Indexes
         for tag_name in tag_names {
             self.index_data_manager
                 .delete_tag_indexes(space_id, vertex_id, tag_name)?;
@@ -184,14 +184,14 @@ impl VertexStorage {
         Ok(deleted_count)
     }
 
-    /// 插入顶点数据（高级接口）
+    /// Insert vertex data (advanced interface)
     pub fn insert_vertex_data(
         &self,
         space: &str,
         space_id: u64,
         info: &InsertVertexInfo,
     ) -> Result<bool, StorageError> {
-        // 获取标签信息
+        // Get label information
         let tag_name = info.tag_name.clone();
         let _tag_info = self
             .schema_manager
@@ -200,19 +200,19 @@ impl VertexStorage {
                 StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag_name, space))
             })?;
 
-        // 构建顶点属性映射
+        // Constructing vertex attribute mappings
         let mut properties = std::collections::HashMap::new();
         for (prop_name, prop_value) in &info.props {
             properties.insert(prop_name.clone(), prop_value.clone());
         }
 
-        // 创建标签
+        // Creating Tags
         let tag = crate::core::vertex_edge_path::Tag {
             name: tag_name.clone(),
             properties,
         };
 
-        // 获取或创建顶点
+        // Getting or creating vertices
         let vertex = match self.reader.lock().get_vertex(space, &info.vertex_id)? {
             Some(mut existing_vertex) => {
                 existing_vertex.tags.retain(|t| t.name != tag_name);
@@ -227,13 +227,13 @@ impl VertexStorage {
             },
         };
 
-        // 插入顶点
+        // Insert vertex
         {
             let mut writer = self.writer.lock();
             writer.update_vertex(space, vertex)?;
         }
 
-        // 更新索引
+        // Update Index
         self.index_data_manager.update_vertex_indexes(
             space_id,
             &info.vertex_id,
@@ -244,25 +244,25 @@ impl VertexStorage {
         Ok(true)
     }
 
-    /// 删除顶点数据（高级接口）
+    /// Delete vertex data (advanced interface)
     pub fn delete_vertex_data(
         &self,
         space: &str,
         space_id: u64,
         vertex_id: &Value,
     ) -> Result<bool, StorageError> {
-        // 删除顶点索引
+        // Delete Vertex Index
         self.index_data_manager
             .delete_vertex_indexes(space_id, vertex_id)?;
 
-        // 删除顶点本身
+        // Delete the vertex itself
         let mut writer = self.writer.lock();
         writer.delete_vertex(space, vertex_id)?;
 
         Ok(true)
     }
 
-    /// 更新顶点属性
+    /// Updating vertex properties
     pub fn update_data(&self, space: &str, info: &UpdateInfo) -> Result<bool, StorageError> {
         self.update_vertex_property(
             space,
@@ -275,7 +275,7 @@ impl VertexStorage {
         Ok(true)
     }
 
-    /// 更新顶点属性（内部方法）
+    /// Update vertex properties (internal method)
     fn update_vertex_property(
         &self,
         space: &str,
@@ -321,7 +321,7 @@ impl VertexStorage {
         Ok(())
     }
 
-    /// 构建顶点 schema
+    /// Build the vertex schema
     pub fn build_vertex_schema(&self, tag_info: &TagInfo) -> Result<Schema, StorageError> {
         let mut schema = Schema::new(tag_info.tag_name.clone(), 1);
         for prop in &tag_info.properties {
@@ -340,7 +340,7 @@ impl VertexStorage {
         Ok(schema)
     }
 
-    /// 获取带 schema 的顶点
+    /// Get vertices with schema
     pub fn get_vertex_with_schema(
         &self,
         space: &str,
@@ -360,7 +360,7 @@ impl VertexStorage {
         Ok(None)
     }
 
-    /// 扫描带 schema 的顶点
+    /// Scanning vertices with schema
     pub fn scan_vertices_with_schema(
         &self,
         space: &str,

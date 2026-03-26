@@ -1,22 +1,22 @@
-//! 存储指标收集器
+//! Storage Metrics Collector
 //!
-//! 收集存储引擎的性能指标，包括迭代器统计、缓存命中率等
+//! Collect performance metrics of the storage engine, including iterator statistics, cache hit rates, and more.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// 存储指标快照
+/// Storage metric snapshot
 #[derive(Debug, Clone, Default)]
 pub struct StorageMetricsSnapshot {
-    /// 扫描的项目数
+    /// Number of items scanned
     pub items_scanned: u64,
-    /// 返回的项目数
+    /// Number of items returned
     pub items_returned: u64,
-    /// 缓存命中次数
+    /// Number of cache hits
     pub cache_hits: u64,
-    /// 缓存未命中次数
+    /// Number of cache misses
     pub cache_misses: u64,
-    /// 各操作类型的计数
+    /// Count of each type of operation
     pub operation_counts: HashMap<String, u64>,
 }
 
@@ -25,7 +25,7 @@ impl StorageMetricsSnapshot {
         Self::default()
     }
 
-    /// 计算缓存命中率
+    /// Calculating the cache hit rate
     pub fn cache_hit_rate(&self) -> f64 {
         let total = self.cache_hits + self.cache_misses;
         if total > 0 {
@@ -35,7 +35,7 @@ impl StorageMetricsSnapshot {
         }
     }
 
-    /// 计算扫描效率（返回数/扫描数）
+    /// Calculate the scanning efficiency (number of results returned / number of scans performed)
     pub fn scan_efficiency(&self) -> f64 {
         if self.items_scanned > 0 {
             self.items_returned as f64 / self.items_scanned as f64
@@ -45,7 +45,7 @@ impl StorageMetricsSnapshot {
     }
 }
 
-/// 存储指标收集器
+/// Storage Metrics Collector
 #[derive(Debug)]
 pub struct StorageMetricsCollector {
     /// 扫描的项目数
@@ -71,27 +71,27 @@ impl StorageMetricsCollector {
         }
     }
 
-    /// 记录扫描操作
+    /// Record the scanning operations
     pub fn record_scan(&self, count: u64) {
         self.items_scanned.fetch_add(count, Ordering::Relaxed);
     }
 
-    /// 记录返回操作
+    /// Record the return operation
     pub fn record_return(&self, count: u64) {
         self.items_returned.fetch_add(count, Ordering::Relaxed);
     }
 
-    /// 记录缓存命中
+    /// Record of cache hits
     pub fn record_cache_hit(&self) {
         self.cache_hits.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// 记录缓存未命中
+    /// Record of a cache miss.
     pub fn record_cache_miss(&self) {
         self.cache_misses.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// 记录操作
+    /// Record the operation
     pub fn record_operation(&self, operation: &str) {
         let counter = self
             .operation_counts
@@ -100,7 +100,7 @@ impl StorageMetricsCollector {
         counter.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// 获取当前指标快照
+    /// Obtain a snapshot of the current metrics.
     pub fn snapshot(&self) -> StorageMetricsSnapshot {
         let mut operation_counts = HashMap::new();
         for entry in self.operation_counts.iter() {
@@ -116,7 +116,7 @@ impl StorageMetricsCollector {
         }
     }
 
-    /// 重置所有指标
+    /// Reset all indicators
     pub fn reset(&self) {
         self.items_scanned.store(0, Ordering::Relaxed);
         self.items_returned.store(0, Ordering::Relaxed);

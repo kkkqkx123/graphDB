@@ -1,18 +1,18 @@
-//! 存储层数据操作类型
+//! Types of data operations at the storage level
 
 use crate::core::types::PropertyDef;
 use crate::core::DataType;
 use crate::core::Value;
 
-// 重新导出core层的DataType作为FieldType
+// Re-export the core layer's DataType as a FieldType
 pub type FieldType = DataType;
 
-// 重新导出core层的类型，避免重复定义
+// Re-export core layer types to avoid duplicate definitions
 pub use crate::core::types::{
     InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget,
 };
 
-/// 字段定义
+/// Field Definitions
 #[derive(Debug, Clone)]
 pub struct FieldDef {
     pub name: String,
@@ -126,7 +126,7 @@ pub enum GeoShape {
     Any,
 }
 
-/// 列定义
+/// column definition
 #[derive(Debug, Clone)]
 pub struct ColumnDef {
     pub name: String,

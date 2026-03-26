@@ -1,6 +1,6 @@
-//! 存储层监控模块
+//! Storage Tier Monitoring Module
 //!
-//! 负责收集和存储存储引擎层面的性能指标
+//! Responsible for collecting and storing performance metrics at the storage engine level
 
 pub mod storage_metrics;
 

@@ -1,15 +1,15 @@
-//! 存储迭代器模块 - 提供存储引擎的底层迭代接口
+//! Storage Iterator Module - provides the underlying iterative interface to the storage engine.
 //!
-//! 提供：
-//! - StorageIterator: 存储引擎迭代器接口
-//! - VecPairIterator: 简单的 KV 对迭代器
-//! - Predicate: 谓词下推优化
-//! - Row: 行数据类型别名 (Vec<Value>)
+//! Offer:
+//! - StorageIterator: Storage Engine Iterator Interface
+//! - VecPairIterator: Simple KV Pair Iterator
+//! - Predicate: Predicate down-propagation optimization
+//! - Row: Row data type alias (Vec<Value>)
 //!
-//! 注意：
-//! - 查询结果迭代器请使用 core::result::iterator 模块
-//! - 组合迭代器操作（filter、map、take、skip）应使用 Rust 标准迭代器
-//!   或 core::result::combinators 模块中的实现
+//! Attention:
+//! - Use the core::result::iterator module for query result iterators.
+//! - Combined iterator operations (filter, map, take, skip) should use the Rust standard iterator
+//! or the implementation in the core::result::combinators module
 
 pub mod predicate;
 pub mod storage_iter;
@@ -22,9 +22,9 @@ pub use storage_iter::{StorageIterator, VecPairIterator};
 
 use crate::core::Value;
 
-/// 行定义 - Vec<Value> 表示一行数据
+/// Row Definition - Vec<Value> represents a row of data.
 ///
-/// 这是一个通用类型别名，用于表示查询结果中的一行数据
+/// This is a generic type alias that is used to represent a row of data in the query results
 pub type Row = Vec<Value>;
 
 #[cfg(test)]

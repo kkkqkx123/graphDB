@@ -10,9 +10,9 @@ use parking_lot::Mutex;
 use redb::Database;
 use std::sync::Arc;
 
-/// 边存储管理器
+/// Side Storage Manager
 ///
-/// 负责边的增删改查以及悬挂边检测修复
+/// Responsible for edge additions, deletions, deletions and hanging edge detection and repair.
 #[derive(Clone)]
 pub struct EdgeStorage {
     reader: Arc<Mutex<RedbReader>>,
@@ -29,7 +29,7 @@ impl std::fmt::Debug for EdgeStorage {
 }
 
 impl EdgeStorage {
-    /// 创建新的边存储实例
+    /// Creating a new edge store instance
     pub fn new(
         db: Arc<Database>,
         reader: Arc<Mutex<RedbReader>>,
@@ -48,7 +48,7 @@ impl EdgeStorage {
         })
     }
 
-    /// 获取单条边
+    /// Get Single Edge
     pub fn get_edge(
         &self,
         space: &str,
@@ -59,7 +59,7 @@ impl EdgeStorage {
         self.reader.lock().get_edge(space, src, dst, edge_type)
     }
 
-    /// 获取节点的边
+    /// Get the edges of the node
     pub fn get_node_edges(
         &self,
         space: &str,
@@ -72,7 +72,7 @@ impl EdgeStorage {
             .map(|r| r.into_vec())
     }
 
-    /// 获取节点的边（带过滤）
+    /// Get the edges of a node (with filtering)
     pub fn get_node_edges_filtered<F>(
         &self,
         space: &str,
@@ -89,7 +89,7 @@ impl EdgeStorage {
             .map(|r| r.into_vec())
     }
 
-    /// 按类型扫描边
+    /// Scanning Edges by Type
     pub fn scan_edges_by_type(
         &self,
         space: &str,
@@ -101,7 +101,7 @@ impl EdgeStorage {
             .map(|r| r.into_vec())
     }
 
-    /// 扫描所有边
+    /// Scan all edges
     pub fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
         self.reader
             .lock()
@@ -109,14 +109,14 @@ impl EdgeStorage {
             .map(|r| r.into_vec())
     }
 
-    /// 插入边
+    /// insertion side
     pub fn insert_edge(&self, space: &str, space_id: u64, edge: Edge) -> Result<(), StorageError> {
         {
             let mut writer = self.writer.lock();
             writer.insert_edge(space, edge.clone())?;
         }
 
-        // 更新索引
+        // Update Index
         let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
 
         for index in indexes {
@@ -143,7 +143,7 @@ impl EdgeStorage {
         Ok(())
     }
 
-    /// 删除边
+    /// Remove Edge
     pub fn delete_edge(
         &self,
         space: &str,
@@ -157,7 +157,7 @@ impl EdgeStorage {
             writer.delete_edge(space, src, dst, edge_type)?;
         }
 
-        // 删除索引
+        // Delete Index
         let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
         let index_names: Vec<String> = indexes
             .into_iter()
@@ -170,7 +170,7 @@ impl EdgeStorage {
         Ok(())
     }
 
-    /// 批量插入边
+    /// Batch insertion of edges
     pub fn batch_insert_edges(&self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
         for edge in edges {
@@ -179,7 +179,7 @@ impl EdgeStorage {
         Ok(())
     }
 
-    /// 删除与顶点相关的所有边
+    /// Delete all edges associated with a vertex
     pub fn delete_vertex_edges(
         &self,
         space: &str,
@@ -211,7 +211,7 @@ impl EdgeStorage {
         Ok(())
     }
 
-    /// 插入边数据（高级接口）
+    /// Insertion side data (advanced interface)
     pub fn insert_edge_data(
         &self,
         space: &str,
@@ -234,13 +234,13 @@ impl EdgeStorage {
                 ))
             })?;
 
-        // 构建边属性映射
+        // Constructing edge attribute mappings
         let mut properties = std::collections::HashMap::new();
         for (prop_name, prop_value) in &props {
             properties.insert(prop_name.clone(), prop_value.clone());
         }
 
-        // 创建边
+        // Creating Edges
         let edge = crate::core::Edge {
             src: Box::new(src_vertex_id.clone()),
             dst: Box::new(dst_vertex_id.clone()),
@@ -250,13 +250,13 @@ impl EdgeStorage {
             props: properties,
         };
 
-        // 插入边
+        // insertion side
         {
             let mut writer = self.writer.lock();
             writer.insert_edge(space, edge)?;
         }
 
-        // 更新边索引
+        // Updating the side index
         self.index_data_manager.update_edge_indexes(
             space_id,
             &src_vertex_id,
@@ -268,7 +268,7 @@ impl EdgeStorage {
         Ok(true)
     }
 
-    /// 删除边数据（高级接口）
+    /// Deletion of side data (advanced interface)
     pub fn delete_edge_data(
         &self,
         space: &str,
@@ -277,7 +277,7 @@ impl EdgeStorage {
         dst: &Value,
         rank: i64,
     ) -> Result<bool, StorageError> {
-        // 扫描找到匹配的边
+        // Scan to find matching edges
         let edges = self.reader.lock().scan_all_edges(space)?;
         let mut deleted = false;
 
@@ -307,7 +307,7 @@ impl EdgeStorage {
         Ok(deleted)
     }
 
-    /// 查找悬挂边
+    /// Find Hanging Edge
     pub fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
         let mut dangling_edges = Vec::new();
         let edges = self.reader.lock().scan_all_edges(space)?;
@@ -324,7 +324,7 @@ impl EdgeStorage {
         Ok(dangling_edges)
     }
 
-    /// 修复悬挂边
+    /// Repair of overhanging edges
     pub fn repair_dangling_edges(&self, space: &str, space_id: u64) -> Result<usize, StorageError> {
         let dangling_edges = self.find_dangling_edges(space)?;
         let count = dangling_edges.len();
@@ -351,7 +351,7 @@ impl EdgeStorage {
         Ok(count)
     }
 
-    /// 构建边 schema
+    /// Build edge schema
     pub fn build_edge_schema(&self, edge_type_info: &EdgeTypeInfo) -> Result<Schema, StorageError> {
         let mut schema = Schema::new(edge_type_info.edge_type_name.clone(), 1);
         for prop in &edge_type_info.properties {
@@ -370,7 +370,7 @@ impl EdgeStorage {
         Ok(schema)
     }
 
-    /// 获取带 schema 的边
+    /// Get the edge with schema
     pub fn get_edge_with_schema(
         &self,
         space: &str,
@@ -397,7 +397,7 @@ impl EdgeStorage {
         Ok(None)
     }
 
-    /// 扫描带 schema 的边
+    /// Scanning edges with schema
     pub fn scan_edges_with_schema(
         &self,
         space: &str,

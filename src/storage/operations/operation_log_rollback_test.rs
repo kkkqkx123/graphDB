@@ -1,6 +1,6 @@
-//! OperationLogRollback 测试
+//! OperationLogRollback Test
 //!
-//! 测试操作日志回滚处理器的功能
+//! Testing the functionality of the operation log rollback processor
 
 use std::cell::RefCell;
 

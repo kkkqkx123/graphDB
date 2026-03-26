@@ -6,9 +6,9 @@ use bincode::{config::standard, decode_from_slice, encode_to_vec};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
-/// Redb 索引元数据管理器
+/// Redb Index Metadata Manager
 ///
-/// 使用 space_id 作为空间标识符，实现多空间数据隔离
+/// Using `space_id` as the spatial identifier to achieve isolation of data from multiple spaces.
 pub struct RedbIndexMetadataManager {
     db: Arc<Database>,
 }
@@ -24,13 +24,13 @@ impl RedbIndexMetadataManager {
         Self { db }
     }
 
-    /// 构建标签索引键
-    /// 格式: space_id:index_name
+    /// Constructing tag index keys
+    /// format: space_id:index_name
     fn make_tag_index_key(space_id: u64, index_name: &str) -> Vec<u8> {
         format!("{}:{}", space_id, index_name).as_bytes().to_vec()
     }
 
-    /// 构建边索引键
+    /// Constructing edge index keys
     /// 格式: space_id:index_name
     fn make_edge_index_key(space_id: u64, index_name: &str) -> Vec<u8> {
         format!("{}:{}", space_id, index_name).as_bytes().to_vec()

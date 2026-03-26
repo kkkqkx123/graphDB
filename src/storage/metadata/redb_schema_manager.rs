@@ -11,7 +11,7 @@ use redb::{Database, ReadableTable};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-/// 将 TagInfo 转换为 Schema
+/// Converting TagInfo to Schema
 fn tag_info_to_schema(tag_name: &str, tag_info: &TagInfo) -> Schema {
     let fields: BTreeMap<String, FieldDef> = tag_info
         .properties
@@ -29,7 +29,7 @@ fn tag_info_to_schema(tag_name: &str, tag_info: &TagInfo) -> Schema {
     }
 }
 
-/// 将 EdgeTypeInfo 转换为 Schema
+/// Converting EdgeTypeInfo to Schema
 fn edge_type_info_to_schema(edge_type_name: &str, edge_info: &EdgeTypeInfo) -> Schema {
     let fields: BTreeMap<String, FieldDef> = edge_info
         .properties
@@ -47,7 +47,7 @@ fn edge_type_info_to_schema(edge_type_name: &str, edge_info: &EdgeTypeInfo) -> S
     }
 }
 
-/// 将 PropertyDef 转换为 FieldDef Map
+/// Converting a PropertyDef to a FieldDef Map
 fn _property_defs_to_fields(properties: &[PropertyDef]) -> BTreeMap<String, FieldDef> {
     properties
         .iter()
@@ -58,7 +58,7 @@ fn _property_defs_to_fields(properties: &[PropertyDef]) -> BTreeMap<String, Fiel
         .collect()
 }
 
-/// 将 PropertyDef 转换为 Value HashMap
+/// Converting a PropertyDef to a Value HashMap
 fn _property_defs_to_hashmap(properties: &[PropertyDef]) -> HashMap<String, Value> {
     let mut map = HashMap::new();
     for prop in properties {
@@ -95,7 +95,7 @@ impl super::SchemaManager for RedbSchemaManager {
             .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
 
         {
-            // 检查名称索引
+            // Check name index
             let mut name_index = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
                 StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e))
             })?;
@@ -110,7 +110,7 @@ impl super::SchemaManager for RedbSchemaManager {
                 return Ok(false);
             }
 
-            // 插入主表
+            // Insertion into the master table
             let mut spaces_table = write_txn
                 .open_table(SPACES_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;
@@ -122,7 +122,7 @@ impl super::SchemaManager for RedbSchemaManager {
                 .insert(space_key, space_value)
                 .map_err(|e| StorageError::DbError(format!("插入空间失败: {}", e)))?;
 
-            // 插入名称索引
+            // Insert name index
             let id_value = ByteKey(space.space_id.to_be_bytes().to_vec());
             name_index
                 .insert(name_key, id_value)
@@ -142,7 +142,7 @@ impl super::SchemaManager for RedbSchemaManager {
             .begin_write()
             .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
 
-        // 通过名称索引查找ID
+        // Find IDs by Name Index
         let name_key = ByteKey(space_name.as_bytes().to_vec());
         let space_id_option = {
             let name_index = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
@@ -166,7 +166,7 @@ impl super::SchemaManager for RedbSchemaManager {
         };
 
         if let Some(space_id) = space_id_option {
-            // 删除主表记录
+            // Deleting Main Table Records
             {
                 let mut spaces_table = write_txn
                     .open_table(SPACES_TABLE)
@@ -178,7 +178,7 @@ impl super::SchemaManager for RedbSchemaManager {
                     .map_err(|e| StorageError::DbError(format!("删除空间失败: {}", e)))?;
             }
 
-            // 删除名称索引
+            // Delete Name Index
             {
                 let mut name_index = write_txn.open_table(SPACE_NAME_INDEX_TABLE).map_err(|e| {
                     StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e))
@@ -205,7 +205,7 @@ impl super::SchemaManager for RedbSchemaManager {
             .begin_read()
             .map_err(|e| StorageError::DbError(format!("开始读事务失败: {}", e)))?;
 
-        // 通过名称索引查找
+        // Search by Name Index
         let name_index = read_txn
             .open_table(SPACE_NAME_INDEX_TABLE)
             .map_err(|e| StorageError::DbError(format!("打开SPACE_NAME_INDEX_TABLE失败: {}", e)))?;
@@ -223,7 +223,7 @@ impl super::SchemaManager for RedbSchemaManager {
                     .map_err(|_| StorageError::DbError("ID字节长度不足8字节".to_string()))?,
             );
 
-            // 通过ID获取完整信息
+            // Get full information by ID
             let spaces_table = read_txn
                 .open_table(SPACES_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开SPACES_TABLE失败: {}", e)))?;

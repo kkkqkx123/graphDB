@@ -1,7 +1,7 @@
-//! 存储层索引数据管理模块
+//! Storage Tier Indexing Data Management Module
 //!
-//! 提供索引数据管理功能，包括索引数据的更新、删除和查询
-//! 注意：索引元数据管理由 metadata::IndexMetadataManager 负责
+//! Provide index data management functions, including index data update, delete and query
+//! Note: Index metadata management is the responsibility of the metadata::IndexMetadataManager.
 
 pub mod edge_index_manager;
 pub mod index_data_manager;

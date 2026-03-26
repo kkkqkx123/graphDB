@@ -1,8 +1,8 @@
-//! 索引更新器
+//! index updater
 //!
-//! 提供 DML 操作时的索引联动更新功能
-//! 包括顶点索引更新、边索引更新、索引删除等
-//! 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
+//! Provide index linkage update function during DML operation.
+//! Includes vertex index updates, edge index updates, index deletions, etc.
+//! All operations identify a space by its space_id, enabling multi-space data segregation.
 
 use crate::core::types::Index;
 use crate::core::vertex_edge_path::Tag;
@@ -10,20 +10,20 @@ use crate::core::{Edge, StorageError, Value};
 use crate::storage::index::IndexDataManager;
 use crate::storage::metadata::IndexMetadataManager;
 
-/// 索引更新器
+/// index updater
 ///
-/// 负责在 DML 操作时自动维护索引的一致性
-/// 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
+/// Responsible for automatically maintaining index consistency during DML operations
+/// All operations identify a space by its space_id, enabling multi-space data segregation.
 pub struct IndexUpdater<'a, I: IndexDataManager, M: IndexMetadataManager> {
     index_data_manager: &'a I,
     index_metadata_manager: &'a M,
     space_name: String,
-    /// 空间ID，用于多空间数据隔离
+    /// Spatial ID for multi-spatial data isolation
     space_id: u64,
 }
 
 impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
-    /// 创建新的索引更新器
+    /// Creating a new index updater
     pub fn new(
         index_data_manager: &'a I,
         index_metadata_manager: &'a M,
@@ -38,35 +38,35 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         }
     }
 
-    /// 获取空间名称
+    /// Get space name
     pub fn space_name(&self) -> &str {
         &self.space_name
     }
 
-    /// 获取空间ID
+    /// Get Space ID
     pub fn space_id(&self) -> u64 {
         self.space_id
     }
 
-    /// 更新顶点的所有索引
+    /// Update all indexes of a vertex
     ///
-    /// 在顶点插入或更新时调用，自动更新所有相关索引
+    /// Called on vertex insertion or update, automatically updates all related indexes
     ///
     /// # Arguments
-    /// * `vertex_id` - 顶点ID
-    /// * `tags` - 顶点的所有标签
+    /// * `vertex_id` - vertex ID
+    /// * `tags` - all tags of the vertex
     pub fn update_vertex_indexes(
         &self,
         vertex_id: &Value,
         tags: &[Tag],
     ) -> Result<(), StorageError> {
-        // 获取该空间的所有标签索引
+        // Get the index of all tags in the space
         let indexes = self
             .index_metadata_manager
             .list_tag_indexes(self.space_id)?;
 
         for index in indexes {
-            // 检查索引是否关联到当前顶点的某个标签
+            // Check if the index is associated with a label of the current vertex
             for tag in tags {
                 if index.schema_name == tag.name {
                     self.update_vertex_index_for_tag(vertex_id, tag, &index)?;
@@ -77,14 +77,14 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         Ok(())
     }
 
-    /// 更新指定标签的索引
+    /// Updates the index of the specified tag
     fn update_vertex_index_for_tag(
         &self,
         vertex_id: &Value,
         tag: &Tag,
         index: &Index,
     ) -> Result<(), StorageError> {
-        // 收集索引字段值
+        // Collecting index field values
         let mut index_props: Vec<(String, Value)> = Vec::new();
 
         for field in &index.fields {
@@ -93,7 +93,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             }
         }
 
-        // 如果所有索引字段都有值，则更新索引
+        // If all index fields have values, update the index
         if !index_props.is_empty() {
             self.index_data_manager.update_vertex_indexes(
                 self.space_id,
@@ -106,9 +106,9 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         Ok(())
     }
 
-    /// 删除顶点的所有索引
+    /// Delete all indexes of a vertex
     ///
-    /// 在顶点删除时调用，自动删除所有相关索引
+    /// Called on vertex deletion, automatically removes all related indexes
     ///
     /// # Arguments
     /// * `vertex_id` - 顶点ID
@@ -117,13 +117,13 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             .delete_vertex_indexes(self.space_id, vertex_id)
     }
 
-    /// 删除指定标签的索引
+    /// Deletes the index of the specified tag
     ///
-    /// 在删除顶点的某个标签时调用
+    /// Called when removing a label from a vertex
     ///
     /// # Arguments
     /// * `vertex_id` - 顶点ID
-    /// * `tag_name` - 标签名称
+    /// * `tag_name` – Name of the tag
     pub fn delete_tag_indexes(
         &self,
         vertex_id: &Value,
@@ -133,20 +133,20 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             .delete_tag_indexes(self.space_id, vertex_id, tag_name)
     }
 
-    /// 更新边的所有索引
+    /// Update all indexes of the side
     ///
-    /// 在边插入或更新时调用，自动更新所有相关索引
+    /// Called on edge insertion or update, automatically updates all related indexes
     ///
     /// # Arguments
-    /// * `edge` - 边对象
+    /// * :: `edge` -- edge object
     pub fn update_edge_indexes(&self, edge: &Edge) -> Result<(), StorageError> {
-        // 获取该空间的所有边索引
+        // Get all edge indices of this space
         let indexes = self
             .index_metadata_manager
             .list_edge_indexes(self.space_id)?;
 
         for index in indexes {
-            // 检查索引是否关联到当前边的类型
+            // Check if the index is associated with the current edge type
             if index.schema_name == edge.edge_type {
                 self.update_edge_index(edge, &index)?;
             }
@@ -155,9 +155,9 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         Ok(())
     }
 
-    /// 更新指定边的索引
+    /// Updates the index of the specified edge
     fn update_edge_index(&self, edge: &Edge, index: &Index) -> Result<(), StorageError> {
-        // 收集索引字段值
+        // Collecting index field values
         let mut index_props: Vec<(String, Value)> = Vec::new();
 
         for field in &index.fields {
@@ -166,7 +166,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             }
         }
 
-        // 如果所有索引字段都有值，则更新索引
+        // If all index fields have values, update the index
         if !index_props.is_empty() {
             self.index_data_manager.update_edge_indexes(
                 self.space_id,
@@ -180,9 +180,9 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         Ok(())
     }
 
-    /// 删除边的所有索引
+    /// Delete all indexes of an edge
     ///
-    /// 在边删除时调用，自动删除所有相关索引
+    /// Called on edge deletion to automatically delete all related indexes
     ///
     /// # Arguments
     /// * `edge` - 边对象
@@ -205,12 +205,12 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         )
     }
 
-    /// 批量更新顶点索引
+    /// Batch update vertex index
     ///
-    /// 用于批量插入顶点时的高效索引更新
+    /// For efficient index updates when inserting vertices in batches
     ///
     /// # Arguments
-    /// * `vertices` - 顶点列表
+    /// * `vertices` - list of vertices
     pub fn batch_update_vertex_indexes(
         &self,
         vertices: &[(Value, Vec<Tag>)],
@@ -221,12 +221,12 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         Ok(())
     }
 
-    /// 批量更新边索引
+    /// Batch update side indexes
     ///
-    /// 用于批量插入边时的高效索引更新
+    /// For efficient index updates when inserting edges in batches
     ///
     /// # Arguments
-    /// * `edges` - 边列表
+    /// * :: `edges` - list of edges
     pub fn batch_update_edge_indexes(&self, edges: &[Edge]) -> Result<(), StorageError> {
         for edge in edges {
             self.update_edge_indexes(edge)?;
@@ -234,12 +234,12 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         Ok(())
     }
 
-    /// 批量删除顶点索引
+    /// Batch Delete Vertex Index
     ///
-    /// 用于批量删除顶点时的高效索引删除
+    /// Efficient Index Deletion for Batch Deletion of Vertices
     ///
     /// # Arguments
-    /// * `vertex_ids` - 顶点ID列表
+    /// * `vertex_ids` - list of vertex IDs
     pub fn batch_delete_vertex_indexes(&self, vertex_ids: &[Value]) -> Result<(), StorageError> {
         for vertex_id in vertex_ids {
             self.delete_vertex_indexes(vertex_id)?;
@@ -247,9 +247,9 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         Ok(())
     }
 
-    /// 批量删除边索引
+    /// Batch Delete Side Indexes
     ///
-    /// 用于批量删除边时的高效索引删除
+    /// Efficient index deletion for batch deletion of edges
     ///
     /// # Arguments
     /// * `edges` - 边列表
@@ -260,19 +260,19 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         Ok(())
     }
 
-    /// 重建指定标签的所有索引
+    /// Rebuild all indexes for the specified tags.
     ///
-    /// 用于索引重建操作
+    /// Used for index reconstruction operations
     ///
     /// # Arguments
     /// * `tag_name` - 标签名称
-    /// * `vertices` - 该标签的所有顶点
+    /// * `vertices` – All the vertices associated with this tag.
     pub fn rebuild_tag_indexes(
         &self,
         tag_name: &str,
         vertices: &[(Value, Tag)],
     ) -> Result<(), StorageError> {
-        // 获取该标签的所有索引
+        // Retrieve all indexes for that tag.
         let indexes: Vec<Index> = self
             .index_metadata_manager
             .list_tag_indexes(self.space_id)?
@@ -280,7 +280,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             .filter(|idx| idx.schema_name == tag_name)
             .collect();
 
-        // 为每个顶点重建索引
+        // Rebuild the index for each vertex.
         for (vertex_id, tag) in vertices {
             for index in &indexes {
                 self.update_vertex_index_for_tag(vertex_id, tag, index)?;
@@ -290,19 +290,19 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         Ok(())
     }
 
-    /// 重建指定边类型的所有索引
+    /// Rebuild all indexes for the specified edge type.
     ///
     /// 用于索引重建操作
     ///
     /// # Arguments
-    /// * `edge_type` - 边类型
-    /// * `edges` - 该类型的所有边
+    /// * `edge_type` – Type of the edge
+    /// * `edges` – All the edges of this type.
     pub fn rebuild_edge_indexes(
         &self,
         edge_type: &str,
         edges: &[Edge],
     ) -> Result<(), StorageError> {
-        // 获取该边类型的所有索引
+        // Obtain all indexes for this edge type.
         let indexes: Vec<Index> = self
             .index_metadata_manager
             .list_edge_indexes(self.space_id)?
@@ -310,7 +310,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
             .filter(|idx| idx.schema_name == edge_type)
             .collect();
 
-        // 为每条边重建索引
+        // Rebuild the index for each edge.
         for edge in edges {
             for index in &indexes {
                 self.update_edge_index(edge, index)?;
@@ -321,9 +321,9 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     }
 }
 
-/// 索引更新上下文
+/// Index update context
 ///
-/// 用于批量 DML 操作时的索引更新管理
+/// Index update management for use in batch DML operations
 pub struct IndexUpdateContext<'a, I: IndexDataManager, M: IndexMetadataManager> {
     updater: IndexUpdater<'a, I, M>,
     pending_vertex_updates: Vec<(Value, Vec<Tag>)>,
@@ -333,7 +333,7 @@ pub struct IndexUpdateContext<'a, I: IndexDataManager, M: IndexMetadataManager> 
 }
 
 impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I, M> {
-    /// 创建新的索引更新上下文
+    /// Create a new index to update the context.
     pub fn new(
         index_data_manager: &'a I,
         index_metadata_manager: &'a M,
@@ -354,55 +354,55 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
         }
     }
 
-    /// 添加顶点更新
+    /// Add vertex updates
     pub fn add_vertex_update(&mut self, vertex_id: Value, tags: Vec<Tag>) {
         self.pending_vertex_updates.push((vertex_id, tags));
     }
 
-    /// 添加边更新
+    /// Add edges and update accordingly.
     pub fn add_edge_update(&mut self, edge: Edge) {
         self.pending_edge_updates.push(edge);
     }
 
-    /// 添加顶点删除
+    /// Add a vertex and delete it.
     pub fn add_vertex_delete(&mut self, vertex_id: Value) {
         self.pending_vertex_deletes.push(vertex_id);
     }
 
-    /// 添加边删除
+    /// Add edges; remove edges.
     pub fn add_edge_delete(&mut self, edge: Edge) {
         self.pending_edge_deletes.push(edge);
     }
 
-    /// 提交所有索引更新
+    /// Submit all index updates.
     ///
-    /// 在事务提交时调用，批量应用所有索引更新
+    /// Called when a transaction is committed, to apply all index updates in batches.
     pub fn commit(&mut self) -> Result<(), StorageError> {
-        // 先处理删除操作，再处理更新操作
-        // 这样可以避免删除后重新创建索引的问题
+        // First, handle the deletion operations, and then proceed with the update operations.
+        // This can prevent the problem of having to recreate the index after it has been deleted.
 
-        // 删除顶点索引
+        // Delete the vertex index.
         if !self.pending_vertex_deletes.is_empty() {
             self.updater
                 .batch_delete_vertex_indexes(&self.pending_vertex_deletes)?;
             self.pending_vertex_deletes.clear();
         }
 
-        // 删除边索引
+        // Delete the edge index.
         if !self.pending_edge_deletes.is_empty() {
             self.updater
                 .batch_delete_edge_indexes(&self.pending_edge_deletes)?;
             self.pending_edge_deletes.clear();
         }
 
-        // 更新顶点索引
+        // Update the vertex index
         if !self.pending_vertex_updates.is_empty() {
             self.updater
                 .batch_update_vertex_indexes(&self.pending_vertex_updates)?;
             self.pending_vertex_updates.clear();
         }
 
-        // 更新边索引
+        // Update the edge index.
         if !self.pending_edge_updates.is_empty() {
             self.updater
                 .batch_update_edge_indexes(&self.pending_edge_updates)?;
@@ -412,9 +412,9 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
         Ok(())
     }
 
-    /// 回滚所有待处理的索引更新
+    /// Roll back all pending index updates.
     ///
-    /// 在事务回滚时调用，清除所有待处理的更新
+    /// Called during transaction rollback to clear all pending updates.
     pub fn rollback(&mut self) {
         self.pending_vertex_updates.clear();
         self.pending_edge_updates.clear();

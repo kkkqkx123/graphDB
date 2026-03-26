@@ -1,12 +1,12 @@
-//! Schema定义
+//! Schema definition
 //!
-//! 定义了存储层的Schema结构和相关操作
+//! The Schema structure of the storage layer and the related operations have been defined.
 
 use super::types::FieldDef;
 
 use std::collections::BTreeMap;
 
-/// Schema定义
+/// Schema definition
 #[derive(Debug, Clone, Default)]
 pub struct Schema {
     pub name: String,

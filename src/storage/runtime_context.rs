@@ -1,20 +1,20 @@
-//! 运行时上下文模块 - 存储层上下文管理
+//! Runtime Context Module - Storage Layer Context Management
 //!
-//! 提供查询执行过程中的存储层上下文信息，包括：
-//! - 存储环境（StorageEnv）
-//! - 计划上下文（PlanContext）
-//! - 运行时上下文（RuntimeContext）
+//! Provides storage layer context information during query execution, including:
+//! - StorageEnv
+//! - PlanContext
+//! - RuntimeContext
 
 use crate::storage::metadata::RedbSchemaManager;
 use crate::storage::redb_storage::RedbStorage;
 use std::sync::Arc;
 
-/// 存储环境
+/// storage environment
 #[derive(Clone)]
 pub struct StorageEnv {
-    /// 存储引擎
+    /// storage engine
     pub storage_engine: Arc<RedbStorage>,
-    /// Schema管理器
+    /// Schema Manager
     pub schema_manager: Arc<RedbSchemaManager>,
 }
 
@@ -27,43 +27,43 @@ impl std::fmt::Debug for StorageEnv {
     }
 }
 
-/// 计划上下文（存储层）
-/// 存储处理过程中不变的信息
+/// Program context (storage layer)
+/// Storing information that remains unchanged during processing
 #[derive(Debug, Clone)]
 pub struct PlanContext {
-    /// 存储环境引用
+    /// Storage Environment References
     pub storage_env: Arc<StorageEnv>,
-    /// 空间ID
+    /// Space ID
     pub space_id: u64,
 }
 
-/// 运行时上下文
-/// 存储处理过程中可能变化的信息
+/// runtime context
+/// Storing information that may change during processing
 #[derive(Debug, Clone)]
 pub struct RuntimeContext {
-    /// 计划上下文引用
+    /// Program Context Citation
     pub plan_context: Arc<PlanContext>,
 }
 
 impl RuntimeContext {
-    /// 创建新的运行时上下文
+    /// Creating a new runtime context
     pub fn new(plan_context: Arc<PlanContext>) -> Self {
         Self { plan_context }
     }
 
-    /// 获取存储环境
+    /// Getting the storage environment
     pub fn env(&self) -> &Arc<StorageEnv> {
         &self.plan_context.storage_env
     }
 
-    /// 获取空间ID
+    /// Get Space ID
     pub fn space_id(&self) -> u64 {
         self.plan_context.space_id
     }
 }
 
 impl RuntimeContext {
-    /// 创建简单的运行时上下文（用于不需要完整PlanContext的场景）
+    /// Creating a simple runtime context (for scenarios where a full PlanContext is not required)
     pub fn new_simple() -> Arc<Self> {
         let storage = Arc::new(RedbStorage::new().expect("Failed to create RedbStorage"));
         let storage_env = Arc::new(StorageEnv {

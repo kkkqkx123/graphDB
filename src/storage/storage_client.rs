@@ -52,12 +52,12 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Value>, StorageError>;
 
-    /// 删除顶点上的指定标签
+    /// Deletes the specified label on a vertex
     ///
     /// # Arguments
-    /// * `space` - 空间名称
-    /// * `vertex_id` - 顶点ID
-    /// * `tag_names` - 要删除的标签名列表
+    /// * :: `space` -- space name
+    /// * `vertex_id` - vertex ID
+    /// * `tag_names` - list of tag names to be deleted
     ///
     /// # Returns
     /// * `Ok(usize)` - 成功删除的标签数量
@@ -204,15 +204,15 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn save_to_disk(&self) -> Result<(), StorageError>;
     fn get_storage_stats(&self) -> StorageStats;
 
-    // 悬挂边检测和修复工具
+    // Hanging Edge Detection and Repair Tool
     fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError>;
     fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError>;
 
-    /// 获取数据库文件路径
+    /// Get database file path
     fn get_db_path(&self) -> &str;
 }
 
-/// 存储统计信息
+/// Storing statistical information
 #[derive(Debug, Clone)]
 pub struct StorageStats {
     pub total_vertices: usize,

@@ -288,7 +288,7 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         let db = Arc::new(Database::create(db_path).expect("创建数据库应该成功"));
 
-        // 初始化所需的表
+        // Initialize the required tables
         let write_txn = db.begin_write().expect("开始写事务应该成功");
         {
             let _ = write_txn
@@ -315,13 +315,13 @@ mod tests {
         let (manager, _temp_dir) = create_test_manager();
         let space_id = 1;
 
-        // 初始版本为 0
+        // The initial version is 0
         let version = manager
             .get_schema_version(space_id)
             .expect("获取schema版本应该成功");
         assert_eq!(version, 0);
 
-        // 创建新版本
+        // Creating a new version
         let new_version = manager
             .create_schema_version(space_id)
             .expect("创建schema版本应该成功");
@@ -368,7 +368,7 @@ mod tests {
         assert_eq!(snapshot.space_id, space_id);
         assert_eq!(snapshot.tags.len(), 1);
 
-        // 验证版本已更新
+        // Verify that the version has been updated
         let version = manager
             .get_schema_version(space_id)
             .expect("获取schema版本应该成功");

@@ -1,16 +1,16 @@
-//! 谓词下推 - 支持将过滤条件下推到存储层
+//! Predicate pushdown – Supports the pushing of filtering conditions down to the storage layer.
 //!
-//! 提供谓词表达式和下推优化：
-//! - Predicate: 谓词 trait
-//! - Expression: 表达式类型
-//! - SimplePredicate: 简单谓词实现
-//! - PredicateOptimizer: 谓词优化器
+//! Provide predicate expressions and push-down optimization techniques:
+//! Predicate: Verb phrase or noun phrase that describes the characteristics or properties of something
+//! Type of expression
+//! SimplePredicate: Implementation of a simple predicate
+//! PredicateOptimizer: A predicate optimizer
 //!
-//! 使用 PredicateEnum 实现静态分发，避免 Box<dyn Predicate> 的动态分发开销
+//! Implement static distribution using PredicateEnum to avoid the overhead associated with the dynamic distribution of Box<dyn Predicate>.
 
 use crate::core::Value;
 
-/// 比较操作符
+/// Comparison operator
 #[derive(Debug, Clone, PartialEq)]
 pub enum CompareOp {
     Equal,
@@ -26,7 +26,7 @@ pub enum CompareOp {
     IsNotNull,
 }
 
-/// 逻辑操作符
+/// Logical operators
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogicalOp {
     And,
@@ -34,7 +34,7 @@ pub enum LogicalOp {
     Not,
 }
 
-/// 二元表达式
+/// Binary expression
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOp {
     Add,
@@ -44,39 +44,39 @@ pub enum BinaryOp {
     Mod,
 }
 
-/// 一元表达式
+/// Monomial expression
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOp {
     Neg,
     Not,
 }
 
-/// 表达式类型
+/// Expression type
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// 字面量值
+    /// Literal values
     Literal(Value),
-    /// 列引用
+    /// List of references
     Column(String),
-    /// 参数引用
+    /// Parameter reference
     Parameter(usize),
-    /// 二元运算
+    /// Binary operation
     Binary {
         op: BinaryOp,
         left: Box<Expression>,
         right: Box<Expression>,
     },
-    /// 一元运算
+    /// Unary operation
     Unary { op: UnaryOp, expr: Box<Expression> },
-    /// 函数调用
+    /// Function call
     Function { name: String, args: Vec<Expression> },
-    /// 聚合函数
+    /// Aggregate functions
     Aggregate {
         func: String,
         expr: Box<Expression>,
         distinct: bool,
     },
-    /// 条件表达式
+    /// Conditional expressions
     Case {
         cond: Box<Expression>,
         then_expr: Box<Expression>,
@@ -115,17 +115,17 @@ impl Expression {
     }
 }
 
-/// 谓词枚举 - 使用静态分发替代 Box<dyn Predicate>
+/// Predicate enumeration: Using static distribution in place of `Box<dyn Predicate>`
 #[derive(Debug, Clone, PartialEq)]
 pub enum PredicateEnum {
-    /// 简单谓词
+    /// simple predicate
     Simple(SimplePredicate),
-    /// 组合谓词
+    /// Composite predicate
     Compound(CompoundPredicate),
 }
 
 impl PredicateEnum {
-    /// 评估谓词
+    /// Evaluating predicates
     pub fn evaluate(&self, row: &[Value]) -> bool {
         match self {
             PredicateEnum::Simple(p) => p.evaluate(row),
@@ -133,7 +133,7 @@ impl PredicateEnum {
         }
     }
 
-    /// 转换为表达式
+    /// Translate the following text into an expression:
     pub fn to_expression(&self) -> Expression {
         match self {
             PredicateEnum::Simple(p) => p.to_expression(),
@@ -141,7 +141,7 @@ impl PredicateEnum {
         }
     }
 
-    /// 是否可以下推
+    /// Is it possible to push it down?
     pub fn can_pushdown(&self) -> bool {
         match self {
             PredicateEnum::Simple(p) => p.can_pushdown(),
@@ -149,7 +149,7 @@ impl PredicateEnum {
         }
     }
 
-    /// 获取下推成本
+    /// Obtain the cost of push notifications
     pub fn pushdown_cost(&self) -> f64 {
         match self {
             PredicateEnum::Simple(p) => p.pushdown_cost(),
@@ -157,22 +157,22 @@ impl PredicateEnum {
         }
     }
 
-    /// 创建新的简单谓词
+    /// Create a new simple predicate.
     pub fn simple(column: &str, op: CompareOp, value: Value) -> Self {
         PredicateEnum::Simple(SimplePredicate::new(column, op, value))
     }
 
-    /// 创建 AND 组合谓词
+    /// Creating an AND-combined predicate
     pub fn and(predicates: Vec<PredicateEnum>) -> Self {
         PredicateEnum::Compound(CompoundPredicate::and(predicates))
     }
 
-    /// 创建 OR 组合谓词
+    /// Creating an OR-combined predicate
     pub fn or(predicates: Vec<PredicateEnum>) -> Self {
         PredicateEnum::Compound(CompoundPredicate::or(predicates))
     }
 
-    /// 获取简单谓词的引用
+    /// Obtaining references for simple predicates
     pub fn as_simple(&self) -> Option<&SimplePredicate> {
         match self {
             PredicateEnum::Simple(p) => Some(p),
@@ -180,7 +180,7 @@ impl PredicateEnum {
         }
     }
 
-    /// 获取组合谓词的引用
+    /// Obtaining references for composite predicates
     pub fn as_compound(&self) -> Option<&CompoundPredicate> {
         match self {
             PredicateEnum::Compound(p) => Some(p),
@@ -189,7 +189,7 @@ impl PredicateEnum {
     }
 }
 
-/// 简单谓词 - 基于单个条件的过滤
+/// Simple predicates – Filtering based on a single condition
 #[derive(Debug, Clone, PartialEq)]
 pub struct SimplePredicate {
     column: String,
@@ -283,7 +283,7 @@ impl SimplePredicate {
     }
 }
 
-/// 组合谓词 - 多个谓词的逻辑组合
+/// Composite predicates – The logical combination of multiple predicates
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompoundPredicate {
     op: LogicalOp,
@@ -349,7 +349,7 @@ impl CompoundPredicate {
     }
 }
 
-/// 谓词下推优化器
+/// Predicate Pushdown Optimizer
 #[derive(Debug, Default)]
 pub struct PredicateOptimizer {
     pushdown_candidates: Vec<PredicateEnum>,
@@ -402,7 +402,7 @@ impl PredicateOptimizer {
     }
 }
 
-/// 谓词下推结果
+/// Predicate evaluation result
 #[derive(Debug, Clone)]
 pub struct PushdownResult {
     pub pushed_predicates: Vec<PredicateEnum>,

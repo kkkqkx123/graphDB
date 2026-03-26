@@ -1,8 +1,8 @@
-//! 索引数据管理器
+//! Index Data Manager
 //!
-//! 提供索引数据的更新、删除和查询功能
-//! 注意：索引元数据管理由 IndexMetadataManager 负责
-//! 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
+//! Provide update, delete and query functions for indexed data
+//! The management of index metadata is handled by the IndexMetadataManager.
+//! All operations identify a space by its space_id, enabling multi-space data segregation.
 
 use crate::core::types::Index;
 use crate::core::vertex_edge_path::Tag;
@@ -16,17 +16,17 @@ use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
 use redb::Database;
 use std::sync::Arc;
 
-/// 索引键类型标记
+/// Index key type identifier
 pub use crate::storage::index::index_key_codec::{
     KEY_TYPE_EDGE_FORWARD, KEY_TYPE_EDGE_REVERSE, KEY_TYPE_VERTEX_FORWARD, KEY_TYPE_VERTEX_REVERSE,
 };
 
-/// 索引数据管理器 trait
+/// Indexed Data Manager trait
 ///
-/// 提供索引数据的增删改查功能
-/// 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
+/// Provide functions for adding, deleting, modifying, and querying index data.
+/// All operations identify a space by its space_id, enabling multi-space data segregation.
 pub trait IndexDataManager {
-    /// 更新顶点索引
+    /// Update the vertex index
     fn update_vertex_indexes(
         &self,
         space_id: u64,
@@ -34,7 +34,7 @@ pub trait IndexDataManager {
         index_name: &str,
         props: &[(String, Value)],
     ) -> Result<(), StorageError>;
-    /// 更新边索引
+    /// Updating the side index
     fn update_edge_indexes(
         &self,
         space_id: u64,
@@ -43,9 +43,9 @@ pub trait IndexDataManager {
         index_name: &str,
         props: &[(String, Value)],
     ) -> Result<(), StorageError>;
-    /// 删除顶点所有索引
+    /// Remove all indexes from the vertex.
     fn delete_vertex_indexes(&self, space_id: u64, vertex_id: &Value) -> Result<(), StorageError>;
-    /// 删除边所有索引
+    /// Delete all indexes on side
     fn delete_edge_indexes(
         &self,
         space_id: u64,
@@ -53,39 +53,39 @@ pub trait IndexDataManager {
         dst: &Value,
         index_names: &[String],
     ) -> Result<(), StorageError>;
-    /// 查找标签索引
+    /// Search for the tag index.
     fn lookup_tag_index(
         &self,
         space_id: u64,
         index: &Index,
         value: &Value,
     ) -> Result<Vec<Value>, StorageError>;
-    /// 查找边索引
+    /// Find Side Index
     fn lookup_edge_index(
         &self,
         space_id: u64,
         index: &Index,
         value: &Value,
     ) -> Result<Vec<Value>, StorageError>;
-    /// 清空边索引
+    /// Clear the edge index.
     fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError>;
-    /// 构建边索引条目
+    /// Constructing side index entries
     fn build_edge_index_entry(
         &self,
         space_id: u64,
         index: &Index,
         edge: &Edge,
     ) -> Result<(), StorageError>;
-    /// 删除指定标签的索引
+    /// Delete the index containing the specified tags.
     fn delete_tag_indexes(
         &self,
         space_id: u64,
         vertex_id: &Value,
         tag_name: &str,
     ) -> Result<(), StorageError>;
-    /// 清空标签索引
+    /// Clearing the tag index
     fn clear_tag_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError>;
-    /// 构建顶点索引条目
+    /// Constructing vertex index entries
     fn build_vertex_index_entry(
         &self,
         space_id: u64,
@@ -95,7 +95,7 @@ pub trait IndexDataManager {
     ) -> Result<(), StorageError>;
 }
 
-/// 基于 Redb 的索引数据管理器实现
+/// Redb-based Indexed Data Manager Implementation
 #[derive(Clone)]
 pub struct RedbIndexDataManager {
     db: Arc<Database>,
@@ -114,17 +114,17 @@ impl RedbIndexDataManager {
         }
     }
 
-    /// 序列化值（向后兼容）
+    /// Serialized values (for backward compatibility)
     pub fn serialize_value(value: &Value) -> Result<Vec<u8>, StorageError> {
         IndexKeyCodec::serialize_value(value)
     }
 
-    /// 反序列化值（向后兼容）
+    /// Deserialized values (backward compatible)
     pub fn deserialize_value(data: &[u8]) -> Result<Value, StorageError> {
         IndexKeyCodec::deserialize_value(data)
     }
 
-    /// 构建顶点正向索引键（向后兼容）
+    /// Constructing a forward-index key for vertices (backward compatible)
     pub fn build_vertex_index_key(
         space_id: u64,
         index_name: &str,
@@ -134,17 +134,17 @@ impl RedbIndexDataManager {
         IndexKeyCodec::build_vertex_index_key(space_id, index_name, prop_value, vertex_id)
     }
 
-    /// 构建顶点正向索引键前缀（向后兼容）
+    /// Construct vertex forward index key prefixes (backward compatible)
     pub fn build_vertex_index_prefix(space_id: u64, index_name: &str) -> ByteKey {
         IndexKeyCodec::build_vertex_index_prefix(space_id, index_name)
     }
 
-    /// 从顶点正向索引键中解析 vertex_id（向后兼容）
+    /// Parse the `vertex_id` from the positive index keys at the vertex (backward compatible).
     pub fn parse_vertex_id_from_key(key_bytes: &[u8]) -> Result<Value, StorageError> {
         IndexKeyCodec::parse_vertex_id_from_key(key_bytes)
     }
 
-    /// 构建顶点反向索引键（向后兼容）
+    /// Construct vertex reverse index keys (backward compatible)
     pub fn build_vertex_reverse_key(
         space_id: u64,
         index_name: &str,
@@ -153,17 +153,17 @@ impl RedbIndexDataManager {
         IndexKeyCodec::build_vertex_reverse_key(space_id, index_name, vertex_id)
     }
 
-    /// 构建顶点反向索引键前缀（向后兼容）
+    /// Constructing a prefix for the vertex reverse index key (backward compatibility)
     pub fn build_vertex_reverse_prefix(space_id: u64) -> ByteKey {
         IndexKeyCodec::build_vertex_reverse_prefix(space_id)
     }
 
-    /// 解析顶点反向索引键（向后兼容）
+    /// Resolve vertex reverse index keys (backward compatible)
     pub fn parse_vertex_reverse_key(key_bytes: &[u8]) -> Result<(String, Vec<u8>), StorageError> {
         IndexKeyCodec::parse_vertex_reverse_key(key_bytes)
     }
 
-    /// 构建边正向索引键（向后兼容）
+    /// Constructing edge forward index keys (backward compatible)
     pub fn build_edge_index_key(
         space_id: u64,
         index_name: &str,
@@ -174,12 +174,12 @@ impl RedbIndexDataManager {
         IndexKeyCodec::build_edge_index_key(space_id, index_name, prop_value, src, dst)
     }
 
-    /// 构建边正向索引键前缀（向后兼容）
+    /// Constructed edge forward index key prefix (backward compatible)
     pub fn build_edge_index_prefix(space_id: u64, index_name: &str) -> ByteKey {
         IndexKeyCodec::build_edge_index_prefix(space_id, index_name)
     }
 
-    /// 构建边反向索引键（向后兼容）
+    /// Constructing edge reverse index keys (backward compatible)
     pub fn build_edge_reverse_key(
         space_id: u64,
         index_name: &str,
@@ -188,17 +188,17 @@ impl RedbIndexDataManager {
         IndexKeyCodec::build_edge_reverse_key(space_id, index_name, src)
     }
 
-    /// 构建边反向索引键前缀（向后兼容）
+    /// Constructed Edge Reverse Index Key Prefixes (Backwards Compatible)
     pub fn build_edge_reverse_prefix(space_id: u64) -> ByteKey {
         IndexKeyCodec::build_edge_reverse_prefix(space_id)
     }
 
-    /// 构建范围查询的结束键（向后兼容）
+    /// End key for constructing range queries (backward compatibility)
     pub fn build_range_end(prefix: &ByteKey) -> ByteKey {
         IndexKeyCodec::build_range_end(prefix)
     }
 
-    /// 解析边反向索引键（向后兼容）
+    /// Parse side reverse index key (backward compatible)
     pub fn parse_edge_reverse_key(key_bytes: &[u8]) -> Result<(String, Vec<u8>), StorageError> {
         IndexKeyCodec::parse_edge_reverse_key(key_bytes)
     }

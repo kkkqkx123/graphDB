@@ -33,10 +33,10 @@ pub use crate::core::StorageResult;
 #[cfg(test)]
 pub use test_mock::*;
 
-// 导出数据编码相关类型
+// Types related to data export encoding
 pub use schema::Schema;
 pub use types::{ColumnDef, FieldDef, FieldType};
 pub use types::{InsertEdgeInfo, InsertVertexInfo, UpdateInfo, UpdateOp, UpdateTarget};
 
-// 导出运行时上下文类型
+// Export the runtime context type.
 pub use runtime_context::{PlanContext, RuntimeContext, StorageEnv};

@@ -1,15 +1,15 @@
-//! 存储迭代器 - 提供与存储引擎交互的迭代接口
+//! Storage Iterator - provides an iterative interface for interacting with the storage engine
 //!
-//! 提供：
-//! - StorageIterator: 存储引擎迭代器接口
-//! - VecPairIterator: 简单的 KV 对迭代器
-//! - IterStats: 迭代器统计信息
-//! - IterConfig: 迭代器配置
+//! Offer:
+//! - StorageIterator: Storage Engine Iterator Interface
+//! - VecPairIterator: Simple KV Pair Iterator
+//! - IterStats: Iterator statistics
+//! - IterConfig: Iterator Configuration
 
 use crate::core::StorageError;
 
-/// 存储引擎迭代器接口
-/// 用于底层KV存储的迭代操作
+/// Storage Engine Iterator Interface
+/// Iterative operations for the underlying KV store
 pub trait StorageIterator: Send {
     fn key(&self) -> Option<&[u8]>;
     fn value(&self) -> Option<&[u8]>;
@@ -17,7 +17,7 @@ pub trait StorageIterator: Send {
     fn estimate_remaining(&self) -> Option<usize>;
 }
 
-/// 迭代器错误类型
+/// Iterator error types
 #[derive(Debug, Clone, PartialEq)]
 pub enum IterError {
     InvalidState(String),
@@ -45,7 +45,7 @@ impl From<IterError> for StorageError {
     }
 }
 
-/// 迭代器统计信息
+/// Iterator statistics
 #[derive(Debug, Clone, Default)]
 pub struct IterStats {
     pub items_scanned: u64,
@@ -81,7 +81,7 @@ impl IterStats {
     }
 }
 
-/// 迭代器配置
+/// Iterator Configuration
 #[derive(Debug, Clone)]
 pub struct IterConfig {
     pub prefetch_size: usize,

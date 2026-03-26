@@ -252,7 +252,7 @@ impl RedbWriter {
             Ok(())
         })?;
 
-        // 数据操作成功后，记录所有操作日志
+        // After the data operation was successful, all operation logs were recorded.
         for (i, id) in ids.iter().enumerate() {
             let log = OperationLog::InsertVertex {
                 space: "default".to_string(),
@@ -262,7 +262,7 @@ impl RedbWriter {
             operation_logs.push(log);
         }
 
-        // 批量记录操作日志（确保原子性）
+        // Batch logging of operation logs (ensuring atomicity)
         if let Some(ctx) = &self.txn_context {
             ctx.add_operation_logs(operation_logs);
         }
@@ -467,7 +467,7 @@ impl RedbWriter {
             Ok(())
         })?;
 
-        // 数据操作成功后，记录所有操作日志
+        // After the data operation was successful, all operation logs were recorded.
         for (i, edge_key) in edge_keys.iter().enumerate() {
             let log = OperationLog::InsertEdge {
                 space: "default".to_string(),
@@ -477,7 +477,7 @@ impl RedbWriter {
             operation_logs.push(log);
         }
 
-        // 批量记录操作日志（确保原子性）
+        // Batch logging of operation logs (ensuring atomicity)
         if let Some(ctx) = &self.txn_context {
             ctx.add_operation_logs(operation_logs);
         }

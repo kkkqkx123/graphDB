@@ -5,28 +5,28 @@
 
 use std::fmt;
 
-/// Query execution status – Top-level execution process status
-///
-/// Indicates the lifecycle status of the entire query execution, which is used for query process management.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum QueryExecutionState {
-    /// The query has been created and is waiting to be executed.
-    #[default]
-    Pending,
-    /// The query is currently being executed.
-    Running,
-    /// The query execution has been completed.
-    Completed,
-    /// The query execution failed.
-    Failed,
-    /// The query has been cancelled.
-    Cancelled,
-    /// Query execution timed out.
-    Timeout,
-}
+/// Query execution status - Top-level execution process status
+    ///
+    /// Indicates the lifecycle status of the entire query execution, which is used for query process management.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+    pub enum QueryExecutionState {
+        /// The query has been created and is waiting to be executed.
+        #[default]
+        Pending,
+        /// The query is currently being executed.
+        Running,
+        /// The query execution has been completed.
+        Completed,
+        /// The query execution failed.
+        Failed,
+        /// The query has been cancelled.
+        Cancelled,
+        /// Query execution timed out.
+        Timeout,
+    }
 
 impl QueryExecutionState {
-    /// Check whether the status is final.
+    /// Check whether the status is terminal.
     pub fn is_terminal(&self) -> bool {
         matches!(
             self,
@@ -45,15 +45,15 @@ impl QueryExecutionState {
         )
     }
 
-    /// Obtain the Chinese description of the status.
+    /// Get the English description of the status.
     pub fn description(&self) -> &'static str {
         match self {
-            QueryExecutionState::Pending => "等待执行",
-            QueryExecutionState::Running => "执行中",
-            QueryExecutionState::Completed => "已完成",
-            QueryExecutionState::Failed => "执行失败",
-            QueryExecutionState::Cancelled => "已取消",
-            QueryExecutionState::Timeout => "执行超时",
+            QueryExecutionState::Pending => "Pending",
+            QueryExecutionState::Running => "Running",
+            QueryExecutionState::Completed => "Completed",
+            QueryExecutionState::Failed => "Failed",
+            QueryExecutionState::Cancelled => "Cancelled",
+            QueryExecutionState::Timeout => "Timeout",
         }
     }
 }
@@ -64,7 +64,7 @@ impl fmt::Display for QueryExecutionState {
     }
 }
 
-/// Actuator Status – The operating status of a single actuator
+/// Executor State - The operating status of a single executor
 ///
 /// Indicates the execution status of a single executor instance, which is used for the management of the executor's lifecycle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -72,13 +72,13 @@ pub enum ExecutorState {
     /// The executor has been created, but the execution has not yet begun.
     #[default]
     Initialized,
-    /// The actuator is currently in operation (i.e., it is performing its intended function).
+    /// The executor is currently in operation (i.e., it is performing its intended function).
     Executing,
-    /// The actuator has completed its execution.
+    /// The executor has completed its execution.
     Completed,
-    /// The execution of the actuator failed.
+    /// The execution of the executor failed.
     Failed,
-    /// The actuator has been canceled.
+    /// The executor has been cancelled.
     Cancelled,
     /// The executor has been paused (for breakpoint debugging purposes).
     Paused,
@@ -88,7 +88,7 @@ impl ExecutorState {
     /// Check whether the current status allows the transition to the target status.
     pub fn can_transition_to(&self, target: ExecutorState) -> bool {
         match (self, target) {
-            // The initial state can be changed to either “Executing”, “Failed”, or “Canceled”.
+            // The initial state can be changed to either "Executing", "Failed", or "Cancelled".
             (ExecutorState::Initialized, ExecutorState::Executing) => true,
             (ExecutorState::Initialized, ExecutorState::Failed) => true,
             (ExecutorState::Initialized, ExecutorState::Cancelled) => true,
@@ -109,15 +109,15 @@ impl ExecutorState {
         }
     }
 
-    /// 获取状态的中文描述
+    /// Get the English description of the status.
     pub fn description(&self) -> &'static str {
         match self {
-            ExecutorState::Initialized => "已初始化",
-            ExecutorState::Executing => "执行中",
-            ExecutorState::Completed => "已完成",
-            ExecutorState::Failed => "执行失败",
-            ExecutorState::Cancelled => "已取消",
-            ExecutorState::Paused => "已暂停",
+            ExecutorState::Initialized => "Initialized",
+            ExecutorState::Executing => "Executing",
+            ExecutorState::Completed => "Completed",
+            ExecutorState::Failed => "Failed",
+            ExecutorState::Cancelled => "Cancelled",
+            ExecutorState::Paused => "Paused",
         }
     }
 }
@@ -165,17 +165,17 @@ impl LoopExecutionState {
         )
     }
 
-    /// 获取状态的中文描述
+    /// Get the English description of the status.
     pub fn description(&self) -> String {
         match self {
-            LoopExecutionState::NotStarted => "未开始".to_string(),
+            LoopExecutionState::NotStarted => "Not Started".to_string(),
             LoopExecutionState::Running { iteration } => {
-                format!("执行中 (第 {} 次迭代)", iteration)
+                format!("Running (iteration {})", iteration)
             }
-            LoopExecutionState::Finished => "已完成".to_string(),
-            LoopExecutionState::Error(msg) => format!("错误: {}", msg),
+            LoopExecutionState::Finished => "Finished".to_string(),
+            LoopExecutionState::Error(msg) => format!("Error: {}", msg),
             LoopExecutionState::MaxIterationsReached { max } => {
-                format!("达到最大迭代次数 ({})", max)
+                format!("Max iterations reached ({})", max)
             }
         }
     }
@@ -252,15 +252,15 @@ pub enum OptimizationState {
 }
 
 impl OptimizationState {
-    /// Chinese description of the acquisition phase
+    /// Get the English description of the phase.
     pub fn description(&self) -> &'static str {
         match self {
-            OptimizationState::NotStarted => "未开始",
-            OptimizationState::Rewriting => "重写阶段",
-            OptimizationState::LogicalOptimizing => "逻辑优化",
-            OptimizationState::PhysicalOptimizing => "物理优化",
-            OptimizationState::Completed => "优化完成",
-            OptimizationState::Failed => "优化失败",
+            OptimizationState::NotStarted => "Not Started",
+            OptimizationState::Rewriting => "Rewriting Phase",
+            OptimizationState::LogicalOptimizing => "Logical Optimizing",
+            OptimizationState::PhysicalOptimizing => "Physical Optimizing",
+            OptimizationState::Completed => "Completed",
+            OptimizationState::Failed => "Failed",
         }
     }
 
@@ -298,13 +298,13 @@ pub enum OptimizationPhase {
 }
 
 impl OptimizationPhase {
-    /// 获取阶段的中文描述
+    /// Get the English description of the phase.
     pub fn description(&self) -> &'static str {
         match self {
-            OptimizationPhase::Rewrite => "重写阶段",
-            OptimizationPhase::Logical => "逻辑优化",
-            OptimizationPhase::Physical => "物理优化",
-            OptimizationPhase::Unknown => "未知阶段",
+            OptimizationPhase::Rewrite => "Rewrite Phase",
+            OptimizationPhase::Logical => "Logical Optimizing",
+            OptimizationPhase::Physical => "Physical Optimizing",
+            OptimizationPhase::Unknown => "Unknown Phase",
         }
     }
 

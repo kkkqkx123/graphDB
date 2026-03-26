@@ -1,6 +1,6 @@
-//! 顶点索引管理模块
+//! Vertex Index Management Module
 //!
-//! 提供顶点索引的更新、删除和查询功能
+//! Provide functions for updating, deleting, and querying vertex indices.
 
 use crate::core::types::Index;
 use crate::core::{StorageError, Value};
@@ -9,19 +9,19 @@ use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
-/// 顶点索引管理器
+/// Vertex Index Manager
 #[derive(Clone)]
 pub struct VertexIndexManager {
     db: Arc<Database>,
 }
 
 impl VertexIndexManager {
-    /// 创建新的顶点索引管理器
+    /// Create a new vertex index manager.
     pub fn new(db: Arc<Database>) -> Self {
         Self { db }
     }
 
-    /// 更新顶点索引
+    /// Update the vertex index
     pub fn update_vertex_indexes(
         &self,
         space_id: u64,
@@ -64,7 +64,7 @@ impl VertexIndexManager {
         Ok(())
     }
 
-    /// 删除顶点所有索引
+    /// Remove all indexes from the vertex.
     pub fn delete_vertex_indexes(
         &self,
         space_id: u64,
@@ -168,7 +168,7 @@ impl VertexIndexManager {
         Ok(())
     }
 
-    /// 删除指定标签的索引
+    /// Delete the index of the specified tag.
     pub fn delete_tag_indexes(
         &self,
         space_id: u64,
@@ -221,7 +221,7 @@ impl VertexIndexManager {
         Ok(())
     }
 
-    /// 清空标签索引
+    /// Clear the tag index.
     pub fn clear_tag_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
         let txn = self
             .db
@@ -260,7 +260,7 @@ impl VertexIndexManager {
         Ok(())
     }
 
-    /// 查找标签索引
+    /// Search for the tag index.
     pub fn lookup_tag_index(
         &self,
         space_id: u64,

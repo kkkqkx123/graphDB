@@ -1,35 +1,35 @@
-//! 索引键编解码模块
+//! Index key encoding/decoding module
 //!
-//! 提供索引键的构建、解析和序列化功能
-//! 支持顶点和边的正向/反向索引键格式
+//! Provide functions for the construction, parsing, and serialization of index keys.
+//! Support for both forward and reverse indexing key formats for vertices and edges.
 
 use crate::core::{StorageError, Value};
 use crate::storage::redb_types::ByteKey;
 use bincode::{config::standard, decode_from_slice, encode_to_vec};
 
-/// 索引键类型标记
+/// Index key type identifier
 pub const KEY_TYPE_VERTEX_REVERSE: u8 = 0x01;
 pub const KEY_TYPE_EDGE_REVERSE: u8 = 0x02;
 pub const KEY_TYPE_VERTEX_FORWARD: u8 = 0x03;
 pub const KEY_TYPE_EDGE_FORWARD: u8 = 0x04;
 
-/// 索引键编解码器
+/// Index key encoder/decoder
 pub struct IndexKeyCodec;
 
 impl IndexKeyCodec {
-    /// 序列化值
+    /// Serialized value
     pub fn serialize_value(value: &Value) -> Result<Vec<u8>, StorageError> {
         encode_to_vec(value, standard()).map_err(|e| StorageError::SerializeError(e.to_string()))
     }
 
-    /// 反序列化值
+    /// Deserialized value
     pub fn deserialize_value(data: &[u8]) -> Result<Value, StorageError> {
         decode_from_slice(data, standard())
             .map(|(v, _)| v)
             .map_err(|e| StorageError::DeserializeError(e.to_string()))
     }
 
-    /// 构建顶点正向索引键
+    /// Constructing a vertex forward index key
     /// 格式: [space_id: u64] [type: u8=0x03] [index_name_len: u32] [index_name] [prop_value_len: u32] [prop_value] [vertex_id_len: u32] [vertex_id]
     pub fn build_vertex_index_key(
         space_id: u64,
@@ -53,7 +53,7 @@ impl IndexKeyCodec {
         Ok(ByteKey(key))
     }
 
-    /// 构建顶点正向索引键前缀（用于范围查询）
+    /// Constructing a prefix for the vertex forward index keys (used for range queries)
     pub fn build_vertex_index_prefix(space_id: u64, index_name: &str) -> ByteKey {
         let mut key = Vec::new();
         key.extend_from_slice(&space_id.to_le_bytes());
@@ -63,7 +63,7 @@ impl IndexKeyCodec {
         ByteKey(key)
     }
 
-    /// 从顶点正向索引键中解析 vertex_id
+    /// Parse the `vertex_id` from the vertex index key in a forward direction, starting from the top.
     pub fn parse_vertex_id_from_key(key_bytes: &[u8]) -> Result<Value, StorageError> {
         let mut pos = 9;
 
@@ -101,7 +101,7 @@ impl IndexKeyCodec {
         Self::deserialize_value(vertex_id_bytes)
     }
 
-    /// 构建顶点反向索引键
+    /// Constructing a reverse index key for vertices
     /// 格式: [space_id: u64] [type: u8=0x01] [index_name_len: u32] [index_name] [vertex_id_len: u32] [vertex_id]
     pub fn build_vertex_reverse_key(
         space_id: u64,
@@ -121,7 +121,7 @@ impl IndexKeyCodec {
         Ok(ByteKey(key))
     }
 
-    /// 构建顶点反向索引键前缀
+    /// Constructing a prefix for the vertex reverse index key
     pub fn build_vertex_reverse_prefix(space_id: u64) -> ByteKey {
         let mut key = Vec::new();
         key.extend_from_slice(&space_id.to_le_bytes());
@@ -129,7 +129,7 @@ impl IndexKeyCodec {
         ByteKey(key)
     }
 
-    /// 解析顶点反向索引键
+    /// Analyzing the reverse index keys of the vertices
     pub fn parse_vertex_reverse_key(key_bytes: &[u8]) -> Result<(String, Vec<u8>), StorageError> {
         if key_bytes.len() < 9 {
             return Err(StorageError::DbError(
@@ -176,7 +176,7 @@ impl IndexKeyCodec {
         Ok((index_name, vertex_id_bytes))
     }
 
-    /// 构建边正向索引键
+    /// Constructing a forward index key for edges
     /// 格式: [space_id: u64] [type: u8=0x04] [index_name_len: u32] [index_name] [prop_value_len: u32] [prop_value] [src_len: u32] [src] [dst_len: u32] [dst]
     pub fn build_edge_index_key(
         space_id: u64,
@@ -204,7 +204,7 @@ impl IndexKeyCodec {
         Ok(ByteKey(key))
     }
 
-    /// 构建边正向索引键前缀
+    /// Constructing a prefix for the edge forward index key
     pub fn build_edge_index_prefix(space_id: u64, index_name: &str) -> ByteKey {
         let mut key = Vec::new();
         key.extend_from_slice(&space_id.to_le_bytes());
@@ -214,7 +214,7 @@ impl IndexKeyCodec {
         ByteKey(key)
     }
 
-    /// 构建边反向索引键
+    /// Constructing a reverse index key for edges
     /// 格式: [space_id: u64] [type: u8=0x02] [index_name_len: u32] [index_name] [src_len: u32] [src]
     pub fn build_edge_reverse_key(
         space_id: u64,
@@ -234,7 +234,7 @@ impl IndexKeyCodec {
         Ok(ByteKey(key))
     }
 
-    /// 构建边反向索引键前缀
+    /// Constructing a prefix for the reverse index key of an edge
     pub fn build_edge_reverse_prefix(space_id: u64) -> ByteKey {
         let mut key = Vec::new();
         key.extend_from_slice(&space_id.to_le_bytes());
@@ -242,7 +242,7 @@ impl IndexKeyCodec {
         ByteKey(key)
     }
 
-    /// 构建范围查询的结束键（前缀的下一个值）
+    /// The end key for constructing a range query (the value that follows the prefix)
     pub fn build_range_end(prefix: &ByteKey) -> ByteKey {
         let mut end = prefix.0.clone();
         for i in (0..end.len()).rev() {
@@ -256,7 +256,7 @@ impl IndexKeyCodec {
         ByteKey(end)
     }
 
-    /// 解析边反向索引键
+    /// Analyzing the reverse index keys on the edges
     pub fn parse_edge_reverse_key(key_bytes: &[u8]) -> Result<(String, Vec<u8>), StorageError> {
         if key_bytes.len() < 9 {
             return Err(StorageError::DbError(

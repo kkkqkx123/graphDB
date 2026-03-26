@@ -4,9 +4,9 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// 用户存储管理器
+/// User Storage Manager
 ///
-/// 负责管理用户账户的创建、修改、删除以及角色授权
+/// Responsible for managing the creation, modification, and deletion of user accounts, as well as the authorization of user roles.
 #[derive(Clone)]
 pub struct UserStorage {
     users: Arc<Mutex<HashMap<String, UserInfo>>>,
@@ -27,14 +27,14 @@ impl Default for UserStorage {
 }
 
 impl UserStorage {
-    /// 创建新的用户存储实例
+    /// Create a new user storage instance.
     pub fn new() -> Self {
         Self {
             users: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    /// 修改用户密码
+    /// Change the user password
     pub fn change_password(&self, info: &PasswordInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock();
         let username = info
@@ -49,7 +49,7 @@ impl UserStorage {
         }
     }
 
-    /// 创建新用户
+    /// Create a new user.
     pub fn create_user(&self, info: &UserInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock();
         if users.contains_key(&info.username) {
@@ -62,15 +62,15 @@ impl UserStorage {
         Ok(true)
     }
 
-    /// 修改用户信息
+    /// Modify user information
     pub fn alter_user(&self, info: &UserAlterInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock();
         if let Some(user) = users.get_mut(&info.username) {
-            // 修改锁定状态
+            // Change the lock status
             if let Some(is_locked) = info.is_locked {
                 user.is_locked = is_locked;
             }
-            // 修改资源限制
+            // Modify the resource restrictions
             if let Some(limit) = info.max_queries_per_hour {
                 user.max_queries_per_hour = limit;
             }
@@ -92,24 +92,24 @@ impl UserStorage {
         }
     }
 
-    /// 删除用户
+    /// Delete the user
     pub fn drop_user(&self, username: &str) -> Result<bool, StorageError> {
         let mut users = self.users.lock();
         users.remove(username);
         Ok(true)
     }
 
-    /// 获取用户信息
+    /// Obtaining user information
     pub fn get_user(&self, username: &str) -> Option<UserInfo> {
         self.users.lock().get(username).cloned()
     }
 
-    /// 检查用户是否存在
+    /// Check whether the user exists.
     pub fn user_exists(&self, username: &str) -> bool {
         self.users.lock().contains_key(username)
     }
 
-    /// 授予角色（仅做用户存在性检查，实际授权由 PermissionManager 处理）
+    /// Granting roles (only for user presence verification; the actual authorization is handled by the PermissionManager)
     pub fn grant_role(
         &self,
         username: &str,
@@ -127,7 +127,7 @@ impl UserStorage {
         }
     }
 
-    /// 撤销角色（仅做用户存在性检查，实际撤销由 PermissionManager 处理）
+    /// Revoke the role (this is only for checking the user's existence; the actual revocation is handled by the PermissionManager).
     pub fn revoke_role(&self, username: &str, _space_id: u64) -> Result<bool, StorageError> {
         let users = self.users.lock();
         if users.contains_key(username) {

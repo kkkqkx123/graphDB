@@ -1,6 +1,6 @@
-//! Redb 存储共享类型定义
+//! Redb storage sharing type definition
 //!
-//! 提供 Redb 数据库操作所需的共享类型，包括 ByteKey 和表定义
+//! Provide the shared types required for operating on the Redb database, including ByteKey and table definitions.
 
 use redb::{TableDefinition, TypeName};
 use std::cmp::Ordering as CmpOrdering;
@@ -71,13 +71,13 @@ pub const SCHEMA_CHANGES_TABLE: TableDefinition<ByteKey, ByteKey> =
 pub const CURRENT_VERSIONS_TABLE: TableDefinition<ByteKey, ByteKey> =
     TableDefinition::new("current_versions");
 
-// Tag/Edge ID 生成器表 - 用于为每个Space自动生成递增ID
+// Tag/Edge ID Generator Table – Used to automatically generate incremental IDs for each Space.
 pub const TAG_ID_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> =
     TableDefinition::new("tag_id_counters");
 pub const EDGE_TYPE_ID_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> =
     TableDefinition::new("edge_type_id_counters");
 
-// Space/Tag/Edge 名称索引表 - 用于名称到ID的映射
+// Space/Tag/Edge Name Index Table – Used for the mapping from names to IDs
 pub const SPACE_NAME_INDEX_TABLE: TableDefinition<ByteKey, ByteKey> =
     TableDefinition::new("space_name_index");
 pub const TAG_NAME_INDEX_TABLE: TableDefinition<ByteKey, ByteKey> =

@@ -1,25 +1,25 @@
-//! 操作日志回滚模块
+//! Operation Log Rollback Module
 //!
-//! 提供基于操作日志的回滚功能，支持事务保存点回滚
+//! Provide operation log based rollback function, support transaction save point rollback
 
 use crate::core::{StorageError, Value};
 use crate::storage::operations::{EdgeWriter, VertexWriter};
 use crate::transaction::types::OperationLog;
 use bincode::{config::standard, decode_from_slice};
 
-/// 操作日志上下文 trait
+/// Operation logging context trait
 ///
-/// 定义操作日志回滚所需的基本操作
+/// Define the basic operations required for operation log rollbacks
 pub trait OperationLogContext {
-    /// 获取操作日志长度
+    /// Get operation log length
     fn operation_log_len(&self) -> usize;
-    /// 截断操作日志到指定索引
+    /// Truncate operation logs to a specified index
     fn truncate_operation_log(&self, index: usize);
-    /// 获取指定索引的操作日志
+    /// Get the operation log of the specified index
     fn get_operation_log(&self, index: usize) -> Option<OperationLog>;
-    /// 获取指定范围的操作日志
+    /// Get the operation log for a specified range
     fn get_operation_logs(&self, start: usize, end: usize) -> Vec<OperationLog>;
-    /// 清空操作日志
+    /// Empty operation log
     fn clear_operation_log(&self);
 }
 
@@ -45,26 +45,26 @@ impl OperationLogContext for crate::transaction::context::TransactionContext {
     }
 }
 
-/// 回滚执行器 trait
+/// Rollback executor trait
 ///
-/// 定义如何执行单个操作的逆操作
+/// Define how to perform the inverse of a single operation
 pub trait RollbackExecutor: Send {
-    /// 执行单个操作日志的逆操作（回滚）
+    /// Perform inverse operation (rollback) of a single operation log
     ///
     /// # Arguments
-    /// * `log` - 要回滚的操作日志
+    /// * :: `log` -- log of operations to be rolled back
     ///
     /// # Returns
     /// * `Ok(())` - 回滚成功
     /// * `Err(StorageError)` - 回滚失败
     fn execute_rollback(&mut self, log: &OperationLog) -> Result<(), StorageError>;
 
-    /// 批量执行回滚操作
+    /// Batch execution of rollback operations
     ///
-    /// 按逆序执行操作日志的回滚
+    /// Performs rollback of operation logs in reverse order
     ///
     /// # Arguments
-    /// * `logs` - 要回滚的操作日志列表
+    /// * `logs` - a list of operation logs to be rolled back
     ///
     /// # Returns
     /// * `Ok(())` - 回滚成功
@@ -77,21 +77,21 @@ pub trait RollbackExecutor: Send {
     }
 }
 
-/// 组合 VertexWriter 和 EdgeWriter 的 trait
+/// Combining VertexWriter and EdgeWriter traits
 pub trait StorageWriter: VertexWriter + EdgeWriter {}
 
 impl<T> StorageWriter for T where T: VertexWriter + EdgeWriter {}
 
-/// 存储操作执行器
+/// Storage Operation Actuator
 ///
-/// 基于 StorageWriter 实现操作日志的回滚功能
+/// Operation log rollback based on StorageWriter
 pub struct StorageRollbackExecutor<'a> {
     writer: &'a mut dyn StorageWriter,
     space: String,
 }
 
 impl<'a> StorageRollbackExecutor<'a> {
-    /// 创建新的存储回滚执行器
+    /// Creating a new storage rollback executor
     pub fn new(writer: &'a mut dyn StorageWriter, space: impl Into<String>) -> Self {
         Self {
             writer,
@@ -99,14 +99,14 @@ impl<'a> StorageRollbackExecutor<'a> {
         }
     }
 
-    /// 解析顶点ID
+    /// Resolve Vertex ID
     fn parse_vertex_id(&self, bytes: &[u8]) -> Result<Value, StorageError> {
         decode_from_slice(bytes, standard())
             .map(|(v, _)| v)
             .map_err(|e| StorageError::DeserializeError(e.to_string()))
     }
 
-    /// 解析边键
+    /// (computing) resolve an edge key
     fn parse_edge_key(&self, edge_key: &[u8]) -> Result<(Value, Value, String), StorageError> {
         let key_str = String::from_utf8(edge_key.to_vec())
             .map_err(|e| StorageError::DbError(format!("无效的边键编码: {}", e)))?;
@@ -134,7 +134,7 @@ impl<'a> StorageRollbackExecutor<'a> {
         Ok((src, dst, edge_type))
     }
 
-    /// 从字符串开头解析一个 Value 的 Debug 表示
+    /// Debug representation of parsing a Value from the beginning of a string.
     fn parse_value_str<'b>(&self, s: &'b str) -> Result<(String, &'b str), StorageError> {
         if s.starts_with("Int(") {
             if let Some(end) = s.find(')') {
@@ -154,7 +154,7 @@ impl<'a> StorageRollbackExecutor<'a> {
         Ok((s.to_string(), ""))
     }
 
-    /// 解析 Value 的 Debug 格式字符串
+    /// Parsing Debug Format Strings for Value
     fn parse_value_debug(&self, s: &str) -> Result<Value, StorageError> {
         if s.starts_with("Int(") && s.ends_with(')') {
             let inner = &s[4..s.len() - 1];
@@ -253,20 +253,20 @@ impl<'a> RollbackExecutor for StorageRollbackExecutor<'a> {
     }
 }
 
-/// 操作日志回滚处理器
+/// Operation Log Rollback Processor
 ///
-/// 负责执行基于操作日志的回滚操作
+/// Responsible for performing rollback operations based on operation logs
 pub struct OperationLogRollback<'a, T: OperationLogContext> {
     ctx: &'a T,
 }
 
 impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
-    /// 创建新的回滚处理器
+    /// Creating a new rollback processor
     pub fn new(ctx: &'a T) -> Self {
         Self { ctx }
     }
 
-    /// 回滚到指定的操作日志索引
+    /// Rollback to the specified operation log index
     pub fn rollback_to_index(&self, index: usize) -> Result<(), StorageError> {
         let current_len = self.ctx.operation_log_len();
 
@@ -282,7 +282,7 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
         Ok(())
     }
 
-    /// 使用执行器回滚到指定的操作日志索引
+    /// Use the executor to roll back to a specified operation log index
     pub fn execute_rollback_to_index<E: RollbackExecutor>(
         &self,
         index: usize,
@@ -311,13 +311,13 @@ impl<'a, T: OperationLogContext> OperationLogRollback<'a, T> {
         self.ctx.operation_log_len()
     }
 
-    /// 获取所有操作日志
+    /// Get all operation logs
     pub fn get_all_logs(&self) -> Vec<OperationLog> {
         let len = self.ctx.operation_log_len();
         self.ctx.get_operation_logs(0, len)
     }
 
-    /// 清空所有操作日志
+    /// Empty all operation logs
     pub fn clear_logs(&self) {
         self.ctx.clear_operation_log();
     }
@@ -488,7 +488,7 @@ mod tests {
         let ctx = MockContext::new();
         let rollback = OperationLogRollback::new(&ctx);
 
-        // 使用有效的顶点数据创建操作日志
+        // Creating operation logs with valid vertex data
         let vertex1 = Vertex::new(
             Value::Int(1),
             vec![Tag {

@@ -1,6 +1,6 @@
-//! 边索引管理模块
+//! Border Index Management Module
 //!
-//! 提供边索引的更新、删除和查询功能
+//! Provide functions for updating, deleting, and querying edge indexes.
 
 use crate::core::types::Index;
 use crate::core::{StorageError, Value};
@@ -9,19 +9,19 @@ use crate::storage::redb_types::{ByteKey, INDEX_DATA_TABLE};
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
-/// 边索引管理器
+/// Border Index Manager
 #[derive(Clone)]
 pub struct EdgeIndexManager {
     db: Arc<Database>,
 }
 
 impl EdgeIndexManager {
-    /// 创建新的边索引管理器
+    /// Create a new edge index manager.
     pub fn new(db: Arc<Database>) -> Self {
         Self { db }
     }
 
-    /// 更新边索引
+    /// Update the edge index.
     pub fn update_edge_indexes(
         &self,
         space_id: u64,
@@ -64,7 +64,7 @@ impl EdgeIndexManager {
         Ok(())
     }
 
-    /// 删除边所有索引
+    /// Delete all indexes from the edge.
     pub fn delete_edge_indexes(
         &self,
         space_id: u64,
@@ -191,7 +191,7 @@ impl EdgeIndexManager {
         Ok(())
     }
 
-    /// 查找边索引
+    /// Search for the edge index
     pub fn lookup_edge_index(
         &self,
         space_id: u64,
@@ -257,7 +257,7 @@ impl EdgeIndexManager {
         Ok(results)
     }
 
-    /// 清空边索引
+    /// Clear the side index.
     pub fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
         let txn = self
             .db

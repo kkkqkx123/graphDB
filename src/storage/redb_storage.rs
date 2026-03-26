@@ -19,9 +19,9 @@ use redb::Database;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// Redb 存储引擎主结构体
+/// Redb Storage Engine Main Structure
 ///
-/// 作为存储层的统一入口，协调各个子模块完成具体的数据操作
+/// As a unified interface for the storage layer, it coordinates the various sub-modules to perform specific data operations.
 #[derive(Clone)]
 pub struct RedbStorage {
     reader: Arc<Mutex<RedbReader>>,
@@ -32,7 +32,7 @@ pub struct RedbStorage {
     db: Arc<Database>,
     db_path: PathBuf,
     current_txn_context: Arc<Mutex<Option<Arc<TransactionContext>>>>,
-    // 子模块
+    // submodule
     vertex_storage: VertexStorage,
     edge_storage: EdgeStorage,
     user_storage: UserStorage,
@@ -47,12 +47,12 @@ impl std::fmt::Debug for RedbStorage {
 }
 
 impl RedbStorage {
-    /// 创建默认路径的存储实例
+    /// Create a storage instance with the default path set.
     pub fn new() -> Result<Self, StorageError> {
         Self::new_with_path(PathBuf::from("data/redb"))
     }
 
-    /// 创建指定路径的存储实例
+    /// Create a storage instance at the specified path.
     pub fn new_with_path(path: PathBuf) -> Result<Self, StorageError> {
         let is_new_db = !path.exists();
 
@@ -74,7 +74,7 @@ impl RedbStorage {
             )
         };
 
-        // 只在创建新数据库时初始化表
+        // Initialize the tables only when a new database is created.
         if is_new_db {
             Self::initialize_tables(&db)?;
         }
@@ -88,7 +88,7 @@ impl RedbStorage {
 
         let index_data_manager = RedbIndexDataManager::new(db.clone());
 
-        // 创建子模块
+        // Create a sub-module
         let vertex_storage = VertexStorage::new(
             db.clone(),
             reader.clone(),
@@ -122,14 +122,14 @@ impl RedbStorage {
         })
     }
 
-    /// 初始化数据库表
+    /// Initialize the database tables
     fn initialize_tables(db: &Arc<Database>) -> Result<(), StorageError> {
         let write_txn = db
             .begin_write()
             .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
         {
             use crate::storage::redb_types::*;
-            // 索引相关表
+            // Index-related tables
             let _ = write_txn
                 .open_table(TAG_INDEXES_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开TAG_INDEXES_TABLE失败: {}", e)))?;
@@ -139,21 +139,21 @@ impl RedbStorage {
             let _ = write_txn
                 .open_table(INDEX_DATA_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开INDEX_DATA_TABLE失败: {}", e)))?;
-            // Schema相关表
+            // Schema-related tables
             let _ = write_txn
                 .open_table(TAGS_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
             let _ = write_txn
                 .open_table(EDGE_TYPES_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
-            // 数据存储表
+            // Data storage table
             let _ = write_txn
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开NODES_TABLE失败: {}", e)))?;
             let _ = write_txn
                 .open_table(EDGES_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开EDGES_TABLE失败: {}", e)))?;
-            // ID计数器表和名称索引表
+            // ID Counter Table and Name Index Table
             let _ = write_txn.open_table(TAG_ID_COUNTER_TABLE).map_err(|e| {
                 StorageError::DbError(format!("打开TAG_ID_COUNTER_TABLE失败: {}", e))
             })?;
@@ -180,22 +180,22 @@ impl RedbStorage {
         Ok(())
     }
 
-    /// 获取数据库实例
+    /// Obtain a database instance
     pub fn get_db(&self) -> &Arc<Database> {
         &self.db
     }
 
-    /// 获取读取器
+    /// Obtain the reader.
     pub fn get_reader(&self) -> &Arc<Mutex<RedbReader>> {
         &self.reader
     }
 
-    /// 获取写入器
+    /// Obtain the writer
     pub fn get_writer(&self) -> Arc<Mutex<RedbWriter>> {
         self.writer.clone()
     }
 
-    /// 设置事务上下文
+    /// Setting up the transaction context
     pub fn set_transaction_context(&self, context: Option<Arc<TransactionContext>>) {
         *self.current_txn_context.lock() = context.clone();
 
@@ -208,12 +208,12 @@ impl RedbStorage {
         }
     }
 
-    /// 获取事务上下文
+    /// Obtaining the transaction context
     pub fn get_transaction_context(&self) -> Option<Arc<TransactionContext>> {
         self.current_txn_context.lock().clone()
     }
 
-    /// 解析顶点ID
+    /// Analyzing vertex IDs
     fn parse_vertex_id(&self, vertex_id: &str) -> Result<Value, StorageError> {
         if let Ok(i) = vertex_id.parse::<i64>() {
             return Ok(Value::Int(i));
@@ -221,7 +221,7 @@ impl RedbStorage {
         Ok(Value::String(vertex_id.to_string()))
     }
 
-    /// 获取 space_id
+    /// Obtain the space_id
     fn get_space_id_internal(&self, space: &str) -> Result<u64, StorageError> {
         if let Some(space_info) = self.schema_manager.get_space(space)? {
             Ok(space_info.space_id)
@@ -235,7 +235,7 @@ impl RedbStorage {
 }
 
 impl StorageClient for RedbStorage {
-    // ==================== 顶点操作 ====================
+    // ==================== Vertex Operations ====================
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         self.vertex_storage.get_vertex(space, id)
     }
@@ -275,9 +275,9 @@ impl StorageClient for RedbStorage {
 
     fn delete_vertex_with_edges(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
         let space_id = self.get_space_id_internal(space)?;
-        // 先删除相关边
+        // First, delete the relevant edges.
         self.edge_storage.delete_vertex_edges(space, space_id, id)?;
-        // 再删除顶点
+        // Delete the vertex again.
         self.vertex_storage.delete_vertex(space, space_id, id)
     }
 
@@ -300,7 +300,7 @@ impl StorageClient for RedbStorage {
             .delete_tags(space, space_id, vertex_id, tag_names)
     }
 
-    // ==================== 边操作 ====================
+    // ==================== Side Operations ====================
     fn get_edge(
         &self,
         space: &str,
@@ -363,7 +363,7 @@ impl StorageClient for RedbStorage {
         self.edge_storage.batch_insert_edges(space, edges)
     }
 
-    // ==================== Space 操作 ====================
+    // ==================== Space Operations ====================
     fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError> {
         self.schema_manager.create_space(space)
     }
@@ -458,7 +458,7 @@ impl StorageClient for RedbStorage {
         Ok(true)
     }
 
-    // ==================== Tag 操作 ====================
+    // ==================== Tag Operations ====================
     fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<bool, StorageError> {
         self.schema_manager.create_tag(space, tag)
     }
@@ -504,7 +504,7 @@ impl StorageClient for RedbStorage {
         self.schema_manager.list_tags(space)
     }
 
-    // ==================== EdgeType 操作 ====================
+    // ==================== EdgeType Operations ====================
     fn create_edge_type(&mut self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError> {
         self.schema_manager.create_edge_type(space, edge)
     }
@@ -562,7 +562,7 @@ impl StorageClient for RedbStorage {
         self.schema_manager.list_edge_types(space)
     }
 
-    // ==================== 索引操作 ====================
+    // ==================== Index Operations ====================
     fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
         self.index_metadata_manager.create_tag_index(space_id, info)
@@ -643,17 +643,17 @@ impl StorageClient for RedbStorage {
     fn rebuild_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
         let space_id = self.get_space_id_internal(space)?;
 
-        // 获取索引信息
+        // Obtain index information
         let index_info = self
             .index_metadata_manager
             .get_edge_index(space_id, index)?
             .ok_or_else(|| StorageError::DbError(format!("索引 '{}' 不存在", index)))?;
 
-        // 删除旧索引数据
+        // Delete the old index data.
         self.index_data_manager
             .clear_edge_index(space_id, &index_info.name)?;
 
-        // 重建索引
+        // Rebuild the index
         let edges = self.edge_storage.scan_all_edges(space)?;
         for edge in edges {
             self.index_data_manager
@@ -663,7 +663,7 @@ impl StorageClient for RedbStorage {
         Ok(true)
     }
 
-    // ==================== 高级数据操作 ====================
+    // ==================== Advanced Data Operations ====================
     fn insert_vertex_data(
         &mut self,
         space: &str,
@@ -686,10 +686,10 @@ impl StorageClient for RedbStorage {
     fn delete_vertex_data(&mut self, space: &str, vertex_id: &str) -> Result<bool, StorageError> {
         let vid = self.parse_vertex_id(vertex_id)?;
         let space_id = self.get_space_id_internal(space)?;
-        // 先删除相关边
+        // First, delete the relevant edges.
         self.edge_storage
             .delete_vertex_edges(space, space_id, &vid)?;
-        // 再删除顶点
+        // Delete the vertex again.
         self.vertex_storage
             .delete_vertex_data(space, space_id, &vid)
     }
@@ -712,7 +712,7 @@ impl StorageClient for RedbStorage {
         self.vertex_storage.update_data(space, info)
     }
 
-    // ==================== 用户管理 ====================
+    // ==================== User Management ====================
     fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError> {
         self.user_storage.change_password(info)
     }
@@ -742,7 +742,7 @@ impl StorageClient for RedbStorage {
         self.user_storage.revoke_role(username, space_id)
     }
 
-    // ==================== 索引查询 ====================
+    // ==================== Index Query ====================
     fn lookup_index(
         &self,
         space: &str,
@@ -785,7 +785,7 @@ impl StorageClient for RedbStorage {
         Ok(results)
     }
 
-    // ==================== Schema 数据查询 ====================
+    // ==================== Schema Data Query ====================
     fn get_vertex_with_schema(
         &self,
         space: &str,
@@ -822,14 +822,14 @@ impl StorageClient for RedbStorage {
         self.edge_storage.scan_edges_with_schema(space, edge_type)
     }
 
-    // ==================== 存储管理 ====================
+    // ==================== Storage Management ====================
     fn load_from_disk(&mut self) -> Result<(), StorageError> {
-        // Redb 引擎自动从磁盘加载数据
+        // The Redb engine automatically loads data from the disk.
         Ok(())
     }
 
     fn save_to_disk(&self) -> Result<(), StorageError> {
-        // Redb 引擎自动将数据保存到磁盘
+        // The Redb engine automatically saves data to the disk.
         Ok(())
     }
 
@@ -872,7 +872,7 @@ impl StorageClient for RedbStorage {
         }
     }
 
-    // ==================== 悬挂边检测和修复 ====================
+    // ==================== Hanging Edge Detection and Repair ====================
     fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
         self.edge_storage.find_dangling_edges(space)
     }
@@ -882,13 +882,13 @@ impl StorageClient for RedbStorage {
         self.edge_storage.repair_dangling_edges(space, space_id)
     }
 
-    /// 获取数据库文件路径
+    /// Obtain the path to the database file.
     fn get_db_path(&self) -> &str {
         self.db_path.to_str().unwrap_or("")
     }
 }
 
-/// 默认存储类型别名
+/// Default storage type alias
 pub type DefaultStorage = RedbStorage;
 
 #[cfg(test)]
@@ -902,11 +902,11 @@ mod tests {
         let temp_dir = TempDir::new().expect("创建临时目录失败");
         let db_path = temp_dir.path().join("test_new.db");
 
-        assert!(!db_path.exists(), "数据库文件不应存在");
+        assert!(!db_path.exists(), "The database file should not exist.");
 
         let storage = RedbStorage::new_with_path(db_path.clone()).expect("创建存储应该成功");
 
-        assert!(db_path.exists(), "数据库文件应该被创建");
+        assert!(db_path.exists(), "The database files should be created.");
         assert_eq!(storage.db_path, db_path);
     }
 
@@ -920,7 +920,7 @@ mod tests {
                 RedbStorage::new_with_path(db_path.clone()).expect("第一次创建存储应该成功");
         }
 
-        assert!(db_path.exists(), "数据库文件应该存在");
+        assert!(db_path.exists(), "The database file should exist.");
 
         let storage2 = RedbStorage::new_with_path(db_path.clone()).expect("打开现有数据库应该成功");
 
@@ -936,7 +936,7 @@ mod tests {
             let _storage = RedbStorage::new_with_path(db_path.clone()).expect("创建存储应该成功");
         }
 
-        assert!(db_path.exists(), "数据库文件应该存在");
+        assert!(db_path.exists(), "The database file should exist.");
 
         let mut file = fs::File::create(&db_path).expect("打开文件失败");
         use std::io::Write;
@@ -944,33 +944,33 @@ mod tests {
 
         let result = RedbStorage::new_with_path(db_path.clone());
 
-        assert!(result.is_err(), "打开损坏的数据库应该返回错误");
+        assert!(result.is_err(), "Opening a damaged database should result in an error.");
 
         if let Err(StorageError::DbError(msg)) = result {
             assert!(
                 msg.contains("打开数据库失败"),
-                "错误信息应该包含'打开数据库失败'"
+                "The error message should state "Failed to open the database"."
             );
             assert!(
                 msg.contains(db_path.to_str().expect("路径转换为字符串失败")),
-                "错误信息应该包含数据库路径"
+                "The error message should include the path to the database."
             );
             assert!(
                 msg.contains("如需恢复，请手动删除数据库文件后重试"),
-                "错误信息应该包含恢复提示"
+                "The error message should include tips for recovery."
             );
         } else {
-            panic!("应该返回 StorageError::DbError");
+            panic!("Should return StorageError::DbError");
         }
 
-        assert!(db_path.exists(), "数据库文件不应该被自动删除");
+        assert!(db_path.exists(), "Database files should not be automatically deleted");
     }
 
     #[test]
     fn test_new_creates_in_default_path() {
         let default_path = PathBuf::from("data/redb");
-        // 注意：这个测试可能会在实际路径创建文件，视情况运行
-        // 这里仅验证结构正确性
+        // Note: this test may create files in the actual path, run as appropriate
+        // Here only the structural correctness is verified
         assert_eq!(default_path, PathBuf::from("data/redb"));
     }
 }
